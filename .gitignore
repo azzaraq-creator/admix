@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+
+# Env / secrets
+.env
+.env.local
+*.env.local
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# OMC (oh-my-claudecode 임시 디렉토리)
+.omc/
+
+# Logs
+*.log
+
+# DB dumps & seed (1회 셋업용, 큰 파일)
+*.dump
+*.sql.gz
+seed/*.sql
+seed/*.bak

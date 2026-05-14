@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ooh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ooh_recommend
+    ports:
+      - "5433:5432"   # todolist 가 5432 점유 중일 때를 가정 — 호스트 5433
+    volumes:
+      - ooh-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ooh_recommend"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: ooh-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ooh_recommend"
+    ports:
+      - "8001:8000"   # 호스트 8001 (todolist 8000 회피)
+    # macOS Docker Desktop file sharing 권한 이슈로 src bind-mount 안 함.
+    # 코드 변경 시 `docker compose up -d --build backend` 로 rebuild.
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  ooh-pgdata:
