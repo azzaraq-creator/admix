@@ -4,8 +4,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Testova.AI",
-  description: "우주 너머의 답을, 함께",
+  title: "OOH Recommend",
+  description: "옥외광고 추천서비스",
 };
 
 export default function RootLayout({
