@@ -1,0 +1,248 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Pretendard Variable", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  /* ─── Cosmos design tokens ─── */
+  --bg-void: #05060f;
+  --bg-deep: #0a0b1a;
+  --bg-elev: #11132a;
+  --bg-elev-2: #181a35;
+
+  --nebula-violet: #7c3aed;
+  --nebula-indigo: #4f46e5;
+  --nebula-cyan: #06b6d4;
+  --nebula-rose: #ec4899;
+
+  --text-primary: #f4f4ff;
+  --text-secondary: #a5a8c8;
+  --text-tertiary: #6b6e8e;
+  --text-quaternary: #4a4d6b;
+
+  --stroke-subtle: rgba(255, 255, 255, 0.06);
+  --stroke-medium: rgba(255, 255, 255, 0.1);
+  --stroke-strong: rgba(255, 255, 255, 0.18);
+
+  --surface-1: rgba(20, 22, 48, 0.55);
+  --surface-2: rgba(28, 30, 60, 0.7);
+  --surface-3: rgba(40, 42, 80, 0.85);
+
+  --accent-cosmos: #a5b4fc;
+  --accent-glow: rgba(124, 58, 237, 0.55);
+  --accent-hot: #c4b5fd;
+
+  /* ─── shadcn token mapping (cosmos dark) ─── */
+  --background: #05060f;
+  --foreground: #f4f4ff;
+  --card: rgba(20, 22, 48, 0.7);
+  --card-foreground: #f4f4ff;
+  --popover: #0a0b1a;
+  --popover-foreground: #f4f4ff;
+  --primary: #a5b4fc;
+  --primary-foreground: #1e1b4b;
+  --secondary: rgba(28, 30, 60, 0.7);
+  --secondary-foreground: #f4f4ff;
+  --muted: rgba(20, 22, 48, 0.55);
+  --muted-foreground: #a5a8c8;
+  --accent: rgba(124, 58, 237, 0.18);
+  --accent-foreground: #c4b5fd;
+  --destructive: #fca5a5;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(165, 180, 252, 0.45);
+  --radius: 0.625rem;
+
+  --sidebar: rgba(10, 11, 26, 0.7);
+  --sidebar-foreground: #f4f4ff;
+  --sidebar-primary: #a5b4fc;
+  --sidebar-primary-foreground: #1e1b4b;
+  --sidebar-accent: rgba(124, 58, 237, 0.12);
+  --sidebar-accent-foreground: #f4f4ff;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: rgba(165, 180, 252, 0.45);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    height: 100%;
+  }
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-feature-settings:
+      "ss01",
+      "cv11";
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+}
+
+/* ─────────────── Cosmic background layers ─────────────── */
+.cosmos-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cosmos-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 60% 40% at 18% 20%,
+      rgba(124, 58, 237, 0.18),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 50% 50% at 85% 78%,
+      rgba(6, 182, 212, 0.1),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 60% 50%,
+      rgba(79, 70, 229, 0.12),
+      transparent 75%
+    ),
+    linear-gradient(180deg, #05060f 0%, #08091a 50%, #050714 100%);
+}
+.cosmos-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cosmos-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(165, 180, 252, 0.02) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(165, 180, 252, 0.02) 1px, transparent 1px);
+  background-size: 100px 100px;
+  mask-image: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    black 20%,
+    transparent 95%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    black 20%,
+    transparent 95%
+  );
+}
+.cosmos-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+/* ─────────────── Scrollbar (cosmic dark) ─────────────── */
+.cosmos-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.cosmos-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+.cosmos-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ─────────────── Reusable orb ─────────────── */
+.orb {
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 30%,
+    #f4f4ff 0%,
+    #c4b5fd 28%,
+    #7c3aed 62%,
+    #1e1b4b 100%
+  );
+  box-shadow:
+    0 0 14px rgba(124, 58, 237, 0.55),
+    inset 0 0 10px rgba(255, 255, 255, 0.18);
+}
+
+/* ─────────────── Streaming caret ─────────────── */
+.stream-caret {
+  display: inline-block;
+  width: 6px;
+  height: 15px;
+  background: var(--accent-cosmos);
+  vertical-align: -2px;
+  margin-left: 2px;
+  animation: stream-caret-blink 1s steps(2) infinite;
+  border-radius: 1px;
+  opacity: 0.7;
+}
+@keyframes stream-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
