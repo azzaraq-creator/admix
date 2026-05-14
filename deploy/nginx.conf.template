@@ -1,0 +1,38 @@
+# nginx 리버스 프록시 — backend (127.0.0.1:8000) → 외부 HTTPS
+# 1) sudo cp deploy/nginx.conf.template /etc/nginx/sites-available/ooh-backend
+# 2) sed -i 's/__DOMAIN__/api.your-domain.com/g' /etc/nginx/sites-available/ooh-backend
+# 3) sudo ln -sf /etc/nginx/sites-available/ooh-backend /etc/nginx/sites-enabled/
+# 4) sudo nginx -t && sudo systemctl reload nginx
+# 5) sudo certbot --nginx -d __DOMAIN__   ← HTTPS 적용 (자동으로 443 server 블록 추가)
+
+server {
+    listen 80;
+    server_name __DOMAIN__;
+
+    # certbot challenge 용 (Let's Encrypt)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    # SSE 가 동작하려면 proxy_buffering off + 긴 read_timeout 필수
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
+        # SSE / 스트리밍 옵션
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 24h;
+        proxy_send_timeout 24h;
+        chunked_transfer_encoding on;
+
+        # 큰 payload 대비
+        client_max_body_size 10m;
+    }
+}

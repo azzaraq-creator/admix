@@ -1,0 +1,23 @@
+# 프로덕션 override
+# 사용법:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# 변경점:
+#   - postgres: 외부 포트 노출 제거 (인스턴스 내부 네트워크에서만 접근)
+#   - postgres: 비밀번호를 ${POSTGRES_PASSWORD} env 로 분리 (.env.production)
+#   - backend: 호스트 127.0.0.1 에만 바인딩 (nginx reverse proxy 만 접근)
+#   - backend: DATABASE_URL 도 ${POSTGRES_PASSWORD} 반영
+
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ooh_recommend
+    ports: !reset []
+
+  backend:
+    environment:
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/ooh_recommend"
+    ports: !override
+      - "127.0.0.1:8000:8000"
