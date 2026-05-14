@@ -89,7 +89,7 @@ export const NODE_LABELS: Record<string, string> = {
   explain_recommendations: "추천 이유 생성",
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 export async function streamGraph(args: StreamGraphArgs): Promise<void> {
   const res = await fetch(`${API_URL}/chat/graph/stream`, {
@@ -109,7 +109,6 @@ export async function streamGraph(args: StreamGraphArgs): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;

@@ -16,7 +16,8 @@ function AdRecommendPageInner() {
       </div>
     );
   }
-  return <AdRecommendPanel sessionId={id} />;
+  // key={id} 로 세션 전환 시 Panel 재마운트 → pendingMessages 자연스럽게 초기화 (useEffect 안에서 setState 회피).
+  return <AdRecommendPanel key={id} sessionId={id} />;
 }
 
 export default function AdRecommendPage() {

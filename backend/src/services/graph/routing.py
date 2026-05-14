@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from langchain_core.messages import AIMessage
 
-from src.services.graph.nodes.present_initial import has_refinement_slots
 from src.services.graph.settings import COMPLETENESS_THRESHOLD
 from src.services.graph.state import RecommendState
 

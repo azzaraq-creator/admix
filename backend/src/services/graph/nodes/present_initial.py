@@ -53,12 +53,6 @@ def _slot_filled(slots: dict, key: str) -> bool:
     return bool(v)
 
 
-def has_refinement_slots(state: RecommendState) -> bool:
-    """Stage 2 (rerank+explain) 진입 조건: target struct + product 둘 다 의미 있어야 함."""
-    slots = state.get("slots") or {}
-    return _target_has_content(slots.get("target")) and bool(slots.get("product"))
-
-
 def present_initial_list(state: RecommendState) -> dict:
     matched = state.get("matched_media") or []
     top = matched[:INITIAL_LIST_LIMIT]

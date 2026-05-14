@@ -13,15 +13,9 @@ import {
   type AdRecommendSlots,
   type AdRecommendTopPick,
 } from "@/hooks/adRecommend";
-import {
-  adSessionsApi,
-  adSessionsKeys,
-  useAdSession,
-  useCreateAdSession,
-} from "@/hooks/adSessions";
+import { adSessionsKeys, useAdSession } from "@/hooks/adSessions";
 import type { AdMessageOut } from "@/hooks/adSessions";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
@@ -81,7 +75,6 @@ interface Props {
 }
 
 export function AdRecommendPanel({ sessionId }: Props) {
-  const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useAdSession(sessionId);
 
@@ -104,10 +97,8 @@ export function AdRecommendPanel({ sessionId }: Props) {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 세션 변경 시 pending 초기화
-  useEffect(() => {
-    setPendingMessages([]);
-  }, [sessionId]);
+  // 세션 전환 시 pending 초기화는 page.tsx 의 `key={id}` 로 Panel 재마운트되어 자연스럽게 처리됨
+  // (useEffect 안에서 setState 호출 회피 — react-hooks/set-state-in-effect).
 
   const updateAssistant = (id: string, patch: (m: AssistantMessageVM) => AssistantMessageVM) => {
     setPendingMessages((prev) =>
@@ -148,7 +139,6 @@ export function AdRecommendPanel({ sessionId }: Props) {
       const decoder = new TextDecoder();
       let buffer = "";
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -200,12 +190,22 @@ export function AdRecommendPanel({ sessionId }: Props) {
     setInput(p.label);
   };
 
+  // title 자동 변경 fallback — DB 의 session.title 은 detail 캐시 invalidate 안 해서 stale 일 수 있음.
+  // 그래서 첫 user 메시지가 있으면 그것으로 fallback (서버에서도 같은 규칙으로 title 자동 설정).
+  const firstUserMessage = messages.find(
+    (m): m is UserMessageVM => m.kind === "user",
+  );
+  const headerTitle =
+    session?.title && session.title !== "새 추천"
+      ? session.title
+      : firstUserMessage?.content.slice(0, 40) || "광고 매체 추천";
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-2 border-b border-[var(--stroke-subtle)] px-6 py-3">
         <Megaphone size={18} className="text-[var(--accent-cosmos)]" />
         <h1 className="text-[15px] font-medium text-[var(--text-primary)]">
-          {session?.title || "광고 매체 추천"}
+          {headerTitle}
         </h1>
         {session?.thread_id && (
           <span className="text-[11px] text-[var(--text-tertiary)]">

@@ -231,9 +231,8 @@ async def _session_event_stream(
                 if ai_text:
                     final_assistant_text = ai_text
 
-        yield _sse("done", {})
-
-        # 2) assistant 메시지 저장 (stream 끝)
+        # 2) assistant 메시지 저장 — 성공 후에만 done 을 emit 한다.
+        # done 을 먼저 보내면 클라이언트는 성공으로 인지하는데 DB 저장이 실패하면 히스토리 누락.
         content = final_assistant_text or final_payload.get("summary") or ""
         with SessionLocal() as db:
             svc.add_message(
@@ -243,6 +242,8 @@ async def _session_event_stream(
                 content=content,
                 payload=final_payload or None,
             )
+
+        yield _sse("done", {})
     except Exception as exc:
         print(
             f"[chat_graph] session={session_id} stream error:\n{traceback.format_exc()}",

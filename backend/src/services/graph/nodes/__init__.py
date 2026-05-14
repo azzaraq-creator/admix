@@ -10,10 +10,7 @@ from src.services.graph.nodes.completeness import (
 from src.services.graph.nodes.db_filter import db_filter_final
 from src.services.graph.nodes.explain import explain_recommendations
 from src.services.graph.nodes.extract_slots import extract_slots
-from src.services.graph.nodes.present_initial import (
-    has_refinement_slots,
-    present_initial_list,
-)
+from src.services.graph.nodes.present_initial import present_initial_list
 from src.services.graph.nodes.rerank_sangwon import rerank_by_sangwon
 from src.services.graph.nodes.rerank_vector import rerank_by_vector
 
@@ -25,7 +22,6 @@ __all__ = [
     "compatibility_llm_message",
     "db_filter_final",
     "present_initial_list",
-    "has_refinement_slots",
     "rerank_by_vector",
     "rerank_by_sangwon",
     "explain_recommendations",
