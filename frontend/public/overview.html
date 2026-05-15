@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>OOH 광고 매체 추천 시스템 — 개요</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['"Pretendard Variable"', "Pretendard", "ui-sans-serif", "system-ui", "sans-serif"],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif; }
+  .mermaid { font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif; }
+  /* Mermaid 다이어그램 가독성 */
+  .mermaid svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-700 leading-relaxed">
+
+<div class="max-w-4xl mx-auto px-6 py-12">
+
+  <!-- ===== HEADER ===== -->
+  <header class="border-b border-gray-200 pb-8 mb-10">
+    <div class="text-sm text-indigo-600 font-medium tracking-wide uppercase mb-2">Testova · AI</div>
+    <h1 class="text-3xl font-bold text-gray-900 mb-3">OOH 광고 매체 추천 시스템</h1>
+    <p class="text-base text-gray-600">
+      광고주의 자연어 발화에서 핵심 조건을 추출하고, 단계별 검증과 정렬을 거쳐 적합한 옥외광고 매체를 추천합니다.
+    </p>
+  </header>
+
+  <!-- ===== 1. 추천 흐름 ===== -->
+  <section class="mb-14">
+    <div class="flex items-baseline gap-3 mb-6">
+      <span class="text-2xl font-bold text-indigo-600">1.</span>
+      <h2 class="text-2xl font-bold text-gray-900">추천 흐름</h2>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+      <div class="mermaid">
+flowchart TD
+  A([사용자 발화]) --> B[슬롯 추출<br/>6축]
+  B --> C{필수요소 점수<br/>합산 ≥ 3 ?}
+  C -- 미달 --> D[부족 슬롯 1개<br/>자연어 질문]
+  C -- 통과 --> E[조건 충돌 검사<br/>3페어 매칭]
+  E -- 충돌 --> F[자연어 안내<br/>+ 대안 지역]
+  E -- 통과 --> G[1차 추천 리스트<br/>가격순 Top-20]
+  G -. 사용자 답변 .-> H[상세 추천<br/>상권 인구분포 매칭]
+
+  classDef start fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+  classDef pass fill:#ecfdf5,stroke:#10b981,color:#064e3b;
+  classDef fail fill:#fef3c7,stroke:#d97706,color:#78350f;
+  classDef step fill:#ffffff,stroke:#9ca3af,color:#111827;
+  class A start;
+  class D,F fail;
+  class G,H pass;
+  class B,C,E step;
+      </div>
+    </div>
+
+    <!-- 카드 1 -->
+    <article class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">1</span>
+        <h3 class="text-lg font-semibold text-gray-900">슬롯 추출 + 필수요소 검사</h3>
+      </div>
+      <p class="text-sm text-gray-600 mb-4">
+        발화에서 6축 슬롯을 추출하고, 가중점수를 합산해 통과 여부를 결정합니다.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-700">
+            <tr>
+              <th class="text-left py-2 px-3 font-medium">슬롯</th>
+              <th class="text-center py-2 px-3 font-medium w-20">점수</th>
+              <th class="text-left py-2 px-3 font-medium">분류</th>
+            </tr>
+          </thead>
+          <tbody class="text-gray-700">
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">지역</td><td class="text-center font-mono text-indigo-600 font-semibold">2</td><td class="py-2 px-3 text-gray-600">중요 필터 (DB 검색에 직접 작용)</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">예산</td><td class="text-center font-mono text-indigo-600 font-semibold">2</td><td class="py-2 px-3 text-gray-600">중요 필터</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">매체 타입</td><td class="text-center font-mono text-indigo-600 font-semibold">2</td><td class="py-2 px-3 text-gray-600">중요 필터</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">타겟</td><td class="text-center font-mono text-gray-500">1</td><td class="py-2 px-3 text-gray-600">가벼운 주제 (정렬·설명 보조)</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">상품</td><td class="text-center font-mono text-gray-500">1</td><td class="py-2 px-3 text-gray-600">가벼운 주제</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-2 px-3">목적</td><td class="text-center font-mono text-gray-500">1</td><td class="py-2 px-3 text-gray-600">가벼운 주제</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-3 text-sm">
+        <span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          ≥ 3 점 → 다음 단계
+        </span>
+        <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          &lt; 3 점 → 부족 슬롯 1개를 자연어로 질문
+        </span>
+      </div>
+    </article>
+
+    <!-- 카드 2 -->
+    <article class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">2</span>
+        <h3 class="text-lg font-semibold text-gray-900">조건 충돌 검사</h3>
+      </div>
+      <p class="text-sm text-gray-600 mb-4">
+        3 개 페어로 SQL 매칭 카운트를 확인합니다. 매칭이 0건이면 충돌로 판정하고, 사실 기반으로 안내합니다.
+      </p>
+      <div class="grid grid-cols-3 gap-3 mb-4 text-center">
+        <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-700">지역 × 예산</div>
+        <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-700">예산 × 매체 타입</div>
+        <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-700">지역 × 매체 타입</div>
+      </div>
+      <div class="text-xs text-gray-500 mb-2">예시 — "성수에서 빌보드 광고 백만원으로 하고싶어"</div>
+      <div class="rounded-lg bg-gray-50 border-l-4 border-amber-400 p-4 text-sm text-gray-800 whitespace-pre-line">성수 빌보드는 최소 1,500만원이라서 현재 조건으로는 추천이 어렵습니다.
+
+예산을 조정하시거나 다른 지역으로 변경이 필요합니다.
+
+가장 저렴한 곳은 강남구 (최소 5백만원~) / 성동구 (최소 1,500만원~)부터입니다.</div>
+    </article>
+
+    <!-- 카드 3 -->
+    <article class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">3</span>
+        <h3 class="text-lg font-semibold text-gray-900">1차 추천 리스트</h3>
+      </div>
+      <ul class="space-y-2 text-sm text-gray-700">
+        <li class="flex gap-2"><span class="text-indigo-500">•</span> 조건 통과 시 <strong>가격순 Top-20 매체</strong>를 표시합니다.</li>
+        <li class="flex gap-2"><span class="text-indigo-500">•</span> 모든 매체에 위·경도(lat/lng) 값을 보유 → <strong>지도 시각화</strong> 예정.</li>
+        <li class="flex gap-2"><span class="text-indigo-500">•</span> 타겟·상품이 비어 있으면 부드러운 추가 질문을 한 번 던집니다.</li>
+        <li class="flex gap-2"><span class="text-indigo-500">•</span> 사용자가 답변하면 → <strong>상세 추천 단계</strong>로 진입.</li>
+      </ul>
+    </article>
+  </section>
+
+  <!-- ===== 2. 상세 추천 방법론 ===== -->
+  <section class="mb-14">
+    <div class="flex items-baseline gap-3 mb-6">
+      <span class="text-2xl font-bold text-indigo-600">2.</span>
+      <h2 class="text-2xl font-bold text-gray-900">상세 추천 — 시도한 방법론과 한계</h2>
+    </div>
+    <p class="text-sm text-gray-600 mb-6">
+      타겟·상품 답변이 들어오면 정밀 정렬을 시도합니다. 3 가지 방법을 시도했고 각각의 한계를 확인했습니다.
+      현재는 <span class="text-emerald-700 font-semibold">C 방법</span>을 기본으로 사용합니다.
+    </p>
+
+    <!-- 비교 표 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-700">
+          <tr>
+            <th class="text-left py-3 px-4 font-medium w-12">#</th>
+            <th class="text-left py-3 px-4 font-medium">방법</th>
+            <th class="text-left py-3 px-4 font-medium">데이터</th>
+            <th class="text-left py-3 px-4 font-medium">상태</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-700">
+          <tr class="border-t border-gray-100">
+            <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">A</td>
+            <td class="py-3 px-4">매체 설명 텍스트</td>
+            <td class="py-3 px-4 text-gray-600">description 임베딩 / 키워드 count</td>
+            <td class="py-3 px-4"><span class="inline-flex px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs">변별력 부족</span></td>
+          </tr>
+          <tr class="border-t border-gray-100">
+            <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">B</td>
+            <td class="py-3 px-4">매체 인구통계 (엑셀)</td>
+            <td class="py-3 px-4 text-gray-600">매체별 연령/성별 % (House of OOH)</td>
+            <td class="py-3 px-4"><span class="inline-flex px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs">신뢰도 낮음</span></td>
+          </tr>
+          <tr class="border-t border-gray-100">
+            <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">C</td>
+            <td class="py-3 px-4">서울시 상권 인구분포</td>
+            <td class="py-3 px-4 text-gray-600">상권 1,650 + 분기별 유동인구</td>
+            <td class="py-3 px-4"><span class="inline-flex px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">✓ 현재 default</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 카드 A -->
+    <article class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-5">
+      <div class="flex items-baseline gap-3 mb-2">
+        <span class="text-xl font-bold text-indigo-600">A</span>
+        <h3 class="text-lg font-semibold text-gray-900">매체 설명 텍스트 활용</h3>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-medium text-gray-500 mb-1">방식</div>
+        <p class="text-sm text-gray-700">
+          광고 매체의 description 을 임베딩한 뒤, 사용자 발화와의 <strong>cosine 유사도</strong>로 정렬.
+          또는 키워드 <strong>count</strong> 방식으로 매칭 횟수 비교.
+        </p>
+      </div>
+      <div class="rounded-lg bg-amber-50 border-l-4 border-amber-400 p-4">
+        <div class="text-xs font-semibold text-amber-700 mb-1">한계 — 변별력 부족</div>
+        <p class="text-sm text-amber-900">
+          위치가 유사한 매체는 description 도 비슷해서 점수가 거의 동일하게 나옵니다.
+          예: <em>강남 빌딩 외벽 전광판</em> 30개가 모두 비슷한 cosine 점수.
+        </p>
+      </div>
+    </article>
+
+    <!-- 카드 B -->
+    <article class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-5">
+      <div class="flex items-baseline gap-3 mb-2">
+        <span class="text-xl font-bold text-indigo-600">B</span>
+        <h3 class="text-lg font-semibold text-gray-900">매체 자체 인구통계 (엑셀)</h3>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-medium text-gray-500 mb-1">방식</div>
+        <p class="text-sm text-gray-700">
+          House of OOH 가 제공한 엑셀의 매체별 연령/성별 % 데이터에,
+          LLM 이 사용자 타겟에서 추론한 가중치를 곱해 점수화.
+        </p>
+      </div>
+      <div class="rounded-lg bg-amber-50 border-l-4 border-amber-400 p-4">
+        <div class="text-xs font-semibold text-amber-700 mb-1">한계 — grouping 단위가 비교적 큼</div>
+        <p class="text-sm text-amber-900 mb-3">
+          엑셀의 <strong>"조사 지역"</strong> 단위로 demo 값이 부여됩니다 (구 단위는 아님).
+          같은 조사 지역 매체끼리는 같은 demo 값을 공유하므로, 한 발화 안에서 매체가 갈라지는 정도가 크지 않습니다.
+        </p>
+        <div class="rounded-md bg-white/70 border border-amber-200 p-3 text-xs text-gray-700">
+          <div class="font-medium text-gray-800 mb-1.5">예시 — 한 발화당 2~3 개 조사 지역으로 묶임</div>
+          <ul class="space-y-0.5">
+            <li>• <span class="font-mono">"성수"</span> → 성수역 / 성수카페거리</li>
+            <li>• <span class="font-mono">"강남"</span> → 강남역 / 강남관광특구</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 카드 C -->
+    <article class="bg-white rounded-xl shadow-sm border border-emerald-300 ring-1 ring-emerald-100 p-6">
+      <div class="flex items-baseline gap-3 mb-2">
+        <span class="text-xl font-bold text-emerald-700">C</span>
+        <h3 class="text-lg font-semibold text-gray-900">서울시 상권 영역 + 인구분포</h3>
+        <span class="inline-flex px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">현재 default</span>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-medium text-gray-500 mb-1">방식</div>
+        <ol class="text-sm text-gray-700 space-y-1.5 list-decimal list-inside">
+          <li>서울시 상권분석서비스의 <strong>1,650 상권</strong> (영역 폴리곤 + 분기별 인구분포 데이터) 저장</li>
+          <li>매체의 lat/lng → 가장 가까운 상권에 매핑 (≤ 3 km)</li>
+          <li>상권 인구분포 × LLM 추론 타겟 가중치 → 매체별 점수 산출</li>
+        </ol>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="rounded-lg bg-emerald-50 border-l-4 border-emerald-400 p-3">
+          <div class="text-xs font-semibold text-emerald-700 mb-1">장점 — B 보다 세밀한 grouping</div>
+          <p class="text-sm text-emerald-900">
+            구 단위 25 개 대비 <strong>1,650 상권</strong>으로 더 세밀.
+            예: <span class="font-mono">"성수"</span> → 성수동카페거리 / 성수역 / 경수초등학교 / 뚝도시장 등 여러 상권으로 분산.
+          </p>
+        </div>
+        <div class="rounded-lg bg-amber-50 border-l-4 border-amber-400 p-3">
+          <div class="text-xs font-semibold text-amber-700 mb-1">한계 — 같은 상권 매체는 동일 점수</div>
+          <p class="text-sm text-amber-900">
+            한 상권 안에 매체가 여러 개 묶인 경우 (예: <strong>국기원 상권 12 매체</strong>) 모두 같은 상권 점수를 받습니다.
+            B 와 본질이 같은 grouping 문제이지만, 단위(상권)가 더 세밀해 발화에 따라 더 잘 분산되는 편.
+          </p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ===== 3. 향후 개선 ===== -->
+  <section class="mb-14">
+    <div class="flex items-baseline gap-3 mb-6">
+      <span class="text-2xl font-bold text-indigo-600">3.</span>
+      <h2 class="text-2xl font-bold text-gray-900">향후 개선 / 보완 필요 사항</h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">Media Type</div>
+        <h4 class="font-semibold text-gray-900 mb-1">매체 타입 정확한 구분</h4>
+        <p class="text-sm text-gray-600">
+          빌보드 등 매체 타입을 더 명확히 분류해 사용자가 필터할 수 있도록 구분 보강 필요.
+          현재 카탈로그는 텍스트 매칭 기반이라 동의어/세부 분류가 섞여 있음.
+        </p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Price Coverage</div>
+        <h4 class="font-semibold text-gray-900 mb-1">금액 데이터 보충</h4>
+        <p class="text-sm text-gray-600">
+          전체 922 매체 중 <strong>121 매체 (≈13%)</strong>에 가격 정보가 없어,
+          사용자가 예산을 지정하면 그만큼 후보에서 자동 제외됩니다. 가격 데이터 보충이 필요.
+        </p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">Cost Efficiency</div>
+        <h4 class="font-semibold text-gray-900 mb-1">가성비 (금액 ÷ 송출횟수)</h4>
+        <p class="text-sm text-gray-600">
+          금액 대비 송출횟수(노출량)로 가성비 추천이 가능할 것으로 보임.
+          현재 데이터에는 송출횟수 정보가 없어 <strong>송출횟수·금액 데이터 모두 보충 필요</strong>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="mt-16 pt-8 border-t border-gray-200 text-center text-xs text-gray-400">
+    Testova · AI &nbsp;·&nbsp; OOH 광고 매체 추천 시스템 개요 &nbsp;·&nbsp; 2026-05
+  </footer>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    themeVariables: {
+      fontFamily: '"Pretendard Variable", Pretendard, system-ui, sans-serif',
+      primaryColor: '#eef2ff',
+      primaryBorderColor: '#6366f1',
+      primaryTextColor: '#1e1b4b',
+      lineColor: '#9ca3af',
+    },
+  });
+</script>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Megaphone } from "lucide-react";
+import { BookOpen, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -11,7 +11,10 @@ import {
   useDeleteAdSession,
 } from "@/hooks/adSessions";
 
-const NAV = [{ href: "/ad-recommend", label: "광고 매체 추천", icon: Megaphone }];
+const NAV = [
+  { href: "/ad-recommend", label: "광고 매체 추천", icon: Megaphone },
+  { href: "/overview", label: "시스템 소개", icon: BookOpen },
+];
 
 function RecentSessions() {
   const router = useRouter();
