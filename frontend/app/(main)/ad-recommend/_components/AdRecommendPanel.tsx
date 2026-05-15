@@ -18,6 +18,8 @@ import type { AdMessageOut } from "@/hooks/adSessions";
 import { useQueryClient } from "@tanstack/react-query";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+// LLM 슬롯 추출 정확도 확보용 최소 길이.
+const MIN_INPUT_LEN = 5;
 
 type AssistantStatus = "progress" | "complete" | "error";
 
@@ -109,7 +111,7 @@ export function AdRecommendPanel({ sessionId }: Props) {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const q = input.trim();
-    if (!q || running) return;
+    if (q.length < MIN_INPUT_LEN || running) return;
 
     const userId = randomId();
     const assistantId = randomId();
@@ -234,15 +236,25 @@ export function AdRecommendPanel({ sessionId }: Props) {
 
       <form
         onSubmit={onSubmit}
-        className="flex gap-2 border-t border-[var(--stroke-subtle)] px-6 py-3"
+        className="flex items-start gap-2 border-t border-[var(--stroke-subtle)] px-6 py-3"
       >
-        <Input
-          placeholder={running ? "응답 생성 중..." : "메시지를 입력하세요"}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={running}
-        />
-        <Button type="submit" disabled={!input.trim() || running}>
+        <div className="flex flex-1 flex-col gap-1">
+          <Input
+            placeholder={running ? "응답 생성 중..." : "메시지를 입력하세요 (5자 이상)"}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={running}
+          />
+          {input.trim().length > 0 && input.trim().length < MIN_INPUT_LEN && (
+            <p className="text-[11px] text-[var(--text-tertiary)]">
+              5자 이상 입력해주세요
+            </p>
+          )}
+        </div>
+        <Button
+          type="submit"
+          disabled={input.trim().length < MIN_INPUT_LEN || running}
+        >
           {running ? "..." : "전송"}
         </Button>
       </form>

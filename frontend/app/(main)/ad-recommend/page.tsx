@@ -6,10 +6,14 @@ import { Suspense, useEffect, useRef } from "react";
 import { useCreateAdSession } from "@/hooks/adSessions";
 import { AdRecommendPanel } from "./_components/AdRecommendPanel";
 
+// 외부 메신저/이메일에서 URL 공유 시 뒤에 텍스트가 합쳐져 들어오는 케이스 방어.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function AdRecommendPageInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const id = params.get("id");
+  const rawId = params.get("id");
+  const id = rawId && UUID_RE.test(rawId) ? rawId : null;
   const { mutate: createSession } = useCreateAdSession();
   // StrictMode 중복 호출 방지 — 빈 세션 누적 방지.
   const triggeredRef = useRef(false);
