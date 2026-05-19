@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -9,7 +10,23 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.services.graph.catalogs import format_catalog_for_prompt
 from src.services.graph.llm import get_chat
+from src.services.graph.settings import KOREAN_REGION_KEYWORDS
 from src.services.graph.state import GoalLabel, RecommendState, Slots, TargetStruct
+
+# longest match 우선 — '홍대입구' 가 '홍대' 보다 먼저 매칭되도록 길이 내림차순 정렬.
+_REGION_PATTERN = re.compile(
+    "|".join(re.escape(kw) for kw in sorted(KOREAN_REGION_KEYWORDS, key=len, reverse=True))
+)
+
+
+def _extract_region_keywords(text: str) -> list[str]:
+    """LLM 누락 보완용. 사용자 발화에서 알려진 한국 지역명을 정규식으로 찾아 dedupe 리턴."""
+    if not text:
+        return []
+    seen: dict[str, None] = {}
+    for m in _REGION_PATTERN.finditer(text):
+        seen.setdefault(m.group(0), None)
+    return list(seen.keys())
 
 
 class ExtractedSlots(BaseModel):
@@ -36,7 +53,18 @@ def _build_sys_prompt() -> str:
 사용자 발화에서 6축 슬롯을 추출하세요.
 
 [6축]
-- region: 지역 키워드 list (강남, 성수, 홍대, 강남역 등)
+- region: 지역 키워드 list. 발화에 한국 지역명이 등장하면 **반드시** 그 단어 그대로 추가하세요.
+    포함되는 것:
+      · 행정구역: 서울 25개 구(강남구/마포구/...), 광역시(부산/대구/인천/대전/광주/울산/세종), 시·군(수원/성남/판교/일산/...)
+      · 상권명: 강남, 성수, 홍대, 합정, 망원, 연남, 신촌, 이대, 잠실, 건대, 종로, 명동, 을지로, 시청, 광화문, 이태원, 한남, 여의도, 영등포, 목동, 압구정, 청담, 신사, 논현, 역삼, 사당, 신림, 가산 등
+      · 역명: 강남역, 홍대입구역, 잠실역, 건대입구역, 신촌역, 사당역 등
+    조사(에서/에/근처/일대/쪽/근방/주변/내) 무관, 지역명 토큰만 추출. 추측 금지지만 발화에 명시되면 누락 금지.
+    예:
+      · "홍대에서 광고하고싶어"       → region=["홍대"]
+      · "강남구 매체 추천해줘"         → region=["강남구"]
+      · "성수동 근처 빌보드"           → region=["성수동"], media_type=["빌보드"]
+      · "여의도/마포 둘 다 보고싶어"   → region=["여의도", "마포"]
+      · "판교 광고"                    → region=["판교"]
 - budget: 원 단위 정수. **한국 단위 변환 표 (반드시 이대로)**:
     · '백만원' / '1백만원' = 1000000
     · '오백만원' / '500만원' = 5000000
@@ -129,6 +157,20 @@ def extract_slots(state: RecommendState) -> dict:
             "status": "error",
             "assumptions": (state.get("assumptions") or []) + [f"extract_slots LLM 실패: {exc}"],
         }
+
+    # LLM 이 region 을 놓치는 케이스가 잦아 발화에서 직접 화이트리스트 매칭 (안전망).
+    # 누적된 known_slots.region 에도 없는 키워드만 의미 있으므로, 마지막 사용자 메시지 기준.
+    last_user_text = next(
+        (m.content for m in reversed(messages) if isinstance(m, HumanMessage)),
+        "",
+    )
+    fallback_regions = _extract_region_keywords(last_user_text)
+    extra_regions = [r for r in fallback_regions if r not in extracted.region]
+    if extra_regions:
+        extracted.region = list(extracted.region) + extra_regions
+        extracted.assumptions = list(extracted.assumptions or []) + [
+            f"region keyword fallback: {extra_regions}"
+        ]
 
     merged: Slots = {
         "region":     _merge_list(known_slots.get("region"), extracted.region),
