@@ -1,7 +1,8 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense } from "react";
 
 import { useCreateAdSession } from "@/hooks/adSessions";
 import { AdRecommendPanel } from "./_components/AdRecommendPanel";
@@ -14,25 +15,33 @@ function AdRecommendPageInner() {
   const router = useRouter();
   const rawId = params.get("id");
   const id = rawId && UUID_RE.test(rawId) ? rawId : null;
-  const { mutate: createSession } = useCreateAdSession();
-  // StrictMode 중복 호출 방지 — 빈 세션 누적 방지.
-  const triggeredRef = useRef(false);
-
-  useEffect(() => {
-    if (id || triggeredRef.current) return;
-    triggeredRef.current = true;
-    createSession(null, {
-      onSuccess: (s) => router.replace(`/ad-recommend?id=${s.id}`),
-      onError: () => {
-        triggeredRef.current = false;
-      },
-    });
-  }, [id, createSession, router]);
+  const { mutate: createSession, isPending } = useCreateAdSession();
 
   if (!id) {
     return (
-      <div className="flex h-full items-center justify-center text-[13px] text-[var(--text-tertiary)]">
-        새 세션 여는 중...
+      <div className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="orb h-12 w-12" />
+          <h1 className="font-display text-[24px] text-[var(--text-primary)]">
+            새 대화를 시작해 광고 매체를 추천받아 보세요
+          </h1>
+          <p className="max-w-[420px] text-[13px] leading-relaxed text-[var(--text-tertiary)]">
+            캠페인 목적, 타겟, 예산을 알려주시면 맞춤 매체 조합을 제안해드립니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() =>
+            createSession(null, {
+              onSuccess: (s) => router.replace(`/ad-recommend?id=${s.id}`),
+            })
+          }
+          className="inline-flex items-center gap-2 rounded-[10px] border border-[rgba(165,180,252,0.24)] bg-[rgba(124,58,237,0.18)] px-5 py-2.5 text-[13px] text-[var(--text-primary)] transition hover:bg-[rgba(124,58,237,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Sparkles size={14} className="text-[var(--accent-cosmos)]" />
+          {isPending ? "세션 여는 중..." : "새 대화 시작"}
+        </button>
       </div>
     );
   }
