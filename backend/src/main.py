@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.database import Base, engine
 from src.routers.chat_graph import router as chat_graph_router
+from src.services.graph.builder import build_graph
+from src.services.graph.checkpointer import open_checkpointer
 
 settings = get_settings()
 
@@ -15,7 +17,13 @@ async def lifespan(app: FastAPI):
     # 모델 메타데이터 등록을 보장하기 위해 import (B 구조 들어가면 추가).
     import src.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
-    yield
+    async with open_checkpointer() as checkpointer:
+        app.state.graph = build_graph(
+            rerank="sangwon",
+            explain=True,
+            checkpointer=checkpointer,
+        )
+        yield
 
 
 app = FastAPI(

@@ -21,7 +21,7 @@ import traceback
 import uuid
 from typing import Any, AsyncIterator, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from pydantic import BaseModel, Field
@@ -37,19 +37,8 @@ from src.schemas.ad_session import (
     StreamMessageRequest,
 )
 from src.services import ad_session_service as svc
-from src.services.graph.builder import build_graph
 
 router = APIRouter(prefix="/chat/graph", tags=["chat-graph"])
-
-# Lazy-init: 첫 요청 때만 그래프 컴파일 (DB 연결도 그때).
-_graph_cache = None
-
-
-def _get_graph():
-    global _graph_cache
-    if _graph_cache is None:
-        _graph_cache = build_graph(rerank="sangwon", explain=True)
-    return _graph_cache
 
 
 # ===== 세션 없는 단발 stream (기존 호환용) =====
@@ -105,11 +94,10 @@ def _serialize_update(node_name: str, update: Optional[dict]) -> tuple[dict, Opt
     return out, assistant_message
 
 
-async def _event_stream(message: str, thread_id: str) -> AsyncIterator[str]:
+async def _event_stream(graph: Any, message: str, thread_id: str) -> AsyncIterator[str]:
     yield _sse("thread", {"thread_id": thread_id})
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        graph = _get_graph()
         async for chunk in graph.astream(
             {"messages": [HumanMessage(content=message)], "status": "starting"},
             config=config,
@@ -128,10 +116,10 @@ async def _event_stream(message: str, thread_id: str) -> AsyncIterator[str]:
 
 
 @router.post("/stream")
-async def stream_graph(payload: GraphMessageRequest):
+async def stream_graph(payload: GraphMessageRequest, request: Request):
     thread_id = payload.thread_id or f"thread-{uuid.uuid4().hex[:12]}"
     return StreamingResponse(
-        _event_stream(payload.message, thread_id),
+        _event_stream(request.app.state.graph, payload.message, thread_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -184,6 +172,7 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 
 
 async def _session_event_stream(
+    graph: Any,
     session_id: str,
     thread_id: str,
     message: str,
@@ -206,7 +195,6 @@ async def _session_event_stream(
     final_assistant_text: str = ""
 
     try:
-        graph = _get_graph()
         config = {"configurable": {"thread_id": thread_id}}
         async for chunk in graph.astream(
             {"messages": [HumanMessage(content=message)], "status": "starting"},
@@ -256,13 +244,14 @@ async def _session_event_stream(
 def session_stream(
     session_id: str,
     payload: StreamMessageRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     s = svc.get_session(db, session_id)
     if not s:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
     return StreamingResponse(
-        _session_event_stream(str(s.id), s.thread_id, payload.message),
+        _session_event_stream(request.app.state.graph, str(s.id), s.thread_id, payload.message),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
