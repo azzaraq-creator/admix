@@ -38,6 +38,16 @@ class ExtractedSlots(BaseModel):
     goal_label: Optional[GoalLabel] = Field(None)
     media_type: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    # 멀티턴에서 사용자가 region 교체를 명시했는지 플래그.
+    # True 면 이전 region 을 덮어쓴다 (누적 X). 기본 False = 누적 (기존 동작).
+    # budget 은 scalar 라 별도 플래그 불필요 — 새 값 있으면 교체, 없으면 옛 값 보존.
+    replace_region: bool = Field(
+        False,
+        description=(
+            "True 면 region 을 이전 값과 누적하지 않고 LLM 추출로 교체. "
+            "'말고/대신/바꿔/변경/수정/취소하고' 등 명시적 교체 의도일 때 True."
+        ),
+    )
 
     @field_validator(
         "region", "product", "goal", "media_type", "assumptions", mode="before",
@@ -45,6 +55,12 @@ class ExtractedSlots(BaseModel):
     @classmethod
     def _none_to_empty(cls, v):
         return [] if v is None else v
+
+    @field_validator("replace_region", mode="before")
+    @classmethod
+    def _none_to_false(cls, v):
+        # LLM 이 null/생략 시 ValidationError 방지.
+        return False if v is None else v
 
 
 def _build_sys_prompt() -> str:
@@ -97,6 +113,21 @@ def _build_sys_prompt() -> str:
 - 예: "강남역 근처 매체" → region=["강남역"], media_type=[] (역 자체는 지역)
 - 정확한 단어가 아닌 동의어 표현은 가장 가까운 카탈로그 단어로 매핑 후 assumptions 에 기록.
 
+[region 교체 vs 누적 의도 감지 — 멀티턴 핵심]
+- 사용자가 **기존 region 을 명시적으로 바꾸려** 하면 replace_region=true.
+- 교체 의도 표현 예: "말고", "대신", "그 대신", "...로 바꿔/변경/수정", "취소하고", "지우고", "...말고 ...로 해줘"
+- 추가 의도 표현(기본 false): "추가", "또", "그리고", "도", "...도 같이"
+- 모호하면 false 로 두기(보수적 누적). 단순 첫 입력이면 false.
+- replace 모드일 때 region 은 **이전 턴 값을 의도적으로 버리는** 신호이므로 "옛 값"은 출력 리스트에 다시 넣지 말 것.
+
+예:
+- "홍대 말고 강남으로 해줘"         → region=["강남"], replace_region=true
+- "강남도 추가해줘"                  → region=["강남"], replace_region=false
+- "여의도/마포 둘 다 보고싶어"       → region=["여의도","마포"], replace_region=false
+- "지역을 강남구로 바꿔줘"           → region=["강남구"], replace_region=true
+- "홍대 말고 강남이랑 성수로 바꿔줘" → region=["강남","성수"], replace_region=true
+- "예산 1억으로 변경"                → budget=100000000  (별도 플래그 불필요)
+
 [기타 규칙]
 - 위 카탈로그 단어 외에는 발화에 명시되지 않은 축은 빈 list / null. 추측 금지.
 - target.raw 는 발화 원본 타겟 표현 그대로 (예: '20대 여성 직장인').
@@ -117,12 +148,80 @@ def _get_slot_llm():
     return _slot_llm, _sys_prompt
 
 
+# LLM 이 replace_region=False 로 잘못 추출해도, 발화에 명시적 부정 마커가 있고
+# 새 region 값이 있으면 결정적으로 교체로 본다. '말고/대신' 만 — '바꿔/변경' 은
+# region 없는 경우 (예: "예산 바꿔줘") 에서 오탐 위험이라 제외.
+_REGION_REPLACE_MARKERS: tuple[str, ...] = ("말고", "대신")
+
+
 def _merge_list(prev: Optional[list[str]], new: Optional[list[str]]) -> list[str]:
     seen: dict[str, None] = {}
     for v in (prev or []) + (new or []):
         if v and str(v).strip():
             seen[str(v).strip()] = None
     return list(seen.keys())
+
+
+def _merge_slots(
+    known_slots: dict,
+    extracted: ExtractedSlots,
+    fallback_regions: list[str],
+    last_user_text: str = "",
+) -> tuple[Slots, list[str]]:
+    """순수 merge — extract_slots 노드에서 분리해서 테스트 가능하게 한 헬퍼.
+
+    region 만 replace_region (LLM) 또는 발화 마커 (말고/대신 + 새 값) 로 교체.
+    budget 은 새 값 있으면 교체, 없으면 옛 값 보존. 나머지 슬롯은 기존처럼 누적.
+    """
+    assumptions: list[str] = []
+
+    # region: LLM flag 또는 결정적 마커 (둘 다 새 region 값이 있을 때만 의미).
+    has_new_region = bool(extracted.region)
+    text_marker_replace = has_new_region and any(
+        marker in last_user_text for marker in _REGION_REPLACE_MARKERS
+    )
+    region_replace = extracted.replace_region or text_marker_replace
+
+    if region_replace:
+        # 교체 모드: LLM 추출만 신뢰. fallback regex 는 옛 region 단어를 다시 끌어와
+        # "말고 ..." 같은 표현에서 옛 값이 부활하는 회귀를 만들기 때문에 사용 안 함.
+        region = _merge_list(None, list(extracted.region))
+    else:
+        extra_regions = [r for r in (fallback_regions or []) if r not in extracted.region]
+        if extra_regions:
+            assumptions.append(f"region keyword fallback: {extra_regions}")
+        region = _merge_list(
+            known_slots.get("region"),
+            list(extracted.region) + extra_regions,
+        )
+
+    # budget: scalar — 새 값 있으면 교체, 없으면 보존.
+    # vague "예산 바꿔줘" (새 값 없음) 에서 옛 값을 silently clear 하지 않도록.
+    if extracted.budget is not None:
+        budget: Optional[int] = int(extracted.budget)
+    else:
+        budget = known_slots.get("budget")
+
+    merged: Slots = {
+        "region":     region,
+        "product":    _merge_list(known_slots.get("product"), extracted.product),
+        "goal":       _merge_list(known_slots.get("goal"), extracted.goal),
+        "media_type": _merge_list(known_slots.get("media_type"), extracted.media_type),
+    }
+    if budget is not None:
+        merged["budget"] = budget
+
+    new_target_dump = extracted.target.model_dump()
+    has_new_target = (
+        new_target_dump.get("raw")
+        or new_target_dump.get("ageGroups")
+        or new_target_dump.get("gender") not in ("unknown", None)
+        or new_target_dump.get("keywords")
+    )
+    merged["target"] = new_target_dump if has_new_target else (known_slots.get("target") or new_target_dump)
+    merged["goal_label"] = extracted.goal_label or known_slots.get("goal_label")
+
+    return merged, assumptions
 
 
 def extract_slots(state: RecommendState) -> dict:
@@ -159,42 +258,23 @@ def extract_slots(state: RecommendState) -> dict:
         }
 
     # LLM 이 region 을 놓치는 케이스가 잦아 발화에서 직접 화이트리스트 매칭 (안전망).
-    # 누적된 known_slots.region 에도 없는 키워드만 의미 있으므로, 마지막 사용자 메시지 기준.
+    # 마지막 사용자 메시지 기준. replace_region 모드면 _merge_slots 내부에서 fallback 미사용.
     last_user_text = next(
         (m.content for m in reversed(messages) if isinstance(m, HumanMessage)),
         "",
     )
     fallback_regions = _extract_region_keywords(last_user_text)
-    extra_regions = [r for r in fallback_regions if r not in extracted.region]
-    if extra_regions:
-        extracted.region = list(extracted.region) + extra_regions
-        extracted.assumptions = list(extracted.assumptions or []) + [
-            f"region keyword fallback: {extra_regions}"
-        ]
 
-    merged: Slots = {
-        "region":     _merge_list(known_slots.get("region"), extracted.region),
-        "product":    _merge_list(known_slots.get("product"), extracted.product),
-        "goal":       _merge_list(known_slots.get("goal"), extracted.goal),
-        "media_type": _merge_list(known_slots.get("media_type"), extracted.media_type),
-    }
-    if extracted.budget is not None:
-        merged["budget"] = int(extracted.budget)
-    elif known_slots.get("budget") is not None:
-        merged["budget"] = known_slots["budget"]
-
-    new_target_dump = extracted.target.model_dump()
-    has_new_target = (
-        new_target_dump.get("raw")
-        or new_target_dump.get("ageGroups")
-        or new_target_dump.get("gender") not in ("unknown", None)
-        or new_target_dump.get("keywords")
+    merged, merge_assumptions = _merge_slots(
+        known_slots, extracted, fallback_regions, last_user_text=last_user_text,
     )
-    merged["target"] = new_target_dump if has_new_target else (known_slots.get("target") or new_target_dump)
-    merged["goal_label"] = extracted.goal_label or known_slots.get("goal_label")
 
     return {
         "slots": merged,
         "status": "awaiting_slots",
-        "assumptions": (state.get("assumptions") or []) + list(extracted.assumptions or []),
+        "assumptions": (
+            (state.get("assumptions") or [])
+            + list(extracted.assumptions or [])
+            + merge_assumptions
+        ),
     }
