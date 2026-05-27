@@ -154,7 +154,23 @@ git pull 이 아니라 로컬 코드를 통째로 EC2 에 동기화한 뒤 컨�
 설정되어 있지 않은 환경에서도 동작해야 하고, 로컬 검증 결과(`docker compose`
 로 돌려본 그 코드 그대로)를 그대로 띄우는 게 가장 안전하기 때문.
 
-**한 줄 흐름**: 로컬 코드 → `rsync` → EC2 → `docker compose up --build` → `/health` 확인.
+**한 줄 흐름**: 로컬 코드 → `rsync` → EC2 → `docker compose up --build` → `alembic upgrade head` → `/health` 확인.
+
+이 4단계가 `deploy/redeploy.sh` 한 스크립트로 묶여 있다.
+
+```bash
+bash deploy/redeploy.sh
+```
+
+환경변수 (기본값으로 안 되는 환경에서 override):
+
+| 변수 | 기본 | 의미 |
+|---|---|---|
+| `EC2_HOST` | `ubuntu@13.125.7.82` | EC2 SSH target |
+| `SSH_KEY` | `~/.ssh/ooh-key.pem` | SSH 키 위치 |
+| `REPO_DIR` | `/home/ubuntu/ooh-recommend` | EC2 의 monorepo 루트 |
+
+스크립트가 안에서 실행하는 명령은 아래와 같다 (참고용 — 디버깅 시 수동 실행).
 
 ```bash
 # 1) 로컬 → EC2 코드 동기화 (.git, node_modules, .env, macOS 메타파일 제외)
@@ -180,9 +196,9 @@ ssh -i ~/.ssh/ooh-key.pem ubuntu@13.125.7.82 '
 ```
 
 > ⚠️ **macOS 메타파일 (`._*`, `.DS_Store`) 은 반드시 exclude** 할 것. 빠뜨리면 EC2 가
-> 쓰레기 파일로 도배되고, 잘못된 변형(예: `--include='backend/*' --delete`)을 쓰면
+> 쓰레기 파일로 도배되고, 잘못된 변형(예: `backend/` 만 보내기)을 쓰면
 > `backend/` 디렉토리 구조가 평탄화돼서 `docker compose build` 가 깨진다. 이번에
-> 한 번 망가져서 복구한 이력이 있음.
+> 한 번 망가져서 복구한 이력이 있음. `deploy/redeploy.sh` 는 이 함정을 모두 피한다.
 
 ### DB 데이터 이전 (로컬 → EC2)
 
