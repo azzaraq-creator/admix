@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/swinglala/ooh-recommend.git}"
+REPO_URL="${REPO_URL:-https://github.com/auraworks/ooh-recommend.git}"
 REPO_DIR="${REPO_DIR:-$HOME/ooh-recommend}"
 
 echo "==> apt update + 기본 패키지"

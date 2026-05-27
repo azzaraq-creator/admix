@@ -1,12 +1,13 @@
-# Deploy — EC2 + Vercel
+# Deploy — EC2 (backend) + AWS Amplify (frontend)
 
-`docker-compose.yml` + `docker-compose.prod.yml` 그대로 EC2 에 띄움.
+- **Backend**: EC2 1대에서 `docker-compose.yml` + `docker-compose.prod.yml` 로 backend + postgres + nginx + certbot.
+- **Frontend**: AWS Amplify Hosting 이 GitHub `main` 브랜치에 연결되어 있어 **push 하면 자동 빌드/배포**된다. 별도 CLI 스텝 없음.
 
 ## 사전 준비
 
 - AWS 계정 (CLI 자격증명 유효해야 함 — `aws sts get-caller-identity`)
 - 도메인 1개 (`api.your-domain.com` 으로 backend HTTPS)
-- Vercel 계정 (frontend)
+- AWS Amplify Hosting 앱 (이미 생성·연결되어 있음. GitHub `auraworks/ooh-recommend` `main` 브랜치 watch)
 - OpenAI API key
 
 ## 1) AWS — EC2 인스턴스 생성
@@ -72,7 +73,7 @@ api.your-domain.com.  →  $PUBLIC_IP   (TTL 300)
 
 ```bash
 ssh -i ~/.ssh/ooh-key.pem ubuntu@$PUBLIC_IP
-bash <(curl -fsSL https://raw.githubusercontent.com/swinglala/ooh-recommend/main/deploy/ec2-setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/auraworks/ooh-recommend/main/deploy/ec2-setup.sh)
 # 로그아웃 → 재접속 (docker 그룹 반영)
 ```
 
@@ -120,21 +121,34 @@ sudo certbot --nginx -d api.your-domain.com
 sudo systemctl status certbot.timer
 ```
 
-## 6) Vercel — frontend
+## 6) Frontend — AWS Amplify (자동 배포)
 
-- GitHub 연동, root = `frontend`
-- env: `NEXT_PUBLIC_API_URL = https://api.your-domain.com`
-- 배포 후 도메인을 EC2 backend `.env` 의 `FRONTEND_URL` 에 추가:
+이미 Amplify Hosting 앱이 `auraworks/ooh-recommend` 의 `main` 브랜치와 연결되어 있다.
+
+- **자동 배포**: `git push origin main` 하면 Amplify 가 빌드 + 배포까지 자동 처리
+- **app root**: `frontend/` (Amplify Console 에서 monorepo 설정)
+- **환경변수** (Amplify Console → App settings → Environment variables):
+  - `NEXT_PUBLIC_API_URL = https://api.your-domain.com`
+- **빌드 설정**: Amplify Console 에 저장된 설정 사용. 레포에 `amplify.yml` 두지 않음
+  (Console UI 와 충돌 방지)
+
+프론트 도메인 변경 시 backend `.env` 의 `FRONTEND_URL` 갱신:
 ```bash
 # EC2 에서
 cd ~/ooh-recommend
-# backend/.env 수정 → FRONTEND_URL=https://your-app.vercel.app
+# backend/.env 수정 → FRONTEND_URL=https://<amplify-domain>
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate backend
 ```
 
 ## 운영
 
+- **프론트 재배포**: `git push origin main` (Amplify 가 자동 빌드)
+- **백엔드 재배포**: EC2 에서
+  ```bash
+  cd ~/ooh-recommend
+  git pull
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend
+  ```
 - **로그**: `docker compose logs -f backend`
-- **재배포 (코드만)**: EC2 에서 `git pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend`
 - **DB 백업**: `docker exec ooh-postgres pg_dump -U postgres -Fc ooh_recommend > backup-$(date +%F).dump`
 - **인증서 갱신**: certbot 자동 (90일 주기). 수동: `sudo certbot renew --dry-run`
