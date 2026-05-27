@@ -1,0 +1,721 @@
+"""Recommend V2 — 키워드 사전 기반 추천 파이프라인.
+
+[흐름]
+  발화 → LLM 키워드 추출 (IND/PRD/OBJ/TGT/LOC/CAT 코드)
+       → DB AND 필터 (카테고리간 AND, 카테고리 내부는 OR)
+       → 광고비 내림차순 상위 N개 노출
+       → 후속 질의: 슬롯 충돌 시 yes/no 확인 → 슬롯 교체/추가
+
+응답 분기:
+  0 슬롯       → chat 안내
+  1 슬롯       → need_more (조건 1개 더)
+  2 슬롯 이상  → list (광고비 내림차순 상위 N)
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import re
+from typing import AsyncIterator, Callable, Optional
+
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.dialects.postgresql import array
+from sqlalchemy.orm import Session
+
+from src.models.media import KeywordCategory, MediaItem, MediaKeyword
+from src.services.graph.llm import get_chat
+
+DEFAULT_TOP_K = 20
+MAX_CANDIDATE_FETCH = 2000  # 정렬 전 페치 상한 (현재 매체 913개)
+
+# 카테고리 5축 + CAT 6번째 — 슬롯 처리 시 일관된 순서
+SLOT_KEYS: tuple[str, ...] = ("ind", "prd", "obj", "tgt", "loc", "cat")
+
+
+# ===== Schemas =====
+
+
+class ExtractedCodes(BaseModel):
+    """LLM 키워드 추출 결과 — 사전 코드만."""
+
+    ind: list[str] = Field(default_factory=list)
+    prd: list[str] = Field(default_factory=list)
+    obj: list[str] = Field(default_factory=list)
+    tgt: list[str] = Field(default_factory=list)
+    loc: list[str] = Field(default_factory=list)
+    cat: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+    @field_validator("ind", "prd", "obj", "tgt", "loc", "cat", "assumptions", mode="before")
+    @classmethod
+    def _none_to_empty(cls, v):
+        return [] if v is None else v
+
+
+class MediaItemResponse(BaseModel):
+    id: str
+    name: str
+    media_source: str
+    price: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    detail_images: list[str] = Field(default_factory=list)
+
+
+class RecommendV2Response(BaseModel):
+    type: str
+    message: Optional[str] = None
+    items: list[MediaItemResponse] = Field(default_factory=list)
+    match_count: int = 0
+    extracted: Optional[dict] = None
+    enriched_extracted: Optional[dict] = None
+    previous_context: Optional[dict] = None
+
+
+# ===== Keyword catalog =====
+
+
+def load_keyword_catalog(db: Session) -> dict[KeywordCategory, list[MediaKeyword]]:
+    """DB → 카테고리별 키워드 사전 (code 오름차순)."""
+    rows = db.query(MediaKeyword).order_by(MediaKeyword.category, MediaKeyword.code).all()
+    out: dict[KeywordCategory, list[MediaKeyword]] = {c: [] for c in KeywordCategory}
+    for r in rows:
+        out[r.category].append(r)
+    return out
+
+
+def load_keyword_descriptions(db: Session) -> dict[str, str]:
+    """code → description 매핑 dict 반환."""
+    rows = db.query(MediaKeyword.code, MediaKeyword.description).all()
+    return {code: (desc or "") for code, desc in rows}
+
+
+_CATEGORY_LABEL = {
+    "ind": "업종",
+    "prd": "제품",
+    "obj": "목적",
+    "tgt": "타깃",
+    "loc": "지역",
+    "cat": "카테고리",
+}
+
+_CATEGORY_LABEL_FULL = {
+    KeywordCategory.IND: "업종 (IND)",
+    KeywordCategory.PRD: "제품 (PRD)",
+    KeywordCategory.OBJ: "목적 (OBJ)",
+    KeywordCategory.TGT: "타깃 (TGT)",
+    KeywordCategory.LOC: "지역 (LOC)",
+    KeywordCategory.CAT: "카테고리 (CAT)",
+}
+
+
+def _format_catalog_for_prompt(catalog: dict[KeywordCategory, list[MediaKeyword]]) -> str:
+    lines: list[str] = []
+    for cat in KeywordCategory:
+        rows = catalog.get(cat, [])
+        if not rows:
+            continue
+        lines.append(f"\n## {_CATEGORY_LABEL_FULL[cat]} — {len(rows)}개")
+        for r in rows:
+            kws = ", ".join(r.keywords[:8]) if r.keywords else ""
+            desc = f" — {r.description}" if r.description else ""
+            lines.append(f"  - {r.code}{desc}: {kws}")
+    return "\n".join(lines)
+
+
+def _build_extract_prompt(catalog_str: str) -> str:
+    return f"""당신은 한국 OOH(옥외광고) 추천 시스템의 키워드 매핑기입니다.
+사용자 발화에서 아래 사전과 매칭되는 코드만 추출하세요.
+
+[추출 규칙]
+- 발화에 명시되거나 명백히 함의된 코드만 추출. 추측·확장 금지.
+- 동의어/유사어는 가장 가까운 사전 키워드로 매핑.
+- 사전에 해당 카테고리 개념이 없으면 절대 다른 카테고리로 끌어다 매핑하지 말 것.
+- 매칭이 없으면 빈 list. 한 카테고리에서 여러 코드 매칭 가능.
+- assumptions: 매핑 근거를 한국어 한 줄씩. 사전 밖 개념은 "사전에 없어 매핑 안 함" 으로 기록.
+- JSON 외 텍스트 금지.
+
+[카테고리 — 6축]
+- IND (업종): 광고주의 산업/업종
+- PRD (제품): 광고할 제품군
+- OBJ (목적): 캠페인 목적
+- TGT (타깃): 타깃 오디언스
+- LOC (지역): 광고 지역/상권
+- CAT (카테고리): 매체 카테고리 (예: 빌보드, 지하철, 버스, 옥외전광판 등)
+
+[사전]
+{catalog_str}
+
+[출력 스키마]
+{{
+  "ind": ["IND-XX", ...],
+  "prd": ["PRD-XX", ...],
+  "obj": ["OBJ-XX", ...],
+  "tgt": ["TGT-XX", ...],
+  "loc": ["LOC-XX", ...],
+  "cat": ["CAT-XX", ...],
+  "assumptions": ["..."]
+}}
+"""
+
+
+_llm_cache: dict[str, object] = {}
+
+
+def _get_extract_llm(catalog_str: str):
+    key = "extract_v2"
+    if key not in _llm_cache or _llm_cache.get("__prompt__") != catalog_str:
+        llm = get_chat(temperature=0.0).with_structured_output(ExtractedCodes)
+        _llm_cache[key] = llm
+        _llm_cache["__prompt__"] = catalog_str
+    return _llm_cache[key]
+
+
+def extract_keywords(user_text: str, db: Session) -> ExtractedCodes:
+    if not user_text or not user_text.strip():
+        return ExtractedCodes()
+    catalog = load_keyword_catalog(db)
+    catalog_str = _format_catalog_for_prompt(catalog)
+    sys_prompt = _build_extract_prompt(catalog_str)
+    llm = _get_extract_llm(catalog_str)
+    result: ExtractedCodes = llm.invoke([
+        SystemMessage(content=sys_prompt),
+        HumanMessage(content=user_text.strip()),
+    ])
+    return result
+
+
+# ===== Filtering =====
+
+
+def filter_media_items(
+    db: Session,
+    codes: ExtractedCodes,
+    limit: int = MAX_CANDIDATE_FETCH,
+) -> tuple[list[MediaItem], int]:
+    """AND 필터 — 카테고리간 AND, 카테고리 내부는 OR.
+
+    카테고리가 비어있으면 그 카테고리는 무시 (필터 미적용).
+    리턴: (페치 후보 리스트, 전체 매치 카운트).
+    """
+    q = db.query(MediaItem)
+    col_map = [
+        (codes.ind, MediaItem.ind_codes),
+        (codes.prd, MediaItem.prd_codes),
+        (codes.obj, MediaItem.obj_codes),
+        (codes.tgt, MediaItem.tgt_codes),
+        (codes.loc, MediaItem.loc_codes),
+        (codes.cat, MediaItem.cat_codes),
+    ]
+
+    # 카테고리간 AND: 각 비어있지 않은 카테고리에 대해 jsonb ?| 연산자로 OR 매치 추가
+    for code_list, col in col_map:
+        if not code_list:
+            continue
+        q = q.filter(col.op("?|")(array(code_list)))
+
+    total = q.count()
+    rows = q.limit(limit).all()
+    return rows, total
+
+
+# ===== 정렬 (광고비 내림차순) =====
+
+
+_PRICE_DIGITS_RE = re.compile(r"[^0-9]")
+
+
+def _ad_fee_int(item: MediaItem) -> int:
+    """advertisement_fee 문자열 → int. 변환 실패 시 0."""
+    raw = item.advertisement_fee or ""
+    digits = _PRICE_DIGITS_RE.sub("", str(raw))
+    if not digits:
+        return 0
+    try:
+        return int(digits)
+    except ValueError:
+        return 0
+
+
+def sort_by_price_desc(candidates: list[MediaItem], top_k: int = DEFAULT_TOP_K) -> list[MediaItem]:
+    """광고비 내림차순 정렬 후 top_k slice."""
+    return sorted(candidates, key=_ad_fee_int, reverse=True)[:top_k]
+
+
+# ===== Response formatting =====
+
+
+def _split_image_urls(raw: Optional[str]) -> list[str]:
+    if not raw:
+        return []
+    return [u.strip() for u in raw.split("|") if u.strip()]
+
+
+def _to_response_item(item: MediaItem) -> MediaItemResponse:
+    return MediaItemResponse(
+        id=str(item.id),
+        name=item.name,
+        media_source=item.media_source,
+        price=item.advertisement_fee or None,
+        thumbnail_url=item.thumbnail_url or None,
+        detail_images=_split_image_urls(item.all_image_urls),
+    )
+
+
+def _has_any_filter(codes: ExtractedCodes) -> bool:
+    return any([codes.ind, codes.prd, codes.obj, codes.tgt, codes.loc, codes.cat])
+
+
+def _count_matched_categories(codes: ExtractedCodes) -> int:
+    return sum(bool(getattr(codes, k)) for k in SLOT_KEYS)
+
+
+def _enrich_codes_list(codes: list[str], desc_map: dict[str, str]) -> list[dict]:
+    return [{"code": c, "description": desc_map.get(c, "")} for c in (codes or [])]
+
+
+def _enrich_extracted(codes: ExtractedCodes, desc_map: dict[str, str]) -> dict:
+    enriched: dict = {}
+    for cat in SLOT_KEYS:
+        items = getattr(codes, cat, []) or []
+        enriched[cat] = _enrich_codes_list(items, desc_map)
+    enriched["assumptions"] = list(codes.assumptions or [])
+    return enriched
+
+
+def _enrich_context(context: dict | None, desc_map: dict[str, str]) -> dict | None:
+    if not context:
+        return None
+    enriched: dict = {}
+    for cat in SLOT_KEYS:
+        items = context.get(cat, []) or []
+        enriched[cat] = _enrich_codes_list(items, desc_map)
+    return enriched
+
+
+# ===== 단순(비-스트림) 진입점 — 호환성 유지 =====
+
+
+def recommend_v2(user_text: str, db: Session, top_k: int = DEFAULT_TOP_K) -> RecommendV2Response:
+    """비-스트림 V2 — 멀티턴 컨텍스트 없는 단일 호출."""
+    if not user_text or not user_text.strip():
+        return RecommendV2Response(
+            type="chat",
+            message="원하시는 광고 조건을 알려주세요. 지역, 제품, 목적, 타깃 등이 도움이 됩니다 😊",
+            match_count=0,
+        )
+
+    codes = extract_keywords(user_text, db)
+
+    if not _has_any_filter(codes):
+        return RecommendV2Response(
+            type="chat",
+            message=(
+                "어떤 광고를 원하시는지 조금 더 구체적으로 알려주세요. "
+                "지역, 제품, 카테고리, 타깃 등이 도움이 됩니다 😊"
+            ),
+            match_count=0,
+            extracted=codes.model_dump(),
+        )
+
+    if _count_matched_categories(codes) < 2:
+        return RecommendV2Response(
+            type="need_more",
+            message="조건을 1개 더 알려주시면 적합한 광고를 찾아드릴게요 😊",
+            match_count=0,
+            extracted=codes.model_dump(),
+        )
+
+    candidates, total = filter_media_items(db, codes)
+
+    if total == 0:
+        return RecommendV2Response(
+            type="chat",
+            message=(
+                "조건에 맞는 매체를 찾기 어려워요. "
+                "지역/제품/카테고리 등을 조금 다르게 알려주시면 적합한 광고를 찾아드릴게요 😊"
+            ),
+            match_count=0,
+            extracted=codes.model_dump(),
+        )
+
+    selected = sort_by_price_desc(candidates, top_k=top_k)
+    if total > top_k:
+        msg = f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 상위 {len(selected)}개를 보여드릴게요 😊"
+    else:
+        msg = f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 정렬했어요 😊"
+
+    desc_map = load_keyword_descriptions(db)
+    return RecommendV2Response(
+        type="list",
+        message=msg,
+        items=[_to_response_item(it) for it in selected],
+        match_count=total,
+        extracted=codes.model_dump(),
+        enriched_extracted=_enrich_extracted(codes, desc_map),
+    )
+
+
+# ===== SSE Streaming + 멀티턴 슬롯 머신 =====
+
+_MIN_KEYWORD_CATEGORIES = 2
+
+# yes 응답 — 슬롯 변경 확인 시
+_YES_PATTERNS = [
+    r"^\s*y(es)?\s*$",
+    r"^\s*네[.!]?\s*$",
+    r"^\s*예[.!]?\s*$",
+    r"^\s*응[.!]?\s*$",
+    r"^\s*그래[.!]?\s*$",
+    r"^\s*맞아[.!]?\s*$",
+    r"^\s*ok[.!]?\s*$",
+    r"^\s*오케이[.!]?\s*$",
+    r"^\s*좋아[.!]?\s*$",
+    r"^\s*변경\s*해?\s*[.!]?\s*$",
+    r"^\s*바꿔\s*줘?[.!]?\s*$",
+    r"^\s*교체[.!]?\s*$",
+]
+
+_NO_PATTERNS = [
+    r"^\s*n(o)?\s*$",
+    r"^\s*아니[요다]?\s*$",
+    r"^\s*싫어[.!]?\s*$",
+    r"^\s*취소[.!]?\s*$",
+    r"^\s*안\s*해[.!]?\s*$",
+    r"^\s*그대로[.!]?\s*$",
+    r"^\s*유지[.!]?\s*$",
+]
+
+
+def _is_yes(text: str) -> bool:
+    t = (text or "").strip()
+    return any(re.match(p, t, re.IGNORECASE) for p in _YES_PATTERNS)
+
+
+def _is_no(text: str) -> bool:
+    t = (text or "").strip()
+    return any(re.match(p, t, re.IGNORECASE) for p in _NO_PATTERNS)
+
+
+def _slots_dict(context: dict | None) -> dict[str, list[str]]:
+    """filter_context 에서 슬롯만 추출 (pending_change 등 메타 제외)."""
+    if not context:
+        return {k: [] for k in SLOT_KEYS}
+    return {k: list(context.get(k, []) or []) for k in SLOT_KEYS}
+
+
+def _codes_from_slots(slots: dict[str, list[str]]) -> ExtractedCodes:
+    return ExtractedCodes(**{k: slots.get(k, []) for k in SLOT_KEYS})
+
+
+def _detect_conflicts(slots: dict[str, list[str]], codes: ExtractedCodes) -> dict[str, list[str]]:
+    """이미 차있는 슬롯에 새 코드가 들어오면 충돌. 빈 슬롯은 충돌 아님.
+
+    리턴: {category: [new_codes...]} — 충돌이 발생한 카테고리별 새 값.
+    """
+    conflicts: dict[str, list[str]] = {}
+    for cat in SLOT_KEYS:
+        prev = set(slots.get(cat, []) or [])
+        curr = set(getattr(codes, cat, []) or [])
+        if prev and curr and not (curr <= prev):
+            # 기존이 있고 새 값에 prev에 없는 값이 들어왔으면 충돌
+            new_only = list(curr - prev)
+            if new_only:
+                conflicts[cat] = new_only
+    return conflicts
+
+
+def _apply_codes(slots: dict[str, list[str]], codes: ExtractedCodes, replace_cats: set[str]) -> dict[str, list[str]]:
+    """slots 에 codes 적용. replace_cats 안에 있는 카테고리는 새 값으로 교체, 나머지는 빈 슬롯에만 채움."""
+    out = {k: list(v) for k, v in slots.items()}
+    for cat in SLOT_KEYS:
+        new_vals = list(getattr(codes, cat, []) or [])
+        if not new_vals:
+            continue
+        if cat in replace_cats:
+            # 교체
+            out[cat] = list(dict.fromkeys(new_vals))
+        elif not out.get(cat):
+            # 빈 슬롯에 채우기
+            out[cat] = list(dict.fromkeys(new_vals))
+        # 차있고 충돌도 아니면 (curr ⊆ prev) 그대로 유지
+    return out
+
+
+def _format_slot_summary(slots: dict[str, list[str]], desc_map: dict[str, str]) -> str:
+    parts: list[str] = []
+    for cat in SLOT_KEYS:
+        vals = slots.get(cat) or []
+        if not vals:
+            continue
+        names = [desc_map.get(v, v) for v in vals]
+        parts.append(f"{_CATEGORY_LABEL[cat]}: {', '.join(names)}")
+    return " / ".join(parts) if parts else "(없음)"
+
+
+async def _run_sync_in_thread(sync_fn, *args):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, sync_fn, *args)
+
+
+def _build_event(data: dict) -> str:
+    return f"event: message\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _build_list_message(total: int, shown: int) -> str:
+    if total > shown:
+        return (
+            f"조건에 맞는 매체를 {total}개 찾았어요. "
+            f"광고비가 높은 순으로 상위 {shown}개만 보여드릴게요 😊"
+        )
+    return f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 정렬했어요 😊"
+
+
+async def _stream_list_for_slots(
+    slots: dict[str, list[str]],
+    db: Session,
+    top_k: int,
+    desc_map: dict[str, str],
+    extracted_payload: dict | None,
+):
+    """슬롯 → 필터 → 광고비 정렬 → list 이벤트."""
+    merged_codes = _codes_from_slots(slots)
+    candidates, total = await _run_sync_in_thread(filter_media_items, db, merged_codes, MAX_CANDIDATE_FETCH)
+
+    enriched_slots = _enrich_context(slots, desc_map)
+
+    if total == 0:
+        yield _build_event({
+            "type": "list",
+            "message": (
+                "조건에 맞는 매체를 찾지 못했어요. "
+                "조건을 조금 다르게 알려주시면 다시 찾아드릴게요 😊"
+            ),
+            "items": [],
+            "match_count": 0,
+            "extracted": extracted_payload,
+            "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
+            "previous_context": slots,
+            "previous_context_detail": enriched_slots,
+        })
+        return
+
+    selected = sort_by_price_desc(candidates, top_k=top_k)
+    yield _build_event({
+        "type": "list",
+        "message": _build_list_message(total, len(selected)),
+        "items": [_to_response_item(it).model_dump() for it in selected],
+        "match_count": total,
+        "extracted": extracted_payload,
+        "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
+        "previous_context": slots,
+        "previous_context_detail": enriched_slots,
+    })
+
+
+async def _event_stream(
+    message: str,
+    db: Session,
+    top_k: int,
+    filter_context: dict | None = None,
+    session_id: str | None = None,  # noqa: ARG001 — API 호환용
+    save_filter_context_fn: Callable[[dict], None] | None = None,
+) -> AsyncIterator[str]:
+    """SSE 파이프라인.
+
+    filter_context 형태:
+      { "ind": [...], "prd": [...], ..., "cat": [...],
+        "pending_change": {
+            "conflicts": {"loc": ["LOC-05"], ...},   # 카테고리별 새 후보 코드
+            "new_codes": {...},                       # 새로 추출된 모든 카테고리 코드 (빈 슬롯 자동 적용용)
+        } | None }
+    """
+    try:
+        desc_map = await _run_sync_in_thread(load_keyword_descriptions, db)
+        prev_context = filter_context or {}
+        prev_slots = _slots_dict(prev_context)
+        pending = prev_context.get("pending_change") if isinstance(prev_context, dict) else None
+
+        # ─────────────────────────────────────────────────────────
+        # 1) pending_change 가 있으면 먼저 yes/no 판정
+        # ─────────────────────────────────────────────────────────
+        if pending and isinstance(pending, dict):
+            new_codes_dict = pending.get("new_codes") or {}
+            conflicts = pending.get("conflicts") or {}
+            new_extracted = ExtractedCodes(**{k: list(new_codes_dict.get(k, []) or []) for k in SLOT_KEYS})
+
+            if _is_yes(message):
+                # 충돌 카테고리는 교체 + 빈 슬롯도 동시에 채움
+                replace_cats = set(conflicts.keys())
+                next_slots = _apply_codes(prev_slots, new_extracted, replace_cats)
+
+                # 컨텍스트 저장 (pending 제거)
+                new_context = {**next_slots, "pending_change": None}
+                if save_filter_context_fn:
+                    save_filter_context_fn(new_context)
+
+                # 안내 메시지
+                changed_lines = []
+                for cat in conflicts.keys():
+                    old_str = ", ".join(desc_map.get(c, c) for c in (prev_slots.get(cat) or []))
+                    new_str = ", ".join(desc_map.get(c, c) for c in next_slots.get(cat, []))
+                    changed_lines.append(f"  · {_CATEGORY_LABEL.get(cat, cat)}: {old_str or '(없음)'} → {new_str}")
+                yield _build_event({
+                    "type": "chat",
+                    "message": "조건을 교체했어요:\n" + "\n".join(changed_lines),
+                    "extracted": new_extracted.model_dump(),
+                    "enriched_extracted": _enrich_extracted(new_extracted, desc_map),
+                    "previous_context": next_slots,
+                    "previous_context_detail": _enrich_context(next_slots, desc_map),
+                })
+
+                # 새 슬롯으로 리스트 재조회
+                async for ev in _stream_list_for_slots(
+                    next_slots, db, top_k, desc_map, new_extracted.model_dump()
+                ):
+                    yield ev
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            if _is_no(message):
+                # 폐기 — 슬롯 유지
+                new_context = {**prev_slots, "pending_change": None}
+                if save_filter_context_fn:
+                    save_filter_context_fn(new_context)
+                yield _build_event({
+                    "type": "chat",
+                    "message": "기존 조건을 유지할게요. 추가 조건을 알려주세요 😊",
+                    "extracted": None,
+                    "previous_context": prev_slots,
+                    "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                })
+                yield "event: done\ndata: {}\n\n"
+                return
+            # yes/no 아니면 새 발화로 간주 → pending 폐기 후 일반 파이프라인으로 진행
+            prev_context = {**prev_slots, "pending_change": None}
+
+        # ─────────────────────────────────────────────────────────
+        # 2) 키워드 추출
+        # ─────────────────────────────────────────────────────────
+        codes = await _run_sync_in_thread(extract_keywords, message, db)
+        enriched_extracted = _enrich_extracted(codes, desc_map)
+
+        # ─────────────────────────────────────────────────────────
+        # 3) 충돌 감지 → 차있는 슬롯에 새 값 들어오면 yes/no 확인
+        # ─────────────────────────────────────────────────────────
+        conflicts = _detect_conflicts(prev_slots, codes)
+
+        if conflicts:
+            # 빈 슬롯 채움은 동시에 적용 (충돌 카테고리는 보류)
+            tentative_slots = _apply_codes(prev_slots, codes, replace_cats=set())
+            # pending_change 저장
+            pending_payload = {
+                "conflicts": {cat: list(vals) for cat, vals in conflicts.items()},
+                "new_codes": {k: list(getattr(codes, k, []) or []) for k in SLOT_KEYS},
+            }
+            new_context = {**tentative_slots, "pending_change": pending_payload}
+            if save_filter_context_fn:
+                save_filter_context_fn(new_context)
+
+            # 사용자 안내
+            change_lines: list[str] = []
+            for cat, new_vals in conflicts.items():
+                old_str = ", ".join(desc_map.get(c, c) for c in (prev_slots.get(cat) or []))
+                new_str = ", ".join(desc_map.get(c, c) for c in new_vals)
+                change_lines.append(f"  · {_CATEGORY_LABEL.get(cat, cat)}: {old_str or '(없음)'} → {new_str}")
+            msg = (
+                "기존에 설정된 조건과 충돌하는 항목이 있어요. 교체할까요? (예/아니오)\n"
+                + "\n".join(change_lines)
+            )
+            yield _build_event({
+                "type": "confirmation_required",
+                "message": msg,
+                "changes": [
+                    {
+                        "category": cat,
+                        "type": "replace",
+                        "old_values": list(prev_slots.get(cat) or []),
+                        "new_values": list(new_vals),
+                    }
+                    for cat, new_vals in conflicts.items()
+                ],
+                "extracted": codes.model_dump(),
+                "enriched_extracted": enriched_extracted,
+                "previous_context": tentative_slots,
+                "previous_context_detail": _enrich_context(tentative_slots, desc_map),
+            })
+            yield "event: done\ndata: {}\n\n"
+            return
+
+        # ─────────────────────────────────────────────────────────
+        # 4) 충돌 없음 → 빈 슬롯에 새 값 채움 (또는 동일 값 유지)
+        # ─────────────────────────────────────────────────────────
+        next_slots = _apply_codes(prev_slots, codes, replace_cats=set())
+        matched_total = sum(bool(next_slots.get(k)) for k in SLOT_KEYS)
+
+        # 슬롯 2개 미만 → need_more
+        if matched_total < _MIN_KEYWORD_CATEGORIES:
+            # 컨텍스트 저장 (있는 만큼)
+            new_context = {**next_slots, "pending_change": None}
+            if save_filter_context_fn:
+                save_filter_context_fn(new_context)
+
+            if matched_total == 0:
+                msg = (
+                    "어떤 광고를 원하시는지 조금 더 구체적으로 알려주세요. "
+                    "지역, 제품, 카테고리, 타깃 등이 도움이 됩니다 😊"
+                )
+            else:
+                summary = _format_slot_summary(next_slots, desc_map)
+                msg = (
+                    f"현재 조건: {summary}\n"
+                    "조건을 1개 더 알려주시면 적합한 광고를 찾아드릴게요 😊"
+                )
+            yield _build_event({
+                "type": "need_more",
+                "message": msg,
+                "match_count": 0,
+                "extracted": codes.model_dump(),
+                "enriched_extracted": enriched_extracted,
+                "previous_context": next_slots,
+                "previous_context_detail": _enrich_context(next_slots, desc_map),
+                "matched_categories": matched_total,
+            })
+            yield "event: done\ndata: {}\n\n"
+            return
+
+        # ─────────────────────────────────────────────────────────
+        # 5) 슬롯 ≥ 2 → 광고비 정렬 상위 N
+        # ─────────────────────────────────────────────────────────
+        new_context = {**next_slots, "pending_change": None}
+        if save_filter_context_fn:
+            save_filter_context_fn(new_context)
+
+        async for ev in _stream_list_for_slots(
+            next_slots, db, top_k, desc_map, codes.model_dump()
+        ):
+            yield ev
+        yield "event: done\ndata: {}\n\n"
+
+    except Exception as exc:
+        yield f"event: error\ndata: {json.dumps({'message': str(exc)}, ensure_ascii=False)}\n\n"
+
+
+def recommend_v2_stream(
+    message: str,
+    db: Session,
+    top_k: int = DEFAULT_TOP_K,
+    filter_context: dict | None = None,
+    session_id: str | None = None,
+    save_filter_context_fn: Callable[[dict], None] | None = None,
+) -> StreamingResponse:
+    return StreamingResponse(
+        _event_stream(message, db, top_k, filter_context, session_id, save_filter_context_fn),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
