@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.database import Base, engine
 from src.routers.chat_graph import router as chat_graph_router
+from src.routers.recommend_v2 import router as recommend_v2_router
 from src.services.graph.builder import build_graph
 from src.services.graph.checkpointer import open_checkpointer
 
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(chat_graph_router)
+app.include_router(recommend_v2_router)
 
 
 @app.get("/health")

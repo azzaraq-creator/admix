@@ -8,6 +8,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from src.models.ad_session import AdMessage, AdSession, MessageRole
+from src.services.graph.checkpoint_cleanup import delete_checkpoints_for_thread
 
 TITLE_FROM_FIRST_USER_LEN = 40
 
@@ -55,6 +56,7 @@ def delete_session(db: Session, session_id: str) -> bool:
     s = get_session(db, session_id)
     if not s:
         return False
+    delete_checkpoints_for_thread(db, s.thread_id)
     db.delete(s)
     db.commit()
     return True

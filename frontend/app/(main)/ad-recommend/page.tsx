@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Sparkles, Zap } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 
@@ -41,6 +41,19 @@ function AdRecommendPageInner() {
         >
           <Sparkles size={14} className="text-[var(--accent-cosmos)]" />
           {isPending ? "세션 여는 중..." : "새 대화 시작"}
+        </button>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() =>
+            createSession(null, {
+              onSuccess: (s) => router.replace(`/ad-recommend-v2?id=${s.id}`),
+            })
+          }
+          className="inline-flex items-center gap-2 rounded-[10px] border border-[rgba(52,211,153,0.24)] bg-[rgba(52,211,153,0.12)] px-5 py-2.5 text-[13px] text-[var(--text-primary)] transition hover:bg-[rgba(52,211,153,0.22)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Zap size={14} className="text-emerald-400" />
+          {isPending ? "세션 여는 중..." : "V2 버전 시작"}
         </button>
       </div>
     );
