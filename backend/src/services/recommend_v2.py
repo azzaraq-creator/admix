@@ -342,9 +342,9 @@ def recommend_v2(user_text: str, db: Session, top_k: int = DEFAULT_TOP_K) -> Rec
 
     selected = sort_by_price_desc(candidates, top_k=top_k)
     if total > top_k:
-        msg = f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 상위 {len(selected)}개를 보여드릴게요 😊"
+        msg = f"조건에 맞는 매체를 {total}개 찾았어요.  {len(selected)}개를 먼저 보여드릴게요 😊"
     else:
-        msg = f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 정렬했어요 😊"
+        msg = f"조건에 맞는 매체를 {total}개 찾았어요."
 
     desc_map = load_keyword_descriptions(db)
     return RecommendV2Response(
@@ -467,26 +467,26 @@ def _build_list_message(total: int, shown: int) -> str:
     if total > shown:
         return (
             f"조건에 맞는 매체를 {total}개 찾았어요. "
-            f"광고비가 높은 순으로 상위 {shown}개만 보여드릴게요 😊"
+            f"{shown}개만 먼저 보여드릴게요 😊"
         )
-    return f"조건에 맞는 매체를 {total}개 찾았어요. 광고비가 높은 순으로 정렬했어요 😊"
+    return f"조건에 맞는 매체를 {total}개 찾았어요."
 
 
-async def _stream_list_for_slots(
+async def _iter_list_event_data(
     slots: dict[str, list[str]],
     db: Session,
     top_k: int,
     desc_map: dict[str, str],
     extracted_payload: dict | None,
-):
-    """슬롯 → 필터 → 광고비 정렬 → list 이벤트."""
+) -> AsyncIterator[dict]:
+    """슬롯 → 필터 → 광고비 정렬 → list 이벤트 data dict 를 yield."""
     merged_codes = _codes_from_slots(slots)
     candidates, total = await _run_sync_in_thread(filter_media_items, db, merged_codes, MAX_CANDIDATE_FETCH)
 
     enriched_slots = _enrich_context(slots, desc_map)
 
     if total == 0:
-        yield _build_event({
+        yield {
             "type": "list",
             "message": (
                 "조건에 맞는 매체를 찾지 못했어요. "
@@ -498,11 +498,11 @@ async def _stream_list_for_slots(
             "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
             "previous_context": slots,
             "previous_context_detail": enriched_slots,
-        })
+        }
         return
 
     selected = sort_by_price_desc(candidates, top_k=top_k)
-    yield _build_event({
+    yield {
         "type": "list",
         "message": _build_list_message(total, len(selected)),
         "items": [_to_response_item(it).model_dump() for it in selected],
@@ -511,7 +511,41 @@ async def _stream_list_for_slots(
         "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
         "previous_context": slots,
         "previous_context_detail": enriched_slots,
-    })
+    }
+
+
+def _persist_message(
+    session_id: str | None,
+    role,  # MessageRole
+    content: str,
+    payload: dict | None,
+) -> None:
+    """별도 DB 세션으로 ad_messages 저장. 실패 시 swallow + log.
+
+    세션이 없으면 생성한다 (filter_context 저장과 동일 패턴).
+    """
+    if not session_id:
+        return
+    try:
+        import uuid as uuid_lib
+        from src.database import SessionLocal
+        from src.models.ad_session import AdSession
+        from src.services import ad_session_service as _svc
+
+        try:
+            session_uuid = uuid_lib.UUID(session_id)
+        except (ValueError, AttributeError):
+            return
+
+        with SessionLocal() as db:
+            session = db.query(AdSession).filter(AdSession.id == session_uuid).first()
+            if session is None:
+                session = AdSession(id=session_uuid, thread_id=str(session_uuid))
+                db.add(session)
+                db.flush()
+            _svc.add_message(db, str(session_uuid), role, content, payload)
+    except Exception as exc:
+        print(f"[recommend_v2] message save failed: {exc}", flush=True)
 
 
 async def _event_stream(
@@ -519,7 +553,7 @@ async def _event_stream(
     db: Session,
     top_k: int,
     filter_context: dict | None = None,
-    session_id: str | None = None,  # noqa: ARG001 — API 호환용
+    session_id: str | None = None,
     save_filter_context_fn: Callable[[dict], None] | None = None,
 ) -> AsyncIterator[str]:
     """SSE 파이프라인.
@@ -531,6 +565,29 @@ async def _event_stream(
             "new_codes": {...},                       # 새로 추출된 모든 카테고리 코드 (빈 슬롯 자동 적용용)
         } | None }
     """
+    from src.models.ad_session import MessageRole
+
+    # 마지막 assistant message event 의 텍스트/페이로드 누적 — done 직전 DB 저장용.
+    tracker: dict = {"text": "", "payload": None}
+
+    def emit(data: dict) -> str:
+        if data.get("message"):
+            tracker["text"] = data["message"]
+        tracker["payload"] = data
+        return _build_event(data)
+
+    def finalize() -> None:
+        if tracker["payload"] is not None:
+            _persist_message(
+                session_id,
+                MessageRole.assistant,
+                tracker["text"] or "",
+                tracker["payload"],
+            )
+
+    # 1) user 메시지 저장 (실패해도 응답은 계속)
+    _persist_message(session_id, MessageRole.user, message, None)
+
     try:
         desc_map = await _run_sync_in_thread(load_keyword_descriptions, db)
         prev_context = filter_context or {}
@@ -561,7 +618,7 @@ async def _event_stream(
                     old_str = ", ".join(desc_map.get(c, c) for c in (prev_slots.get(cat) or []))
                     new_str = ", ".join(desc_map.get(c, c) for c in next_slots.get(cat, []))
                     changed_lines.append(f"  · {_CATEGORY_LABEL.get(cat, cat)}: {old_str or '(없음)'} → {new_str}")
-                yield _build_event({
+                yield emit({
                     "type": "chat",
                     "message": "조건을 교체했어요:\n" + "\n".join(changed_lines),
                     "extracted": new_extracted.model_dump(),
@@ -571,10 +628,11 @@ async def _event_stream(
                 })
 
                 # 새 슬롯으로 리스트 재조회
-                async for ev in _stream_list_for_slots(
+                async for data in _iter_list_event_data(
                     next_slots, db, top_k, desc_map, new_extracted.model_dump()
                 ):
-                    yield ev
+                    yield emit(data)
+                finalize()
                 yield "event: done\ndata: {}\n\n"
                 return
 
@@ -583,13 +641,14 @@ async def _event_stream(
                 new_context = {**prev_slots, "pending_change": None}
                 if save_filter_context_fn:
                     save_filter_context_fn(new_context)
-                yield _build_event({
+                yield emit({
                     "type": "chat",
                     "message": "기존 조건을 유지할게요. 추가 조건을 알려주세요 😊",
                     "extracted": None,
                     "previous_context": prev_slots,
                     "previous_context_detail": _enrich_context(prev_slots, desc_map),
                 })
+                finalize()
                 yield "event: done\ndata: {}\n\n"
                 return
             # yes/no 아니면 새 발화로 간주 → pending 폐기 후 일반 파이프라인으로 진행
@@ -628,7 +687,7 @@ async def _event_stream(
                 "기존에 설정된 조건과 충돌하는 항목이 있어요. 교체할까요? (예/아니오)\n"
                 + "\n".join(change_lines)
             )
-            yield _build_event({
+            yield emit({
                 "type": "confirmation_required",
                 "message": msg,
                 "changes": [
@@ -645,6 +704,7 @@ async def _event_stream(
                 "previous_context": tentative_slots,
                 "previous_context_detail": _enrich_context(tentative_slots, desc_map),
             })
+            finalize()
             yield "event: done\ndata: {}\n\n"
             return
 
@@ -672,7 +732,7 @@ async def _event_stream(
                     f"현재 조건: {summary}\n"
                     "조건을 1개 더 알려주시면 적합한 광고를 찾아드릴게요 😊"
                 )
-            yield _build_event({
+            yield emit({
                 "type": "need_more",
                 "message": msg,
                 "match_count": 0,
@@ -682,6 +742,7 @@ async def _event_stream(
                 "previous_context_detail": _enrich_context(next_slots, desc_map),
                 "matched_categories": matched_total,
             })
+            finalize()
             yield "event: done\ndata: {}\n\n"
             return
 
@@ -692,10 +753,11 @@ async def _event_stream(
         if save_filter_context_fn:
             save_filter_context_fn(new_context)
 
-        async for ev in _stream_list_for_slots(
+        async for data in _iter_list_event_data(
             next_slots, db, top_k, desc_map, codes.model_dump()
         ):
-            yield ev
+            yield emit(data)
+        finalize()
         yield "event: done\ndata: {}\n\n"
 
     except Exception as exc:
@@ -730,9 +792,29 @@ async def _remove_event_stream(
     db: Session,
     top_k: int,
     filter_context: dict | None = None,
+    session_id: str | None = None,
     save_filter_context_fn: Callable[[dict], None] | None = None,
 ) -> AsyncIterator[str]:
     """슬롯 1개 코드 제거 후 동일 파이프라인 재실행."""
+    from src.models.ad_session import MessageRole
+
+    tracker: dict = {"text": "", "payload": None}
+
+    def emit(data: dict) -> str:
+        if data.get("message"):
+            tracker["text"] = data["message"]
+        tracker["payload"] = data
+        return _build_event(data)
+
+    def finalize() -> None:
+        if tracker["payload"] is not None:
+            _persist_message(
+                session_id,
+                MessageRole.assistant,
+                tracker["text"] or "",
+                tracker["payload"],
+            )
+
     try:
         if category not in SLOT_KEYS:
             yield (
@@ -743,6 +825,12 @@ async def _remove_event_stream(
 
         desc_map = await _run_sync_in_thread(load_keyword_descriptions, db)
         prev_slots = _slots_dict(filter_context)
+
+        # 합성 user 메시지 — 프론트 UI 버블과 동일 텍스트
+        cat_label = _CATEGORY_LABEL.get(category, category)
+        code_label = desc_map.get(code, code)
+        user_note = f'"{cat_label}: {code_label}" 조건 제거'
+        _persist_message(session_id, MessageRole.user, user_note, None)
 
         next_slots = {k: list(v) for k, v in prev_slots.items()}
         next_slots[category] = [c for c in next_slots.get(category, []) if c != code]
@@ -756,7 +844,7 @@ async def _remove_event_stream(
         enriched_slots = _enrich_context(next_slots, desc_map)
 
         if matched_total == 0:
-            yield _build_event({
+            yield emit({
                 "type": "chat",
                 "message": "조건이 모두 제거되었어요. 새 조건을 알려주세요 😊",
                 "match_count": 0,
@@ -767,7 +855,7 @@ async def _remove_event_stream(
             })
         elif matched_total < _MIN_KEYWORD_CATEGORIES:
             summary = _format_slot_summary(next_slots, desc_map)
-            yield _build_event({
+            yield emit({
                 "type": "need_more",
                 "message": (
                     f"현재 조건: {summary}\n"
@@ -780,11 +868,12 @@ async def _remove_event_stream(
                 "matched_categories": matched_total,
             })
         else:
-            async for ev in _stream_list_for_slots(
+            async for data in _iter_list_event_data(
                 next_slots, db, top_k, desc_map, None
             ):
-                yield ev
+                yield emit(data)
 
+        finalize()
         yield "event: done\ndata: {}\n\n"
     except Exception as exc:
         yield (
@@ -799,10 +888,13 @@ def recommend_v2_remove_slot_stream(
     db: Session,
     top_k: int = DEFAULT_TOP_K,
     filter_context: dict | None = None,
+    session_id: str | None = None,
     save_filter_context_fn: Callable[[dict], None] | None = None,
 ) -> StreamingResponse:
     return StreamingResponse(
-        _remove_event_stream(category, code, db, top_k, filter_context, save_filter_context_fn),
+        _remove_event_stream(
+            category, code, db, top_k, filter_context, session_id, save_filter_context_fn
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

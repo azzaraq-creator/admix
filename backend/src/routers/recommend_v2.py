@@ -147,5 +147,6 @@ def post_recommend_v2_slot_remove(
         db,
         top_k=body.top_k,
         filter_context=filter_context,
+        session_id=body.session_id,
         save_filter_context_fn=lambda ctx: _save_filter_context(body.session_id, ctx),
     )

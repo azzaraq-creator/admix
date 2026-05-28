@@ -96,6 +96,62 @@ const CATEGORY_LABELS: Record<
   cat: "카테고리",
 };
 
+interface SavedMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+const restoreMessage = (saved: SavedMessage): V2Message => {
+  if (saved.role === "user") {
+    return { id: saved.id, type: "user", content: saved.content };
+  }
+  const p = (saved.payload ?? {}) as Record<string, unknown>;
+  const ptype = p.type as string | undefined;
+  if (ptype === "confirmation_required") {
+    return {
+      id: saved.id,
+      type: "assistant",
+      confirmation: {
+        message: (p.message as string) || saved.content,
+        changes: p.changes as ChangeEntry[] | undefined,
+        enriched_extracted: p.enriched_extracted as
+          | Record<string, EnrichedCode[]>
+          | undefined,
+        previous_context_detail: p.previous_context_detail as
+          | Record<string, EnrichedCode[]>
+          | undefined,
+      },
+    };
+  }
+  if (ptype === "chat" || ptype === "list" || ptype === "need_more") {
+    return {
+      id: saved.id,
+      type: "assistant",
+      response_type: ptype as ResponseType,
+      message: (p.message as string) || saved.content,
+      items: (p.items as MediaItem[] | undefined) ?? [],
+      match_count: p.match_count as number | undefined,
+      extracted: p.extracted as ExtractedCodes | undefined,
+      enriched_extracted: p.enriched_extracted as
+        | Record<string, EnrichedCode[]>
+        | undefined,
+      previous_context: p.previous_context as
+        | Record<string, string[]>
+        | undefined,
+      previous_context_detail: p.previous_context_detail as
+        | Record<string, EnrichedCode[]>
+        | undefined,
+      changes: p.changes as ChangeEntry[] | undefined,
+      matched_categories: p.matched_categories as number | undefined,
+    };
+  }
+  // 알 수 없는 payload (v1 잔재 등) → 텍스트만 표시
+  return { id: saved.id, type: "assistant", message: saved.content };
+};
+
 interface Props {
   sessionId: string;
 }
@@ -104,11 +160,34 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
   const [messages, setMessages] = useState<V2Message[]>([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setRestoring(true);
+      try {
+        const res = await fetch(`${API_URL}/chat/graph/sessions/${sessionId}`);
+        if (!res.ok) return;
+        const detail = (await res.json()) as { messages?: SavedMessage[] };
+        if (cancelled) return;
+        const restored = (detail.messages ?? []).map(restoreMessage);
+        setMessages(restored);
+      } catch {
+        // 복원 실패 시 빈 상태 유지
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
 
   const currentSlots: Record<string, EnrichedCode[]> = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -417,10 +496,16 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
       >
         <div className="flex flex-1 flex-col gap-1">
           <Input
-            placeholder={running ? "검색 중..." : "매체 조건을 입력하세요"}
+            placeholder={
+              restoring
+                ? "이전 대화 복원 중..."
+                : running
+                  ? "검색 중..."
+                  : "매체 조건을 입력하세요"
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={running}
+            disabled={running || restoring}
           />
           {input.trim().length > 0 && input.trim().length < MIN_INPUT_LEN && (
             <p className="text-[11px] text-[var(--text-tertiary)]">
@@ -430,7 +515,7 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
         </div>
         <Button
           type="submit"
-          disabled={input.trim().length < MIN_INPUT_LEN || running}
+          disabled={input.trim().length < MIN_INPUT_LEN || running || restoring}
         >
           {running ? <Loader2 className="animate-spin" size={16} /> : "검색"}
         </Button>
@@ -479,14 +564,15 @@ function AssistantBubble({ message }: { message: V2Message }) {
         {message.response_type === "need_more" && (
           <NeedMoreView message={message} />
         )}
+
+        {message.response_type === "list" &&
+          message.items &&
+          message.items.length > 0 && <MediaList items={message.items} />}
         {message.message && (
           <p className="whitespace-pre-line text-[16px] leading-relaxed text-[var(--text-primary)]">
             {message.message}
           </p>
         )}
-        {message.response_type === "list" &&
-          message.items &&
-          message.items.length > 0 && <MediaList items={message.items} />}
         {message.match_count !== undefined &&
           message.items &&
           message.items.length === 0 &&
