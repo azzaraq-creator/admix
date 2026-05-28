@@ -11,9 +11,21 @@ import {
   useDeleteAdSession,
 } from "@/hooks/adSessions";
 
-const NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof Megaphone;
+  children?: { href: string; label: string }[];
+}
+
+const NAV: NavItem[] = [
   { href: "/ad-recommend", label: "광고 매체 추천", icon: Megaphone },
-  { href: "/overview", label: "시스템 소개", icon: BookOpen },
+  {
+    href: "/overview",
+    label: "시스템 소개",
+    icon: BookOpen,
+    children: [{ href: "/v2-overview", label: "v2" }],
+  },
 ];
 
 function RecentSessions() {
@@ -113,29 +125,48 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-col gap-0.5">
         {NAV.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const childActive = item.children?.some((c) => pathname === c.href);
+          const active = pathname === item.href || (!childActive && pathname.startsWith(item.href));
           const Icon = item.icon;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                "flex items-center gap-2.5 rounded-[10px] border border-transparent px-3 py-2.5 text-[13px] no-underline transition-all duration-150 " +
-                (active
-                  ? "border-[rgba(165,180,252,0.16)] bg-[rgba(124,58,237,0.12)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]")
-              }
-            >
-              <Icon
-                size={16}
+            <div key={item.href} className="flex flex-col gap-0.5">
+              <Link
+                href={item.href}
                 className={
-                  active
-                    ? "text-[var(--accent-cosmos)]"
-                    : "text-[var(--text-tertiary)]"
+                  "flex items-center gap-2.5 rounded-[10px] border border-transparent px-3 py-2.5 text-[13px] no-underline transition-all duration-150 " +
+                  (active
+                    ? "border-[rgba(165,180,252,0.16)] bg-[rgba(124,58,237,0.12)] text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]")
                 }
-              />
-              <span>{item.label}</span>
-            </Link>
+              >
+                <Icon
+                  size={16}
+                  className={
+                    active
+                      ? "text-[var(--accent-cosmos)]"
+                      : "text-[var(--text-tertiary)]"
+                  }
+                />
+                <span>{item.label}</span>
+              </Link>
+              {item.children?.map((child) => {
+                const cActive = pathname === child.href;
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    className={
+                      "ml-9 flex items-center rounded-[8px] border border-transparent px-3 py-1.5 text-[12px] no-underline transition-all duration-150 " +
+                      (cActive
+                        ? "border-[rgba(165,180,252,0.16)] bg-[rgba(124,58,237,0.12)] text-[var(--text-primary)]"
+                        : "text-[var(--text-tertiary)] hover:bg-white/5 hover:text-[var(--text-primary)]")
+                    }
+                  >
+                    {child.label}
+                  </Link>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
