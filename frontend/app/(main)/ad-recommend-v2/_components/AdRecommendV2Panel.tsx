@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -68,12 +68,26 @@ interface V2Message {
   confirmation?: ConfirmationInfo;
 }
 
+const PRICE_FORMATTER = new Intl.NumberFormat("ko-KR");
+
+const formatPrice = (raw?: string) => {
+  if (!raw) return "가격 문의";
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return raw;
+  const n = Number(digits);
+  if (!Number.isFinite(n)) return raw;
+  return `${PRICE_FORMATTER.format(n)}원`;
+};
+
 const randomId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-const CATEGORY_LABELS: Record<keyof Omit<ExtractedCodes, "assumptions">, string> = {
+const CATEGORY_LABELS: Record<
+  keyof Omit<ExtractedCodes, "assumptions">,
+  string
+> = {
   ind: "업종",
   prd: "제품",
   obj: "목적",
@@ -96,7 +110,42 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const submitMessage = async (text: string, opts?: { allowShort?: boolean }) => {
+  const currentSlots: Record<string, EnrichedCode[]> = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.type !== "assistant") continue;
+      if (m.previous_context_detail || m.enriched_extracted) {
+        return mergeEnriched(m.previous_context_detail, m.enriched_extracted);
+      }
+    }
+    return {};
+  })();
+
+  const consumeStream = async (res: Response, assistantId: string) => {
+    if (!res.ok || !res.body) {
+      throw new Error(`API 요청 실패: ${res.status}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let blockEnd = buffer.indexOf("\n\n");
+      while (blockEnd >= 0) {
+        const block = buffer.slice(0, blockEnd);
+        buffer = buffer.slice(blockEnd + 2);
+        handleEventBlock(block, assistantId);
+        blockEnd = buffer.indexOf("\n\n");
+      }
+    }
+  };
+
+  const submitMessage = async (
+    text: string,
+    opts?: { allowShort?: boolean },
+  ) => {
     const q = text.trim();
     if (running) return;
     if (!opts?.allowShort && q.length < MIN_INPUT_LEN) return;
@@ -119,28 +168,45 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: q, session_id: sessionId }),
       });
+      await consumeStream(res, assistantId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "요청 실패";
+      toast.error(msg);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, isLoading: false, message: `오류: ${msg}` }
+            : m,
+        ),
+      );
+    } finally {
+      setRunning(false);
+    }
+  };
 
-      if (!res.ok || !res.body) {
-        throw new Error(`API 요청 실패: ${res.status}`);
-      }
+  const removeSlot = async (category: string, code: string, label: string) => {
+    if (running) return;
+    const catLabel =
+      CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] || category;
+    const noteText = `"${catLabel}: ${label}" 조건 제거`;
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+    const userId = randomId();
+    const assistantId = randomId();
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    setMessages((prev) => [
+      ...prev,
+      { id: userId, type: "user", content: noteText },
+      { id: assistantId, type: "assistant", isLoading: true },
+    ]);
+    setRunning(true);
 
-        buffer += decoder.decode(value, { stream: true });
-        let blockEnd = buffer.indexOf("\n\n");
-        while (blockEnd >= 0) {
-          const block = buffer.slice(0, blockEnd);
-          buffer = buffer.slice(blockEnd + 2);
-          handleEventBlock(block, assistantId);
-          blockEnd = buffer.indexOf("\n\n");
-        }
-      }
+    try {
+      const res = await fetch(`${API_URL}/recommend/v2/slot/remove`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, category, code }),
+      });
+      await consumeStream(res, assistantId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "요청 실패";
       toast.error(msg);
@@ -207,9 +273,15 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
                     message: (data.message as string) || "",
                     changes: (data.changes as ChangeEntry[]) || undefined,
                     enriched_extracted:
-                      (data.enriched_extracted as Record<string, EnrichedCode[]>) || undefined,
+                      (data.enriched_extracted as Record<
+                        string,
+                        EnrichedCode[]
+                      >) || undefined,
                     previous_context_detail:
-                      (data.previous_context_detail as Record<string, EnrichedCode[]>) || undefined,
+                      (data.previous_context_detail as Record<
+                        string,
+                        EnrichedCode[]
+                      >) || undefined,
                   },
                 }
               : m,
@@ -230,13 +302,19 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
                 match_count: (data.match_count as number) || 0,
                 extracted: (data.extracted as ExtractedCodes) || undefined,
                 enriched_extracted:
-                  (data.enriched_extracted as Record<string, EnrichedCode[]>) || undefined,
+                  (data.enriched_extracted as Record<string, EnrichedCode[]>) ||
+                  undefined,
                 previous_context:
-                  (data.previous_context as Record<string, string[]>) || undefined,
+                  (data.previous_context as Record<string, string[]>) ||
+                  undefined,
                 previous_context_detail:
-                  (data.previous_context_detail as Record<string, EnrichedCode[]>) || undefined,
+                  (data.previous_context_detail as Record<
+                    string,
+                    EnrichedCode[]
+                  >) || undefined,
                 changes: (data.changes as ChangeEntry[]) || undefined,
-                matched_categories: (data.matched_categories as number) || undefined,
+                matched_categories:
+                  (data.matched_categories as number) || undefined,
               }
             : m,
         ),
@@ -252,14 +330,17 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
       toast.error(msg);
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, isLoading: false, message: `오류: ${msg}` } : m,
+          m.id === assistantId
+            ? { ...m, isLoading: false, message: `오류: ${msg}` }
+            : m,
         ),
       );
     }
   };
 
   const firstUserMessage = messages.find((m) => m.type === "user");
-  const headerTitle = firstUserMessage?.content?.slice(0, 40) || "V2 광고 매체 추천";
+  const headerTitle =
+    firstUserMessage?.content?.slice(0, 40) || "V2 광고 매체 추천";
 
   return (
     <div className="flex h-full flex-col">
@@ -277,6 +358,12 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
           </span>
         )}
       </header>
+
+      <MergedSlotsView
+        slots={currentSlots}
+        onRemove={removeSlot}
+        disabled={running}
+      />
 
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
         {messages.length === 0 && (
@@ -355,7 +442,7 @@ export function AdRecommendV2Panel({ sessionId }: Props) {
 function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-[rgba(124,58,237,0.18)] px-4 py-2 text-[13px] text-[var(--text-primary)]">
+      <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-[rgba(124,58,237,0.18)] px-4 py-2 text-[16px] text-[var(--text-primary)]">
         {content}
       </div>
     </div>
@@ -366,40 +453,48 @@ function AssistantBubble({ message }: { message: V2Message }) {
   if (message.isLoading) {
     return (
       <div className="flex justify-start">
-        <div className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-          <Loader2 size={14} className="animate-spin text-[var(--accent-cosmos)]" />
+        <div className="flex items-center gap-2 text-[16px] text-[var(--text-secondary)]">
+          <Loader2
+            size={14}
+            className="animate-spin text-[var(--accent-cosmos)]"
+          />
           <span>검색 중...</span>
         </div>
       </div>
     );
   }
 
+  const bubbleSlots = mergeEnriched(
+    message.previous_context_detail,
+    message.enriched_extracted,
+  );
+
   return (
     <div className="flex justify-start">
       <div className="w-full max-w-[85%] space-y-3 rounded-2xl rounded-bl-sm border border-[var(--stroke-subtle)] bg-white/5 px-4 py-3">
-        {message.confirmation && <ConfirmationView info={message.confirmation} />}
+        <BubbleSlotsView slots={bubbleSlots} />
+        {message.confirmation && (
+          <ConfirmationView info={message.confirmation} />
+        )}
         {message.response_type === "need_more" && (
           <NeedMoreView message={message} />
         )}
         {message.message && (
-          <p className="whitespace-pre-line text-[13px] leading-relaxed text-[var(--text-primary)]">
+          <p className="whitespace-pre-line text-[16px] leading-relaxed text-[var(--text-primary)]">
             {message.message}
           </p>
         )}
-        {message.response_type === "list" && message.items && message.items.length > 0 && (
-          <MediaList items={message.items} />
-        )}
-        {message.response_type === "list" && (
-          <MergedSlotsView
-            enriched={message.enriched_extracted}
-            previous={message.previous_context_detail}
-          />
-        )}
-        {message.match_count !== undefined && message.items && message.items.length === 0 && !message.message && (
-          <div className="text-[12px] text-[var(--text-tertiary)]">
-            조건에 맞는 매체가 없습니다.
-          </div>
-        )}
+        {message.response_type === "list" &&
+          message.items &&
+          message.items.length > 0 && <MediaList items={message.items} />}
+        {message.match_count !== undefined &&
+          message.items &&
+          message.items.length === 0 &&
+          !message.message && (
+            <div className="text-[12px] text-[var(--text-tertiary)]">
+              조건에 맞는 매체가 없습니다.
+            </div>
+          )}
       </div>
     </div>
   );
@@ -421,11 +516,13 @@ function ConfirmationView({ info }: { info: ConfirmationInfo }) {
         <ul className="space-y-1 text-[11px] text-[var(--text-secondary)]">
           {info.changes.map((ch, i) => {
             const catLabel =
-              CATEGORY_LABELS[ch.category as keyof typeof CATEGORY_LABELS] || ch.category;
+              CATEGORY_LABELS[ch.category as keyof typeof CATEGORY_LABELS] ||
+              ch.category;
             return (
               <li key={`${ch.category}-${i}`}>
                 <span className="text-[var(--text-tertiary)]">{catLabel}</span>{" "}
-                {(ch.old_values || []).join(", ") || "(없음)"} → {(ch.new_values || []).join(", ") || "(없음)"}
+                {(ch.old_values || []).join(", ") || "(없음)"} →{" "}
+                {(ch.new_values || []).join(", ") || "(없음)"}
               </li>
             );
           })}
@@ -452,46 +549,91 @@ function mergeEnriched(
   }
   const out: Record<string, EnrichedCode[]> = {};
   for (const [cat, m] of Object.entries(merged)) {
-    out[cat] = Array.from(m.entries()).map(([code, description]) => ({ code, description }));
+    out[cat] = Array.from(m.entries()).map(([code, description]) => ({
+      code,
+      description,
+    }));
   }
   return out;
 }
 
-function MergedSlotsView({
-  enriched,
-  previous,
-}: {
-  enriched?: Record<string, EnrichedCode[]>;
-  previous?: Record<string, EnrichedCode[]>;
-}) {
-  // 리스트 후 conversationHistory.extracted (= 이전 컨텍스트) 와 현재 enriched_extracted 를 머지하여
-  // 누적된 현재 슬롯을 보여준다.
-  const merged = mergeEnriched(previous, enriched);
-
-  const rows: { label: string; items: EnrichedCode[] }[] = [];
+function BubbleSlotsView({ slots }: { slots: Record<string, EnrichedCode[]> }) {
+  const rows: { cat: string; label: string; items: EnrichedCode[] }[] = [];
   for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
-    const items = merged[cat] || [];
-    if (items.length > 0) rows.push({ label, items });
+    const items = slots[cat] || [];
+    if (items.length > 0) rows.push({ cat, label, items });
   }
   if (rows.length === 0) return null;
 
   return (
-    <div className="space-y-1.5 border-t border-[var(--stroke-subtle)] pt-2">
+    <div className="space-y-1.5 border-b border-[var(--stroke-subtle)] pb-2">
       <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
-        누적 슬롯
+        현재 조건
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {rows.map(({ label, items }) => (
-          <span
-            key={label}
-            className="rounded-md border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.1)] px-2 py-0.5 text-[11px]"
-          >
-            <span className="text-[var(--text-tertiary)]">{label}</span>{" "}
-            <span className="text-[var(--text-primary)]">
-              {items.map((e) => e.description || e.code).join(", ")}
+        {rows.flatMap(({ cat, label, items }) =>
+          items.map((e) => (
+            <span
+              key={`${cat}-${e.code}`}
+              className="inline-flex items-center gap-1 rounded-md border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.1)] px-2 py-0.5 text-[11px]"
+            >
+              <span className="text-[var(--text-tertiary)]">{label}</span>
+              <span className="text-[var(--text-primary)]">
+                {e.description || e.code}
+              </span>
             </span>
-          </span>
-        ))}
+          )),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MergedSlotsView({
+  slots,
+  onRemove,
+  disabled,
+}: {
+  slots: Record<string, EnrichedCode[]>;
+  onRemove: (category: string, code: string, label: string) => void;
+  disabled: boolean;
+}) {
+  const rows: { cat: string; label: string; items: EnrichedCode[] }[] = [];
+  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
+    const items = slots[cat] || [];
+    if (items.length > 0) rows.push({ cat, label, items });
+  }
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 border-b border-[var(--stroke-subtle)] bg-white/5 px-6 py-2">
+      <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+        현재 조건
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {rows.flatMap(({ cat, label, items }) =>
+          items.map((e) => {
+            const value = e.description || e.code;
+            return (
+              <span
+                key={`${cat}-${e.code}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.1)] py-0.5 pl-2 pr-1 text-[11px]"
+              >
+                <span className="text-[var(--text-tertiary)]">{label}</span>
+                <span className="text-[var(--text-primary)]">{value}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onRemove(cat, e.code, value)}
+                  className="flex h-4 w-4 items-center justify-center rounded text-[var(--text-tertiary)] transition hover:bg-[rgba(124,58,237,0.25)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={`${label} ${value} 제거`}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            );
+          }),
+        )}
       </div>
     </div>
   );
@@ -500,11 +642,15 @@ function MergedSlotsView({
 function NeedMoreView({ message }: { message: V2Message }) {
   // enriched_extracted 우선 (description) + previous_context_detail 머지.
   // 백엔드가 enriched 를 보내지 않는 예외 케이스만 raw extracted 로 폴백.
-  const fromEnriched = message.enriched_extracted || message.previous_context_detail;
+  const fromEnriched =
+    message.enriched_extracted || message.previous_context_detail;
   const matchedCats: { label: string; values: string[] }[] = [];
 
   if (fromEnriched) {
-    const merged = mergeEnriched(message.previous_context_detail, message.enriched_extracted);
+    const merged = mergeEnriched(
+      message.previous_context_detail,
+      message.enriched_extracted,
+    );
     for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
       const items = merged[cat] || [];
       if (items.length > 0) {
@@ -539,9 +685,10 @@ function NeedMoreView({ message }: { message: V2Message }) {
             key={label}
             className="rounded-md border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.1)] px-2 py-0.5 text-[11px]"
           >
-            <span className="text-[var(--text-tertiary)]">{label}</span>
-            {" "}
-            <span className="text-[var(--text-primary)]">{values.join(", ")}</span>
+            <span className="text-[var(--text-tertiary)]">{label}</span>{" "}
+            <span className="text-[var(--text-primary)]">
+              {values.join(", ")}
+            </span>
           </span>
         ))}
       </div>
@@ -559,7 +706,7 @@ function MediaList({ items }: { items: MediaItem[] }) {
         {items.map((m, i) => (
           <li
             key={m.id}
-            className="flex items-start gap-3 rounded-md border border-[var(--stroke-subtle)] p-2"
+            className="flex items-center gap-3 rounded-md border border-[var(--stroke-subtle)] p-2"
           >
             <div className="w-5 pt-0.5 text-[11px] text-[var(--text-tertiary)]">
               {i + 1}
@@ -573,15 +720,12 @@ function MediaList({ items }: { items: MediaItem[] }) {
               />
             )}
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[12px] text-[var(--text-primary)]">
+              <div className="truncate text-[16px] text-[var(--text-primary)]">
                 {m.name || "(매체명 없음)"}
               </div>
-              <div className="truncate text-[11px] text-[var(--text-secondary)]">
-                {m.media_source}
-              </div>
             </div>
-            <div className="text-right text-[12px] text-[var(--text-primary)]">
-              {m.price || "가격 문의"}
+            <div className="text-right text-[12px] tabular-nums text-[var(--text-primary)]">
+              {formatPrice(m.price)}
             </div>
           </li>
         ))}

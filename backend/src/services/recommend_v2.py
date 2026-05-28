@@ -719,3 +719,94 @@ def recommend_v2_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ===== 슬롯 단건 제거 — UI 의 X 버튼 클릭 =====
+
+
+async def _remove_event_stream(
+    category: str,
+    code: str,
+    db: Session,
+    top_k: int,
+    filter_context: dict | None = None,
+    save_filter_context_fn: Callable[[dict], None] | None = None,
+) -> AsyncIterator[str]:
+    """슬롯 1개 코드 제거 후 동일 파이프라인 재실행."""
+    try:
+        if category not in SLOT_KEYS:
+            yield (
+                "event: error\n"
+                f"data: {json.dumps({'message': f'잘못된 카테고리: {category}'}, ensure_ascii=False)}\n\n"
+            )
+            return
+
+        desc_map = await _run_sync_in_thread(load_keyword_descriptions, db)
+        prev_slots = _slots_dict(filter_context)
+
+        next_slots = {k: list(v) for k, v in prev_slots.items()}
+        next_slots[category] = [c for c in next_slots.get(category, []) if c != code]
+
+        # pending_change 는 직접 슬롯 편집 시 폐기
+        new_context = {**next_slots, "pending_change": None}
+        if save_filter_context_fn:
+            save_filter_context_fn(new_context)
+
+        matched_total = sum(bool(next_slots.get(k)) for k in SLOT_KEYS)
+        enriched_slots = _enrich_context(next_slots, desc_map)
+
+        if matched_total == 0:
+            yield _build_event({
+                "type": "chat",
+                "message": "조건이 모두 제거되었어요. 새 조건을 알려주세요 😊",
+                "match_count": 0,
+                "extracted": None,
+                "previous_context": next_slots,
+                "previous_context_detail": enriched_slots,
+                "matched_categories": 0,
+            })
+        elif matched_total < _MIN_KEYWORD_CATEGORIES:
+            summary = _format_slot_summary(next_slots, desc_map)
+            yield _build_event({
+                "type": "need_more",
+                "message": (
+                    f"현재 조건: {summary}\n"
+                    "조건을 1개 더 알려주시면 적합한 광고를 찾아드릴게요 😊"
+                ),
+                "match_count": 0,
+                "extracted": None,
+                "previous_context": next_slots,
+                "previous_context_detail": enriched_slots,
+                "matched_categories": matched_total,
+            })
+        else:
+            async for ev in _stream_list_for_slots(
+                next_slots, db, top_k, desc_map, None
+            ):
+                yield ev
+
+        yield "event: done\ndata: {}\n\n"
+    except Exception as exc:
+        yield (
+            "event: error\n"
+            f"data: {json.dumps({'message': str(exc)}, ensure_ascii=False)}\n\n"
+        )
+
+
+def recommend_v2_remove_slot_stream(
+    category: str,
+    code: str,
+    db: Session,
+    top_k: int = DEFAULT_TOP_K,
+    filter_context: dict | None = None,
+    save_filter_context_fn: Callable[[dict], None] | None = None,
+) -> StreamingResponse:
+    return StreamingResponse(
+        _remove_event_stream(category, code, db, top_k, filter_context, save_filter_context_fn),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

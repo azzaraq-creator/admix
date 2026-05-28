@@ -122,3 +122,30 @@ def post_recommend_v2_stream(
         session_id=body.session_id,
         save_filter_context_fn=lambda ctx: _save_filter_context(body.session_id, ctx) if body.session_id else None,
     )
+
+
+class SlotRemoveRequest(BaseModel):
+    session_id: str = Field(min_length=1)
+    category: str = Field(min_length=1, max_length=10)
+    code: str = Field(min_length=1, max_length=20)
+    top_k: int = Field(DEFAULT_TOP_K, ge=1, le=100)
+
+
+@router.post("/v2/slot/remove")
+def post_recommend_v2_slot_remove(
+    body: SlotRemoveRequest,
+    db: Session = Depends(get_db),
+):
+    """단일 슬롯(category, code) 제거 후 SSE 로 재검색 결과 스트리밍."""
+    from src.services.recommend_v2 import recommend_v2_remove_slot_stream
+
+    filter_context = _load_filter_context(db, body.session_id)
+
+    return recommend_v2_remove_slot_stream(
+        body.category,
+        body.code,
+        db,
+        top_k=body.top_k,
+        filter_context=filter_context,
+        save_filter_context_fn=lambda ctx: _save_filter_context(body.session_id, ctx),
+    )
