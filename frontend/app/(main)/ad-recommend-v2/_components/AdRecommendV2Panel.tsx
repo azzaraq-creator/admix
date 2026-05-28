@@ -19,8 +19,11 @@ interface ExtractedCodes {
   tgt: string[];
   loc: string[];
   cat: string[];
+  budget?: number | null;
   assumptions: string[];
 }
+
+type SlotKey = "ind" | "prd" | "obj" | "tgt" | "loc" | "cat" | "budget";
 
 interface EnrichedCode {
   code: string;
@@ -84,16 +87,14 @@ const randomId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-const CATEGORY_LABELS: Record<
-  keyof Omit<ExtractedCodes, "assumptions">,
-  string
-> = {
+const CATEGORY_LABELS: Record<SlotKey, string> = {
   ind: "업종",
   prd: "제품",
   obj: "목적",
   tgt: "타깃",
   loc: "지역",
   cat: "카테고리",
+  budget: "예산",
 };
 
 interface SavedMessage {
@@ -749,7 +750,13 @@ function NeedMoreView({ message }: { message: V2Message }) {
   } else if (message.extracted) {
     const ext = message.extracted;
     for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
-      const vals = ext[cat as keyof Omit<ExtractedCodes, "assumptions">];
+      if (cat === "budget") {
+        if (typeof ext.budget === "number") {
+          matchedCats.push({ label, values: [String(ext.budget)] });
+        }
+        continue;
+      }
+      const vals = ext[cat as "ind" | "prd" | "obj" | "tgt" | "loc" | "cat"];
       if (vals && vals.length > 0) {
         matchedCats.push({ label, values: vals });
       }

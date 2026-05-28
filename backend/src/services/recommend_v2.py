@@ -21,6 +21,7 @@ from typing import AsyncIterator, Callable, Optional
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import BigInteger, cast
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.orm import Session
 
@@ -38,7 +39,7 @@ SLOT_KEYS: tuple[str, ...] = ("ind", "prd", "obj", "tgt", "loc", "cat")
 
 
 class ExtractedCodes(BaseModel):
-    """LLM 키워드 추출 결과 — 사전 코드만."""
+    """LLM 키워드 추출 결과 — 사전 코드 + 예산."""
 
     ind: list[str] = Field(default_factory=list)
     prd: list[str] = Field(default_factory=list)
@@ -46,12 +47,31 @@ class ExtractedCodes(BaseModel):
     tgt: list[str] = Field(default_factory=list)
     loc: list[str] = Field(default_factory=list)
     cat: list[str] = Field(default_factory=list)
+    budget: Optional[int] = None  # 원 단위. 명시 안 됐으면 None.
     assumptions: list[str] = Field(default_factory=list)
 
     @field_validator("ind", "prd", "obj", "tgt", "loc", "cat", "assumptions", mode="before")
     @classmethod
     def _none_to_empty(cls, v):
         return [] if v is None else v
+
+
+def _format_budget(value: int) -> str:
+    """원 → 사람이 읽는 표현. 예: 50000000 → '5,000만원'."""
+    if value is None or value <= 0:
+        return f"{value or 0:,}원"
+    eok = value // 100_000_000
+    rest = value % 100_000_000
+    man = rest // 10_000
+    won_part = rest % 10_000
+    parts: list[str] = []
+    if eok:
+        parts.append(f"{eok:,}억")
+    if man:
+        parts.append(f"{man:,}만")
+    if won_part:
+        parts.append(f"{won_part:,}")
+    return "".join(parts) + "원"
 
 
 class MediaItemResponse(BaseModel):
@@ -98,6 +118,7 @@ _CATEGORY_LABEL = {
     "tgt": "타깃",
     "loc": "지역",
     "cat": "카테고리",
+    "budget": "예산",
 }
 
 _CATEGORY_LABEL_FULL = {
@@ -144,6 +165,17 @@ def _build_extract_prompt(catalog_str: str) -> str:
 - LOC (지역): 광고 지역/상권
 - CAT (카테고리): 매체 카테고리 (예: 빌보드, 지하철, 버스, 옥외전광판 등)
 
+[예산 추출 — budget]
+- 사용자가 광고 예산을 명시하면 원 단위 정수(int)로 추출. 명시 안 됐으면 null.
+- 한국어 표기 변환:
+  - "30만원" → 300000
+  - "500만원" → 5000000
+  - "5천만원", "5,000만원" → 50000000
+  - "1억", "1억원" → 100000000
+  - "1억 5천만원" → 150000000
+- "예산 빼줘/없어도 돼" 같은 제거 의도여도 새 금액이 없으면 null. (제거는 UI 에서 처리)
+- 범위 표현("3천만원 이하", "5천 이내")은 상한값으로 추출.
+
 [사전]
 {catalog_str}
 
@@ -155,6 +187,7 @@ def _build_extract_prompt(catalog_str: str) -> str:
   "tgt": ["TGT-XX", ...],
   "loc": ["LOC-XX", ...],
   "cat": ["CAT-XX", ...],
+  "budget": 50000000 | null,
   "assumptions": ["..."]
 }}
 """
@@ -197,6 +230,7 @@ def filter_media_items(
     """AND 필터 — 카테고리간 AND, 카테고리 내부는 OR.
 
     카테고리가 비어있으면 그 카테고리는 무시 (필터 미적용).
+    budget 이 있으면 advertisement_fee <= budget 추가 (가격 미기재 행은 제외).
     리턴: (페치 후보 리스트, 전체 매치 카운트).
     """
     q = db.query(MediaItem)
@@ -214,6 +248,14 @@ def filter_media_items(
         if not code_list:
             continue
         q = q.filter(col.op("?|")(array(code_list)))
+
+    # budget 상한 필터 — advertisement_fee 는 순수 숫자 문자열 / NULL / 빈문자열만 존재 (DB 검증)
+    if codes.budget is not None:
+        q = q.filter(
+            MediaItem.advertisement_fee.isnot(None),
+            MediaItem.advertisement_fee != "",
+            cast(MediaItem.advertisement_fee, BigInteger) <= codes.budget,
+        )
 
     total = q.count()
     rows = q.limit(limit).all()
@@ -264,15 +306,22 @@ def _to_response_item(item: MediaItem) -> MediaItemResponse:
 
 
 def _has_any_filter(codes: ExtractedCodes) -> bool:
-    return any([codes.ind, codes.prd, codes.obj, codes.tgt, codes.loc, codes.cat])
+    return any([codes.ind, codes.prd, codes.obj, codes.tgt, codes.loc, codes.cat]) or codes.budget is not None
 
 
 def _count_matched_categories(codes: ExtractedCodes) -> int:
-    return sum(bool(getattr(codes, k)) for k in SLOT_KEYS)
+    return sum(bool(getattr(codes, k)) for k in SLOT_KEYS) + (1 if codes.budget is not None else 0)
 
 
 def _enrich_codes_list(codes: list[str], desc_map: dict[str, str]) -> list[dict]:
     return [{"code": c, "description": desc_map.get(c, "")} for c in (codes or [])]
+
+
+def _enrich_budget(value: int | None) -> list[dict]:
+    """budget 단일 값을 enriched 슬롯 형식으로 (UI 통일용)."""
+    if value is None:
+        return []
+    return [{"code": str(value), "description": _format_budget(value)}]
 
 
 def _enrich_extracted(codes: ExtractedCodes, desc_map: dict[str, str]) -> dict:
@@ -280,6 +329,7 @@ def _enrich_extracted(codes: ExtractedCodes, desc_map: dict[str, str]) -> dict:
     for cat in SLOT_KEYS:
         items = getattr(codes, cat, []) or []
         enriched[cat] = _enrich_codes_list(items, desc_map)
+    enriched["budget"] = _enrich_budget(codes.budget)
     enriched["assumptions"] = list(codes.assumptions or [])
     return enriched
 
@@ -291,6 +341,8 @@ def _enrich_context(context: dict | None, desc_map: dict[str, str]) -> dict | No
     for cat in SLOT_KEYS:
         items = context.get(cat, []) or []
         enriched[cat] = _enrich_codes_list(items, desc_map)
+    bv = context.get("budget")
+    enriched["budget"] = _enrich_budget(bv if isinstance(bv, int) else None)
     return enriched
 
 
@@ -398,15 +450,33 @@ def _is_no(text: str) -> bool:
     return any(re.match(p, t, re.IGNORECASE) for p in _NO_PATTERNS)
 
 
-def _slots_dict(context: dict | None) -> dict[str, list[str]]:
-    """filter_context 에서 슬롯만 추출 (pending_change 등 메타 제외)."""
+def _slots_dict(context: dict | None) -> dict:
+    """filter_context 에서 슬롯만 추출 (pending_change 등 메타 제외).
+
+    리턴 dict 키:
+      ind/prd/obj/tgt/loc/cat → list[str]
+      budget → Optional[int]
+    """
     if not context:
-        return {k: [] for k in SLOT_KEYS}
-    return {k: list(context.get(k, []) or []) for k in SLOT_KEYS}
+        return {k: [] for k in SLOT_KEYS} | {"budget": None}
+    out: dict = {k: list(context.get(k, []) or []) for k in SLOT_KEYS}
+    bv = context.get("budget")
+    out["budget"] = bv if isinstance(bv, int) else None
+    return out
 
 
-def _codes_from_slots(slots: dict[str, list[str]]) -> ExtractedCodes:
-    return ExtractedCodes(**{k: slots.get(k, []) for k in SLOT_KEYS})
+def _codes_from_slots(slots: dict) -> ExtractedCodes:
+    payload: dict = {k: slots.get(k, []) for k in SLOT_KEYS}
+    bv = slots.get("budget")
+    payload["budget"] = bv if isinstance(bv, int) else None
+    return ExtractedCodes(**payload)
+
+
+def _count_filled_slots(slots: dict) -> int:
+    """매칭된 슬롯 수 — 리스트 카테고리 + budget."""
+    return sum(bool(slots.get(k)) for k in SLOT_KEYS) + (
+        1 if isinstance(slots.get("budget"), int) else 0
+    )
 
 
 def _detect_conflicts(slots: dict[str, list[str]], codes: ExtractedCodes) -> dict[str, list[str]]:
@@ -426,24 +496,31 @@ def _detect_conflicts(slots: dict[str, list[str]], codes: ExtractedCodes) -> dic
     return conflicts
 
 
-def _apply_codes(slots: dict[str, list[str]], codes: ExtractedCodes, replace_cats: set[str]) -> dict[str, list[str]]:
-    """slots 에 codes 적용. replace_cats 안에 있는 카테고리는 새 값으로 교체, 나머지는 빈 슬롯에만 채움."""
-    out = {k: list(v) for k, v in slots.items()}
+def _apply_codes(slots: dict, codes: ExtractedCodes, replace_cats: set[str]) -> dict:
+    """slots 에 codes 적용. replace_cats 안에 있는 카테고리는 새 값으로 교체, 나머지는 빈 슬롯에만 채움.
+
+    budget 은 스칼라 — 새 값이 있으면 단순 교체.
+    """
+    out: dict = {
+        k: (list(v) if isinstance(v, list) else v) for k, v in slots.items()
+    }
     for cat in SLOT_KEYS:
         new_vals = list(getattr(codes, cat, []) or [])
         if not new_vals:
             continue
         if cat in replace_cats:
-            # 교체
             out[cat] = list(dict.fromkeys(new_vals))
         elif not out.get(cat):
-            # 빈 슬롯에 채우기
             out[cat] = list(dict.fromkeys(new_vals))
         # 차있고 충돌도 아니면 (curr ⊆ prev) 그대로 유지
+
+    # budget 단순 교체 (새 값이 있을 때만)
+    if codes.budget is not None:
+        out["budget"] = codes.budget
     return out
 
 
-def _format_slot_summary(slots: dict[str, list[str]], desc_map: dict[str, str]) -> str:
+def _format_slot_summary(slots: dict, desc_map: dict[str, str]) -> str:
     parts: list[str] = []
     for cat in SLOT_KEYS:
         vals = slots.get(cat) or []
@@ -451,6 +528,9 @@ def _format_slot_summary(slots: dict[str, list[str]], desc_map: dict[str, str]) 
             continue
         names = [desc_map.get(v, v) for v in vals]
         parts.append(f"{_CATEGORY_LABEL[cat]}: {', '.join(names)}")
+    bv = slots.get("budget")
+    if isinstance(bv, int):
+        parts.append(f"{_CATEGORY_LABEL['budget']}: {_format_budget(bv)} 이하")
     return " / ".join(parts) if parts else "(없음)"
 
 
@@ -712,7 +792,7 @@ async def _event_stream(
         # 4) 충돌 없음 → 빈 슬롯에 새 값 채움 (또는 동일 값 유지)
         # ─────────────────────────────────────────────────────────
         next_slots = _apply_codes(prev_slots, codes, replace_cats=set())
-        matched_total = sum(bool(next_slots.get(k)) for k in SLOT_KEYS)
+        matched_total = _count_filled_slots(next_slots)
 
         # 슬롯 2개 미만 → need_more
         if matched_total < _MIN_KEYWORD_CATEGORIES:
@@ -816,7 +896,7 @@ async def _remove_event_stream(
             )
 
     try:
-        if category not in SLOT_KEYS:
+        if category not in SLOT_KEYS and category != "budget":
             yield (
                 "event: error\n"
                 f"data: {json.dumps({'message': f'잘못된 카테고리: {category}'}, ensure_ascii=False)}\n\n"
@@ -828,19 +908,31 @@ async def _remove_event_stream(
 
         # 합성 user 메시지 — 프론트 UI 버블과 동일 텍스트
         cat_label = _CATEGORY_LABEL.get(category, category)
-        code_label = desc_map.get(code, code)
+        if category == "budget":
+            try:
+                code_label = _format_budget(int(code))
+            except (TypeError, ValueError):
+                code_label = code
+        else:
+            code_label = desc_map.get(code, code)
         user_note = f'"{cat_label}: {code_label}" 조건 제거'
         _persist_message(session_id, MessageRole.user, user_note, None)
 
-        next_slots = {k: list(v) for k, v in prev_slots.items()}
-        next_slots[category] = [c for c in next_slots.get(category, []) if c != code]
+        next_slots: dict = {
+            k: (list(v) if isinstance(v, list) else v) for k, v in prev_slots.items()
+        }
+        if category == "budget":
+            # budget 스칼라 — 단순 None 처리 (code 일치 여부와 무관)
+            next_slots["budget"] = None
+        else:
+            next_slots[category] = [c for c in next_slots.get(category, []) if c != code]
 
         # pending_change 는 직접 슬롯 편집 시 폐기
         new_context = {**next_slots, "pending_change": None}
         if save_filter_context_fn:
             save_filter_context_fn(new_context)
 
-        matched_total = sum(bool(next_slots.get(k)) for k in SLOT_KEYS)
+        matched_total = _count_filled_slots(next_slots)
         enriched_slots = _enrich_context(next_slots, desc_map)
 
         if matched_total == 0:
