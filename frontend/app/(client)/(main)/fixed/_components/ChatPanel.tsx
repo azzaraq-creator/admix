@@ -3,12 +3,22 @@
 import { useRef, useState } from "react";
 
 import { ArrowUpIcon, SparkleIcon } from "@/components/icons";
+import { MediaList } from "@/components/common/MediaList";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 
 const FAQS = [
   "강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩하고 싶어요",
   "홍대에서 5,000만원 예산으로 광고 매체를 추천받고 싶어요",
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
+];
+
+const PREVIEW_MEDIA = [
+  { id: "1", name: "맥스비전 홍대입구역 8번 출구", price: "최소집행금액 280만원 / 한달", popular: true },
+  { id: "2", name: "강남대로 메가빌보드", price: "최소집행금액 500만원 / 한달" },
+  { id: "3", name: "잠실 롯데타워 전광판", price: "최소집행금액 1,000만원 / 한달", popular: true },
+  { id: "4", name: "성수 연무장길 빌보드", price: "최소집행금액 350만원 / 한달" },
+  { id: "5", name: "신촌역 대형 전광판", price: "최소집행금액 420만원 / 한달", popular: true },
+  { id: "6", name: "건대입구 로데오 전광판", price: "최소집행금액 300만원 / 한달" },
 ];
 
 const MAX_LENGTH = 500;
@@ -53,6 +63,7 @@ export function ChatPanel() {
             </p>
             <p>조건에 딱 맞는 추천을 해드릴게요.</p>
           </div>
+          <MediaList items={PREVIEW_MEDIA} />
         </div>
 
         <div className="flex flex-col gap-[8px]">
