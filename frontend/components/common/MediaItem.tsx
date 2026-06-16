@@ -12,6 +12,7 @@ export type MediaItemData = {
 type MediaItemProps = MediaItemData & {
   rank?: number;
   simple?: boolean;
+  onClick?: () => void;
   onAddProposal?: () => void;
   className?: string;
 };
@@ -36,13 +37,16 @@ export function MediaItem({
   popular = false,
   rank,
   simple = false,
+  onClick,
   onAddProposal,
   className,
 }: MediaItemProps) {
   return (
     <div
+      onClick={onClick}
       className={cn(
         "flex w-full items-start gap-[12px] rounded-[8px] border border-stroke bg-white px-[16px] py-[24px]",
+        onClick && "cursor-pointer",
         className,
       )}
     >
@@ -88,7 +92,10 @@ export function MediaItem({
           </div>
           <button
             type="button"
-            onClick={onAddProposal}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddProposal?.();
+            }}
             aria-label="제안서 담기"
             className="flex shrink-0 items-center justify-center rounded-full border border-[#d3d4d6] p-[8px] text-black transition-colors hover:bg-[#f1f5f9]"
           >

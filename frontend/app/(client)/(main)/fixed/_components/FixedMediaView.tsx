@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
+import type { MediaItemData } from "@/components/common/MediaItem";
 import { ChevronLeftIcon } from "@/components/icons";
 import { Sidebar } from "../../_components/Sidebar";
 import { ChatPanel } from "./ChatPanel";
@@ -9,6 +11,7 @@ import { MapArea } from "./MapArea";
 
 export function FixedMediaView() {
   const [chatOpen, setChatOpen] = useState(true);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-white">
@@ -20,7 +23,13 @@ export function FixedMediaView() {
 
       <div className="absolute inset-y-0 left-0 z-10 flex">
         <Sidebar />
-        {chatOpen && <ChatPanel />}
+        {chatOpen && <ChatPanel onSelectMedia={setSelectedMedia} />}
+        {selectedMedia && (
+          <MediaDetailDrawer
+            media={selectedMedia}
+            onClose={() => setSelectedMedia(null)}
+          />
+        )}
         <div className="flex items-center">
           <button
             type="button"

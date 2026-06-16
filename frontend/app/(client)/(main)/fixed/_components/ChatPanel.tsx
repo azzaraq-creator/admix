@@ -41,7 +41,11 @@ const SEARCH_RESULTS: MediaItemData[] = [
 const MAX_LENGTH = 500;
 const MAX_TEXTAREA_HEIGHT = 120;
 
-export function ChatPanel() {
+export function ChatPanel({
+  onSelectMedia,
+}: {
+  onSelectMedia?: (item: MediaItemData) => void;
+}) {
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
   const [location, setLocation] = useState("");
@@ -232,6 +236,7 @@ export function ChatPanel() {
               <MediaItem
                 key={item.id}
                 {...item}
+                onClick={() => onSelectMedia?.(item)}
                 className="rounded-none border-0 border-b"
               />
             ))}
