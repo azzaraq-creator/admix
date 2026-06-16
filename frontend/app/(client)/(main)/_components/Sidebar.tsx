@@ -30,7 +30,7 @@ type MenuItem = {
 
 const MENU_ITEMS: MenuItem[] = [
   { key: "fixed", label: "고정 매체", Icon: MapIcon, href: "/fixed" },
-  { key: "moving", label: "이동·지역 매체", Icon: BusIcon },
+  { key: "moving", label: "이동·지역 매체", Icon: BusIcon, href: "/moving" },
   { key: "service", label: "서비스 소개", Icon: AirplayIcon },
   { key: "proposals", label: "내 제안서", Icon: FolderIcon },
   { key: "contact", label: "문의하기", Icon: HeadsetIcon },

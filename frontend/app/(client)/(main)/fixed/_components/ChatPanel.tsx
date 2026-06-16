@@ -1,19 +1,10 @@
 "use client";
 
-import {
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useRef, useState } from "react";
 
+import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
-import {
-  ArrowUpIcon,
-  ChevronDownIcon,
-  RotateCwIcon,
-  SparkleIcon,
-} from "@/components/icons";
+import { ArrowUpIcon, SparkleIcon } from "@/components/icons";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 
@@ -21,15 +12,6 @@ const FAQS = [
   "강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩하고 싶어요",
   "홍대에서 5,000만원 예산으로 광고 매체를 추천받고 싶어요",
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
-];
-
-const SEARCH_FILTERS = [
-  "카테고리",
-  "가격 범위",
-  "매체 판매 유형",
-  "매체 타입",
-  "설치 장소",
-  "매체 형태",
 ];
 
 const SEARCH_RESULTS: MediaItemData[] = [
@@ -49,43 +31,7 @@ export function ChatPanel({
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
   const [location, setLocation] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const filterRef = useRef<HTMLDivElement>(null);
-  const filterDrag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
-
-  const onFilterPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const el = filterRef.current;
-    if (!el) return;
-    filterDrag.current = {
-      active: true,
-      startX: event.clientX,
-      startScroll: el.scrollLeft,
-      moved: false,
-    };
-    el.setPointerCapture(event.pointerId);
-  };
-
-  const onFilterPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const el = filterRef.current;
-    if (!el || !filterDrag.current.active) return;
-    const dx = event.clientX - filterDrag.current.startX;
-    if (Math.abs(dx) > 3) filterDrag.current.moved = true;
-    el.scrollLeft = filterDrag.current.startScroll - dx;
-  };
-
-  const onFilterPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    filterDrag.current.active = false;
-    filterRef.current?.releasePointerCapture(event.pointerId);
-  };
-
-  const onFilterClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (filterDrag.current.moved) {
-      event.preventDefault();
-      event.stopPropagation();
-      filterDrag.current.moved = false;
-    }
-  };
 
   const resize = () => {
     const el = textareaRef.current;
@@ -117,82 +63,7 @@ export function ChatPanel({
         )}
       </div>
 
-      {mode === "search" &&
-        (filtersOpen ? (
-          <div className="flex flex-col gap-[16px] border-b border-stroke bg-white pt-[12px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.16)]">
-            <div className="flex flex-col gap-[6px] px-[16px] py-[2px]">
-              {[0, 2, 4].map((start) => (
-                <div key={start} className="flex gap-[6px]">
-                  {SEARCH_FILTERS.slice(start, start + 2).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      className="flex flex-1 items-center justify-center rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between bg-[#f6f6f6] px-[16px] py-[12px]">
-              <button
-                type="button"
-                className="flex items-center gap-[4px] rounded-[8px] border border-primary bg-white px-[12px] py-[8px] text-sm font-medium text-primary"
-              >
-                <RotateCwIcon className="size-[18px]" />
-                초기화
-              </button>
-              <button
-                type="button"
-                aria-label="필터 접기"
-                onClick={() => setFiltersOpen(false)}
-                className="flex items-center rounded-full border border-stroke p-[6px] text-black"
-              >
-                <ChevronDownIcon className="size-[24px] rotate-180" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-[16px] border-b border-stroke py-[12px]">
-            <div
-              ref={filterRef}
-              onPointerDown={onFilterPointerDown}
-              onPointerMove={onFilterPointerMove}
-              onPointerUp={onFilterPointerUp}
-              onPointerCancel={onFilterPointerUp}
-              onClickCapture={onFilterClickCapture}
-              className="flex flex-1 cursor-grab items-center gap-[6px] overflow-x-auto px-[16px] select-none [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
-            >
-              <button
-                type="button"
-                className="flex shrink-0 items-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
-              >
-                <RotateCwIcon className="size-[18px]" />
-                초기화
-              </button>
-              {SEARCH_FILTERS.map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  className="shrink-0 whitespace-nowrap rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-            <div className="pr-[16px]">
-              <button
-                type="button"
-                aria-label="필터 펼치기"
-                onClick={() => setFiltersOpen(true)}
-                className="flex items-center rounded-full border border-stroke p-[6px] text-black"
-              >
-                <ChevronDownIcon className="size-[24px]" />
-              </button>
-            </div>
-          </div>
-        ))}
+      {mode === "search" && <MediaFilterBar />}
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         {mode === "ai" ? (

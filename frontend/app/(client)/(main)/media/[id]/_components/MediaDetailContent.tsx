@@ -91,12 +91,20 @@ function SectionTitle({ children }: { children: ReactNode }) {
   );
 }
 
-export function MediaDetailContent() {
+export function MediaDetailContent({
+  name = "홍대입구역 아트 래핑",
+  price = "최소집행금액 1,500만원 / 한달",
+  className,
+}: {
+  name?: string;
+  price?: string;
+  className?: string;
+} = {}) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedList, setSelectedList] = useState(0);
 
   return (
-    <div className="flex flex-col items-center px-[100px] py-[80px]">
+    <div className={cn("flex flex-col items-center", className ?? "px-[100px] py-[80px]")}>
       <div className="flex w-full max-w-[1016px] flex-col">
         <div className="flex h-[504px] w-full items-center gap-[8px] overflow-hidden rounded-[16px]">
           <div className="aspect-square h-full min-w-0 flex-1 bg-[#d9d9d9]" />
@@ -126,10 +134,10 @@ export function MediaDetailContent() {
                 </span>
                 <div className="flex flex-col gap-[4px]">
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
-                    홍대입구역 아트 래핑
+                    {name}
                   </p>
                   <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
-                    최소집행금액 1,500만원 / 한달
+                    {price}
                   </p>
                 </div>
               </div>
