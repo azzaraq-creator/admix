@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, type MouseEvent } from "react";
 
 import {
@@ -25,6 +26,8 @@ const MENU_ITEMS = [
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
+  const pathname = usePathname();
+  const isHelp = pathname?.startsWith("/help") ?? false;
 
   const stop = (event: MouseEvent) => event.stopPropagation();
   const labelClass = `text-sm font-medium whitespace-nowrap transition-opacity duration-200 ${
@@ -32,14 +35,26 @@ export function Sidebar() {
   }`;
 
   return (
-    <aside className="relative w-[64px] shrink-0">
-      <nav
-        onClick={() => setExpanded((value) => !value)}
-        aria-label="사이드바"
-        className={`absolute inset-y-0 left-0 z-30 flex h-screen cursor-pointer flex-col justify-between overflow-hidden border-r border-stroke bg-white px-[8px] py-[24px] transition-[width] duration-300 ease-in-out ${
-          expanded ? "w-[224px]" : "w-[64px]"
+    <>
+      {expanded && (
+        <div
+          aria-hidden
+          onClick={() => setExpanded(false)}
+          className="fixed inset-0 z-20 bg-black/30 sm:hidden"
+        />
+      )}
+      <aside
+        className={`relative shrink-0 transition-[width] duration-300 ease-in-out ${
+          expanded ? "w-[64px] sm:w-[224px]" : "w-[64px]"
         }`}
       >
+        <nav
+          onClick={() => setExpanded((value) => !value)}
+          aria-label="사이드바"
+          className={`absolute inset-y-0 left-0 z-30 flex h-screen cursor-pointer flex-col justify-between overflow-hidden border-r border-stroke bg-white px-[8px] py-[24px] transition-[width] duration-300 ease-in-out ${
+            expanded ? "w-[224px]" : "w-[64px]"
+          }`}
+        >
         <div className="flex w-full items-center justify-between">
           <Link
             href="/"
@@ -77,15 +92,17 @@ export function Sidebar() {
         </ul>
 
         <div className="flex w-full flex-col gap-[12px]">
-          <button
-            type="button"
+          <Link
+            href="/help"
             aria-label="도움말"
             onClick={stop}
-            className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black hover:bg-secondary"
+            className={`flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black ${
+              isHelp ? "bg-[#f1f5f9]" : "hover:bg-secondary"
+            }`}
           >
             <CircleAlertIcon className="size-[24px] shrink-0" />
             <span className={labelClass}>도움말</span>
-          </button>
+          </Link>
           <button
             type="button"
             aria-label="로그인 / 회원가입"
@@ -102,7 +119,8 @@ export function Sidebar() {
             </span>
           </button>
         </div>
-      </nav>
-    </aside>
+        </nav>
+      </aside>
+    </>
   );
 }
