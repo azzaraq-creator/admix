@@ -6,6 +6,7 @@ import { ChevronDownIcon, MapPinIcon, XIcon } from "@/components/icons";
 
 import { AgeBarChart } from "./AgeBarChart";
 import { GenderDonut } from "./GenderDonut";
+import { ImageLightbox } from "./ImageLightbox";
 import type { MediaItemData } from "./MediaItem";
 
 export type MediaDetail = {
@@ -55,6 +56,7 @@ export function MediaDetailDrawer({
   onViewDetail,
 }: MediaDetailDrawerProps) {
   const [descExpanded, setDescExpanded] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const data = { ...SAMPLE_DETAIL, ...detail };
   const images = media.images?.length ? media.images : [null, null];
   const hasPopulation = Boolean(data.genderRatio || data.ageRatio.length);
@@ -64,15 +66,18 @@ export function MediaDetailDrawer({
       <div className="relative shrink-0">
         <div className="flex h-[200px] w-full items-center justify-center gap-[2px] overflow-hidden bg-white">
           {images.map((src, index) => (
-            <div
+            <button
               key={index}
-              className="relative aspect-square min-w-0 flex-1 self-stretch bg-[#d9d9d9]"
+              type="button"
+              onClick={() => setLightboxIndex(index)}
+              aria-label="이미지 크게보기"
+              className="relative aspect-square min-w-0 flex-1 cursor-pointer self-stretch bg-[#d9d9d9]"
             >
               {src && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={src} alt="" className="size-full object-cover" />
               )}
-            </div>
+            </button>
           ))}
         </div>
         <button
@@ -206,6 +211,14 @@ export function MediaDetailDrawer({
           </section>
         )}
       </div>
+
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={images}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 }
