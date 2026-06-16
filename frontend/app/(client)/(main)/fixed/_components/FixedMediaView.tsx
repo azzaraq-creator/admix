@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
@@ -10,6 +11,7 @@ import { ChatPanel } from "./ChatPanel";
 import { MapArea } from "./MapArea";
 
 export function FixedMediaView() {
+  const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
 
@@ -24,10 +26,11 @@ export function FixedMediaView() {
       <div className="absolute inset-y-0 left-0 z-10 flex">
         <Sidebar />
         {chatOpen && <ChatPanel onSelectMedia={setSelectedMedia} />}
-        {selectedMedia && (
+        {chatOpen && selectedMedia && (
           <MediaDetailDrawer
             media={selectedMedia}
             onClose={() => setSelectedMedia(null)}
+            onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
           />
         )}
         <div className="flex items-center">

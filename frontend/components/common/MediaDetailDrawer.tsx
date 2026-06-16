@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { ChevronDownIcon, MapPinIcon, XIcon } from "@/components/icons";
 
+import { AgeBarChart } from "./AgeBarChart";
+import { GenderDonut } from "./GenderDonut";
 import type { MediaItemData } from "./MediaItem";
 
 export type MediaDetail = {
@@ -56,7 +58,6 @@ export function MediaDetailDrawer({
   const data = { ...SAMPLE_DETAIL, ...detail };
   const images = media.images?.length ? media.images : [null, null];
   const hasPopulation = Boolean(data.genderRatio || data.ageRatio.length);
-  const maxAge = Math.max(...data.ageRatio.map((a) => a.value));
 
   return (
     <div className="relative flex h-screen w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
@@ -189,80 +190,18 @@ export function MediaDetailDrawer({
               <p className="text-sm font-medium leading-[20px] text-[#545454]">
                 성별 비율
               </p>
-              <div className="flex justify-center py-[6px]">
-                <div
-                  className="relative flex size-[220px] items-center justify-center rounded-full"
-                  style={{
-                    background: `conic-gradient(#ff7a00 0% ${data.genderRatio.female}%, #16c60c ${data.genderRatio.female}% 100%)`,
-                  }}
-                >
-                  <div className="absolute inset-[30px] flex items-center justify-center gap-[20px] rounded-full bg-white">
-                    <div className="flex flex-col items-center gap-[8px]">
-                      <span className="text-base font-semibold text-black">
-                        남성
-                      </span>
-                      <span className="flex items-end text-[#16c60c]">
-                        <span className="text-[28px] font-semibold leading-[32px]">
-                          {data.genderRatio.male}
-                        </span>
-                        <span className="text-[20px] leading-[28px]">%</span>
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center gap-[8px]">
-                      <span className="text-base font-semibold text-black">
-                        여성
-                      </span>
-                      <span className="flex items-end text-[#ff7a00]">
-                        <span className="text-[28px] font-semibold leading-[32px]">
-                          {data.genderRatio.female}
-                        </span>
-                        <span className="text-[20px] leading-[28px]">%</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <GenderDonut
+                male={data.genderRatio.male}
+                female={data.genderRatio.female}
+                className="py-[6px]"
+              />
             </div>
 
             <div className="flex flex-col gap-[16px]">
               <p className="text-sm font-medium leading-[20px] text-[#545454]">
                 연령대 비율
               </p>
-              <div className="flex h-[260px] items-end justify-between gap-[6px]">
-                {data.ageRatio.map((age) => {
-                  const primary = age.value === maxAge;
-                  return (
-                    <div
-                      key={age.label}
-                      className="flex h-full flex-1 flex-col items-center justify-end gap-[8px]"
-                    >
-                      <div className="flex items-center">
-                        <span
-                          className={`text-sm font-semibold leading-[20px] ${primary ? "text-primary" : "text-black"}`}
-                        >
-                          {age.value}
-                        </span>
-                        <span
-                          className={`text-xs font-medium leading-[16px] ${primary ? "text-primary" : "text-black"}`}
-                        >
-                          %
-                        </span>
-                      </div>
-                      <div
-                        className={`w-[22px] rounded-t-full ${primary ? "bg-primary" : "bg-secondary"}`}
-                        style={{ height: `${Math.round((age.value / maxAge) * 200)}px` }}
-                      />
-                      <span className="text-sm font-semibold leading-[20px] text-[#757575]">
-                        {age.bound === "under"
-                          ? `~${age.label}`
-                          : age.bound === "over"
-                            ? `${age.label}~`
-                            : age.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <AgeBarChart data={data.ageRatio} maxBarHeight={200} />
             </div>
           </section>
         )}
