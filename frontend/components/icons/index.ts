@@ -13,6 +13,8 @@ export { LogInIcon } from "./LogInIcon";
 export { SearchIcon } from "./SearchIcon";
 export { SparkleIcon } from "./SparkleIcon";
 export { ArrowUpIcon } from "./ArrowUpIcon";
+export { ChevronDownIcon } from "./ChevronDownIcon";
 export { ChevronLeftIcon } from "./ChevronLeftIcon";
+export { RotateCwIcon } from "./RotateCwIcon";
 export { LocateIcon } from "./LocateIcon";
 export { TvIcon } from "./TvIcon";
