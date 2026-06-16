@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import {
+  useState,
+  type ComponentType,
+  type MouseEvent,
+  type SVGProps,
+} from "react";
 
 import {
   AirplayIcon,
@@ -14,15 +19,22 @@ import {
   Logo,
   LogInIcon,
   MapIcon,
-} from "./icons";
+} from "@/components/icons";
 
-const MENU_ITEMS = [
-  { key: "fixed", label: "고정 매체", Icon: MapIcon },
+type MenuItem = {
+  key: string;
+  label: string;
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  href?: string;
+};
+
+const MENU_ITEMS: MenuItem[] = [
+  { key: "fixed", label: "고정 매체", Icon: MapIcon, href: "/fixed" },
   { key: "moving", label: "이동·지역 매체", Icon: BusIcon },
   { key: "service", label: "서비스 소개", Icon: AirplayIcon },
   { key: "proposals", label: "내 제안서", Icon: FolderIcon },
   { key: "contact", label: "문의하기", Icon: HeadsetIcon },
-] as const;
+];
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
@@ -76,19 +88,37 @@ export function Sidebar() {
         </div>
 
         <ul className="flex w-full flex-col gap-[12px]">
-          {MENU_ITEMS.map(({ key, label, Icon }) => (
-            <li key={key}>
-              <button
-                type="button"
-                aria-label={label}
-                onClick={stop}
-                className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black hover:bg-secondary"
-              >
-                <Icon className="size-[24px] shrink-0" />
-                <span className={labelClass}>{label}</span>
-              </button>
-            </li>
-          ))}
+          {MENU_ITEMS.map(({ key, label, Icon, href }) => {
+            const active = href ? pathname?.startsWith(href) : false;
+            const itemClass = `flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black ${
+              active ? "bg-[#f1f5f9]" : "hover:bg-secondary"
+            }`;
+            return (
+              <li key={key}>
+                {href ? (
+                  <Link
+                    href={href}
+                    aria-label={label}
+                    onClick={stop}
+                    className={itemClass}
+                  >
+                    <Icon className="size-[24px] shrink-0" />
+                    <span className={labelClass}>{label}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={label}
+                    onClick={stop}
+                    className={itemClass}
+                  >
+                    <Icon className="size-[24px] shrink-0" />
+                    <span className={labelClass}>{label}</span>
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
 
         <div className="flex w-full flex-col gap-[12px]">

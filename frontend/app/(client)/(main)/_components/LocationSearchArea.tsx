@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { SearchIcon } from "./icons";
+import { SearchIcon } from "@/components/icons";
 
 export function LocationSearchArea() {
   const [value, setValue] = useState("");

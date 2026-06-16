@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { SparkleIcon } from "./icons";
+import { SparkleIcon } from "@/components/icons";
 
 export function AiSearchArea() {
   const [value, setValue] = useState("");

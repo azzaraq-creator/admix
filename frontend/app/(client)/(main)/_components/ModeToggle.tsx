@@ -1,18 +1,24 @@
 "use client";
 
-import { SparkleIcon } from "./icons";
+import { SparkleIcon } from "@/components/icons";
 
 export type Mode = "ai" | "search";
 
 export function ModeToggle({
   value,
   onChange,
+  className,
 }: {
   value: Mode;
   onChange: (mode: Mode) => void;
+  className?: string;
 }) {
   return (
-    <div className="flex w-[335px] items-center gap-[6px] rounded-full bg-[#f1f5f9] p-[8px]">
+    <div
+      className={`flex items-center gap-[6px] rounded-full bg-[#f1f5f9] p-[8px] ${
+        className ?? "w-[335px]"
+      }`}
+    >
       <button
         type="button"
         onClick={() => onChange("ai")}
