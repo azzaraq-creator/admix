@@ -22,6 +22,8 @@ export { XIcon } from "./XIcon";
 export { ArrowUpIcon } from "./ArrowUpIcon";
 export { ChevronDownIcon } from "./ChevronDownIcon";
 export { ChevronLeftIcon } from "./ChevronLeftIcon";
+export { ChevronRightIcon } from "./ChevronRightIcon";
+export { CircleCheckIcon } from "./CircleCheckIcon";
 export { RotateCwIcon } from "./RotateCwIcon";
 export { LocateIcon } from "./LocateIcon";
 export { TvIcon } from "./TvIcon";
