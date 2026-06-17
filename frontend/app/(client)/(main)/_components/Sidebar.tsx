@@ -33,7 +33,7 @@ const MENU_ITEMS: MenuItem[] = [
   { key: "moving", label: "이동·지역 매체", Icon: BusIcon, href: "/moving" },
   { key: "service", label: "서비스 소개", Icon: AirplayIcon, href: "/service" },
   { key: "proposals", label: "내 제안서", Icon: FolderIcon },
-  { key: "contact", label: "문의하기", Icon: HeadsetIcon },
+  { key: "contact", label: "문의하기", Icon: HeadsetIcon, href: "/contact" },
 ];
 
 export function Sidebar() {
