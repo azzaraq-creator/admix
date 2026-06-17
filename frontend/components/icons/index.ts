@@ -36,3 +36,6 @@ export { FileUpIcon } from "./FileUpIcon";
 export { RotateCwIcon } from "./RotateCwIcon";
 export { LocateIcon } from "./LocateIcon";
 export { TvIcon } from "./TvIcon";
+export { AdmixWordmark } from "./AdmixWordmark";
+export { LogoFull } from "./LogoFull";
+export { LogOutIcon } from "./LogOutIcon";
