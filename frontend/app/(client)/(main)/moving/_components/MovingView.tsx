@@ -36,7 +36,7 @@ export function MovingView() {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="flex flex-1 flex-col border-r border-[#e8e8e8]">
+      <div className="flex min-w-0 flex-1 flex-col border-r border-[#e8e8e8]">
         <div className="border-b border-stroke px-[16px] py-[24px]">
           <LocationSearchInput
             value={location}
@@ -60,7 +60,7 @@ export function MovingView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto">
         <MediaDetailContent
           name={selected.name}
           price={selected.price}
