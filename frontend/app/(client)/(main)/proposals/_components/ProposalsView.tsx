@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { PlusIcon, SearchIcon } from "@/components/icons";
@@ -20,14 +21,54 @@ type Proposal = {
 };
 
 const INITIAL_PROPOSALS: Proposal[] = [
-  { id: "p1", title: "광고 제안서_2026", updatedAt: "2026.05.20 13:30", status: "작성중" },
-  { id: "p2", title: "여름 캠페인 제안서", updatedAt: "2026.05.18 10:12", status: "맞춤제안" },
-  { id: "p3", title: "강남 옥외광고 제안서", updatedAt: "2026.05.15 16:40", status: "계약 완료" },
-  { id: "p4", title: "버스 광고 제안서", updatedAt: "2026.05.12 09:05", status: "작성중" },
-  { id: "p5", title: "지하철 광고 제안서", updatedAt: "2026.05.09 18:22", status: "맞춤제안" },
-  { id: "p6", title: "브랜드 런칭 제안서", updatedAt: "2026.05.06 11:48", status: "계약 완료" },
-  { id: "p7", title: "신제품 홍보 제안서", updatedAt: "2026.05.02 14:30", status: "맞춤제안" },
-  { id: "p8", title: "지역 캠페인 제안서", updatedAt: "2026.04.28 15:00", status: "계약 완료" },
+  {
+    id: "p1",
+    title: "광고 제안서_2026",
+    updatedAt: "2026.05.20 13:30",
+    status: "작성중",
+  },
+  {
+    id: "p2",
+    title: "여름 캠페인 제안서",
+    updatedAt: "2026.05.18 10:12",
+    status: "맞춤제안",
+  },
+  {
+    id: "p3",
+    title: "강남 옥외광고 제안서",
+    updatedAt: "2026.05.15 16:40",
+    status: "계약 완료",
+  },
+  {
+    id: "p4",
+    title: "버스 광고 제안서",
+    updatedAt: "2026.05.12 09:05",
+    status: "작성중",
+  },
+  {
+    id: "p5",
+    title: "지하철 광고 제안서",
+    updatedAt: "2026.05.09 18:22",
+    status: "맞춤제안",
+  },
+  {
+    id: "p6",
+    title: "브랜드 런칭 제안서",
+    updatedAt: "2026.05.06 11:48",
+    status: "계약 완료",
+  },
+  {
+    id: "p7",
+    title: "신제품 홍보 제안서",
+    updatedAt: "2026.05.02 14:30",
+    status: "맞춤제안",
+  },
+  {
+    id: "p8",
+    title: "지역 캠페인 제안서",
+    updatedAt: "2026.04.28 15:00",
+    status: "계약 완료",
+  },
 ];
 
 const CHIP_CLASS: Record<Status, string> = {
@@ -62,21 +103,33 @@ function StatusChip({ status }: { status: Status }) {
 
 function ProposalCard({
   proposal,
+  onOpen,
   onDelete,
   onDownload,
 }: {
   proposal: Proposal;
+  onOpen: () => void;
   onDelete: () => void;
   onDownload: () => void;
 }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-[12px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.16)]">
+    <div
+      onClick={onOpen}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-[12px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.16)]"
+    >
       <div className="relative aspect-[1920/1080] w-full overflow-hidden bg-[#2f3442]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/proposals/sample.png" alt="" className="size-full object-cover" />
+        <img
+          src="/proposals/sample.png"
+          alt=""
+          className="size-full object-cover"
+        />
         <button
           type="button"
-          onClick={onDelete}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
           aria-label="제안서 삭제"
           className="absolute right-[16px] top-[16px] flex items-center rounded-full bg-black/70 p-[4px]"
         >
@@ -96,7 +149,10 @@ function ProposalCard({
           <StatusChip status={proposal.status} />
           <button
             type="button"
-            onClick={onDownload}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDownload();
+            }}
             aria-label="제안서 다운로드"
             className="flex items-center rounded-[6px] bg-[#f8fafc] p-[5px]"
           >
@@ -109,6 +165,7 @@ function ProposalCard({
 }
 
 export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
+  const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>(INITIAL_PROPOSALS);
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("전체");
   const [query, setQuery] = useState("");
@@ -153,7 +210,12 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
     )} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
     counter.current += 1;
     setProposals((prev) => [
-      { id: `new-${counter.current}`, title: name, updatedAt, status: "작성중" },
+      {
+        id: `new-${counter.current}`,
+        title: name,
+        updatedAt,
+        status: "작성중",
+      },
       ...prev,
     ]);
   };
@@ -164,12 +226,13 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
       description: (
         <>
           <span className="font-semibold text-[#2f3442]">{proposal.title}</span>
-          가 내 제안서에서 영구히 삭제됩니다.
+          가 내 제안서에서 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
     });
-    if (ok) setProposals((prev) => prev.filter((item) => item.id !== proposal.id));
+    if (ok)
+      setProposals((prev) => prev.filter((item) => item.id !== proposal.id));
   };
 
   const handleDownload = async () => {
@@ -194,8 +257,7 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
           onClick={handleNewProposal}
           className="flex items-center justify-center gap-[4px] rounded-[8px] bg-primary px-[12px] py-[8px] text-sm font-medium text-white"
         >
-          <PlusIcon className="size-[18px]" />
-          새 제안서
+          <PlusIcon className="size-[18px]" />새 제안서
         </button>
       </div>
 
@@ -232,6 +294,7 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
           <ProposalCard
             key={proposal.id}
             proposal={proposal}
+            onOpen={() => router.push(`/proposals/${proposal.id}`)}
             onDelete={() => handleDelete(proposal)}
             onDownload={handleDownload}
           />
