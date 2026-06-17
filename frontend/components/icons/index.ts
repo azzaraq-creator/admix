@@ -31,6 +31,8 @@ export { FileXIcon } from "./FileXIcon";
 export { TrashIcon } from "./TrashIcon";
 export { MinusIcon } from "./MinusIcon";
 export { GripVerticalIcon } from "./GripVerticalIcon";
+export { UserIcon } from "./UserIcon";
+export { FileUpIcon } from "./FileUpIcon";
 export { RotateCwIcon } from "./RotateCwIcon";
 export { LocateIcon } from "./LocateIcon";
 export { TvIcon } from "./TvIcon";

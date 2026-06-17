@@ -17,11 +17,11 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@/components/icons";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
 import { Sidebar } from "../../../_components/Sidebar";
-import { useConfirm } from "../../_components/useConfirm";
 
 type Slide = { id: string; name: string };
 

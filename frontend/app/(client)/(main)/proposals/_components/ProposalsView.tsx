@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { PlusIcon, SearchIcon } from "@/components/icons";
+import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
 
 import { NewProposalModal } from "./NewProposalModal";
-import { useConfirm } from "./useConfirm";
 
 type Status = "작성중" | "맞춤제안" | "계약 완료";
 
