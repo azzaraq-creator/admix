@@ -2,11 +2,22 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { CircleCheckIcon } from "@/components/icons";
+import { CircleCheckIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
-const TABS_GUEST = ["문의 접수", "자주 묻는 질문"];
-const TABS_MEMBER = ["문의 접수", "문의 내역", "자주 묻는 질문"];
+import { FaqPanel } from "./FaqPanel";
+
+type TabKey = "received" | "history" | "faq";
+
+const TABS_GUEST: { key: TabKey; label: string }[] = [
+  { key: "received", label: "문의 접수" },
+  { key: "faq", label: "자주 묻는 질문" },
+];
+const TABS_MEMBER: { key: TabKey; label: string }[] = [
+  { key: "received", label: "문의 접수" },
+  { key: "history", label: "문의 내역" },
+  { key: "faq", label: "자주 묻는 질문" },
+];
 
 const INQUIRY_TYPES = ["매체 및 상품 문의", "견적 및 제안 관련 문의", "기타 문의"];
 
@@ -80,6 +91,8 @@ function ContactCard({
 
 export function ContactView({ member = false }: { member?: boolean }) {
   const [toast, setToast] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("received");
+  const [faqQuery, setFaqQuery] = useState("");
   const tabs = member ? TABS_MEMBER : TABS_GUEST;
 
   useEffect(() => {
@@ -108,220 +121,242 @@ export function ContactView({ member = false }: { member?: boolean }) {
         </p>
       </div>
 
-      <div className="flex items-center border-b border-stroke">
-        {tabs.map((tab, index) => (
-          <button
-            key={tab}
-            type="button"
-            className={cn(
-              "-mb-px px-[10px] py-[10px] text-base font-medium leading-[24px]",
-              index === 0
-                ? "border-b-2 border-primary text-primary"
-                : "text-[#737586]",
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex h-[52px] items-end justify-between border-b border-stroke">
+        <div className="flex items-end">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "-mb-px px-[10px] py-[10px] text-base font-medium leading-[24px]",
+                activeTab === tab.key
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-[#737586]",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {activeTab === "faq" && (
+          <div className="mb-[8px] flex h-[44px] w-[298px] items-center gap-[10px] rounded-[6px] border border-stroke px-[16px]">
+            <input
+              type="text"
+              value={faqQuery}
+              onChange={(event) => setFaqQuery(event.target.value)}
+              placeholder="검색어를 입력하세요."
+              className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#757575]"
+            />
+            <SearchIcon className="size-[16px] shrink-0 text-[#757575]" />
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-stretch gap-[24px]">
-        <ContactCard
-          highlight
-          footer={
-            <div className="flex w-full flex-col gap-[8px]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
-              >
-                <Icon name="kakao" className="size-[24px]" />
-                카카오톡 상담
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-[#00c300] px-[16px] py-[12px] text-base font-medium text-[#00c300]"
-              >
-                <Icon name="naver" className="size-[24px]" />
-                네이버톡 상담
-              </button>
-            </div>
-          }
-        >
-          <Badge />
-          <div className="flex w-full flex-col items-center gap-[20px]">
-            <IconCircle highlight>
-              <Icon name="message-circle-white" className="size-[32px]" />
-            </IconCircle>
-            <div className="flex w-full flex-col items-center gap-[10px] text-center">
-              <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
-                실시간 상담
-              </p>
-              <p className="text-base font-medium leading-[24px] text-black">
-                카카오톡 또는 네이버톡으로
-                <br />
-                실시간 상담을 받아보세요.
-              </p>
-            </div>
-            <div className="flex w-full items-center justify-center gap-[6px] rounded-[6px] bg-secondary py-[8px]">
-              <Icon name="clock" className="size-[18px]" />
-              <p className="text-base font-semibold leading-[24px] text-black">
-                평균 응답 시간 10분 이내
-              </p>
-            </div>
-          </div>
-        </ContactCard>
-
-        <ContactCard
-          footer={
-            <button
-              type="button"
-              onClick={() => copy(PHONE)}
-              className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+      {activeTab === "received" && (
+        <div className="flex flex-col gap-[16px]">
+          <div className="flex flex-wrap items-stretch gap-[24px]">
+            <ContactCard
+              highlight
+              footer={
+                <div className="flex w-full flex-col gap-[8px]">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+                  >
+                    <Icon name="kakao" className="size-[24px]" />
+                    카카오톡 상담
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-[#00c300] px-[16px] py-[12px] text-base font-medium text-[#00c300]"
+                  >
+                    <Icon name="naver" className="size-[24px]" />
+                    네이버톡 상담
+                  </button>
+                </div>
+              }
             >
-              <Icon name="copy" className="size-[24px]" />
-              전화번호 복사
-            </button>
-          }
-        >
-          <Badge invisible />
-          <div className="flex w-full flex-col items-center gap-[20px]">
-            <IconCircle>
-              <Icon name="phone" className="size-[32px]" />
-            </IconCircle>
-            <div className="flex w-full flex-col items-center gap-[10px] text-center">
-              <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                전화 문의
-              </p>
-              <p className="text-base font-medium leading-[24px] text-black">
-                운영시간 내 전화로
-                <br />
-                상담을 도와드립니다.
-              </p>
-              <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
-                {PHONE}
-              </p>
-            </div>
-            <div className="flex w-full flex-col items-center gap-[2px] rounded-[8px] bg-[#f6f6f6] py-[8px] text-center">
-              <p className="text-base font-medium leading-[24px] text-black">
-                운영시간
-              </p>
-              <div className="flex flex-col items-center">
-                <p className="text-base font-medium leading-[24px] text-black">
-                  평일 09:00 ~ 18:00
-                </p>
-                <p className="text-sm font-medium leading-[20px] text-[#737586]">
-                  (주말 및 공휴일 휴무)
-                </p>
-              </div>
-            </div>
-          </div>
-        </ContactCard>
-
-        <ContactCard
-          footer={
-            member ? (
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
-              >
-                <Icon name="square-pen" className="size-[24px]" />
-                문의 작성하기
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => copy(EMAIL)}
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
-              >
-                <Icon name="square-pen" className="size-[24px]" />
-                메일주소 복사
-              </button>
-            )
-          }
-        >
-          <Badge invisible />
-          <div className="flex w-full flex-col items-center gap-[20px]">
-            <IconCircle>
-              <Icon name="square-pen" className="size-[32px]" />
-            </IconCircle>
-            <div className="flex w-full flex-col items-center gap-[10px] text-center">
-              <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                문의 접수
-              </p>
-              <p className="text-base font-medium leading-[24px] text-black">
-                문의 내용을 작성해 주시면
-                <br />
-                확인 후 답변드리겠습니다.
-              </p>
-              {!member && (
-                <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
-                  {EMAIL}
-                </p>
-              )}
-            </div>
-            <div className="flex w-full flex-col items-start gap-[10px] px-[32px]">
-              {INQUIRY_TYPES.map((type) => (
-                <div key={type} className="flex w-full items-center gap-[13px]">
-                  <span className="size-[8px] shrink-0 rounded-full bg-[#2f3442]" />
+              <Badge />
+              <div className="flex w-full flex-col items-center gap-[20px]">
+                <IconCircle highlight>
+                  <Icon name="message-circle-white" className="size-[32px]" />
+                </IconCircle>
+                <div className="flex w-full flex-col items-center gap-[10px] text-center">
+                  <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
+                    실시간 상담
+                  </p>
                   <p className="text-base font-medium leading-[24px] text-black">
-                    {type}
+                    카카오톡 또는 네이버톡으로
+                    <br />
+                    실시간 상담을 받아보세요.
                   </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </ContactCard>
-      </div>
+                <div className="flex w-full items-center justify-center gap-[6px] rounded-[6px] bg-secondary py-[8px]">
+                  <Icon name="clock" className="size-[18px]" />
+                  <p className="text-base font-semibold leading-[24px] text-black">
+                    평균 응답 시간 10분 이내
+                  </p>
+                </div>
+              </div>
+            </ContactCard>
 
-      <div className="flex flex-wrap items-center gap-x-[24px] gap-y-[12px] rounded-[12px] border border-stroke px-[24px] py-[14px]">
-        <div className="flex min-w-[300px] max-w-[812px] flex-1 items-center gap-[27px]">
-          <div className="flex shrink-0 items-center rounded-full bg-secondary p-[10px]">
-            <Icon name="megaphone" className="size-[24px]" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-            <p className="text-base font-medium leading-[24px] text-black">
-              문의 전 확인해 보세요
-            </p>
-            <p className="text-sm font-medium leading-[20px] text-[#737586]">
-              자주 묻는 질문에서 궁금증을 빠르게 해결할 수 있습니다.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="flex shrink-0 items-center justify-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
-        >
-          자주 묻는 질문 보기
-        </button>
-      </div>
+            <ContactCard
+              footer={
+                <button
+                  type="button"
+                  onClick={() => copy(PHONE)}
+                  className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                >
+                  <Icon name="copy" className="size-[24px]" />
+                  전화번호 복사
+                </button>
+              }
+            >
+              <Badge invisible />
+              <div className="flex w-full flex-col items-center gap-[20px]">
+                <IconCircle>
+                  <Icon name="phone" className="size-[32px]" />
+                </IconCircle>
+                <div className="flex w-full flex-col items-center gap-[10px] text-center">
+                  <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
+                    전화 문의
+                  </p>
+                  <p className="text-base font-medium leading-[24px] text-black">
+                    운영시간 내 전화로
+                    <br />
+                    상담을 도와드립니다.
+                  </p>
+                  <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
+                    {PHONE}
+                  </p>
+                </div>
+                <div className="flex w-full flex-col items-center gap-[2px] rounded-[8px] bg-[#f6f6f6] py-[8px] text-center">
+                  <p className="text-base font-medium leading-[24px] text-black">
+                    운영시간
+                  </p>
+                  <div className="flex flex-col items-center">
+                    <p className="text-base font-medium leading-[24px] text-black">
+                      평일 09:00 ~ 18:00
+                    </p>
+                    <p className="text-sm font-medium leading-[20px] text-[#737586]">
+                      (주말 및 공휴일 휴무)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ContactCard>
 
-      <div className="relative flex items-center gap-[24px] overflow-hidden rounded-[12px] border border-stroke px-[24px] py-[14px]">
-        <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-          <p className="text-sm font-semibold leading-[20px] text-black">
-            안내 사항
-          </p>
-          <div className="flex flex-col gap-[6px]">
-            {NOTICES.map((notice) => (
-              <div key={notice} className="flex w-full items-center gap-[8px]">
-                <span className="size-[6px] shrink-0 rounded-full bg-[#737586]" />
-                <p className="flex-1 text-sm font-medium leading-[20px] text-[#737586]">
-                  {notice}
+            <ContactCard
+              footer={
+                member ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                  >
+                    <Icon name="square-pen" className="size-[24px]" />
+                    문의 작성하기
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => copy(EMAIL)}
+                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                  >
+                    <Icon name="square-pen" className="size-[24px]" />
+                    메일주소 복사
+                  </button>
+                )
+              }
+            >
+              <Badge invisible />
+              <div className="flex w-full flex-col items-center gap-[20px]">
+                <IconCircle>
+                  <Icon name="square-pen" className="size-[32px]" />
+                </IconCircle>
+                <div className="flex w-full flex-col items-center gap-[10px] text-center">
+                  <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
+                    문의 접수
+                  </p>
+                  <p className="text-base font-medium leading-[24px] text-black">
+                    문의 내용을 작성해 주시면
+                    <br />
+                    확인 후 답변드리겠습니다.
+                  </p>
+                  {!member && (
+                    <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
+                      {EMAIL}
+                    </p>
+                  )}
+                </div>
+                <div className="flex w-full flex-col items-start gap-[10px] px-[32px]">
+                  {INQUIRY_TYPES.map((type) => (
+                    <div key={type} className="flex w-full items-center gap-[13px]">
+                      <span className="size-[8px] shrink-0 rounded-full bg-[#2f3442]" />
+                      <p className="text-base font-medium leading-[24px] text-black">
+                        {type}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ContactCard>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-[24px] gap-y-[12px] rounded-[12px] border border-stroke px-[24px] py-[14px]">
+            <div className="flex min-w-[300px] max-w-[812px] flex-1 items-center gap-[27px]">
+              <div className="flex shrink-0 items-center rounded-full bg-secondary p-[10px]">
+                <Icon name="megaphone" className="size-[24px]" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                <p className="text-base font-medium leading-[24px] text-black">
+                  문의 전 확인해 보세요
+                </p>
+                <p className="text-sm font-medium leading-[20px] text-[#737586]">
+                  자주 묻는 질문에서 궁금증을 빠르게 해결할 수 있습니다.
                 </p>
               </div>
-            ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("faq")}
+              className="flex shrink-0 items-center justify-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
+            >
+              자주 묻는 질문 보기
+            </button>
+          </div>
+
+          <div className="relative flex items-center gap-[24px] overflow-hidden rounded-[12px] border border-stroke px-[24px] py-[14px]">
+            <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+              <p className="text-sm font-semibold leading-[20px] text-black">
+                안내 사항
+              </p>
+              <div className="flex flex-col gap-[6px]">
+                {NOTICES.map((notice) => (
+                  <div key={notice} className="flex w-full items-center gap-[8px]">
+                    <span className="size-[6px] shrink-0 rounded-full bg-[#737586]" />
+                    <p className="flex-1 text-sm font-medium leading-[20px] text-[#737586]">
+                      {notice}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="pointer-events-none absolute bottom-0 right-0 h-[72px] w-[150px] opacity-20">
+              <Icon
+                name="message-circle-teal"
+                className="absolute bottom-[14px] right-[60px] size-[63px]"
+              />
+              <Icon
+                name="message-circle-gray"
+                className="absolute bottom-[14px] right-[24px] size-[50px] -scale-x-100"
+              />
+            </div>
           </div>
         </div>
-        <div className="pointer-events-none absolute bottom-0 right-0 h-[72px] w-[150px] opacity-20">
-          <Icon
-            name="message-circle-teal"
-            className="absolute bottom-[14px] right-[60px] size-[63px]"
-          />
-          <Icon
-            name="message-circle-gray"
-            className="absolute bottom-[14px] right-[24px] size-[50px] -scale-x-100"
-          />
-        </div>
-      </div>
+      )}
+
+      {activeTab === "faq" && <FaqPanel query={faqQuery} />}
 
       {toast && (
         <div className="fixed bottom-[36px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-[16px] rounded-[8px] bg-[#2f3442] px-[20px] py-[14px] shadow-lg">

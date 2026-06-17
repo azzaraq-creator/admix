@@ -10,7 +10,7 @@ export default async function ContactPage({
   return (
     <div className="flex h-screen w-full bg-white">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
         <ContactView member={member === "1"} />
       </main>
     </div>
