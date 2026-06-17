@@ -6,6 +6,8 @@ import { CircleCheckIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import { FaqPanel } from "./FaqPanel";
+import { HistoryPanel } from "./HistoryPanel";
+import { InquiryModal } from "./InquiryModal";
 
 type TabKey = "received" | "history" | "faq";
 
@@ -92,8 +94,10 @@ function ContactCard({
 export function ContactView({ member = false }: { member?: boolean }) {
   const [toast, setToast] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("received");
-  const [faqQuery, setFaqQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
   const tabs = member ? TABS_MEMBER : TABS_GUEST;
+  const showSearch = activeTab === "faq" || activeTab === "history";
 
   useEffect(() => {
     if (!toast) return;
@@ -139,12 +143,12 @@ export function ContactView({ member = false }: { member?: boolean }) {
             </button>
           ))}
         </div>
-        {activeTab === "faq" && (
+        {showSearch && (
           <div className="mb-[8px] flex h-[44px] w-[298px] items-center gap-[10px] rounded-[6px] border border-stroke px-[16px]">
             <input
               type="text"
-              value={faqQuery}
-              onChange={(event) => setFaqQuery(event.target.value)}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="검색어를 입력하세요."
               className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#757575]"
             />
@@ -252,6 +256,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 member ? (
                   <button
                     type="button"
+                    onClick={() => setModalOpen(true)}
                     className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
                   >
                     <Icon name="square-pen" className="size-[24px]" />
@@ -356,7 +361,11 @@ export function ContactView({ member = false }: { member?: boolean }) {
         </div>
       )}
 
-      {activeTab === "faq" && <FaqPanel query={faqQuery} />}
+      {activeTab === "history" && <HistoryPanel query={searchQuery} />}
+
+      {activeTab === "faq" && <FaqPanel query={searchQuery} />}
+
+      <InquiryModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {toast && (
         <div className="fixed bottom-[36px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-[16px] rounded-[8px] bg-[#2f3442] px-[20px] py-[14px] shadow-lg">
