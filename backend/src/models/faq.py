@@ -1,15 +1,16 @@
 """자주 묻는 질문 모델 — 설계서 §3.7 `faq`.
 
 어드민에서 입력하는 정적 콘텐츠. 문의(inquiry)와는 별개.
-created_by 는 admin 테이블 생성 후 FK 로 연결한다(현재는 plain 컬럼).
+created_by 는 admin(작성자) FK. admin 삭제 시 SET NULL.
 """
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from src.database import Base
 
@@ -27,6 +28,10 @@ class Faq(Base):
     content = Column(Text, nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     is_published = Column(Boolean, nullable=False, default=True)
-    created_by = Column(UUID(as_uuid=True), nullable=True)
+    created_by = Column(
+        UUID(as_uuid=True), ForeignKey("admin.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    creator = relationship("Admin", back_populates="faqs")
