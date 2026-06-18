@@ -2,10 +2,18 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.0
 pydantic==2.9.0
 pydantic-settings==2.5.0
+email-validator==2.2.0
 sqlalchemy==2.0.35
 psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 typing_extensions>=4.12
+
+# Auth (이메일 + 카카오/네이버 소셜)
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+bcrypt==4.0.1
+python-multipart==0.0.12
+httpx>=0.27,<0.28
 
 # LangGraph + OpenAI
 langgraph>=0.2,<0.3
