@@ -12,7 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import get_settings
 from src.database import Base
 from src.models.ad_session import AdSession, AdMessage
+from src.models.admin import Admin
+from src.models.faq import Faq
 from src.models.media import MediaKeyword, MediaItem
+from src.models.media_master import Media
+from src.models.media_image import MediaImage
+from src.models.media_plan import MediaPlan
+from src.models.user import User, RefreshToken, SocialAccount, PasswordReset
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

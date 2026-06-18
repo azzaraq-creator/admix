@@ -1,4 +1,3 @@
-import { MapPinIcon } from "@/components/icons";
 import type {
   SearchOption,
   TableColumn,
@@ -21,12 +20,7 @@ function RegionCell({ region }: { region: string }) {
   if (region === "-") {
     return <span className="text-[#737586]">-</span>;
   }
-  return (
-    <span className="inline-flex items-center justify-center gap-[4px]">
-      <MapPinIcon className="size-[16px] shrink-0 text-primary" />
-      <span className="max-w-[180px] truncate">{region}</span>
-    </span>
-  );
+  return <span className="block max-w-[180px] truncate">{region}</span>;
 }
 
 export const mediaColumnList: TableColumn<Media>[] = [
@@ -66,32 +60,3 @@ export const mediaSearchOptionList: SearchOption[] = [
     row: 2,
   },
 ];
-
-const FIXED_TEMPLATE: Omit<Media, "no"> = {
-  mediaType: "고정",
-  name: "신사 BK빌딩",
-  region: "LOC-01 강남역·테헤란로 / 강남대로 사거리",
-  category: "전광판/빌보드",
-  product: "영상(15초)",
-  adCost: "10,000,000",
-  saleType: "단품",
-  updatedAt: "2025-01-01",
-  createdAt: "2025-01-01",
-};
-
-const MOVING_TEMPLATE: Omit<Media, "no"> = {
-  mediaType: "이동",
-  name: "G버스 내부 유리창 프로모션",
-  region: "-",
-  category: "버스",
-  product: "프로모션",
-  adCost: "80,000",
-  saleType: "단품",
-  updatedAt: "2025-01-01",
-  createdAt: "2025-01-01",
-};
-
-export const MEDIA_LIST: Media[] = Array.from({ length: 100 }, (_, i) => {
-  const template = i % 10 < 5 ? FIXED_TEMPLATE : MOVING_TEMPLATE;
-  return { no: String(12345 + i), ...template };
-});

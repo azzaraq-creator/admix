@@ -5,7 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import get_settings
 from src.database import Base, engine
+from src.routers.auth import router as auth_router
 from src.routers.chat_graph import router as chat_graph_router
+from src.routers.faq import router as faq_router
+from src.routers.media import router as media_router
+from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
 from src.services.graph.builder import build_graph
 from src.services.graph.checkpointer import open_checkpointer
@@ -44,6 +48,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
+app.include_router(oauth_router)
+app.include_router(faq_router)
+app.include_router(media_router)
 app.include_router(chat_graph_router)
 app.include_router(recommend_v2_router)
 

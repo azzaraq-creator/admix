@@ -1,0 +1,56 @@
+"""매체 목록 조회 — admin/media 페이지용 평면 매핑.
+
+media 단일값 + 대표 플랜(plan_no=1)의 상품표시명을 합쳐 한 행으로 만든다.
+"""
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
+from src.models.media_master import Media
+from src.models.media_plan import MediaPlan
+
+_SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
+
+
+def _fmt_fee(v: int | None) -> str:
+    return f"{v:,}" if v is not None else "-"
+
+
+def _fmt_date(dt: datetime | None) -> str:
+    return dt.date().isoformat() if dt is not None else "-"
+
+
+def list_media(db: Session) -> list[dict]:
+    rows = (
+        db.query(Media, MediaPlan)
+        .outerjoin(
+            MediaPlan,
+            and_(MediaPlan.media_id == Media.media_id, MediaPlan.plan_no == 1),
+        )
+        .order_by(Media.media_id)
+        .all()
+    )
+    items: list[dict] = []
+    for m, plan in rows:
+        product = "-"
+        if plan is not None:
+            product = plan.product_display_name or plan.product_name or "-"
+        name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
+        items.append(
+            dict(
+                no=m.media_id,
+                mediaType="이동" if m.media_source == "MOVING" else "고정",
+                name=name or "-",
+                region=m.loc_label or "-",
+                category=m.category_small or "-",
+                product=product,
+                adCost=_fmt_fee(m.min_advertisement_fee_krw),
+                saleType=_SALE_TYPE.get(m.sales_type, m.sales_type or "-"),
+                updatedAt=_fmt_date(m.source_updated_at),
+                createdAt=_fmt_date(m.source_created_at),
+            )
+        )
+    return items

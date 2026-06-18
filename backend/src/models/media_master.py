@@ -46,6 +46,7 @@ class Media(Base):
     sales_type = Column(String(100), nullable=True)
     media_source = Column(String(50), nullable=True)
     loc_code = Column(String(20), nullable=True, index=True)
+    loc_label = Column(String(200), nullable=True)
     market_profile_id = Column(BigInteger, nullable=True)
     market_area = Column(String(200), nullable=True)
     market_dong = Column(String(100), nullable=True)

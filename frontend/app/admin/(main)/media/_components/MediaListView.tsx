@@ -7,26 +7,24 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ChevronDownIcon, PlusIcon } from "@/components/icons";
+import { useMediaList } from "@/hooks/media";
 
-import {
-  MEDIA_LIST,
-  mediaColumnList,
-  mediaSearchOptionList,
-  type Media,
-} from "./index";
+import { mediaColumnList, mediaSearchOptionList, type Media } from "./index";
 
 export function MediaListView() {
   const [search, setSearch] = useState<SearchParams>({});
+  const { data } = useMediaList();
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Media[]>(() => {
+    const list = data?.items ?? [];
     const keyword = search.keyword?.trim();
     const type = search.type;
-    return MEDIA_LIST.filter((item) => {
+    return list.filter((item) => {
       if (type && item.mediaType !== type) return false;
       if (keyword && !item.name.includes(keyword)) return false;
       return true;
     });
-  }, [search]);
+  }, [data, search]);
 
   return (
     <div className="flex flex-col gap-[24px]">

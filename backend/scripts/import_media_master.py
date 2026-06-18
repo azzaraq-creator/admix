@@ -144,6 +144,7 @@ def _row_to_media(row, idx: dict[str, int]) -> dict | None:
         sales_type=_clean(g("sales_type")),
         media_source=_clean(g("media_source")),
         loc_code=_clean(g("market_loc_code")),
+        loc_label=_clean(g("LOC (지역 라벨)")),
         market_area=_clean(g("market_area")),
         market_dong=_clean(g("market_dong")),
         legal_dong=_clean(g("legal_dong")),
