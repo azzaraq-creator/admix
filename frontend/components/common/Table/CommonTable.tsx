@@ -41,6 +41,7 @@ type TextSearchOption = {
   name: string;
   label: string;
   placeholder?: string;
+  row?: number;
 };
 
 type SelectSearchOption = {
@@ -49,6 +50,7 @@ type SelectSearchOption = {
   label: string;
   optionList: { label: string; value: string }[];
   placeholder?: string;
+  row?: number;
 };
 
 type DateRangeSearchOption = {
@@ -56,6 +58,7 @@ type DateRangeSearchOption = {
   name: string;
   label: string;
   placeholder?: string;
+  row?: number;
 };
 
 export type SearchOption =
@@ -157,99 +160,113 @@ export function CommonTable<T>({
 
   const colCount = columnList.length + (useCheckbox ? 1 : 0);
 
+  const searchRows = (() => {
+    const map = new Map<number, SearchOption[]>();
+    for (const opt of searchOptionList ?? []) {
+      const r = opt.row ?? 1;
+      const list = map.get(r) ?? [];
+      list.push(opt);
+      map.set(r, list);
+    }
+    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, opts]) => opts);
+  })();
+
+  const renderField = (opt: SearchOption) => (
+    <div
+      key={opt.name}
+      className={cn(
+        "flex items-center gap-[12px]",
+        opt.type === "text" && "min-w-[280px] flex-1",
+      )}
+    >
+      {opt.label && (
+        <label className="shrink-0 whitespace-nowrap text-sm font-medium leading-[20px] text-[#2f3442]">
+          {opt.label}
+        </label>
+      )}
+      {opt.type === "text" && (
+        <input
+          type="text"
+          value={tempSearch[opt.name] ?? ""}
+          placeholder={opt.placeholder}
+          onChange={(e) => setField(opt.name, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSearch();
+            }
+          }}
+          className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-stroke bg-white px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3] focus:border-primary"
+        />
+      )}
+      {opt.type === "select" && (
+        <Select
+          value={tempSearch[opt.name] ?? ""}
+          onValueChange={(value) => setField(opt.name, (value as string) ?? "")}
+        >
+          <SelectTrigger className="w-[100px] shrink-0 rounded-[8px] border-stroke bg-white px-[12px] font-medium text-black data-[size=default]:h-[40px]">
+            <SelectValue placeholder={opt.placeholder ?? "전체"} />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} className="min-w-0">
+            <SelectItem value="">{opt.placeholder ?? "전체"}</SelectItem>
+            {opt.optionList.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      {opt.type === "dateRange" && (
+        <div className="flex items-center gap-[12px]">
+          <DateField
+            value={tempSearch[`${opt.name}__from`] ?? ""}
+            placeholder={opt.placeholder ?? "날짜 입력"}
+            onChange={(v) => setField(`${opt.name}__from`, v)}
+          />
+          <span className="text-sm text-[#737586]">-</span>
+          <DateField
+            value={tempSearch[`${opt.name}__to`] ?? ""}
+            placeholder={opt.placeholder ?? "날짜 입력"}
+            onChange={(v) => setField(`${opt.name}__to`, v)}
+          />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-[16px]">
       {showSearch && (
-        <div className="rounded-[12px] border border-stroke bg-[#fafafc] p-[20px]">
-          <div className="flex flex-wrap items-center gap-x-[24px] gap-y-[16px]">
-            {searchOptionList!.map((opt) => (
-              <div
-                key={opt.name}
-                className={cn(
-                  "flex items-center gap-[12px]",
-                  opt.type === "dateRange" && "basis-full",
-                  opt.type === "text" && "min-w-[280px] flex-1",
-                )}
-              >
-                {opt.label && (
-                  <label className="w-[40px] shrink-0 text-sm font-medium leading-[20px] text-[#2f3442]">
-                    {opt.label}
-                  </label>
-                )}
-                {opt.type === "text" && (
-                  <input
-                    type="text"
-                    value={tempSearch[opt.name] ?? ""}
-                    placeholder={opt.placeholder}
-                    onChange={(e) => setField(opt.name, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleSearch();
-                      }
-                    }}
-                    className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-stroke bg-white px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3] focus:border-primary"
-                  />
-                )}
-                {opt.type === "select" && (
-                  <Select
-                    value={tempSearch[opt.name] ?? ""}
-                    onValueChange={(value) =>
-                      setField(opt.name, (value as string) ?? "")
-                    }
+        <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke bg-[#fafafc] p-[20px]">
+          {searchRows.map((rowOpts, rowIndex) => (
+            <div
+              key={rowIndex}
+              className="flex flex-wrap items-center gap-x-[24px] gap-y-[16px]"
+            >
+              {rowOpts.map((opt) => renderField(opt))}
+              {rowIndex === searchRows.length - 1 && (
+                <div className="ml-auto flex shrink-0 items-center gap-[8px]">
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    className="flex h-[40px] items-center gap-[6px] rounded-[8px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
                   >
-                    <SelectTrigger className="w-[100px] shrink-0 rounded-[8px] border-stroke bg-white px-[12px] font-medium text-black data-[size=default]:h-[40px]">
-                      <SelectValue placeholder={opt.placeholder ?? "전체"} />
-                    </SelectTrigger>
-                    <SelectContent
-                      alignItemWithTrigger={false}
-                      className="min-w-0"
-                    >
-                      <SelectItem value="">{opt.placeholder ?? "전체"}</SelectItem>
-                      {opt.optionList.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {opt.type === "dateRange" && (
-                  <div className="flex items-center gap-[12px]">
-                    <DateField
-                      value={tempSearch[`${opt.name}__from`] ?? ""}
-                      placeholder={opt.placeholder ?? "날짜 입력"}
-                      onChange={(v) => setField(`${opt.name}__from`, v)}
-                    />
-                    <span className="text-sm text-[#737586]">-</span>
-                    <DateField
-                      value={tempSearch[`${opt.name}__to`] ?? ""}
-                      placeholder={opt.placeholder ?? "날짜 입력"}
-                      onChange={(v) => setField(`${opt.name}__to`, v)}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="ml-auto flex shrink-0 items-center gap-[8px]">
-              <button
-                type="button"
-                onClick={handleSearch}
-                className="flex h-[40px] items-center gap-[6px] rounded-[8px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-              >
-                <Search className="size-[16px]" />
-                검색
-              </button>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-[#f1f5f9]"
-              >
-                <RotateCw className="size-[16px]" />
-                초기화
-              </button>
+                    <Search className="size-[16px]" />
+                    검색
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-[#f1f5f9]"
+                  >
+                    <RotateCw className="size-[16px]" />
+                    초기화
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          ))}
         </div>
       )}
 

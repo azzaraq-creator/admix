@@ -39,3 +39,4 @@ export { TvIcon } from "./TvIcon";
 export { AdmixWordmark } from "./AdmixWordmark";
 export { LogoFull } from "./LogoFull";
 export { LogOutIcon } from "./LogOutIcon";
+export { FileDownIcon } from "./FileDownIcon";
