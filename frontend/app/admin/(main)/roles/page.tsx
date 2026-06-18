@@ -1,3 +1,11 @@
+import { AdminCard } from "@/components/admin/AdminCard";
+
+import { RolesListView } from "./_components/RolesListView";
+
 export default function AdminRolesPage() {
-  return <div className="p-6">권한(Role) 관리 (skeleton)</div>;
+  return (
+    <AdminCard>
+      <RolesListView />
+    </AdminCard>
+  );
 }
