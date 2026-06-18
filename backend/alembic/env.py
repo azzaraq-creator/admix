@@ -13,6 +13,7 @@ from src.config import get_settings
 from src.database import Base
 from src.models.ad_session import AdSession, AdMessage
 from src.models.admin import Admin
+from src.models.admin_permission import AdminPermission
 from src.models.faq import Faq
 from src.models.media import MediaKeyword, MediaItem
 from src.models.media_master import Media

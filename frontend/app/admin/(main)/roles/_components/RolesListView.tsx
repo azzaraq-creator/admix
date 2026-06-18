@@ -8,33 +8,44 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ExcelDownloadButton } from "@/components/admin/buttons";
+import { useAdminAccounts } from "@/hooks/adminAccounts";
 
 import {
-  ACCOUNT_LIST,
   accountColumnList,
   accountSearchOptionList,
   type Account,
+  type AccountStatus,
+  type AccountType,
 } from "./index";
 
 export function RolesListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
+  const { data } = useAdminAccounts();
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Account[]>(() => {
     const keyword = search.keyword?.trim();
     const { type, status } = search;
-    return ACCOUNT_LIST.filter((item) => {
-      if (type && item.type !== type) return false;
-      if (status && item.status !== status) return false;
-      if (
-        keyword &&
-        !item.name.includes(keyword) &&
-        !item.email.includes(keyword)
-      )
-        return false;
-      return true;
-    });
-  }, [search]);
+    return (data?.items ?? [])
+      .filter((r) => {
+        const krStatus = r.status === "active" ? "활성" : "비활성";
+        if (type && r.type !== type) return false;
+        if (status && krStatus !== status) return false;
+        if (keyword && !r.name.includes(keyword) && !r.email.includes(keyword))
+          return false;
+        return true;
+      })
+      .map((r, i) => ({
+        id: r.no,
+        no: String(i + 1),
+        name: r.name,
+        email: r.email,
+        type: r.type as AccountType,
+        role: r.role,
+        status: (r.status === "active" ? "활성" : "비활성") as AccountStatus,
+        createdAt: r.createdAt,
+      }));
+  }, [data, search]);
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -43,13 +54,13 @@ export function RolesListView() {
       <CommonTable<Account>
         columnList={accountColumnList}
         data={filtered}
-        idKey="no"
+        idKey="id"
         searchOptionList={accountSearchOptionList}
         onSearch={setSearch}
         totalCount={filtered.length}
         usePageSizeSelect
         pageSize={10}
-        onRowClick={(item) => router.push(`/admin/roles/${item.no}`)}
+        onRowClick={(item) => router.push(`/admin/roles/${item.id}`)}
         topRightContent={
           <>
             <ExcelDownloadButton />

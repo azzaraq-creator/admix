@@ -1,6 +1,7 @@
 """SQLAlchemy 모델 패키지. lifespan 에서 import 되어 Base.metadata 에 등록됨."""
 from src.models.ad_session import AdMessage, AdSession, MessageRole
 from src.models.admin import Admin
+from src.models.admin_permission import AdminPermission
 from src.models.faq import Faq
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_image import MediaImage
@@ -20,6 +21,7 @@ __all__ = [
     "MediaPlan",
     "Faq",
     "Admin",
+    "AdminPermission",
     "User",
     "RefreshToken",
     "SocialAccount",

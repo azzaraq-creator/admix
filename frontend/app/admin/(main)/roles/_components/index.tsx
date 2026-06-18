@@ -7,6 +7,7 @@ export type AccountType = "마스터 계정" | "관리자 계정";
 export type AccountStatus = "활성" | "비활성";
 
 export type Account = {
+  id: string;
   no: string;
   name: string;
   email: string;
@@ -34,6 +35,19 @@ export const PERMISSIONS = [
   "FAQ 관리",
   "계정 관리",
 ];
+
+export const PERMISSION_KEYS: Record<string, string> = {
+  대시보드: "dashboard",
+  "광고 매체 관리": "media",
+  "회원 관리": "member",
+  "비즈니스 관리": "business",
+  "FAQ 관리": "faq",
+  "계정 관리": "account",
+};
+
+export const PERMISSION_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(PERMISSION_KEYS).map(([label, key]) => [key, label]),
+);
 
 export const accountColumnList: TableColumn<Account>[] = [
   { name: "no", label: "No", className: "text-[#737586]" },
@@ -79,26 +93,3 @@ export const accountSearchOptionList: SearchOption[] = [
     row: 2,
   },
 ];
-
-const TEMPLATES: Omit<Account, "no" | "createdAt">[] = [
-  { name: "홍길동", email: "hong@gmail.com", type: "마스터 계정", role: "대표", status: "활성" },
-  { name: "김유진", email: "yujin.kim@example.com", type: "관리자 계정", role: "팀장", status: "활성" },
-  { name: "박서준", email: "seojun.park@example.com", type: "관리자 계정", role: "개발자", status: "비활성" },
-  { name: "이민아", email: "mina.lee@example.com", type: "마스터 계정", role: "기획자", status: "활성" },
-  { name: "최준호", email: "junho.choi@example.com", type: "관리자 계정", role: "디자이너", status: "활성" },
-  { name: "한지민", email: "jimin.han@example.com", type: "관리자 계정", role: "마케팅", status: "비활성" },
-  { name: "정우성", email: "woosung.jeong@example.com", type: "마스터 계정", role: "대표", status: "활성" },
-  { name: "서지혜", email: "jihye.seo@example.com", type: "관리자 계정", role: "기획자", status: "활성" },
-  { name: "강민호", email: "minho.kang@example.com", type: "관리자 계정", role: "개발자", status: "비활성" },
-  { name: "윤서현", email: "seohyun.yoon@example.com", type: "마스터 계정", role: "디자이너", status: "활성" },
-];
-const DATES = [
-  "2025-01-01", "2025-12-15", "2024-11-20", "2025-05-30", "2025-08-10",
-  "2024-09-05", "2025-02-14", "2025-07-01", "2024-10-22", "2025-04-18",
-];
-
-export const ACCOUNT_LIST: Account[] = Array.from({ length: 100 }, (_, i) => ({
-  no: String(12345 + i),
-  ...TEMPLATES[i % TEMPLATES.length],
-  createdAt: DATES[i % DATES.length],
-}));

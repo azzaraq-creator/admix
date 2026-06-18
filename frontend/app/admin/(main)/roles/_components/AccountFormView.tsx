@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -16,30 +16,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  useAdminAccount,
+  useCreateAdminAccount,
+  useDeleteAdminAccount,
+  useUpdateAdminAccount,
+  type AdminAccountDetail,
+  type AdminStatus,
+} from "@/hooks/adminAccounts";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
-import { ACCOUNT_TYPE_OPTIONS, PERMISSIONS } from "./index";
+import { ACCOUNT_TYPE_OPTIONS, PERMISSION_KEYS, PERMISSIONS } from "./index";
 
-const STATUS_OPTIONS = [
-  { label: "활성화", value: "활성화" },
-  { label: "비활성화", value: "비활성화" },
+const STATUS_OPTIONS: { label: string; value: AdminStatus }[] = [
+  { label: "활성화", value: "active" },
+  { label: "비활성화", value: "disabled" },
 ];
 
-const EDIT_SAMPLE = {
-  type: "관리자 계정",
-  name: "홍길동",
-  email: "hong@naver.com",
-  password: "hong123@",
-  role: "영업1팀/영업사원",
-  phone: "01012345678",
-  status: "활성화",
-  createdAt: "2024-01-01",
-};
-
 const INPUT_CLASS =
-  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary";
+  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary disabled:bg-[#f5f5f5] disabled:text-[#737586]";
 const SELECT_TRIGGER_CLASS =
   "w-full rounded-[6px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]";
+
+function extractError(err: unknown): string {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })
+    ?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  return "요청 처리 중 오류가 발생했습니다.";
+}
 
 function Field({
   label,
@@ -62,41 +66,140 @@ function Field({
 }
 
 export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
+  const params = useParams<{ id: string }>();
+  const isEdit = mode === "edit";
+  const id = isEdit ? params.id : null;
+  const { data: detail } = useAdminAccount(id);
+
+  if (isEdit && !detail) {
+    return (
+      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+        불러오는 중...
+      </p>
+    );
+  }
+
+  return <AccountForm mode={mode} id={id} detail={detail ?? null} />;
+}
+
+function AccountForm({
+  mode,
+  id,
+  detail,
+}: {
+  mode: "create" | "edit";
+  id: string | null;
+  detail: AdminAccountDetail | null;
+}) {
   const router = useRouter();
-  const { confirm, alert, confirmDialog } = useAdminConfirm();
   const isEdit = mode === "edit";
 
-  const [perms, setPerms] = useState<string[]>(isEdit ? [...PERMISSIONS] : []);
-  const togglePerm = (perm: string) =>
+  const { confirm, alert, confirmDialog } = useAdminConfirm();
+  const createMutation = useCreateAdminAccount();
+  const updateMutation = useUpdateAdminAccount();
+  const deleteMutation = useDeleteAdminAccount();
+
+  const [type, setType] = useState(detail?.account_type ?? "");
+  const [name, setName] = useState(detail?.name ?? "");
+  const [email, setEmail] = useState(detail?.email ?? "");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState(detail?.department ?? "");
+  const [phone, setPhone] = useState(detail?.phone ?? "");
+  const [status, setStatus] = useState<AdminStatus>(detail?.status ?? "active");
+  const [perms, setPerms] = useState<string[]>(detail?.permissions ?? []);
+
+  const togglePerm = (perm: string) => {
+    const key = PERMISSION_KEYS[perm];
     setPerms((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm],
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key],
     );
+  };
 
   const goList = () => router.push("/admin/roles");
 
   const handleSave = async () => {
-    await alert({
-      title: "저장 완료",
-      description: "저장이 완료되었습니다.",
-      confirmText: "확인",
-    });
-    if (!isEdit) goList();
+    if (!type || !name.trim() || !email.trim()) {
+      await alert({
+        title: "입력 확인",
+        description: "계정 유형·이름·이메일은 필수입니다.",
+        confirmText: "확인",
+      });
+      return;
+    }
+    try {
+      if (isEdit && id) {
+        await updateMutation.mutateAsync({
+          id,
+          payload: {
+            name: name.trim(),
+            account_type: type,
+            department: role.trim() || null,
+            phone: phone.trim() || null,
+            status,
+            permissions: perms,
+            ...(password ? { password } : {}),
+          },
+        });
+      } else {
+        if (password.length < 8) {
+          await alert({
+            title: "입력 확인",
+            description: "비밀번호는 8자 이상이어야 합니다.",
+            confirmText: "확인",
+          });
+          return;
+        }
+        await createMutation.mutateAsync({
+          email: email.trim(),
+          password,
+          name: name.trim(),
+          account_type: type,
+          department: role.trim() || null,
+          phone: phone.trim() || null,
+          permissions: perms,
+        });
+      }
+      await alert({
+        title: "저장 완료",
+        description: "저장이 완료되었습니다.",
+        confirmText: "확인",
+      });
+      if (!isEdit) goList();
+    } catch (err) {
+      await alert({
+        title: "저장 실패",
+        description: extractError(err),
+        confirmText: "확인",
+      });
+    }
   };
 
   const handleDelete = async () => {
+    if (!id) return;
     const ok = await confirm({
       title: "삭제하시겠습니까?",
       description: "삭제된 계정은 복구할 수 없습니다.",
       confirmText: "삭제",
     });
     if (!ok) return;
-    await alert({
-      title: "삭제 완료",
-      description: "삭제가 완료되었습니다.",
-      confirmText: "확인",
-    });
-    goList();
+    try {
+      await deleteMutation.mutateAsync(id);
+      await alert({
+        title: "삭제 완료",
+        description: "삭제가 완료되었습니다.",
+        confirmText: "확인",
+      });
+      goList();
+    } catch (err) {
+      await alert({
+        title: "삭제 실패",
+        description: extractError(err),
+        confirmText: "확인",
+      });
+    }
   };
+
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -106,7 +209,7 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
 
       <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
         <Field label="계정 유형" required>
-          <Select defaultValue={isEdit ? EDIT_SAMPLE.type : ""}>
+          <Select value={type} onValueChange={(v) => setType(v ?? "")}>
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="유형 선택" />
             </SelectTrigger>
@@ -122,7 +225,8 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
         <Field label="이름" required>
           <input
             type="text"
-            defaultValue={isEdit ? EDIT_SAMPLE.name : ""}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="이름 입력"
             className={INPUT_CLASS}
           />
@@ -130,23 +234,29 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
         <Field label="이메일(ID)" required>
           <input
             type="text"
-            defaultValue={isEdit ? EDIT_SAMPLE.email : ""}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일 입력"
+            disabled={isEdit}
             className={INPUT_CLASS}
           />
         </Field>
-        <Field label="비밀번호" required>
+        <Field label="비밀번호" required={!isEdit}>
           <input
             type="text"
-            defaultValue={isEdit ? EDIT_SAMPLE.password : ""}
-            placeholder="비밀번호 입력"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={
+              isEdit ? "변경 시 입력 (8자 이상)" : "비밀번호 입력 (8자 이상)"
+            }
             className={INPUT_CLASS}
           />
         </Field>
         <Field label="부서/역할">
           <input
             type="text"
-            defaultValue={isEdit ? EDIT_SAMPLE.role : ""}
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             placeholder="부서/역할 입력"
             className={INPUT_CLASS}
           />
@@ -154,7 +264,8 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
         <Field label="전화번호">
           <input
             type="text"
-            defaultValue={isEdit ? EDIT_SAMPLE.phone : ""}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             placeholder="전화번호 입력"
             className={INPUT_CLASS}
           />
@@ -162,7 +273,10 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
         {isEdit && (
           <>
             <Field label="상태">
-              <Select defaultValue={EDIT_SAMPLE.status}>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as AdminStatus)}
+              >
                 <SelectTrigger className={SELECT_TRIGGER_CLASS}>
                   <SelectValue placeholder="상태 선택" />
                 </SelectTrigger>
@@ -177,7 +291,7 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
             </Field>
             <Field label="생성일">
               <span className="text-sm font-medium leading-[20px] text-[#737586]">
-                {EDIT_SAMPLE.createdAt}
+                {detail?.created_at?.slice(0, 10) ?? "-"}
               </span>
             </Field>
           </>
@@ -187,7 +301,7 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
       <p className="text-lg font-bold leading-[28px] text-black">권한 설정</p>
       <div className="grid grid-cols-3 gap-[16px]">
         {PERMISSIONS.map((perm) => {
-          const checked = perms.includes(perm);
+          const checked = perms.includes(PERMISSION_KEYS[perm]);
           return (
             <label
               key={perm}
@@ -222,10 +336,14 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
         {isEdit ? (
           <div className="flex items-center gap-[8px]">
             <DeleteButton onClick={handleDelete} />
-            <PrimaryButton onClick={handleSave}>저장</PrimaryButton>
+            <PrimaryButton onClick={handleSave} disabled={saving}>
+              저장
+            </PrimaryButton>
           </div>
         ) : (
-          <PrimaryButton onClick={handleSave}>생성</PrimaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>
+            생성
+          </PrimaryButton>
         )}
       </div>
 

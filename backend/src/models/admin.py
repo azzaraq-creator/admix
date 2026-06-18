@@ -1,6 +1,6 @@
 """관리자 모델 — 설계서 §3.4 `admin`.
 
-어드민 로그인 계정. 메뉴별 접근 권한(admin_permission)은 별도 테이블(미생성).
+어드민 로그인 계정. 메뉴별 접근 권한은 admin_permission(1:N) 으로 관리.
 """
 from __future__ import annotations
 
@@ -34,3 +34,6 @@ class Admin(Base):
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
     faqs = relationship("Faq", back_populates="creator")
+    permissions = relationship(
+        "AdminPermission", back_populates="admin", cascade="all, delete-orphan"
+    )
