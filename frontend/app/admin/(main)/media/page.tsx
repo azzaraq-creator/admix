@@ -1,5 +1,11 @@
+import { AdminCard } from "@/components/admin/AdminCard";
+
 import { MediaListView } from "./_components/MediaListView";
 
 export default function AdminMediaPage() {
-  return <MediaListView />;
+  return (
+    <AdminCard>
+      <MediaListView />
+    </AdminCard>
+  );
 }

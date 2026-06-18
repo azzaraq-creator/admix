@@ -1,5 +1,11 @@
+import { AdminCard } from "@/components/admin/AdminCard";
+
 import { MemberDetailView } from "./_components/MemberDetailView";
 
 export default function AdminMemberDetailPage() {
-  return <MemberDetailView />;
+  return (
+    <AdminCard>
+      <MemberDetailView />
+    </AdminCard>
+  );
 }

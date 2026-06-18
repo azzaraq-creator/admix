@@ -1,5 +1,11 @@
+import { AdminCard } from "@/components/admin/AdminCard";
+
 import { ChatDetailView } from "./_components/ChatDetailView";
 
 export default function AdminChatDetailPage() {
-  return <ChatDetailView />;
+  return (
+    <AdminCard>
+      <ChatDetailView />
+    </AdminCard>
+  );
 }
