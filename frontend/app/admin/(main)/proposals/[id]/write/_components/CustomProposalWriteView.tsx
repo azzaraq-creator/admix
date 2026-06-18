@@ -1,9 +1,10 @@
 "use client";
 
-import { FileText, List } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListButton, PrimaryButton } from "@/components/admin/buttons";
 import { DownloadIcon } from "@/components/icons";
 
 const SAMPLE_FILE = "[맞춤제안]고객전용2026.pptx";
@@ -69,14 +70,7 @@ export function CustomProposalWriteView() {
       )}
 
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={goBack}
-          className="flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-        >
-          <List className="size-[16px]" />
-          이전으로
-        </button>
+        <ListButton onClick={goBack}>이전으로</ListButton>
 
         {file ? (
           <div className="flex items-center gap-[8px]">
@@ -95,12 +89,7 @@ export function CustomProposalWriteView() {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            맞춤제안 전송
-          </button>
+          <PrimaryButton>맞춤제안 전송</PrimaryButton>
         )}
       </div>
     </div>

@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListButton, PrimaryButton } from "@/components/admin/buttons";
 import { DownloadIcon, MaximizeIcon } from "@/components/icons";
 
 import { ProposalStatusBadge } from "../../_components";
@@ -160,20 +160,11 @@ export function ProposalDetailView() {
         </div>
 
         <div className="flex items-center justify-between">
-          <button
-            type="button"
+          <ListButton
             onClick={() => router.push("/admin/proposals")}
-            className="flex h-[36px] w-[100px] items-center justify-center gap-[10px] rounded-[6px] border border-[#ebebeb] bg-white text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            <List className="size-[16px]" />
-            목록으로
-          </button>
-          <button
-            type="button"
-            className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            집행 수락
-          </button>
+            className="w-[100px] gap-[10px] px-0"
+          />
+          <PrimaryButton>집행 수락</PrimaryButton>
         </div>
       </div>
     </div>

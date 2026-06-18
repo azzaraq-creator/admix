@@ -1,8 +1,8 @@
 "use client";
 
-import { List } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { ListButton, PrimaryButton } from "@/components/admin/buttons";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
 import { InquiryStatusBadge } from "../../_components";
@@ -91,21 +91,8 @@ export function InquiryDetailView() {
           className="h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] bg-[#f0f0f3] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f]"
         />
         <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/inquiries")}
-            className="flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            <List className="size-[16px]" />
-            목록으로
-          </button>
-          <button
-            type="button"
-            onClick={handleComplete}
-            className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            답변 완료 처리
-          </button>
+          <ListButton onClick={() => router.push("/admin/inquiries")} />
+          <PrimaryButton onClick={handleComplete}>답변 완료 처리</PrimaryButton>
         </div>
       </div>
 

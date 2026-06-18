@@ -1,9 +1,13 @@
 "use client";
 
-import { List } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import {
+  DeleteButton,
+  ListButton,
+  PrimaryButton,
+} from "@/components/admin/buttons";
 import {
   Select,
   SelectContent,
@@ -142,40 +146,15 @@ export function FaqFormView({ mode }: { mode: "create" | "edit" }) {
       </div>
 
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={goList}
-          className="flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-        >
-          <List className="size-[16px]" />
-          목록으로
-        </button>
+        <ListButton onClick={goList} />
 
         {isEdit ? (
           <div className="flex items-center gap-[8px]">
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex h-[36px] items-center justify-center rounded-[6px] bg-[#f1f5f9] px-[16px] text-sm font-medium leading-[20px] text-[#2f3442] transition-colors hover:bg-[#e2e8f0]"
-            >
-              삭제
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-            >
-              저장
-            </button>
+            <DeleteButton onClick={handleDelete} />
+            <PrimaryButton onClick={handleSave}>저장</PrimaryButton>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={handleRegister}
-            className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-          >
-            등록
-          </button>
+          <PrimaryButton onClick={handleRegister}>등록</PrimaryButton>
         )}
       </div>
 

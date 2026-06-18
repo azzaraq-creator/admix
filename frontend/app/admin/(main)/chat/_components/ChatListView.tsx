@@ -7,7 +7,7 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { FileDownIcon } from "@/components/icons";
+import { ExcelDownloadButton } from "@/components/admin/buttons";
 
 import {
   CHAT_LIST,
@@ -44,13 +44,7 @@ export function ChatListView() {
         pageSize={10}
         onRowClick={(item) => router.push(`/admin/chat/${item.no}`)}
         topRightContent={
-          <button
-            type="button"
-            className="flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#4ca452] bg-white px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-[#f0f8f1]"
-          >
-            <FileDownIcon className="size-[16px]" />
-            조회 결과 엑셀 다운로드
-          </button>
+          <ExcelDownloadButton>조회 결과 엑셀 다운로드</ExcelDownloadButton>
         }
       />
     </div>

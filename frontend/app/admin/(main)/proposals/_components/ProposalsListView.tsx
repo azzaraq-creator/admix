@@ -7,7 +7,7 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { FileDownIcon } from "@/components/icons";
+import { ExcelDownloadButton } from "@/components/admin/buttons";
 
 import {
   PROPOSAL_LIST,
@@ -44,15 +44,7 @@ export function ProposalsListView() {
         usePageSizeSelect
         pageSize={10}
         onRowClick={(item) => router.push(`/admin/proposals/${item.no}`)}
-        topRightContent={
-          <button
-            type="button"
-            className="flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#4ca452] bg-white px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-[#f0f8f1]"
-          >
-            <FileDownIcon className="size-[16px]" />
-            엑셀 다운로드
-          </button>
-        }
+        topRightContent={<ExcelDownloadButton />}
       />
     </div>
   );

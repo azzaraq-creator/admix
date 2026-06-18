@@ -1,9 +1,10 @@
 "use client";
 
-import { Building2, List } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListButton, PrimaryButton } from "@/components/admin/buttons";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 
 import { BasicInfoTab } from "./BasicInfoTab";
@@ -149,22 +150,11 @@ export function MemberDetailView() {
       )}
 
       <div className="flex items-center justify-between">
-        <button
-          type="button"
+        <ListButton
           onClick={() => router.push("/admin/members")}
-          className="flex h-[36px] w-[100px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-        >
-          <List className="size-[16px]" />
-          목록으로
-        </button>
-        {tab === "basic" && (
-          <button
-            type="button"
-            className="flex h-[36px] items-center justify-center rounded-[6px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-          >
-            저장
-          </button>
-        )}
+          className="w-[100px] px-0"
+        />
+        {tab === "basic" && <PrimaryButton>저장</PrimaryButton>}
       </div>
     </div>
   );
