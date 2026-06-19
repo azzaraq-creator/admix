@@ -26,7 +26,7 @@ export function AiSearchArea() {
           <button
             type="button"
             disabled={!canSubmit}
-            className="flex items-center justify-center gap-[6px] rounded-full bg-primary px-[12px] py-[8px] text-white disabled:opacity-50"
+            className="flex items-center justify-center gap-[6px] rounded-full bg-primary px-[12px] py-[8px] text-white"
           >
             <SparkleIcon className="size-[16px] shrink-0" />
             <span className="text-sm font-medium whitespace-nowrap">AI 생성</span>

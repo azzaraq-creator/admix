@@ -25,7 +25,12 @@ export function FixedMediaView() {
 
       <div className="absolute inset-y-0 left-0 z-10 flex">
         <Sidebar />
-        {chatOpen && <ChatPanel onSelectMedia={setSelectedMedia} />}
+        {chatOpen && (
+          <ChatPanel
+            onSelectMedia={setSelectedMedia}
+            selectedId={selectedMedia?.id}
+          />
+        )}
         {chatOpen && selectedMedia && (
           <MediaDetailDrawer
             media={selectedMedia}

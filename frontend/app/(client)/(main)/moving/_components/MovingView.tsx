@@ -65,6 +65,7 @@ export function MovingView() {
           name={selected.name}
           price={selected.price}
           className="px-[40px] py-[40px]"
+          hidePopulation
         />
       </div>
     </div>

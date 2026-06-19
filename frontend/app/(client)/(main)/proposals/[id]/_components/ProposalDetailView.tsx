@@ -103,10 +103,11 @@ export function ProposalDetailView({
       description: (
         <>
           <span className="font-semibold text-[#2f3442]">{name}</span>가 내
-          제안서에서 삭제됩니다.
+          제안서에서 영구히 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
+      destructive: true,
     });
     if (ok) router.push("/proposals");
   };
@@ -121,6 +122,7 @@ export function ProposalDetailView({
         </>
       ),
       confirmText: "삭제",
+      destructive: true,
     });
     if (ok) setSlides((prev) => prev.filter((item) => item.id !== slide.id));
   };

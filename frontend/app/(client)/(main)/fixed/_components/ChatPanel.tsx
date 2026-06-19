@@ -25,8 +25,10 @@ const MAX_TEXTAREA_HEIGHT = 120;
 
 export function ChatPanel({
   onSelectMedia,
+  selectedId,
 }: {
   onSelectMedia?: (item: MediaItemData) => void;
+  selectedId?: string;
 }) {
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
@@ -107,6 +109,7 @@ export function ChatPanel({
               <MediaItem
                 key={item.id}
                 {...item}
+                selected={item.id === selectedId}
                 onClick={() => onSelectMedia?.(item)}
                 className="rounded-none border-0 border-b"
               />

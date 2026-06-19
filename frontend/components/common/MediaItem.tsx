@@ -12,6 +12,7 @@ export type MediaItemData = {
 type MediaItemProps = MediaItemData & {
   rank?: number;
   simple?: boolean;
+  selected?: boolean;
   onClick?: () => void;
   onAddProposal?: () => void;
   className?: string;
@@ -37,6 +38,7 @@ export function MediaItem({
   popular = false,
   rank,
   simple = false,
+  selected = false,
   onClick,
   onAddProposal,
   className,
@@ -45,7 +47,8 @@ export function MediaItem({
     <div
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-[12px] rounded-[8px] border border-stroke bg-white px-[16px] py-[24px]",
+        "flex w-full items-start gap-[12px] rounded-[8px] border border-stroke px-[16px] py-[24px]",
+        selected ? "bg-grey-50" : "bg-white",
         onClick && "cursor-pointer",
         className,
       )}

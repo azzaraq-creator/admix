@@ -37,8 +37,8 @@ export function MovingMediaCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-[12px] rounded-[12px] p-[12px] text-left transition-colors",
-        selected ? "border-2 border-primary bg-secondary" : "border border-stroke bg-white",
+        "flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[12px] text-left transition-colors",
+        selected ? "bg-grey-50" : "bg-white",
       )}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[8px] bg-[#d9d9d9]">

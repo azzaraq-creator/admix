@@ -143,8 +143,8 @@ export function ServiceIntroView() {
             차별점을 직접 확인해 보세요
           </h2>
         </div>
-        <div className="grid w-full grid-cols-2 items-start gap-[24px]">
-          <div className="flex flex-col gap-[8px]">
+        <div className="flex w-full items-stretch gap-[24px]">
+          <div className="flex flex-1 flex-col gap-[8px]">
             <div className="flex flex-col">
               <div className="flex items-center justify-center bg-[#737586] px-[10px] py-[20px]">
                 <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
@@ -166,7 +166,7 @@ export function ServiceIntroView() {
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-[8px]">
+          <div className="flex flex-1 flex-col gap-[8px]">
             <div className="flex flex-col">
               <div className="flex items-center justify-center bg-primary px-[10px] py-[20px]">
                 <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">

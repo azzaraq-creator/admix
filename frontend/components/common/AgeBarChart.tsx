@@ -1,3 +1,4 @@
+import { ArrowUpIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export type AgeRatio = {
@@ -47,12 +48,12 @@ export function AgeBarChart({
               className={`w-[22px] rounded-t-full ${primary ? "bg-primary" : "bg-secondary"}`}
               style={{ height: Math.round((age.value / max) * maxBarHeight) }}
             />
-            <span className="text-sm font-semibold leading-[20px] text-[#757575]">
-              {age.bound === "under"
-                ? `~${age.label}`
-                : age.bound === "over"
-                  ? `${age.label}~`
-                  : age.label}
+            <span className="flex items-center justify-center text-sm font-semibold leading-[20px] text-[#757575]">
+              {age.label}
+              {age.bound === "under" && (
+                <ArrowUpIcon className="size-[16px] -scale-y-100" />
+              )}
+              {age.bound === "over" && <ArrowUpIcon className="size-[16px]" />}
             </span>
           </div>
         );

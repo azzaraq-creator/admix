@@ -11,25 +11,25 @@
 - [x] 6. LNB open "로그인/회원가입" 버튼 텍스트·아이콘 중앙 정렬
 
 ## 홈 화면
-- [ ] 7. AI 매체 추천 아이콘 disabled일 때 → primary로 변경
+- [x] 7. AI 매체 추천 아이콘 disabled일 때 → primary로 변경 (AiSearchArea disabled:opacity-50 제거)
 
 ## 고정 매체 — 매체 검색
-- [ ] 8. 매체 카드 클릭 시 gray-50 적용
-- [ ] 9. 필터 open UI를 absolute로 수정
-- [ ] 10. 매체 설명 드로어: 연령대 비율 ~10, 60~ 에 `~` 아이콘 적용
+- [x] 8. 매체 검색 list-item 카드 클릭 시 gray-50 적용 (MediaItem selected→bg-grey-50, FixedMediaView selectedId 전달). ※라이브검증은 faq WIP 빌드에러로 보류
+- [~] 9. ~~필터 open UI absolute~~ → 취소(현 상태 유지)
+- [x] 10. 연령대 비율 ~10/60~ → 화살표 아이콘(ArrowUpIcon, under=↓/over=↑) 적용 (AgeBarChart, 드로어+매체상세 공용)
 
 ## 매체 상세
-- [ ] 11. 유동 인구 데이터 원형·막대 그래프 영역 조정
+- [x] 11. 유동 인구 데이터 원형·막대 가로 나열 시 세로 중앙정렬 (컨테이너 items-start→items-center)
 
 ## 이동·지역 매체
-- [ ] 12. 매체 카드 클릭 시 gray-50 적용
-- [ ] 13. 유동 인구 데이터 삭제
+- [x] 12. 매체 카드 클릭 시 gray-50 적용 (MovingMediaCard selected→bg-grey-50)
+- [x] 13. 유동 인구 데이터 삭제 (MediaDetailContent hidePopulation, MovingView 전달)
 
 ## 회사 & 서비스 소개
-- [ ] 14. 경쟁사 비교 비교 항목 리스트 display flex로 수정
+- [x] 14. 경쟁사 비교 외곽 grid grid-cols-2 → flex(items-stretch, 컬럼 flex-1)
 
 ## 제안서 상세
-- [ ] 15. 제안서 삭제 안내 모달 "삭제" 버튼 컬러 변경 (figma 참고)
+- [x] 15. 제안서 삭제 모달 "삭제" 버튼 → 흰 배경+red-400 보더/글자 (useConfirm destructive 옵션 추가, red-400 토큰 추가, Figma 1376-103560)
 
 ## 문의하기 — 자주 묻는 질문
-- [ ] 16. 리스트 디폴트 close로 수정
+- [x] 16. 리스트 디폴트 close (FaqPanel openIds 빈 Set으로 이미 close 상태 — 확인)

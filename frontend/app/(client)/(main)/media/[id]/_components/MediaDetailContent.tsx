@@ -96,10 +96,12 @@ export function MediaDetailContent({
   name = "홍대입구역 아트 래핑",
   price = "최소집행금액 1,500만원 / 한달",
   className,
+  hidePopulation = false,
 }: {
   name?: string;
   price?: string;
   className?: string;
+  hidePopulation?: boolean;
 } = {}) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedList, setSelectedList] = useState(0);
@@ -257,23 +259,33 @@ export function MediaDetailContent({
             </div>
           </div>
 
+          {!hidePopulation && (
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>유동 인구 데이터</SectionTitle>
-            <div className="flex items-start gap-[36px] rounded-[8px] border border-stroke p-[40px]">
-              <div className="flex flex-1 flex-col items-center gap-[16px]">
+            <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
+              <div className="flex flex-1 flex-col gap-[16px]">
                 <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
                   성별 비율
                 </p>
-                <GenderDonut male={48} female={52} />
+                <div className="flex flex-1 items-center justify-center">
+                  <GenderDonut male={48} female={52} />
+                </div>
               </div>
               <div className="flex flex-1 flex-col gap-[16px]">
                 <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
                   연령대 비율
                 </p>
-                <AgeBarChart data={AGE_RATIO} maxBarHeight={240} />
+                <div className="flex flex-1 items-center justify-center">
+                  <AgeBarChart
+                    data={AGE_RATIO}
+                    maxBarHeight={240}
+                    className="w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

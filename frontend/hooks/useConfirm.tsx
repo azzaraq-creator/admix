@@ -9,6 +9,7 @@ type ConfirmOptions = {
   description?: ReactNode;
   confirmText?: string;
   cancelText?: string;
+  destructive?: boolean;
 };
 
 export function useConfirm() {
@@ -61,7 +62,11 @@ export function useConfirm() {
           <button
             type="button"
             onClick={() => settle(true)}
-            className="flex flex-1 items-center justify-center rounded-[8px] bg-primary px-[16px] py-[12px] text-base font-medium text-white"
+            className={`flex flex-1 items-center justify-center rounded-[8px] px-[16px] py-[12px] text-base font-medium ${
+              options?.destructive
+                ? "border border-red-400 bg-white text-red-400"
+                : "bg-primary text-white"
+            }`}
           >
             {options?.confirmText ?? "확인"}
           </button>
