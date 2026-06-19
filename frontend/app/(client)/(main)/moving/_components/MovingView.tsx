@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
+import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
 import { MediaDetailContent } from "../../media/[id]/_components/MediaDetailContent";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { MovingMediaCard, type MovingMediaData } from "./MovingMediaCard";
@@ -30,13 +31,18 @@ const FILTERS = [
 export function MovingView() {
   const [location, setLocation] = useState("");
   const [selectedId, setSelectedId] = useState(MOVING_MEDIA[0].id);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const selected =
     MOVING_MEDIA.find((media) => media.id === selectedId) ?? MOVING_MEDIA[0];
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="flex min-w-0 flex-1 flex-col border-r border-[#e8e8e8]">
+      <div
+        className={`min-w-0 flex-1 flex-col sm:flex sm:border-r sm:border-[#e8e8e8] ${
+          detailOpen ? "hidden" : "flex"
+        }`}
+      >
         <div className="border-b border-stroke px-[16px] py-[24px]">
           <LocationSearchInput
             value={location}
@@ -47,24 +53,40 @@ export function MovingView() {
         </div>
         <MediaFilterBar filters={FILTERS} />
         <div className="flex-1 overflow-y-auto p-[16px]">
-          <div className="grid grid-cols-3 gap-[12px]">
+          <div className="grid grid-cols-2 gap-[12px] sm:grid-cols-3">
             {MOVING_MEDIA.map((media) => (
               <MovingMediaCard
                 key={media.id}
                 data={media}
                 selected={media.id === selectedId}
-                onClick={() => setSelectedId(media.id)}
+                onClick={() => {
+                  setSelectedId(media.id);
+                  setDetailOpen(true);
+                }}
               />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 overflow-y-auto">
+      <div
+        className={`min-w-0 flex-1 overflow-y-auto sm:block ${
+          detailOpen ? "block" : "hidden"
+        }`}
+      >
+        <MobileMediaDetail
+          name={selected.name}
+          price={selected.price}
+          badge={selected.badge}
+          onBack={() => setDetailOpen(false)}
+          hidePopulation
+          hideMediaList
+          className="sm:hidden"
+        />
         <MediaDetailContent
           name={selected.name}
           price={selected.price}
-          className="px-[40px] py-[40px]"
+          className="hidden px-[40px] py-[40px] sm:flex"
           hidePopulation
         />
       </div>
