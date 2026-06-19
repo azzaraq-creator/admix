@@ -116,7 +116,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[20px] pb-[40px] pt-[80px]">
+    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
       <div className="flex flex-col gap-[4px]">
         <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
           문의하기
@@ -126,7 +126,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
         </p>
       </div>
 
-      <div className="flex h-[52px] items-end justify-between border-b border-stroke">
+      <div className="flex flex-col gap-[8px] border-b border-stroke py-[8px] sm:h-[52px] sm:flex-row sm:items-end sm:justify-between sm:gap-0 sm:py-0">
         <div className="flex items-end">
           {tabs.map((tab) => (
             <button
@@ -136,7 +136,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
               className={cn(
                 "-mb-px px-[10px] py-[10px] text-base font-medium leading-[24px]",
                 activeTab === tab.key
-                  ? "border-b-2 border-primary text-primary"
+                  ? "text-primary sm:border-b-2 sm:border-primary"
                   : "text-[#737586]",
               )}
             >
@@ -145,7 +145,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
           ))}
         </div>
         {showSearch && (
-          <div className="mb-[8px] flex h-[44px] w-[298px] items-center gap-[10px] rounded-[6px] border border-stroke px-[16px]">
+          <div className="flex w-full items-center gap-[10px] rounded-[6px] border border-stroke px-[16px] py-[12px] sm:mb-[8px] sm:h-[44px] sm:w-[298px] sm:py-0">
             <input
               type="text"
               value={searchQuery}
@@ -330,7 +330,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
               variant="secondary"
               size="sm"
               onClick={() => setActiveTab("faq")}
-              className="shrink-0"
+              className="ml-[68px] shrink-0 sm:ml-0"
             >
               자주 묻는 질문 보기
             </Button>

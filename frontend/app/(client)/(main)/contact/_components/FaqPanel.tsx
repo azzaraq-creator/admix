@@ -41,9 +41,9 @@ function ToggleButton({
       )}
     >
       {open ? (
-        <XIcon className="size-[10px]" />
+        <XIcon className="size-[14px] sm:size-[10px]" />
       ) : (
-        <PlusIcon className="size-[10px]" />
+        <PlusIcon className="size-[14px] sm:size-[10px]" />
       )}
     </button>
   );
@@ -58,44 +58,35 @@ function FaqItem({
   open: boolean;
   onToggle: () => void;
 }) {
-  if (open) {
-    return (
-      <div className="flex flex-col gap-[12px] rounded-[16px] border border-stroke bg-[#f9fafa] px-[16px] py-[24px]">
-        <div className="flex w-full items-center gap-[24px]">
-          <div className="flex min-w-0 flex-1 items-center gap-[36px]">
-            <p className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-primary">
-              {faq.category}
-            </p>
-            <p className="text-base font-semibold leading-[24px] text-black">
-              {faq.question}
-            </p>
-          </div>
-          <ToggleButton open onClick={onToggle} />
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-[12px] rounded-[8px] border border-stroke p-[12px] sm:rounded-[16px] sm:px-[16px] sm:py-[24px]",
+        open ? "bg-[#f9fafa]" : "bg-white",
+      )}
+    >
+      <div className="flex w-full items-center gap-[12px] sm:gap-[24px]">
+        <div className="flex min-w-0 flex-1 flex-col gap-[2px] sm:flex-row sm:items-center sm:gap-[36px]">
+          <p className="shrink-0 text-sm font-semibold leading-[20px] text-primary sm:w-[120px] sm:text-base sm:leading-[24px]">
+            {faq.category}
+          </p>
+          <p className="text-base font-semibold leading-[24px] text-black">
+            {faq.question}
+          </p>
         </div>
-        <div className="flex w-full items-start gap-[24px]">
-          <div className="flex min-w-0 flex-1 gap-[36px]">
-            <div className="w-[120px] shrink-0" />
+        <ToggleButton open={open} onClick={onToggle} />
+      </div>
+      {open && (
+        <div className="flex w-full items-start gap-[12px] sm:gap-[24px]">
+          <div className="flex min-w-0 flex-1 sm:gap-[36px]">
+            <div className="hidden shrink-0 sm:block sm:w-[120px]" />
             <p className="flex-1 whitespace-pre-line text-sm font-medium leading-[20px] text-[#737586]">
               {faq.answer}
             </p>
           </div>
           <ToggleButton open invisible />
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-[24px] rounded-[16px] border border-stroke bg-white px-[16px] py-[24px]">
-      <div className="flex min-w-0 flex-1 items-center gap-[36px]">
-        <p className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-primary">
-          {faq.category}
-        </p>
-        <p className="text-base font-semibold leading-[24px] text-black">
-          {faq.question}
-        </p>
-      </div>
-      <ToggleButton open={false} onClick={onToggle} />
+      )}
     </div>
   );
 }
