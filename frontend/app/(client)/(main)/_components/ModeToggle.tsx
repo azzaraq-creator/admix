@@ -35,7 +35,9 @@ export function ModeToggle({
             value === "ai" ? "text-white" : "text-[#757575]"
           }`}
         >
-          <SparkleIcon className="size-[16px] shrink-0" />
+          <SparkleIcon
+            className={`size-[16px] shrink-0 ${value === "ai" ? "" : "text-primary"}`}
+          />
           <span className="text-sm font-medium whitespace-nowrap">AI 매체 추천</span>
         </span>
       </button>

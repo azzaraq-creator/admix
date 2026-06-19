@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SparkleIcon } from "@/components/icons";
 
 export function AiSearchArea() {
   const [value, setValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = value.trim().length > 0;
+
+  const resize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 48)}px`;
+  };
+
+  useEffect(() => {
+    resize();
+  }, []);
 
   return (
     <div className="flex w-full flex-col items-center gap-[16px] sm:gap-[24px]">
@@ -16,11 +28,15 @@ export function AiSearchArea() {
 
       <div className="flex w-full min-w-[343px] max-h-[128px] flex-col gap-[10px] rounded-[24px] border border-primary bg-white px-[24px] py-[16px] drop-shadow-[0px_0px_8px_rgba(0,170,164,0.36)] sm:w-[560px] sm:max-w-none">
         <textarea
+          ref={textareaRef}
           rows={1}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => {
+            setValue(event.target.value);
+            resize();
+          }}
           placeholder="강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩 하고싶어요"
-          className="w-full resize-none bg-transparent text-base font-medium text-black outline-none placeholder:text-[#757575]"
+          className="max-h-[48px] min-h-[48px] w-full resize-none overflow-y-auto bg-transparent text-base font-medium leading-[24px] text-black outline-none [scrollbar-width:none] placeholder:text-[#757575] sm:min-h-[24px] [&::-webkit-scrollbar]:hidden"
         />
         <div className="flex w-full items-center justify-end">
           <button
