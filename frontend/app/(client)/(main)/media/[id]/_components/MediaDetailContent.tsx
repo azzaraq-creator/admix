@@ -3,6 +3,7 @@
 import { type ReactNode, useState } from "react";
 
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
+import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
 import {
   ChevronDownIcon,
@@ -141,13 +142,14 @@ export function MediaDetailContent({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className="flex shrink-0 items-center justify-center gap-[8px] rounded-[8px] bg-primary px-[24px] py-[16px] text-base font-semibold text-white"
+              <Button
+                variant="primary"
+                size="lg"
+                className="shrink-0"
+                leftIcon={<FolderPlusIcon />}
               >
-                <FolderPlusIcon className="size-[24px]" />
                 매체 담기
-              </button>
+              </Button>
             </div>
 
             <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] py-[24px]">

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 export function NewProposalModal({
   open,
@@ -52,17 +52,15 @@ export function NewProposalModal({
           />
         </div>
         <div className="px-[30px] py-[20px]">
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
             onClick={handleCreate}
             disabled={!trimmed}
-            className={cn(
-              "w-full rounded-[8px] px-[24px] py-[16px] text-base font-semibold leading-[24px]",
-              trimmed ? "bg-primary text-white" : "bg-[#eee] text-[#757575]",
-            )}
           >
             생성
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

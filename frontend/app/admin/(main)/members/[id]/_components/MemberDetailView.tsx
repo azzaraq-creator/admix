@@ -4,7 +4,7 @@ import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/admin/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 
 import { BasicInfoTab } from "./BasicInfoTab";

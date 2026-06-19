@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { PlusIcon, SearchIcon } from "@/components/icons";
 import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
@@ -252,13 +253,14 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
         <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
           내 제안서
         </p>
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={handleNewProposal}
-          className="flex items-center justify-center gap-[4px] rounded-[8px] bg-primary px-[12px] py-[8px] text-sm font-medium text-white"
+          leftIcon={<PlusIcon />}
         >
-          <PlusIcon className="size-[18px]" />새 제안서
-        </button>
+          새 제안서
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-y-[12px] border-b border-stroke py-[16px]">

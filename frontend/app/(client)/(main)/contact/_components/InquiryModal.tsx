@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { ChevronRightIcon, XIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -128,13 +129,9 @@ export function InquiryModal({
         </div>
 
         <div className="px-[30px] py-[20px]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-[8px] bg-primary px-[24px] py-[16px] text-base font-semibold leading-[24px] text-white"
-          >
+          <Button variant="primary" size="lg" fullWidth onClick={onClose}>
             제출하기
-          </button>
+          </Button>
         </div>
       </div>
     </div>

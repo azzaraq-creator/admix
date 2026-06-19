@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import {
   CircleAlertIcon,
@@ -166,31 +167,27 @@ export function ProposalDetailView({
             </div>
           </div>
           <div className="flex items-center gap-[8px]">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
-            >
-              <DownloadIcon className="size-[24px]" />
+            <Button variant="tertiary" size="md" leftIcon={<DownloadIcon />}>
               내보내기
-            </button>
+            </Button>
             {submitted ? (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={handleCancelSubmit}
-                className="flex items-center justify-center gap-[8px] rounded-[8px] bg-[#f1f5f9] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+                leftIcon={<FileXIcon />}
               >
-                <FileXIcon className="size-[24px]" />
                 제출취소
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
                 onClick={handleSubmit}
-                className="flex items-center justify-center gap-[8px] rounded-[8px] bg-primary px-[16px] py-[12px] text-base font-medium text-white"
+                leftIcon={<FileInputIcon />}
               >
-                <FileInputIcon className="size-[24px]" />
                 제출하기
-              </button>
+              </Button>
             )}
             <button
               type="button"
@@ -285,13 +282,13 @@ export function ProposalDetailView({
                 <span>최종 수정</span>
                 <span>2024.05.20 15:30</span>
               </p>
-              <button
-                type="button"
+              <Button
+                variant="tertiary"
+                size="sm"
                 onClick={() => success("저장이 완료되었습니다.")}
-                className="rounded-[8px] border border-primary bg-white px-[12px] py-[8px] text-sm font-medium text-primary"
               >
                 저장하기
-              </button>
+              </Button>
             </div>
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -355,13 +352,13 @@ export function ProposalDetailView({
           <br />
           이용해 주세요.
         </p>
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => router.push("/proposals")}
-          className="rounded-[8px] bg-primary px-[24px] py-[12px] text-base font-semibold text-white"
         >
           닫기
-        </button>
+        </Button>
       </div>
     </div>
   );

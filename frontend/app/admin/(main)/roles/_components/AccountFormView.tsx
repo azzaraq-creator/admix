@@ -8,7 +8,7 @@ import {
   DeleteButton,
   ListButton,
   PrimaryButton,
-} from "@/components/admin/buttons";
+} from "@/components/common/buttons";
 import {
   Select,
   SelectContent,

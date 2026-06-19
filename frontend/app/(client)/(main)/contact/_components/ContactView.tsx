@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { CircleCheckIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -207,14 +208,15 @@ export function ContactView({ member = false }: { member?: boolean }) {
 
             <ContactCard
               footer={
-                <button
-                  type="button"
+                <Button
+                  variant="tertiary"
+                  size="md"
+                  fullWidth
                   onClick={() => copy(PHONE)}
-                  className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                  leftIcon={<Icon name="copy" className="size-[24px]" />}
                 >
-                  <Icon name="copy" className="size-[24px]" />
                   전화번호 복사
-                </button>
+                </Button>
               }
             >
               <Badge invisible />
@@ -254,23 +256,25 @@ export function ContactView({ member = false }: { member?: boolean }) {
             <ContactCard
               footer={
                 member ? (
-                  <button
-                    type="button"
+                  <Button
+                    variant="tertiary"
+                    size="md"
+                    fullWidth
                     onClick={() => setModalOpen(true)}
-                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                    leftIcon={<Icon name="square-pen" className="size-[24px]" />}
                   >
-                    <Icon name="square-pen" className="size-[24px]" />
                     문의 작성하기
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    variant="tertiary"
+                    size="md"
+                    fullWidth
                     onClick={() => copy(EMAIL)}
-                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                    leftIcon={<Icon name="square-pen" className="size-[24px]" />}
                   >
-                    <Icon name="square-pen" className="size-[24px]" />
                     메일주소 복사
-                  </button>
+                  </Button>
                 )
               }
             >
@@ -322,13 +326,14 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setActiveTab("faq")}
-              className="flex shrink-0 items-center justify-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
+              className="shrink-0"
             >
               자주 묻는 질문 보기
-            </button>
+            </Button>
           </div>
 
           <div className="relative flex items-center gap-[24px] overflow-hidden rounded-[12px] border border-stroke px-[24px] py-[14px]">

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { ListButton, PrimaryButton } from "@/components/admin/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
 import { InquiryStatusBadge } from "../../_components";

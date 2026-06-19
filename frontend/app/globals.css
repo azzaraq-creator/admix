@@ -53,6 +53,17 @@
   --color-black: #2f3442;
   --color-white: #ffffff;
   --color-stroke: #e4e5ee;
+
+  /* design system greys & platinum (Figma) */
+  --color-grey-50: #f6f6f6;
+  --color-grey-100: #eeeeee;
+  --color-grey-200: #e2e2e2;
+  --color-grey-300: #cbcbcb;
+  --color-grey-500: #757575;
+
+  --color-platinum-50: #f8fafc;
+  --color-platinum-100: #f1f5f9;
+  --color-platinum-200: #e2e8f0;
 }
 
 @theme inline {

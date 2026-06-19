@@ -4,7 +4,7 @@ import { FileText } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/admin/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { DownloadIcon } from "@/components/icons";
 
 const SAMPLE_FILE = "[맞춤제안]고객전용2026.pptx";

@@ -7,7 +7,7 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { ExcelDownloadButton } from "@/components/admin/buttons";
+import { ExcelDownloadButton } from "@/components/common/buttons";
 
 import {
   INQUIRY_LIST,

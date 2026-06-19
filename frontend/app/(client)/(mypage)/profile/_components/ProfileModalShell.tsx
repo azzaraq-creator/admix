@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 
@@ -36,13 +37,9 @@ export function ProfileModalShell({
         </div>
         <div className="px-[30px]">{children}</div>
         <div className="px-[30px] py-[20px]">
-          <button
-            type="button"
-            onClick={onSubmit}
-            className="w-full rounded-[8px] bg-primary px-[24px] py-[16px] text-base font-semibold leading-[24px] text-white"
-          >
+          <Button variant="primary" size="lg" fullWidth onClick={onSubmit}>
             {submitLabel}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

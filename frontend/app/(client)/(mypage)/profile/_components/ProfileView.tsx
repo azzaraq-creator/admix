@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/common/buttons";
 import { UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -71,13 +72,14 @@ export function ProfileView() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="md"
           onClick={() => router.push("/")}
-          className="shrink-0 rounded-[8px] bg-[#f1f5f9] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+          className="shrink-0"
         >
           로그아웃
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-col rounded-[12px] border border-stroke px-[24px]">

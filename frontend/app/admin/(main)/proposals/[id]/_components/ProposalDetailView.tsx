@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/admin/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { DownloadIcon, MaximizeIcon } from "@/components/icons";
 
 import { ProposalStatusBadge } from "../../_components";
