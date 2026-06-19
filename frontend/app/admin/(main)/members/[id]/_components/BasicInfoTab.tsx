@@ -153,6 +153,9 @@ export function BasicInfoTab({ member }: { member: MemberDetail }) {
               <Row label="가입일">
                 <ReadValue value={member.created_at.slice(0, 10)} />
               </Row>
+              <Row label="탈퇴일">
+                <ReadValue value={member.withdrawn_at?.slice(0, 10) ?? "-"} />
+              </Row>
               <Row label="마케팅 수신">
                 <ReadValue value={member.marketing_consent ? "동의" : "비동의"} />
               </Row>

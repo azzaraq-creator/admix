@@ -51,6 +51,24 @@ class SanctionOut(BaseModel):
     created_at: datetime
 
 
+class ProposalRow(BaseModel):
+    id: uuid.UUID
+    proposalName: str
+    name: str
+    totalAmount: str
+    status: str
+    registeredAt: str
+
+
+class InquiryRow(BaseModel):
+    id: uuid.UUID
+    name: str
+    title: str
+    content: str
+    status: str
+    submittedAt: str
+
+
 class MemberDetail(BaseModel):
     id: uuid.UUID
     email: str
@@ -64,8 +82,13 @@ class MemberDetail(BaseModel):
     status: str
     admin_memo: str | None = None
     created_at: datetime
+    withdrawn_at: datetime | None = None
+    proposal_count: int = 0
+    inquiry_count: int = 0
     business_registration: BusinessRegistrationOut | None = None
     sanctions: list[SanctionOut] = []
+    proposals: list[ProposalRow] = []
+    inquiries: list[InquiryRow] = []
 
 
 class MemberUpdate(BaseModel):

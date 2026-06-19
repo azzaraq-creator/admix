@@ -42,6 +42,7 @@ class User(Base):
     marketing_consent = Column(Boolean, nullable=False, default=False)
     status = Column(String(20), nullable=False, default="active")  # active/dormant/sanctioned/withdrawn
     admin_memo = Column(Text, nullable=True)
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -63,6 +64,10 @@ class User(Base):
     sanctions = relationship(
         "MemberSanction", back_populates="user", cascade="all, delete-orphan"
     )
+    proposals = relationship(
+        "Proposal", back_populates="member", cascade="all, delete-orphan"
+    )
+    inquiries = relationship("Inquiry", back_populates="member")
 
 
 class RefreshToken(Base):

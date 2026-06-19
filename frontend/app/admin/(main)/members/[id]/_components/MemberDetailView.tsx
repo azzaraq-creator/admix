@@ -10,11 +10,13 @@ import { useMember } from "@/hooks/members";
 
 import { BasicInfoTab } from "./BasicInfoTab";
 import {
-  INQUIRY_HISTORY,
-  PROPOSAL_HISTORY,
   inquiryColumnList,
   proposalColumnList,
   sanctionColumnList,
+  type InquiryHistory,
+  type InquiryStatus,
+  type ProposalHistory,
+  type ProposalStatus,
   type Sanction,
 } from "./index";
 
@@ -78,6 +80,24 @@ export function MemberDetailView() {
     endAt: s.end_date ?? "-",
   }));
 
+  const proposals: ProposalHistory[] = member.proposals.map((p, i) => ({
+    no: String(i + 1),
+    proposalName: p.proposalName,
+    name: p.name,
+    totalAmount: p.totalAmount,
+    status: p.status as ProposalStatus,
+    registeredAt: p.registeredAt,
+  }));
+
+  const inquiries: InquiryHistory[] = member.inquiries.map((q, i) => ({
+    no: String(i + 1),
+    name: q.name,
+    title: q.title,
+    content: q.content,
+    status: q.status as InquiryStatus,
+    submittedAt: q.submittedAt,
+  }));
+
   return (
     <div className="flex flex-col gap-[24px]">
       <h1 className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">회원 상세</h1>
@@ -112,9 +132,9 @@ export function MemberDetailView() {
         </div>
 
         <div className="flex items-stretch gap-[16px] rounded-[8px] border border-[#cdcdcd] p-[16px]">
-          <HeaderStat label="제안 건수" value="0" />
+          <HeaderStat label="제안 건수" value={String(member.proposal_count)} />
           <div className="w-px self-stretch bg-[#e6e6e6]" />
-          <HeaderStat label="문의 건수" value="0" />
+          <HeaderStat label="문의 건수" value={String(member.inquiry_count)} />
         </div>
       </div>
 
@@ -143,7 +163,7 @@ export function MemberDetailView() {
       {tab === "proposals" && (
         <CommonTable
           columnList={proposalColumnList}
-          data={PROPOSAL_HISTORY}
+          data={proposals}
           useSearch={false}
           pageSize={10}
         />
@@ -152,7 +172,7 @@ export function MemberDetailView() {
       {tab === "inquiries" && (
         <CommonTable
           columnList={inquiryColumnList}
-          data={INQUIRY_HISTORY}
+          data={inquiries}
           useSearch={false}
           pageSize={10}
         />

@@ -48,31 +48,6 @@ export const proposalColumnList: TableColumn<ProposalHistory>[] = [
   { name: "registeredAt", label: "등록일", className: "text-[#737586]" },
 ];
 
-const PROPOSAL_STATUS_CYCLE: ProposalStatus[] = [
-  "취소",
-  "신규",
-  "신규",
-  "맞춤제안",
-  "맞춤제안",
-  "맞춤제안",
-  "계약 완료",
-  "계약 완료",
-  "계약 완료",
-  "계약 완료",
-];
-
-export const PROPOSAL_HISTORY: ProposalHistory[] = Array.from(
-  { length: 100 },
-  (_, i) => ({
-    no: "12345",
-    proposalName: "광고 제안서_2026",
-    name: "홍길동",
-    totalAmount: "380,000,000원",
-    status: PROPOSAL_STATUS_CYCLE[i % PROPOSAL_STATUS_CYCLE.length],
-    registeredAt: "2025-01-01",
-  }),
-);
-
 /* ---------- 문의 이력 ---------- */
 
 export type InquiryStatus = "답변 대기" | "답변 완료";
@@ -115,19 +90,6 @@ export const inquiryColumnList: TableColumn<InquiryHistory>[] = [
   { name: "submittedAt", label: "제출일", className: "text-[#737586]" },
 ];
 
-export const INQUIRY_HISTORY: InquiryHistory[] = Array.from(
-  { length: 100 },
-  (_, i) => ({
-    no: "12345",
-    name: "홍길동",
-    title: "광고 매체 관련 문의",
-    content:
-      "문의 내용 임시 요약본입니다문의 내용 임시 요약본입니다문의 내용의...",
-    status: i % 10 < 5 ? "답변 대기" : "답변 완료",
-    submittedAt: "2025-01-01",
-  }),
-);
-
 /* ---------- 제재 이력 ---------- */
 
 export type Sanction = {
@@ -142,13 +104,4 @@ export const sanctionColumnList: TableColumn<Sanction>[] = [
   { name: "reason", label: "제재 이력" },
   { name: "sanctionedAt", label: "제재 일자" },
   { name: "endAt", label: "제재 종료" },
-];
-
-export const SANCTION_HISTORY: Sanction[] = [
-  {
-    no: "1",
-    reason: "서비스 규제 위반",
-    sanctionedAt: "2025-06-10",
-    endAt: "2025-06-10",
-  },
 ];

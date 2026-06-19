@@ -37,6 +37,24 @@ export interface SanctionOut {
   created_at: string;
 }
 
+export interface MemberProposalRow {
+  id: string;
+  proposalName: string;
+  name: string;
+  totalAmount: string;
+  status: string;
+  registeredAt: string;
+}
+
+export interface MemberInquiryRow {
+  id: string;
+  name: string;
+  title: string;
+  content: string;
+  status: string;
+  submittedAt: string;
+}
+
 export interface MemberDetail {
   id: string;
   email: string;
@@ -50,8 +68,13 @@ export interface MemberDetail {
   status: string;
   admin_memo: string | null;
   created_at: string;
+  withdrawn_at: string | null;
+  proposal_count: number;
+  inquiry_count: number;
   business_registration: BusinessRegistrationOut | null;
   sanctions: SanctionOut[];
+  proposals: MemberProposalRow[];
+  inquiries: MemberInquiryRow[];
 }
 
 export interface MemberUpdatePayload {

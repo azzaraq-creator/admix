@@ -7,7 +7,9 @@ from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
+from src.models.inquiry import Inquiry
 from src.models.member_profile import BusinessRegistration, MemberSanction
+from src.models.proposal import Proposal
 from src.models.user import PasswordReset, RefreshToken, SocialAccount, User
 
 __all__ = [
@@ -29,4 +31,6 @@ __all__ = [
     "PasswordReset",
     "BusinessRegistration",
     "MemberSanction",
+    "Proposal",
+    "Inquiry",
 ]

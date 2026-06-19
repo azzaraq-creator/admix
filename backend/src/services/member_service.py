@@ -16,6 +16,14 @@ from src.models.user import User
 from src.schemas.member import BusinessRegistrationUpdate, MemberUpdate
 
 _TYPE = {"corporate": "기업", "individual": "일반"}
+_PROPOSAL_STATUS = {
+    "cancelled": "취소",
+    "new": "신규",
+    "custom": "맞춤제안",
+    "execution_requested": "집행요청",
+    "contracted": "계약 완료",
+}
+_INQUIRY_STATUS = {"pending": "답변 대기", "answered": "답변 완료"}
 _BIZ = {
     "unregistered": "미등록",
     "reviewing": "검토 대기",
@@ -66,6 +74,9 @@ def _get_user(db: Session, user_id: uuid.UUID) -> User:
 def get_member(db: Session, user_id: uuid.UUID) -> dict:
     user = _get_user(db, user_id)
     biz = user.business_registration
+    name = user.name or "-"
+    proposals = sorted(user.proposals, key=lambda p: p.created_at, reverse=True)
+    inquiries = sorted(user.inquiries, key=lambda i: i.created_at, reverse=True)
     return dict(
         id=user.id,
         email=user.email,
@@ -79,15 +90,46 @@ def get_member(db: Session, user_id: uuid.UUID) -> dict:
         status=user.status,
         admin_memo=user.admin_memo,
         created_at=user.created_at,
+        withdrawn_at=user.withdrawn_at,
+        proposal_count=len(proposals),
+        inquiry_count=len(inquiries),
         business_registration=biz,
         sanctions=sorted(user.sanctions, key=lambda s: s.start_date, reverse=True),
+        proposals=[
+            dict(
+                id=p.id,
+                proposalName=p.title,
+                name=name,
+                totalAmount=f"{p.total_amount:,}원",
+                status=_PROPOSAL_STATUS.get(p.status, p.status),
+                registeredAt=_fmt_date(p.created_at),
+            )
+            for p in proposals
+        ],
+        inquiries=[
+            dict(
+                id=i.id,
+                name=i.name or name,
+                title=i.subject,
+                content=i.content,
+                status=_INQUIRY_STATUS.get(i.status, i.status),
+                submittedAt=_fmt_date(i.created_at),
+            )
+            for i in inquiries
+        ],
     )
 
 
 def update_member(db: Session, user_id: uuid.UUID, data: MemberUpdate) -> dict:
     user = _get_user(db, user_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    fields = data.model_dump(exclude_unset=True)
+    for field, value in fields.items():
         setattr(user, field, value)
+    if "status" in fields:
+        if fields["status"] == "withdrawn" and user.withdrawn_at is None:
+            user.withdrawn_at = datetime.now(timezone.utc)
+        elif fields["status"] != "withdrawn":
+            user.withdrawn_at = None
     db.commit()
     return get_member(db, user_id)
 
