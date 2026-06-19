@@ -7,7 +7,7 @@ import { setLnbExpanded } from "./useLnb";
 
 export function MobileTopNav() {
   return (
-    <header className="flex h-[56px] shrink-0 items-center justify-between bg-white sm:hidden">
+    <header className="flex h-[56px] shrink-0 items-center justify-between bg-white sm:hidden border-b border-gray-200">
       <button
         type="button"
         aria-label="메뉴 열기"

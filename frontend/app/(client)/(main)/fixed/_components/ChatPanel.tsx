@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
-import { ArrowUpIcon, SparkleIcon } from "@/components/icons";
+import { ArrowUpIcon, RotateCwIcon, SparkleIcon } from "@/components/icons";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 
@@ -64,6 +64,25 @@ export function ChatPanel({
           />
         )}
       </div>
+
+      {mode === "ai" && (
+        <div className="flex items-center justify-between border-b border-stroke px-[24px] py-[12px]">
+          <div className="flex items-center gap-[8px]">
+            <SparkleIcon className="size-[18px] text-primary" />
+            <span className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-primary">
+              믹시
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setText("")}
+            className="flex items-center gap-[4px] rounded-[8px] text-[#2f3442]"
+          >
+            <RotateCwIcon className="size-[18px]" />
+            <span className="text-sm font-medium leading-[20px]">새로고침</span>
+          </button>
+        </div>
+      )}
 
       {mode === "search" && <MediaFilterBar />}
 
