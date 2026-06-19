@@ -248,9 +248,9 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[24px] px-[20px] pb-[40px] pt-[80px]">
+    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[16px] pb-[24px] pt-[24px] sm:gap-[24px] sm:px-[20px] sm:pb-[40px] sm:pt-[80px]">
       <div className="flex items-center justify-between">
-        <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
+        <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
           내 제안서
         </p>
         <Button
@@ -263,7 +263,7 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-y-[12px] border-b border-stroke py-[16px]">
+      <div className="flex flex-col border-b border-stroke pb-[16px] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-0 sm:gap-y-[12px] sm:pt-[16px]">
         <div className="flex items-center">
           {TABS.map((tab) => (
             <button
@@ -279,7 +279,7 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
             </button>
           ))}
         </div>
-        <div className="flex h-[44px] w-[298px] items-center gap-[10px] rounded-[6px] border border-stroke px-[16px]">
+        <div className="flex w-full items-center gap-[10px] rounded-[6px] border border-stroke px-[16px] py-[12px] sm:h-[44px] sm:w-[298px] sm:py-0">
           <input
             type="text"
             value={query}
@@ -291,7 +291,7 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-[24px]">
+      <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3 sm:gap-[24px]">
         {items.map((proposal) => (
           <ProposalCard
             key={proposal.id}

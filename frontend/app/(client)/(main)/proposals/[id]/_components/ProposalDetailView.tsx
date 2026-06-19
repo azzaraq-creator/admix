@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 
 import { Button } from "@/components/common/buttons";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
@@ -60,6 +60,9 @@ export function ProposalDetailView({
     const from = dragIndex.current;
     dragIndex.current = null;
     if (from === null || from === dropIndex) return;
+    // 표지(0)·서머리(1)·마지막 슬라이드는 고정, 중간 매체 슬라이드만 순서변경
+    const isReorderable = (i: number) => i >= 2 && i < slides.length - 1;
+    if (!isReorderable(from) || !isReorderable(dropIndex)) return;
     setSlides((prev) => {
       const next = [...prev];
       const [moved] = next.splice(from, 1);
@@ -208,62 +211,81 @@ export function ProposalDetailView({
               </p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
-              {slides.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  draggable
-                  onDragStart={() => {
-                    dragIndex.current = index;
-                  }}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => handleDrop(index)}
-                  onDragEnd={() => {
-                    dragIndex.current = null;
-                  }}
-                  className="flex items-center border-l-2 border-transparent hover:border-primary"
-                >
-                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-[#c9cad3] active:cursor-grabbing" />
-                  <div className="flex min-w-0 flex-1 items-start">
-                    <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
-                      {index + 1}
-                    </p>
-                    <div className="flex min-w-0 flex-1 flex-col gap-[8px] pl-[6px]">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(slide.id)}
-                        className={cn(
-                          "group relative aspect-[198/111] w-full overflow-hidden rounded-[8px]",
-                          selectedId === slide.id
-                            ? "border-[3px] border-primary"
-                            : "border border-stroke",
-                        )}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={PREVIEW}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          aria-label="슬라이드 삭제"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteSlide(slide);
-                          }}
-                          className="absolute right-[6px] top-[6px] hidden items-center rounded-full bg-black/70 p-[5px] text-white group-hover:flex"
-                        >
-                          <TrashIcon className="size-[12px]" />
-                        </span>
-                      </button>
-                      <p className="text-center text-sm font-medium leading-[20px] text-black">
-                        {slide.name}
-                      </p>
+              {slides.map((slide, index) => {
+                const lastIndex = slides.length - 1;
+                const isFixed = index < 2 || index === lastIndex;
+                const showDivider =
+                  index === 2 || (index === lastIndex && index > 2);
+                return (
+                  <Fragment key={slide.id}>
+                    {showDivider && (
+                      <div className="h-px w-full shrink-0 bg-[#e8e8e8]" />
+                    )}
+                    <div
+                      draggable={!isFixed}
+                      onDragStart={() => {
+                        if (!isFixed) dragIndex.current = index;
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => handleDrop(index)}
+                      onDragEnd={() => {
+                        dragIndex.current = null;
+                      }}
+                      className={cn(
+                        "flex items-center border-l-2 border-transparent",
+                        !isFixed && "hover:border-primary",
+                      )}
+                    >
+                      {isFixed ? (
+                        <span className="size-[16px] shrink-0" />
+                      ) : (
+                        <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-[#c9cad3] active:cursor-grabbing" />
+                      )}
+                      <div className="flex min-w-0 flex-1 items-start">
+                        <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
+                          {index + 1}
+                        </p>
+                        <div className="flex min-w-0 flex-1 flex-col gap-[8px] pl-[6px]">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(slide.id)}
+                            className={cn(
+                              "group relative aspect-[198/111] w-full overflow-hidden rounded-[8px]",
+                              selectedId === slide.id
+                                ? "border-[3px] border-primary"
+                                : "border border-stroke",
+                            )}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={PREVIEW}
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                            {!isFixed && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                aria-label="슬라이드 삭제"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteSlide(slide);
+                                }}
+                                className="absolute right-[6px] top-[6px] hidden items-center rounded-full bg-black/70 p-[5px] text-white group-hover:flex"
+                              >
+                                <TrashIcon className="size-[12px]" />
+                              </span>
+                            )}
+                          </button>
+                          <p className="text-center text-sm font-medium leading-[20px] text-black">
+                            {slide.name}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </Fragment>
+                );
+              })}
             </div>
             <div className="border-t border-stroke px-[24px] py-[12px]">
               <Link
@@ -345,20 +367,24 @@ export function ProposalDetailView({
       )}
       {confirmDialog}
 
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-[16px] bg-white p-[24px] text-center sm:hidden">
-        <CircleAlertIcon className="size-[40px] text-primary" />
-        <p className="text-base font-medium leading-[24px] text-black">
-          제안서 편집은 PC 환경에서
-          <br />
-          이용해 주세요.
-        </p>
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={() => router.push("/proposals")}
-        >
-          닫기
-        </Button>
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
+        <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">
+          <div className="flex flex-col items-center gap-[16px] px-[24px] py-[16px]">
+            <CircleAlertIcon className="size-[32px] text-[#737586]" />
+            <p className="text-center text-base font-semibold leading-[24px] text-[#2f3442]">
+              해당 기능은 모바일에서 지원되지 않습니다.
+              <br />
+              데스크톱으로 이용해주시기 바랍니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/proposals")}
+            className="w-full border-t border-stroke py-[12px] text-center text-base font-semibold text-[#2f3442]"
+          >
+            닫기
+          </button>
+        </div>
       </div>
     </div>
   );
