@@ -5,8 +5,10 @@ import type {
 
 export type MemberType = "기업" | "일반";
 export type BizStatus = "미등록" | "검토 대기" | "검토 완료" | "인증 반려";
+export type MemberStatus = "정상" | "탈퇴" | "제재" | "휴면";
 
 export type Member = {
+  id: string;
   no: string;
   type: MemberType;
   company: string;
@@ -15,6 +17,7 @@ export type Member = {
   phone: string;
   bizStatus: BizStatus;
   marketing: "동의" | "비동의";
+  status: MemberStatus;
   joinedAt: string;
 };
 
@@ -59,7 +62,7 @@ export const memberSearchOptionList: SearchOption[] = [
     label: "사업자 인증 상태",
     row: 1,
     optionList: [
-      { label: "미인증", value: "미인증" },
+      { label: "미등록", value: "미등록" },
       { label: "검토 대기", value: "검토 대기" },
       { label: "검토 완료", value: "검토 완료" },
       { label: "인증 반려", value: "인증 반려" },
@@ -95,30 +98,3 @@ export const memberSearchOptionList: SearchOption[] = [
   },
 ];
 
-const BIZ_STATUS_CYCLE: BizStatus[] = [
-  "미등록",
-  "미등록",
-  "검토 대기",
-  "검토 대기",
-  "검토 완료",
-  "검토 완료",
-  "인증 반려",
-  "인증 반려",
-  "인증 반려",
-  "검토 완료",
-];
-
-export const MEMBER_LIST: Member[] = Array.from({ length: 100 }, (_, i) => {
-  const isCompany = i % 10 < 5;
-  return {
-    no: String(12345 + i),
-    type: isCompany ? "기업" : "일반",
-    company: isCompany ? "ADMIX" : "-",
-    name: "홍길동",
-    email: "hong@naver.com",
-    phone: "01012345678",
-    bizStatus: BIZ_STATUS_CYCLE[i % BIZ_STATUS_CYCLE.length],
-    marketing: i % 2 === 0 ? "동의" : "비동의",
-    joinedAt: "2025-01-01",
-  };
-});

@@ -34,6 +34,14 @@ class User(Base):
     role = Column(String(20), nullable=False, default="user")
     verified = Column(Boolean, nullable=False, default=False)
     verify_token = Column(String(255), nullable=True)
+    # 회원(member) 운영 필드 — 설계서 §3.1
+    membership_type = Column(String(20), nullable=False, default="individual")  # individual/corporate
+    company_name = Column(String(200), nullable=True)
+    position = Column(String(100), nullable=True)
+    industry = Column(String(100), nullable=True)
+    marketing_consent = Column(Boolean, nullable=False, default=False)
+    status = Column(String(20), nullable=False, default="active")  # active/dormant/sanctioned/withdrawn
+    admin_memo = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -45,6 +53,15 @@ class User(Base):
     )
     password_resets = relationship(
         "PasswordReset", back_populates="user", cascade="all, delete-orphan"
+    )
+    business_registration = relationship(
+        "BusinessRegistration",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    sanctions = relationship(
+        "MemberSanction", back_populates="user", cascade="all, delete-orphan"
     )
 
 

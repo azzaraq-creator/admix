@@ -8,33 +8,48 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ExcelDownloadButton } from "@/components/common/buttons";
+import { useMembers } from "@/hooks/members";
 
 import {
-  MEMBER_LIST,
   memberColumnList,
   memberSearchOptionList,
+  type BizStatus,
   type Member,
+  type MemberStatus,
+  type MemberType,
 } from "./index";
 
 export function MembersListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
+  const { data } = useMembers();
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Member[]>(() => {
     const keyword = search.keyword?.trim();
-    const { bizStatus, type } = search;
-    return MEMBER_LIST.filter((item) => {
-      if (bizStatus && item.bizStatus !== bizStatus) return false;
-      if (type && item.type !== type) return false;
-      if (
-        keyword &&
-        !item.email.includes(keyword) &&
-        !item.name.includes(keyword)
-      )
-        return false;
-      return true;
-    });
-  }, [search]);
+    const { bizStatus, type, status } = search;
+    return (data?.items ?? [])
+      .filter((r) => {
+        if (bizStatus && r.bizStatus !== bizStatus) return false;
+        if (type && r.type !== type) return false;
+        if (status && r.status !== status) return false;
+        if (keyword && !r.email.includes(keyword) && !r.name.includes(keyword))
+          return false;
+        return true;
+      })
+      .map((r, i) => ({
+        id: r.no,
+        no: String(i + 1),
+        type: r.type as MemberType,
+        company: r.company,
+        name: r.name,
+        email: r.email,
+        phone: r.phone,
+        bizStatus: r.bizStatus as BizStatus,
+        marketing: r.marketing as "동의" | "비동의",
+        status: r.status as MemberStatus,
+        joinedAt: r.joinedAt,
+      }));
+  }, [data, search]);
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -43,13 +58,13 @@ export function MembersListView() {
       <CommonTable<Member>
         columnList={memberColumnList}
         data={filtered}
-        idKey="no"
+        idKey="id"
         searchOptionList={memberSearchOptionList}
         onSearch={setSearch}
         totalCount={filtered.length}
         usePageSizeSelect
         pageSize={10}
-        onRowClick={(item) => router.push(`/admin/members/${item.no}`)}
+        onRowClick={(item) => router.push(`/admin/members/${item.id}`)}
         topRightContent={<ExcelDownloadButton />}
       />
     </div>
