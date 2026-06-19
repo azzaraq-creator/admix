@@ -34,5 +34,6 @@ class FaqResponse(BaseModel):
     sort_order: int
     is_published: bool
     created_by: uuid.UUID | None = None
+    author: str | None = None
     created_at: datetime
     updated_at: datetime

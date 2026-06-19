@@ -7,22 +7,38 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
+import { useFaqs } from "@/hooks/faqs";
 
-import { FAQ_LIST, faqColumnList, faqSearchOptionList, type Faq } from "./index";
+import {
+  faqColumnList,
+  faqSearchOptionList,
+  type Faq,
+  type FaqType,
+} from "./index";
 
 export function FaqListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
+  const { data } = useFaqs();
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Faq[]>(() => {
     const keyword = search.keyword?.trim();
     const type = search.type;
-    return FAQ_LIST.filter((item) => {
-      if (type && item.type !== type) return false;
-      if (keyword && !item.title.includes(keyword)) return false;
-      return true;
-    });
-  }, [search]);
+    return (data ?? [])
+      .filter((r) => {
+        if (type && r.faq_type !== type) return false;
+        if (keyword && !r.title.includes(keyword)) return false;
+        return true;
+      })
+      .map((r, i) => ({
+        id: r.id,
+        no: String(i + 1),
+        type: (r.faq_type ?? "") as FaqType,
+        title: r.title,
+        author: r.author ?? "-",
+        createdAt: r.created_at.slice(0, 10),
+      }));
+  }, [data, search]);
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -31,13 +47,13 @@ export function FaqListView() {
       <CommonTable<Faq>
         columnList={faqColumnList}
         data={filtered}
-        idKey="no"
+        idKey="id"
         searchOptionList={faqSearchOptionList}
         onSearch={setSearch}
         totalCount={filtered.length}
         usePageSizeSelect
         pageSize={10}
-        onRowClick={(item) => router.push(`/admin/faq/${item.no}`)}
+        onRowClick={(item) => router.push(`/admin/faq/${item.id}`)}
         topRightContent={
           <button
             type="button"
