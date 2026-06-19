@@ -9,12 +9,12 @@ export function AiSearchArea() {
   const canSubmit = value.trim().length > 0;
 
   return (
-    <div className="flex flex-col items-center gap-[24px]">
-      <h1 className="text-4xl font-bold text-center text-white [text-shadow:0px_0px_4px_rgba(0,0,0,0.36)]">
+    <div className="flex w-full flex-col items-center gap-[16px] sm:gap-[24px]">
+      <h1 className="text-[18px] font-bold leading-[28px] tracking-[-0.04px] text-center text-white [text-shadow:0px_0px_4px_rgba(0,0,0,0.36)] sm:text-4xl sm:leading-[40px] sm:tracking-normal">
         AI를 통해 매체를 간편하게 추천받아 보세요!
       </h1>
 
-      <div className="flex w-[560px] flex-col gap-[10px] rounded-[24px] border border-primary bg-white px-[24px] py-[16px] drop-shadow-[0px_0px_8px_rgba(0,170,164,0.36)]">
+      <div className="flex w-full min-w-[343px] max-h-[128px] flex-col gap-[10px] rounded-[24px] border border-primary bg-white px-[24px] py-[16px] drop-shadow-[0px_0px_8px_rgba(0,170,164,0.36)] sm:w-[560px] sm:max-w-none">
         <textarea
           rows={1}
           value={value}
@@ -29,7 +29,9 @@ export function AiSearchArea() {
             className="flex items-center justify-center gap-[6px] rounded-full bg-primary px-[12px] py-[8px] text-white"
           >
             <SparkleIcon className="size-[16px] shrink-0" />
-            <span className="text-sm font-medium whitespace-nowrap">AI 생성</span>
+            <span className="text-sm font-medium whitespace-nowrap">
+              AI 생성
+            </span>
           </button>
         </div>
       </div>

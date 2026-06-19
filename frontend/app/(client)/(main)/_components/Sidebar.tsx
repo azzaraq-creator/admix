@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  useSyncExternalStore,
-  type ComponentType,
-  type MouseEvent,
-  type SVGProps,
-} from "react";
+import { type ComponentType, type MouseEvent, type SVGProps } from "react";
 
 import {
   AirplayIcon,
@@ -20,6 +15,7 @@ import {
   LogInIcon,
   MapIcon,
 } from "@/components/icons";
+import { setLnbExpanded, useLnbExpanded } from "./useLnb";
 
 type MenuItem = {
   key: string;
@@ -41,22 +37,6 @@ const MENU_ITEMS: MenuItem[] = [
   { key: "contact", label: "문의하기", Icon: HeadsetIcon, href: "/contact" },
 ];
 
-const STORAGE_KEY = "lnb-expanded";
-
-const lnbListeners = new Set<() => void>();
-const subscribeLnb = (callback: () => void) => {
-  lnbListeners.add(callback);
-  return () => {
-    lnbListeners.delete(callback);
-  };
-};
-const getLnbSnapshot = () => localStorage.getItem(STORAGE_KEY) === "true";
-const getLnbServerSnapshot = () => false;
-const setLnbExpanded = (value: boolean) => {
-  localStorage.setItem(STORAGE_KEY, String(value));
-  lnbListeners.forEach((listener) => listener());
-};
-
 function LnbTooltip({ label, expanded }: { label: string; expanded: boolean }) {
   if (expanded) return null;
   return (
@@ -67,16 +47,16 @@ function LnbTooltip({ label, expanded }: { label: string; expanded: boolean }) {
 }
 
 export function Sidebar() {
-  const expanded = useSyncExternalStore(
-    subscribeLnb,
-    getLnbSnapshot,
-    getLnbServerSnapshot,
-  );
+  const expanded = useLnbExpanded();
   const pathname = usePathname();
   const isHelp = pathname?.startsWith("/help") ?? false;
 
   const setOpen = setLnbExpanded;
   const stop = (event: MouseEvent) => event.stopPropagation();
+  const handleNavClick = (event: MouseEvent) => {
+    event.stopPropagation();
+    if (window.innerWidth < 640) setOpen(false);
+  };
 
   const labelClass = `pointer-events-none text-sm font-medium whitespace-nowrap transition-opacity duration-200 ${
     expanded ? "opacity-100" : "opacity-0"
@@ -98,14 +78,16 @@ export function Sidebar() {
       )}
       <aside
         className={`relative shrink-0 transition-[width] duration-300 ease-in-out ${
-          expanded ? "w-[64px] sm:w-[224px]" : "w-[64px]"
+          expanded ? "w-0 sm:w-[224px]" : "w-0 sm:w-[64px]"
         }`}
       >
         <nav
           aria-label="사이드바"
           onClick={() => setOpen(!expanded)}
-          className={`absolute inset-y-0 left-0 z-30 flex h-screen cursor-pointer flex-col justify-between border-r border-stroke bg-white px-[8px] py-[24px] transition-[width] duration-300 ease-in-out ${
-            expanded ? "w-[224px]" : "w-[64px]"
+          className={`absolute inset-y-0 left-0 z-30 flex h-screen cursor-pointer flex-col justify-between border-r border-stroke bg-white px-[8px] py-[24px] transition-[width,transform] duration-300 ease-in-out ${
+            expanded
+              ? "w-[224px] translate-x-0"
+              : "w-[64px] -translate-x-full sm:translate-x-0"
           }`}
         >
           {expanded ? (
@@ -113,7 +95,7 @@ export function Sidebar() {
               <Link
                 href="/"
                 aria-label="홈"
-                onClick={stop}
+                onClick={handleNavClick}
                 className="flex items-center justify-center rounded-[8px] p-[12px] transition-colors hover:bg-platinum-50"
               >
                 <Logo className="size-[24px]" />
@@ -153,7 +135,7 @@ export function Sidebar() {
                   <Link
                     href={href}
                     aria-label={label}
-                    onClick={stop}
+                    onClick={handleNavClick}
                     className={itemRowClass(active)}
                   >
                     <Icon className="size-[24px] shrink-0" />
@@ -170,7 +152,7 @@ export function Sidebar() {
               <Link
                 href="/help"
                 aria-label="도움말"
-                onClick={stop}
+                onClick={handleNavClick}
                 className={itemRowClass(isHelp)}
               >
                 <CircleAlertIcon className="size-[24px] shrink-0" />

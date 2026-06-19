@@ -53,7 +53,7 @@ export function ChatPanel({
   };
 
   return (
-    <div className="flex h-screen w-[384px] shrink-0 flex-col border-r border-[#e8e8e8] bg-white">
+    <div className="flex h-full w-full shrink-0 flex-col border-r border-[#e8e8e8] bg-white sm:w-[384px]">
       <div className="flex flex-col gap-[16px] border-b border-stroke px-[16px] py-[24px]">
         <ModeToggle className="w-full" value={mode} onChange={setMode} />
         {mode === "search" && (

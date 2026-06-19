@@ -22,7 +22,6 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
-import { Sidebar } from "../../../_components/Sidebar";
 
 type Slide = { id: string; name: string };
 
@@ -128,8 +127,7 @@ export function ProposalDetailView({
   };
 
   return (
-    <div className="flex h-screen w-full bg-white">
-      <Sidebar />
+    <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-[24px] border-b border-[#e8e8e8] bg-white px-[24px] py-[30px]">
           <div className="flex min-w-0 flex-1 flex-col gap-[12px]">

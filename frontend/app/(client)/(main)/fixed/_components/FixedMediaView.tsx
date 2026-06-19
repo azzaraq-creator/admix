@@ -5,8 +5,7 @@ import { useState } from "react";
 
 import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { ChevronLeftIcon } from "@/components/icons";
-import { Sidebar } from "../../_components/Sidebar";
+import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
 import { ChatPanel } from "./ChatPanel";
 import { MapArea } from "./MapArea";
 
@@ -14,17 +13,21 @@ export function FixedMediaView() {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
+  const [mobileMap, setMobileMap] = useState(false);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-white">
+    <div className="relative h-full w-full overflow-hidden bg-white">
       <MapArea
-        className={`absolute inset-y-0 right-0 z-0 transition-[left] duration-300 ease-in-out ${
-          chatOpen ? "left-[448px]" : "left-[64px]"
-        }`}
+        className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
+          chatOpen ? "sm:left-[384px]" : "sm:left-0"
+        } ${mobileMap ? "block" : "hidden"}`}
       />
 
-      <div className="absolute inset-y-0 left-0 z-10 flex">
-        <Sidebar />
+      <div
+        className={`absolute inset-y-0 left-0 right-0 z-10 sm:right-auto sm:flex ${
+          mobileMap ? "hidden" : "flex"
+        }`}
+      >
         {chatOpen && (
           <ChatPanel
             onSelectMedia={setSelectedMedia}
@@ -38,7 +41,7 @@ export function FixedMediaView() {
             onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
           />
         )}
-        <div className="flex items-center">
+        <div className="hidden items-center sm:flex">
           <button
             type="button"
             onClick={() => setChatOpen((open) => !open)}
@@ -53,6 +56,17 @@ export function FixedMediaView() {
           </button>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setMobileMap((value) => !value)}
+        className="absolute bottom-[24px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-primary px-[16px] py-[8px] text-white drop-shadow-[0px_2px_8px_rgba(0,0,0,0.2)] sm:hidden"
+      >
+        <MapPinIcon className="size-[18px]" />
+        <span className="text-sm font-medium whitespace-nowrap">
+          {mobileMap ? "목록보기" : "지도보기"}
+        </span>
+      </button>
     </div>
   );
 }
