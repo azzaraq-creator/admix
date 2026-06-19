@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ChevronDownIcon, LogoFull, LogOutIcon } from "@/components/icons";
+import { clearAdminToken } from "@/lib/adminToken";
 
 type NavLink = { label: string; href: string };
 
@@ -33,6 +34,13 @@ function isActive(pathname: string | null, href: string) {
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearAdminToken();
+    router.replace("/admin/login");
+    router.refresh();
+  };
   const businessActive = BUSINESS_LINKS.some((link) =>
     isActive(pathname, link.href),
   );
@@ -109,13 +117,14 @@ export function AdminSidebar() {
       </nav>
 
       <div className="p-[20px]">
-        <Link
-          href="/admin/login"
-          className="flex items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-[#f1f5f9]"
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-[#f1f5f9]"
         >
           <LogOutIcon className="size-[20px] shrink-0" />
           로그아웃
-        </Link>
+        </button>
       </div>
     </aside>
   );

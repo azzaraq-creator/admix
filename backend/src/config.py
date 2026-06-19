@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     jwt_refresh_secret: str = "change-me-refresh-secret"
     jwt_access_expires: int = 3600
     jwt_refresh_expires: int = 604800
+    admin_token_expires: int = 86400
 
     kakao_client_id: str = ""
     kakao_client_secret: str = ""

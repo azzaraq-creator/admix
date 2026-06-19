@@ -1,7 +1,8 @@
-"""관리자 계정 CRUD + 권한(admin_permission) 비즈니스 로직."""
+"""관리자 계정 CRUD + 권한(admin_permission) + 로그인 비즈니스 로직."""
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.models.admin import Admin
 from src.models.admin_permission import AdminPermission
 from src.schemas.admin import AdminAccountCreate, AdminAccountUpdate
-from src.utils.security import hash_password
+from src.utils.security import hash_password, verify_password
 
 VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account"}
 
@@ -39,6 +40,22 @@ def list_accounts(db: Session) -> list[dict]:
         )
         for a in admins
     ]
+
+
+def authenticate_admin(db: Session, email: str, password: str) -> Admin:
+    admin = db.query(Admin).filter(Admin.email == email).first()
+    if (
+        admin is None
+        or admin.password_hash is None
+        or not verify_password(password, admin.password_hash)
+    ):
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    if admin.status != "active":
+        raise HTTPException(status_code=403, detail="비활성화된 계정입니다.")
+    admin.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(admin)
+    return admin
 
 
 def _detail(admin: Admin) -> dict:

@@ -60,3 +60,14 @@ class AdminAccountDetail(BaseModel):
     permissions: list[str] = []
     created_at: datetime
     updated_at: datetime
+
+
+class AdminLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class AdminLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    admin: AdminAccountDetail

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.database import get_db
+from src.models.admin import Admin
 from src.models.user import User
 from src.utils.security import decode_token
 
@@ -51,3 +52,25 @@ def get_current_user_optional(
         return _user_from_token(credentials.credentials, db)
     except HTTPException:
         return None
+
+
+def get_current_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> Admin:
+    payload = decode_token(credentials.credentials, settings.jwt_access_secret)
+    if payload is None or payload.get("type") != "admin":
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    admin_id = payload.get("sub")
+    if not admin_id:
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    try:
+        aid = uuid.UUID(admin_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    admin = db.query(Admin).filter(Admin.id == aid).first()
+    if admin is None:
+        raise HTTPException(status_code=401, detail="관리자를 찾을 수 없습니다.")
+    if admin.status != "active":
+        raise HTTPException(status_code=403, detail="비활성화된 계정입니다.")
+    return admin

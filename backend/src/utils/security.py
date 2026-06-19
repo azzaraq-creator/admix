@@ -35,6 +35,10 @@ def create_refresh_token(data: dict, secret: str, expires_seconds: int) -> str:
     return _create_token(data, secret, expires_seconds, "refresh")
 
 
+def create_admin_token(data: dict, secret: str, expires_seconds: int) -> str:
+    return _create_token(data, secret, expires_seconds, "admin")
+
+
 def decode_token(token: str, secret: str) -> dict | None:
     try:
         return jwt.decode(token, secret, algorithms=[ALGORITHM])
