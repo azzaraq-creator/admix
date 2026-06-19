@@ -23,11 +23,12 @@ const ACCOUNT_ROWS: { label: string; value: string; modal: ModalKey | null }[] =
   ];
 
 const ROW_CLASS =
-  "flex items-center gap-[42px] border-b border-[#e8e8e8] py-[28px]";
+  "flex items-center gap-[12px] border-b border-[#e8e8e8] py-[12px] sm:gap-[42px] sm:py-[28px]";
 const LABEL_CLASS = "text-base font-semibold leading-[24px] text-black";
 const VALUE_CLASS = "text-base font-medium leading-[24px] text-[#737586]";
 const ACTION_CLASS =
-  "shrink-0 text-base font-semibold leading-[24px] text-[#757575] underline";
+  "shrink-0 text-sm font-semibold leading-[20px] text-[#757575] underline sm:text-base sm:leading-[24px]";
+const FIELD_CLASS = "flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]";
 
 export function ProfileView() {
   const router = useRouter();
@@ -48,26 +49,26 @@ export function ProfileView() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[24px] px-[20px] pb-[40px] pt-[80px]">
+    <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[16px] pb-[24px] pt-[24px] sm:gap-[24px] sm:px-[20px] sm:pb-[40px] sm:pt-[80px]">
       <div className="flex flex-col gap-[4px]">
-        <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
+        <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
           계정 정보
         </p>
-        <p className="text-base font-medium leading-[24px] text-[#737586]">
+        <p className="text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
           회원 정보 및 계정 설정을 관리할 수 있습니다.
         </p>
       </div>
 
-      <div className="flex items-center gap-[24px] rounded-[12px] border border-stroke px-[24px] py-[32px]">
-        <div className="flex min-w-0 flex-1 items-center gap-[24px]">
-          <div className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[12px]">
-            <UserIcon className="size-[40px] text-white" />
+      <div className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[16px] sm:flex-row sm:items-center sm:gap-[24px] sm:px-[24px] sm:py-[32px]">
+        <div className="flex min-w-0 flex-1 items-center gap-[12px] sm:gap-[24px]">
+          <div className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] sm:p-[12px]">
+            <UserIcon className="size-[26px] text-white sm:size-[40px]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-            <p className="truncate text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
+            <p className="truncate text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
               임현우
             </p>
-            <p className="truncate text-base font-medium leading-[24px] text-[#737586]">
+            <p className="truncate text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
               user01@naver.com
             </p>
           </div>
@@ -76,21 +77,21 @@ export function ProfileView() {
           variant="secondary"
           size="md"
           onClick={() => router.push("/")}
-          className="shrink-0"
+          className="w-full shrink-0 sm:w-auto"
         >
           로그아웃
         </Button>
       </div>
 
-      <div className="flex flex-col rounded-[12px] border border-stroke px-[24px]">
-        <div className="flex flex-col gap-[12px] border-b border-[#e8e8e8] py-[28px]">
+      <div className="flex flex-col rounded-[12px] border border-stroke px-[16px] sm:px-[24px]">
+        <div className="flex flex-col gap-[6px] border-b border-[#e8e8e8] py-[12px] sm:gap-[12px] sm:py-[28px]">
           <p className={LABEL_CLASS}>아이디</p>
           <p className={VALUE_CLASS}>user01@naver.com</p>
         </div>
 
         {ACCOUNT_ROWS.map((row) => (
           <div key={row.label} className={ROW_CLASS}>
-            <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
+            <div className={FIELD_CLASS}>
               <p className={LABEL_CLASS}>{row.label}</p>
               <p className={VALUE_CLASS}>{row.value}</p>
             </div>
@@ -105,7 +106,7 @@ export function ProfileView() {
         ))}
 
         <div className={ROW_CLASS}>
-          <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
+          <div className={FIELD_CLASS}>
             <div className="flex items-center gap-[12px]">
               <p className={LABEL_CLASS}>사업자등록증</p>
               <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
@@ -125,8 +126,8 @@ export function ProfileView() {
           </button>
         </div>
 
-        <div className="flex items-center gap-[42px] py-[28px]">
-          <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
+        <div className="flex items-center gap-[12px] py-[12px] sm:gap-[42px] sm:py-[28px]">
+          <div className="flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]">
             <p className={LABEL_CLASS}>마케팅 정보 수신 동의</p>
             <p className="text-sm font-medium leading-[20px] text-[#737586]">
               (신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있습니다.)
@@ -136,19 +137,19 @@ export function ProfileView() {
         </div>
       </div>
 
-      <div className="flex items-center gap-[24px] rounded-[12px] border border-stroke px-[24px] py-[32px]">
+      <div className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[16px] sm:flex-row sm:items-center sm:gap-[24px] sm:px-[24px] sm:py-[32px]">
         <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-          <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
+          <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
             회원 탈퇴
           </p>
-          <p className="text-base font-medium leading-[24px] text-[#737586]">
+          <p className="text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
             계정을 삭제하면 모든 데이터를 복구할 수 없게 됩니다.
           </p>
         </div>
         <button
           type="button"
           onClick={handleWithdraw}
-          className="shrink-0 rounded-[8px] border border-[#ff6c64] bg-white px-[16px] py-[12px] text-base font-medium text-[#ff6c64]"
+          className="w-full shrink-0 rounded-[8px] border border-[#ff6c64] bg-white px-[12px] py-[8px] text-sm font-medium text-[#ff6c64] sm:w-auto sm:px-[16px] sm:py-[12px] sm:text-base"
         >
           회원 탈퇴
         </button>
