@@ -25,16 +25,6 @@ function formatDateTime(iso: string): string {
   )}:${pad(d.getMinutes())}`;
 }
 
-const PRICE_FORMATTER = new Intl.NumberFormat("ko-KR");
-
-function formatPrice(raw: unknown): string {
-  if (raw == null || raw === "") return "가격 문의";
-  const digits = String(raw).replace(/[^0-9]/g, "");
-  if (!digits) return String(raw);
-  const n = Number(digits);
-  return Number.isFinite(n) ? `${PRICE_FORMATTER.format(n)}원` : String(raw);
-}
-
 function toMessageRows(detail?: AdSessionDetail): ChatMessageRow[] {
   return (detail?.messages ?? []).map((m, i) => {
     const payload = (m.payload ?? {}) as Record<string, unknown>;
@@ -44,7 +34,6 @@ function toMessageRows(detail?: AdSessionDetail): ChatMessageRow[] {
     const items = rawItems.map((it, idx) => ({
       rank: idx + 1,
       name: String(it.name ?? "(매체명 없음)"),
-      price: formatPrice(it.price),
     }));
     return {
       no: i + 1,

@@ -3,7 +3,6 @@ import type { TableColumn } from "@/components/common/Table/CommonTable";
 export type ChatRecommendItem = {
   rank: number;
   name: string;
-  price: string;
 };
 
 export type ChatMessageRow = {
@@ -23,29 +22,24 @@ export const messageColumnList: TableColumn<ChatMessageRow>[] = [
     label: "대화 내용",
     className: "text-left",
     renderer: (m) => (
-      <div className="flex flex-col gap-[8px]">
+      <div
+        className={`flex w-full max-w-[520px] flex-col gap-[8px] whitespace-normal break-words text-left${
+          m.role === "AI" ? " py-[8px]" : ""
+        }`}
+      >
         {m.content && <span className="whitespace-pre-line">{m.content}</span>}
         {m.items && m.items.length > 0 && (
-          <div className="flex flex-col gap-[4px] rounded-[8px] border border-stroke bg-[#f9fafc] p-[10px]">
-            <span className="text-xs font-medium text-[#737586]">
+          <div className="rounded-[8px] border border-stroke bg-[#f9fafc] p-[10px] text-xs leading-[18px]">
+            <span className="font-medium text-[#737586]">
               추천 매체 {m.matchCount ?? m.items.length}건
               {m.matchCount && m.matchCount > m.items.length
                 ? ` 중 ${m.items.length}건 노출`
                 : ""}
+              :{" "}
             </span>
-            {m.items.map((it) => (
-              <div
-                key={it.rank}
-                className="flex items-center justify-between gap-[12px] text-xs"
-              >
-                <span className="min-w-0 truncate text-black">
-                  {it.rank}. {it.name}
-                </span>
-                <span className="shrink-0 tabular-nums text-[#737586]">
-                  {it.price}
-                </span>
-              </div>
-            ))}
+            <span className="text-black">
+              {m.items.map((it) => `${it.rank}. ${it.name}`).join(" / ")}
+            </span>
           </div>
         )}
       </div>
