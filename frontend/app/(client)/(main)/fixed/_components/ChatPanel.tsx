@@ -4,8 +4,24 @@ import { useEffect, useRef, useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
-import { ArrowUpIcon, RotateCwIcon, SparkleIcon } from "@/components/icons";
+import { Switch } from "@/components/ui/switch";
+import {
+  ArrowUpIcon,
+  RotateCwIcon,
+  SparkleIcon,
+  XIcon,
+} from "@/components/icons";
+import {
+  CATEGORY_LABELS,
+  mergeEnriched,
+  useV2Chat,
+  type EnrichedCode,
+  type SlotKey,
+  type V2Message,
+  type V2MediaItem,
+} from "@/hooks/adRecommendV2";
 import { useFixedMediaInfinite } from "@/hooks/media";
+import { cn } from "@/lib/utils";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 
@@ -15,9 +31,20 @@ const FAQS = [
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
 ];
 
+const PRICE_FORMATTER = new Intl.NumberFormat("ko-KR");
+
 function formatFee(krw: number | null): string {
   if (krw == null) return "최소집행금액 협의";
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
+}
+
+function formatV2Price(raw?: string): string {
+  if (!raw) return "가격 문의";
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return raw;
+  const n = Number(digits);
+  if (!Number.isFinite(n)) return raw;
+  return `${PRICE_FORMATTER.format(n)}원`;
 }
 
 const MAX_LENGTH = 500;
@@ -33,9 +60,13 @@ export function ChatPanel({
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
   const [location, setLocation] = useState("");
+  const [showPhotos, setShowPhotos] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const chat = useV2Chat();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useFixedMediaInfinite();
@@ -62,6 +93,10 @@ export function ChatPanel({
     return () => observer.disconnect();
   }, [mode, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  useEffect(() => {
+    if (mode === "ai") endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat.messages, mode]);
+
   const resize = () => {
     const el = textareaRef.current;
     if (!el) return;
@@ -74,10 +109,15 @@ export function ChatPanel({
     requestAnimationFrame(resize);
   };
 
-  const fillFromFaq = (text: string) => {
-    setText(text);
-    textareaRef.current?.focus();
+  const handleSend = () => {
+    const text = value;
+    if (!text.trim() || chat.running) return;
+    setValue("");
+    requestAnimationFrame(resize);
+    void chat.submit(text);
   };
+
+  const hasConversation = chat.messages.length > 0;
 
   return (
     <div className="flex h-full w-full shrink-0 flex-col border-r border-[#e8e8e8] bg-white sm:w-[384px]">
@@ -113,42 +153,72 @@ export function ChatPanel({
 
       {mode === "search" && <MediaFilterBar />}
 
+      {mode === "ai" && hasConversation && (
+        <SlotBar
+          slots={chat.currentSlots}
+          disabled={chat.running}
+          onRemove={chat.removeSlot}
+        />
+      )}
+
       <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
         {mode === "ai" ? (
-          <div className="flex min-h-full flex-col justify-between gap-[24px] p-[24px]">
-            <div className="flex flex-col gap-[12px]">
-              <SparkleIcon className="size-[24px] text-primary" />
-              <div className="text-[24px] font-medium leading-[32px] tracking-[-0.1px] text-black">
-                <p>안녕하세요!</p>
-                <p>
-                  AI 추천 <span className="font-semibold text-primary">믹시</span>
-                  에요.
-                </p>
-                <p>조건에 딱 맞는 추천을 해드릴게요.</p>
-              </div>
+          hasConversation ? (
+            <div className="flex flex-col gap-[16px] p-[24px]">
+              {chat.messages.map((m) => (
+                <div key={m.id}>
+                  {m.type === "user" ? (
+                    <UserBubble content={m.content ?? ""} />
+                  ) : (
+                    <AssistantBubble
+                      message={m}
+                      selectedId={selectedId}
+                      onSelectMedia={onSelectMedia}
+                      showPhotos={showPhotos}
+                      onTogglePhotos={setShowPhotos}
+                    />
+                  )}
+                </div>
+              ))}
+              <div ref={endRef} />
             </div>
+          ) : (
+            <div className="flex min-h-full flex-col justify-between gap-[24px] p-[24px]">
+              <div className="flex flex-col gap-[12px]">
+                <SparkleIcon className="size-[24px] text-primary" />
+                <div className="text-[24px] font-medium leading-[32px] tracking-[-0.1px] text-black">
+                  <p>안녕하세요!</p>
+                  <p>
+                    AI 추천{" "}
+                    <span className="font-semibold text-primary">믹시</span>
+                    에요.
+                  </p>
+                  <p>조건에 딱 맞는 추천을 해드릴게요.</p>
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-[8px]">
-              <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
-                자주 물어보는 질문이에요.
-              </p>
               <div className="flex flex-col gap-[8px]">
-                {FAQS.map((faq) => (
-                  <button
-                    key={faq}
-                    type="button"
-                    onClick={() => fillFromFaq(faq)}
-                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-[#f1f5f9]"
-                  >
-                    <SparkleIcon className="size-[24px] shrink-0 text-primary" />
-                    <span className="flex-1 text-base font-medium leading-[24px] text-black">
-                      {faq}
-                    </span>
-                  </button>
-                ))}
+                <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
+                  자주 물어보는 질문이에요.
+                </p>
+                <div className="flex flex-col gap-[8px]">
+                  {FAQS.map((faq) => (
+                    <button
+                      key={faq}
+                      type="button"
+                      onClick={() => void chat.submit(faq, { allowShort: true })}
+                      className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-[#f1f5f9]"
+                    >
+                      <SparkleIcon className="size-[24px] shrink-0 text-primary" />
+                      <span className="flex-1 text-base font-medium leading-[24px] text-black">
+                        {faq}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )
         ) : (
           <div className="flex flex-col">
             {searchResults.map((item) => (
@@ -167,6 +237,29 @@ export function ChatPanel({
 
       {mode === "ai" && (
         <div className="flex flex-col items-center gap-[10px] px-[24px] pb-[24px] pt-[8px]">
+          {chat.lastConfirmingId && (
+            <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-[#f9fafc] px-[16px] py-[10px]">
+              <span className="flex-1 text-sm font-medium text-[#757575]">
+                조건을 교체할까요?
+              </span>
+              <button
+                type="button"
+                disabled={chat.running}
+                onClick={() => void chat.submit("예", { allowShort: true })}
+                className="rounded-[8px] bg-primary px-[12px] py-[6px] text-sm font-medium text-white disabled:opacity-50"
+              >
+                예, 교체
+              </button>
+              <button
+                type="button"
+                disabled={chat.running}
+                onClick={() => void chat.submit("아니오", { allowShort: true })}
+                className="rounded-[8px] border border-stroke px-[12px] py-[6px] text-sm font-medium text-black disabled:opacity-50"
+              >
+                아니오
+              </button>
+            </div>
+          )}
           <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-white px-[24px] py-[10px]">
             <textarea
               ref={textareaRef}
@@ -174,12 +267,23 @@ export function ChatPanel({
               value={value}
               maxLength={MAX_LENGTH}
               onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder="매체 조건을 입력하세요"
               className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-[#757575]"
             />
             <button
               type="button"
-              disabled={value.trim().length === 0}
+              disabled={value.trim().length === 0 || chat.running}
+              onClick={handleSend}
               aria-label="전송"
               className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white disabled:opacity-50"
             >
@@ -191,6 +295,244 @@ export function ChatPanel({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function UserBubble({ content }: { content: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[85%] rounded-[16px] rounded-br-[4px] bg-secondary px-[16px] py-[10px] text-base leading-[24px] text-black">
+        {content}
+      </div>
+    </div>
+  );
+}
+
+function AssistantBubble({
+  message,
+  selectedId,
+  onSelectMedia,
+  showPhotos,
+  onTogglePhotos,
+}: {
+  message: V2Message;
+  selectedId?: string;
+  onSelectMedia?: (item: MediaItemData) => void;
+  showPhotos: boolean;
+  onTogglePhotos: (next: boolean) => void;
+}) {
+  if (message.isLoading) {
+    return (
+      <div className="flex items-center gap-[8px] text-base text-[#757575]">
+        <RotateCwIcon className="size-[16px] animate-spin text-primary" />
+        <span>추천 중...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-[12px]">
+      {message.confirmation && (
+        <ConfirmationView
+          changes={message.confirmation.changes}
+          messageText={message.confirmation.message}
+        />
+      )}
+      {message.response_type === "need_more" && (
+        <MatchedChips message={message} />
+      )}
+      {message.response_type === "list" &&
+        message.items &&
+        message.items.length > 0 && (
+          <ChatMediaList
+            items={message.items}
+            selectedId={selectedId}
+            onSelectMedia={onSelectMedia}
+            showPhotos={showPhotos}
+            onTogglePhotos={onTogglePhotos}
+          />
+        )}
+      {message.message && (
+        <p className="whitespace-pre-line text-base leading-[24px] text-black">
+          {message.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ConfirmationView({
+  changes,
+  messageText,
+}: {
+  changes?: { category: string; old_values: string[]; new_values: string[] }[];
+  messageText?: string;
+}) {
+  return (
+    <div className="space-y-[8px] rounded-[8px] border border-[#ffe0a3] bg-[#fff8ec] px-[12px] py-[10px]">
+      <div className="text-xs font-semibold tracking-wide text-[#ff920a]">
+        ⚠️ 조건 변경 확인 필요
+      </div>
+      {messageText && (
+        <p className="whitespace-pre-line text-sm leading-[20px] text-black">
+          {messageText}
+        </p>
+      )}
+      {changes && changes.length > 0 && (
+        <ul className="space-y-[4px] text-xs text-[#757575]">
+          {changes.map((ch, i) => {
+            const label = CATEGORY_LABELS[ch.category as SlotKey] || ch.category;
+            return (
+              <li key={`${ch.category}-${i}`}>
+                <span className="text-[#757575]">{label}</span>{" "}
+                {(ch.old_values || []).join(", ") || "(없음)"} →{" "}
+                {(ch.new_values || []).join(", ") || "(없음)"}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function MatchedChips({ message }: { message: V2Message }) {
+  const merged = mergeEnriched(
+    message.previous_context_detail,
+    message.enriched_extracted,
+  );
+  const rows: { label: string; values: string[] }[] = [];
+  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
+    const items = merged[cat] || [];
+    if (items.length > 0)
+      rows.push({ label, values: items.map((e) => e.description || e.code) });
+  }
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-[8px]">
+      <div className="text-xs font-medium tracking-wide text-[#757575]">
+        매칭된 조건
+      </div>
+      <div className="flex flex-wrap gap-[6px]">
+        {rows.map(({ label, values }) => (
+          <span
+            key={label}
+            className="rounded-[6px] border border-stroke bg-secondary px-[8px] py-[2px] text-xs"
+          >
+            <span className="text-[#757575]">{label}</span>{" "}
+            <span className="text-black">{values.join(", ")}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChatMediaList({
+  items,
+  selectedId,
+  onSelectMedia,
+  showPhotos,
+  onTogglePhotos,
+}: {
+  items: V2MediaItem[];
+  selectedId?: string;
+  onSelectMedia?: (item: MediaItemData) => void;
+  showPhotos: boolean;
+  onTogglePhotos: (next: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-[8px]">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium tracking-wide text-[#757575]">
+          추천 매체 ({items.length}개)
+        </span>
+        <label className="flex items-center gap-[6px] text-xs font-medium text-[#757575]">
+          사진
+          <Switch checked={showPhotos} onCheckedChange={onTogglePhotos} />
+        </label>
+      </div>
+      {items.map((it, idx) => {
+        const id = it.media_id ?? it.id;
+        const images = [it.thumbnail_url, ...(it.detail_images ?? [])].filter(
+          (u): u is string => Boolean(u),
+        );
+        return (
+          <MediaItem
+            key={it.id}
+            id={id}
+            name={it.name || "(매체명 없음)"}
+            price={formatV2Price(it.price)}
+            images={images}
+            rank={idx + 1}
+            simple={!showPhotos}
+            selected={id === selectedId}
+            onClick={() =>
+              onSelectMedia?.({
+                id,
+                name: it.name,
+                price: formatV2Price(it.price),
+                images,
+              })
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function SlotBar({
+  slots,
+  disabled,
+  onRemove,
+}: {
+  slots: Record<string, EnrichedCode[]>;
+  disabled: boolean;
+  onRemove: (category: string, code: string, label: string) => void;
+}) {
+  const rows: { cat: string; label: string; items: EnrichedCode[] }[] = [];
+  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
+    const items = slots[cat] || [];
+    if (items.length > 0) rows.push({ cat, label, items });
+  }
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-[6px] border-b border-stroke bg-[#f9fafc] px-[24px] py-[12px]">
+      <div className="text-xs font-medium tracking-wide text-[#757575]">
+        현재 조건
+      </div>
+      <div className="flex flex-wrap gap-[6px]">
+        {rows.flatMap(({ cat, label, items }) =>
+          items.map((e) => {
+            const valueLabel = e.description || e.code;
+            return (
+              <span
+                key={`${cat}-${e.code}`}
+                className="inline-flex items-center gap-[6px] rounded-[6px] border border-primary/30 bg-secondary py-[2px] pl-[8px] pr-[4px] text-xs"
+              >
+                <span className="text-[#757575]">{label}</span>
+                <span className="text-black">{valueLabel}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onRemove(cat, e.code, valueLabel)}
+                  aria-label={`${label} ${valueLabel} 제거`}
+                  className={cn(
+                    "flex size-[16px] items-center justify-center rounded text-[#757575] transition-colors hover:bg-primary/15 hover:text-black",
+                    disabled && "cursor-not-allowed opacity-40",
+                  )}
+                >
+                  <XIcon className="size-[11px]" />
+                </button>
+              </span>
+            );
+          }),
+        )}
+      </div>
     </div>
   );
 }

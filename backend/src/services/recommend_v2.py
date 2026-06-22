@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.orm import Session
 
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
+from src.models.media_master import Media
 from src.services.graph.llm import get_chat
 
 DEFAULT_TOP_K = 20
@@ -76,6 +77,7 @@ def _format_budget(value: int) -> str:
 
 class MediaItemResponse(BaseModel):
     id: str
+    media_id: Optional[str] = None  # media(master) 테이블 id — thumbnail_url 1:1 매핑. 지도/Drawer 연동용.
     name: str
     media_source: str
     price: Optional[str] = None
@@ -294,9 +296,28 @@ def _split_image_urls(raw: Optional[str]) -> list[str]:
     return [u.strip() for u in raw.split("|") if u.strip()]
 
 
-def _to_response_item(item: MediaItem) -> MediaItemResponse:
+def _media_id_by_thumbnail(db: Session, items: list[MediaItem]) -> dict[str, str]:
+    """media_items.thumbnail_url → media.media_id 배치 매핑.
+
+    두 테이블은 동일 매체(913개)이며 thumbnail_url 이 1:1 키. 지도/Drawer 연동용.
+    """
+    thumbs = [it.thumbnail_url for it in items if it.thumbnail_url]
+    if not thumbs:
+        return {}
+    rows = (
+        db.query(Media.thumbnail_url, Media.media_id)
+        .filter(Media.thumbnail_url.in_(thumbs))
+        .all()
+    )
+    return {t: m for t, m in rows if t}
+
+
+def _to_response_item(
+    item: MediaItem, media_id_map: dict[str, str] | None = None
+) -> MediaItemResponse:
     return MediaItemResponse(
         id=str(item.id),
+        media_id=(media_id_map or {}).get(item.thumbnail_url or ""),
         name=item.name,
         media_source=item.media_source,
         price=item.advertisement_fee or None,
@@ -399,10 +420,11 @@ def recommend_v2(user_text: str, db: Session, top_k: int = DEFAULT_TOP_K) -> Rec
         msg = f"조건에 맞는 매체를 {total}개 찾았어요."
 
     desc_map = load_keyword_descriptions(db)
+    media_id_map = _media_id_by_thumbnail(db, selected)
     return RecommendV2Response(
         type="list",
         message=msg,
-        items=[_to_response_item(it) for it in selected],
+        items=[_to_response_item(it, media_id_map) for it in selected],
         match_count=total,
         extracted=codes.model_dump(),
         enriched_extracted=_enrich_extracted(codes, desc_map),
@@ -582,10 +604,11 @@ async def _iter_list_event_data(
         return
 
     selected = sort_by_price_desc(candidates, top_k=top_k)
+    media_id_map = await _run_sync_in_thread(_media_id_by_thumbnail, db, selected)
     yield {
         "type": "list",
         "message": _build_list_message(total, len(selected)),
-        "items": [_to_response_item(it).model_dump() for it in selected],
+        "items": [_to_response_item(it, media_id_map).model_dump() for it in selected],
         "match_count": total,
         "extracted": extracted_payload,
         "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
