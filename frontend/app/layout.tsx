@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OOH Recommend",
+  title: "ADMIX",
   description: "옥외광고 추천서비스",
 };
 
