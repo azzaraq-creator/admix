@@ -49,6 +49,8 @@ def authenticate(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == email).first()
     if user is None or user.password is None or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    if user.status == "sanctioned":
+        raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
     return user
 
 
