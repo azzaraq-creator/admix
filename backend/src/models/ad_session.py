@@ -28,6 +28,13 @@ class AdSession(Base):
     title = Column(String(200), nullable=False, default="새 추천")
     # langgraph checkpointer 키. session 1:1 thread.
     thread_id = Column(String(64), nullable=False, unique=True)
+    # 세션 소유 회원. null = 비회원(게스트). 회원 탈퇴 시 로그는 비회원으로 보존(SET NULL).
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # v2 멀티턴 필터 컨텍스트: 누적된 키워드 코드
     filter_context = Column(JSONB, nullable=True, default=dict)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)

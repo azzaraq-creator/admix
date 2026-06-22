@@ -1,42 +1,55 @@
 import type { TableColumn } from "@/components/common/Table/CommonTable";
 
-export type Conversation = {
-  id: string;
-  title: string;
-  date: string;
+export type ChatRecommendItem = {
+  rank: number;
+  name: string;
+  price: string;
 };
 
-export type ChatMessage = {
+export type ChatMessageRow = {
   no: number;
-  role: "사용자" | "AI";
+  role: string;
   content: string;
   time: string;
+  items?: ChatRecommendItem[];
+  matchCount?: number;
 };
 
-export const messageColumnList: TableColumn<ChatMessage>[] = [
+export const messageColumnList: TableColumn<ChatMessageRow>[] = [
   { name: "no", label: "순번", className: "text-[#737586]" },
   { name: "role", label: "역할" },
-  { name: "content", label: "대화 내용" },
+  {
+    name: "content",
+    label: "대화 내용",
+    className: "text-left",
+    renderer: (m) => (
+      <div className="flex flex-col gap-[8px]">
+        {m.content && <span className="whitespace-pre-line">{m.content}</span>}
+        {m.items && m.items.length > 0 && (
+          <div className="flex flex-col gap-[4px] rounded-[8px] border border-stroke bg-[#f9fafc] p-[10px]">
+            <span className="text-xs font-medium text-[#737586]">
+              추천 매체 {m.matchCount ?? m.items.length}건
+              {m.matchCount && m.matchCount > m.items.length
+                ? ` 중 ${m.items.length}건 노출`
+                : ""}
+            </span>
+            {m.items.map((it) => (
+              <div
+                key={it.rank}
+                className="flex items-center justify-between gap-[12px] text-xs"
+              >
+                <span className="min-w-0 truncate text-black">
+                  {it.rank}. {it.name}
+                </span>
+                <span className="shrink-0 tabular-nums text-[#737586]">
+                  {it.price}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ),
+  },
   { name: "time", label: "시간", className: "text-[#737586]" },
 ];
-
-export const CONVERSATIONS: Conversation[] = Array.from(
-  { length: 12 },
-  (_, i) => ({
-    id: String(i + 1),
-    title: "홍대에서 광고 추천해줘",
-    date: "2026.06.11 14:30",
-  }),
-);
-
-export const MESSAGES: ChatMessage[] = Array.from({ length: 10 }, (_, i) => {
-  const isUser = i % 2 === 0;
-  return {
-    no: i + 1,
-    role: isUser ? "사용자" : "AI",
-    content: isUser
-      ? "강남역에서 화장품 광고 하고 싶어요"
-      : "강남역 일대 추천 매체입니다.",
-    time: "2026.06.11 14:32",
-  };
-});

@@ -50,3 +50,35 @@ class AdSessionDetail(AdSessionSummary):
 
 class StreamMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+
+
+class AdSessionAdminRow(BaseModel):
+    id: str
+    title: str
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdChatOverviewRow(BaseModel):
+    kind: Literal["member", "guest"]
+    key: str  # member=user_id, guest=session_id
+    name: str
+    email: str
+    membership: Optional[str] = None
+    room_count: int
+    message_count: int
+    last_used_at: datetime
+
+
+class AdChatOverviewResponse(BaseModel):
+    total: int
+    items: List[AdChatOverviewRow]
+
+
+class AdUserChatDetail(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    membership: Optional[str] = None
+    sessions: List[AdSessionAdminRow]

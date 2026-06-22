@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.models.ad_session import AdMessage, AdSession, MessageRole
@@ -21,8 +22,12 @@ def _new_thread_id() -> str:
     return f"thread-{uuid.uuid4().hex[:16]}"
 
 
-def create_session(db: Session, title: Optional[str] = None) -> AdSession:
-    s = AdSession(title=title or "새 추천", thread_id=_new_thread_id())
+def create_session(
+    db: Session,
+    title: Optional[str] = None,
+    user_id: Optional[uuid.UUID] = None,
+) -> AdSession:
+    s = AdSession(title=title or "새 추천", thread_id=_new_thread_id(), user_id=user_id)
     db.add(s)
     db.commit()
     db.refresh(s)
@@ -40,6 +45,111 @@ def list_sessions(db: Session, limit: int = 50) -> List[AdSession]:
 
 def get_session(db: Session, session_id: str) -> Optional[AdSession]:
     return db.query(AdSession).filter(AdSession.id == session_id).first()
+
+
+def _message_counts(db: Session) -> dict:
+    """session_id → 메시지 수 매핑."""
+    return dict(
+        db.query(AdMessage.session_id, func.count(AdMessage.id))
+        .group_by(AdMessage.session_id)
+        .all()
+    )
+
+
+def list_chat_overview(db: Session) -> list[dict]:
+    """admin 챗로그 개요 — 회원은 이름/이메일별 집계 1행, 비회원은 세션별 1행.
+
+    행 형태:
+      {kind: "member"|"guest", key, name, email, membership, room_count, message_count, last_used_at}
+      - member: key = user_id (상세에서 세션 목록)
+      - guest:  key = session_id (상세에서 단일 세션 메시지)
+    """
+    from src.models.user import User
+
+    counts = _message_counts(db)
+    sessions = db.query(AdSession).order_by(AdSession.updated_at.desc()).all()
+    user_ids = {s.user_id for s in sessions if s.user_id}
+    users = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+        if user_ids
+        else {}
+    )
+
+    members: dict = {}
+    guests: list[dict] = []
+    for s in sessions:
+        mc = counts.get(s.id, 0)
+        u = users.get(s.user_id) if s.user_id else None
+        if u is not None:
+            agg = members.get(u.id)
+            if agg is None:
+                members[u.id] = dict(
+                    kind="member",
+                    key=str(u.id),
+                    name=u.name or "-",
+                    email=u.email,
+                    membership=u.membership_type,
+                    room_count=1,
+                    message_count=mc,
+                    last_used_at=s.updated_at,
+                )
+            else:
+                agg["room_count"] += 1
+                agg["message_count"] += mc
+                if s.updated_at > agg["last_used_at"]:
+                    agg["last_used_at"] = s.updated_at
+        else:
+            guests.append(
+                dict(
+                    kind="guest",
+                    key=str(s.id),
+                    name="비회원",
+                    email="-",
+                    membership=None,
+                    room_count=1,
+                    message_count=mc,
+                    last_used_at=s.updated_at,
+                )
+            )
+    rows = list(members.values()) + guests
+    rows.sort(key=lambda r: r["last_used_at"], reverse=True)
+    return rows
+
+
+def get_user_chat_detail(db: Session, user_id: str) -> Optional[dict]:
+    """회원 1명의 챗 상세 — 회원정보 + 세션 목록(메시지 수 포함)."""
+    from src.models.user import User
+
+    try:
+        uid = uuid.UUID(user_id)
+    except (ValueError, AttributeError):
+        return None
+    u = db.query(User).filter(User.id == uid).first()
+    if u is None:
+        return None
+    counts = _message_counts(db)
+    sessions = (
+        db.query(AdSession)
+        .filter(AdSession.user_id == uid)
+        .order_by(AdSession.updated_at.desc())
+        .all()
+    )
+    return dict(
+        user_id=str(u.id),
+        name=u.name or "-",
+        email=u.email,
+        membership=u.membership_type,
+        sessions=[
+            dict(
+                id=str(s.id),
+                title=s.title,
+                message_count=counts.get(s.id, 0),
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            )
+            for s in sessions
+        ],
+    )
 
 
 def update_title(db: Session, session_id: str, title: str) -> Optional[AdSession]:

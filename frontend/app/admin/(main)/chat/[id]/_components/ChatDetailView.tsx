@@ -1,40 +1,94 @@
 "use client";
 
 import { Building2, List } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { CommonTable } from "@/components/common/Table/CommonTable";
-import { ChevronRightIcon, DownloadIcon } from "@/components/icons";
+import { ChevronRightIcon } from "@/components/icons";
+import type { AdSessionDetail } from "@/hooks/adSessions";
+import { useAdminChatSession, useAdminChatUser } from "@/hooks/adminChat";
 
-import {
-  CONVERSATIONS,
-  MESSAGES,
-  messageColumnList,
-  type Conversation,
-} from "./index";
+import { messageColumnList, type ChatMessageRow } from "./index";
 
-function HeaderInfo({ label, value }: { label: string; value: string }) {
+const MEMBERSHIP_LABEL: Record<string, string> = {
+  individual: "개인",
+  corporate: "기업",
+};
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}`;
+}
+
+const PRICE_FORMATTER = new Intl.NumberFormat("ko-KR");
+
+function formatPrice(raw: unknown): string {
+  if (raw == null || raw === "") return "가격 문의";
+  const digits = String(raw).replace(/[^0-9]/g, "");
+  if (!digits) return String(raw);
+  const n = Number(digits);
+  return Number.isFinite(n) ? `${PRICE_FORMATTER.format(n)}원` : String(raw);
+}
+
+function toMessageRows(detail?: AdSessionDetail): ChatMessageRow[] {
+  return (detail?.messages ?? []).map((m, i) => {
+    const payload = (m.payload ?? {}) as Record<string, unknown>;
+    const rawItems = Array.isArray(payload.items)
+      ? (payload.items as Record<string, unknown>[])
+      : [];
+    const items = rawItems.map((it, idx) => ({
+      rank: idx + 1,
+      name: String(it.name ?? "(매체명 없음)"),
+      price: formatPrice(it.price),
+    }));
+    return {
+      no: i + 1,
+      role: m.role === "user" ? "사용자" : "AI",
+      content: m.content || "-",
+      time: formatDateTime(m.created_at),
+      items: items.length ? items : undefined,
+      matchCount:
+        typeof payload.match_count === "number" ? payload.match_count : undefined,
+    };
+  });
+}
+
+function MessagesTable({
+  messages,
+  isLoading,
+}: {
+  messages: ChatMessageRow[];
+  isLoading: boolean;
+}) {
   return (
-    <div className="flex w-[120px] flex-col gap-[12px]">
-      <span className="text-sm font-medium leading-normal text-[#494a4a]">
-        {label}
-      </span>
-      <span className="text-sm font-semibold leading-normal text-black">
-        {value}
-      </span>
+    <div className="overflow-hidden rounded-[12px] border border-[#cdcdcd]">
+      <CommonTable<ChatMessageRow>
+        columnList={messageColumnList}
+        data={messages}
+        useSearch={false}
+        pageSize={50}
+        emptyMessage={isLoading ? "불러오는 중..." : "메시지가 없습니다."}
+      />
     </div>
   );
 }
 
-const DOWNLOAD_BUTTON =
-  "flex h-[40px] items-center gap-[6px] rounded-[6px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-[#0a0a0a] transition-colors hover:bg-[#f1f5f9]";
-
 export function ChatDetailView() {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(CONVERSATIONS[0]?.id ?? "");
-  const selected =
-    CONVERSATIONS.find((c) => c.id === selectedId) ?? CONVERSATIONS[0];
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const key =
+    typeof params.id === "string"
+      ? params.id
+      : Array.isArray(params.id)
+        ? params.id[0]
+        : "";
+  const kind = searchParams.get("kind") === "member" ? "member" : "guest";
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -42,83 +96,11 @@ export function ChatDetailView() {
         AI 채팅 상세
       </h1>
 
-      <div className="flex items-center gap-[48px] rounded-[12px] border border-[#cdcdcd] p-[36px]">
-        <div className="flex flex-1 items-center gap-[21px]">
-          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
-            <Building2 className="size-[60px] text-[#767676]" />
-          </div>
-          <div className="flex flex-1 flex-col gap-[20px]">
-            <p className="text-[36px] font-semibold leading-[1.4] text-black">
-              홍길동
-            </p>
-            <div className="flex items-center gap-[22px]">
-              <HeaderInfo label="회원 유형" value="기업" />
-              <div className="h-[41px] w-px bg-[#e6e6e6]" />
-              <div className="flex w-[120px] flex-col gap-[12px]">
-                <span className="text-sm font-medium leading-normal text-[#494a4a]">
-                  사업자정보
-                </span>
-                <span className="inline-flex w-fit items-center rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] text-[#545454]">
-                  미등록
-                </span>
-              </div>
-              <div className="h-[41px] w-px bg-[#e6e6e6]" />
-              <HeaderInfo label="가입일" value="2026.01.01" />
-            </div>
-          </div>
-        </div>
-
-        <button type="button" className={DOWNLOAD_BUTTON}>
-          <DownloadIcon className="size-[16px]" />
-          전체 다운로드
-        </button>
-      </div>
-
-      <div className="flex items-stretch gap-[24px]">
-        <div className="flex w-[400px] shrink-0 flex-col rounded-[12px] border border-[#cdcdcd]">
-          <div className="shrink-0 border-b border-[#e6e6e6] px-[24px] py-[20px] text-base font-semibold leading-[24px] text-[#2a2a2a]">
-            대화 목록 {CONVERSATIONS.length}
-          </div>
-          <div className="relative min-h-0 flex-1">
-            <div className="absolute inset-0 flex flex-col overflow-y-auto">
-              {CONVERSATIONS.map((conv) => (
-                <ConversationItem
-                  key={conv.id}
-                  conversation={conv}
-                  active={conv.id === selected?.id}
-                  onClick={() => setSelectedId(conv.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden rounded-[12px] border border-[#cdcdcd]">
-          <div className="flex items-center justify-between px-[24px] py-[20px]">
-            <div className="flex flex-col gap-[6px]">
-              <p className="text-base font-semibold leading-[24px] text-black">
-                {selected?.title}
-              </p>
-              <p className="text-xs font-medium leading-[16px] text-[#737586]">
-                {selected?.date}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="flex h-[36px] items-center gap-[6px] rounded-[6px] border border-stroke bg-white px-[14px] text-sm font-medium leading-[20px] text-[#0a0a0a] transition-colors hover:bg-[#f1f5f9]"
-            >
-              <DownloadIcon className="size-[16px]" />
-              선택 다운로드
-            </button>
-          </div>
-          <CommonTable
-            columnList={messageColumnList}
-            data={MESSAGES}
-            useSearch={false}
-            pageSize={50}
-          />
-        </div>
-      </div>
+      {kind === "member" ? (
+        <MemberDetail userId={key} />
+      ) : (
+        <GuestDetail sessionId={key} />
+      )}
 
       <div>
         <button
@@ -134,32 +116,105 @@ export function ChatDetailView() {
   );
 }
 
-function ConversationItem({
-  conversation,
-  active,
-  onClick,
-}: {
-  conversation: Conversation;
-  active: boolean;
-  onClick: () => void;
-}) {
+function GuestDetail({ sessionId }: { sessionId: string }) {
+  const { data, isLoading } = useAdminChatSession(sessionId);
+  const messages = toMessageRows(data);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center justify-between gap-[12px] border-b border-[#f1f1f4] px-[24px] py-[18px] text-left transition-colors ${
-        active ? "bg-[#f6f6f6]" : "hover:bg-[#fafafa]"
-      }`}
-    >
-      <div className="flex min-w-0 flex-col gap-[6px]">
-        <p className="truncate text-sm font-semibold leading-[20px] text-black">
-          {conversation.title}
-        </p>
-        <p className="text-xs font-medium leading-[16px] text-[#737586]">
-          {conversation.date}
-        </p>
+    <>
+      <div className="flex items-center gap-[21px] rounded-[12px] border border-[#cdcdcd] px-[24px] py-[20px]">
+        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
+          <Building2 className="size-[28px] text-[#767676]" />
+        </div>
+        <div className="flex flex-col gap-[6px]">
+          <p className="text-[20px] font-semibold leading-[28px] text-black">
+            비회원
+          </p>
+          <p className="text-xs font-medium leading-[16px] text-[#737586]">
+            {data
+              ? `${data.title} · 생성 ${formatDateTime(data.created_at)} · 메시지 ${messages.length}`
+              : isLoading
+                ? "불러오는 중..."
+                : ""}
+          </p>
+        </div>
       </div>
-      <ChevronRightIcon className="size-[20px] shrink-0 text-[#737586]" />
-    </button>
+      <MessagesTable messages={messages} isLoading={isLoading} />
+    </>
+  );
+}
+
+function MemberDetail({ userId }: { userId: string }) {
+  const { data, isLoading } = useAdminChatUser(userId);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const sessions = data?.sessions ?? [];
+  const activeId = selectedId ?? sessions[0]?.id ?? null;
+
+  const { data: sessionDetail, isLoading: sessionLoading } =
+    useAdminChatSession(activeId);
+  const messages = toMessageRows(sessionDetail);
+
+  return (
+    <>
+      <div className="flex items-center gap-[21px] rounded-[12px] border border-[#cdcdcd] px-[24px] py-[20px]">
+        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
+          <Building2 className="size-[28px] text-[#767676]" />
+        </div>
+        <div className="flex flex-col gap-[6px]">
+          <p className="text-[20px] font-semibold leading-[28px] text-black">
+            {data?.name ?? (isLoading ? "불러오는 중..." : "회원")}
+          </p>
+          <div className="flex items-center gap-[12px] text-xs font-medium leading-[16px] text-[#737586]">
+            {data?.membership && (
+              <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-[#545454]">
+                {MEMBERSHIP_LABEL[data.membership] ?? data.membership}
+              </span>
+            )}
+            {data?.email && <span>{data.email}</span>}
+            <span>대화방 {sessions.length}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-stretch gap-[24px]">
+        <div className="flex w-[360px] shrink-0 flex-col rounded-[12px] border border-[#cdcdcd]">
+          <div className="shrink-0 border-b border-[#e6e6e6] px-[24px] py-[20px] text-base font-semibold leading-[24px] text-[#2a2a2a]">
+            대화 목록 {sessions.length}
+          </div>
+          <div className="flex flex-col">
+            {sessions.map((conv) => (
+              <button
+                key={conv.id}
+                type="button"
+                onClick={() => setSelectedId(conv.id)}
+                className={`flex items-center justify-between gap-[12px] border-b border-[#f1f1f4] px-[24px] py-[18px] text-left transition-colors ${
+                  conv.id === activeId ? "bg-[#f6f6f6]" : "hover:bg-[#fafafa]"
+                }`}
+              >
+                <div className="flex min-w-0 flex-col gap-[6px]">
+                  <p className="truncate text-sm font-semibold leading-[20px] text-black">
+                    {conv.title}
+                  </p>
+                  <p className="text-xs font-medium leading-[16px] text-[#737586]">
+                    {formatDateTime(conv.updated_at)} · 메시지{" "}
+                    {conv.message_count}
+                  </p>
+                </div>
+                <ChevronRightIcon className="size-[20px] shrink-0 text-[#737586]" />
+              </button>
+            ))}
+            {sessions.length === 0 && (
+              <p className="px-[24px] py-[18px] text-sm text-[#737586]">
+                {isLoading ? "불러오는 중..." : "대화 내역이 없습니다."}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1">
+          <MessagesTable messages={messages} isLoading={sessionLoading} />
+        </div>
+      </div>
+    </>
   );
 }

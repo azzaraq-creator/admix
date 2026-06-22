@@ -36,7 +36,9 @@ from src.schemas.ad_session import (
     AdSessionUpdate,
     StreamMessageRequest,
 )
+from src.models.user import User
 from src.services import ad_session_service as svc
+from src.utils.deps import get_current_user_optional
 
 router = APIRouter(prefix="/chat/graph", tags=["chat-graph"])
 
@@ -137,8 +139,14 @@ async def stream_graph(payload: GraphMessageRequest, request: Request):
     response_model=AdSessionSummary,
     status_code=status.HTTP_201_CREATED,
 )
-def create_session(payload: AdSessionCreate, db: Session = Depends(get_db)):
-    return svc.create_session(db, title=payload.title)
+def create_session(
+    payload: AdSessionCreate,
+    db: Session = Depends(get_db),
+    current: User | None = Depends(get_current_user_optional),
+):
+    return svc.create_session(
+        db, title=payload.title, user_id=current.id if current else None
+    )
 
 
 @router.get("/sessions", response_model=List[AdSessionSummary])

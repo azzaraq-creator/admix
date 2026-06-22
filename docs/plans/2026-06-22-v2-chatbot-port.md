@@ -64,6 +64,17 @@
 - `tsc --noEmit` / `eslint` 통과 (Playwright 금지).
 - `/fixed` ai 모드 → 발화 → 추천 리스트 → 매체 클릭 시 Drawer/지도 연동 확인 (dev 3000/3001은 사용자 것).
 
+### ✅ Phase 0 완료 기록 (2026-06-22, 커밋 `a9d058c`, 로컬·미푸시)
+
+**세션 중 사용자 수정 요청 반영 내역:**
+1. **별도 페이지 폐기 → ChatPanel 통합.** 초기엔 `app/(client)/(main)/ad-recommend/` 페이지로 포팅했으나, 구 v1 `app/(main)/ad-recommend`와 `/ad-recommend` **라우트 충돌** 발생 + 사용자가 "챗봇은 `fixed`의 ChatPanel에 연결" 의도 확인. → 별도 페이지/사이드바 항목 **원복**, `fixed/_components/ChatPanel.tsx` ai 모드에 통합.
+2. **리스트 → 기존 지도+Drawer 연동.** DB 검증으로 `media_items`↔`media`가 `thumbnail_url` 1:1(913/913) 확인 → 백엔드 응답에 `media_id` 실어 클릭 시 기존 `MediaDetailDrawer`/지도 연동.
+3. **입력창 버그 수정.** textarea `disabled={running}` 제거(스트리밍 중에도 입력 가능) + 한글 IME 조합 중 Enter 가드(`isComposing`).
+4. **사진 유/무 토글 스위치 추가.** 리스트 헤더에 `Switch` — `MediaItem`의 `simple` 토글(기본 ON).
+5. **구 v1(`app/(main)/`) 보존.** 사용자 요청으로 지금은 삭제 안 함(나중에 일괄 정리).
+
+**검증 결과:** 백엔드 테스트 20개 통과 · 913/913 media_id 매핑 · SSE 정상 종료(curl 3.4s) · tsc/eslint 0 · 사용자 런타임 확인 완료. **푸시는 진행 중 인증(auth/signup) 작업 정리 후 함께.**
+
 ---
 
 ## Phase 1 — admin 챗로그 조회
