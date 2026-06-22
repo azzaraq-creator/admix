@@ -16,6 +16,7 @@ import {
   MapIcon,
 } from "@/components/icons";
 import { setLnbExpanded, useLnbExpanded } from "./useLnb";
+import { openLoginModal } from "./useLoginModal";
 
 type MenuItem = {
   key: string;
@@ -159,7 +160,10 @@ export function Sidebar() {
             <button
               type="button"
               aria-label="로그인 / 회원가입"
-              onClick={stop}
+              onClick={(event) => {
+                stop(event);
+                openLoginModal();
+              }}
               className="flex w-full items-center justify-center gap-[6px] rounded-[8px] bg-primary p-[12px] text-white transition-colors hover:bg-primary-800 active:bg-primary-900"
             >
               <LogInIcon className="size-[24px] shrink-0" />
