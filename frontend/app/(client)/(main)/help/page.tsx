@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Footer } from "@/components/layout/Footer";
+
 import { HELP_CONTENT, HELP_TABS, type HelpTabKey } from "./content";
 
 export default function HelpPage() {
@@ -35,6 +37,8 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
