@@ -8,28 +8,40 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ExcelDownloadButton } from "@/components/common/buttons";
+import { useAdminInquiries } from "@/hooks/inquiries";
 
 import {
-  INQUIRY_LIST,
   inquiryColumnList,
   inquirySearchOptionList,
   type Inquiry,
+  type InquiryStatus,
 } from "./index";
 
 export function InquiriesListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
+  const { data } = useAdminInquiries();
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Inquiry[]>(() => {
     const keyword = search.keyword?.trim();
     const status = search.status;
-    return INQUIRY_LIST.filter((item) => {
-      if (status && item.status !== status) return false;
-      if (keyword && !item.title.includes(keyword) && !item.name.includes(keyword))
-        return false;
-      return true;
-    });
-  }, [search]);
+    return (data?.items ?? [])
+      .filter((r) => {
+        if (status && r.status !== status) return false;
+        if (keyword && !r.title.includes(keyword) && !r.name.includes(keyword))
+          return false;
+        return true;
+      })
+      .map((r, i) => ({
+        id: r.id,
+        no: String(i + 1),
+        name: r.name,
+        title: r.title,
+        content: r.content,
+        status: r.status as InquiryStatus,
+        submittedAt: r.submittedAt,
+      }));
+  }, [data, search]);
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -38,12 +50,13 @@ export function InquiriesListView() {
       <CommonTable<Inquiry>
         columnList={inquiryColumnList}
         data={filtered}
+        idKey="id"
         searchOptionList={inquirySearchOptionList}
         onSearch={setSearch}
         totalCount={filtered.length}
         usePageSizeSelect
         pageSize={10}
-        onRowClick={(item) => router.push(`/admin/inquiries/${item.no}`)}
+        onRowClick={(item) => router.push(`/admin/inquiries/${item.id}`)}
         topRightContent={<ExcelDownloadButton />}
       />
     </div>

@@ -11,6 +11,7 @@ export type ProposalStatus =
   | "취소";
 
 export type Proposal = {
+  id: string;
   no: string;
   name: string;
   member: string;
@@ -75,25 +76,3 @@ export const proposalSearchOptionList: SearchOption[] = [
   },
 ];
 
-const STATUS_CYCLE: ProposalStatus[] = [
-  "취소",
-  "신규",
-  "신규",
-  "맞춤제안",
-  "맞춤제안",
-  "맞춤제안",
-  "집행 요청",
-  "집행 요청",
-  "계약 완료",
-  "계약 완료",
-];
-
-export const PROPOSAL_LIST: Proposal[] = Array.from({ length: 100 }, (_, i) => ({
-  no: "12345",
-  name: "광고 제안서_2026",
-  member: "홍길동",
-  mediaCount: "12",
-  totalAmount: "380,000,000원",
-  status: STATUS_CYCLE[i % STATUS_CYCLE.length],
-  registeredAt: "2025-01-01",
-}));

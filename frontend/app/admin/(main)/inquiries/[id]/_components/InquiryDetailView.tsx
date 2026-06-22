@@ -1,14 +1,23 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { useAnswerInquiry, useInquiry, type InquiryDetail } from "@/hooks/inquiries";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
-import { InquiryStatusBadge } from "../../_components";
+import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
 const CARD_CLASS =
   "rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
+
+function extractError(err: unknown): string {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })
+    ?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  return "처리 중 오류가 발생했습니다.";
+}
 
 function InfoRow({
   label,
@@ -32,21 +41,56 @@ function InfoRow({
 }
 
 export function InquiryDetailView() {
+  const params = useParams<{ id: string }>();
+  const { data: inquiry } = useInquiry(params.id);
+
+  if (!inquiry) {
+    return (
+      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+        불러오는 중...
+      </p>
+    );
+  }
+
+  return <InquiryDetail inquiry={inquiry} />;
+}
+
+function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
   const router = useRouter();
   const { confirm, alert, confirmDialog } = useAdminConfirm();
+  const answerMutation = useAnswerInquiry();
+
+  const [answer, setAnswer] = useState(inquiry.answer ?? "");
 
   const handleComplete = async () => {
+    if (!answer.trim()) {
+      await alert({
+        title: "입력 확인",
+        description: "답변 내용을 입력해주세요.",
+        confirmText: "확인",
+      });
+      return;
+    }
     const ok = await confirm({
       title: "답변 완료 처리를 하시겠습니까?",
       description: "작성한 답변 내용이 고객에게 전달됩니다.",
       confirmText: "전송",
     });
     if (!ok) return;
-    await alert({
-      title: "답변 처리 완료",
-      description: "답변 처리가 완료되었습니다.",
-      confirmText: "확인",
-    });
+    try {
+      await answerMutation.mutateAsync({ id: inquiry.id, answer: answer.trim() });
+      await alert({
+        title: "답변 처리 완료",
+        description: "답변 처리가 완료되었습니다.",
+        confirmText: "확인",
+      });
+    } catch (err) {
+      await alert({
+        title: "처리 실패",
+        description: extractError(err),
+        confirmText: "확인",
+      });
+    }
   };
 
   return (
@@ -56,24 +100,19 @@ export function InquiryDetailView() {
           문의 상세
         </h1>
         <div className="grid grid-cols-2 gap-x-[48px] gap-y-[20px]">
-          <InfoRow label="문의자">홍길동동</InfoRow>
-          <InfoRow label="이메일">hong@gmail.com</InfoRow>
-          <InfoRow label="전화번호">010-1234-5678</InfoRow>
-          <InfoRow label="회사">ADMIX</InfoRow>
-          <InfoRow label="제출일">2026-05-01</InfoRow>
+          <InfoRow label="문의자">{inquiry.name}</InfoRow>
+          <InfoRow label="이메일">{inquiry.email ?? "-"}</InfoRow>
+          <InfoRow label="전화번호">{inquiry.phone ?? "-"}</InfoRow>
+          <InfoRow label="회사">{inquiry.company ?? "-"}</InfoRow>
+          <InfoRow label="제출일">{inquiry.submittedAt}</InfoRow>
           <InfoRow label="문의 상태">
-            <InquiryStatusBadge status="답변 대기" />
+            <InquiryStatusBadge status={inquiry.status as InquiryStatus} />
           </InfoRow>
           <InfoRow label="문의 제목" full>
-            광고 매체 관련 문의
+            {inquiry.subject}
           </InfoRow>
           <InfoRow label="문의 내용" full>
-            문의 내용의 임시 요약본입니다.문의 내용의 임시 요약본입니다.문의 내용의
-            임시 요약본입니다.문의 내용의 임시 요약본입니다.문의 내용의 임시
-            요약본입니다.문의 내용의 임시 요약본입니다.문의 내용의 임시
-            요약본입니다.문의 내용의 임시 요약본입니다.문의 내용의 임시
-            요약본입니다.문의 내용의 임시 요약본입니다.문의 내용의 임시
-            요약본입니다.
+            <p className="whitespace-pre-line">{inquiry.content}</p>
           </InfoRow>
         </div>
       </div>
@@ -83,16 +122,22 @@ export function InquiryDetailView() {
           답변 정보
         </h2>
         <div className="grid grid-cols-2 gap-x-[48px]">
-          <InfoRow label="답변자">-</InfoRow>
-          <InfoRow label="답변 일시">-</InfoRow>
+          <InfoRow label="답변자">{inquiry.answerer ?? "-"}</InfoRow>
+          <InfoRow label="답변 일시">
+            {inquiry.answeredAt?.slice(0, 10) ?? "-"}
+          </InfoRow>
         </div>
         <textarea
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
           placeholder="답변 내용을 입력해 주세요."
           className="h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] bg-[#f0f0f3] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f]"
         />
         <div className="flex items-center justify-between">
           <ListButton onClick={() => router.push("/admin/inquiries")} />
-          <PrimaryButton onClick={handleComplete}>답변 완료 처리</PrimaryButton>
+          <PrimaryButton onClick={handleComplete} disabled={answerMutation.isPending}>
+            답변 완료 처리
+          </PrimaryButton>
         </div>
       </div>
 

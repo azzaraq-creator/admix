@@ -6,6 +6,7 @@ import type {
 export type InquiryStatus = "답변 대기" | "답변 완료";
 
 export type Inquiry = {
+  id: string;
   no: string;
   name: string;
   title: string;
@@ -69,12 +70,3 @@ export const inquirySearchOptionList: SearchOption[] = [
   },
 ];
 
-export const INQUIRY_LIST: Inquiry[] = Array.from({ length: 100 }, (_, i) => ({
-  no: "12345",
-  name: "홍길동",
-  title: "광고 매체 관련 문의",
-  content:
-    "문의 내용 임시 요약본입니다문의 내용 임시 요약본입니다문의 내용의...",
-  status: i % 10 < 5 ? "답변 대기" : "답변 완료",
-  submittedAt: "2025-01-01",
-}));
