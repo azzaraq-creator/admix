@@ -4,20 +4,10 @@ import { useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
+import { useMovingMediaList } from "@/hooks/media";
 import { MediaDetailContent } from "../../media/[id]/_components/MediaDetailContent";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { MovingMediaCard, type MovingMediaData } from "./MovingMediaCard";
-
-const MOVING_MEDIA: MovingMediaData[] = [
-  { id: "m1", name: "서울 버스 TV", price: "최소집행금액 1,400만원 / 1일", badge: "new" },
-  { id: "m2", name: "MOAD", price: "최소집행금액 800만원 / 1주", badge: "popular" },
-  { id: "m3", name: "대전 버스외부광고", price: "최소집행금액 500만원 / 1달" },
-  { id: "m4", name: "서울버스외부광고", price: "최소집행금액 900만원 / 1달", badge: "popular" },
-  { id: "m5", name: "경기 광역버스 광고", price: "최소집행금액 600만원 / 1달" },
-  { id: "m6", name: "경기 지선버스 광고", price: "최소집행금액 450만원 / 1달" },
-  { id: "m7", name: "인천 시내버스 광고", price: "최소집행금액 400만원 / 1달" },
-  { id: "m8", name: "택시 디지털 광고", price: "최소집행금액 700만원 / 1주", badge: "new" },
-];
 
 const FILTERS = [
   "카테고리",
@@ -28,13 +18,25 @@ const FILTERS = [
   "매체 형태",
 ];
 
+function formatFee(krw: number | null): string {
+  if (krw == null) return "최소집행금액 협의";
+  return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
+}
+
 export function MovingView() {
+  const { data } = useMovingMediaList();
+  const mediaList: MovingMediaData[] = (data?.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    price: formatFee(item.minAdvertisementFeeKrw),
+  }));
+
   const [location, setLocation] = useState("");
-  const [selectedId, setSelectedId] = useState(MOVING_MEDIA[0].id);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const selected =
-    MOVING_MEDIA.find((media) => media.id === selectedId) ?? MOVING_MEDIA[0];
+    mediaList.find((media) => media.id === selectedId) ?? mediaList[0];
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -54,7 +56,7 @@ export function MovingView() {
         <MediaFilterBar filters={FILTERS} />
         <div className="flex-1 overflow-y-auto p-[16px]">
           <div className="grid grid-cols-2 gap-[12px] sm:grid-cols-3">
-            {MOVING_MEDIA.map((media) => (
+            {mediaList.map((media) => (
               <MovingMediaCard
                 key={media.id}
                 data={media}
@@ -74,21 +76,25 @@ export function MovingView() {
           detailOpen ? "block" : "hidden"
         }`}
       >
-        <MobileMediaDetail
-          name={selected.name}
-          price={selected.price}
-          badge={selected.badge}
-          onBack={() => setDetailOpen(false)}
-          hidePopulation
-          hideMediaList
-          className="sm:hidden"
-        />
-        <MediaDetailContent
-          name={selected.name}
-          price={selected.price}
-          className="hidden px-[40px] py-[40px] sm:flex"
-          hidePopulation
-        />
+        {selected && (
+          <>
+            <MobileMediaDetail
+              name={selected.name}
+              price={selected.price}
+              badge={selected.badge}
+              onBack={() => setDetailOpen(false)}
+              hidePopulation
+              hideMediaList
+              className="sm:hidden"
+            />
+            <MediaDetailContent
+              name={selected.name}
+              price={selected.price}
+              className="hidden px-[40px] py-[40px] sm:flex"
+              hidePopulation
+            />
+          </>
+        )}
       </div>
     </div>
   );

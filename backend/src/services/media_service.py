@@ -23,6 +23,26 @@ def _fmt_date(dt: datetime | None) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
+def list_moving_media(db: Session) -> list[dict]:
+    rows = (
+        db.query(Media)
+        .filter(Media.media_source == "MOVING")
+        .order_by(Media.media_id)
+        .all()
+    )
+    items: list[dict] = []
+    for m in rows:
+        name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
+        items.append(
+            dict(
+                id=m.media_id,
+                name=name or "-",
+                minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
+            )
+        )
+    return items
+
+
 def list_media(db: Session) -> list[dict]:
     rows = (
         db.query(Media, MediaPlan)

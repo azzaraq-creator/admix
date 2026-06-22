@@ -18,6 +18,19 @@ export interface MediaListResponse {
   items: MediaRow[];
 }
 
+export interface MovingMediaRow {
+  id: string;
+  name: string;
+  minAdvertisementFeeKrw: number | null;
+}
+
+export interface MovingMediaListResponse {
+  total: number;
+  items: MovingMediaRow[];
+}
+
 export const mediaApi = {
   list: () => api.get<MediaListResponse>("/media").then((r) => r.data),
+  movingList: () =>
+    api.get<MovingMediaListResponse>("/media/moving").then((r) => r.data),
 };

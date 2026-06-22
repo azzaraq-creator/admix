@@ -9,3 +9,10 @@ export const useMediaList = () =>
     queryFn: mediaApi.list,
     staleTime: 60 * 1000,
   });
+
+export const useMovingMediaList = () =>
+  useQuery({
+    queryKey: mediaKeys.movingList(),
+    queryFn: mediaApi.movingList,
+    staleTime: 60 * 1000,
+  });

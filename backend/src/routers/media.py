@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.schemas.media import MediaListResponse
+from src.schemas.media import MediaListResponse, MovingMediaListResponse
 from src.services import media_service
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -15,3 +15,9 @@ router = APIRouter(prefix="/media", tags=["media"])
 def list_media(db: Session = Depends(get_db)) -> MediaListResponse:
     items = media_service.list_media(db)
     return MediaListResponse(total=len(items), items=items)
+
+
+@router.get("/moving", response_model=MovingMediaListResponse)
+def list_moving_media(db: Session = Depends(get_db)) -> MovingMediaListResponse:
+    items = media_service.list_moving_media(db)
+    return MovingMediaListResponse(total=len(items), items=items)

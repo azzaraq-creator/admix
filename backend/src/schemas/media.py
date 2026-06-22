@@ -20,3 +20,14 @@ class MediaRow(BaseModel):
 class MediaListResponse(BaseModel):
     total: int
     items: list[MediaRow]
+
+
+class MovingMediaRow(BaseModel):
+    id: str
+    name: str
+    minAdvertisementFeeKrw: int | None
+
+
+class MovingMediaListResponse(BaseModel):
+    total: int
+    items: list[MovingMediaRow]
