@@ -7,7 +7,7 @@ import { GenderDonut } from "@/components/common/GenderDonut";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
-  FolderPlusIcon,
+  FolderIcon,
   MaximizeIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,13 @@ const DEFAULT_STATS: MobileMediaStat[] = [
   { label: "최소집행금액", value: "16만원" },
   { label: "최소계약기간", value: "1달" },
 ];
+
+export type MobileMediaListItem = { title: string; subtitle: string };
+
+const DEFAULT_MEDIA_LIST: MobileMediaListItem[] = Array.from({ length: 3 }, () => ({
+  title: "영상(20초) / 팬클럽 광고",
+  subtitle: "1기 1면 / 20초 / 3일",
+}));
 
 const AGE_RATIO: AgeRatio[] = [
   { label: "10", value: 5.3, bound: "under" },
@@ -62,7 +69,9 @@ export function MobileMediaDetail({
   badge,
   description = DEFAULT_DESCRIPTION,
   features = DEFAULT_FEATURES,
+  mediaList = DEFAULT_MEDIA_LIST,
   size = "3 * 1 meter",
+  imageUrl,
   stats = DEFAULT_STATS,
   hidePopulation = false,
   hideMediaList = false,
@@ -71,10 +80,12 @@ export function MobileMediaDetail({
 }: {
   name?: string;
   price?: string;
-  badge?: "popular" | "new";
+  badge?: "popular" | "new" | null;
   description?: string;
   features?: [string, string][];
-  size?: string;
+  mediaList?: MobileMediaListItem[];
+  size?: string | null;
+  imageUrl?: string | null;
   stats?: MobileMediaStat[];
   hidePopulation?: boolean;
   hideMediaList?: boolean;
@@ -86,6 +97,10 @@ export function MobileMediaDetail({
   return (
     <div className={cn("flex w-full flex-col", className)}>
       <div className="relative h-[250px] w-full shrink-0 bg-[#d9d9d9]">
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="size-full object-cover" />
+        )}
         {onBack && (
           <button
             type="button"
@@ -126,7 +141,7 @@ export function MobileMediaDetail({
               aria-label="매체 담기"
               className="flex size-[40px] shrink-0 items-center justify-center rounded-[8px] bg-primary text-white"
             >
-              <FolderPlusIcon className="size-[24px]" />
+              <FolderIcon className="size-[24px]" />
             </button>
           </div>
 
@@ -176,6 +191,48 @@ export function MobileMediaDetail({
           </button>
         </div>
 
+        {!hideMediaList && mediaList.length > 0 && (
+          <div className="flex flex-col gap-[12px]">
+            <SectionTitle>매체 목록</SectionTitle>
+            <div className="flex flex-col gap-[8px]">
+              {mediaList.map((item, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-[12px] rounded-[8px] p-[16px] text-left",
+                    index === 0
+                      ? "border-2 border-primary bg-secondary"
+                      : "border border-stroke",
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                    <p className="text-base font-semibold leading-[24px] text-black">
+                      {item.title}
+                    </p>
+                    {item.subtitle && (
+                      <p className="text-sm font-medium leading-[20px] text-[#757575]">
+                        {item.subtitle}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "flex size-[24px] shrink-0 items-center justify-center rounded-full border-2",
+                      index === 0 ? "border-primary" : "border-[#d3d4d6]",
+                    )}
+                  >
+                    {index === 0 && (
+                      <span className="size-[12px] rounded-full bg-primary" />
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {size && (
         <div className="flex flex-col gap-[12px]">
           <SectionTitle>규격</SectionTitle>
           <div className="flex items-center gap-[16px] rounded-[8px] border border-stroke px-[16px] py-[12px]">
@@ -190,6 +247,7 @@ export function MobileMediaDetail({
             </div>
           </div>
         </div>
+        )}
 
         <div className="flex flex-col gap-[12px]">
           <SectionTitle>특징</SectionTitle>
@@ -209,45 +267,6 @@ export function MobileMediaDetail({
             ))}
           </div>
         </div>
-
-        {!hideMediaList && (
-          <div className="flex flex-col gap-[12px]">
-            <SectionTitle>매체 목록</SectionTitle>
-            <div className="flex flex-col gap-[8px]">
-              {[0, 1, 2].map((index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className={cn(
-                    "flex items-center gap-[12px] rounded-[8px] p-[16px] text-left",
-                    index === 0
-                      ? "border-2 border-primary bg-secondary"
-                      : "border border-stroke",
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                    <p className="text-base font-semibold leading-[24px] text-black">
-                      영상(20초) / 팬클럽 광고
-                    </p>
-                    <p className="text-sm font-medium leading-[20px] text-[#757575]">
-                      1기 1면 / 20초 / 3일
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "flex size-[24px] shrink-0 items-center justify-center rounded-full border-2",
-                      index === 0 ? "border-primary" : "border-[#d3d4d6]",
-                    )}
-                  >
-                    {index === 0 && (
-                      <span className="size-[12px] rounded-full bg-primary" />
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {!hidePopulation && (
           <div className="flex flex-col gap-[16px]">

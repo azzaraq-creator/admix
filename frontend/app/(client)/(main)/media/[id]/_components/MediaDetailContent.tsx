@@ -5,22 +5,23 @@ import { type ReactNode, useState } from "react";
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
 import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
-import {
-  ChevronDownIcon,
-  FolderPlusIcon,
-  MaximizeIcon,
-  PlusIcon,
-} from "@/components/icons";
+import { ChevronDownIcon, FolderIcon, MaximizeIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const DESCRIPTION =
   "맥스비전은 서울 지하철 1~4호선 주요 유동역사 24개소에 설치된 대형 디지털 광고 매체입니다. 역사 내 동선 중심부나 개찰구 주변, 환승 통로, 연결 계단 등 시야 확보가 우수한 위치에 설치되어 이용객의 이동 동선과 맞물린 자연스러운 노출이 가능합니다. 기존 사이니지보다 큰 사이즈의 디지털 스크린으로 구성되어 시각적 주목도가 높으며 일부 구간은 음성 송출이 가능해 브랜드 영상 콘텐츠 전달력이 우수합니다.";
 
-const MEDIA_LIST = Array.from({ length: 6 }, (_, index) => ({
-  key: `list-${index}`,
+type MediaListItem = { title: string; subtitle: string };
+
+const MEDIA_LIST_DEFAULT: MediaListItem[] = Array.from({ length: 6 }, () => ({
   title: "영상(20초) / 팬클럽 광고",
   subtitle: "1기 1면 / 20초 / 3일",
 }));
+
+const BADGE = {
+  popular: { label: "인기", className: "bg-secondary text-primary" },
+  new: { label: "신규", className: "bg-[#fff3d3] text-[#ff920a]" },
+} as const;
 
 const FEATURES: [string, string][] = [
   ["매체 카테고리", "지하철"],
@@ -95,11 +96,23 @@ function SectionTitle({ children }: { children: ReactNode }) {
 export function MediaDetailContent({
   name = "홍대입구역 아트 래핑",
   price = "최소집행금액 1,500만원 / 한달",
+  badge = "new",
+  description = DESCRIPTION,
+  features = FEATURES,
+  mediaList = MEDIA_LIST_DEFAULT,
+  sizeText = "1920 * 1080 pixels",
+  imageUrl,
   className,
   hidePopulation = false,
 }: {
   name?: string;
   price?: string;
+  badge?: "popular" | "new" | null;
+  description?: string;
+  features?: [string, string][];
+  mediaList?: MediaListItem[];
+  sizeText?: string | null;
+  imageUrl?: string | null;
   className?: string;
   hidePopulation?: boolean;
 } = {}) {
@@ -109,32 +122,27 @@ export function MediaDetailContent({
   return (
     <div className={cn("flex flex-col items-center", className ?? "px-[100px] py-[80px]")}>
       <div className="flex w-full max-w-[1016px] flex-col">
-        <div className="flex h-[504px] w-full items-center gap-[8px] overflow-hidden rounded-[16px]">
-          <div className="aspect-square h-full min-w-0 flex-1 bg-[#d9d9d9]" />
-          <div className="flex h-full flex-col gap-[8px]">
-            <div className="aspect-square min-h-0 flex-1 bg-[#d9d9d9]" />
-            <button
-              type="button"
-              className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-[#d9d9d9]"
-            >
-              <span className="absolute inset-0 bg-black/70" />
-              <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-white">
-                <PlusIcon className="size-[46px]" />
-                <span className="text-[18px] font-medium tracking-[-0.45px]">
-                  더보기
-                </span>
-              </span>
-            </button>
-          </div>
+        <div className="h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
+          {imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="size-full object-cover" />
+          )}
         </div>
 
         <div className="flex flex-col gap-[36px] py-[36px]">
           <div className="flex flex-col gap-[36px]">
             <div className="flex items-start gap-[12px]">
               <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-                <span className="inline-flex w-fit items-center justify-center rounded-full bg-[#fff3d3] px-[12px] py-[6px] text-base font-medium leading-[24px] text-[#ff920a]">
-                  신규
-                </span>
+                {badge && (
+                  <span
+                    className={cn(
+                      "inline-flex w-fit items-center justify-center rounded-full px-[12px] py-[6px] text-base font-medium leading-[24px]",
+                      BADGE[badge].className,
+                    )}
+                  >
+                    {BADGE[badge].label}
+                  </span>
+                )}
                 <div className="flex flex-col gap-[4px]">
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
                     {name}
@@ -148,12 +156,13 @@ export function MediaDetailContent({
                 variant="primary"
                 size="lg"
                 className="shrink-0"
-                leftIcon={<FolderPlusIcon />}
+                leftIcon={<FolderIcon />}
               >
                 매체 담기
               </Button>
             </div>
 
+            {!hidePopulation && (
             <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] py-[24px]">
               <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
                 <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
@@ -180,6 +189,7 @@ export function MediaDetailContent({
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-[24px]">
@@ -190,7 +200,7 @@ export function MediaDetailContent({
                 descExpanded ? "" : "line-clamp-3",
               )}
             >
-              {DESCRIPTION}
+              {description}
             </p>
             <button
               type="button"
@@ -208,12 +218,13 @@ export function MediaDetailContent({
             </button>
           </div>
 
+          {mediaList.length > 0 && (
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>매체 목록</SectionTitle>
-            <div className="grid grid-cols-3 gap-[10px]">
-              {MEDIA_LIST.map((item, index) => (
+            <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(196px,1fr))]">
+              {mediaList.map((item, index) => (
                 <MediaOption
-                  key={item.key}
+                  key={index}
                   title={item.title}
                   subtitle={item.subtitle}
                   selected={selectedList === index}
@@ -222,7 +233,9 @@ export function MediaDetailContent({
               ))}
             </div>
           </div>
+          )}
 
+          {sizeText && (
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>규격</SectionTitle>
             <div className="flex items-center gap-[15px] rounded-[8px] border border-stroke p-[40px]">
@@ -232,17 +245,18 @@ export function MediaDetailContent({
                   사이즈 및 규격
                 </p>
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
-                  1920 * 1080 pixels
+                  {sizeText}
                 </p>
               </div>
             </div>
           </div>
+          )}
 
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>특징</SectionTitle>
             <div className="rounded-[8px] border border-stroke p-[40px]">
               <div className="flex flex-wrap gap-[24px]">
-                {FEATURES.map(([label, value]) => (
+                {features.map(([label, value]) => (
                   <div
                     key={label}
                     className="flex min-w-[296px] flex-1 flex-col gap-[6px] border-b border-stroke py-[6px] pr-[16px]"

@@ -93,7 +93,7 @@ export function MediaFilterBar({
             type="button"
             className="flex items-center gap-[4px] rounded-[8px] border border-primary bg-white px-[12px] py-[8px] text-sm font-medium text-primary"
           >
-            <RotateCwIcon className="size-[18px]" />
+            <RotateCwIcon className="size-[18px] text-primary" />
             초기화
           </button>
           <button
@@ -129,7 +129,7 @@ export function MediaFilterBar({
           type="button"
           className="flex shrink-0 items-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
         >
-          <RotateCwIcon className="size-[18px]" />
+          <RotateCwIcon className="size-[18px] text-primary" />
           초기화
         </button>
         {filters.map((filter) => (

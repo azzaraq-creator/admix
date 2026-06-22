@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
-import { useMovingMediaList } from "@/hooks/media";
+import { useMediaDetail, useMovingMediaList } from "@/hooks/media";
 import { MediaDetailContent } from "../../media/[id]/_components/MediaDetailContent";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { MovingMediaCard, type MovingMediaData } from "./MovingMediaCard";
@@ -29,6 +29,8 @@ export function MovingView() {
     id: item.id,
     name: item.name,
     price: formatFee(item.minAdvertisementFeeKrw),
+    image: item.thumbnailUrl ?? undefined,
+    badge: item.badge ?? undefined,
   }));
 
   const [location, setLocation] = useState("");
@@ -37,6 +39,16 @@ export function MovingView() {
 
   const selected =
     mediaList.find((media) => media.id === selectedId) ?? mediaList[0];
+
+  const { data: detail } = useMediaDetail(selected?.id ?? null);
+  const features = detail?.features.map(
+    (f) => [f.label, f.value] as [string, string],
+  );
+  const planList = detail?.plans.map((p) => ({
+    title: p.title,
+    subtitle: p.subtitle ?? "",
+  }));
+  const detailImage = detail?.thumbnailUrl ?? detail?.imageUrls[0] ?? null;
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -54,8 +66,8 @@ export function MovingView() {
           />
         </div>
         <MediaFilterBar filters={FILTERS} />
-        <div className="flex-1 overflow-y-auto p-[16px]">
-          <div className="grid grid-cols-2 gap-[12px] sm:grid-cols-3">
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(228px,1fr))]">
             {mediaList.map((media) => (
               <MovingMediaCard
                 key={media.id}
@@ -81,15 +93,25 @@ export function MovingView() {
             <MobileMediaDetail
               name={selected.name}
               price={selected.price}
-              badge={selected.badge}
+              badge={detail?.badge ?? null}
+              description={detail?.description ?? undefined}
+              features={features}
+              mediaList={planList}
+              size={detail?.sizeText ?? null}
+              imageUrl={detailImage}
               onBack={() => setDetailOpen(false)}
               hidePopulation
-              hideMediaList
               className="sm:hidden"
             />
             <MediaDetailContent
               name={selected.name}
               price={selected.price}
+              badge={detail?.badge ?? null}
+              description={detail?.description ?? undefined}
+              features={features}
+              mediaList={planList}
+              sizeText={detail?.sizeText ?? null}
+              imageUrl={detailImage}
               className="hidden px-[40px] py-[40px] sm:flex"
               hidePopulation
             />

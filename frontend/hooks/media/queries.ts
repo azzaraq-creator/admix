@@ -16,3 +16,11 @@ export const useMovingMediaList = () =>
     queryFn: mediaApi.movingList,
     staleTime: 60 * 1000,
   });
+
+export const useMediaDetail = (id: string | null) =>
+  useQuery({
+    queryKey: mediaKeys.detail(id ?? ""),
+    queryFn: () => mediaApi.detail(id as string),
+    enabled: !!id,
+    staleTime: 60 * 1000,
+  });

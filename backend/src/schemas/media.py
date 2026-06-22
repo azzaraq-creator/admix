@@ -26,8 +26,35 @@ class MovingMediaRow(BaseModel):
     id: str
     name: str
     minAdvertisementFeeKrw: int | None
+    thumbnailUrl: str | None
+    badge: str | None
 
 
 class MovingMediaListResponse(BaseModel):
     total: int
     items: list[MovingMediaRow]
+
+
+class MediaFeature(BaseModel):
+    label: str
+    value: str
+
+
+class MediaPlanRow(BaseModel):
+    planNo: int
+    title: str
+    subtitle: str | None
+
+
+class MediaDetail(BaseModel):
+    id: str
+    name: str
+    badge: str | None
+    minAdvertisementFeeKrw: int | None
+    maxAdvertisementFeeKrw: int | None
+    description: str | None
+    thumbnailUrl: str | None
+    imageUrls: list[str]
+    sizeText: str | None
+    features: list[MediaFeature]
+    plans: list[MediaPlanRow]
