@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type SVGProps } from "react";
 
 import { LogoFull, XIcon } from "@/components/icons";
@@ -53,6 +54,7 @@ function getErrorStatus(error: unknown): number | undefined {
 }
 
 export function LoginModal() {
+  const router = useRouter();
   const open = useLoginModalOpen();
   const loginMutation = useLogin();
 
@@ -201,7 +203,14 @@ export function LoginModal() {
               <span className="font-normal text-[#2f3442]">
                 아직 회원이 아니신가요?
               </span>
-              <button type="button" className="font-bold text-primary">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginModalOpen(false);
+                  router.push("/signup");
+                }}
+                className="cursor-pointer font-bold text-primary"
+              >
                 회원가입
               </button>
             </div>
