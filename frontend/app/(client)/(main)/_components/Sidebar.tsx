@@ -113,18 +113,14 @@ export function Sidebar() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              aria-label="사이드바 열기"
-              onClick={(event) => {
-                stop(event);
-                setOpen(true);
-              }}
-              className="group/logo flex w-full items-center justify-center rounded-[8px] p-[12px] transition-colors hover:bg-platinum-50"
+            <Link
+              href="/"
+              aria-label="홈"
+              onClick={handleNavClick}
+              className="flex w-full items-center justify-center rounded-[8px] p-[12px] transition-colors hover:bg-platinum-50"
             >
-              <Logo className="size-[24px] group-hover/logo:hidden" />
-              <ColumnsToggleIcon className="hidden size-[24px] text-black group-hover/logo:block" />
-            </button>
+              <Logo className="size-[24px]" />
+            </Link>
           )}
 
           <ul className="flex w-full flex-col gap-[12px]">
