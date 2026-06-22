@@ -36,14 +36,12 @@ const FEATURES: [string, string][] = [
   ["운영 시간", "매일 05:00 - 01:00"],
 ];
 
-const AGE_RATIO: AgeRatio[] = [
-  { label: "10", value: 5.3, bound: "under" },
-  { label: "20대", value: 24.9 },
-  { label: "30대", value: 20.7 },
-  { label: "40대", value: 15.9 },
-  { label: "50대", value: 13.4 },
-  { label: "60", value: 19.7, bound: "over" },
-];
+export type PopulationData = {
+  monthlyFootTraffic: number;
+  malePct: number;
+  femalePct: number;
+  ageRatios: AgeRatio[];
+};
 
 function MediaOption({
   title,
@@ -102,6 +100,7 @@ export function MediaDetailContent({
   mediaList = MEDIA_LIST_DEFAULT,
   sizeText = "1920 * 1080 pixels",
   imageUrl,
+  population = null,
   className,
   hidePopulation = false,
 }: {
@@ -113,11 +112,24 @@ export function MediaDetailContent({
   mediaList?: MediaListItem[];
   sizeText?: string | null;
   imageUrl?: string | null;
+  population?: PopulationData | null;
   className?: string;
   hidePopulation?: boolean;
 } = {}) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedList, setSelectedList] = useState(0);
+
+  const showPopulation = !hidePopulation && !!population;
+  const primaryGender = population
+    ? population.malePct >= population.femalePct
+      ? "남성"
+      : "여성"
+    : "";
+  const primaryAge = population
+    ? population.ageRatios.reduce((top, cur) =>
+        cur.value > top.value ? cur : top,
+      ).label
+    : "";
 
   return (
     <div className={cn("flex flex-col items-center", className ?? "px-[100px] py-[80px]")}>
@@ -162,14 +174,14 @@ export function MediaDetailContent({
               </Button>
             </div>
 
-            {!hidePopulation && (
+            {showPopulation && population && (
             <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] py-[24px]">
               <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
                 <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
                   월평균 유동인구 수
                 </p>
                 <p className="w-full text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                  313,643
+                  {population.monthlyFootTraffic.toLocaleString()}
                 </p>
               </div>
               <div className="h-[52px] w-px self-stretch bg-stroke" />
@@ -178,13 +190,9 @@ export function MediaDetailContent({
                   주요 인구층
                 </p>
                 <div className="flex w-full items-center justify-center gap-[12px] whitespace-nowrap text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                  <span className="flex items-center gap-[2px]">
-                    <span>남성</span>
-                    <span>20대</span>
-                  </span>
-                  <span className="flex items-center gap-[2px]">
-                    <span>여성</span>
-                    <span>30대</span>
+                  <span className="flex items-center gap-[4px]">
+                    <span>{primaryGender}</span>
+                    <span>{primaryAge}</span>
                   </span>
                 </div>
               </div>
@@ -273,7 +281,7 @@ export function MediaDetailContent({
             </div>
           </div>
 
-          {!hidePopulation && (
+          {showPopulation && population && (
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>유동 인구 데이터</SectionTitle>
             <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
@@ -282,7 +290,7 @@ export function MediaDetailContent({
                   성별 비율
                 </p>
                 <div className="flex flex-1 items-center justify-center">
-                  <GenderDonut male={48} female={52} />
+                  <GenderDonut male={population.malePct} female={population.femalePct} />
                 </div>
               </div>
               <div className="flex flex-1 flex-col gap-[16px]">
@@ -291,7 +299,7 @@ export function MediaDetailContent({
                 </p>
                 <div className="flex flex-1 items-center justify-center">
                   <AgeBarChart
-                    data={AGE_RATIO}
+                    data={population.ageRatios}
                     maxBarHeight={240}
                     className="w-full"
                   />

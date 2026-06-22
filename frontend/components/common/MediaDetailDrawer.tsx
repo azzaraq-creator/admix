@@ -19,27 +19,6 @@ export type MediaDetail = {
   ageRatio?: { label: string; value: number; bound?: "under" | "over" }[];
 };
 
-const SAMPLE_DETAIL: Required<MediaDetail> = {
-  subName: "",
-  monthlyTraffic: "313,643",
-  mainAudience: [
-    { gender: "남성", age: "20대" },
-    { gender: "여성", age: "30대" },
-  ],
-  address: "서울 마포구 양화로 지하 160",
-  description:
-    "맥스비전은 서울 지하철 1~4호선 주요 유동역사 24개소에 설치된 대형 디지털 광고 매체입니다. 역사 내 동선 중심부나 개찰구 주변, 환승 통로, 연결 계단 등 시야 확보가 우수한 위치에 설치되어 이용객의 이동 동선과 맞물린 자연스러운 노출이 가능합니다. 기존 사이니지보다 큰 사이즈의 디지털 스크린으로 구성되어 시각적 주목도가 높으며 일부 구간은 음성 송출이 가능해 브랜드 영상 콘텐츠 전달력이 우수합니다.",
-  genderRatio: { male: 48, female: 52 },
-  ageRatio: [
-    { label: "10", value: 5.3, bound: "under" },
-    { label: "20대", value: 24.9 },
-    { label: "30대", value: 20.7 },
-    { label: "40대", value: 15.9 },
-    { label: "50대", value: 13.4 },
-    { label: "60", value: 19.7, bound: "over" },
-  ],
-};
-
 type MediaDetailDrawerProps = {
   media: MediaItemData;
   detail?: MediaDetail;
@@ -57,9 +36,12 @@ export function MediaDetailDrawer({
 }: MediaDetailDrawerProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const data = { ...SAMPLE_DETAIL, ...detail };
+  const data = detail ?? {};
   const images = media.images?.length ? media.images : [null, null];
-  const hasPopulation = Boolean(data.genderRatio || data.ageRatio.length);
+  const mainAudience = data.mainAudience ?? [];
+  const ageRatio = data.ageRatio ?? [];
+  const genderRatio = data.genderRatio;
+  const hasPopulation = Boolean(genderRatio && ageRatio.length);
 
   return (
     <div className="relative flex h-screen w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
@@ -106,6 +88,7 @@ export function MediaDetailDrawer({
             </p>
           </div>
 
+          {hasPopulation && (
           <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] p-[12px]">
             <div className="flex flex-1 flex-col items-center">
               <p className="w-full text-center text-sm font-medium leading-[20px] text-[#757575]">
@@ -121,7 +104,7 @@ export function MediaDetailDrawer({
                 주요 인구층
               </p>
               <div className="flex w-full items-center justify-center gap-[6px] whitespace-nowrap text-base font-bold leading-[24px] text-black">
-                {data.mainAudience.map((a, index) => (
+                {mainAudience.map((a, index) => (
                   <span key={index} className="flex items-center gap-[2px]">
                     <span>{a.gender}</span>
                     <span>{a.age}</span>
@@ -130,6 +113,7 @@ export function MediaDetailDrawer({
               </div>
             </div>
           </div>
+          )}
 
           <div className="flex items-center gap-[8px]">
             <button
@@ -149,13 +133,16 @@ export function MediaDetailDrawer({
           </div>
         </section>
 
+        {data.address && (
         <section className="flex items-center gap-[14px] bg-white p-[24px]">
           <MapPinIcon className="size-[20px] shrink-0 text-black" />
           <p className="text-base font-medium leading-[24px] text-black">
             {data.address}
           </p>
         </section>
+        )}
 
+        {data.description && (
         <section className="flex flex-col gap-[18px] bg-white p-[24px]">
           <div className="flex flex-col gap-[24px]">
             <p className="text-base font-semibold leading-[24px] text-black">
@@ -184,8 +171,9 @@ export function MediaDetailDrawer({
             <span className="h-px flex-1 bg-[#f6f6f6]" />
           </button>
         </section>
+        )}
 
-        {hasPopulation && (
+        {hasPopulation && genderRatio && (
           <section className="flex flex-col gap-[30px] bg-white p-[24px]">
             <p className="text-base font-semibold leading-[24px] text-black">
               유동 인구 데이터
@@ -196,8 +184,8 @@ export function MediaDetailDrawer({
                 성별 비율
               </p>
               <GenderDonut
-                male={data.genderRatio.male}
-                female={data.genderRatio.female}
+                male={genderRatio.male}
+                female={genderRatio.female}
                 className="py-[6px]"
               />
             </div>
@@ -206,7 +194,7 @@ export function MediaDetailDrawer({
               <p className="text-sm font-medium leading-[20px] text-[#545454]">
                 연령대 비율
               </p>
-              <AgeBarChart data={data.ageRatio} maxBarHeight={200} />
+              <AgeBarChart data={ageRatio} maxBarHeight={200} />
             </div>
           </section>
         )}

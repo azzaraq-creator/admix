@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
 import { ArrowUpIcon, RotateCwIcon, SparkleIcon } from "@/components/icons";
+import { useFixedMediaInfinite } from "@/hooks/media";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 
@@ -14,11 +15,10 @@ const FAQS = [
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
 ];
 
-const SEARCH_RESULTS: MediaItemData[] = [
-  { id: "s1", name: "홍대입구역 스타피카소 전광판", price: "최소집행금액 1,500만원 / 한달" },
-  { id: "s2", name: "홍대입구역 아트 래핑", price: "최소집행금액 1,500만원 / 한달", popular: true },
-  { id: "s3", name: "홍대입구역 상진빌딩 전광판", price: "최소집행금액 1,500만원 / 한달", popular: true },
-];
+function formatFee(krw: number | null): string {
+  if (krw == null) return "최소집행금액 협의";
+  return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
+}
 
 const MAX_LENGTH = 500;
 const MAX_TEXTAREA_HEIGHT = 120;
@@ -34,6 +34,33 @@ export function ChatPanel({
   const [value, setValue] = useState("");
   const [location, setLocation] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useFixedMediaInfinite();
+  const searchResults: MediaItemData[] = (data?.pages ?? []).flatMap((page) =>
+    page.items.map((row) => ({
+      id: row.id,
+      name: row.name,
+      price: formatFee(row.minAdvertisementFeeKrw),
+      images: row.thumbnailUrl ? [row.thumbnailUrl] : [],
+      popular: row.badge === "popular",
+    })),
+  );
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (mode !== "search" || !sentinel || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage();
+      },
+      { root: scrollRef.current, rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [mode, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const resize = () => {
     const el = textareaRef.current;
@@ -86,7 +113,7 @@ export function ChatPanel({
 
       {mode === "search" && <MediaFilterBar />}
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
         {mode === "ai" ? (
           <div className="flex min-h-full flex-col justify-between gap-[24px] p-[24px]">
             <div className="flex flex-col gap-[12px]">
@@ -124,7 +151,7 @@ export function ChatPanel({
           </div>
         ) : (
           <div className="flex flex-col">
-            {SEARCH_RESULTS.map((item) => (
+            {searchResults.map((item) => (
               <MediaItem
                 key={item.id}
                 {...item}
@@ -133,6 +160,7 @@ export function ChatPanel({
                 className="rounded-none border-0 border-b"
               />
             ))}
+            <div ref={sentinelRef} className="h-px w-full" />
           </div>
         )}
       </div>

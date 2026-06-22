@@ -18,7 +18,7 @@ export interface MediaListResponse {
   items: MediaRow[];
 }
 
-export interface MovingMediaRow {
+export interface MediaCardRow {
   id: string;
   name: string;
   minAdvertisementFeeKrw: number | null;
@@ -26,9 +26,9 @@ export interface MovingMediaRow {
   badge: "popular" | "new" | null;
 }
 
-export interface MovingMediaListResponse {
+export interface MediaCardListResponse {
   total: number;
-  items: MovingMediaRow[];
+  items: MediaCardRow[];
 }
 
 export interface MediaFeature {
@@ -42,6 +42,20 @@ export interface MediaPlanRow {
   subtitle: string | null;
 }
 
+export interface MediaAgeRatio {
+  label: string;
+  value: number;
+  bound: "under" | "over" | null;
+}
+
+export interface MediaPopulation {
+  sangwonName: string;
+  monthlyFootTraffic: number;
+  malePct: number;
+  femalePct: number;
+  ageRatios: MediaAgeRatio[];
+}
+
 export interface MediaDetail {
   id: string;
   name: string;
@@ -49,17 +63,23 @@ export interface MediaDetail {
   minAdvertisementFeeKrw: number | null;
   maxAdvertisementFeeKrw: number | null;
   description: string | null;
+  address: string | null;
   thumbnailUrl: string | null;
   imageUrls: string[];
   sizeText: string | null;
   features: MediaFeature[];
   plans: MediaPlanRow[];
+  population: MediaPopulation | null;
 }
 
 export const mediaApi = {
   list: () => api.get<MediaListResponse>("/media").then((r) => r.data),
   movingList: () =>
-    api.get<MovingMediaListResponse>("/media/moving").then((r) => r.data),
+    api.get<MediaCardListResponse>("/media/moving").then((r) => r.data),
+  fixedList: (limit: number, offset: number) =>
+    api
+      .get<MediaCardListResponse>("/media/fixed", { params: { limit, offset } })
+      .then((r) => r.data),
   detail: (id: string) =>
     api.get<MediaDetail>(`/media/${id}`).then((r) => r.data),
 };

@@ -6,11 +6,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
+from src.services.graph.settings import SANGWON_MAX_DISTANCE_M, SANGWON_QUARTER
 
 _SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
 _EXPOSURE_TYPE = {"INSIDE": "실내", "OUTSIDE": "실외"}
@@ -39,6 +40,17 @@ def _fmt_date(dt: datetime | None) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
+def _media_card(m: Media) -> dict:
+    name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
+    return dict(
+        id=m.media_id,
+        name=name or "-",
+        minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
+        thumbnailUrl=m.thumbnail_url,
+        badge=_media_badge(m),
+    )
+
+
 def list_moving_media(db: Session) -> list[dict]:
     rows = (
         db.query(Media)
@@ -46,19 +58,14 @@ def list_moving_media(db: Session) -> list[dict]:
         .order_by(Media.media_id)
         .all()
     )
-    items: list[dict] = []
-    for m in rows:
-        name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
-        items.append(
-            dict(
-                id=m.media_id,
-                name=name or "-",
-                minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
-                thumbnailUrl=m.thumbnail_url,
-                badge=_media_badge(m),
-            )
-        )
-    return items
+    return [_media_card(m) for m in rows]
+
+
+def list_fixed_media(db: Session, *, limit: int, offset: int) -> tuple[int, list[dict]]:
+    base = db.query(Media).filter(Media.media_source == "FIXED")
+    total = base.count()
+    rows = base.order_by(Media.media_id).limit(limit).offset(offset).all()
+    return total, [_media_card(m) for m in rows]
 
 
 def _plan_subtitle(p: MediaPlan) -> str | None:
@@ -73,6 +80,60 @@ def _plan_subtitle(p: MediaPlan) -> str | None:
         unit = _DURATION_TYPE.get(p.contractual_duration_type, p.contractual_duration_type)
         parts.append(f"{p.contractual_duration}{unit}")
     return " / ".join(parts) or None
+
+
+def _media_population(db: Session, source_detail_id: int | None) -> dict | None:
+    """media.source_detail_id → ad_media.media_id → 인접 상권(sangwon) 유동인구.
+
+    rerank_sangwon 과 동일 분기/거리 기준. 거리 초과·미매칭이면 None(섹션 숨김).
+    """
+    if source_detail_id is None:
+        return None
+    row = db.execute(
+        text(
+            """
+            SELECT sp.sangwon_name, sp.total_foot_traffic,
+                   sp.male_foot, sp.female_foot,
+                   sp.age_10_foot, sp.age_20_foot, sp.age_30_foot,
+                   sp.age_40_foot, sp.age_50_foot, sp.age_60_foot
+            FROM ad_media am
+            JOIN sangwon_population sp
+              ON sp.sangwon_code = am.sangwon_code
+             AND sp.quarter_code = :quarter
+            WHERE am.media_id = :sid
+              AND am.sangwon_distance_m <= :max_dist
+            LIMIT 1
+            """
+        ),
+        {"quarter": SANGWON_QUARTER, "sid": source_detail_id, "max_dist": SANGWON_MAX_DISTANCE_M},
+    ).first()
+    if row is None or not row.total_foot_traffic:
+        return None
+
+    total = float(row.total_foot_traffic)
+    male = float(row.male_foot or 0)
+    female = float(row.female_foot or 0)
+    gender_base = male + female
+    male_pct = round(male / gender_base * 100) if gender_base else 0
+    age_buckets = [
+        ("10", row.age_10_foot, "under"),
+        ("20대", row.age_20_foot, None),
+        ("30대", row.age_30_foot, None),
+        ("40대", row.age_40_foot, None),
+        ("50대", row.age_50_foot, None),
+        ("60", row.age_60_foot, "over"),
+    ]
+    age_ratios = [
+        dict(label=label, value=round((val or 0) / total * 100, 1), bound=bound)
+        for label, val, bound in age_buckets
+    ]
+    return dict(
+        sangwonName=row.sangwon_name,
+        monthlyFootTraffic=int(row.total_foot_traffic),
+        malePct=male_pct,
+        femalePct=(100 - male_pct) if gender_base else 0,
+        ageRatios=age_ratios,
+    )
 
 
 def get_media_detail(db: Session, media_id: str) -> dict | None:
@@ -117,11 +178,13 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
         maxAdvertisementFeeKrw=m.max_advertisement_fee_krw,
         description=m.description,
+        address=(m.accurate_address or m.address or m.full_address_jibun or None),
         thumbnailUrl=m.thumbnail_url,
         imageUrls=[img.image_url for img in m.images],
         sizeText=(m.media_shape_summary or None),
         features=features,
         plans=plans,
+        population=_media_population(db, m.source_detail_id),
     )
 
 

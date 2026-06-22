@@ -22,7 +22,7 @@ class MediaListResponse(BaseModel):
     items: list[MediaRow]
 
 
-class MovingMediaRow(BaseModel):
+class MediaCardRow(BaseModel):
     id: str
     name: str
     minAdvertisementFeeKrw: int | None
@@ -30,9 +30,9 @@ class MovingMediaRow(BaseModel):
     badge: str | None
 
 
-class MovingMediaListResponse(BaseModel):
+class MediaCardListResponse(BaseModel):
     total: int
-    items: list[MovingMediaRow]
+    items: list[MediaCardRow]
 
 
 class MediaFeature(BaseModel):
@@ -46,6 +46,20 @@ class MediaPlanRow(BaseModel):
     subtitle: str | None
 
 
+class MediaAgeRatio(BaseModel):
+    label: str
+    value: float
+    bound: str | None = None
+
+
+class MediaPopulation(BaseModel):
+    sangwonName: str
+    monthlyFootTraffic: int
+    malePct: int
+    femalePct: int
+    ageRatios: list[MediaAgeRatio]
+
+
 class MediaDetail(BaseModel):
     id: str
     name: str
@@ -53,8 +67,10 @@ class MediaDetail(BaseModel):
     minAdvertisementFeeKrw: int | None
     maxAdvertisementFeeKrw: int | None
     description: str | None
+    address: str | None
     thumbnailUrl: str | None
     imageUrls: list[str]
     sizeText: str | None
     features: list[MediaFeature]
     plans: list[MediaPlanRow]
+    population: MediaPopulation | None

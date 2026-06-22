@@ -3,17 +3,53 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
+import {
+  MediaDetailDrawer,
+  type MediaDetail as DrawerDetail,
+} from "@/components/common/MediaDetailDrawer";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
+import { useMediaDetail } from "@/hooks/media";
 import { ChatPanel } from "./ChatPanel";
 import { MapArea } from "./MapArea";
+
+function toDrawerDetail(
+  detail: ReturnType<typeof useMediaDetail>["data"],
+): DrawerDetail | undefined {
+  if (!detail) return undefined;
+  const pop = detail.population;
+  return {
+    description: detail.description ?? undefined,
+    address: detail.address ?? undefined,
+    monthlyTraffic: pop ? pop.monthlyFootTraffic.toLocaleString() : undefined,
+    mainAudience: pop
+      ? [
+          {
+            gender: pop.malePct >= pop.femalePct ? "남성" : "여성",
+            age: pop.ageRatios.reduce((top, cur) =>
+              cur.value > top.value ? cur : top,
+            ).label,
+          },
+        ]
+      : undefined,
+    genderRatio: pop ? { male: pop.malePct, female: pop.femalePct } : undefined,
+    ageRatio: pop
+      ? pop.ageRatios.map((a) => ({
+          label: a.label,
+          value: a.value,
+          bound: a.bound ?? undefined,
+        }))
+      : undefined,
+  };
+}
 
 export function FixedMediaView() {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
   const [mobileMap, setMobileMap] = useState(false);
+
+  const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
@@ -37,6 +73,7 @@ export function FixedMediaView() {
         {chatOpen && selectedMedia && (
           <MediaDetailDrawer
             media={selectedMedia}
+            detail={toDrawerDetail(detail)}
             onClose={() => setSelectedMedia(null)}
             onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
           />
