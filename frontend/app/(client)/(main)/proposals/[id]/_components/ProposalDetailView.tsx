@@ -18,6 +18,13 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@/components/icons";
+import {
+  isMember,
+  useDeleteProposal,
+  useProposalDetail,
+  useRenameProposal,
+  useSubmitProposal,
+} from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
@@ -38,23 +45,57 @@ const ZOOM_MIN = 25;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 25;
 
-export function ProposalDetailView({
-  plan,
-}: {
-  plan?: "guest" | "member";
-}) {
+const STATUS_TEXT: Record<string, string> = {
+  new: "작성중",
+  custom: "맞춤제안",
+  execution_requested: "집행 요청",
+  contracted: "계약 완료",
+  cancelled: "취소",
+};
+
+function fmtDateTime(iso?: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(
+    d.getHours(),
+  )}:${p(d.getMinutes())}`;
+}
+
+export function ProposalDetailView({ id }: { id: string }) {
   const router = useRouter();
   const { confirm, confirmDialog } = useConfirm();
   const { success } = useSonner();
 
-  const [name, setName] = useState("광고 제안서_2026");
+  const { data: proposal } = useProposalDetail(id);
+  const renameMutation = useRenameProposal();
+  const deleteMutation = useDeleteProposal();
+  const submitMutation = useSubmitProposal();
+
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   const [slides, setSlides] = useState<Slide[]>(INITIAL_SLIDES);
   const [selectedId, setSelectedId] = useState("s1");
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const dragIndex = useRef<number | null>(null);
+
+  const title = proposal?.title ?? "";
+  const submitted = proposal?.status === "execution_requested";
+
+  const startRename = () => {
+    setDraft(title);
+    setEditing(true);
+  };
+
+  const commitRename = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && proposal && next !== proposal.title) {
+      void renameMutation.mutateAsync({ id, title: next });
+    }
+  };
 
   const handleDrop = (dropIndex: number) => {
     const from = dragIndex.current;
@@ -72,7 +113,7 @@ export function ProposalDetailView({
   };
 
   const handleSubmit = async () => {
-    if (plan !== "member") {
+    if (!isMember()) {
       await confirm({
         title: "제안서 제출은 로그인 후 이용 가능해요.",
         description:
@@ -87,16 +128,7 @@ export function ProposalDetailView({
         "관리자 검토 후 맞춤제안 또는 집행 가능 여부가 안내되며, 제출 후에는 제안서 내용을 수정할 수 없습니다.",
       confirmText: "제출",
     });
-    if (ok) setSubmitted(true);
-  };
-
-  const handleCancelSubmit = async () => {
-    const ok = await confirm({
-      title: "제출을 취소하시겠습니까?",
-      description: "취소된 제출서는 추후 다시 제출할 수 있습니다.",
-      confirmText: "확인",
-    });
-    if (ok) setSubmitted(false);
+    if (ok) await submitMutation.mutateAsync(id);
   };
 
   const handleDelete = async () => {
@@ -104,14 +136,17 @@ export function ProposalDetailView({
       title: "제안서를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-[#2f3442]">{name}</span>가 내
+          <span className="font-semibold text-[#2f3442]">{title}</span>가 내
           제안서에서 영구히 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
       destructive: true,
     });
-    if (ok) router.push("/proposals");
+    if (ok) {
+      await deleteMutation.mutateAsync(id);
+      router.push("/proposals");
+    }
   };
 
   const handleDeleteSlide = async (slide: Slide) => {
@@ -138,22 +173,22 @@ export function ProposalDetailView({
               {editing ? (
                 <input
                   autoFocus
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  onBlur={() => setEditing(false)}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onBlur={commitRename}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") setEditing(false);
+                    if (event.key === "Enter") commitRename();
                   }}
                   className="min-w-0 border-b border-primary text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black outline-none"
                 />
               ) : (
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
-                  {name}
+                  {title}
                 </p>
               )}
               <button
                 type="button"
-                onClick={() => setEditing(true)}
+                onClick={startRename}
                 aria-label="제안서명 수정"
                 className="text-[#757575]"
               >
@@ -162,10 +197,10 @@ export function ProposalDetailView({
             </div>
             <div className="flex items-center gap-[12px]">
               <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
-                작성중
+                {STATUS_TEXT[proposal?.status ?? "new"] ?? "작성중"}
               </span>
               <p className="text-sm font-medium leading-[20px] text-[#757575]">
-                2024.05.20 15:30
+                {fmtDateTime(proposal?.updated_at)}
               </p>
             </div>
           </div>
@@ -177,10 +212,10 @@ export function ProposalDetailView({
               <Button
                 variant="secondary"
                 size="md"
-                onClick={handleCancelSubmit}
+                disabled
                 leftIcon={<FileXIcon />}
               >
-                제출취소
+                제출됨
               </Button>
             ) : (
               <Button

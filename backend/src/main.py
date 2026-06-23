@@ -15,6 +15,7 @@ from src.routers.media import router as media_router
 from src.routers.inquiries import router as inquiries_router
 from src.routers.members import router as members_router
 from src.routers.proposals import router as proposals_router
+from src.routers.proposals_client import router as proposals_client_router
 from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
 from src.services.graph.builder import build_graph
@@ -60,6 +61,7 @@ app.include_router(faq_router)
 app.include_router(media_router)
 app.include_router(members_router)
 app.include_router(proposals_router)
+app.include_router(proposals_client_router)
 app.include_router(inquiries_router)
 app.include_router(admin_router)
 app.include_router(admin_auth_router)

@@ -12,7 +12,8 @@ export type V2ResponseType =
   | "list"
   | "need_more"
   | "confirmation_required"
-  | "media_detail";
+  | "media_detail"
+  | "proposal";
 
 export type SlotKey = "ind" | "prd" | "obj" | "tgt" | "loc" | "cat" | "budget";
 
@@ -66,6 +67,12 @@ export interface V2MediaRef {
   thumbnail_url?: string | null;
 }
 
+export interface V2ProposalRef {
+  id: string;
+  name: string;
+  media_count: number;
+}
+
 export interface V2Message {
   id: string;
   type: "user" | "assistant";
@@ -80,6 +87,7 @@ export interface V2Message {
   isLoading?: boolean;
   confirmation?: ConfirmationInfo;
   media?: V2MediaRef;
+  proposal?: V2ProposalRef;
 }
 
 const randomId = () =>
@@ -150,7 +158,8 @@ function restoreMessage(saved: SavedMsg): V2Message {
     ptype === "chat" ||
     ptype === "list" ||
     ptype === "need_more" ||
-    ptype === "media_detail"
+    ptype === "media_detail" ||
+    ptype === "proposal"
   ) {
     return {
       id: saved.id,
@@ -167,6 +176,7 @@ function restoreMessage(saved: SavedMsg): V2Message {
         | undefined,
       matched_categories: p.matched_categories as number | undefined,
       media: p.media as V2MediaRef | undefined,
+      proposal: p.proposal as V2ProposalRef | undefined,
     };
   }
   return { id: saved.id, type: "assistant", message: saved.content };
@@ -283,6 +293,7 @@ export function useV2Chat() {
                   matched_categories:
                     (data.matched_categories as number) || undefined,
                   media: (data.media as V2MediaRef) || undefined,
+                  proposal: (data.proposal as V2ProposalRef) || undefined,
                 }
               : m,
           ),

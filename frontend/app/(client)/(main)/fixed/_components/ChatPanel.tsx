@@ -7,6 +7,7 @@ import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowUpIcon,
+  FolderIcon,
   RotateCwIcon,
   SparkleIcon,
   XIcon,
@@ -176,7 +177,9 @@ export function ChatPanel({
     if (!text.trim() || chat.running) return;
     setValue("");
     requestAnimationFrame(resize);
-    void chat.submit(text);
+    // 전송 버튼은 1자라도 활성화되므로 동일하게 짧은 입력 허용
+    // ("응"/"네"/"예" 등 제안서 추가 확인 응답이 막히지 않도록).
+    void chat.submit(text, { allowShort: true });
   };
 
   const hasConversation = chat.messages.length > 0;
@@ -428,6 +431,12 @@ function AssistantBubble({
           {message.message}
         </p>
       )}
+      {message.response_type === "proposal" && message.proposal && (
+        <ProposalCard
+          name={message.proposal.name}
+          count={message.proposal.media_count}
+        />
+      )}
       {message.response_type === "media_detail" && message.media?.media_id && (
         <button
           type="button"
@@ -446,6 +455,20 @@ function AssistantBubble({
           상세보기
         </button>
       )}
+    </div>
+  );
+}
+
+function ProposalCard({ name, count }: { name: string; count: number }) {
+  return (
+    <div className="flex items-center gap-[10px] rounded-[8px] bg-[#f8fafc] px-[16px] py-[16px]">
+      <FolderIcon className="size-[20px] shrink-0 text-[#757575]" />
+      <span className="flex-1 truncate text-base font-medium leading-[24px] text-black">
+        {name}
+      </span>
+      <span className="text-base font-medium leading-[24px] tabular-nums text-[#757575]">
+        {count}
+      </span>
     </div>
   );
 }

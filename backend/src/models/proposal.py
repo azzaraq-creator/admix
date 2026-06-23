@@ -1,6 +1,9 @@
 """제안서 모델 — 설계서 §3.6 `proposal` (회원 1:N).
 
 상태: cancelled(취소)/new(신규)/custom(맞춤제안)/execution_requested(집행요청)/contracted(계약완료)
+
+소유자: 회원(member_id) 또는 비회원 세션(session_id) 중 하나. 둘 다 nullable 이며
+장바구니(플래닝)식으로 매체를 담는다. 비회원 세션 제안서의 회원 승계는 현재 범위 밖.
 """
 from __future__ import annotations
 
@@ -25,7 +28,14 @@ class Proposal(Base):
     member_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+    # 비회원(게스트) 소유 식별 — ad_sessions 1:N. 세션 삭제 시 SET NULL.
+    session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("ad_sessions.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     title = Column(String(300), nullable=False)
@@ -38,3 +48,9 @@ class Proposal(Base):
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
     member = relationship("User", back_populates="proposals")
+    items = relationship(
+        "ProposalItem",
+        back_populates="proposal",
+        cascade="all, delete-orphan",
+        order_by="ProposalItem.created_at",
+    )

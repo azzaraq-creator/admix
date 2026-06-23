@@ -1,11 +1,10 @@
 import { ProposalDetailView } from "./_components/ProposalDetailView";
 
 export default async function ProposalDetailPage({
-  searchParams,
+  params,
 }: {
-  searchParams: Promise<{ plan?: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { plan } = await searchParams;
-  const resolvedPlan = plan === "guest" || plan === "member" ? plan : undefined;
-  return <ProposalDetailView plan={resolvedPlan} />;
+  const { id } = await params;
+  return <ProposalDetailView id={id} />;
 }

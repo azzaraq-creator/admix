@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from typing import AsyncIterator, Callable, Optional
+from typing import AsyncIterator, Callable, Literal, Optional
 
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_master import Media
-from src.services import media_service
+from src.services import media_service, proposal_service
 from src.services.graph.llm import get_chat
 
 DEFAULT_TOP_K = 20
@@ -791,6 +791,146 @@ async def _iter_explain_event_data(
     }
 
 
+# ===== 제안서(장바구니/플래닝) 의도 분기 =====
+
+
+# 제안서 작업 신호 — 이 단어가 없으면 분류 LLM 을 건너뛴다(비용/오분류 방지).
+_PROPOSAL_HINT_RE = re.compile(
+    r"제안서|플래닝|장바구니|담아|담기|넣어|추가|빼줘|빼기|만들어|만들기|생성|이름.*(바꿔|변경)"
+)
+
+
+def _has_proposal_hint(text: str) -> bool:
+    return bool(_PROPOSAL_HINT_RE.search(text or ""))
+
+
+class ProposalIntent(BaseModel):
+    """발화의 제안서 작업 분류."""
+
+    action: Literal["create", "add_media", "rename", "none"] = "none"
+    name: Optional[str] = None  # create 시 지정한 제안서 이름
+    new_name: Optional[str] = None  # rename 대상 이름
+    media_indices: list[int] = Field(default_factory=list)  # 1-based, 직전 리스트 기준
+
+
+def _resolve_proposal_intent(
+    message: str, last_items: list[dict], has_active: bool
+) -> ProposalIntent:
+    """발화가 제안서 작업(생성/담기/이름변경)인지 LLM 분류. 아니면 action=none."""
+    listing = "\n".join(
+        f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items or [])
+    )
+    sys_prompt = (
+        "사용자 발화가 'OOH 제안서(장바구니)' 관련 작업인지 분류한다.\n"
+        "- action=create: 새 제안서 생성 요청 (예: '제안서 만들어줘', '제안서 생성', 'XXX로 제안서 만들어줘').\n"
+        "  name: 발화에 제안서 이름이 있으면 추출(없으면 null).\n"
+        "- action=add_media: 직전 추천 목록의 특정 매체를 제안서에 담기 (예: '1번 3번 5번 추가/넣어/담아줘').\n"
+        "  media_indices: 1-based 번호 목록.\n"
+        "- action=rename: 기존 제안서 이름 변경 (예: '제안서 이름 XXX로 바꿔줘'). new_name 추출.\n"
+        "- 제안서와 무관(새 검색조건/매체 상세질문/일반대화)하면 action=none.\n"
+        "- '1번 3번으로 제안서 만들어줘'는 create + media_indices 동시 가능.\n\n"
+        f"현재 작업중 제안서 존재: {'있음' if has_active else '없음'}\n"
+        f"[직전 추천 매체]\n{listing or '(없음)'}"
+    )
+    try:
+        llm = get_chat(temperature=0.0).with_structured_output(ProposalIntent)
+        res: ProposalIntent = llm.invoke(
+            [SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())]
+        )
+    except Exception:
+        return ProposalIntent()
+    return res
+
+
+def _proposal_owner_for_session(db: Session, session_id: str | None):
+    """세션 → (member_id, session_uuid, user). 회원 세션이면 member 소유, 아니면 게스트(세션) 소유."""
+    import uuid as uuid_lib
+
+    from src.models.ad_session import AdSession
+    from src.models.user import User
+
+    try:
+        sid = uuid_lib.UUID(str(session_id))
+    except (ValueError, AttributeError):
+        return None, None, None
+    sess = db.query(AdSession).filter(AdSession.id == sid).first()
+    if sess is None:
+        return None, sid, None
+    if sess.user_id:
+        user = db.query(User).filter(User.id == sess.user_id).first()
+        return sess.user_id, None, user
+    return None, sid, None
+
+
+def _media_ids_from_indices(last_items: list[dict], indices: list[int]) -> list[str]:
+    out: list[str] = []
+    for i in indices or []:
+        idx = i - 1
+        if 0 <= idx < len(last_items or []):
+            mid = (last_items[idx] or {}).get("media_id")
+            if mid:
+                out.append(str(mid))
+    return out
+
+
+def _proposal_limit_message(tier: str, limit: int) -> str:
+    if tier == "guest":
+        return (
+            "무료 체험 제안서 1건을 모두 사용했어요. "
+            "로그인하면 더 많은 제안서를 만들고 관리할 수 있어요 😊"
+        )
+    return (
+        f"제안서 생성 한도 {limit}건을 모두 사용했어요. "
+        "사업자 인증을 완료하면 무제한으로 이용할 수 있어요 😊"
+    )
+
+
+def _proposal_card_payload(proposal, slots: dict, desc_map: dict[str, str], message: str) -> dict:
+    return {
+        "type": "proposal",
+        "message": message,
+        "proposal": {
+            "id": str(proposal.id),
+            "name": proposal.title,
+            "media_count": proposal.media_count,
+        },
+        "previous_context": slots,
+        "previous_context_detail": _enrich_context(slots, desc_map),
+    }
+
+
+# 동기 DB 헬퍼 — 스트림에서 _run_sync_in_thread 로 호출.
+
+
+def _create_proposal_sync(db, title, member_id, session_uuid, user):
+    return proposal_service.create_proposal(
+        db, title, member_id=member_id, session_id=session_uuid, user=user
+    )
+
+
+def _get_active_or_latest(db, active_proposal_id, member_id, session_uuid):
+    p = None
+    if active_proposal_id:
+        p = proposal_service.get_owned(
+            db, active_proposal_id, member_id=member_id, session_id=session_uuid
+        )
+    if p is None:
+        rows = proposal_service.list_for_owner(
+            db, member_id=member_id, session_id=session_uuid
+        )
+        p = rows[0] if rows else None
+    return p
+
+
+def _add_items_sync(db, proposal_id, member_id, session_uuid, media_ids):
+    p = proposal_service.get_owned(
+        db, proposal_id, member_id=member_id, session_id=session_uuid
+    )
+    if p is None:
+        return None
+    return proposal_service.add_items(db, p, media_ids)
+
+
 async def _event_stream(
     message: str,
     db: Session,
@@ -840,6 +980,136 @@ async def _event_stream(
         last_items = (
             prev_context.get("last_items") if isinstance(prev_context, dict) else None
         )
+        # 제안서(장바구니) 상태 — 슬롯 저장 시 유실 방지를 위해 save 래퍼가 보존.
+        active_proposal_id = (
+            prev_context.get("active_proposal_id") if isinstance(prev_context, dict) else None
+        )
+        pending_proposal = (
+            prev_context.get("pending_proposal") if isinstance(prev_context, dict) else None
+        )
+        _carry = {
+            "active_proposal_id": active_proposal_id,
+            "pending_proposal": pending_proposal,
+            "last_items": last_items,
+        }
+        _orig_save = save_filter_context_fn
+
+        def save_filter_context_fn(ctx: dict) -> None:  # noqa: F811 — 파라미터를 래핑
+            if _orig_save is None:
+                return
+            merged = dict(ctx)
+            for k, v in _carry.items():
+                merged.setdefault(k, v)
+            _orig_save(merged)
+
+        # ─────────────────────────────────────────────────────────
+        # 0) 제안서 멀티턴 진행중(pending_proposal) 우선 처리
+        # ─────────────────────────────────────────────────────────
+        if pending_proposal and isinstance(pending_proposal, dict):
+            stage = pending_proposal.get("stage")
+            member_id, owner_sid, owner_user = await _run_sync_in_thread(
+                _proposal_owner_for_session, db, session_id
+            )
+
+            if stage == "await_name":
+                if _is_no(message):
+                    _carry["pending_proposal"] = None
+                    save_filter_context_fn({**prev_slots, "pending_change": None, "pending_proposal": None})
+                    yield emit({
+                        "type": "chat",
+                        "message": "제안서 생성을 취소했어요. 다른 도움이 필요하면 말씀해주세요 😊",
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                    finalize()
+                    yield "event: done\ndata: {}\n\n"
+                    return
+
+                title = message.strip()[:300] or "새 제안서"
+                try:
+                    proposal = await _run_sync_in_thread(
+                        _create_proposal_sync, db, title, member_id, owner_sid, owner_user
+                    )
+                except proposal_service.ProposalLimitError as exc:
+                    _carry["pending_proposal"] = None
+                    save_filter_context_fn({**prev_slots, "pending_change": None, "pending_proposal": None})
+                    yield emit({
+                        "type": "chat",
+                        "message": _proposal_limit_message(exc.tier, exc.limit),
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                    finalize()
+                    yield "event: done\ndata: {}\n\n"
+                    return
+
+                media_indices = pending_proposal.get("media_indices") or []
+                _carry["active_proposal_id"] = str(proposal.id)
+                if media_indices:
+                    new_pp = {
+                        "stage": "await_add_confirm",
+                        "proposal_id": str(proposal.id),
+                        "media_indices": media_indices,
+                    }
+                    _carry["pending_proposal"] = new_pp
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit(_proposal_card_payload(
+                        proposal, prev_slots, desc_map,
+                        "제안서 생성 완료! 해당 제안서에 매체를 추가할까요?",
+                    ))
+                else:
+                    _carry["pending_proposal"] = None
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit(_proposal_card_payload(
+                        proposal, prev_slots, desc_map,
+                        "제안서 생성 완료! 추천 매체를 담아보세요 😊",
+                    ))
+                finalize()
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            if stage == "await_add_confirm":
+                proposal_id = pending_proposal.get("proposal_id")
+                media_indices = pending_proposal.get("media_indices") or []
+                if _is_no(message):
+                    _carry["pending_proposal"] = None
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit({
+                        "type": "chat",
+                        "message": "알겠어요. 추가할 매체가 있으면 번호로 말씀해주세요 😊",
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                    finalize()
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                if _is_yes(message):
+                    media_ids = _media_ids_from_indices(last_items or [], media_indices)
+                    proposal = await _run_sync_in_thread(
+                        _add_items_sync, db, proposal_id, member_id, owner_sid, media_ids
+                    )
+                    _carry["pending_proposal"] = None
+                    if proposal is None:
+                        save_filter_context_fn({**prev_slots, "pending_change": None})
+                        yield emit({
+                            "type": "chat",
+                            "message": "제안서를 찾지 못했어요. 다시 시도해주세요.",
+                            "previous_context": prev_slots,
+                            "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                        })
+                    else:
+                        _carry["active_proposal_id"] = str(proposal.id)
+                        save_filter_context_fn({**prev_slots, "pending_change": None})
+                        yield emit(_proposal_card_payload(
+                            proposal, prev_slots, desc_map,
+                            "제안서 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
+                        ))
+                    finalize()
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                # yes/no 가 아니면 확인 폐기 후 일반 흐름 진행
+                _carry["pending_proposal"] = None
+                pending_proposal = None
 
         # ─────────────────────────────────────────────────────────
         # 1) pending_change 가 있으면 먼저 yes/no 판정
@@ -906,6 +1176,131 @@ async def _event_stream(
                 return
             # yes/no 아니면 새 발화로 간주 → pending 폐기 후 일반 파이프라인으로 진행
             prev_context = {**prev_slots, "pending_change": None}
+
+        # ─────────────────────────────────────────────────────────
+        # 1.3) 제안서 의도 분기 — 생성/담기/이름변경
+        # ─────────────────────────────────────────────────────────
+        intent = ProposalIntent()
+        if _has_proposal_hint(message):
+            intent = await _run_sync_in_thread(
+                _resolve_proposal_intent, message, last_items or [], bool(active_proposal_id)
+            )
+        if intent.action in ("create", "add_media", "rename"):
+            member_id, owner_sid, owner_user = await _run_sync_in_thread(
+                _proposal_owner_for_session, db, session_id
+            )
+
+            # rename — 활성/최근 제안서 이름 변경
+            if intent.action == "rename":
+                proposal = await _run_sync_in_thread(
+                    _get_active_or_latest, db, active_proposal_id, member_id, owner_sid
+                )
+                if proposal is None or not intent.new_name:
+                    yield emit({
+                        "type": "chat",
+                        "message": "이름을 변경할 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                else:
+                    proposal = await _run_sync_in_thread(
+                        proposal_service.rename, db, proposal, intent.new_name
+                    )
+                    _carry["active_proposal_id"] = str(proposal.id)
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit(_proposal_card_payload(
+                        proposal, prev_slots, desc_map,
+                        f"제안서 이름을 '{proposal.title}'(으)로 변경했어요.",
+                    ))
+                finalize()
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            indices = intent.media_indices or []
+
+            # add_media — 활성 제안서가 있으면 바로 담기
+            if intent.action == "add_media" and active_proposal_id:
+                media_ids = _media_ids_from_indices(last_items or [], indices)
+                if not media_ids:
+                    yield emit({
+                        "type": "chat",
+                        "message": "추가할 매체 번호를 찾지 못했어요. 추천 목록의 번호로 알려주세요 😊",
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                else:
+                    proposal = await _run_sync_in_thread(
+                        _add_items_sync, db, active_proposal_id, member_id, owner_sid, media_ids
+                    )
+                    if proposal is None:
+                        yield emit({
+                            "type": "chat",
+                            "message": "제안서를 찾지 못했어요. 다시 시도해주세요.",
+                            "previous_context": prev_slots,
+                            "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                        })
+                    else:
+                        _carry["active_proposal_id"] = str(proposal.id)
+                        save_filter_context_fn({**prev_slots, "pending_change": None})
+                        yield emit(_proposal_card_payload(
+                            proposal, prev_slots, desc_map,
+                            "제안서 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
+                        ))
+                finalize()
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            # create (또는 활성 제안서 없는 add_media)
+            if intent.name:
+                try:
+                    proposal = await _run_sync_in_thread(
+                        _create_proposal_sync, db, intent.name, member_id, owner_sid, owner_user
+                    )
+                except proposal_service.ProposalLimitError as exc:
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit({
+                        "type": "chat",
+                        "message": _proposal_limit_message(exc.tier, exc.limit),
+                        "previous_context": prev_slots,
+                        "previous_context_detail": _enrich_context(prev_slots, desc_map),
+                    })
+                    finalize()
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                _carry["active_proposal_id"] = str(proposal.id)
+                if indices:
+                    _carry["pending_proposal"] = {
+                        "stage": "await_add_confirm",
+                        "proposal_id": str(proposal.id),
+                        "media_indices": indices,
+                    }
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit(_proposal_card_payload(
+                        proposal, prev_slots, desc_map,
+                        "제안서 생성 완료! 해당 제안서에 매체를 추가할까요?",
+                    ))
+                else:
+                    save_filter_context_fn({**prev_slots, "pending_change": None})
+                    yield emit(_proposal_card_payload(
+                        proposal, prev_slots, desc_map,
+                        "제안서 생성 완료! 추천 매체를 담아보세요 😊",
+                    ))
+                finalize()
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            # 이름 미지정 → 이름 요청(인덱스 보류)
+            _carry["pending_proposal"] = {"stage": "await_name", "media_indices": indices}
+            save_filter_context_fn({**prev_slots, "pending_change": None})
+            yield emit({
+                "type": "chat",
+                "message": "보유중인 제안서가 없어요. 새 제안서 생성을 위해 제안서 이름을 입력해주세요.",
+                "previous_context": prev_slots,
+                "previous_context_detail": _enrich_context(prev_slots, desc_map),
+            })
+            finalize()
+            yield "event: done\ndata: {}\n\n"
+            return
 
         # ─────────────────────────────────────────────────────────
         # 1.5) 의도 분기 — 직전 리스트가 있고 발화가 '특정 매체 질문'이면 상세 설명

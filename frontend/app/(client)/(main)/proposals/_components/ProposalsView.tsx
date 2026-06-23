@@ -1,10 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/common/buttons";
 import { PlusIcon, SearchIcon } from "@/components/icons";
+import {
+  isMember,
+  useCreateProposal,
+  useDeleteProposal,
+  useMyProposals,
+  type ProposalLimitDetail,
+  type ProposalSummary,
+} from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
 
@@ -21,68 +29,40 @@ type Proposal = {
   status: Status;
 };
 
-const INITIAL_PROPOSALS: Proposal[] = [
-  {
-    id: "p1",
-    title: "광고 제안서_2026",
-    updatedAt: "2026.05.20 13:30",
-    status: "작성중",
-  },
-  {
-    id: "p2",
-    title: "여름 캠페인 제안서",
-    updatedAt: "2026.05.18 10:12",
-    status: "맞춤제안",
-  },
-  {
-    id: "p3",
-    title: "강남 옥외광고 제안서",
-    updatedAt: "2026.05.15 16:40",
-    status: "계약 완료",
-  },
-  {
-    id: "p4",
-    title: "버스 광고 제안서",
-    updatedAt: "2026.05.12 09:05",
-    status: "작성중",
-  },
-  {
-    id: "p5",
-    title: "지하철 광고 제안서",
-    updatedAt: "2026.05.09 18:22",
-    status: "맞춤제안",
-  },
-  {
-    id: "p6",
-    title: "브랜드 런칭 제안서",
-    updatedAt: "2026.05.06 11:48",
-    status: "계약 완료",
-  },
-  {
-    id: "p7",
-    title: "신제품 홍보 제안서",
-    updatedAt: "2026.05.02 14:30",
-    status: "맞춤제안",
-  },
-  {
-    id: "p8",
-    title: "지역 캠페인 제안서",
-    updatedAt: "2026.04.28 15:00",
-    status: "계약 완료",
-  },
-];
+// 백엔드 status → UI 칩 3종 매핑
+function toStatus(raw: string): Status {
+  if (raw === "contracted") return "계약 완료";
+  if (raw === "custom" || raw === "execution_requested") return "맞춤제안";
+  return "작성중";
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function formatUpdatedAt(iso: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}`;
+}
+
+function toView(p: ProposalSummary): Proposal {
+  return {
+    id: p.id,
+    title: p.title,
+    updatedAt: formatUpdatedAt(p.updated_at),
+    status: toStatus(p.status),
+  };
+}
 
 const CHIP_CLASS: Record<Status, string> = {
   작성중: "bg-[#f6f6f6] text-[#545454]",
   맞춤제안: "bg-[#fff3d3] text-[#ff920a]",
   "계약 완료": "bg-secondary text-primary",
 };
-
-const PLAN_LIMIT: Record<string, number> = { guest: 1, member: 5 };
-
-function pad(value: number) {
-  return String(value).padStart(2, "0");
-}
 
 function Icon({ name, className }: { name: string; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element
@@ -165,15 +145,17 @@ function ProposalCard({
   );
 }
 
-export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
+export function ProposalsView() {
   const router = useRouter();
-  const [proposals, setProposals] = useState<Proposal[]>(INITIAL_PROPOSALS);
+  const { data, isLoading } = useMyProposals();
+  const createMutation = useCreateProposal();
+  const deleteMutation = useDeleteProposal();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
-  const counter = useRef(0);
 
+  const proposals: Proposal[] = (data ?? []).map(toView);
   const keyword = query.trim();
   const items = proposals.filter(
     (proposal) =>
@@ -181,44 +163,37 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
       (!keyword || proposal.title.includes(keyword)),
   );
 
-  const handleNewProposal = async () => {
-    const limit = plan ? PLAN_LIMIT[plan] : null;
-    if (limit != null && proposals.length >= limit) {
-      await confirm(
-        plan === "guest"
-          ? {
-              title: "제안서 생성 한도 도달",
-              description:
-                "무료 체험용 제안서 생성 한도 1건을 모두 사용했어요.\n회원가입 후 더 많은 제안서를 생성하고 관리해 보세요.",
-              confirmText: "회원가입하기",
-            }
-          : {
-              title: "제안서 생성 한도 도달",
-              description:
-                "제안서 생성 한도 5건을 모두 사용했어요.\n사업자 인증을 완료하면 무제한으로 이용할 수 있어요.",
-              confirmText: "프로필 이동",
-            },
-      );
-      return;
+  const showLimitDialog = async (tier: ProposalLimitDetail["tier"]) => {
+    if (tier === "guest") {
+      await confirm({
+        title: "제안서 생성 한도 도달",
+        description:
+          "무료 체험용 제안서 생성 한도 1건을 모두 사용했어요.\n회원가입 후 더 많은 제안서를 생성하고 관리해 보세요.",
+        confirmText: "회원가입하기",
+      });
+    } else {
+      await confirm({
+        title: "제안서 생성 한도 도달",
+        description:
+          "제안서 생성 한도 5건을 모두 사용했어요.\n사업자 인증을 완료하면 무제한으로 이용할 수 있어요.",
+        confirmText: "프로필 이동",
+      });
     }
-    setCreateOpen(true);
   };
 
-  const handleCreate = (name: string) => {
-    const now = new Date();
-    const updatedAt = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(
-      now.getDate(),
-    )} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    counter.current += 1;
-    setProposals((prev) => [
-      {
-        id: `new-${counter.current}`,
-        title: name,
-        updatedAt,
-        status: "작성중",
-      },
-      ...prev,
-    ]);
+  const handleNewProposal = () => setCreateOpen(true);
+
+  const handleCreate = async (name: string) => {
+    try {
+      await createMutation.mutateAsync(name);
+    } catch (err) {
+      const detail = (
+        err as { response?: { status?: number; data?: { detail?: ProposalLimitDetail } } }
+      )?.response;
+      if (detail?.status === 409 && detail.data?.detail?.tier) {
+        await showLimitDialog(detail.data.detail.tier);
+      }
+    }
   };
 
   const handleDelete = async (proposal: Proposal) => {
@@ -232,12 +207,11 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
       ),
       confirmText: "삭제",
     });
-    if (ok)
-      setProposals((prev) => prev.filter((item) => item.id !== proposal.id));
+    if (ok) await deleteMutation.mutateAsync(proposal.id);
   };
 
   const handleDownload = async () => {
-    if (plan === "guest") {
+    if (!isMember()) {
       await confirm({
         title: "로그인 후 다운로드 할 수 있어요.",
         description:
@@ -291,17 +265,27 @@ export function ProposalsView({ plan }: { plan?: "guest" | "member" }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3 sm:gap-[24px]">
-        {items.map((proposal) => (
-          <ProposalCard
-            key={proposal.id}
-            proposal={proposal}
-            onOpen={() => router.push(`/proposals/${proposal.id}`)}
-            onDelete={() => handleDelete(proposal)}
-            onDownload={handleDownload}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <p className="py-[40px] text-center text-sm font-medium text-[#757575]">
+          불러오는 중...
+        </p>
+      ) : items.length === 0 ? (
+        <p className="py-[40px] text-center text-sm font-medium text-[#757575]">
+          아직 제안서가 없어요. 새 제안서를 만들어보세요.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3 sm:gap-[24px]">
+          {items.map((proposal) => (
+            <ProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              onOpen={() => router.push(`/proposals/${proposal.id}`)}
+              onDelete={() => handleDelete(proposal)}
+              onDownload={handleDownload}
+            />
+          ))}
+        </div>
+      )}
 
       <NewProposalModal
         open={createOpen}
