@@ -200,7 +200,12 @@ export function ChatPanel({
       {mode === "ai" && (
         <div className="flex items-center justify-between border-b border-stroke px-[24px] py-[12px]">
           <div className="flex items-center gap-[8px]">
-            <SparkleIcon className="size-[18px] text-primary" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons/ai-icon.png"
+              alt=""
+              className="size-[18px] shrink-0"
+            />
             <span className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-primary">
               믹시
             </span>
@@ -258,6 +263,12 @@ export function ChatPanel({
                   <p>안녕하세요!</p>
                   <p>
                     AI 추천{" "}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/icons/ai-icon.png"
+                      alt=""
+                      className="inline-block size-[24px] align-text-bottom"
+                    />
                     <span className="font-semibold text-primary">믹시</span>
                     에요.
                   </p>
@@ -425,20 +436,44 @@ function AssistantBubble({
       {message.response_type === "list" &&
         message.items &&
         message.items.length > 0 && (
-          <ChatMediaList
-            items={message.items}
-            selectedId={selectedId}
-            onSelectMedia={onSelectMedia}
-            onFocusMedia={onFocusMedia}
-            showPhotos={showPhotos}
-            onTogglePhotos={onTogglePhotos}
-            onAddProposal={onAddProposal}
-          />
+          <>
+            <div className="flex items-start gap-[8px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icons/ai-icon.png"
+                alt=""
+                className="size-[24px] shrink-0"
+              />
+              <p className="text-base leading-[24px] text-black">
+                분석 완료! 가장 적합한 매체 {message.items.length}개를
+                정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성
+                요청해보세요.
+              </p>
+            </div>
+            <ConditionChips message={message} />
+            <ChatMediaList
+              items={message.items}
+              selectedId={selectedId}
+              onSelectMedia={onSelectMedia}
+              onFocusMedia={onFocusMedia}
+              showPhotos={showPhotos}
+              onTogglePhotos={onTogglePhotos}
+              onAddProposal={onAddProposal}
+            />
+          </>
         )}
-      {message.message && (
-        <p className="whitespace-pre-line text-base leading-[24px] text-black">
-          {message.message}
-        </p>
+      {message.message && message.response_type !== "list" && (
+        <div className="flex items-start gap-[8px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icons/ai-icon.png"
+                alt=""
+                className="size-[24px] shrink-0"
+              />
+          <p className="whitespace-pre-line text-base leading-[24px] text-black">
+            {message.message}
+          </p>
+        </div>
       )}
       {message.response_type === "proposal" && message.proposal && (
         <ProposalCard
@@ -550,6 +585,33 @@ function MatchedChips({ message }: { message: V2Message }) {
   );
 }
 
+function ConditionChips({ message }: { message: V2Message }) {
+  const merged = mergeEnriched(
+    message.previous_context_detail,
+    message.enriched_extracted,
+  );
+  const rows: { label: string; values: string[] }[] = [];
+  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
+    const items = merged[cat] || [];
+    if (items.length > 0)
+      rows.push({ label, values: items.map((e) => e.description || e.code) });
+  }
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-[6px]">
+      {rows.map(({ label, values }) => (
+        <span
+          key={label}
+          className="rounded-[6px] bg-[#e5f6f6] px-[10px] py-[4px] text-xs font-medium text-[#00aaa4]"
+        >
+          {label} : {values.join("·")}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ChatMediaList({
   items,
   selectedId,
@@ -569,10 +631,7 @@ function ChatMediaList({
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium tracking-wide text-[#757575]">
-          추천 매체 ({items.length}개)
-        </span>
+      <div className="flex justify-end">
         <SimpleViewToggle
           simple={!showPhotos}
           onChange={(next) => onTogglePhotos(!next)}
