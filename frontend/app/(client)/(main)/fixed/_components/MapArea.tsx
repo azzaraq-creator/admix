@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
+import { cn } from "@/lib/utils";
 
 export interface MapMarker {
   id: string; // media_id (Drawer 연동용)
@@ -27,11 +30,26 @@ interface KakaoMarker {
   setMap: (map: KakaoMap | null) => void;
 }
 
+interface KakaoCustomOverlay {
+  setMap: (map: KakaoMap | null) => void;
+  setPosition: (latlng: KakaoLatLng) => void;
+}
+
+interface KakaoPoint {
+  x: number;
+  y: number;
+}
+
+interface KakaoProjection {
+  containerPointFromCoords: (latlng: KakaoLatLng) => KakaoPoint;
+}
+
 interface KakaoMap {
   relayout: () => void;
   setCenter: (latlng: KakaoLatLng) => void;
   setLevel: (level: number) => void;
   setBounds: (bounds: KakaoLatLngBounds) => void;
+  getProjection: () => KakaoProjection;
 }
 
 interface KakaoMaps {
@@ -55,8 +73,21 @@ interface KakaoMaps {
   ) => KakaoMarkerImage;
   Size: new (width: number, height: number) => object;
   Point: new (x: number, y: number) => object;
+  CustomOverlay: new (options: {
+    position: KakaoLatLng;
+    content: HTMLElement;
+    xAnchor?: number;
+    yAnchor?: number;
+    zIndex?: number;
+    clickable?: boolean;
+  }) => KakaoCustomOverlay;
   event: {
     addListener: (target: object, type: string, handler: () => void) => void;
+    removeListener: (
+      target: object,
+      type: string,
+      handler: () => void,
+    ) => void;
   };
 }
 
@@ -69,6 +100,7 @@ declare global {
 const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY ?? "";
 const SCRIPT_ID = "kakao-maps-sdk";
 const SEOUL_CITY_HALL = { lat: 37.5665, lng: 126.978 };
+const POPUP_FLIP_MARGIN = 360;
 
 const MARKER_SIZE = { width: 40, height: 40 };
 const MARKER_ANCHOR = { x: 20, y: 16 };
@@ -140,16 +172,37 @@ export function MapArea({
   markers = [],
   onMarkerClick,
   focusId,
+  popupId,
+  popupContent,
+  onPopupClose,
 }: {
   className?: string;
   markers?: MapMarker[];
   onMarkerClick?: (id: string) => void;
   focusId?: string;
+  popupId?: string | null;
+  popupContent?: ReactNode;
+  onPopupClose?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
   const markerObjsRef = useRef<KakaoMarker[]>([]);
+  const overlayRef = useRef<KakaoCustomOverlay | null>(null);
+  const [popupEl] = useState<HTMLDivElement | null>(() => {
+    if (typeof document === "undefined") return null;
+    const el = document.createElement("div");
+    el.style.position = "relative";
+    el.style.width = "0";
+    el.style.height = "0";
+    return el;
+  });
+  const onPopupCloseRef = useRef(onPopupClose);
   const [mapReady, setMapReady] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
+
+  useEffect(() => {
+    onPopupCloseRef.current = onPopupClose;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -243,9 +296,65 @@ export function MapArea({
     }
   }, [markers, focusId, mapReady, onMarkerClick]);
 
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    const el = popupEl;
+    if (!mapReady || !maps || !map || !el) return;
+    if (!overlayRef.current) {
+      overlayRef.current = new maps.CustomOverlay({
+        position: new maps.LatLng(SEOUL_CITY_HALL.lat, SEOUL_CITY_HALL.lng),
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        zIndex: 20,
+        clickable: true,
+      });
+    }
+    const handleMapClick = () => onPopupCloseRef.current?.();
+    maps.event.addListener(map, "click", handleMapClick);
+    return () => {
+      maps.event.removeListener(map, "click", handleMapClick);
+    };
+  }, [mapReady, popupEl]);
+
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const overlay = overlayRef.current;
+    const map = mapRef.current;
+    if (!maps || !overlay || !map) return;
+    const target = popupId ? markers.find((m) => m.id === popupId) : undefined;
+    if (!target) {
+      overlay.setMap(null);
+      return;
+    }
+    const pos = new maps.LatLng(target.lat, target.lng);
+    overlay.setPosition(pos);
+    overlay.setMap(map);
+    const container = containerRef.current;
+    const projection = map.getProjection();
+    if (container && projection) {
+      const point = projection.containerPointFromCoords(pos);
+      setFlipUp(point.y > container.clientHeight - POPUP_FLIP_MARGIN);
+    }
+  }, [popupId, markers, mapReady]);
+
   return (
     <div className={className}>
       <div ref={containerRef} className="h-full w-full bg-[#e9edf0]" />
+      {popupId && popupEl
+        ? createPortal(
+            <div
+              className={cn(
+                "absolute left-1/2 -translate-x-1/2",
+                flipUp ? "bottom-[24px]" : "top-[24px]",
+              )}
+            >
+              {popupContent}
+            </div>,
+            popupEl,
+          )
+        : null}
     </div>
   );
 }

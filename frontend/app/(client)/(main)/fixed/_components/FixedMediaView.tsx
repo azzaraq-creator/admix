@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { MarkerMediaPopup } from "@/components/common/MarkerMediaPopup";
 import {
   MediaDetailDrawer,
   type MediaDetail as DrawerDetail,
@@ -56,6 +57,7 @@ export function FixedMediaView() {
   const [mobileMap, setMobileMap] = useState(false);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
+  const [popupId, setPopupId] = useState<string | null>(null);
 
   const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
   const features = detail?.features.map(
@@ -78,15 +80,29 @@ export function FixedMediaView() {
       }
     : null;
 
-  const handleMarkerClick = (id: string) => {
-    const mk = markers.find((m) => m.id === id);
-    setSelectedMedia({ id, name: mk?.name ?? "", price: "", images: [] });
-  };
+  const { data: popupDetail } = useMediaDetail(popupId);
+  const popupItems: MediaItemData[] = popupId
+    ? [
+        {
+          id: popupId,
+          name:
+            markers.find((m) => m.id === popupId)?.name ??
+            popupDetail?.name ??
+            "",
+          price: formatFee(popupDetail?.minAdvertisementFeeKrw ?? null),
+          images: popupDetail?.imageUrls ?? [],
+          popular: popupDetail?.badge === "popular",
+        },
+      ]
+    : [];
 
-  // 새 추천 리스트 → 마커 갱신 + 포커스 해제(전체 범위로)
+  const handleMarkerClick = (id: string) => setPopupId(id);
+
+  // 새 추천 리스트 → 마커 갱신 + 포커스/팝업 해제(전체 범위로)
   const handleRecommendations = useCallback((mk: MapMarker[]) => {
     setMarkers(mk);
     setFocusId(undefined);
+    setPopupId(null);
   }, []);
 
   const handleOpenDetail = (item: MediaItemData) => setSelectedMedia(item);
@@ -97,6 +113,19 @@ export function FixedMediaView() {
         markers={markers}
         onMarkerClick={handleMarkerClick}
         focusId={focusId}
+        popupId={popupId}
+        popupContent={
+          popupId ? (
+            <MarkerMediaPopup
+              items={popupItems}
+              onSelect={(item) => {
+                setSelectedMedia(item);
+                setPopupId(null);
+              }}
+            />
+          ) : null
+        }
+        onPopupClose={() => setPopupId(null)}
         className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
           chatOpen ? "sm:left-[384px]" : "sm:left-0"
         } ${mobileMap ? "block" : "hidden"}`}
