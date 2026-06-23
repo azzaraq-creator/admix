@@ -33,20 +33,18 @@ const FAQS = [
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
 ];
 
-const PRICE_FORMATTER = new Intl.NumberFormat("ko-KR");
-
 function formatFee(krw: number | null): string {
   if (krw == null) return "최소집행금액 협의";
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
 }
 
 function formatV2Price(raw?: string): string {
-  if (!raw) return "가격 문의";
+  if (!raw) return "최소집행금액 협의";
   const digits = raw.replace(/[^0-9]/g, "");
   if (!digits) return raw;
   const n = Number(digits);
   if (!Number.isFinite(n)) return raw;
-  return `${PRICE_FORMATTER.format(n)}원`;
+  return `최소집행금액 ${Math.round(n / 10000).toLocaleString()}만원`;
 }
 
 const MAX_LENGTH = 500;
