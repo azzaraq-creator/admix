@@ -239,6 +239,7 @@ export function ChatPanel({
                       message={m}
                       selectedId={selectedId}
                       onSelectMedia={onSelectMedia}
+                      onFocusMedia={onFocusMedia}
                       showPhotos={showPhotos}
                       onTogglePhotos={setShowPhotos}
                       onOpenDetail={onOpenDetail}
@@ -386,6 +387,7 @@ function AssistantBubble({
   message,
   selectedId,
   onSelectMedia,
+  onFocusMedia,
   showPhotos,
   onTogglePhotos,
   onOpenDetail,
@@ -394,6 +396,7 @@ function AssistantBubble({
   message: V2Message;
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
+  onFocusMedia?: (mediaId: string) => void;
   showPhotos: boolean;
   onTogglePhotos: (next: boolean) => void;
   onOpenDetail?: (item: MediaItemData) => void;
@@ -426,6 +429,7 @@ function AssistantBubble({
             items={message.items}
             selectedId={selectedId}
             onSelectMedia={onSelectMedia}
+            onFocusMedia={onFocusMedia}
             showPhotos={showPhotos}
             onTogglePhotos={onTogglePhotos}
             onAddProposal={onAddProposal}
@@ -550,6 +554,7 @@ function ChatMediaList({
   items,
   selectedId,
   onSelectMedia,
+  onFocusMedia,
   showPhotos,
   onTogglePhotos,
   onAddProposal,
@@ -557,6 +562,7 @@ function ChatMediaList({
   items: V2MediaItem[];
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
+  onFocusMedia?: (mediaId: string) => void;
   showPhotos: boolean;
   onTogglePhotos: (next: boolean) => void;
   onAddProposal?: (mediaId: string) => void;
@@ -587,14 +593,15 @@ function ChatMediaList({
             rank={idx + 1}
             simple={!showPhotos}
             selected={id === selectedId}
-            onClick={() =>
+            onClick={() => {
               onSelectMedia?.({
                 id,
                 name: it.name,
                 price: formatV2Price(it.price),
                 images,
-              })
-            }
+              });
+              onFocusMedia?.(id);
+            }}
             onAddProposal={() => onAddProposal?.(id)}
           />
         );

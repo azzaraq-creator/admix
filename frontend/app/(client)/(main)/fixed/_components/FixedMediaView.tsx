@@ -51,6 +51,8 @@ function formatFee(krw: number | null): string {
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
 }
 
+const DRAWER_HALF_WIDTH = 192;
+
 export function FixedMediaView() {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
@@ -117,6 +119,7 @@ export function FixedMediaView() {
         markers={markers}
         onMarkerClick={handleMarkerClick}
         focusId={focusId}
+        focusOffsetX={selectedMedia ? DRAWER_HALF_WIDTH : 0}
         popupId={popupId}
         popupContent={
           popupId ? (

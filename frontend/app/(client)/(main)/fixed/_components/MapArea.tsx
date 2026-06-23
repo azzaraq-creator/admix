@@ -50,6 +50,7 @@ interface KakaoMap {
   setLevel: (level: number) => void;
   setBounds: (bounds: KakaoLatLngBounds) => void;
   getProjection: () => KakaoProjection;
+  panBy: (dx: number, dy: number) => void;
 }
 
 interface KakaoMaps {
@@ -172,6 +173,7 @@ export function MapArea({
   markers = [],
   onMarkerClick,
   focusId,
+  focusOffsetX = 0,
   popupId,
   popupContent,
   onPopupClose,
@@ -180,6 +182,7 @@ export function MapArea({
   markers?: MapMarker[];
   onMarkerClick?: (id: string) => void;
   focusId?: string;
+  focusOffsetX?: number;
   popupId?: string | null;
   popupContent?: ReactNode;
   onPopupClose?: () => void;
@@ -288,13 +291,14 @@ export function MapArea({
     if (focused) {
       map.setCenter(new maps.LatLng(focused.lat, focused.lng));
       map.setLevel(4);
+      if (focusOffsetX) map.panBy(-focusOffsetX, 0);
     } else if (valid.length === 1) {
       map.setCenter(new maps.LatLng(valid[0].lat, valid[0].lng));
       map.setLevel(5);
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, focusId, mapReady, onMarkerClick]);
+  }, [markers, focusId, focusOffsetX, mapReady, onMarkerClick]);
 
   useEffect(() => {
     const maps = window.kakao?.maps;
