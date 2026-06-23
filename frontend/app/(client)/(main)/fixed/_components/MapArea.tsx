@@ -400,7 +400,7 @@ export function MapArea({
             <div
               className={cn(
                 "absolute left-1/2 -translate-x-1/2",
-                flipUp ? "bottom-[24px]" : "top-[24px]",
+                flipUp ? "bottom-[30px]" : "top-[30px]",
               )}
             >
               {popupContent}
