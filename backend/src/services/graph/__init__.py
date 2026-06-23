@@ -1,9 +1,5 @@
-"""광고 매체 추천 LangGraph 패키지.
+"""광고 매체 추천 보조 모듈.
 
-노트북 prototype (notebooks/05_recommend_graph_v2.ipynb) 을 모듈화한 구조.
-빌더: ``from src.services.graph.builder import build_graph``
+v1 LangGraph 추천 파이프라인은 제거됨(현재 추천은 src/services/recommend_v2.py).
+남은 모듈은 공용 유틸: llm(get_chat), settings(상권 상수), checkpoint_cleanup.
 """
-from src.services.graph.builder import build_graph
-from src.services.graph.state import RecommendState, Slots, TargetStruct
-
-__all__ = ["build_graph", "RecommendState", "Slots", "TargetStruct"]
