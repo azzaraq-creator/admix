@@ -102,7 +102,10 @@ export function FixedMediaView() {
       ]
     : [];
 
-  const handleMarkerClick = (id: string) => setPopupId(id);
+  const handleMarkerClick = (id: string) => {
+    setPopupId(id);
+    setFocusId(id);
+  };
 
   // 새 추천 리스트 → 마커 갱신 + 포커스/팝업 해제(전체 범위로)
   const handleRecommendations = useCallback((mk: MapMarker[]) => {
@@ -113,6 +116,11 @@ export function FixedMediaView() {
 
   const handleOpenDetail = (item: MediaItemData) => setSelectedMedia(item);
 
+  const closeDetail = () => {
+    setSelectedMedia(null);
+    setFocusId(undefined);
+  };
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
       <MapArea
@@ -120,6 +128,7 @@ export function FixedMediaView() {
         onMarkerClick={handleMarkerClick}
         focusId={focusId}
         focusOffsetX={selectedMedia ? DRAWER_HALF_WIDTH : 0}
+        focusCenter={!popupId}
         popupId={popupId}
         popupContent={
           popupId ? (
@@ -159,7 +168,7 @@ export function FixedMediaView() {
             <MediaDetailDrawer
               media={selectedMedia}
               detail={toDrawerDetail(detail)}
-              onClose={() => setSelectedMedia(null)}
+              onClose={closeDetail}
               onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
             />
           </div>
@@ -203,7 +212,7 @@ export function FixedMediaView() {
             size={detail?.sizeText ?? null}
             imageUrl={detailImage}
             population={population}
-            onBack={() => setSelectedMedia(null)}
+            onBack={closeDetail}
           />
         </div>
       )}

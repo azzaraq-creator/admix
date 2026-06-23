@@ -28,6 +28,8 @@ interface KakaoMarkerImage {
 
 interface KakaoMarker {
   setMap: (map: KakaoMap | null) => void;
+  setImage: (image: KakaoMarkerImage) => void;
+  setZIndex: (zIndex: number) => void;
 }
 
 interface KakaoCustomOverlay {
@@ -42,6 +44,7 @@ interface KakaoPoint {
 
 interface KakaoProjection {
   containerPointFromCoords: (latlng: KakaoLatLng) => KakaoPoint;
+  coordsFromContainerPoint: (point: object) => KakaoLatLng;
 }
 
 interface KakaoMap {
@@ -50,7 +53,6 @@ interface KakaoMap {
   setLevel: (level: number) => void;
   setBounds: (bounds: KakaoLatLngBounds) => void;
   getProjection: () => KakaoProjection;
-  panBy: (dx: number, dy: number) => void;
 }
 
 interface KakaoMaps {
@@ -142,6 +144,26 @@ function markerSrc(categoryLarge?: string | null, focused = false): string {
   return encodeURI(path);
 }
 
+function markerImageFor(
+  maps: KakaoMaps,
+  cache: Record<string, KakaoMarkerImage>,
+  categoryLarge: string | null | undefined,
+  focused: boolean,
+): KakaoMarkerImage {
+  const src = markerSrc(categoryLarge, focused);
+  if (!cache[src]) {
+    const scale = focused ? FOCUS_SCALE : 1;
+    cache[src] = new maps.MarkerImage(
+      src,
+      new maps.Size(MARKER_SIZE.width * scale, MARKER_SIZE.height * scale),
+      {
+        offset: new maps.Point(MARKER_ANCHOR.x * scale, MARKER_ANCHOR.y * scale),
+      },
+    );
+  }
+  return cache[src];
+}
+
 function loadKakaoSdk(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.kakao?.maps) {
@@ -174,6 +196,7 @@ export function MapArea({
   onMarkerClick,
   focusId,
   focusOffsetX = 0,
+  focusCenter = true,
   popupId,
   popupContent,
   onPopupClose,
@@ -183,13 +206,16 @@ export function MapArea({
   onMarkerClick?: (id: string) => void;
   focusId?: string;
   focusOffsetX?: number;
+  focusCenter?: boolean;
   popupId?: string | null;
   popupContent?: ReactNode;
   onPopupClose?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
-  const markerObjsRef = useRef<KakaoMarker[]>([]);
+  const markerObjsRef = useRef<{ marker: KakaoMarker; data: MapMarker }[]>([]);
+  const imageCacheRef = useRef<Record<string, KakaoMarkerImage>>({});
+  const shownFocusRef = useRef<string | undefined>(undefined);
   const overlayRef = useRef<KakaoCustomOverlay | null>(null);
   const [popupEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === "undefined") return null;
@@ -200,11 +226,13 @@ export function MapArea({
     return el;
   });
   const onPopupCloseRef = useRef(onPopupClose);
+  const onMarkerClickRef = useRef(onMarkerClick);
   const [mapReady, setMapReady] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
 
   useEffect(() => {
     onPopupCloseRef.current = onPopupClose;
+    onMarkerClickRef.current = onMarkerClick;
   });
 
   useEffect(() => {
@@ -231,74 +259,95 @@ export function MapArea({
     };
   }, []);
 
-  // 마커 렌더 — markers 변경 시 기존 제거 후 재생성 + 범위 맞춤
+  // 마커 생성 + 범위 맞춤 — markers 변경 시에만 (포커스 변경으로는 재실행 안 됨)
   useEffect(() => {
     const maps = window.kakao?.maps;
     const map = mapRef.current;
     if (!mapReady || !maps || !map) return;
 
-    markerObjsRef.current.forEach((m) => m.setMap(null));
+    markerObjsRef.current.forEach(({ marker }) => marker.setMap(null));
     markerObjsRef.current = [];
+    shownFocusRef.current = undefined;
 
     const valid = markers.filter(
       (m) => typeof m.lat === "number" && typeof m.lng === "number",
     );
     if (valid.length === 0) return;
 
-    const imageCache: Record<string, KakaoMarkerImage> = {};
-    const imageFor = (
-      categoryLarge: string | null | undefined,
-      focused: boolean,
-    ): KakaoMarkerImage => {
-      const src = markerSrc(categoryLarge, focused);
-      if (!imageCache[src]) {
-        const scale = focused ? FOCUS_SCALE : 1;
-        imageCache[src] = new maps.MarkerImage(
-          src,
-          new maps.Size(MARKER_SIZE.width * scale, MARKER_SIZE.height * scale),
-          {
-            offset: new maps.Point(
-              MARKER_ANCHOR.x * scale,
-              MARKER_ANCHOR.y * scale,
-            ),
-          },
-        );
-      }
-      return imageCache[src];
-    };
-
     const bounds = new maps.LatLngBounds();
-    let focused: MapMarker | undefined;
     valid.forEach((m) => {
-      const isFocused = !!focusId && m.id === focusId;
-      if (isFocused) focused = m;
       const pos = new maps.LatLng(m.lat, m.lng);
       const marker = new maps.Marker({
         position: pos,
-        image: imageFor(m.categoryLarge, isFocused),
+        image: markerImageFor(maps, imageCacheRef.current, m.categoryLarge, false),
         title: m.name,
-        zIndex: isFocused ? 10 : 1,
+        zIndex: 1,
       });
       marker.setMap(map);
-      if (onMarkerClick) {
-        maps.event.addListener(marker, "click", () => onMarkerClick(m.id));
-      }
-      markerObjsRef.current.push(marker);
+      maps.event.addListener(marker, "click", () =>
+        onMarkerClickRef.current?.(m.id),
+      );
+      markerObjsRef.current.push({ marker, data: m });
       bounds.extend(pos);
     });
 
-    // 포커스된 매체가 있으면 그 마커로 중심 이동, 없으면 전체 범위 맞춤
-    if (focused) {
-      map.setCenter(new maps.LatLng(focused.lat, focused.lng));
-      map.setLevel(4);
-      if (focusOffsetX) map.panBy(-focusOffsetX, 0);
-    } else if (valid.length === 1) {
+    if (valid.length === 1) {
       map.setCenter(new maps.LatLng(valid[0].lat, valid[0].lng));
       map.setLevel(5);
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, focusId, focusOffsetX, mapReady, onMarkerClick]);
+  }, [markers, mapReady]);
+
+  // 포커스 — 선택 마커 이미지/줌만 갱신 (범위 재설정·재생성 없음 → 흔들림 방지)
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+
+    const entries = markerObjsRef.current;
+    const shown = shownFocusRef.current;
+    if (shown === focusId) return;
+
+    const prev = entries.find((e) => e.data.id === shown);
+    if (prev) {
+      prev.marker.setImage(
+        markerImageFor(
+          maps,
+          imageCacheRef.current,
+          prev.data.categoryLarge,
+          false,
+        ),
+      );
+      prev.marker.setZIndex(1);
+    }
+
+    const next = entries.find((e) => e.data.id === focusId);
+    if (next) {
+      next.marker.setImage(
+        markerImageFor(
+          maps,
+          imageCacheRef.current,
+          next.data.categoryLarge,
+          true,
+        ),
+      );
+      next.marker.setZIndex(10);
+    }
+
+    if (next && focusCenter) {
+      const projection = map.getProjection();
+      const markerPoint = projection.containerPointFromCoords(
+        new maps.LatLng(next.data.lat, next.data.lng),
+      );
+      const center = projection.coordsFromContainerPoint(
+        new maps.Point(markerPoint.x - focusOffsetX, markerPoint.y),
+      );
+      map.setCenter(center);
+    }
+
+    shownFocusRef.current = focusId;
+  }, [focusId, focusOffsetX, focusCenter, markers, mapReady]);
 
   useEffect(() => {
     const maps = window.kakao?.maps;
