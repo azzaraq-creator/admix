@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { adSessionsApi } from "@/hooks/adSessions";
@@ -114,16 +114,101 @@ export function mergeEnriched(
 }
 
 const MIN_INPUT_LEN = 3;
+const STORAGE_KEY = "adRecommendV2.sessionId";
+
+type SavedMsg = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  payload: Record<string, unknown> | null;
+};
+
+/** DB 저장 메시지(payload) → V2Message 복원. 세션 지속/복원용. */
+function restoreMessage(saved: SavedMsg): V2Message {
+  if (saved.role === "user") {
+    return { id: saved.id, type: "user", content: saved.content };
+  }
+  const p = (saved.payload ?? {}) as Record<string, unknown>;
+  const ptype = p.type as string | undefined;
+  if (ptype === "confirmation_required") {
+    return {
+      id: saved.id,
+      type: "assistant",
+      confirmation: {
+        message: (p.message as string) || saved.content,
+        changes: p.changes as ChangeEntry[] | undefined,
+        enriched_extracted: p.enriched_extracted as
+          | Record<string, EnrichedCode[]>
+          | undefined,
+        previous_context_detail: p.previous_context_detail as
+          | Record<string, EnrichedCode[]>
+          | undefined,
+      },
+    };
+  }
+  if (
+    ptype === "chat" ||
+    ptype === "list" ||
+    ptype === "need_more" ||
+    ptype === "media_detail"
+  ) {
+    return {
+      id: saved.id,
+      type: "assistant",
+      response_type: ptype as V2ResponseType,
+      message: (p.message as string) || saved.content,
+      items: (p.items as V2MediaItem[]) ?? [],
+      match_count: p.match_count as number | undefined,
+      enriched_extracted: p.enriched_extracted as
+        | Record<string, EnrichedCode[]>
+        | undefined,
+      previous_context_detail: p.previous_context_detail as
+        | Record<string, EnrichedCode[]>
+        | undefined,
+      matched_categories: p.matched_categories as number | undefined,
+      media: p.media as V2MediaRef | undefined,
+    };
+  }
+  return { id: saved.id, type: "assistant", message: saved.content };
+}
 
 export function useV2Chat() {
   const [messages, setMessages] = useState<V2Message[]>([]);
   const [running, setRunning] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  // 마운트 시 저장된 세션 복원 (비회원도 새로고침/재방문에 챗봇 유지)
+  useEffect(() => {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    if (!stored) return;
+    let cancelled = false;
+    (async () => {
+      setSessionId(stored);
+      setRestoring(true);
+      try {
+        const detail = await adSessionsApi.get(stored);
+        if (cancelled) return;
+        setMessages((detail.messages ?? []).map(restoreMessage));
+      } catch {
+        // 세션 만료/삭제 → 스토리지 정리 후 새 세션으로
+        if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+        if (!cancelled) setSessionId(null);
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const ensureSession = useCallback(async (): Promise<string> => {
     if (sessionId) return sessionId;
     const s = await adSessionsApi.create(null);
     setSessionId(s.id);
+    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, s.id);
     return s.id;
   }, [sessionId]);
 
@@ -353,6 +438,7 @@ export function useV2Chat() {
   return {
     messages,
     running,
+    restoring,
     sessionId,
     submit,
     removeSlot,

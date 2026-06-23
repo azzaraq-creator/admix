@@ -8,6 +8,7 @@ import {
   type MediaDetail as DrawerDetail,
 } from "@/components/common/MediaDetailDrawer";
 import type { MediaItemData } from "@/components/common/MediaItem";
+import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
 import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
 import { useMediaDetail } from "@/hooks/media";
 import { ChatPanel } from "./ChatPanel";
@@ -43,6 +44,11 @@ function toDrawerDetail(
   };
 }
 
+function formatFee(krw: number | null): string {
+  if (krw == null) return "최소집행금액 협의";
+  return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
+}
+
 export function FixedMediaView() {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
@@ -52,6 +58,25 @@ export function FixedMediaView() {
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
 
   const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
+  const features = detail?.features.map(
+    (f) => [f.label, f.value] as [string, string],
+  );
+  const planList = detail?.plans.map((p) => ({
+    title: p.title,
+    subtitle: p.subtitle ?? "",
+  }));
+  const detailImage = detail?.thumbnailUrl ?? detail?.imageUrls[0] ?? null;
+  const population = detail?.population
+    ? {
+        malePct: detail.population.malePct,
+        femalePct: detail.population.femalePct,
+        ageRatios: detail.population.ageRatios.map((a) => ({
+          label: a.label,
+          value: a.value,
+          bound: a.bound ?? undefined,
+        })),
+      }
+    : null;
 
   const handleMarkerClick = (id: string) => {
     const mk = markers.find((m) => m.id === id);
@@ -64,14 +89,7 @@ export function FixedMediaView() {
     setFocusId(undefined);
   }, []);
 
-  // 챗 상세설명의 "상세보기" — 데스크탑(≥640)은 Drawer, 모바일(<640)은 상세 페이지 이동
-  const handleOpenDetail = (item: MediaItemData) => {
-    const isMobile =
-      typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 639px)").matches;
-    if (isMobile) router.push(`/media/${item.id}`);
-    else setSelectedMedia(item);
-  };
+  const handleOpenDetail = (item: MediaItemData) => setSelectedMedia(item);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
@@ -99,12 +117,14 @@ export function FixedMediaView() {
           />
         )}
         {chatOpen && selectedMedia && (
-          <MediaDetailDrawer
-            media={selectedMedia}
-            detail={toDrawerDetail(detail)}
-            onClose={() => setSelectedMedia(null)}
-            onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
-          />
+          <div className="hidden sm:block">
+            <MediaDetailDrawer
+              media={selectedMedia}
+              detail={toDrawerDetail(detail)}
+              onClose={() => setSelectedMedia(null)}
+              onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
+            />
+          </div>
         )}
         <div className="hidden items-center sm:flex">
           <button
@@ -132,6 +152,23 @@ export function FixedMediaView() {
           {mobileMap ? "목록보기" : "지도보기"}
         </span>
       </button>
+
+      {selectedMedia && (
+        <div className="absolute inset-0 z-30 overflow-y-auto bg-white sm:hidden">
+          <MobileMediaDetail
+            name={selectedMedia.name}
+            price={formatFee(detail?.minAdvertisementFeeKrw ?? null)}
+            badge={detail?.badge ?? null}
+            description={detail?.description ?? undefined}
+            features={features}
+            mediaList={planList}
+            size={detail?.sizeText ?? null}
+            imageUrl={detailImage}
+            population={population}
+            onBack={() => setSelectedMedia(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }

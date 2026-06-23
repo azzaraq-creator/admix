@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 
 export type MobileMediaStat = { label: string; value: ReactNode };
 
+export type MobilePopulation = {
+  malePct: number;
+  femalePct: number;
+  ageRatios: AgeRatio[];
+};
+
 const DEFAULT_DESCRIPTION =
   "서울 전역의 주요 간선도로를 따라 운행하는 시내버스 외부광고 매체로 도심 업무지와 상업시설을 중심으로 생활권 전반을 폭넓게 커버하며 이동 동선 내에서 반복적인 노출을 통해 높은 주목도를 확보할 수 있습니다. 일상 속 자연스러운 이동 환경 속에서 브랜드 인지도를 확산시키기에 적합한 매체입니다.";
 
@@ -41,15 +47,6 @@ const DEFAULT_MEDIA_LIST: MobileMediaListItem[] = Array.from({ length: 3 }, () =
   subtitle: "1기 1면 / 20초 / 3일",
 }));
 
-const AGE_RATIO: AgeRatio[] = [
-  { label: "10", value: 5.3, bound: "under" },
-  { label: "20대", value: 24.9 },
-  { label: "30대", value: 20.7 },
-  { label: "40대", value: 15.9 },
-  { label: "50대", value: 13.4 },
-  { label: "60", value: 19.7, bound: "over" },
-];
-
 const BADGE = {
   popular: { label: "인기", className: "bg-secondary text-primary" },
   new: { label: "신규", className: "bg-[#fff3d3] text-[#ff920a]" },
@@ -73,6 +70,7 @@ export function MobileMediaDetail({
   size = "3 * 1 meter",
   imageUrl,
   stats = DEFAULT_STATS,
+  population = null,
   hidePopulation = false,
   hideMediaList = false,
   onBack,
@@ -87,6 +85,7 @@ export function MobileMediaDetail({
   size?: string | null;
   imageUrl?: string | null;
   stats?: MobileMediaStat[];
+  population?: MobilePopulation | null;
   hidePopulation?: boolean;
   hideMediaList?: boolean;
   onBack?: () => void;
@@ -268,7 +267,7 @@ export function MobileMediaDetail({
           </div>
         </div>
 
-        {!hidePopulation && (
+        {!hidePopulation && population && (
           <div className="flex flex-col gap-[16px]">
             <SectionTitle>유동 인구 데이터</SectionTitle>
             <div className="flex flex-col gap-[24px] rounded-[8px] border border-stroke p-[16px]">
@@ -277,7 +276,10 @@ export function MobileMediaDetail({
                   성별 비율
                 </p>
                 <div className="flex items-center justify-center">
-                  <GenderDonut male={48} female={52} />
+                  <GenderDonut
+                    male={population.malePct}
+                    female={population.femalePct}
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-[16px]">
@@ -285,7 +287,11 @@ export function MobileMediaDetail({
                   연령대 비율
                 </p>
                 <div className="flex items-center justify-center">
-                  <AgeBarChart data={AGE_RATIO} maxBarHeight={200} className="w-full" />
+                  <AgeBarChart
+                    data={population.ageRatios}
+                    maxBarHeight={200}
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>

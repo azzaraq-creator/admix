@@ -124,35 +124,39 @@ export function ChatPanel({
     }
   }, [chat.messages, mode, onFocusMedia]);
 
-  // 최신 추천 리스트 → 지도 마커로 상위 전달 (대분류별 색상)
+  // 가장 최근 "list" 메시지 → 지도 마커로 상위 전달 (대분류별 색상)
+  // media_detail/chat 등이 뒤에 와도, 또 복원 시에도 마지막 리스트의 마커를 유지.
   const lastMarkersMsgRef = useRef<string | null>(null);
   useEffect(() => {
     if (!onRecommendations) return;
+    let listMsg: V2Message | undefined;
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const m = chat.messages[i];
-      if (m.type !== "assistant") continue;
-      if (m.response_type === "list" && m.items && m.items.length > 0) {
-        if (lastMarkersMsgRef.current !== m.id) {
-          lastMarkersMsgRef.current = m.id;
-          const markers: MapMarker[] = m.items
-            .filter(
-              (it) =>
-                it.media_id != null &&
-                it.latitude != null &&
-                it.longitude != null,
-            )
-            .map((it) => ({
-              id: it.media_id as string,
-              lat: it.latitude as number,
-              lng: it.longitude as number,
-              name: it.name,
-              categoryLarge: it.category_large ?? null,
-            }));
-          onRecommendations(markers);
-        }
+      if (
+        m.type === "assistant" &&
+        m.response_type === "list" &&
+        m.items &&
+        m.items.length > 0
+      ) {
+        listMsg = m;
+        break;
       }
-      break;
     }
+    if (!listMsg || lastMarkersMsgRef.current === listMsg.id) return;
+    lastMarkersMsgRef.current = listMsg.id;
+    const markers: MapMarker[] = (listMsg.items ?? [])
+      .filter(
+        (it) =>
+          it.media_id != null && it.latitude != null && it.longitude != null,
+      )
+      .map((it) => ({
+        id: it.media_id as string,
+        lat: it.latitude as number,
+        lng: it.longitude as number,
+        name: it.name,
+        categoryLarge: it.category_large ?? null,
+      }));
+    onRecommendations(markers);
   }, [chat.messages, onRecommendations]);
 
   const resize = () => {
@@ -336,12 +340,17 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder="매체 조건을 입력하세요"
-              className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-[#757575]"
+              placeholder={
+                chat.restoring ? "이전 대화 복원 중..." : "매체 조건을 입력하세요"
+              }
+              disabled={chat.restoring}
+              className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-[#757575] disabled:opacity-60"
             />
             <button
               type="button"
-              disabled={value.trim().length === 0 || chat.running}
+              disabled={
+                value.trim().length === 0 || chat.running || chat.restoring
+              }
               onClick={handleSend}
               aria-label="전송"
               className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white disabled:opacity-50"
