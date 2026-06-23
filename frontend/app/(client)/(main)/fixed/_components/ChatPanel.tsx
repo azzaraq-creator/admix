@@ -97,6 +97,31 @@ export function ChatPanel({
     if (mode === "ai") endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages, mode]);
 
+  // media_detail 응답이 오면 해당 매체의 상세 Drawer 자동 오픈 (중복 방지)
+  const openedMediaRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (mode !== "ai") return;
+    const msgs = chat.messages;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.type !== "assistant") continue;
+      if (
+        m.response_type === "media_detail" &&
+        m.media?.media_id &&
+        openedMediaRef.current !== m.id
+      ) {
+        openedMediaRef.current = m.id;
+        onSelectMedia?.({
+          id: m.media.media_id,
+          name: m.media.name ?? "",
+          price: "",
+          images: m.media.thumbnail_url ? [m.media.thumbnail_url] : [],
+        });
+      }
+      break;
+    }
+  }, [chat.messages, mode, onSelectMedia]);
+
   const resize = () => {
     const el = textareaRef.current;
     if (!el) return;

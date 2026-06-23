@@ -11,7 +11,8 @@ export type V2ResponseType =
   | "chat"
   | "list"
   | "need_more"
-  | "confirmation_required";
+  | "confirmation_required"
+  | "media_detail";
 
 export type SlotKey = "ind" | "prd" | "obj" | "tgt" | "loc" | "cat" | "budget";
 
@@ -54,6 +55,13 @@ export interface ConfirmationInfo {
   previous_context_detail?: Record<string, EnrichedCode[]>;
 }
 
+export interface V2MediaRef {
+  id?: string;
+  media_id?: string | null;
+  name?: string;
+  thumbnail_url?: string | null;
+}
+
 export interface V2Message {
   id: string;
   type: "user" | "assistant";
@@ -67,6 +75,7 @@ export interface V2Message {
   matched_categories?: number;
   isLoading?: boolean;
   confirmation?: ConfirmationInfo;
+  media?: V2MediaRef;
 }
 
 const randomId = () =>
@@ -184,6 +193,7 @@ export function useV2Chat() {
                     >) || undefined,
                   matched_categories:
                     (data.matched_categories as number) || undefined,
+                  media: (data.media as V2MediaRef) || undefined,
                 }
               : m,
           ),

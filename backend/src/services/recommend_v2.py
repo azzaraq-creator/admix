@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_master import Media
+from src.services import media_service
 from src.services.graph.llm import get_chat
 
 DEFAULT_TOP_K = 20
@@ -651,6 +652,117 @@ def _persist_message(
         print(f"[recommend_v2] message save failed: {exc}", flush=True)
 
 
+# ===== 매체 상세 설명 (의도 분기 + LLM) =====
+
+
+class MediaQuestion(BaseModel):
+    """직전 추천 리스트에 대한 '특정 매체 질문' 판정 결과."""
+
+    is_about_media: bool = False
+    index: Optional[int] = None  # 1-based, 직전 리스트 기준
+
+
+def _last_items_from_payload(payload: dict | None) -> list[dict]:
+    """list 이벤트 payload → 세션 보존용 경량 매체 목록(id/media_id/name)."""
+    if not payload or payload.get("type") != "list":
+        return []
+    return [
+        {"id": it.get("id"), "media_id": it.get("media_id"), "name": it.get("name")}
+        for it in (payload.get("items") or [])
+    ]
+
+
+def _resolve_media_question(message: str, last_items: list[dict]) -> Optional[dict]:
+    """직전 리스트가 있을 때 발화가 '특정 매체 상세 질문'인지 LLM 판정 → 해당 item 반환(아니면 None)."""
+    if not last_items:
+        return None
+    listing = "\n".join(f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items))
+    sys_prompt = (
+        "사용자는 아래 '직전에 추천된 매체 목록' 중 특정 매체의 상세 설명을 물을 수 있다.\n"
+        "- 발화가 목록의 특정 매체에 대한 질문/요청이면 is_about_media=true 와 1-based index 반환.\n"
+        '  (예: "3번 자세히", "첫번째 매체 설명해줘", "신사 BK빌딩 어때?")\n'
+        "- 새로운 검색 조건(지역/제품/예산/타깃 등)이거나 목록과 무관하면 is_about_media=false.\n\n"
+        f"[직전 추천 매체]\n{listing}"
+    )
+    try:
+        llm = get_chat(temperature=0.0).with_structured_output(MediaQuestion)
+        res: MediaQuestion = llm.invoke(
+            [SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())]
+        )
+    except Exception:
+        return None
+    if not res.is_about_media or not res.index:
+        return None
+    idx = res.index - 1
+    return last_items[idx] if 0 <= idx < len(last_items) else None
+
+
+def _explain_with_llm(item: dict, detail: dict | None) -> str:
+    """매체 상세(detail) 기반으로 사용자용 설명 생성. detail 없으면 제한적 안내."""
+    name = item.get("name") or "해당 매체"
+    if detail:
+        facts: list[str] = []
+        if detail.get("description"):
+            facts.append(f"설명: {detail['description']}")
+        if detail.get("address"):
+            facts.append(f"위치: {detail['address']}")
+        if detail.get("sizeText"):
+            facts.append(f"규격: {detail['sizeText']}")
+        for f in detail.get("features") or []:
+            facts.append(f"{f.get('label')}: {f.get('value')}")
+        pop = detail.get("population")
+        if pop and pop.get("monthlyFootTraffic"):
+            facts.append(
+                f"유동인구(상권 {pop.get('sangwonName')}): 월 {pop['monthlyFootTraffic']:,}명, "
+                f"남 {pop.get('malePct')}% / 여 {pop.get('femalePct')}%"
+            )
+        fee_min = detail.get("minAdvertisementFeeKrw")
+        if fee_min:
+            facts.append(f"최소 광고비: {fee_min:,}원")
+        facts_str = "\n".join(f"- {f}" for f in facts) or "(추가 정보 없음)"
+    else:
+        facts_str = "(상세 정보가 제한적입니다)"
+    sys_prompt = (
+        "당신은 OOH(옥외광고) 매체 컨설턴트입니다. 아래 매체 정보를 바탕으로 사용자에게 "
+        "이 매체를 친절하고 간결하게(4~6문장) 한국어로 설명하세요. "
+        "정보에 없는 내용은 지어내지 말고, 있는 정보 위주로 장점과 활용 포인트를 짚어주세요."
+    )
+    human = f"매체명: {name}\n[정보]\n{facts_str}"
+    try:
+        res = get_chat(temperature=0.3).invoke(
+            [SystemMessage(content=sys_prompt), HumanMessage(content=human)]
+        )
+        return res.content if isinstance(res.content, str) else str(res.content)
+    except Exception as exc:
+        return f"{name}에 대한 설명을 생성하지 못했어요. ({exc})"
+
+
+async def _iter_explain_event_data(
+    item: dict,
+    db: Session,
+    slots: dict,
+    desc_map: dict[str, str],
+) -> AsyncIterator[dict]:
+    """특정 매체 → 상세(media 테이블) + LLM 설명 → media_detail 이벤트."""
+    media_id = item.get("media_id")
+    detail = None
+    if media_id:
+        detail = await _run_sync_in_thread(media_service.get_media_detail, db, str(media_id))
+    explanation = await _run_sync_in_thread(_explain_with_llm, item, detail)
+    yield {
+        "type": "media_detail",
+        "message": explanation,
+        "media": {
+            "id": item.get("id"),
+            "media_id": media_id,
+            "name": item.get("name"),
+            "thumbnail_url": (detail or {}).get("thumbnailUrl"),
+        },
+        "previous_context": slots,
+        "previous_context_detail": _enrich_context(slots, desc_map),
+    }
+
+
 async def _event_stream(
     message: str,
     db: Session,
@@ -696,6 +808,10 @@ async def _event_stream(
         prev_context = filter_context or {}
         prev_slots = _slots_dict(prev_context)
         pending = prev_context.get("pending_change") if isinstance(prev_context, dict) else None
+        # 직전 추천 리스트 — 특정 매체 질문 해소용 (pending 리셋 전에 캡처)
+        last_items = (
+            prev_context.get("last_items") if isinstance(prev_context, dict) else None
+        )
 
         # ─────────────────────────────────────────────────────────
         # 1) pending_change 가 있으면 먼저 yes/no 판정
@@ -735,6 +851,12 @@ async def _event_stream(
                     next_slots, db, top_k, desc_map, new_extracted.model_dump()
                 ):
                     yield emit(data)
+                if save_filter_context_fn:
+                    save_filter_context_fn({
+                        **next_slots,
+                        "pending_change": None,
+                        "last_items": _last_items_from_payload(tracker["payload"]),
+                    })
                 finalize()
                 yield "event: done\ndata: {}\n\n"
                 return
@@ -756,6 +878,22 @@ async def _event_stream(
                 return
             # yes/no 아니면 새 발화로 간주 → pending 폐기 후 일반 파이프라인으로 진행
             prev_context = {**prev_slots, "pending_change": None}
+
+        # ─────────────────────────────────────────────────────────
+        # 1.5) 의도 분기 — 직전 리스트가 있고 발화가 '특정 매체 질문'이면 상세 설명
+        # ─────────────────────────────────────────────────────────
+        if last_items:
+            resolved = await _run_sync_in_thread(
+                _resolve_media_question, message, last_items
+            )
+            if resolved is not None:
+                async for data in _iter_explain_event_data(
+                    resolved, db, prev_slots, desc_map
+                ):
+                    yield emit(data)
+                finalize()
+                yield "event: done\ndata: {}\n\n"
+                return
 
         # ─────────────────────────────────────────────────────────
         # 2) 키워드 추출
@@ -860,6 +998,12 @@ async def _event_stream(
             next_slots, db, top_k, desc_map, codes.model_dump()
         ):
             yield emit(data)
+        if save_filter_context_fn:
+            save_filter_context_fn({
+                **next_slots,
+                "pending_change": None,
+                "last_items": _last_items_from_payload(tracker["payload"]),
+            })
         finalize()
         yield "event: done\ndata: {}\n\n"
 
@@ -987,6 +1131,12 @@ async def _remove_event_stream(
                 next_slots, db, top_k, desc_map, None
             ):
                 yield emit(data)
+            if save_filter_context_fn:
+                save_filter_context_fn({
+                    **next_slots,
+                    "pending_change": None,
+                    "last_items": _last_items_from_payload(tracker["payload"]),
+                })
 
         finalize()
         yield "event: done\ndata: {}\n\n"
