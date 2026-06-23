@@ -143,7 +143,7 @@ def list_for_owner(
     member_id: Optional[uuid.UUID] = None,
     session_id: Optional[uuid.UUID] = None,
 ) -> list[Proposal]:
-    q = db.query(Proposal)
+    q = db.query(Proposal).options(joinedload(Proposal.items))
     if member_id is not None:
         q = q.filter(Proposal.member_id == member_id)
     elif session_id is not None:
@@ -240,6 +240,7 @@ def to_summary(p: Proposal) -> dict:
         media_count=p.media_count,
         total_amount=p.total_amount,
         updated_at=p.updated_at.isoformat() if p.updated_at else None,
+        media_ids=[it.media_id for it in p.items],
     )
 
 

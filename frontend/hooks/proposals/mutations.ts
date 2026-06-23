@@ -13,6 +13,18 @@ export const useCreateProposal = () => {
   });
 };
 
+export const useAddProposalItems = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mediaIds }: { id: string; mediaIds: string[] }) =>
+      proposalsClientApi.addItems(id, mediaIds),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
+      qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    },
+  });
+};
+
 export const useRenameProposal = () => {
   const qc = useQueryClient();
   return useMutation({

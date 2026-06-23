@@ -31,6 +31,7 @@ class ProposalSummary(BaseModel):
     media_count: int
     total_amount: int
     updated_at: Optional[str] = None
+    media_ids: list[str] = []
 
 
 class ProposalItemOut(BaseModel):

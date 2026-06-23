@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { AddToProposalModal } from "@/components/common/AddToProposalModal";
 import { MarkerMediaPopup } from "@/components/common/MarkerMediaPopup";
 import {
   MediaDetailDrawer,
@@ -58,6 +59,9 @@ export function FixedMediaView() {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
   const [popupId, setPopupId] = useState<string | null>(null);
+  const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
+    null,
+  );
 
   const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
   const features = detail?.features.map(
@@ -122,6 +126,7 @@ export function FixedMediaView() {
                 setSelectedMedia(item);
                 setPopupId(null);
               }}
+              onAddProposal={(item) => setAddProposalMediaId(item.id)}
             />
           ) : null
         }
@@ -197,6 +202,13 @@ export function FixedMediaView() {
             onBack={() => setSelectedMedia(null)}
           />
         </div>
+      )}
+
+      {addProposalMediaId && (
+        <AddToProposalModal
+          mediaId={addProposalMediaId}
+          onClose={() => setAddProposalMediaId(null)}
+        />
       )}
     </div>
   );

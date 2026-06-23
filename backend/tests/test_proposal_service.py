@@ -88,6 +88,8 @@ def test_add_items_recount_and_dedupe(db, session):
     ps.add_items(db, p, [media.media_id])
     assert p.media_count == 1
     assert p.total_amount == (media.min_advertisement_fee_krw or 0)
+    # 목록 요약에 담긴 매체 id 가 노출되어야 함(중복추가 방지 UI용)
+    assert ps.to_summary(p)["media_ids"] == [media.media_id]
 
     # 중복 담기는 무시
     ps.add_items(db, p, [media.media_id])

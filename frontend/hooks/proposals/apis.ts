@@ -42,6 +42,7 @@ export interface ProposalSummary {
   media_count: number;
   total_amount: number;
   updated_at: string | null;
+  media_ids: string[];
 }
 
 export interface ProposalItem {
