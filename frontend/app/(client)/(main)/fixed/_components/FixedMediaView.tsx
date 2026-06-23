@@ -11,7 +11,7 @@ import type { MediaItemData } from "@/components/common/MediaItem";
 import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
 import { useMediaDetail } from "@/hooks/media";
 import { ChatPanel } from "./ChatPanel";
-import { MapArea } from "./MapArea";
+import { MapArea, type MapMarker } from "./MapArea";
 
 function toDrawerDetail(
   detail: ReturnType<typeof useMediaDetail>["data"],
@@ -48,12 +48,20 @@ export function FixedMediaView() {
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
   const [mobileMap, setMobileMap] = useState(false);
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
 
   const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
+
+  const handleMarkerClick = (id: string) => {
+    const mk = markers.find((m) => m.id === id);
+    setSelectedMedia({ id, name: mk?.name ?? "", price: "", images: [] });
+  };
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
       <MapArea
+        markers={markers}
+        onMarkerClick={handleMarkerClick}
         className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
           chatOpen ? "sm:left-[384px]" : "sm:left-0"
         } ${mobileMap ? "block" : "hidden"}`}
@@ -68,6 +76,7 @@ export function FixedMediaView() {
           <ChatPanel
             onSelectMedia={setSelectedMedia}
             selectedId={selectedMedia?.id}
+            onRecommendations={setMarkers}
           />
         )}
         {chatOpen && selectedMedia && (

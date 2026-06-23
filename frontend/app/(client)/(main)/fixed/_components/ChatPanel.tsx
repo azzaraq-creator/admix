@@ -24,6 +24,7 @@ import { useFixedMediaInfinite } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
+import type { MapMarker } from "./MapArea";
 
 const FAQS = [
   "강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩하고 싶어요",
@@ -53,9 +54,11 @@ const MAX_TEXTAREA_HEIGHT = 120;
 export function ChatPanel({
   onSelectMedia,
   selectedId,
+  onRecommendations,
 }: {
   onSelectMedia?: (item: MediaItemData) => void;
   selectedId?: string;
+  onRecommendations?: (markers: MapMarker[]) => void;
 }) {
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
@@ -121,6 +124,37 @@ export function ChatPanel({
       break;
     }
   }, [chat.messages, mode, onSelectMedia]);
+
+  // 최신 추천 리스트 → 지도 마커로 상위 전달 (대분류별 색상)
+  const lastMarkersMsgRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onRecommendations) return;
+    for (let i = chat.messages.length - 1; i >= 0; i--) {
+      const m = chat.messages[i];
+      if (m.type !== "assistant") continue;
+      if (m.response_type === "list" && m.items && m.items.length > 0) {
+        if (lastMarkersMsgRef.current !== m.id) {
+          lastMarkersMsgRef.current = m.id;
+          const markers: MapMarker[] = m.items
+            .filter(
+              (it) =>
+                it.media_id != null &&
+                it.latitude != null &&
+                it.longitude != null,
+            )
+            .map((it) => ({
+              id: it.media_id as string,
+              lat: it.latitude as number,
+              lng: it.longitude as number,
+              name: it.name,
+              categoryLarge: it.category_large ?? null,
+            }));
+          onRecommendations(markers);
+        }
+      }
+      break;
+    }
+  }, [chat.messages, onRecommendations]);
 
   const resize = () => {
     const el = textareaRef.current;

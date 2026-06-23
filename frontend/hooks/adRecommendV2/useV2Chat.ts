@@ -46,6 +46,10 @@ export interface V2MediaItem {
   price?: string;
   thumbnail_url?: string;
   detail_images: string[];
+  latitude?: number | null;
+  longitude?: number | null;
+  category_large?: string | null;
+  category_small?: string | null;
 }
 
 export interface ConfirmationInfo {

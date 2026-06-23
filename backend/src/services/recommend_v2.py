@@ -84,6 +84,11 @@ class MediaItemResponse(BaseModel):
     price: Optional[str] = None
     thumbnail_url: Optional[str] = None
     detail_images: list[str] = Field(default_factory=list)
+    # 지도 마커용 — media 테이블 조인(thumbnail_url)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    category_large: Optional[str] = None  # parentCategory.displayValue (마커 아이콘 분류)
+    category_small: Optional[str] = None  # mediaItemCategory.displayValue
 
 
 class RecommendV2Response(BaseModel):
@@ -297,33 +302,56 @@ def _split_image_urls(raw: Optional[str]) -> list[str]:
     return [u.strip() for u in raw.split("|") if u.strip()]
 
 
-def _media_id_by_thumbnail(db: Session, items: list[MediaItem]) -> dict[str, str]:
-    """media_items.thumbnail_url → media.media_id 배치 매핑.
+def _media_meta_by_thumbnail(db: Session, items: list[MediaItem]) -> dict[str, dict]:
+    """media_items.thumbnail_url → media(master) 메타 배치 매핑.
 
-    두 테이블은 동일 매체(913개)이며 thumbnail_url 이 1:1 키. 지도/Drawer 연동용.
+    두 테이블은 동일 매체(913개)이며 thumbnail_url 이 1:1 키.
+    media_id(Drawer 연동) + lat/lng·카테고리(지도 마커)용.
     """
     thumbs = [it.thumbnail_url for it in items if it.thumbnail_url]
     if not thumbs:
         return {}
     rows = (
-        db.query(Media.thumbnail_url, Media.media_id)
+        db.query(
+            Media.thumbnail_url,
+            Media.media_id,
+            Media.latitude,
+            Media.longitude,
+            Media.category_large,
+            Media.category_small,
+        )
         .filter(Media.thumbnail_url.in_(thumbs))
         .all()
     )
-    return {t: m for t, m in rows if t}
+    return {
+        t: {
+            "media_id": mid,
+            "latitude": float(lat) if lat is not None else None,
+            "longitude": float(lng) if lng is not None else None,
+            "category_large": cl,
+            "category_small": cs,
+        }
+        for t, mid, lat, lng, cl, cs in rows
+        if t
+    }
 
 
 def _to_response_item(
-    item: MediaItem, media_id_map: dict[str, str] | None = None
+    item: MediaItem, meta_map: dict[str, dict] | None = None
 ) -> MediaItemResponse:
+    meta = (meta_map or {}).get(item.thumbnail_url or "") or {}
     return MediaItemResponse(
         id=str(item.id),
-        media_id=(media_id_map or {}).get(item.thumbnail_url or ""),
+        media_id=meta.get("media_id"),
         name=item.name,
         media_source=item.media_source,
         price=item.advertisement_fee or None,
         thumbnail_url=item.thumbnail_url or None,
         detail_images=_split_image_urls(item.all_image_urls),
+        latitude=meta.get("latitude"),
+        longitude=meta.get("longitude"),
+        category_large=meta.get("category_large"),
+        category_small=meta.get("category_small"),
     )
 
 
@@ -421,7 +449,7 @@ def recommend_v2(user_text: str, db: Session, top_k: int = DEFAULT_TOP_K) -> Rec
         msg = f"조건에 맞는 매체를 {total}개 찾았어요."
 
     desc_map = load_keyword_descriptions(db)
-    media_id_map = _media_id_by_thumbnail(db, selected)
+    media_id_map = _media_meta_by_thumbnail(db, selected)
     return RecommendV2Response(
         type="list",
         message=msg,
@@ -605,7 +633,7 @@ async def _iter_list_event_data(
         return
 
     selected = sort_by_price_desc(candidates, top_k=top_k)
-    media_id_map = await _run_sync_in_thread(_media_id_by_thumbnail, db, selected)
+    media_id_map = await _run_sync_in_thread(_media_meta_by_thumbnail, db, selected)
     yield {
         "type": "list",
         "message": _build_list_message(total, len(selected)),
