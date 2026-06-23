@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 import { MediaItem, type MediaItemData } from "./MediaItem";
+import { SimpleViewToggle } from "./SimpleViewToggle";
 
 type MediaListProps = {
   items: MediaItemData[];
@@ -24,12 +24,11 @@ export function MediaList({
 
   return (
     <div className={cn("flex w-full flex-col gap-[8px]", className)}>
-      <div className="flex w-full items-center justify-end gap-[6px]">
-        <span className="text-sm font-medium leading-[20px] text-[#757575]">
-          간략히보기
-        </span>
-        <Switch checked={simple} onCheckedChange={setSimple} />
-      </div>
+      <SimpleViewToggle
+        simple={simple}
+        onChange={setSimple}
+        className="w-full justify-end"
+      />
 
       <div className="flex w-full flex-col gap-[8px]">
         {items.map((item, index) => (

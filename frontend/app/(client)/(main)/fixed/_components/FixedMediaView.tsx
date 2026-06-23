@@ -148,6 +148,7 @@ export function FixedMediaView() {
             onRecommendations={handleRecommendations}
             onFocusMedia={setFocusId}
             onOpenDetail={handleOpenDetail}
+            onAddProposal={(id) => setAddProposalMediaId(id)}
           />
         )}
         {chatOpen && selectedMedia && (

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 import { MediaItem, type MediaItemData } from "./MediaItem";
+import { SimpleViewToggle } from "./SimpleViewToggle";
 
 type MarkerMediaPopupProps = {
   items: MediaItemData[];
@@ -31,12 +31,11 @@ export function MarkerMediaPopup({
         className,
       )}
     >
-      <div className="flex items-center justify-end gap-[6px]">
-        <span className="text-sm font-medium leading-[20px] text-[#757575]">
-          간략히보기
-        </span>
-        <Switch checked={simple} onCheckedChange={(value) => setSimple(value)} />
-      </div>
+      <SimpleViewToggle
+        simple={simple}
+        onChange={setSimple}
+        className="justify-end"
+      />
 
       <div className="flex max-h-[360px] flex-col gap-[12px] overflow-y-auto">
         {items.map((item) => (

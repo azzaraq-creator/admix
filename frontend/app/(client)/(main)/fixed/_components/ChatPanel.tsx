@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
-import { Switch } from "@/components/ui/switch";
+import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import {
   ArrowUpIcon,
   FolderIcon,
@@ -58,12 +58,14 @@ export function ChatPanel({
   onRecommendations,
   onFocusMedia,
   onOpenDetail,
+  onAddProposal,
 }: {
   onSelectMedia?: (item: MediaItemData) => void;
   selectedId?: string;
   onRecommendations?: (markers: MapMarker[]) => void;
   onFocusMedia?: (mediaId: string) => void;
   onOpenDetail?: (item: MediaItemData) => void;
+  onAddProposal?: (mediaId: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
@@ -242,6 +244,7 @@ export function ChatPanel({
                       showPhotos={showPhotos}
                       onTogglePhotos={setShowPhotos}
                       onOpenDetail={onOpenDetail}
+                      onAddProposal={onAddProposal}
                     />
                   )}
                 </div>
@@ -293,6 +296,7 @@ export function ChatPanel({
                 {...item}
                 selected={item.id === selectedId}
                 onClick={() => onSelectMedia?.(item)}
+                onAddProposal={() => onAddProposal?.(item.id)}
                 className="rounded-none border-0 border-b"
               />
             ))}
@@ -387,6 +391,7 @@ function AssistantBubble({
   showPhotos,
   onTogglePhotos,
   onOpenDetail,
+  onAddProposal,
 }: {
   message: V2Message;
   selectedId?: string;
@@ -394,6 +399,7 @@ function AssistantBubble({
   showPhotos: boolean;
   onTogglePhotos: (next: boolean) => void;
   onOpenDetail?: (item: MediaItemData) => void;
+  onAddProposal?: (mediaId: string) => void;
 }) {
   if (message.isLoading) {
     return (
@@ -424,6 +430,7 @@ function AssistantBubble({
             onSelectMedia={onSelectMedia}
             showPhotos={showPhotos}
             onTogglePhotos={onTogglePhotos}
+            onAddProposal={onAddProposal}
           />
         )}
       {message.message && (
@@ -547,12 +554,14 @@ function ChatMediaList({
   onSelectMedia,
   showPhotos,
   onTogglePhotos,
+  onAddProposal,
 }: {
   items: V2MediaItem[];
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
   showPhotos: boolean;
   onTogglePhotos: (next: boolean) => void;
+  onAddProposal?: (mediaId: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
@@ -560,10 +569,10 @@ function ChatMediaList({
         <span className="text-xs font-medium tracking-wide text-[#757575]">
           추천 매체 ({items.length}개)
         </span>
-        <label className="flex items-center gap-[6px] text-xs font-medium text-[#757575]">
-          사진
-          <Switch checked={showPhotos} onCheckedChange={onTogglePhotos} />
-        </label>
+        <SimpleViewToggle
+          simple={!showPhotos}
+          onChange={(next) => onTogglePhotos(!next)}
+        />
       </div>
       {items.map((it, idx) => {
         const id = it.media_id ?? it.id;
@@ -588,6 +597,7 @@ function ChatMediaList({
                 images,
               })
             }
+            onAddProposal={() => onAddProposal?.(id)}
           />
         );
       })}
