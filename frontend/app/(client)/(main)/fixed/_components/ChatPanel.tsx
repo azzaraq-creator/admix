@@ -10,19 +10,19 @@ import {
   FolderIcon,
   RotateCwIcon,
   SparkleIcon,
-  XIcon,
+  // XIcon, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 } from "@/components/icons";
 import {
   CATEGORY_LABELS,
   mergeEnriched,
   useV2Chat,
-  type EnrichedCode,
+  // type EnrichedCode, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
   type SlotKey,
   type V2Message,
   type V2MediaItem,
 } from "@/hooks/adRecommendV2";
 import { useFixedMediaInfinite } from "@/hooks/media";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
 import type { MapMarker } from "./MapArea";
@@ -223,13 +223,14 @@ export function ChatPanel({
 
       {mode === "search" && <MediaFilterBar />}
 
+      {/* 기획 변경 여지로 임시 비활성화 (SlotBar - 현재 조건)
       {mode === "ai" && hasConversation && (
         <SlotBar
           slots={chat.currentSlots}
           disabled={chat.running}
           onRemove={chat.removeSlot}
         />
-      )}
+      )} */}
 
       <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
         {mode === "ai" ? (
@@ -669,6 +670,7 @@ function ChatMediaList({
   );
 }
 
+/* 기획 변경 여지로 임시 비활성화 (SlotBar - 현재 조건 바)
 function SlotBar({
   slots,
   disabled,
@@ -721,3 +723,4 @@ function SlotBar({
     </div>
   );
 }
+*/
