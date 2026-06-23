@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
   MediaDetailDrawer,
@@ -49,6 +49,7 @@ export function FixedMediaView() {
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
   const [mobileMap, setMobileMap] = useState(false);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [focusId, setFocusId] = useState<string | undefined>(undefined);
 
   const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
 
@@ -57,11 +58,27 @@ export function FixedMediaView() {
     setSelectedMedia({ id, name: mk?.name ?? "", price: "", images: [] });
   };
 
+  // 새 추천 리스트 → 마커 갱신 + 포커스 해제(전체 범위로)
+  const handleRecommendations = useCallback((mk: MapMarker[]) => {
+    setMarkers(mk);
+    setFocusId(undefined);
+  }, []);
+
+  // 챗 상세설명의 "상세보기" — 데스크탑(≥640)은 Drawer, 모바일(<640)은 상세 페이지 이동
+  const handleOpenDetail = (item: MediaItemData) => {
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 639px)").matches;
+    if (isMobile) router.push(`/media/${item.id}`);
+    else setSelectedMedia(item);
+  };
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
       <MapArea
         markers={markers}
         onMarkerClick={handleMarkerClick}
+        focusId={focusId}
         className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
           chatOpen ? "sm:left-[384px]" : "sm:left-0"
         } ${mobileMap ? "block" : "hidden"}`}
@@ -76,7 +93,9 @@ export function FixedMediaView() {
           <ChatPanel
             onSelectMedia={setSelectedMedia}
             selectedId={selectedMedia?.id}
-            onRecommendations={setMarkers}
+            onRecommendations={handleRecommendations}
+            onFocusMedia={setFocusId}
+            onOpenDetail={handleOpenDetail}
           />
         )}
         {chatOpen && selectedMedia && (

@@ -55,10 +55,14 @@ export function ChatPanel({
   onSelectMedia,
   selectedId,
   onRecommendations,
+  onFocusMedia,
+  onOpenDetail,
 }: {
   onSelectMedia?: (item: MediaItemData) => void;
   selectedId?: string;
   onRecommendations?: (markers: MapMarker[]) => void;
+  onFocusMedia?: (mediaId: string) => void;
+  onOpenDetail?: (item: MediaItemData) => void;
 }) {
   const [mode, setMode] = useState<Mode>("ai");
   const [value, setValue] = useState("");
@@ -100,8 +104,8 @@ export function ChatPanel({
     if (mode === "ai") endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages, mode]);
 
-  // media_detail 응답이 오면 해당 매체의 상세 Drawer 자동 오픈 (중복 방지)
-  const openedMediaRef = useRef<string | null>(null);
+  // media_detail 응답이 오면 해당 매체 마커를 지도 가운데로 포커싱 (Drawer 자동오픈 X, 중복 방지)
+  const focusedMediaRef = useRef<string | null>(null);
   useEffect(() => {
     if (mode !== "ai") return;
     const msgs = chat.messages;
@@ -111,19 +115,14 @@ export function ChatPanel({
       if (
         m.response_type === "media_detail" &&
         m.media?.media_id &&
-        openedMediaRef.current !== m.id
+        focusedMediaRef.current !== m.id
       ) {
-        openedMediaRef.current = m.id;
-        onSelectMedia?.({
-          id: m.media.media_id,
-          name: m.media.name ?? "",
-          price: "",
-          images: m.media.thumbnail_url ? [m.media.thumbnail_url] : [],
-        });
+        focusedMediaRef.current = m.id;
+        onFocusMedia?.(m.media.media_id);
       }
       break;
     }
-  }, [chat.messages, mode, onSelectMedia]);
+  }, [chat.messages, mode, onFocusMedia]);
 
   // 최신 추천 리스트 → 지도 마커로 상위 전달 (대분류별 색상)
   const lastMarkersMsgRef = useRef<string | null>(null);
@@ -235,6 +234,7 @@ export function ChatPanel({
                       onSelectMedia={onSelectMedia}
                       showPhotos={showPhotos}
                       onTogglePhotos={setShowPhotos}
+                      onOpenDetail={onOpenDetail}
                     />
                   )}
                 </div>
@@ -374,12 +374,14 @@ function AssistantBubble({
   onSelectMedia,
   showPhotos,
   onTogglePhotos,
+  onOpenDetail,
 }: {
   message: V2Message;
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
   showPhotos: boolean;
   onTogglePhotos: (next: boolean) => void;
+  onOpenDetail?: (item: MediaItemData) => void;
 }) {
   if (message.isLoading) {
     return (
@@ -416,6 +418,24 @@ function AssistantBubble({
         <p className="whitespace-pre-line text-base leading-[24px] text-black">
           {message.message}
         </p>
+      )}
+      {message.response_type === "media_detail" && message.media?.media_id && (
+        <button
+          type="button"
+          onClick={() =>
+            onOpenDetail?.({
+              id: message.media!.media_id as string,
+              name: message.media!.name ?? "",
+              price: "",
+              images: message.media!.thumbnail_url
+                ? [message.media!.thumbnail_url]
+                : [],
+            })
+          }
+          className="mt-1 inline-flex items-center justify-center rounded-[8px] border border-primary px-[14px] py-[6px] text-sm font-medium text-primary transition-colors hover:bg-secondary"
+        >
+          상세보기
+        </button>
       )}
     </div>
   );

@@ -46,6 +46,7 @@ interface KakaoMaps {
     position: KakaoLatLng;
     image?: KakaoMarkerImage;
     title?: string;
+    zIndex?: number;
   }) => KakaoMarker;
   MarkerImage: new (
     src: string,
@@ -98,9 +99,14 @@ const CATEGORY_TO_ITEM: Record<string, string> = {
   "생활 편의시설": "생활&편의시설",
 };
 
-function markerSrc(categoryLarge?: string | null): string {
+const FOCUS_SCALE = 1.4; // 포커스 시 마커 확대 배율
+
+function markerSrc(categoryLarge?: string | null, focused = false): string {
   const item = (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) || "기타";
-  return encodeURI(MARKER_SRC[item] ?? MARKER_SRC["기타"]);
+  const file = MARKER_SRC[item] ?? MARKER_SRC["기타"];
+  // 포커스 변형: 바깥 링 흰색 (public/markers/focus/*.svg)
+  const path = focused ? file.replace("/markers/", "/markers/focus/") : file;
+  return encodeURI(path);
 }
 
 function loadKakaoSdk(): Promise<void> {
@@ -133,10 +139,12 @@ export function MapArea({
   className,
   markers = [],
   onMarkerClick,
+  focusId,
 }: {
   className?: string;
   markers?: MapMarker[];
   onMarkerClick?: (id: string) => void;
+  focusId?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
@@ -182,25 +190,38 @@ export function MapArea({
     if (valid.length === 0) return;
 
     const imageCache: Record<string, KakaoMarkerImage> = {};
-    const imageFor = (categoryLarge?: string | null): KakaoMarkerImage => {
-      const src = markerSrc(categoryLarge);
+    const imageFor = (
+      categoryLarge: string | null | undefined,
+      focused: boolean,
+    ): KakaoMarkerImage => {
+      const src = markerSrc(categoryLarge, focused);
       if (!imageCache[src]) {
+        const scale = focused ? FOCUS_SCALE : 1;
         imageCache[src] = new maps.MarkerImage(
           src,
-          new maps.Size(MARKER_SIZE.width, MARKER_SIZE.height),
-          { offset: new maps.Point(MARKER_ANCHOR.x, MARKER_ANCHOR.y) },
+          new maps.Size(MARKER_SIZE.width * scale, MARKER_SIZE.height * scale),
+          {
+            offset: new maps.Point(
+              MARKER_ANCHOR.x * scale,
+              MARKER_ANCHOR.y * scale,
+            ),
+          },
         );
       }
       return imageCache[src];
     };
 
     const bounds = new maps.LatLngBounds();
+    let focused: MapMarker | undefined;
     valid.forEach((m) => {
+      const isFocused = !!focusId && m.id === focusId;
+      if (isFocused) focused = m;
       const pos = new maps.LatLng(m.lat, m.lng);
       const marker = new maps.Marker({
         position: pos,
-        image: imageFor(m.categoryLarge),
+        image: imageFor(m.categoryLarge, isFocused),
         title: m.name,
+        zIndex: isFocused ? 10 : 1,
       });
       marker.setMap(map);
       if (onMarkerClick) {
@@ -210,13 +231,17 @@ export function MapArea({
       bounds.extend(pos);
     });
 
-    if (valid.length === 1) {
+    // 포커스된 매체가 있으면 그 마커로 중심 이동, 없으면 전체 범위 맞춤
+    if (focused) {
+      map.setCenter(new maps.LatLng(focused.lat, focused.lng));
+      map.setLevel(4);
+    } else if (valid.length === 1) {
       map.setCenter(new maps.LatLng(valid[0].lat, valid[0].lng));
       map.setLevel(5);
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, mapReady, onMarkerClick]);
+  }, [markers, focusId, mapReady, onMarkerClick]);
 
   return (
     <div className={className}>
