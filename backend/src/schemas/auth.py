@@ -11,11 +11,16 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     name: str | None = None
+    phone: str | None = None
+    membership_type: str = "individual"
+    company_name: str | None = None
+    marketing_consent: bool = False
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    remember: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -51,6 +56,9 @@ class UserResponse(BaseModel):
     phone: str | None = None
     role: str
     verified: bool
+    membership_type: str = "individual"
+    company_name: str | None = None
+    marketing_consent: bool = False
     created_at: datetime
 
 

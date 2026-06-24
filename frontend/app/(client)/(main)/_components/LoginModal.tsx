@@ -1,13 +1,14 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type SVGProps } from "react";
 
 import { LogoFull, XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import { useLogin } from "@/hooks/auth";
+import { authKeys, useLogin } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
-import { setUserToken } from "@/lib/userToken";
+import { setTokens } from "@/lib/userToken";
 
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
 
@@ -55,6 +56,7 @@ function getErrorStatus(error: unknown): number | undefined {
 
 export function LoginModal() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const open = useLoginModalOpen();
   const loginMutation = useLogin();
 
@@ -77,8 +79,16 @@ export function LoginModal() {
     }
     setCredentialError(false);
     try {
-      const res = await loginMutation.mutateAsync({ email, password });
-      setUserToken(res.access_token, keepLoggedIn);
+      const res = await loginMutation.mutateAsync({
+        email,
+        password,
+        remember: keepLoggedIn,
+      });
+      setTokens(res.access_token, res.refresh_token, keepLoggedIn);
+      await queryClient.invalidateQueries({
+        queryKey: authKeys.me,
+        refetchType: "all",
+      });
       setEmail("");
       setPassword("");
       setLoginModalOpen(false);

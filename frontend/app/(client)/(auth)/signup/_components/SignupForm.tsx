@@ -1,15 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type SVGProps } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ChevronRightIcon, LogoFull } from "@/components/icons";
-import { useRegister } from "@/hooks/auth";
+import { authKeys, useRegister } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
-import { setUserToken } from "@/lib/userToken";
+import { setTokens } from "@/lib/userToken";
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -117,6 +118,7 @@ export function SignupForm({
   membershipType: "individual" | "corporate";
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const registerMutation = useRegister();
   const isCorporate = membershipType === "corporate";
 
@@ -196,14 +198,27 @@ export function SignupForm({
         email: data.email,
         password: data.password,
         name: data.name,
+        phone: data.phone,
+        membership_type: membershipType,
+        company_name: isCorporate ? data.company : undefined,
+        marketing_consent: agreements.marketing,
       });
-      setUserToken(res.access_token, true);
+      setTokens(res.access_token, res.refresh_token, true);
+      await queryClient.invalidateQueries({
+        queryKey: authKeys.me,
+        refetchType: "all",
+      });
       router.replace("/");
     } catch (error) {
-      const status = (error as { response?: { status?: number } })?.response
-        ?.status;
-      if (status === 409) {
-        setError("email", { message: "이미 가입된 이메일입니다." });
+      const response = (
+        error as { response?: { status?: number; data?: { detail?: string } } }
+      )?.response;
+      if (response?.status === 409) {
+        if (response.data?.detail?.includes("전화번호")) {
+          setError("phone", { message: "이미 가입된 전화번호입니다." });
+        } else {
+          setError("email", { message: "이미 가입된 이메일입니다." });
+        }
       }
     }
   });

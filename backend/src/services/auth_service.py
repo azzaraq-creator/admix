@@ -22,23 +22,47 @@ settings = get_settings()
 PASSWORD_RESET_TTL_SECONDS = 3600
 
 
-def issue_tokens(db: Session, user: User) -> tuple[str, str]:
+def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, str]:
     access = create_access_token(
         {"sub": str(user.id)}, settings.jwt_access_secret, settings.jwt_access_expires
     )
-    refresh = create_refresh_token(
-        {"sub": str(user.id)}, settings.jwt_refresh_secret, settings.jwt_refresh_expires
+    refresh_expires = (
+        settings.jwt_refresh_expires_remember if remember else settings.jwt_refresh_expires
     )
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_expires)
+    refresh = create_refresh_token(
+        {"sub": str(user.id), "remember": remember},
+        settings.jwt_refresh_secret,
+        refresh_expires,
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_expires)
     db.add(RefreshToken(token=refresh, user_id=user.id, expires_at=expires_at))
     db.commit()
     return access, refresh
 
 
-def register(db: Session, email: str, password: str, name: str | None) -> User:
+def register(
+    db: Session,
+    email: str,
+    password: str,
+    name: str | None,
+    phone: str | None = None,
+    membership_type: str = "individual",
+    company_name: str | None = None,
+    marketing_consent: bool = False,
+) -> User:
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
-    user = User(email=email, password=hash_password(password), name=name)
+    if phone and db.query(User).filter(User.phone == phone).first():
+        raise HTTPException(status_code=409, detail="이미 가입된 전화번호입니다.")
+    user = User(
+        email=email,
+        password=hash_password(password),
+        name=name,
+        phone=phone or None,
+        membership_type=membership_type,
+        company_name=company_name or None,
+        marketing_consent=marketing_consent,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -68,7 +92,7 @@ def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
     row.revoked = True
     db.commit()
-    return issue_tokens(db, user)
+    return issue_tokens(db, user, bool(payload.get("remember", False)))
 
 
 def revoke_refresh_token(db: Session, refresh_token: str) -> None:

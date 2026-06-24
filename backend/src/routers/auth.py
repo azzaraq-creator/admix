@@ -24,15 +24,24 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    user = auth_service.register(db, body.email, body.password, body.name)
-    access, refresh = auth_service.issue_tokens(db, user)
+    user = auth_service.register(
+        db,
+        body.email,
+        body.password,
+        body.name,
+        phone=body.phone,
+        membership_type=body.membership_type,
+        company_name=body.company_name,
+        marketing_consent=body.marketing_consent,
+    )
+    access, refresh = auth_service.issue_tokens(db, user, remember=True)
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, body.email, body.password)
-    access, refresh = auth_service.issue_tokens(db, user)
+    access, refresh = auth_service.issue_tokens(db, user, remember=body.remember)
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 

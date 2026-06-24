@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     jwt_access_secret: str = "change-me-access-secret"
     jwt_refresh_secret: str = "change-me-refresh-secret"
     jwt_access_expires: int = 3600
-    jwt_refresh_expires: int = 604800
+    jwt_refresh_expires: int = 604800  # 7d (로그인 유지 미체크)
+    jwt_refresh_expires_remember: int = 2592000  # 30d (로그인 유지 체크)
     admin_token_expires: int = 86400
 
     kakao_client_id: str = ""

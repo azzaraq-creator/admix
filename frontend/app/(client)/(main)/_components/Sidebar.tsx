@@ -1,20 +1,27 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { type ComponentType, type MouseEvent, type SVGProps } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type ComponentType, type MouseEvent, type SVGProps } from "react";
 
 import {
   AirplayIcon,
   BusIcon,
+  ChevronRightIcon,
   CircleAlertIcon,
   ColumnsToggleIcon,
   FolderIcon,
   HeadsetIcon,
   Logo,
   LogInIcon,
+  LogOutIcon,
   MapIcon,
+  UserIcon,
 } from "@/components/icons";
+import { authKeys, useMe } from "@/hooks/auth";
+import { clearUserToken } from "@/lib/userToken";
+
 import { setLnbExpanded, useLnbExpanded } from "./useLnb";
 import { openLoginModal } from "./useLoginModal";
 
@@ -52,7 +59,21 @@ export function Sidebar() {
   const pathname = usePathname();
   const isHelp = pathname?.startsWith("/help") ?? false;
 
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const [profileOpen, setProfileOpen] = useState(false);
+
   const setOpen = setLnbExpanded;
+
+  const handleLogout = () => {
+    clearUserToken();
+    queryClient.removeQueries({ queryKey: authKeys.me });
+    setProfileOpen(false);
+    router.push("/");
+  };
+
+  const displayName = me?.name?.trim() ? me.name : "회원";
   const stop = (event: MouseEvent) => event.stopPropagation();
   const handleNavClick = (event: MouseEvent) => {
     event.stopPropagation();
@@ -157,24 +178,106 @@ export function Sidebar() {
               </Link>
               <LnbTooltip label="도움말" expanded={expanded} />
             </div>
-            <button
-              type="button"
-              aria-label="로그인 / 회원가입"
-              onClick={(event) => {
-                stop(event);
-                openLoginModal();
-              }}
-              className="flex w-full items-center justify-center gap-[6px] rounded-[8px] bg-primary p-[12px] text-white transition-colors hover:bg-primary-800 active:bg-primary-900"
-            >
-              <LogInIcon className="size-[24px] shrink-0" />
-              <span
-                className={`pointer-events-none text-base font-medium whitespace-nowrap ${
-                  expanded ? "opacity-100" : "hidden"
-                }`}
+            {me ? (
+              <div className="group relative">
+                {profileOpen && expanded && (
+                  <>
+                    <div
+                      aria-hidden
+                      onClick={(event) => {
+                        stop(event);
+                        setProfileOpen(false);
+                      }}
+                      className="fixed inset-0 z-30"
+                    />
+                    <div className="absolute bottom-full left-0 z-40 mb-[4px] flex w-full flex-col gap-[4px] rounded-[8px] bg-white px-[12px] py-[4px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)]">
+                      <Link
+                        href="/profile"
+                        onClick={handleNavClick}
+                        className="flex items-center justify-between border-b-[0.917px] border-stroke px-[6px] py-[12px]"
+                      >
+                        <span className="flex items-center gap-[6px]">
+                          <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-[#00aaa4]">
+                            <UserIcon className="size-[14px] text-white" />
+                          </span>
+                          <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                            {displayName}
+                          </span>
+                        </span>
+                        <ChevronRightIcon className="size-[16px] shrink-0 text-[#2f3442]" />
+                      </Link>
+                      <Link
+                        href="/help"
+                        onClick={handleNavClick}
+                        className="flex items-center gap-[6px] px-[6px] py-[12px]"
+                      >
+                        <CircleAlertIcon className="size-[20px] shrink-0 text-[#2f3442]" />
+                        <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                          도움말
+                        </span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          stop(event);
+                          handleLogout();
+                        }}
+                        className="flex items-center gap-[6px] px-[6px] py-[12px]"
+                      >
+                        <LogOutIcon className="size-[20px] shrink-0 text-[#2f3442]" />
+                        <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                          로그아웃
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                )}
+                <button
+                  type="button"
+                  aria-label="프로필 메뉴"
+                  onClick={(event) => {
+                    stop(event);
+                    if (!expanded) {
+                      setOpen(true);
+                      return;
+                    }
+                    setProfileOpen((value) => !value);
+                  }}
+                  className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors hover:bg-[#e5f6f6]"
+                >
+                  <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-[#00aaa4]">
+                    <UserIcon className="size-[14px] text-white" />
+                  </span>
+                  <span
+                    className={`pointer-events-none whitespace-nowrap text-base font-medium text-[#2f3442] ${
+                      expanded ? "opacity-100" : "hidden"
+                    }`}
+                  >
+                    {displayName}
+                  </span>
+                </button>
+                <LnbTooltip label={displayName} expanded={expanded} />
+              </div>
+            ) : (
+              <button
+                type="button"
+                aria-label="로그인 / 회원가입"
+                onClick={(event) => {
+                  stop(event);
+                  openLoginModal();
+                }}
+                className="flex w-full items-center justify-center gap-[6px] rounded-[8px] bg-primary p-[12px] text-white transition-colors hover:bg-primary-800 active:bg-primary-900"
               >
-                로그인 / 회원가입
-              </span>
-            </button>
+                <LogInIcon className="size-[24px] shrink-0" />
+                <span
+                  className={`pointer-events-none text-base font-medium whitespace-nowrap ${
+                    expanded ? "opacity-100" : "hidden"
+                  }`}
+                >
+                  로그인 / 회원가입
+                </span>
+              </button>
+            )}
           </div>
         </nav>
       </aside>

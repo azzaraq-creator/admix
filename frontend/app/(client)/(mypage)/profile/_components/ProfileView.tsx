@@ -1,12 +1,15 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/common/buttons";
 import { UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
+import { authKeys, useMe } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
+import { clearUserToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
@@ -14,13 +17,14 @@ import { TextFieldModal } from "./TextFieldModal";
 
 type ModalKey = "password" | "company" | "name" | "business";
 
-const ACCOUNT_ROWS: { label: string; value: string; modal: ModalKey | null }[] =
-  [
-    { label: "비밀번호", value: "**********", modal: "password" },
-    { label: "회사이름", value: "(주)아우라웍스", modal: "company" },
-    { label: "이름", value: "임현우", modal: "name" },
-    { label: "전화번호", value: "010-1234-5678", modal: null },
-  ];
+function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  return phone;
+}
 
 const ROW_CLASS =
   "flex items-center gap-[12px] border-b border-[#e8e8e8] py-[12px] sm:gap-[42px] sm:py-[28px]";
@@ -32,11 +36,36 @@ const FIELD_CLASS = "flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]";
 
 export function ProfileView() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: me } = useMe();
   const { confirm, confirmDialog } = useConfirm();
-  const [marketing, setMarketing] = useState(true);
+  const [marketingOverride, setMarketingOverride] = useState<boolean | null>(
+    null,
+  );
   const [openModal, setOpenModal] = useState<ModalKey | null>(null);
 
+  const marketing = marketingOverride ?? me?.marketing_consent ?? false;
+
+  const name = me?.name?.trim() ? me.name : "";
+  const email = me?.email ?? "";
+  const companyName = me?.company_name ?? "";
+  const phone = formatPhone(me?.phone);
+
+  const accountRows: { label: string; value: string; modal: ModalKey | null }[] =
+    [
+      { label: "비밀번호", value: "**********", modal: "password" },
+      { label: "회사이름", value: companyName, modal: "company" },
+      { label: "이름", value: name, modal: "name" },
+      { label: "전화번호", value: phone, modal: null },
+    ];
+
   const closeModal = () => setOpenModal(null);
+
+  const handleLogout = () => {
+    clearUserToken();
+    queryClient.removeQueries({ queryKey: authKeys.me });
+    router.push("/");
+  };
 
   const handleWithdraw = async () => {
     const ok = await confirm({
@@ -66,17 +95,17 @@ export function ProfileView() {
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
             <p className="truncate text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
-              임현우
+              {name}
             </p>
             <p className="truncate text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
-              user01@naver.com
+              {email}
             </p>
           </div>
         </div>
         <Button
           variant="secondary"
           size="md"
-          onClick={() => router.push("/")}
+          onClick={handleLogout}
           className="w-full shrink-0 sm:w-auto"
         >
           로그아웃
@@ -86,10 +115,10 @@ export function ProfileView() {
       <div className="flex flex-col rounded-[12px] border border-stroke px-[16px] sm:px-[24px]">
         <div className="flex flex-col gap-[6px] border-b border-[#e8e8e8] py-[12px] sm:gap-[12px] sm:py-[28px]">
           <p className={LABEL_CLASS}>아이디</p>
-          <p className={VALUE_CLASS}>user01@naver.com</p>
+          <p className={VALUE_CLASS}>{email}</p>
         </div>
 
-        {ACCOUNT_ROWS.map((row) => (
+        {accountRows.map((row) => (
           <div key={row.label} className={ROW_CLASS}>
             <div className={FIELD_CLASS}>
               <p className={LABEL_CLASS}>{row.label}</p>
@@ -133,7 +162,7 @@ export function ProfileView() {
               (신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있습니다.)
             </p>
           </div>
-          <Switch checked={marketing} onCheckedChange={setMarketing} />
+          <Switch checked={marketing} onCheckedChange={setMarketingOverride} />
         </div>
       </div>
 
@@ -164,14 +193,14 @@ export function ProfileView() {
         onOpenChange={(value) => !value && closeModal()}
         title="회사 이름 변경"
         placeholder="회사 이름을 입력해 주세요"
-        defaultValue="(주)아우라웍스"
+        defaultValue={companyName}
       />
       <TextFieldModal
         open={openModal === "name"}
         onOpenChange={(value) => !value && closeModal()}
         title="이름 변경"
         placeholder="이름을 입력해 주세요"
-        defaultValue="임현우"
+        defaultValue={name}
       />
       <BusinessRegisterModal
         open={openModal === "business"}
