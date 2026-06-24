@@ -50,6 +50,9 @@ export interface ProposalItem {
   name: string | null;
   price: number | null;
   thumbnail_url: string | null;
+  division: string | null;
+  region: string | null;
+  product: string | null;
 }
 
 export interface ProposalDetail extends ProposalSummary {

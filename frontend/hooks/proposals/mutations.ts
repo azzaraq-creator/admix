@@ -25,6 +25,18 @@ export const useAddProposalItems = () => {
   });
 };
 
+export const useRemoveProposalItem = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mediaId }: { id: string; mediaId: string }) =>
+      proposalsClientApi.removeItem(id, mediaId),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
+      qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    },
+  });
+};
+
 export const useReorderProposal = () => {
   const qc = useQueryClient();
   return useMutation({

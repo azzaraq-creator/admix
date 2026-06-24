@@ -95,7 +95,7 @@ def get_proposal(
     user: Optional[User] = Depends(get_current_user_optional),
 ):
     p = _get_owned_or_404(db, proposal_id, user, session_id)
-    return ProposalDetail(**proposal_service.to_detail(p))
+    return ProposalDetail(**proposal_service.to_detail(db, p))
 
 
 @router.patch("/{proposal_id}", response_model=ProposalSummary)
@@ -131,7 +131,7 @@ def add_items(
 ):
     p = _get_owned_or_404(db, proposal_id, user, body.session_id)
     p = proposal_service.add_items(db, p, body.media_ids)
-    return ProposalDetail(**proposal_service.to_detail(p))
+    return ProposalDetail(**proposal_service.to_detail(db, p))
 
 
 @router.put("/{proposal_id}/order", response_model=ProposalDetail)
@@ -143,7 +143,7 @@ def reorder_items(
 ):
     p = _get_owned_or_404(db, proposal_id, user, body.session_id)
     p = proposal_service.reorder_items(db, p, body.media_ids)
-    return ProposalDetail(**proposal_service.to_detail(p))
+    return ProposalDetail(**proposal_service.to_detail(db, p))
 
 
 @router.delete("/{proposal_id}/items/{media_id}", response_model=ProposalDetail)
@@ -156,7 +156,7 @@ def remove_item(
 ):
     p = _get_owned_or_404(db, proposal_id, user, session_id)
     p = proposal_service.remove_item(db, p, media_id)
-    return ProposalDetail(**proposal_service.to_detail(p))
+    return ProposalDetail(**proposal_service.to_detail(db, p))
 
 
 @router.post("/{proposal_id}/submit", response_model=ProposalSummary)

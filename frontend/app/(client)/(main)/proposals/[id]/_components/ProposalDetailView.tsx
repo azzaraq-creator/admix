@@ -22,18 +22,23 @@ import {
   isMember,
   useDeleteProposal,
   useProposalDetail,
+  useRemoveProposalItem,
   useRenameProposal,
   useReorderProposal,
   useSubmitProposal,
+  type ProposalItem,
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
+import { SummarySlide, SummaryThumb } from "./SummaryTemplate";
+
 
 type Slide = { id: string; name: string };
 
 const PREVIEW = "/proposals/sample.png";
+const SUMMARY_PAGE_SIZE = 5;
 const ZOOM_MIN = 25;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 25;
@@ -66,6 +71,7 @@ export function ProposalDetailView({ id }: { id: string }) {
   const deleteMutation = useDeleteProposal();
   const submitMutation = useSubmitProposal();
   const reorderMutation = useReorderProposal();
+  const removeItemMutation = useRemoveProposalItem();
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -75,28 +81,51 @@ export function ProposalDetailView({ id }: { id: string }) {
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const dragIndex = useRef<number | null>(null);
 
+  const orderedItems = useMemo<ProposalItem[]>(() => {
+    const items = proposal?.items ?? [];
+    if (!mediaOrder) return items;
+    const byId = new Map(items.map((item) => [item.media_id, item]));
+    const ordered = mediaOrder
+      .map((mediaId) => byId.get(mediaId))
+      .filter((item): item is ProposalItem => Boolean(item));
+    const extras = items.filter((item) => !mediaOrder.includes(item.media_id));
+    return [...ordered, ...extras];
+  }, [proposal?.items, mediaOrder]);
+
+  // 서머리 1장당 매체 5개, 초과 시 페이지 분할 (매체가 없어도 빈 서머리 1장 유지)
+  const summaryPages = useMemo<ProposalItem[][]>(() => {
+    if (orderedItems.length === 0) return [[]];
+    const pages: ProposalItem[][] = [];
+    for (let i = 0; i < orderedItems.length; i += SUMMARY_PAGE_SIZE) {
+      pages.push(orderedItems.slice(i, i + SUMMARY_PAGE_SIZE));
+    }
+    return pages;
+  }, [orderedItems]);
+
   const slides = useMemo<Slide[]>(() => {
-    let mediaSlides = (proposal?.items ?? []).map((item) => ({
+    const summarySlides = summaryPages.map((_, index) => ({
+      id: `summary-${index}`,
+      name: summaryPages.length > 1 ? `서머리 ${index + 1}` : "서머리",
+    }));
+    const mediaSlides = orderedItems.map((item) => ({
       id: item.media_id,
       name: item.name ?? "이름 없음",
     }));
-    if (mediaOrder) {
-      const byId = new Map(mediaSlides.map((slide) => [slide.id, slide]));
-      const ordered = mediaOrder
-        .map((mediaId) => byId.get(mediaId))
-        .filter((slide): slide is Slide => Boolean(slide));
-      const extras = mediaSlides.filter(
-        (slide) => !mediaOrder.includes(slide.id),
-      );
-      mediaSlides = [...ordered, ...extras];
-    }
     return [
       { id: "cover", name: "표지" },
-      { id: "summary", name: "서머리" },
+      ...summarySlides,
       ...mediaSlides,
       { id: "thanks", name: "THANK YOU" },
     ];
-  }, [proposal?.items, mediaOrder]);
+  }, [summaryPages, orderedItems]);
+
+  // 고정 슬라이드: 표지(0) + 서머리(1..N). 매체 슬라이드는 그 다음부터 순서변경 가능
+  const firstMediaIndex = 1 + summaryPages.length;
+  const parseSummaryPage = (slideId: string): number | null =>
+    slideId.startsWith("summary-")
+      ? Number(slideId.slice("summary-".length))
+      : null;
+  const selectedSummaryPage = parseSummaryPage(selectedId);
 
   const title = proposal?.title ?? "";
   const submitted = proposal?.status === "execution_requested";
@@ -119,18 +148,20 @@ export function ProposalDetailView({ id }: { id: string }) {
     dragIndex.current = null;
     if (from === null || from === dropIndex) return;
     const lastIndex = slides.length - 1;
-    // 표지(0)·서머리(1)·마지막 슬라이드는 고정, 중간 매체 슬라이드만 순서변경
-    const isReorderable = (i: number) => i >= 2 && i < lastIndex;
+    // 표지·서머리·마지막 슬라이드는 고정, 중간 매체 슬라이드만 순서변경
+    const isReorderable = (i: number) => i >= firstMediaIndex && i < lastIndex;
     if (!isReorderable(from) || !isReorderable(dropIndex)) return;
-    const mediaSlides = slides.slice(2, lastIndex);
+    const mediaSlides = slides.slice(firstMediaIndex, lastIndex);
     const next = [...mediaSlides];
-    const [moved] = next.splice(from - 2, 1);
-    next.splice(dropIndex - 2, 0, moved);
+    const [moved] = next.splice(from - firstMediaIndex, 1);
+    next.splice(dropIndex - firstMediaIndex, 0, moved);
     setMediaOrder(next.map((slide) => slide.id));
   };
 
   const handleSave = async () => {
-    const mediaIds = slides.slice(2, slides.length - 1).map((slide) => slide.id);
+    const mediaIds = slides
+      .slice(firstMediaIndex, slides.length - 1)
+      .map((slide) => slide.id);
     if (mediaIds.length === 0) {
       success("저장이 완료되었습니다.");
       return;
@@ -142,6 +173,26 @@ export function ProposalDetailView({ id }: { id: string }) {
     } catch {
       return;
     }
+  };
+
+  const handleDeleteSlide = async (
+    slideNumber: number,
+    mediaId: string,
+    name: string,
+  ) => {
+    const ok = await confirm({
+      title: "슬라이드를 삭제하시겠습니까?",
+      description: (
+        <>
+          <span className="font-bold text-[#2f3442]">
+            {slideNumber}-{name}
+          </span>
+          가 제안서에서 삭제됩니다.
+        </>
+      ),
+      confirmText: "삭제",
+    });
+    if (ok) await removeItemMutation.mutateAsync({ id, mediaId });
   };
 
   const handleSubmit = async () => {
@@ -265,9 +316,11 @@ export function ProposalDetailView({ id }: { id: string }) {
             <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
               {slides.map((slide, index) => {
                 const lastIndex = slides.length - 1;
-                const isFixed = index < 2 || index === lastIndex;
+                const isFixed = index < firstMediaIndex || index === lastIndex;
                 const showDivider =
-                  index === 2 || (index === lastIndex && index > 2);
+                  index === firstMediaIndex ||
+                  (index === lastIndex && lastIndex > firstMediaIndex);
+                const summaryPage = parseSummaryPage(slide.id);
                 return (
                   <Fragment key={slide.id}>
                     {showDivider && (
@@ -308,12 +361,34 @@ export function ProposalDetailView({ id }: { id: string }) {
                                 : "border border-stroke",
                             )}
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={PREVIEW}
-                              alt=""
-                              className="size-full object-cover"
-                            />
+                            {summaryPage !== null && proposal ? (
+                              <SummaryThumb
+                                proposal={proposal}
+                                rows={summaryPages[summaryPage] ?? []}
+                                startIndex={summaryPage * SUMMARY_PAGE_SIZE}
+                              />
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={PREVIEW}
+                                alt=""
+                                className="size-full object-cover"
+                              />
+                            )}
+                            {!isFixed && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                aria-label="슬라이드 삭제"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteSlide(index + 1, slide.id, slide.name);
+                                }}
+                                className="absolute right-[7px] top-[7px] flex items-center rounded-full bg-black/70 p-[4px] text-white"
+                              >
+                                <TrashIcon className="size-[14px]" />
+                              </span>
+                            )}
                           </button>
                           <p className="text-center text-sm font-medium leading-[20px] text-black">
                             {slide.name}
@@ -352,13 +427,22 @@ export function ProposalDetailView({ id }: { id: string }) {
               </Button>
             </div>
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={PREVIEW}
-                alt="슬라이드 미리보기"
-                className="rounded-[8px] object-contain"
-                style={{ width: `${zoom}%` }}
-              />
+              {selectedSummaryPage !== null && proposal ? (
+                <SummarySlide
+                  proposal={proposal}
+                  rows={summaryPages[selectedSummaryPage] ?? []}
+                  startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
+                  zoom={zoom}
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={PREVIEW}
+                  alt="슬라이드 미리보기"
+                  className="rounded-[8px] object-contain"
+                  style={{ width: `${zoom}%` }}
+                />
+              )}
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-[40px] flex justify-center">
               <div className="pointer-events-auto flex items-center rounded-[12px] border border-[#f6f6f6] bg-white shadow-sm">

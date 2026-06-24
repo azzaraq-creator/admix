@@ -39,6 +39,9 @@ class ProposalItemOut(BaseModel):
     name: Optional[str] = None
     price: Optional[int] = None
     thumbnail_url: Optional[str] = None
+    division: Optional[str] = None
+    region: Optional[str] = None
+    product: Optional[str] = None
 
 
 class ProposalDetail(ProposalSummary):

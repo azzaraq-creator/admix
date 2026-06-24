@@ -256,16 +256,34 @@ def to_summary(p: Proposal) -> dict:
     )
 
 
-def to_detail(p: Proposal) -> dict:
-    return dict(
-        **to_summary(p),
-        items=[
-            dict(
-                media_id=it.media_id,
-                name=it.name,
-                price=it.price,
-                thumbnail_url=it.thumbnail_url,
-            )
-            for it in p.items
-        ],
-    )
+def to_detail(db: Session, p: Proposal) -> dict:
+    media_ids = [it.media_id for it in p.items]
+    media_map: dict = {}
+    if media_ids:
+        rows = (
+            db.query(Media)
+            .options(joinedload(Media.plans))
+            .filter(Media.media_id.in_(media_ids))
+            .all()
+        )
+        media_map = {m.media_id: m for m in rows}
+
+    def _item(it) -> dict:
+        m = media_map.get(it.media_id)
+        # plan1 = plans[0] (plan_no 오름차순 정렬). 옵션 선택 기능은 추후.
+        plan = m.plans[0] if m and m.plans else None
+        return dict(
+            media_id=it.media_id,
+            name=plan.product_name if plan and plan.product_name else it.name,
+            price=(
+                plan.advertisement_fee
+                if plan and plan.advertisement_fee is not None
+                else it.price
+            ),
+            thumbnail_url=it.thumbnail_url,
+            division=m.category_small if m else None,
+            region=m.loc_label if m else None,
+            product=plan.product_display_name if plan else None,
+        )
+
+    return dict(**to_summary(p), items=[_item(it) for it in p.items])
