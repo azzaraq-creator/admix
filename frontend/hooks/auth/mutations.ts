@@ -37,5 +37,6 @@ export const useUpdateProfile = () =>
       name?: string;
       company_name?: string;
       phone?: string;
+      marketing_consent?: boolean;
     }) => authApi.updateProfile(payload),
   });

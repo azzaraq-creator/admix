@@ -75,6 +75,7 @@ def update_profile(
     name: str | None = None,
     company_name: str | None = None,
     phone: str | None = None,
+    marketing_consent: bool | None = None,
 ) -> User:
     if name is not None:
         user.name = name
@@ -86,6 +87,8 @@ def update_profile(
         ).first():
             raise HTTPException(status_code=409, detail="이미 사용 중인 전화번호입니다.")
         user.phone = phone or None
+    if marketing_consent is not None:
+        user.marketing_consent = marketing_consent
     db.commit()
     db.refresh(user)
     return user

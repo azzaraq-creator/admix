@@ -37,6 +37,7 @@ class ProfileUpdateRequest(BaseModel):
     name: str | None = None
     company_name: str | None = None
     phone: str | None = None
+    marketing_consent: bool | None = None
 
 
 class ChangePasswordRequest(BaseModel):

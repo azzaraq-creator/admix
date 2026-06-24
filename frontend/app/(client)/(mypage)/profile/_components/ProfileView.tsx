@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/common/buttons";
 import { UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
-import { authKeys, useMe } from "@/hooks/auth";
+import { authKeys, useMe, useUpdateProfile } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
 import { clearUserToken } from "@/lib/userToken";
 
@@ -38,6 +38,7 @@ export function ProfileView() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: me } = useMe();
+  const updateProfile = useUpdateProfile();
   const { confirm, confirmDialog } = useConfirm();
   const [marketingOverride, setMarketingOverride] = useState<boolean | null>(
     null,
@@ -45,6 +46,18 @@ export function ProfileView() {
   const [openModal, setOpenModal] = useState<ModalKey | null>(null);
 
   const marketing = marketingOverride ?? me?.marketing_consent ?? false;
+
+  const handleMarketing = (checked: boolean) => {
+    setMarketingOverride(checked);
+    updateProfile.mutate(
+      { marketing_consent: checked },
+      {
+        onSuccess: () =>
+          queryClient.invalidateQueries({ queryKey: authKeys.me }),
+        onError: () => setMarketingOverride(!checked),
+      },
+    );
+  };
 
   const name = me?.name?.trim() ? me.name : "";
   const email = me?.email ?? "";
@@ -163,7 +176,11 @@ export function ProfileView() {
               (신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있습니다.)
             </p>
           </div>
-          <Switch checked={marketing} onCheckedChange={setMarketingOverride} />
+          <Switch
+            checked={marketing}
+            onCheckedChange={handleMarketing}
+            disabled={updateProfile.isPending}
+          />
         </div>
       </div>
 

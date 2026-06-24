@@ -46,5 +46,6 @@ export const authApi = {
     name?: string;
     company_name?: string;
     phone?: string;
+    marketing_consent?: boolean;
   }) => api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
 };

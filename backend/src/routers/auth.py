@@ -75,6 +75,7 @@ def update_me(
         name=body.name,
         company_name=body.company_name,
         phone=body.phone,
+        marketing_consent=body.marketing_consent,
     )
 
 
