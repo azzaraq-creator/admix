@@ -28,8 +28,8 @@ export function ProfileModalShell({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[512px] flex-col">
-        <div className="flex items-center justify-between px-[30px] py-[20px]">
+      <DialogContent className="flex w-[512px] max-w-[calc(100vw-32px)] flex-col">
+        <div className="flex items-center justify-between p-[16px] sm:px-[30px] sm:py-[20px]">
           <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
             {title}
           </p>
@@ -37,8 +37,8 @@ export function ProfileModalShell({
             <XIcon className="size-[24px]" />
           </DialogClose>
         </div>
-        <div className="px-[30px]">{children}</div>
-        <div className="px-[30px] py-[20px]">
+        <div className="px-[16px] sm:px-[30px]">{children}</div>
+        <div className="p-[16px] sm:px-[30px] sm:py-[20px]">
           <Button
             variant="primary"
             size="lg"

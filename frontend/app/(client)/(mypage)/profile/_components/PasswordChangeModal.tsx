@@ -117,7 +117,7 @@ export function PasswordChangeModal({
       submitDisabled={!canSubmit}
       onSubmit={handleSubmit}
     >
-      <div className="flex flex-col gap-[20px]">
+      <div className="flex flex-col gap-[12px] sm:gap-[20px]">
         {fields.map((field) => {
           const fieldError = errors[field.key];
           return (
