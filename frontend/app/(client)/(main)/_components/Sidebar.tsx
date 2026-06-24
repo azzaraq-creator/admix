@@ -41,7 +41,7 @@ const MENU_ITEMS: MenuItem[] = [
 function LnbTooltip({ label, expanded }: { label: string; expanded: boolean }) {
   if (expanded) return null;
   return (
-    <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-[16px] hidden -translate-y-1/2 whitespace-nowrap rounded-[8px] bg-white px-[12px] py-[4px] text-base font-medium leading-[24px] text-black drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)] group-hover:block">
+    <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-[16px] hidden -translate-y-1/2 whitespace-nowrap rounded-[8px] bg-white px-[12px] py-[4px] text-base font-medium leading-[24px] text-black drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)] [@media(hover:hover)]:group-hover:block">
       {label}
     </span>
   );

@@ -259,6 +259,49 @@ export function MapArea({
     };
   }, []);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const fitToMarkers = () => {
+      const maps = window.kakao?.maps;
+      const map = mapRef.current;
+      if (!maps || !map) return;
+      const entries = markerObjsRef.current;
+      if (entries.length === 0) return;
+      if (entries.length === 1) {
+        map.setCenter(
+          new maps.LatLng(entries[0].data.lat, entries[0].data.lng),
+        );
+        map.setLevel(5);
+        return;
+      }
+      const bounds = new maps.LatLngBounds();
+      entries.forEach(({ data }) =>
+        bounds.extend(new maps.LatLng(data.lat, data.lng)),
+      );
+      map.setBounds(bounds);
+    };
+
+    let prevWidth = container.clientWidth;
+    let prevHeight = container.clientHeight;
+    const observer = new ResizeObserver((entries) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const { width, height } = entries[0].contentRect;
+      const becameVisible =
+        width > 0 && height > 0 && (prevWidth === 0 || prevHeight === 0);
+      prevWidth = width;
+      prevHeight = height;
+      if (becameVisible) {
+        map.relayout();
+        fitToMarkers();
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [mapReady]);
+
   // 마커 생성 + 범위 맞춤 — markers 변경 시에만 (포커스 변경으로는 재실행 안 됨)
   useEffect(() => {
     const maps = window.kakao?.maps;
