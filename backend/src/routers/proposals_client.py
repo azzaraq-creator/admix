@@ -19,6 +19,7 @@ from src.schemas.proposal import (
     ProposalDetail,
     ProposalSummary,
     RenameProposalRequest,
+    ReorderItemsRequest,
 )
 from src.services import proposal_service
 from src.utils.deps import get_current_user, get_current_user_optional
@@ -130,6 +131,18 @@ def add_items(
 ):
     p = _get_owned_or_404(db, proposal_id, user, body.session_id)
     p = proposal_service.add_items(db, p, body.media_ids)
+    return ProposalDetail(**proposal_service.to_detail(p))
+
+
+@router.put("/{proposal_id}/order", response_model=ProposalDetail)
+def reorder_items(
+    proposal_id: str,
+    body: ReorderItemsRequest,
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional),
+):
+    p = _get_owned_or_404(db, proposal_id, user, body.session_id)
+    p = proposal_service.reorder_items(db, p, body.media_ids)
     return ProposalDetail(**proposal_service.to_detail(p))
 
 

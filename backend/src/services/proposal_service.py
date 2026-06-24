@@ -232,6 +232,18 @@ def remove_item(db: Session, proposal: Proposal, media_id: str) -> Proposal:
     return proposal
 
 
+def reorder_items(
+    db: Session, proposal: Proposal, media_ids: list[str]
+) -> Proposal:
+    order = {media_id: index for index, media_id in enumerate(media_ids)}
+    fallback = len(order)
+    for item in proposal.items:
+        item.position = order.get(item.media_id, fallback)
+    db.commit()
+    db.refresh(proposal)
+    return proposal
+
+
 def to_summary(p: Proposal) -> dict:
     return dict(
         id=str(p.id),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/common/buttons";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
@@ -23,6 +23,7 @@ import {
   useDeleteProposal,
   useProposalDetail,
   useRenameProposal,
+  useReorderProposal,
   useSubmitProposal,
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -31,14 +32,6 @@ import { cn } from "@/lib/utils";
 
 
 type Slide = { id: string; name: string };
-
-const INITIAL_SLIDES: Slide[] = [
-  { id: "s1", name: "표지" },
-  { id: "s2", name: "서머리" },
-  { id: "s3", name: "대편 버스" },
-  { id: "s4", name: "옥외 광고" },
-  { id: "s5", name: "THANK YOU" },
-];
 
 const PREVIEW = "/proposals/sample.png";
 const ZOOM_MIN = 25;
@@ -72,14 +65,38 @@ export function ProposalDetailView({ id }: { id: string }) {
   const renameMutation = useRenameProposal();
   const deleteMutation = useDeleteProposal();
   const submitMutation = useSubmitProposal();
+  const reorderMutation = useReorderProposal();
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [slides, setSlides] = useState<Slide[]>(INITIAL_SLIDES);
-  const [selectedId, setSelectedId] = useState("s1");
+  const [selectedId, setSelectedId] = useState("cover");
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
+  const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const dragIndex = useRef<number | null>(null);
+
+  const slides = useMemo<Slide[]>(() => {
+    let mediaSlides = (proposal?.items ?? []).map((item) => ({
+      id: item.media_id,
+      name: item.name ?? "이름 없음",
+    }));
+    if (mediaOrder) {
+      const byId = new Map(mediaSlides.map((slide) => [slide.id, slide]));
+      const ordered = mediaOrder
+        .map((mediaId) => byId.get(mediaId))
+        .filter((slide): slide is Slide => Boolean(slide));
+      const extras = mediaSlides.filter(
+        (slide) => !mediaOrder.includes(slide.id),
+      );
+      mediaSlides = [...ordered, ...extras];
+    }
+    return [
+      { id: "cover", name: "표지" },
+      { id: "summary", name: "서머리" },
+      ...mediaSlides,
+      { id: "thanks", name: "THANK YOU" },
+    ];
+  }, [proposal?.items, mediaOrder]);
 
   const title = proposal?.title ?? "";
   const submitted = proposal?.status === "execution_requested";
@@ -101,15 +118,30 @@ export function ProposalDetailView({ id }: { id: string }) {
     const from = dragIndex.current;
     dragIndex.current = null;
     if (from === null || from === dropIndex) return;
+    const lastIndex = slides.length - 1;
     // 표지(0)·서머리(1)·마지막 슬라이드는 고정, 중간 매체 슬라이드만 순서변경
-    const isReorderable = (i: number) => i >= 2 && i < slides.length - 1;
+    const isReorderable = (i: number) => i >= 2 && i < lastIndex;
     if (!isReorderable(from) || !isReorderable(dropIndex)) return;
-    setSlides((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(dropIndex, 0, moved);
-      return next;
-    });
+    const mediaSlides = slides.slice(2, lastIndex);
+    const next = [...mediaSlides];
+    const [moved] = next.splice(from - 2, 1);
+    next.splice(dropIndex - 2, 0, moved);
+    setMediaOrder(next.map((slide) => slide.id));
+  };
+
+  const handleSave = async () => {
+    const mediaIds = slides.slice(2, slides.length - 1).map((slide) => slide.id);
+    if (mediaIds.length === 0) {
+      success("저장이 완료되었습니다.");
+      return;
+    }
+    try {
+      await reorderMutation.mutateAsync({ id, mediaIds });
+      setMediaOrder(null);
+      success("저장이 완료되었습니다.");
+    } catch {
+      return;
+    }
   };
 
   const handleSubmit = async () => {
@@ -147,21 +179,6 @@ export function ProposalDetailView({ id }: { id: string }) {
       await deleteMutation.mutateAsync(id);
       router.push("/proposals");
     }
-  };
-
-  const handleDeleteSlide = async (slide: Slide) => {
-    const ok = await confirm({
-      title: "슬라이드를 삭제하시겠습니까?",
-      description: (
-        <>
-          <span className="font-semibold text-[#2f3442]">{slide.name}</span>{" "}
-          슬라이드가 제안서에서 삭제됩니다.
-        </>
-      ),
-      confirmText: "삭제",
-      destructive: true,
-    });
-    if (ok) setSlides((prev) => prev.filter((item) => item.id !== slide.id));
   };
 
   return (
@@ -297,20 +314,6 @@ export function ProposalDetailView({ id }: { id: string }) {
                               alt=""
                               className="size-full object-cover"
                             />
-                            {!isFixed && (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                aria-label="슬라이드 삭제"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleDeleteSlide(slide);
-                                }}
-                                className="absolute right-[6px] top-[6px] hidden items-center rounded-full bg-black/70 p-[5px] text-white group-hover:flex"
-                              >
-                                <TrashIcon className="size-[12px]" />
-                              </span>
-                            )}
                           </button>
                           <p className="text-center text-sm font-medium leading-[20px] text-black">
                             {slide.name}
@@ -342,7 +345,8 @@ export function ProposalDetailView({ id }: { id: string }) {
               <Button
                 variant="tertiary"
                 size="sm"
-                onClick={() => success("저장이 완료되었습니다.")}
+                onClick={handleSave}
+                disabled={reorderMutation.isPending}
               >
                 저장하기
               </Button>

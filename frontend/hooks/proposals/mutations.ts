@@ -25,6 +25,17 @@ export const useAddProposalItems = () => {
   });
 };
 
+export const useReorderProposal = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mediaIds }: { id: string; mediaIds: string[] }) =>
+      proposalsClientApi.reorder(id, mediaIds),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    },
+  });
+};
+
 export const useRenameProposal = () => {
   const qc = useQueryClient();
   return useMutation({

@@ -57,3 +57,8 @@ class RenameProposalRequest(BaseModel):
 class AddItemsRequest(BaseModel):
     media_ids: list[str] = Field(min_length=1)
     session_id: Optional[str] = None
+
+
+class ReorderItemsRequest(BaseModel):
+    media_ids: list[str] = Field(min_length=1)
+    session_id: Optional[str] = None

@@ -107,6 +107,13 @@ export const proposalsClientApi = {
         params: { session_id: getSessionId() },
       })
       .then((r) => r.data),
+  reorder: (id: string, mediaIds: string[]) =>
+    api
+      .put<ProposalDetail>(`/proposals/${id}/order`, {
+        media_ids: mediaIds,
+        session_id: getSessionId(),
+      })
+      .then((r) => r.data),
   submit: (id: string) =>
     api.post<ProposalSummary>(`/proposals/${id}/submit`).then((r) => r.data),
 };

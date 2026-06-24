@@ -52,5 +52,5 @@ class Proposal(Base):
         "ProposalItem",
         back_populates="proposal",
         cascade="all, delete-orphan",
-        order_by="ProposalItem.created_at",
+        order_by="ProposalItem.position, ProposalItem.created_at",
     )
