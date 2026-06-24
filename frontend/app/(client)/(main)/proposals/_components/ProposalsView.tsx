@@ -165,12 +165,13 @@ export function ProposalsView() {
 
   const showLimitDialog = async (tier: ProposalLimitDetail["tier"]) => {
     if (tier === "guest") {
-      await confirm({
+      const ok = await confirm({
         title: "제안서 생성 한도 도달",
         description:
           "무료 체험용 제안서 생성 한도 1건을 모두 사용했어요.\n회원가입 후 더 많은 제안서를 생성하고 관리해 보세요.",
         confirmText: "회원가입하기",
       });
+      if (ok) router.push("/signup");
     } else {
       await confirm({
         title: "제안서 생성 한도 도달",
