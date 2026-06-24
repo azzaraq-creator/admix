@@ -19,3 +19,14 @@ export const useRegister = () =>
   useMutation({
     mutationFn: (payload: RegisterPayload) => authApi.register(payload),
   });
+
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+    }) => authApi.changePassword(currentPassword, newPassword),
+  });

@@ -37,4 +37,9 @@ export const authApi = {
   register: (payload: RegisterPayload) =>
     api.post<LoginResponse>("/auth/register", payload).then((r) => r.data),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/auth/change-password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
 };

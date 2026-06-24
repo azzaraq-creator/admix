@@ -15,6 +15,7 @@ export function ProfileModalShell({
   title,
   children,
   submitLabel = "변경",
+  submitDisabled = false,
   onSubmit,
 }: {
   open: boolean;
@@ -22,6 +23,7 @@ export function ProfileModalShell({
   title: string;
   children: ReactNode;
   submitLabel?: string;
+  submitDisabled?: boolean;
   onSubmit: () => void;
 }) {
   return (
@@ -37,7 +39,13 @@ export function ProfileModalShell({
         </div>
         <div className="px-[30px]">{children}</div>
         <div className="px-[30px] py-[20px]">
-          <Button variant="primary" size="lg" fullWidth onClick={onSubmit}>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={submitDisabled}
+            onClick={onSubmit}
+          >
             {submitLabel}
           </Button>
         </div>
