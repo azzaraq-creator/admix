@@ -74,11 +74,18 @@ def update_profile(
     user: User,
     name: str | None = None,
     company_name: str | None = None,
+    phone: str | None = None,
 ) -> User:
     if name is not None:
         user.name = name
     if company_name is not None:
         user.company_name = company_name or None
+    if phone is not None:
+        if phone and db.query(User).filter(
+            User.phone == phone, User.id != user.id
+        ).first():
+            raise HTTPException(status_code=409, detail="이미 사용 중인 전화번호입니다.")
+        user.phone = phone or None
     db.commit()
     db.refresh(user)
     return user

@@ -15,7 +15,7 @@ import { BusinessRegisterModal } from "./BusinessRegisterModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
 import { TextFieldModal } from "./TextFieldModal";
 
-type ModalKey = "password" | "company" | "name" | "business";
+type ModalKey = "password" | "company" | "name" | "phone" | "business";
 
 function formatPhone(phone: string | null | undefined): string {
   if (!phone) return "";
@@ -49,6 +49,7 @@ export function ProfileView() {
   const name = me?.name?.trim() ? me.name : "";
   const email = me?.email ?? "";
   const companyName = me?.company_name ?? "";
+  const rawPhone = me?.phone ?? "";
   const phone = formatPhone(me?.phone);
 
   const accountRows: { label: string; value: string; modal: ModalKey | null }[] =
@@ -56,7 +57,7 @@ export function ProfileView() {
       { label: "비밀번호", value: "**********", modal: "password" },
       { label: "회사이름", value: companyName, modal: "company" },
       { label: "이름", value: name, modal: "name" },
-      { label: "전화번호", value: phone, modal: null },
+      { label: "전화번호", value: phone, modal: "phone" },
     ];
 
   const closeModal = () => setOpenModal(null);
@@ -205,6 +206,22 @@ export function ProfileView() {
         placeholder="이름을 입력해 주세요"
         field="name"
         defaultValue={name}
+      />
+      <TextFieldModal
+        key={`phone-${rawPhone}`}
+        open={openModal === "phone"}
+        onOpenChange={(value) => !value && closeModal()}
+        title="전화번호 변경"
+        placeholder="전화번호를 입력해 주세요 (- 없이 11자리)"
+        field="phone"
+        defaultValue={rawPhone}
+        validate={(value) =>
+          /^\d{11}$/.test(value)
+            ? null
+            : "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요."
+        }
+        inputMode="numeric"
+        maxLength={11}
       />
       <BusinessRegisterModal
         open={openModal === "business"}

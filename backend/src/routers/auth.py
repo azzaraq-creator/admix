@@ -70,7 +70,11 @@ def update_me(
     db: Session = Depends(get_db),
 ) -> User:
     return auth_service.update_profile(
-        db, current_user, name=body.name, company_name=body.company_name
+        db,
+        current_user,
+        name=body.name,
+        company_name=body.company_name,
+        phone=body.phone,
     )
 
 

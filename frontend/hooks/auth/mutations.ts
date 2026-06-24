@@ -33,6 +33,9 @@ export const useChangePassword = () =>
 
 export const useUpdateProfile = () =>
   useMutation({
-    mutationFn: (payload: { name?: string; company_name?: string }) =>
-      authApi.updateProfile(payload),
+    mutationFn: (payload: {
+      name?: string;
+      company_name?: string;
+      phone?: string;
+    }) => authApi.updateProfile(payload),
   });

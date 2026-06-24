@@ -36,6 +36,7 @@ class RefreshRequest(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     name: str | None = None
     company_name: str | None = None
+    phone: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):
