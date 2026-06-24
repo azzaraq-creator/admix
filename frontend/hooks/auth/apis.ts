@@ -42,4 +42,6 @@ export const authApi = {
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  updateProfile: (payload: { name?: string; company_name?: string }) =>
+    api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
 };

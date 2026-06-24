@@ -189,17 +189,21 @@ export function ProfileView() {
         onOpenChange={(value) => !value && closeModal()}
       />
       <TextFieldModal
+        key={`company-${companyName}`}
         open={openModal === "company"}
         onOpenChange={(value) => !value && closeModal()}
         title="회사 이름 변경"
         placeholder="회사 이름을 입력해 주세요"
+        field="company_name"
         defaultValue={companyName}
       />
       <TextFieldModal
+        key={`name-${name}`}
         open={openModal === "name"}
         onOpenChange={(value) => !value && closeModal()}
         title="이름 변경"
         placeholder="이름을 입력해 주세요"
+        field="name"
         defaultValue={name}
       />
       <BusinessRegisterModal

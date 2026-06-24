@@ -69,6 +69,21 @@ def register(
     return user
 
 
+def update_profile(
+    db: Session,
+    user: User,
+    name: str | None = None,
+    company_name: str | None = None,
+) -> User:
+    if name is not None:
+        user.name = name
+    if company_name is not None:
+        user.company_name = company_name or None
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def authenticate(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == email).first()
     if user is None or user.password is None or not verify_password(password, user.password):

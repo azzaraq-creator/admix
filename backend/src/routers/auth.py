@@ -11,6 +11,7 @@ from src.schemas.auth import (
     LoginRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
+    ProfileUpdateRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -60,6 +61,17 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenRespons
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    body: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    return auth_service.update_profile(
+        db, current_user, name=body.name, company_name=body.company_name
+    )
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
