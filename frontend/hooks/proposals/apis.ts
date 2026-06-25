@@ -72,6 +72,9 @@ export interface ProposalItem {
   latitude: number | null;
   longitude: number | null;
   spec: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  quantity: number | null;
   selected_plan_no: number | null;
   plans: PlanOption[];
 }
@@ -131,11 +134,19 @@ export const proposalsClientApi = {
         params: { session_id: getSessionId() },
       })
       .then((r) => r.data),
-  reorder: (id: string, mediaIds: string[], plans?: Record<string, number>) =>
+  reorder: (
+    id: string,
+    mediaIds: string[],
+    plans?: Record<string, number>,
+    dates?: Record<string, { start_date: string | null; end_date: string | null }>,
+    quantities?: Record<string, number | null>,
+  ) =>
     api
       .put<ProposalDetail>(`/proposals/${id}/order`, {
         media_ids: mediaIds,
         plans,
+        dates,
+        quantities,
         session_id: getSessionId(),
       })
       .then((r) => r.data),

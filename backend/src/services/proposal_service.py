@@ -237,6 +237,8 @@ def reorder_items(
     proposal: Proposal,
     media_ids: list[str],
     plans: dict[str, int] | None = None,
+    dates: dict[str, dict[str, str | None]] | None = None,
+    quantities: dict[str, int | None] | None = None,
 ) -> Proposal:
     order = {media_id: index for index, media_id in enumerate(media_ids)}
     fallback = len(order)
@@ -244,6 +246,11 @@ def reorder_items(
         item.position = order.get(item.media_id, fallback)
         if plans and item.media_id in plans:
             item.selected_plan_no = plans[item.media_id]
+        if dates and item.media_id in dates:
+            item.start_date = dates[item.media_id].get("start_date")
+            item.end_date = dates[item.media_id].get("end_date")
+        if quantities and item.media_id in quantities:
+            item.quantity = quantities[item.media_id]
     db.commit()
     db.refresh(proposal)
     return proposal
@@ -316,6 +323,9 @@ def to_detail(db: Session, p: Proposal) -> dict:
             latitude=float(m.latitude) if m and m.latitude is not None else None,
             longitude=float(m.longitude) if m and m.longitude is not None else None,
             spec=_spec(m),
+            start_date=it.start_date,
+            end_date=it.end_date,
+            quantity=it.quantity,
             selected_plan_no=plan.plan_no if plan else None,
             plans=[
                 dict(

@@ -61,6 +61,9 @@ class ProposalItemOut(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     spec: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    quantity: Optional[int] = None
     selected_plan_no: Optional[int] = None
     plans: list[PlanOut] = []
 
@@ -87,3 +90,5 @@ class ReorderItemsRequest(BaseModel):
     media_ids: list[str] = Field(min_length=1)
     session_id: Optional[str] = None
     plans: Optional[dict[str, int]] = None  # {media_id: plan_no}
+    dates: Optional[dict[str, dict[str, Optional[str]]]] = None  # {media_id: {start_date, end_date}}
+    quantities: Optional[dict[str, Optional[int]]] = None  # {media_id: quantity}

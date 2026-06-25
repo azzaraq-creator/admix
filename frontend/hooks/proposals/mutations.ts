@@ -44,11 +44,18 @@ export const useReorderProposal = () => {
       id,
       mediaIds,
       plans,
+      dates,
+      quantities,
     }: {
       id: string;
       mediaIds: string[];
       plans?: Record<string, number>;
-    }) => proposalsClientApi.reorder(id, mediaIds, plans),
+      dates?: Record<
+        string,
+        { start_date: string | null; end_date: string | null }
+      >;
+      quantities?: Record<string, number | null>;
+    }) => proposalsClientApi.reorder(id, mediaIds, plans, dates, quantities),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
     },

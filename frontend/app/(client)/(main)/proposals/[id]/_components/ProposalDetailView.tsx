@@ -82,6 +82,29 @@ export function ProposalDetailView({ id }: { id: string }) {
   const [selectedPlans, setSelectedPlans] = useState<Record<string, number>>(
     {},
   );
+  const [selectedDates, setSelectedDates] = useState<
+    Record<string, { start_date?: string | null; end_date?: string | null }>
+  >({});
+  const [selectedQuantities, setSelectedQuantities] = useState<
+    Record<string, number | null>
+  >({});
+
+  const handleDateChange = (
+    mediaId: string,
+    field: "start_date" | "end_date",
+    value: string,
+  ) => {
+    setSelectedDates((prev) => ({
+      ...prev,
+      [mediaId]: { ...prev[mediaId], [field]: value },
+    }));
+  };
+  const handleQuantityChange = (mediaId: string, value: string) => {
+    setSelectedQuantities((prev) => ({
+      ...prev,
+      [mediaId]: value === "" ? null : Number(value),
+    }));
+  };
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
@@ -106,19 +129,30 @@ export function ProposalDetailView({ id }: { id: string }) {
         item.selected_plan_no ??
         item.plans[0]?.plan_no ??
         null;
-      if (planNo == null) return item;
       const plan = item.plans.find((p) => p.plan_no === planNo);
-      return plan
+      const withPlan =
+        planNo != null && plan
+          ? {
+              ...item,
+              name: plan.product_name ?? item.name,
+              product: plan.product_display_name,
+              price: plan.advertisement_fee,
+              production_fee: plan.production_fee,
+            }
+          : item;
+      const dateOverride = selectedDates[item.media_id];
+      const withDate = dateOverride
         ? {
-            ...item,
-            name: plan.product_name ?? item.name,
-            product: plan.product_display_name,
-            price: plan.advertisement_fee,
-            production_fee: plan.production_fee,
+            ...withPlan,
+            start_date: dateOverride.start_date ?? withPlan.start_date,
+            end_date: dateOverride.end_date ?? withPlan.end_date,
           }
-        : item;
+        : withPlan;
+      return item.media_id in selectedQuantities
+        ? { ...withDate, quantity: selectedQuantities[item.media_id] }
+        : withDate;
     });
-  }, [orderedItems, selectedPlans]);
+  }, [orderedItems, selectedPlans, selectedDates, selectedQuantities]);
 
   // 서머리 1장당 매체 5개, 초과 시 페이지 분할 (매체가 없어도 빈 서머리 1장 유지)
   const summaryPages = useMemo<ProposalItem[][]>(() => {
@@ -210,14 +244,34 @@ export function ProposalDetailView({ id }: { id: string }) {
       success("저장이 완료되었습니다.");
       return;
     }
+    const dateEntries: Record<
+      string,
+      { start_date: string | null; end_date: string | null }
+    > = {};
+    Object.keys(selectedDates).forEach((mediaId) => {
+      const item = displayItems.find((it) => it.media_id === mediaId);
+      if (item) {
+        dateEntries[mediaId] = {
+          start_date: item.start_date,
+          end_date: item.end_date,
+        };
+      }
+    });
     try {
       await reorderMutation.mutateAsync({
         id,
         mediaIds,
         plans: Object.keys(selectedPlans).length > 0 ? selectedPlans : undefined,
+        dates: Object.keys(dateEntries).length > 0 ? dateEntries : undefined,
+        quantities:
+          Object.keys(selectedQuantities).length > 0
+            ? selectedQuantities
+            : undefined,
       });
       setMediaOrder(null);
       setSelectedPlans({});
+      setSelectedDates({});
+      setSelectedQuantities({});
       success("저장이 완료되었습니다.");
     } catch {
       return;
@@ -492,6 +546,8 @@ export function ProposalDetailView({ id }: { id: string }) {
                   rows={summaryPages[selectedSummaryPage] ?? []}
                   startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
                   zoom={zoom}
+                  onDateChange={handleDateChange}
+                  onQuantityChange={handleQuantityChange}
                 />
               ) : previewMediaItem ? (
                 <MediaSlide

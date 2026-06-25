@@ -85,9 +85,13 @@ const INPUT_CLASS =
 function QuantityCell({
   width,
   interactive,
+  value,
+  onChange,
 }: {
   width: number;
   interactive: boolean;
+  value?: number | null;
+  onChange?: (value: string) => void;
 }) {
   return (
     <div
@@ -100,13 +104,11 @@ function QuantityCell({
           inputMode="numeric"
           placeholder="0"
           readOnly={!interactive}
+          value={value == null ? "" : String(value)}
           aria-label="수량"
-          onInput={(event) => {
-            event.currentTarget.value = event.currentTarget.value.replace(
-              /[^0-9]/g,
-              "",
-            );
-          }}
+          onChange={(event) =>
+            onChange?.(event.target.value.replace(/[^0-9]/g, ""))
+          }
           className={INPUT_CLASS}
         />
       </div>
@@ -114,13 +116,23 @@ function QuantityCell({
   );
 }
 
-function DateInput({ interactive }: { interactive: boolean }) {
+function DateInput({
+  interactive,
+  value,
+  onChange,
+}: {
+  interactive: boolean;
+  value?: string | null;
+  onChange?: (value: string) => void;
+}) {
   return (
     <div className="flex w-full items-center justify-center gap-[10px] rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
       <input
         type="text"
         placeholder="YYYY.MM.DD"
         readOnly={!interactive}
+        value={value ?? ""}
+        onChange={(event) => onChange?.(event.target.value)}
         aria-label="날짜"
         className={INPUT_CLASS}
       />
@@ -147,11 +159,19 @@ export function SummaryTemplate({
   rows,
   startIndex,
   interactive = false,
+  onDateChange,
+  onQuantityChange,
 }: {
   proposal: ProposalDetail;
   rows: ProposalItem[];
   startIndex: number;
   interactive?: boolean;
+  onDateChange?: (
+    mediaId: string,
+    field: "start_date" | "end_date",
+    value: string,
+  ) => void;
+  onQuantityChange?: (mediaId: string, value: string) => void;
 }) {
   const items = proposal.items;
   const adTotal = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
@@ -159,6 +179,23 @@ export function SummaryTemplate({
     (sum, item) => sum + (item.production_fee ?? 0),
     0,
   );
+  const regions = Array.from(
+    new Set(
+      items
+        .map((item) => item.region)
+        .filter((region): region is string => Boolean(region)),
+    ),
+  ).join(", ");
+  const starts = items
+    .map((item) => item.start_date)
+    .filter((date): date is string => Boolean(date));
+  const ends = items
+    .map((item) => item.end_date)
+    .filter((date): date is string => Boolean(date));
+  const period =
+    starts.length > 0 && ends.length > 0
+      ? `${starts.reduce((a, b) => (a < b ? a : b))} ~ ${ends.reduce((a, b) => (a > b ? a : b))}`
+      : EMPTY;
 
   return (
     <div className="flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white">
@@ -170,13 +207,13 @@ export function SummaryTemplate({
             </p>
             <div className="flex w-[154px] flex-col items-start gap-[9px] text-[32px] leading-[1.4] tracking-[-0.8px]">
               <p className="font-medium">캠페인 기간</p>
-              <p className="font-bold">{EMPTY}</p>
+              <p className="font-bold">{period}</p>
             </div>
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[18px]">
             <HeaderStat label="집행 매체" value={items.length} />
-            <HeaderStat label="캠페인 지역" value={EMPTY} />
+            <HeaderStat label="캠페인 지역" value={regions || EMPTY} />
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[18px]">
@@ -219,7 +256,12 @@ export function SummaryTemplate({
             <Cell width={COL.region}>{item.region ?? EMPTY}</Cell>
             <Cell width={COL.media}>{item.name ?? EMPTY}</Cell>
             <Cell width={COL.product}>{item.product ?? EMPTY}</Cell>
-            <QuantityCell width={COL.qty} interactive={interactive} />
+            <QuantityCell
+              width={COL.qty}
+              interactive={interactive}
+              value={item.quantity}
+              onChange={(value) => onQuantityChange?.(item.media_id, value)}
+            />
             <BoxedCell width={COL.ad}>{formatNumber(item.price)}</BoxedCell>
             <BoxedCell width={COL.prod}>
               {formatNumber(item.production_fee)}
@@ -231,8 +273,20 @@ export function SummaryTemplate({
               style={{ width: COL.date }}
               className="flex flex-col items-center justify-center gap-[10px] px-[24px] py-[8px]"
             >
-              <DateInput interactive={interactive} />
-              <DateInput interactive={interactive} />
+              <DateInput
+                interactive={interactive}
+                value={item.start_date}
+                onChange={(value) =>
+                  onDateChange?.(item.media_id, "start_date", value)
+                }
+              />
+              <DateInput
+                interactive={interactive}
+                value={item.end_date}
+                onChange={(value) =>
+                  onDateChange?.(item.media_id, "end_date", value)
+                }
+              />
             </div>
           </div>
         ))}
@@ -246,11 +300,19 @@ export function SummarySlide({
   rows,
   startIndex,
   zoom,
+  onDateChange,
+  onQuantityChange,
 }: {
   proposal: ProposalDetail;
   rows: ProposalItem[];
   startIndex: number;
   zoom: number;
+  onDateChange?: (
+    mediaId: string,
+    field: "start_date" | "end_date",
+    value: string,
+  ) => void;
+  onQuantityChange?: (mediaId: string, value: string) => void;
 }) {
   return (
     <SlideScaler
@@ -262,6 +324,8 @@ export function SummarySlide({
         rows={rows}
         startIndex={startIndex}
         interactive
+        onDateChange={onDateChange}
+        onQuantityChange={onQuantityChange}
       />
     </SlideScaler>
   );
