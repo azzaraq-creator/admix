@@ -21,6 +21,7 @@ const COL = {
 } as const;
 
 const EMPTY = "-";
+const ROWS_PER_PAGE = 5; // 한 서머리 슬라이드에 들어가는 매체 행 수 (표 영역을 균등 분할)
 
 function formatNumber(value: number | null): string {
   if (value == null) return EMPTY;
@@ -199,7 +200,7 @@ export function SummaryTemplate({
 
   return (
     <div className="flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white">
-      <div className="flex flex-col items-start bg-[#00aaa4] px-[80px] py-[40px]">
+      <div className="flex shrink-0 flex-col items-start bg-[#00aaa4] px-[80px] py-[40px]">
         <div className="flex w-full items-center gap-[48px]">
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[31px] whitespace-nowrap text-white">
             <p className="text-[80px] font-bold leading-none tracking-[-2px]">
@@ -237,7 +238,7 @@ export function SummaryTemplate({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-[40px] pt-[24px]">
+      <div className="flex min-h-0 flex-1 flex-col px-[40px] pt-[24px]">
         <div className="flex w-full items-center bg-[#f6f6f6]">
           {HEADER_COLUMNS.map((column) => (
             <Cell key={column.label} width={column.width}>
@@ -249,7 +250,7 @@ export function SummaryTemplate({
         {rows.map((item, index) => (
           <div
             key={item.media_id}
-            className="flex w-full items-center border-b border-[#e4e5ee] py-[16px]"
+            className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-[#e4e5ee] py-[16px]"
           >
             <Cell width={COL.no}>{startIndex + index + 1}</Cell>
             <Cell width={COL.type}>{item.category ?? EMPTY}</Cell>
@@ -290,6 +291,14 @@ export function SummaryTemplate({
             </div>
           </div>
         ))}
+        {Array.from({ length: Math.max(0, ROWS_PER_PAGE - rows.length) }).map(
+          (_, i) => (
+            <div
+              key={`filler-${i}`}
+              className="w-full flex-1 border-b border-[#e4e5ee]"
+            />
+          ),
+        )}
       </div>
     </div>
   );
