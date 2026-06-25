@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { CalendarIcon } from "@/components/icons";
 import type { ProposalDetail, ProposalItem } from "@/hooks/proposals";
-import { cn } from "@/lib/utils";
+
+import { SlideScaler } from "./SlideScaler";
 
 const COL = {
   no: 84,
@@ -210,7 +211,7 @@ export function SummaryTemplate({
             className="flex w-full items-center border-b border-[#e4e5ee] py-[16px]"
           >
             <Cell width={COL.no}>{startIndex + index + 1}</Cell>
-            <Cell width={COL.type}>{item.division ?? EMPTY}</Cell>
+            <Cell width={COL.type}>{item.category ?? EMPTY}</Cell>
             <Cell width={COL.region}>{item.region ?? EMPTY}</Cell>
             <Cell width={COL.media}>{item.name ?? EMPTY}</Cell>
             <Cell width={COL.product}>{item.product ?? EMPTY}</Cell>
@@ -234,49 +235,6 @@ export function SummaryTemplate({
   );
 }
 
-function ScaledSlide({
-  proposal,
-  rows,
-  startIndex,
-  interactive,
-}: {
-  proposal: ProposalDetail;
-  rows: ProposalItem[];
-  startIndex: number;
-  interactive: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const observer = new ResizeObserver((entries) => {
-      setWidth(entries[0].contentRect.width);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const scale = width / 1920;
-
-  return (
-    <div ref={ref} className="absolute inset-0 overflow-hidden">
-      <div
-        style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
-        className={cn("absolute left-0 top-0", !interactive && "pointer-events-none")}
-      >
-        <SummaryTemplate
-          proposal={proposal}
-          rows={rows}
-          startIndex={startIndex}
-          interactive={interactive}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function SummarySlide({
   proposal,
   rows,
@@ -289,17 +247,17 @@ export function SummarySlide({
   zoom: number;
 }) {
   return (
-    <div
+    <SlideScaler
       style={{ width: `${zoom}%` }}
-      className="relative aspect-[1920/1080] shrink-0 overflow-hidden rounded-[8px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.16)]"
+      className="relative aspect-[1920/1080] shrink-0 rounded-[8px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.16)]"
     >
-      <ScaledSlide
+      <SummaryTemplate
         proposal={proposal}
         rows={rows}
         startIndex={startIndex}
         interactive
       />
-    </div>
+    </SlideScaler>
   );
 }
 
@@ -313,11 +271,8 @@ export function SummaryThumb({
   startIndex: number;
 }) {
   return (
-    <ScaledSlide
-      proposal={proposal}
-      rows={rows}
-      startIndex={startIndex}
-      interactive={false}
-    />
+    <SlideScaler className="absolute inset-0" contentClassName="pointer-events-none">
+      <SummaryTemplate proposal={proposal} rows={rows} startIndex={startIndex} />
+    </SlideScaler>
   );
 }

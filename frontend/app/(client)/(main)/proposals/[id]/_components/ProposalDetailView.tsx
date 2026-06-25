@@ -32,7 +32,9 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
+import { MediaSlide, MediaThumb } from "./MediaTemplate";
 import { SummarySlide, SummaryThumb } from "./SummaryTemplate";
+import { ThanksSlide, ThanksThumb } from "./ThanksTemplate";
 
 
 type Slide = { id: string; name: string };
@@ -76,6 +78,9 @@ export function ProposalDetailView({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [selectedId, setSelectedId] = useState("cover");
+  const [selectedPlans, setSelectedPlans] = useState<Record<string, number>>(
+    {},
+  );
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
@@ -126,6 +131,32 @@ export function ProposalDetailView({ id }: { id: string }) {
       ? Number(slideId.slice("summary-".length))
       : null;
   const selectedSummaryPage = parseSummaryPage(selectedId);
+  const selectedMediaItem =
+    orderedItems.find((item) => item.media_id === selectedId) ?? null;
+
+  const currentPlanNo = selectedMediaItem
+    ? (selectedPlans[selectedMediaItem.media_id] ??
+      selectedMediaItem.selected_plan_no ??
+      selectedMediaItem.plans[0]?.plan_no ??
+      null)
+    : null;
+
+  const previewMediaItem =
+    selectedMediaItem && currentPlanNo != null
+      ? (() => {
+          const plan = selectedMediaItem.plans.find(
+            (p) => p.plan_no === currentPlanNo,
+          );
+          return plan
+            ? {
+                ...selectedMediaItem,
+                name: plan.product_name ?? selectedMediaItem.name,
+                product: plan.product_display_name,
+                price: plan.advertisement_fee,
+              }
+            : selectedMediaItem;
+        })()
+      : selectedMediaItem;
 
   const title = proposal?.title ?? "";
   const submitted = proposal?.status === "execution_requested";
@@ -167,8 +198,13 @@ export function ProposalDetailView({ id }: { id: string }) {
       return;
     }
     try {
-      await reorderMutation.mutateAsync({ id, mediaIds });
+      await reorderMutation.mutateAsync({
+        id,
+        mediaIds,
+        plans: Object.keys(selectedPlans).length > 0 ? selectedPlans : undefined,
+      });
       setMediaOrder(null);
+      setSelectedPlans({});
       success("저장이 완료되었습니다.");
     } catch {
       return;
@@ -321,6 +357,8 @@ export function ProposalDetailView({ id }: { id: string }) {
                   index === firstMediaIndex ||
                   (index === lastIndex && lastIndex > firstMediaIndex);
                 const summaryPage = parseSummaryPage(slide.id);
+                const thumbMediaItem =
+                  orderedItems.find((it) => it.media_id === slide.id) ?? null;
                 return (
                   <Fragment key={slide.id}>
                     {showDivider && (
@@ -367,6 +405,10 @@ export function ProposalDetailView({ id }: { id: string }) {
                                 rows={summaryPages[summaryPage] ?? []}
                                 startIndex={summaryPage * SUMMARY_PAGE_SIZE}
                               />
+                            ) : slide.id === "thanks" ? (
+                              <ThanksThumb />
+                            ) : thumbMediaItem ? (
+                              <MediaThumb item={thumbMediaItem} />
                             ) : (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
@@ -434,6 +476,21 @@ export function ProposalDetailView({ id }: { id: string }) {
                   startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
                   zoom={zoom}
                 />
+              ) : previewMediaItem ? (
+                <MediaSlide
+                  item={previewMediaItem}
+                  zoom={zoom}
+                  plans={previewMediaItem.plans}
+                  selectedPlanNo={currentPlanNo}
+                  onPlanChange={(planNo) =>
+                    setSelectedPlans((prev) => ({
+                      ...prev,
+                      [previewMediaItem.media_id]: planNo,
+                    }))
+                  }
+                />
+              ) : selectedId === "thanks" ? (
+                <ThanksSlide zoom={zoom} />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
