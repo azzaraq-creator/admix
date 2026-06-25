@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import type { PlanOption, ProposalItem } from "@/hooks/proposals";
 
@@ -183,8 +182,12 @@ export function MediaTemplate({
                 value={selectedPlanNo != null ? String(selectedPlanNo) : undefined}
                 onValueChange={(value) => onPlanChange(Number(value))}
               >
-                <SelectTrigger className="h-auto w-full justify-center gap-[8px] rounded-[8px] border-[#e4e5ee] px-[16px] py-[8px] text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
-                  <SelectValue />
+                <SelectTrigger className="h-auto w-full gap-[8px] rounded-[8px] border-[#e4e5ee] px-[16px] py-[8px] text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
+                  <span className="flex-1 truncate text-center">
+                    {currentPlan?.product_display_name ??
+                      currentPlan?.product_name ??
+                      `옵션 ${currentPlan?.plan_no ?? ""}`}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {plans.map((plan) => (
@@ -198,7 +201,13 @@ export function MediaTemplate({
               </Select>
             </div>
           ) : (
-            <BoxedCell flex>{item.product ?? EMPTY}</BoxedCell>
+            <div className="flex min-w-px flex-1 items-center justify-center px-[24px] py-[8px]">
+              <div className="flex w-full items-center justify-center rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+                <p className="text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454] [word-break:break-word]">
+                  {item.product ?? EMPTY}
+                </p>
+              </div>
+            </div>
           )}
           <TextCell width={219}>{EMPTY}</TextCell>
           <TextCell width={219}>
@@ -208,7 +217,9 @@ export function MediaTemplate({
           <TextCell width={219}>{operationTime}</TextCell>
           <TextCell width={219}>{EMPTY}</TextCell>
           <BoxedCell width={218}>{formatNumber(item.price)}</BoxedCell>
-          <BoxedCell width={218}>{EMPTY}</BoxedCell>
+          <BoxedCell width={218}>
+            {formatNumber(currentPlan?.production_fee ?? null)}
+          </BoxedCell>
         </div>
       </div>
     </div>

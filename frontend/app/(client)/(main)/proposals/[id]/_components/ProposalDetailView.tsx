@@ -32,6 +32,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
+import { CoverSlide, CoverThumb } from "./CoverTemplate";
 import { MediaSlide, MediaThumb } from "./MediaTemplate";
 import { SummarySlide, SummaryThumb } from "./SummaryTemplate";
 import { ThanksSlide, ThanksThumb } from "./ThanksTemplate";
@@ -97,15 +98,37 @@ export function ProposalDetailView({ id }: { id: string }) {
     return [...ordered, ...extras];
   }, [proposal?.items, mediaOrder]);
 
+  // 셀렉트로 고른 plan 을 반영한 표시용 items — 서머리·매체 슬라이드 실시간 갱신
+  const displayItems = useMemo<ProposalItem[]>(() => {
+    return orderedItems.map((item) => {
+      const planNo =
+        selectedPlans[item.media_id] ??
+        item.selected_plan_no ??
+        item.plans[0]?.plan_no ??
+        null;
+      if (planNo == null) return item;
+      const plan = item.plans.find((p) => p.plan_no === planNo);
+      return plan
+        ? {
+            ...item,
+            name: plan.product_name ?? item.name,
+            product: plan.product_display_name,
+            price: plan.advertisement_fee,
+            production_fee: plan.production_fee,
+          }
+        : item;
+    });
+  }, [orderedItems, selectedPlans]);
+
   // 서머리 1장당 매체 5개, 초과 시 페이지 분할 (매체가 없어도 빈 서머리 1장 유지)
   const summaryPages = useMemo<ProposalItem[][]>(() => {
-    if (orderedItems.length === 0) return [[]];
+    if (displayItems.length === 0) return [[]];
     const pages: ProposalItem[][] = [];
-    for (let i = 0; i < orderedItems.length; i += SUMMARY_PAGE_SIZE) {
-      pages.push(orderedItems.slice(i, i + SUMMARY_PAGE_SIZE));
+    for (let i = 0; i < displayItems.length; i += SUMMARY_PAGE_SIZE) {
+      pages.push(displayItems.slice(i, i + SUMMARY_PAGE_SIZE));
     }
     return pages;
-  }, [orderedItems]);
+  }, [displayItems]);
 
   const slides = useMemo<Slide[]>(() => {
     const summarySlides = summaryPages.map((_, index) => ({
@@ -142,21 +165,7 @@ export function ProposalDetailView({ id }: { id: string }) {
     : null;
 
   const previewMediaItem =
-    selectedMediaItem && currentPlanNo != null
-      ? (() => {
-          const plan = selectedMediaItem.plans.find(
-            (p) => p.plan_no === currentPlanNo,
-          );
-          return plan
-            ? {
-                ...selectedMediaItem,
-                name: plan.product_name ?? selectedMediaItem.name,
-                product: plan.product_display_name,
-                price: plan.advertisement_fee,
-              }
-            : selectedMediaItem;
-        })()
-      : selectedMediaItem;
+    displayItems.find((item) => item.media_id === selectedId) ?? null;
 
   const title = proposal?.title ?? "";
   const submitted = proposal?.status === "execution_requested";
@@ -393,10 +402,10 @@ export function ProposalDetailView({ id }: { id: string }) {
                             type="button"
                             onClick={() => setSelectedId(slide.id)}
                             className={cn(
-                              "group relative aspect-[198/111] w-full overflow-hidden rounded-[8px]",
+                              "group relative aspect-[1920/1080] w-full overflow-hidden rounded-[8px]",
                               selectedId === slide.id
-                                ? "border-[3px] border-primary"
-                                : "border border-stroke",
+                                ? "ring-2 ring-inset ring-primary"
+                                : "ring-1 ring-inset ring-stroke",
                             )}
                           >
                             {summaryPage !== null && proposal ? (
@@ -404,6 +413,10 @@ export function ProposalDetailView({ id }: { id: string }) {
                                 proposal={proposal}
                                 rows={summaryPages[summaryPage] ?? []}
                                 startIndex={summaryPage * SUMMARY_PAGE_SIZE}
+                              />
+                            ) : slide.id === "cover" ? (
+                              <CoverThumb
+                                updatedAt={proposal?.updated_at ?? null}
                               />
                             ) : slide.id === "thanks" ? (
                               <ThanksThumb />
@@ -488,6 +501,11 @@ export function ProposalDetailView({ id }: { id: string }) {
                       [previewMediaItem.media_id]: planNo,
                     }))
                   }
+                />
+              ) : selectedId === "cover" ? (
+                <CoverSlide
+                  updatedAt={proposal?.updated_at ?? null}
+                  zoom={zoom}
                 />
               ) : selectedId === "thanks" ? (
                 <ThanksSlide zoom={zoom} />

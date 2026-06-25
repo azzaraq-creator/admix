@@ -48,6 +48,7 @@ class ProposalItemOut(BaseModel):
     media_id: str
     name: Optional[str] = None
     price: Optional[int] = None
+    production_fee: Optional[int] = None
     thumbnail_url: Optional[str] = None
     category: Optional[str] = None
     region: Optional[str] = None

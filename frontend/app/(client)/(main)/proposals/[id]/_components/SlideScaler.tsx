@@ -24,9 +24,9 @@ export function SlideScaler({
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const observer = new ResizeObserver((entries) => {
-      setWidth(entries[0].contentRect.width);
-    });
+    const measure = () => setWidth(element.getBoundingClientRect().width);
+    measure(); // 마운트 직후 동기 측정 — ResizeObserver 콜백 지연/누락 시 빈 슬라이드 방지
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);

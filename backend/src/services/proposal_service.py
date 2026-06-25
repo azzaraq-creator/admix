@@ -303,6 +303,7 @@ def to_detail(db: Session, p: Proposal) -> dict:
                 if plan and plan.advertisement_fee is not None
                 else it.price
             ),
+            production_fee=plan.production_fee if plan else None,
             thumbnail_url=it.thumbnail_url,
             category=m.category_small if m else None,
             region=m.market_area if m else None,

@@ -155,6 +155,10 @@ export function SummaryTemplate({
 }) {
   const items = proposal.items;
   const adTotal = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
+  const prodTotal = items.reduce(
+    (sum, item) => sum + (item.production_fee ?? 0),
+    0,
+  );
 
   return (
     <div className="flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white">
@@ -177,7 +181,7 @@ export function SummaryTemplate({
 
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[18px]">
             <HeaderStat label="광고비 합계" value={formatWon(adTotal)} />
-            <HeaderStat label="제작비 합계" value={EMPTY} />
+            <HeaderStat label="제작비 합계" value={formatWon(prodTotal)} />
           </div>
 
           <div className="flex items-center self-stretch">
@@ -217,9 +221,11 @@ export function SummaryTemplate({
             <Cell width={COL.product}>{item.product ?? EMPTY}</Cell>
             <QuantityCell width={COL.qty} interactive={interactive} />
             <BoxedCell width={COL.ad}>{formatNumber(item.price)}</BoxedCell>
-            <BoxedCell width={COL.prod}>{EMPTY}</BoxedCell>
+            <BoxedCell width={COL.prod}>
+              {formatNumber(item.production_fee)}
+            </BoxedCell>
             <Cell width={COL.total} pad="py-[8px]">
-              {formatNumber(item.price)}
+              {formatNumber((item.price ?? 0) + (item.production_fee ?? 0))}
             </Cell>
             <div
               style={{ width: COL.date }}

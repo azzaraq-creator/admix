@@ -59,6 +59,7 @@ export interface ProposalItem {
   media_id: string;
   name: string | null;
   price: number | null;
+  production_fee: number | null;
   thumbnail_url: string | null;
   category: string | null;
   region: string | null;
