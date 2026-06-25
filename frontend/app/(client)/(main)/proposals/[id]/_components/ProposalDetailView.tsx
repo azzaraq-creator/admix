@@ -130,6 +130,10 @@ export function ProposalDetailView({ id }: { id: string }) {
     return pages;
   }, [displayItems]);
 
+  // 합계·서머리 셀이 selectedPlans 를 반영하도록 items 를 displayItems 로 교체
+  const displayProposal =
+    proposal != null ? { ...proposal, items: displayItems } : null;
+
   const slides = useMemo<Slide[]>(() => {
     const summarySlides = summaryPages.map((_, index) => ({
       id: `summary-${index}`,
@@ -408,9 +412,9 @@ export function ProposalDetailView({ id }: { id: string }) {
                                 : "ring-1 ring-inset ring-stroke",
                             )}
                           >
-                            {summaryPage !== null && proposal ? (
+                            {summaryPage !== null && displayProposal ? (
                               <SummaryThumb
-                                proposal={proposal}
+                                proposal={displayProposal}
                                 rows={summaryPages[summaryPage] ?? []}
                                 startIndex={summaryPage * SUMMARY_PAGE_SIZE}
                               />
@@ -482,9 +486,9 @@ export function ProposalDetailView({ id }: { id: string }) {
               </Button>
             </div>
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]">
-              {selectedSummaryPage !== null && proposal ? (
+              {selectedSummaryPage !== null && displayProposal ? (
                 <SummarySlide
-                  proposal={proposal}
+                  proposal={displayProposal}
                   rows={summaryPages[selectedSummaryPage] ?? []}
                   startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
                   zoom={zoom}
