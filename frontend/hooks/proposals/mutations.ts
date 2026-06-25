@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { proposalsClientApi } from "./apis";
+import { proposalsApi, proposalsClientApi } from "./apis";
 import { proposalsKeys } from "./keys";
 
 export const useCreateProposal = () => {
@@ -91,6 +91,17 @@ export const useSubmitProposal = () => {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
       qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    },
+  });
+};
+
+export const useUploadCounterProposal = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      proposalsApi.uploadCounterProposal(id, file),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.adminDetail(id) });
     },
   });
 };

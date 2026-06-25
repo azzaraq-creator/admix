@@ -44,6 +44,7 @@ class Proposal(Base):
     total_amount = Column(BigInteger, nullable=False, default=0)
     memo = Column(Text, nullable=True)
     counter_proposal_file_url = Column(String(1000), nullable=True)
+    counter_proposal_file_name = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -53,4 +54,10 @@ class Proposal(Base):
         back_populates="proposal",
         cascade="all, delete-orphan",
         order_by="ProposalItem.position, ProposalItem.created_at",
+    )
+    counter_files = relationship(
+        "ProposalCounterFile",
+        back_populates="proposal",
+        cascade="all, delete-orphan",
+        order_by="ProposalCounterFile.created_at.desc()",
     )

@@ -10,6 +10,13 @@ export const useAdminProposals = () =>
     staleTime: 30 * 1000,
   });
 
+export const useAdminProposalDetail = (id: string | null) =>
+  useQuery({
+    queryKey: proposalsKeys.adminDetail(id ?? ""),
+    queryFn: () => proposalsApi.get(id as string),
+    enabled: !!id,
+  });
+
 export const useMyProposals = () =>
   useQuery({
     queryKey: proposalsKeys.myList(),

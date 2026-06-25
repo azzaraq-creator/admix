@@ -16,9 +16,51 @@ export interface ProposalListResponse {
   items: ProposalRow[];
 }
 
+export interface AdminProposalMember {
+  membership_type: string | null;
+  company_name: string | null;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface AdminProposalCounterFile {
+  id: string;
+  file_url: string;
+  file_name: string;
+  created_at: string | null;
+}
+
+export interface AdminProposalDetail {
+  id: string;
+  title: string;
+  status: string;
+  total_amount: number;
+  updated_at: string | null;
+  counter_proposal_file_url: string | null;
+  counter_proposal_file_name: string | null;
+  counter_files: AdminProposalCounterFile[];
+  member: AdminProposalMember | null;
+  items: ProposalItem[];
+}
+
 export const proposalsApi = {
   list: () =>
     api.get<ProposalListResponse>("/admin/proposals").then((r) => r.data),
+  get: (id: string) =>
+    api
+      .get<AdminProposalDetail>(`/admin/proposals/${id}`)
+      .then((r) => r.data),
+  uploadCounterProposal: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<AdminProposalDetail>(
+        `/admin/proposals/${id}/counter-proposal`,
+        form,
+      )
+      .then((r) => r.data);
+  },
 };
 
 // ===== 클라이언트(장바구니/플래닝) =====

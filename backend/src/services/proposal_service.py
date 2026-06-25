@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from src.models.media_master import Media
 from src.models.proposal import Proposal
+from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import User
 
@@ -106,6 +107,80 @@ def list_proposals(db: Session) -> list[dict]:
         )
         for p in rows
     ]
+
+
+def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
+    """admin 제안 상세 — 회원 정보 + 슬라이드(매체) 항목. 없으면 None."""
+    try:
+        pid = uuid.UUID(str(proposal_id))
+    except (ValueError, AttributeError):
+        return None
+    p = (
+        db.query(Proposal)
+        .options(
+            joinedload(Proposal.items),
+            joinedload(Proposal.member),
+            joinedload(Proposal.counter_files),
+        )
+        .filter(Proposal.id == pid)
+        .first()
+    )
+    if p is None:
+        return None
+    m = p.member
+    member = (
+        dict(
+            membership_type=m.membership_type,
+            company_name=m.company_name,
+            name=m.name,
+            email=m.email,
+            phone=m.phone,
+        )
+        if m is not None
+        else None
+    )
+    return dict(
+        id=str(p.id),
+        title=p.title,
+        status=_STATUS.get(p.status, p.status),
+        total_amount=p.total_amount,
+        updated_at=p.updated_at.isoformat() if p.updated_at else None,
+        counter_proposal_file_url=p.counter_proposal_file_url,
+        counter_proposal_file_name=p.counter_proposal_file_name,
+        counter_files=[
+            dict(
+                id=str(cf.id),
+                file_url=cf.file_url,
+                file_name=cf.file_name,
+                created_at=cf.created_at.isoformat() if cf.created_at else None,
+            )
+            for cf in p.counter_files
+        ],
+        member=member,
+        items=to_detail(db, p)["items"],
+    )
+
+
+def save_counter_proposal_file(
+    db: Session, proposal_id: str, *, file_url: str, file_name: str
+) -> Optional[Proposal]:
+    """맞춤제안 PPT 파일 정보를 제안서에 저장. 제안서 없으면 None."""
+    try:
+        pid = uuid.UUID(str(proposal_id))
+    except (ValueError, AttributeError):
+        return None
+    p = db.query(Proposal).filter(Proposal.id == pid).first()
+    if p is None:
+        return None
+    p.counter_files.append(
+        ProposalCounterFile(file_url=file_url, file_name=file_name)
+    )
+    p.counter_proposal_file_url = file_url  # 최신 버전 포인터
+    p.counter_proposal_file_name = file_name
+    p.status = "custom"  # 맞춤제안 전송 → 상태 갱신
+    db.commit()
+    db.refresh(p)
+    return p
 
 
 # ===== 클라이언트 장바구니(플래닝) CRUD =====

@@ -1,25 +1,45 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { DownloadIcon, MaximizeIcon } from "@/components/icons";
+import { CoverThumb } from "@/components/proposals/CoverTemplate";
+import { MediaThumb } from "@/components/proposals/MediaTemplate";
+import { SummaryThumb } from "@/components/proposals/SummaryTemplate";
+import { ThanksThumb } from "@/components/proposals/ThanksTemplate";
+import {
+  useAdminProposalDetail,
+  type ProposalDetail,
+  type ProposalItem,
+} from "@/hooks/proposals";
 
-import { ProposalStatusBadge } from "../../_components";
-
-const SLIDES = [
-  "표지",
-  "서머리",
-  "맥스비전 신사역 가로수길 방면 계단",
-  "맥스비전 신사역 가로수길 방면 계단",
-  "맥스비전 신사역 가로수길 방면 계단",
-  "마무리",
-];
+import { ProposalStatusBadge, type ProposalStatus } from "../../_components";
 
 const HISTORY_HEADERS = ["제목", "작성자", "제안일", "적용 상태", "작업"];
+const SUMMARY_PAGE_SIZE = 5;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+
+const MEMBERSHIP_TEXT: Record<string, string> = {
+  individual: "개인",
+  corporate: "기업",
+};
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+}
+
+type AdminSlide =
+  | { kind: "cover"; name: string }
+  | { kind: "summary"; name: string; rows: ProposalItem[]; startIndex: number }
+  | { kind: "media"; name: string; item: ProposalItem }
+  | { kind: "thanks"; name: string };
 
 function InfoRow({
   label,
@@ -45,6 +65,53 @@ export function ProposalDetailView() {
   const params = useParams<{ id: string }>();
   const [selected, setSelected] = useState(0);
 
+  const { data: proposal } = useAdminProposalDetail(params.id);
+
+  const slides = useMemo<AdminSlide[]>(() => {
+    const items = proposal?.items ?? [];
+    const pages: ProposalItem[][] = [];
+    for (let i = 0; i < items.length; i += SUMMARY_PAGE_SIZE) {
+      pages.push(items.slice(i, i + SUMMARY_PAGE_SIZE));
+    }
+    if (pages.length === 0) pages.push([]);
+    return [
+      { kind: "cover", name: "표지" },
+      ...pages.map((rows, index) => ({
+        kind: "summary" as const,
+        name: pages.length > 1 ? `서머리 ${index + 1}` : "서머리",
+        rows,
+        startIndex: index * SUMMARY_PAGE_SIZE,
+      })),
+      ...items.map((item) => ({
+        kind: "media" as const,
+        name: item.name ?? "이름 없음",
+        item,
+      })),
+      { kind: "thanks", name: "THANK YOU" },
+    ];
+  }, [proposal?.items]);
+
+  // SummaryTemplate 가 기대하는 ProposalDetail 형태로 변환(admin 응답엔 회원정보가 추가됨)
+  const summaryProposal = useMemo<ProposalDetail | null>(() => {
+    if (!proposal) return null;
+    const items = proposal.items;
+    return {
+      id: proposal.id,
+      title: proposal.title,
+      status: proposal.status,
+      media_count: items.length,
+      total_amount: proposal.total_amount,
+      updated_at: proposal.updated_at,
+      media_ids: items.map((item) => item.media_id),
+      items,
+    };
+  }, [proposal]);
+
+  const current = slides[selected] ?? slides[0];
+  const member = proposal?.member;
+  const counterFiles = proposal?.counter_files ?? [];
+  const EMPTY = "-";
+
   return (
     <div className="flex flex-col gap-[32px]">
       <div className="flex flex-col gap-[16px] rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
@@ -53,17 +120,25 @@ export function ProposalDetailView() {
         </h1>
         <div className="flex flex-col gap-[16px]">
           <div className="flex items-center gap-[16px]">
-            <InfoRow label="회원 유형">기업</InfoRow>
-            <InfoRow label="회사명">ADMIX</InfoRow>
+            <InfoRow label="회원 유형">
+              {member
+                ? (MEMBERSHIP_TEXT[member.membership_type ?? ""] ?? EMPTY)
+                : EMPTY}
+            </InfoRow>
+            <InfoRow label="회사명">{member?.company_name || EMPTY}</InfoRow>
           </div>
           <div className="flex items-center gap-[16px]">
-            <InfoRow label="이름">홍길동</InfoRow>
-            <InfoRow label="이메일">hong@naver.com</InfoRow>
+            <InfoRow label="이름">{member?.name || EMPTY}</InfoRow>
+            <InfoRow label="이메일">{member?.email || EMPTY}</InfoRow>
           </div>
           <div className="flex items-center gap-[16px]">
-            <InfoRow label="전화번호">01012345678</InfoRow>
+            <InfoRow label="전화번호">{member?.phone || EMPTY}</InfoRow>
             <InfoRow label="상태">
-              <ProposalStatusBadge status="신규" />
+              {proposal && (
+                <ProposalStatusBadge
+                  status={proposal.status as ProposalStatus}
+                />
+              )}
             </InfoRow>
           </div>
         </div>
@@ -72,7 +147,7 @@ export function ProposalDetailView() {
       <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex items-center justify-between">
           <p className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
-            광고 제안서_2026
+            {proposal?.title ?? ""}
           </p>
           <button
             type="button"
@@ -87,7 +162,7 @@ export function ProposalDetailView() {
           <div className="flex w-[224px] shrink-0 flex-col gap-[14px] self-stretch rounded-[6px] border border-[#cdcdcd] p-[16px]">
             <p className="text-base leading-[1.4] text-black">슬라이드 목록</p>
             <div className="flex flex-col gap-[6px]">
-              {SLIDES.map((title, index) => (
+              {slides.map((slide, index) => (
                 <button
                   key={index}
                   type="button"
@@ -102,7 +177,7 @@ export function ProposalDetailView() {
                     {index + 1}
                   </span>
                   <span className="truncate text-sm leading-[1.4] text-black">
-                    {title}
+                    {slide.name}
                   </span>
                 </button>
               ))}
@@ -114,18 +189,23 @@ export function ProposalDetailView() {
               <p className="flex items-center gap-[4px] text-sm font-medium leading-[1.4] text-black">
                 <span>{selected + 1}</span>
                 <span>/</span>
-                <span>{SLIDES.length}</span>
+                <span>{slides.length}</span>
               </p>
               <MaximizeIcon className="size-[24px] text-[#2a2a2a]" />
             </div>
-            <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px]">
-              <Image
-                src="/admin/proposal-cover.png"
-                alt="제안서 미리보기"
-                fill
-                sizes="(max-width: 1280px) 100vw, 1100px"
-                className="object-cover"
-              />
+            <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px] border border-[#e4e5ee]">
+              {current?.kind === "cover" && (
+                <CoverThumb updatedAt={proposal?.updated_at ?? null} />
+              )}
+              {current?.kind === "summary" && summaryProposal && (
+                <SummaryThumb
+                  proposal={summaryProposal}
+                  rows={current.rows}
+                  startIndex={current.startIndex}
+                />
+              )}
+              {current?.kind === "media" && <MediaThumb item={current.item} />}
+              {current?.kind === "thanks" && <ThanksThumb />}
             </div>
           </div>
         </div>
@@ -153,9 +233,41 @@ export function ProposalDetailView() {
                 </div>
               ))}
             </div>
-            <div className="flex h-[88px] items-center justify-center text-sm font-medium leading-[20px] text-[#737586]">
-              등록된 맞춤제안이 없습니다.
-            </div>
+            {counterFiles.length === 0 ? (
+              <div className="flex h-[88px] items-center justify-center text-sm font-medium leading-[20px] text-[#737586]">
+                등록된 맞춤제안이 없습니다.
+              </div>
+            ) : (
+              counterFiles.map((cf) => (
+                <div
+                  key={cf.id}
+                  className="flex h-[56px] items-center border-b border-[#f0f0f3] text-sm font-medium leading-[20px] text-[#2a2a2a]"
+                >
+                  <div className="flex flex-1 items-center justify-center truncate px-[24px]">
+                    {cf.file_name}
+                  </div>
+                  <div className="flex flex-1 items-center justify-center px-[24px] text-[#737586]">
+                    -
+                  </div>
+                  <div className="flex flex-1 items-center justify-center px-[24px]">
+                    {formatDate(cf.created_at)}
+                  </div>
+                  <div className="flex flex-1 items-center justify-center px-[24px]">
+                    전송 완료
+                  </div>
+                  <div className="flex flex-1 items-center justify-center px-[24px]">
+                    <a
+                      href={`${API_BASE}${cf.file_url}`}
+                      download={cf.file_name}
+                      className="flex items-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[12px] py-[6px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                    >
+                      <DownloadIcon className="size-[14px]" />
+                      다운로드
+                    </a>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

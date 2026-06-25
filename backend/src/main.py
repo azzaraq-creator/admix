@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.config import get_settings
 from src.database import Base, engine
@@ -60,6 +62,9 @@ app.include_router(admin_auth_router)
 app.include_router(admin_chat_router)
 app.include_router(chat_graph_router)
 app.include_router(recommend_v2_router)
+
+os.makedirs(settings.upload_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 
 @app.get("/health")

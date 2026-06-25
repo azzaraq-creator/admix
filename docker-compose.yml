@@ -33,7 +33,10 @@ services:
       - "8001:8000"   # 호스트 8001 (todolist 8000 회피)
     # macOS Docker Desktop file sharing 권한 이슈로 src bind-mount 안 함.
     # 코드 변경 시 `docker compose up -d --build backend` 로 rebuild.
+    volumes:
+      - ooh-uploads:/data/uploads   # 업로드 파일 영속화 (rebuild 시 보존)
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 volumes:
   ooh-pgdata:
+  ooh-uploads:

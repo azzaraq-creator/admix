@@ -72,6 +72,34 @@ class ProposalDetail(ProposalSummary):
     items: list[ProposalItemOut] = []
 
 
+class AdminProposalMember(BaseModel):
+    membership_type: Optional[str] = None
+    company_name: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class AdminProposalCounterFile(BaseModel):
+    id: str
+    file_url: str
+    file_name: str
+    created_at: Optional[str] = None
+
+
+class AdminProposalDetail(BaseModel):
+    id: str
+    title: str
+    status: str
+    total_amount: int = 0
+    updated_at: Optional[str] = None
+    counter_proposal_file_url: Optional[str] = None
+    counter_proposal_file_name: Optional[str] = None
+    counter_files: list[AdminProposalCounterFile] = []
+    member: Optional[AdminProposalMember] = None
+    items: list[ProposalItemOut] = []
+
+
 class CreateProposalRequest(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     session_id: Optional[str] = None

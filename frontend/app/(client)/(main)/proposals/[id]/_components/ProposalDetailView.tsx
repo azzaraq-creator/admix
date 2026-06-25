@@ -40,10 +40,10 @@ import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
 import { openLoginModal } from "../../../_components/useLoginModal";
-import { CoverSlide, CoverThumb } from "./CoverTemplate";
-import { MediaSlide, MediaThumb } from "./MediaTemplate";
-import { SummarySlide, SummaryThumb } from "./SummaryTemplate";
-import { ThanksSlide, ThanksThumb } from "./ThanksTemplate";
+import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
+import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
+import { SummarySlide, SummaryThumb } from "@/components/proposals/SummaryTemplate";
+import { ThanksSlide, ThanksThumb } from "@/components/proposals/ThanksTemplate";
 
 
 type Slide = { id: string; name: string };

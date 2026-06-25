@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     port: int = 8000
 
+    upload_dir: str = "/data/uploads"
+
     jwt_access_secret: str = "change-me-access-secret"
     jwt_refresh_secret: str = "change-me-refresh-secret"
     jwt_access_expires: int = 3600
