@@ -15,12 +15,14 @@ class RegisterRequest(BaseModel):
     membership_type: str = "individual"
     company_name: str | None = None
     marketing_consent: bool = False
+    session_id: str | None = None
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
     remember: bool = False
+    session_id: str | None = None
 
 
 class TokenResponse(BaseModel):

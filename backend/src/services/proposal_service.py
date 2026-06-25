@@ -256,6 +256,29 @@ def reorder_items(
     return proposal
 
 
+def claim_session_proposals(
+    db: Session, *, member_id: uuid.UUID, session_id: Optional[str]
+) -> int:
+    """비회원 세션이 소유한 제안서를 회원 계정으로 이관(claim). 이관 개수 반환."""
+    if session_id is None:
+        return 0
+    try:
+        sid = uuid.UUID(str(session_id))
+    except (ValueError, AttributeError):
+        return 0
+    rows = (
+        db.query(Proposal)
+        .filter(Proposal.session_id == sid, Proposal.member_id.is_(None))
+        .all()
+    )
+    for p in rows:
+        p.member_id = member_id
+        p.session_id = None
+    if rows:
+        db.commit()
+    return len(rows)
+
+
 def to_summary(p: Proposal) -> dict:
     return dict(
         id=str(p.id),

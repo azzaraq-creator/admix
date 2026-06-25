@@ -17,7 +17,7 @@ from src.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from src.services import auth_service
+from src.services import auth_service, proposal_service
 from src.utils.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -36,6 +36,9 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         marketing_consent=body.marketing_consent,
     )
     access, refresh = auth_service.issue_tokens(db, user, remember=True)
+    proposal_service.claim_session_proposals(
+        db, member_id=user.id, session_id=body.session_id
+    )
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 
@@ -43,6 +46,9 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
 def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, body.email, body.password)
     access, refresh = auth_service.issue_tokens(db, user, remember=body.remember)
+    proposal_service.claim_session_proposals(
+        db, member_id=user.id, session_id=body.session_id
+    )
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 

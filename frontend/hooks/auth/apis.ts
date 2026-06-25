@@ -1,5 +1,13 @@
 import { api } from "@/lib/api";
 
+const SESSION_KEY = "adRecommendV2.sessionId";
+
+function getSessionId(): string | null {
+  return typeof window !== "undefined"
+    ? localStorage.getItem(SESSION_KEY)
+    : null;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
@@ -32,10 +40,20 @@ export interface MeResponse {
 export const authApi = {
   login: (email: string, password: string, remember: boolean) =>
     api
-      .post<LoginResponse>("/auth/login", { email, password, remember })
+      .post<LoginResponse>("/auth/login", {
+        email,
+        password,
+        remember,
+        session_id: getSessionId(),
+      })
       .then((r) => r.data),
   register: (payload: RegisterPayload) =>
-    api.post<LoginResponse>("/auth/register", payload).then((r) => r.data),
+    api
+      .post<LoginResponse>("/auth/register", {
+        ...payload,
+        session_id: getSessionId(),
+      })
+      .then((r) => r.data),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/auth/change-password", {
