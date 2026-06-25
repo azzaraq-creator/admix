@@ -34,14 +34,34 @@ class ProposalSummary(BaseModel):
     media_ids: list[str] = []
 
 
+class PlanOut(BaseModel):
+    plan_no: int
+    product_name: Optional[str] = None
+    product_display_name: Optional[str] = None
+    advertisement_fee: Optional[int] = None
+    production_fee: Optional[int] = None
+    operation_start_time: Optional[str] = None
+    operation_end_time: Optional[str] = None
+
+
 class ProposalItemOut(BaseModel):
     media_id: str
     name: Optional[str] = None
     price: Optional[int] = None
     thumbnail_url: Optional[str] = None
-    division: Optional[str] = None
+    category: Optional[str] = None
     region: Optional[str] = None
     product: Optional[str] = None
+    address: Optional[str] = None
+    ooh_type: Optional[str] = None
+    description: Optional[str] = None
+    device_quantity: Optional[int] = None
+    surface_quantity: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    spec: Optional[str] = None
+    selected_plan_no: Optional[int] = None
+    plans: list[PlanOut] = []
 
 
 class ProposalDetail(ProposalSummary):
@@ -65,3 +85,4 @@ class AddItemsRequest(BaseModel):
 class ReorderItemsRequest(BaseModel):
     media_ids: list[str] = Field(min_length=1)
     session_id: Optional[str] = None
+    plans: Optional[dict[str, int]] = None  # {media_id: plan_no}

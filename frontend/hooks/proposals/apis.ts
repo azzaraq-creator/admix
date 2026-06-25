@@ -45,14 +45,34 @@ export interface ProposalSummary {
   media_ids: string[];
 }
 
+export interface PlanOption {
+  plan_no: number;
+  product_name: string | null;
+  product_display_name: string | null;
+  advertisement_fee: number | null;
+  production_fee: number | null;
+  operation_start_time: string | null;
+  operation_end_time: string | null;
+}
+
 export interface ProposalItem {
   media_id: string;
   name: string | null;
   price: number | null;
   thumbnail_url: string | null;
-  division: string | null;
+  category: string | null;
   region: string | null;
   product: string | null;
+  address: string | null;
+  ooh_type: string | null;
+  description: string | null;
+  device_quantity: number | null;
+  surface_quantity: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  spec: string | null;
+  selected_plan_no: number | null;
+  plans: PlanOption[];
 }
 
 export interface ProposalDetail extends ProposalSummary {
@@ -110,10 +130,11 @@ export const proposalsClientApi = {
         params: { session_id: getSessionId() },
       })
       .then((r) => r.data),
-  reorder: (id: string, mediaIds: string[]) =>
+  reorder: (id: string, mediaIds: string[], plans?: Record<string, number>) =>
     api
       .put<ProposalDetail>(`/proposals/${id}/order`, {
         media_ids: mediaIds,
+        plans,
         session_id: getSessionId(),
       })
       .then((r) => r.data),

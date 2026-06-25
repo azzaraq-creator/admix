@@ -41,6 +41,7 @@ class ProposalItem(Base):
     price = Column(BigInteger, nullable=True)  # min_advertisement_fee_krw 스냅샷
     thumbnail_url = Column(String(1000), nullable=True)
     position = Column(Integer, nullable=False, default=0, server_default="0")
+    selected_plan_no = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     proposal = relationship("Proposal", back_populates="items")

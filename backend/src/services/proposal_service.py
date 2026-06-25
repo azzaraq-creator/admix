@@ -233,12 +233,17 @@ def remove_item(db: Session, proposal: Proposal, media_id: str) -> Proposal:
 
 
 def reorder_items(
-    db: Session, proposal: Proposal, media_ids: list[str]
+    db: Session,
+    proposal: Proposal,
+    media_ids: list[str],
+    plans: dict[str, int] | None = None,
 ) -> Proposal:
     order = {media_id: index for index, media_id in enumerate(media_ids)}
     fallback = len(order)
     for item in proposal.items:
         item.position = order.get(item.media_id, fallback)
+        if plans and item.media_id in plans:
+            item.selected_plan_no = plans[item.media_id]
     db.commit()
     db.refresh(proposal)
     return proposal
@@ -268,10 +273,28 @@ def to_detail(db: Session, p: Proposal) -> dict:
         )
         media_map = {m.media_id: m for m in rows}
 
+    def _spec(m) -> Optional[str]:
+        # properties_extra_json 중 width 값이 있는 첫 property = 규격
+        for prop in (m.properties_extra_json or []) if m else []:
+            width = prop.get("propertyWidthValue")
+            if width is None:
+                continue
+            height = prop.get("propertyHeightValue")
+            unit = prop.get("propertyUnit") or ""
+            base = f"{width} x {height}" if height is not None else f"{width}"
+            return f"{base} {unit}".strip()
+        return None
+
     def _item(it) -> dict:
         m = media_map.get(it.media_id)
-        # plan1 = plans[0] (plan_no 오름차순 정렬). 옵션 선택 기능은 추후.
-        plan = m.plans[0] if m and m.plans else None
+        plans = list(m.plans) if m else []
+        # 선택 plan: selected_plan_no 우선, 없으면 plan1(plans[0], plan_no 오름차순)
+        plan = None
+        if plans:
+            plan = next(
+                (pl for pl in plans if pl.plan_no == it.selected_plan_no),
+                plans[0],
+            )
         return dict(
             media_id=it.media_id,
             name=plan.product_name if plan and plan.product_name else it.name,
@@ -281,9 +304,30 @@ def to_detail(db: Session, p: Proposal) -> dict:
                 else it.price
             ),
             thumbnail_url=it.thumbnail_url,
-            division=m.category_small if m else None,
-            region=m.loc_label if m else None,
+            category=m.category_small if m else None,
+            region=m.market_area if m else None,
             product=plan.product_display_name if plan else None,
+            address=m.address if m else None,
+            ooh_type=m.ooh_type if m else None,
+            description=m.description if m else None,
+            device_quantity=m.device_quantity if m else None,
+            surface_quantity=m.surface_quantity if m else None,
+            latitude=float(m.latitude) if m and m.latitude is not None else None,
+            longitude=float(m.longitude) if m and m.longitude is not None else None,
+            spec=_spec(m),
+            selected_plan_no=plan.plan_no if plan else None,
+            plans=[
+                dict(
+                    plan_no=pl.plan_no,
+                    product_name=pl.product_name,
+                    product_display_name=pl.product_display_name,
+                    advertisement_fee=pl.advertisement_fee,
+                    production_fee=pl.production_fee,
+                    operation_start_time=pl.operation_start_time,
+                    operation_end_time=pl.operation_end_time,
+                )
+                for pl in plans
+            ],
         )
 
     return dict(**to_summary(p), items=[_item(it) for it in p.items])

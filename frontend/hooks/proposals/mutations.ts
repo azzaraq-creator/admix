@@ -40,8 +40,15 @@ export const useRemoveProposalItem = () => {
 export const useReorderProposal = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, mediaIds }: { id: string; mediaIds: string[] }) =>
-      proposalsClientApi.reorder(id, mediaIds),
+    mutationFn: ({
+      id,
+      mediaIds,
+      plans,
+    }: {
+      id: string;
+      mediaIds: string[];
+      plans?: Record<string, number>;
+    }) => proposalsClientApi.reorder(id, mediaIds, plans),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
     },
