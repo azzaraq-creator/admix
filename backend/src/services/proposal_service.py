@@ -161,6 +161,21 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
     )
 
 
+def update_status(db: Session, proposal_id: str, status: str) -> Optional[Proposal]:
+    """제안서 상태 변경. 제안서 없으면 None."""
+    try:
+        pid = uuid.UUID(str(proposal_id))
+    except (ValueError, AttributeError):
+        return None
+    p = db.query(Proposal).filter(Proposal.id == pid).first()
+    if p is None:
+        return None
+    p.status = status
+    db.commit()
+    db.refresh(p)
+    return p
+
+
 def save_counter_proposal_file(
     db: Session, proposal_id: str, *, file_url: str, file_name: str
 ) -> Optional[Proposal]:

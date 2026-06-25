@@ -11,10 +11,13 @@ import { MediaThumb } from "@/components/proposals/MediaTemplate";
 import { SummaryThumb } from "@/components/proposals/SummaryTemplate";
 import { ThanksThumb } from "@/components/proposals/ThanksTemplate";
 import {
+  useAcceptProposal,
   useAdminProposalDetail,
   type ProposalDetail,
   type ProposalItem,
 } from "@/hooks/proposals";
+import { useAdminConfirm } from "@/hooks/useAdminConfirm";
+import { useSonner } from "@/hooks/useSonner";
 
 import { ProposalStatusBadge, type ProposalStatus } from "../../_components";
 
@@ -66,6 +69,23 @@ export function ProposalDetailView() {
   const [selected, setSelected] = useState(0);
 
   const { data: proposal } = useAdminProposalDetail(params.id);
+  const acceptMutation = useAcceptProposal();
+  const { confirm, confirmDialog } = useAdminConfirm();
+  const { success } = useSonner();
+
+  const accepted = proposal?.status === "계약 완료";
+
+  const handleAccept = async () => {
+    const ok = await confirm({
+      title: "집행을 수락하시겠습니까?",
+      description:
+        "수락하면 제안서 상태가 계약 완료로 변경됩니다.",
+      confirmText: "집행 수락",
+    });
+    if (!ok) return;
+    await acceptMutation.mutateAsync(params.id);
+    success("집행이 수락되었습니다.");
+  };
 
   const slides = useMemo<AdminSlide[]>(() => {
     const items = proposal?.items ?? [];
@@ -276,9 +296,16 @@ export function ProposalDetailView() {
             onClick={() => router.push("/admin/proposals")}
             className="w-[100px] gap-[10px] px-0"
           />
-          <PrimaryButton>집행 수락</PrimaryButton>
+          <PrimaryButton
+            onClick={handleAccept}
+            disabled={accepted || acceptMutation.isPending}
+          >
+            {accepted ? "계약 완료" : "집행 수락"}
+          </PrimaryButton>
         </div>
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

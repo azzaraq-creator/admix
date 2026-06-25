@@ -106,6 +106,17 @@ export const useUploadCounterProposal = () => {
   });
 };
 
+export const useAcceptProposal = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => proposalsApi.accept(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.adminDetail(id) });
+      qc.invalidateQueries({ queryKey: proposalsKeys.list() });
+    },
+  });
+};
+
 export const useCancelSubmitProposal = () => {
   const qc = useQueryClient();
   return useMutation({

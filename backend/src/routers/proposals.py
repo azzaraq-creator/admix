@@ -73,3 +73,16 @@ async def upload_counter_proposal(
         (dest_dir / stored_name).unlink(missing_ok=True)
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
     return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))
+
+
+@router.post("/{proposal_id}/accept", response_model=AdminProposalDetail)
+def accept_proposal(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin),
+) -> AdminProposalDetail:
+    """집행 수락 — 상태를 계약 완료(contracted)로 변경."""
+    p = proposal_service.update_status(db, proposal_id, "contracted")
+    if p is None:
+        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+    return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))

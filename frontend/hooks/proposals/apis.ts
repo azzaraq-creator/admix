@@ -61,6 +61,10 @@ export const proposalsApi = {
       )
       .then((r) => r.data);
   },
+  accept: (id: string) =>
+    api
+      .post<AdminProposalDetail>(`/admin/proposals/${id}/accept`)
+      .then((r) => r.data),
 };
 
 // ===== 클라이언트(장바구니/플래닝) =====
