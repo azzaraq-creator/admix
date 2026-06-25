@@ -152,4 +152,6 @@ export const proposalsClientApi = {
       .then((r) => r.data),
   submit: (id: string) =>
     api.post<ProposalSummary>(`/proposals/${id}/submit`).then((r) => r.data),
+  cancelSubmit: (id: string) =>
+    api.post<ProposalSummary>(`/proposals/${id}/cancel`).then((r) => r.data),
 };

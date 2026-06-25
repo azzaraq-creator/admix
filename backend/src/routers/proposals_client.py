@@ -174,3 +174,20 @@ def submit_proposal(
     db.commit()
     db.refresh(p)
     return ProposalSummary(**proposal_service.to_summary(p))
+
+
+@router.post("/{proposal_id}/cancel", response_model=ProposalSummary)
+def cancel_submit_proposal(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),  # 회원 전용
+):
+    p = proposal_service.get_owned(db, proposal_id, member_id=user.id, session_id=None)
+    if p is None:
+        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+    if p.status != "execution_requested":
+        raise HTTPException(status_code=400, detail="제출된 제안서만 취소할 수 있습니다.")
+    p.status = "new"
+    db.commit()
+    db.refresh(p)
+    return ProposalSummary(**proposal_service.to_summary(p))

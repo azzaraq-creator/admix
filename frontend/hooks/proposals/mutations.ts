@@ -94,3 +94,14 @@ export const useSubmitProposal = () => {
     },
   });
 };
+
+export const useCancelSubmitProposal = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => proposalsClientApi.cancelSubmit(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
+      qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    },
+  });
+};

@@ -26,6 +26,7 @@ import {
 } from "@/components/icons";
 import {
   isMember,
+  useCancelSubmitProposal,
   useDeleteProposal,
   useProposalDetail,
   useRemoveProposalItem,
@@ -38,6 +39,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
+import { openLoginModal } from "../../../_components/useLoginModal";
 import { CoverSlide, CoverThumb } from "./CoverTemplate";
 import { MediaSlide, MediaThumb } from "./MediaTemplate";
 import { SummarySlide, SummaryThumb } from "./SummaryTemplate";
@@ -79,6 +81,7 @@ export function ProposalDetailView({ id }: { id: string }) {
   const renameMutation = useRenameProposal();
   const deleteMutation = useDeleteProposal();
   const submitMutation = useSubmitProposal();
+  const cancelSubmitMutation = useCancelSubmitProposal();
   const reorderMutation = useReorderProposal();
   const removeItemMutation = useRemoveProposalItem();
 
@@ -365,12 +368,13 @@ export function ProposalDetailView({ id }: { id: string }) {
 
   const handleSubmit = async () => {
     if (!isMember()) {
-      await confirm({
+      const ok = await confirm({
         title: "제안서 제출은 로그인 후 이용 가능해요.",
         description:
           "제안서를 제출하고 맞춤 제안을 받으시려면 회원가입을 진행해 주세요.",
         confirmText: "로그인 화면으로",
       });
+      if (ok) openLoginModal();
       return;
     }
     const ok = await confirm({
@@ -380,6 +384,16 @@ export function ProposalDetailView({ id }: { id: string }) {
       confirmText: "제출",
     });
     if (ok) await submitMutation.mutateAsync(id);
+  };
+
+  const handleCancelSubmit = async () => {
+    const ok = await confirm({
+      title: "제출을 취소하시겠습니까?",
+      description:
+        "제출이 취소되면 다시 작성중 상태로 돌아가며, 제안서 내용을 수정할 수 있습니다.",
+      confirmText: "제출취소",
+    });
+    if (ok) await cancelSubmitMutation.mutateAsync(id);
   };
 
   const handleDelete = async () => {
@@ -448,10 +462,11 @@ export function ProposalDetailView({ id }: { id: string }) {
               <Button
                 variant="secondary"
                 size="md"
-                disabled
+                onClick={handleCancelSubmit}
+                disabled={cancelSubmitMutation.isPending}
                 leftIcon={<FileXIcon />}
               >
-                제출됨
+                제출취소
               </Button>
             ) : (
               <Button
