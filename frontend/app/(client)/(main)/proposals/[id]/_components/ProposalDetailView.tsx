@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { openLoginModal } from "../../../_components/useLoginModal";
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
+import { StatusChip } from "@/components/proposals/StatusChip";
 import { SummarySlide, SummaryThumb } from "@/components/proposals/SummaryTemplate";
 import { ThanksSlide, ThanksThumb } from "@/components/proposals/ThanksTemplate";
 
@@ -53,14 +54,6 @@ const SUMMARY_PAGE_SIZE = 5;
 const ZOOM_MIN = 25;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 25;
-
-const STATUS_TEXT: Record<string, string> = {
-  new: "작성중",
-  custom: "맞춤제안",
-  execution_requested: "집행 요청",
-  contracted: "계약 완료",
-  cancelled: "취소",
-};
 
 function fmtDateTime(iso?: string | null): string {
   if (!iso) return "-";
@@ -446,9 +439,7 @@ export function ProposalDetailView({ id }: { id: string }) {
               </button>
             </div>
             <div className="flex items-center gap-[12px]">
-              <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
-                {STATUS_TEXT[proposal?.status ?? "new"] ?? "작성중"}
-              </span>
+              <StatusChip status={proposal?.status ?? "new"} />
               <p className="text-sm font-medium leading-[20px] text-[#757575]">
                 {fmtDateTime(proposal?.updated_at)}
               </p>

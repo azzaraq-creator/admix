@@ -13,6 +13,7 @@ import {
   type ProposalLimitDetail,
   type ProposalSummary,
 } from "@/hooks/proposals";
+import { StatusChip } from "@/components/proposals/StatusChip";
 import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,8 @@ type Proposal = {
   id: string;
   title: string;
   updatedAt: string;
-  status: Status;
+  status: Status; // 탭 필터용(3종 collapsed)
+  rawStatus: string; // 칩 표시용(backend 원본 5종)
 };
 
 // 백엔드 status → UI 칩 3종 매핑
@@ -55,31 +57,13 @@ function toView(p: ProposalSummary): Proposal {
     title: p.title,
     updatedAt: formatUpdatedAt(p.updated_at),
     status: toStatus(p.status),
+    rawStatus: p.status,
   };
 }
-
-const CHIP_CLASS: Record<Status, string> = {
-  작성중: "bg-[#f6f6f6] text-[#545454]",
-  맞춤제안: "bg-[#fff3d3] text-[#ff920a]",
-  "계약 완료": "bg-secondary text-primary",
-};
 
 function Icon({ name, className }: { name: string; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={`/icons/${name}.svg`} alt="" className={className} />;
-}
-
-function StatusChip({ status }: { status: Status }) {
-  return (
-    <span
-      className={cn(
-        "shrink-0 rounded-[6px] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px]",
-        CHIP_CLASS[status],
-      )}
-    >
-      {status}
-    </span>
-  );
 }
 
 function ProposalCard({
@@ -127,7 +111,7 @@ function ProposalCard({
           </p>
         </div>
         <div className="flex items-center justify-between">
-          <StatusChip status={proposal.status} />
+          <StatusChip status={proposal.rawStatus} />
           <button
             type="button"
             onClick={(event) => {
