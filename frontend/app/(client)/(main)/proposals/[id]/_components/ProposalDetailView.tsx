@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { Button } from "@/components/common/buttons";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
@@ -109,6 +115,65 @@ export function ProposalDetailView({ id }: { id: string }) {
   const [lightbox, setLightbox] = useState(false);
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const dragIndex = useRef<number | null>(null);
+
+  // 미리보기 그랩-드래그(팬). 확대 시 넘치는 슬라이드를 끌어서 이동.
+  // 임계값 이상 움직일 때만 팬 시작 → 단순 클릭(Select·입력 등)은 그대로 통과.
+  const PAN_THRESHOLD = 5;
+  const previewRef = useRef<HTMLDivElement>(null);
+  const panStart = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+    pointerId: number;
+    active: boolean;
+  } | null>(null);
+  const [grabbing, setGrabbing] = useState(false);
+
+  const handlePreviewPointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (event.button !== 0) return;
+    const el = previewRef.current;
+    if (!el) return;
+    // 캡처/preventDefault 보류 — 움직임이 임계값을 넘기 전엔 클릭이 정상 동작
+    panStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      pointerId: event.pointerId,
+      active: false,
+    };
+  };
+
+  const handlePreviewPointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const start = panStart.current;
+    const el = previewRef.current;
+    if (!start || !el) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.active) {
+      if (Math.abs(dx) < PAN_THRESHOLD && Math.abs(dy) < PAN_THRESHOLD) return;
+      start.active = true;
+      setGrabbing(true);
+      el.setPointerCapture(start.pointerId);
+    }
+    el.scrollLeft = start.left - dx;
+    el.scrollTop = start.top - dy;
+  };
+
+  const handlePreviewPanEnd = () => {
+    const start = panStart.current;
+    panStart.current = null;
+    if (!start) return;
+    if (start.active) {
+      setGrabbing(false);
+      previewRef.current?.releasePointerCapture(start.pointerId);
+    }
+  };
 
   const orderedItems = useMemo<ProposalItem[]>(() => {
     const items = proposal?.items ?? [];
@@ -539,7 +604,17 @@ export function ProposalDetailView({ id }: { id: string }) {
                 저장하기
               </Button>
             </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]">
+            <div
+              ref={previewRef}
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPanEnd}
+              onPointerCancel={handlePreviewPanEnd}
+              className={cn(
+                "flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]",
+                grabbing ? "cursor-grabbing select-none" : "cursor-grab",
+              )}
+            >
               {selectedSummaryPage !== null && displayProposal ? (
                 <SummarySlide
                   proposal={displayProposal}
