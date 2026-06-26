@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -11,7 +12,6 @@ import {
 } from "react";
 
 import { Button } from "@/components/common/buttons";
-import { ImageLightbox } from "@/components/common/ImageLightbox";
 import {
   CircleAlertIcon,
   DownloadIcon,
@@ -23,6 +23,8 @@ import {
   PencilIcon,
   PlusIcon,
   TrashIcon,
+  XIcon,
+  ChevronLeftIcon,
 } from "@/components/icons";
 import {
   isMember,
@@ -40,6 +42,7 @@ import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
 import { openLoginModal } from "../../../_components/useLoginModal";
+import { CounterProposalDeckView } from "./CounterProposalDeckView";
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
 import { StatusChip } from "@/components/proposals/StatusChip";
@@ -66,6 +69,17 @@ function fmtDateTime(iso?: string | null): string {
 }
 
 export function ProposalDetailView({ id }: { id: string }) {
+  const { data: proposal } = useProposalDetail(id);
+  if (
+    proposal?.status === "custom" &&
+    (proposal.counter_proposal_slides?.length ?? 0) > 0
+  ) {
+    return <CounterProposalDeckView id={id} />;
+  }
+  return <ProposalEditorView id={id} />;
+}
+
+function ProposalEditorView({ id }: { id: string }) {
   const router = useRouter();
   const { confirm, confirmDialog } = useConfirm();
   const { success } = useSonner();
@@ -109,6 +123,8 @@ export function ProposalDetailView({ id }: { id: string }) {
   };
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const activeThumbRef = useRef<HTMLButtonElement>(null);
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const dragIndex = useRef<number | null>(null);
 
@@ -267,6 +283,50 @@ export function ProposalDetailView({ id }: { id: string }) {
     displayItems.find((item) => item.media_id === selectedId) ?? null;
 
   const title = proposal?.title ?? "";
+
+  // 전체보기 오버레이: Esc 닫기 / 좌우 화살표로 슬라이드 이동
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightbox(false);
+      else if (event.key === "ArrowLeft")
+        setLightboxIndex((i) => Math.max(0, i - 1));
+      else if (event.key === "ArrowRight")
+        setLightboxIndex((i) => Math.min(slides.length - 1, i + 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox, slides.length]);
+
+  // 전체보기 하단 스트립: 현재 슬라이드를 보이게 스크롤
+  useEffect(() => {
+    if (lightbox)
+      activeThumbRef.current?.scrollIntoView({
+        block: "nearest",
+        inline: "center",
+      });
+  }, [lightbox, lightboxIndex]);
+
+  // 슬라이드 1장 렌더 (전체보기 큰 화면·하단 스트립 공용)
+  const renderSlideNode = (slide: Slide, mapEnabled: boolean) => {
+    const summaryPage = parseSummaryPage(slide.id);
+    if (summaryPage !== null) {
+      return displayProposal ? (
+        <SummaryThumb
+          proposal={displayProposal}
+          rows={summaryPages[summaryPage] ?? []}
+          startIndex={summaryPage * SUMMARY_PAGE_SIZE}
+        />
+      ) : null;
+    }
+    if (slide.id === "cover")
+      return <CoverThumb updatedAt={proposal?.updated_at ?? null} />;
+    if (slide.id === "thanks") return <ThanksThumb />;
+    const mediaItem = displayItems.find((it) => it.media_id === slide.id);
+    return mediaItem ? (
+      <MediaThumb item={mediaItem} mapEnabled={mapEnabled} />
+    ) : null;
+  };
   const submitted = proposal?.status === "execution_requested";
 
   const startRename = () => {
@@ -664,7 +724,11 @@ export function ProposalDetailView({ id }: { id: string }) {
               <div className="pointer-events-auto flex items-center rounded-[12px] border border-[#f6f6f6] bg-white shadow-sm">
                 <button
                   type="button"
-                  onClick={() => setLightbox(true)}
+                  onClick={() => {
+                    const idx = slides.findIndex((s) => s.id === selectedId);
+                    setLightboxIndex(idx < 0 ? 0 : idx);
+                    setLightbox(true);
+                  }}
                   aria-label="전체보기"
                   className="border-r border-[#f6f6f6] px-[14px] py-[10px] text-[#2f3442]"
                 >
@@ -701,8 +765,82 @@ export function ProposalDetailView({ id }: { id: string }) {
         </div>
       </div>
 
-      {lightbox && (
-        <ImageLightbox images={[PREVIEW]} onClose={() => setLightbox(false)} />
+      {lightbox && slides[lightboxIndex] && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[70] flex flex-col gap-[16px] bg-black/90 p-[36px]"
+        >
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setLightbox(false)}
+              aria-label="닫기"
+              className="flex size-[48px] items-center justify-center text-white"
+            >
+              <XIcon className="size-[32px]" />
+            </button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
+            <div className="flex min-h-0 flex-1 items-center gap-[24px]">
+              <button
+                type="button"
+                onClick={() => setLightboxIndex((i) => Math.max(0, i - 1))}
+                disabled={lightboxIndex === 0}
+                aria-label="이전 슬라이드"
+                className="flex size-[48px] shrink-0 items-center justify-center text-white disabled:opacity-30"
+              >
+                <ChevronLeftIcon className="size-[48px]" />
+              </button>
+              <div className="flex h-full min-w-0 flex-1 items-center justify-center">
+                <div
+                  className="relative aspect-[1920/1080] max-h-full overflow-hidden rounded-[8px] bg-white"
+                  style={{ width: "min(100%, calc((100vh - 320px) * 16 / 9))" }}
+                >
+                  {renderSlideNode(slides[lightboxIndex], true)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setLightboxIndex((i) => Math.min(slides.length - 1, i + 1))
+                }
+                disabled={lightboxIndex === slides.length - 1}
+                aria-label="다음 슬라이드"
+                className="flex size-[48px] shrink-0 items-center justify-center text-white disabled:opacity-30"
+              >
+                <ChevronLeftIcon className="size-[48px] rotate-180" />
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <div className="rounded-full bg-black/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
+                <span className="text-white">{lightboxIndex + 1} </span>
+                <span className="text-[#767676]">/ {slides.length}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-[8px] overflow-x-auto">
+            {slides.map((slide, idx) => (
+              <button
+                key={slide.id}
+                ref={idx === lightboxIndex ? activeThumbRef : undefined}
+                type="button"
+                onClick={() => setLightboxIndex(idx)}
+                className={cn(
+                  "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-white transition-opacity",
+                  idx === lightboxIndex
+                    ? "ring-2 ring-white"
+                    : "opacity-50 hover:opacity-80",
+                )}
+              >
+                {renderSlideNode(slide, false)}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       {confirmDialog}
 

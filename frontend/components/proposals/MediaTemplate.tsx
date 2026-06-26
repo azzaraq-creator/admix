@@ -254,10 +254,16 @@ export function MediaSlide({
   );
 }
 
-export function MediaThumb({ item }: { item: ProposalItem }) {
+export function MediaThumb({
+  item,
+  mapEnabled = false,
+}: {
+  item: ProposalItem;
+  mapEnabled?: boolean;
+}) {
   return (
     <SlideScaler className="absolute inset-0" contentClassName="pointer-events-none">
-      <MediaTemplate item={item} mapEnabled={false} />
+      <MediaTemplate item={item} mapEnabled={mapEnabled} />
     </SlideScaler>
   );
 }
