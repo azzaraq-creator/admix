@@ -328,6 +328,8 @@ function ProposalEditorView({ id }: { id: string }) {
     ) : null;
   };
   const submitted = proposal?.status === "execution_requested";
+  // 제출(집행 요청)·계약 완료 상태는 편집 불가
+  const locked = submitted || proposal?.status === "contracted";
 
   const startRename = () => {
     setDraft(title);
@@ -489,14 +491,16 @@ function ProposalEditorView({ id }: { id: string }) {
                   {title}
                 </p>
               )}
-              <button
-                type="button"
-                onClick={startRename}
-                aria-label="제안서명 수정"
-                className="text-[#757575]"
-              >
-                <PencilIcon className="size-[18px]" />
-              </button>
+              {!locked && (
+                <button
+                  type="button"
+                  onClick={startRename}
+                  aria-label="제안서명 수정"
+                  className="text-[#757575]"
+                >
+                  <PencilIcon className="size-[18px]" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-[12px]">
               <StatusChip status={proposal?.status ?? "new"} />
@@ -519,7 +523,7 @@ function ProposalEditorView({ id }: { id: string }) {
               >
                 제출취소
               </Button>
-            ) : (
+            ) : !locked ? (
               <Button
                 variant="primary"
                 size="md"
@@ -528,7 +532,7 @@ function ProposalEditorView({ id }: { id: string }) {
               >
                 제출하기
               </Button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={handleDelete}
@@ -551,6 +555,7 @@ function ProposalEditorView({ id }: { id: string }) {
               {slides.map((slide, index) => {
                 const lastIndex = slides.length - 1;
                 const isFixed = index < firstMediaIndex || index === lastIndex;
+                const canEdit = !isFixed && !locked;
                 const showDivider =
                   index === firstMediaIndex ||
                   (index === lastIndex && lastIndex > firstMediaIndex);
@@ -563,9 +568,9 @@ function ProposalEditorView({ id }: { id: string }) {
                       <div className="h-px w-full shrink-0 bg-[#e8e8e8]" />
                     )}
                     <div
-                      draggable={!isFixed}
+                      draggable={canEdit}
                       onDragStart={() => {
-                        if (!isFixed) dragIndex.current = index;
+                        if (canEdit) dragIndex.current = index;
                       }}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => handleDrop(index)}
@@ -574,13 +579,13 @@ function ProposalEditorView({ id }: { id: string }) {
                       }}
                       className={cn(
                         "flex items-center border-l-2 border-transparent",
-                        !isFixed && "hover:border-primary",
+                        canEdit && "hover:border-primary",
                       )}
                     >
-                      {isFixed ? (
-                        <span className="size-[16px] shrink-0" />
-                      ) : (
+                      {canEdit ? (
                         <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-[#c9cad3] active:cursor-grabbing" />
+                      ) : (
+                        <span className="size-[16px] shrink-0" />
                       )}
                       <div className="flex min-w-0 flex-1 items-start">
                         <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
@@ -619,7 +624,7 @@ function ProposalEditorView({ id }: { id: string }) {
                                 className="size-full object-cover"
                               />
                             )}
-                            {!isFixed && (
+                            {canEdit && (
                               <span
                                 role="button"
                                 tabIndex={0}
@@ -644,15 +649,17 @@ function ProposalEditorView({ id }: { id: string }) {
                 );
               })}
             </div>
-            <div className="border-t border-stroke px-[24px] py-[12px]">
-              <Link
-                href="/fixed"
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
-              >
-                <PlusIcon className="size-[24px]" />
-                매체추가
-              </Link>
-            </div>
+            {!locked && (
+              <div className="border-t border-stroke px-[24px] py-[12px]">
+                <Link
+                  href="/fixed"
+                  className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+                >
+                  <PlusIcon className="size-[24px]" />
+                  매체추가
+                </Link>
+              </div>
+            )}
           </aside>
 
           <section className="relative flex min-w-0 flex-1 flex-col">
@@ -661,14 +668,16 @@ function ProposalEditorView({ id }: { id: string }) {
                 <span>최종 수정</span>
                 <span>2024.05.20 15:30</span>
               </p>
-              <Button
-                variant="tertiary"
-                size="sm"
-                onClick={handleSave}
-                disabled={reorderMutation.isPending}
-              >
-                저장하기
-              </Button>
+              {!locked && (
+                <Button
+                  variant="tertiary"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={reorderMutation.isPending}
+                >
+                  저장하기
+                </Button>
+              )}
             </div>
             <div
               ref={previewRef}
@@ -687,8 +696,9 @@ function ProposalEditorView({ id }: { id: string }) {
                   rows={summaryPages[selectedSummaryPage] ?? []}
                   startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
                   zoom={zoom}
-                  onDateChange={handleDateChange}
-                  onQuantityChange={handleQuantityChange}
+                  interactive={!locked}
+                  onDateChange={locked ? undefined : handleDateChange}
+                  onQuantityChange={locked ? undefined : handleQuantityChange}
                 />
               ) : previewMediaItem ? (
                 <MediaSlide
@@ -696,11 +706,14 @@ function ProposalEditorView({ id }: { id: string }) {
                   zoom={zoom}
                   plans={previewMediaItem.plans}
                   selectedPlanNo={currentPlanNo}
-                  onPlanChange={(planNo) =>
-                    setSelectedPlans((prev) => ({
-                      ...prev,
-                      [previewMediaItem.media_id]: planNo,
-                    }))
+                  onPlanChange={
+                    locked
+                      ? undefined
+                      : (planNo) =>
+                          setSelectedPlans((prev) => ({
+                            ...prev,
+                            [previewMediaItem.media_id]: planNo,
+                          }))
                   }
                 />
               ) : selectedId === "cover" ? (

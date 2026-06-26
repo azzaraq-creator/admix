@@ -309,6 +309,7 @@ export function SummarySlide({
   rows,
   startIndex,
   zoom,
+  interactive = true,
   onDateChange,
   onQuantityChange,
 }: {
@@ -316,6 +317,7 @@ export function SummarySlide({
   rows: ProposalItem[];
   startIndex: number;
   zoom: number;
+  interactive?: boolean;
   onDateChange?: (
     mediaId: string,
     field: "start_date" | "end_date",
@@ -332,7 +334,7 @@ export function SummarySlide({
         proposal={proposal}
         rows={rows}
         startIndex={startIndex}
-        interactive
+        interactive={interactive}
         onDateChange={onDateChange}
         onQuantityChange={onQuantityChange}
       />
