@@ -11,6 +11,7 @@ import { MediaThumb } from "@/components/proposals/MediaTemplate";
 import { SummaryThumb } from "@/components/proposals/SummaryTemplate";
 import { ThanksThumb } from "@/components/proposals/ThanksTemplate";
 import {
+  proposalsApi,
   useAcceptProposal,
   useAdminProposalDetail,
   type ProposalDetail,
@@ -130,6 +131,25 @@ export function ProposalDetailView() {
   const current = slides[selected] ?? slides[0];
   const member = proposal?.member;
   const counterFiles = proposal?.counter_files ?? [];
+
+  const handleDownloadCounter = async (counterId: string, fileName: string) => {
+    try {
+      const res = await proposalsApi.downloadCounterProposal(
+        params.id,
+        counterId,
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      return;
+    }
+  };
   const EMPTY = "-";
 
   return (
@@ -258,7 +278,7 @@ export function ProposalDetailView() {
                 등록된 맞춤제안이 없습니다.
               </div>
             ) : (
-              counterFiles.map((cf) => (
+              counterFiles.map((cf, index) => (
                 <div
                   key={cf.id}
                   className="flex h-[56px] items-center border-b border-[#f0f0f3] text-sm font-medium leading-[20px] text-[#2a2a2a]"
@@ -267,23 +287,34 @@ export function ProposalDetailView() {
                     {cf.file_name}
                   </div>
                   <div className="flex flex-1 items-center justify-center px-[24px] text-[#737586]">
-                    -
+                    {cf.author_name ?? "-"}
                   </div>
                   <div className="flex flex-1 items-center justify-center px-[24px]">
                     {formatDate(cf.created_at)}
                   </div>
                   <div className="flex flex-1 items-center justify-center px-[24px]">
-                    전송 완료
+                    {index === 0 ? "노출중" : "이전 버전"}
                   </div>
-                  <div className="flex flex-1 items-center justify-center px-[24px]">
-                    <a
-                      href={`${API_BASE}${cf.file_url}`}
-                      download={cf.file_name}
-                      className="flex items-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[12px] py-[6px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                  <div className="flex flex-1 items-center justify-center gap-[10px] px-[24px]">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/admin/proposals/${params.id}/write/${cf.id}`,
+                        )
+                      }
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[6px] border border-[#cdcdcd] px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
                     >
-                      <DownloadIcon className="size-[14px]" />
-                      다운로드
-                    </a>
+                      상세
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCounter(cf.id, cf.file_name)}
+                      aria-label="다운로드"
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[6px] border border-[#cdcdcd] px-[16px] py-[4px] text-[#0a0a0a]"
+                    >
+                      <DownloadIcon className="size-[16px]" />
+                    </button>
                   </div>
                 </div>
               ))

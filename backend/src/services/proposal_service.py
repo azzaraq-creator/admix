@@ -155,6 +155,9 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
                 id=str(cf.id),
                 file_url=cf.file_url,
                 file_name=cf.file_name,
+                author_name=cf.author_name,
+                slides_url=cf.slides_url,
+                slides=_slides_from_url(cf.slides_url),
                 created_at=cf.created_at.isoformat() if cf.created_at else None,
             )
             for cf in p.counter_files
@@ -186,6 +189,7 @@ def save_counter_proposal_file(
     file_url: str,
     file_name: str,
     slides_url: Optional[str] = None,
+    author_name: Optional[str] = None,
 ) -> Optional[Proposal]:
     """맞춤제안 PPT 파일 정보를 제안서에 저장. 제안서 없으면 None."""
     try:
@@ -196,7 +200,12 @@ def save_counter_proposal_file(
     if p is None:
         return None
     p.counter_files.append(
-        ProposalCounterFile(file_url=file_url, file_name=file_name)
+        ProposalCounterFile(
+            file_url=file_url,
+            file_name=file_name,
+            author_name=author_name,
+            slides_url=slides_url,
+        )
     )
     p.counter_proposal_file_url = file_url  # 최신 버전 포인터
     p.counter_proposal_file_name = file_name
@@ -473,16 +482,20 @@ def to_detail(db: Session, p: Proposal) -> dict:
     )
 
 
-def _counter_slides(p: Proposal) -> tuple[Optional[str], list[dict]]:
-    """맞춤제안 변환 슬라이드 폴더의 meta.json 을 읽어 슬라이드 목록 반환."""
-    url = p.counter_proposal_slides_url
+def _slides_from_url(url: Optional[str]) -> list[dict]:
+    """슬라이드 폴더 URL 의 meta.json 을 읽어 슬라이드 목록 반환."""
     if not url:
-        return None, []
+        return []
     rel = url[len("/uploads"):] if url.startswith("/uploads") else url
     meta_path = os.path.join(get_settings().upload_dir, rel.lstrip("/"), "meta.json")
     try:
         with open(meta_path, encoding="utf-8") as f:
-            meta = json.load(f)
+            return json.load(f).get("slides", [])
     except (OSError, json.JSONDecodeError):
-        return url, []
-    return url, meta.get("slides", [])
+        return []
+
+
+def _counter_slides(p: Proposal) -> tuple[Optional[str], list[dict]]:
+    """제안서 최신 맞춤제안 슬라이드 (URL, 목록)."""
+    url = p.counter_proposal_slides_url
+    return url, _slides_from_url(url)

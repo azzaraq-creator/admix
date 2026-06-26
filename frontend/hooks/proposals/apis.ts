@@ -28,6 +28,9 @@ export interface AdminProposalCounterFile {
   id: string;
   file_url: string;
   file_name: string;
+  author_name: string | null;
+  slides_url?: string | null;
+  slides?: CounterSlide[];
   created_at: string | null;
 }
 
@@ -65,6 +68,11 @@ export const proposalsApi = {
     api
       .post<AdminProposalDetail>(`/admin/proposals/${id}/accept`)
       .then((r) => r.data),
+  downloadCounterProposal: (proposalId: string, counterId: string) =>
+    api.get<Blob>(
+      `/admin/proposals/${proposalId}/counter-proposal/${counterId}/download`,
+      { responseType: "blob" },
+    ),
 };
 
 // ===== 클라이언트(장바구니/플래닝) =====

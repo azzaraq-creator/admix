@@ -7,11 +7,13 @@ import uuid as uuidlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
+from src.models.proposal_counter_file import ProposalCounterFile
 from src.schemas.proposal import AdminProposalDetail, ProposalListResponse
 from src.services import deck_converter, proposal_service
 from src.utils.deps import get_current_admin
@@ -47,7 +49,7 @@ async def upload_counter_proposal(
     proposal_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_admin),
 ) -> AdminProposalDetail:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -86,6 +88,7 @@ async def upload_counter_proposal(
         file_url=file_url,
         file_name=file.filename or stored_name,
         slides_url=slides_url,
+        author_name=admin.name,
     )
     if p is None:
         pptx_path.unlink(missing_ok=True)
@@ -105,3 +108,39 @@ def accept_proposal(
     if p is None:
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
     return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))
+
+
+@router.get("/{proposal_id}/counter-proposal/{counter_id}/download")
+def download_counter_proposal(
+    proposal_id: str,
+    counter_id: str,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin),
+) -> FileResponse:
+    """맞춤제안 원본 PPT 다운로드 — 업로드 당시 파일명 유지."""
+    try:
+        cid = uuidlib.UUID(counter_id)
+        pid = uuidlib.UUID(proposal_id)
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.") from exc
+    cf = (
+        db.query(ProposalCounterFile)
+        .filter(
+            ProposalCounterFile.id == cid,
+            ProposalCounterFile.proposal_id == pid,
+        )
+        .first()
+    )
+    if cf is None:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    rel = (
+        cf.file_url[len("/uploads"):]
+        if cf.file_url.startswith("/uploads")
+        else cf.file_url
+    )
+    path = Path(get_settings().upload_dir) / rel.lstrip("/")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    return FileResponse(
+        path, filename=cf.file_name, media_type="application/octet-stream"
+    )
