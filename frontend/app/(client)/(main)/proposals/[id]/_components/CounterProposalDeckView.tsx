@@ -11,7 +11,7 @@ import {
   PlusIcon,
 } from "@/components/icons";
 import { StatusChip } from "@/components/proposals/StatusChip";
-import { useProposalDetail } from "@/hooks/proposals";
+import { proposalsClientApi, useProposalDetail } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -51,6 +51,22 @@ export function CounterProposalDeckView({ id }: { id: string }) {
 
   const title = proposal?.title ?? "";
 
+  const handleExport = async () => {
+    try {
+      const res = await proposalsClientApi.downloadCounterProposal(id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = proposal?.counter_proposal_file_name ?? "맞춤제안.pptx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      return;
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -66,7 +82,12 @@ export function CounterProposalDeckView({ id }: { id: string }) {
               </p>
             </div>
           </div>
-          <Button variant="tertiary" size="md" leftIcon={<DownloadIcon />}>
+          <Button
+            variant="tertiary"
+            size="md"
+            leftIcon={<DownloadIcon />}
+            onClick={handleExport}
+          >
             내보내기
           </Button>
         </header>

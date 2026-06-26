@@ -134,6 +134,7 @@ export interface ProposalDetail extends ProposalSummary {
   items: ProposalItem[];
   counter_proposal_slides_url?: string | null;
   counter_proposal_slides?: CounterSlide[];
+  counter_proposal_file_name?: string | null;
 }
 
 export interface ProposalLimitDetail {
@@ -162,6 +163,11 @@ export const proposalsClientApi = {
         params: { session_id: getSessionId() },
       })
       .then((r) => r.data),
+  downloadCounterProposal: (id: string) =>
+    api.get<Blob>(`/proposals/${id}/counter-proposal/download`, {
+      responseType: "blob",
+      params: { session_id: getSessionId() },
+    }),
   rename: (id: string, title: string) =>
     api
       .patch<ProposalSummary>(

@@ -469,6 +469,7 @@ def to_detail(db: Session, p: Proposal) -> dict:
         items=[_item(it) for it in p.items],
         counter_proposal_slides_url=slides_url,
         counter_proposal_slides=slides,
+        counter_proposal_file_name=p.counter_proposal_file_name,
     )
 
 

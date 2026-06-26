@@ -6,11 +6,14 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from src.config import get_settings
 from src.database import get_db
 from src.models.user import User
 from src.schemas.proposal import (
@@ -191,3 +194,26 @@ def cancel_submit_proposal(
     db.commit()
     db.refresh(p)
     return ProposalSummary(**proposal_service.to_summary(p))
+
+
+@router.get("/{proposal_id}/counter-proposal/download")
+def download_counter_proposal(
+    proposal_id: str,
+    session_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional),
+):
+    """맞춤제안 원본 PPT(올린 파일) 다운로드 — 원본 파일명 유지."""
+    p = _get_owned_or_404(db, proposal_id, user, session_id)
+    if not p.counter_proposal_file_url:
+        raise HTTPException(status_code=404, detail="맞춤제안 파일이 없습니다.")
+    rel = p.counter_proposal_file_url
+    rel = rel[len("/uploads"):] if rel.startswith("/uploads") else rel
+    path = Path(get_settings().upload_dir) / rel.lstrip("/")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    return FileResponse(
+        path,
+        filename=p.counter_proposal_file_name or path.name,
+        media_type="application/octet-stream",
+    )

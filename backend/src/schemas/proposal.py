@@ -77,6 +77,7 @@ class ProposalDetail(ProposalSummary):
     items: list[ProposalItemOut] = []
     counter_proposal_slides_url: Optional[str] = None
     counter_proposal_slides: list[CounterSlide] = []
+    counter_proposal_file_name: Optional[str] = None
 
 
 class AdminProposalMember(BaseModel):
