@@ -68,8 +68,15 @@ class ProposalItemOut(BaseModel):
     plans: list[PlanOut] = []
 
 
+class CounterSlide(BaseModel):
+    image: str
+    thumb: str
+
+
 class ProposalDetail(ProposalSummary):
     items: list[ProposalItemOut] = []
+    counter_proposal_slides_url: Optional[str] = None
+    counter_proposal_slides: list[CounterSlide] = []
 
 
 class AdminProposalMember(BaseModel):

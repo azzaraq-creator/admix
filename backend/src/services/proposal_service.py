@@ -4,11 +4,14 @@
 """
 from __future__ import annotations
 
+import json
+import os
 import uuid
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
+from src.config import get_settings
 from src.models.media_master import Media
 from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
@@ -177,7 +180,12 @@ def update_status(db: Session, proposal_id: str, status: str) -> Optional[Propos
 
 
 def save_counter_proposal_file(
-    db: Session, proposal_id: str, *, file_url: str, file_name: str
+    db: Session,
+    proposal_id: str,
+    *,
+    file_url: str,
+    file_name: str,
+    slides_url: Optional[str] = None,
 ) -> Optional[Proposal]:
     """맞춤제안 PPT 파일 정보를 제안서에 저장. 제안서 없으면 None."""
     try:
@@ -192,6 +200,7 @@ def save_counter_proposal_file(
     )
     p.counter_proposal_file_url = file_url  # 최신 버전 포인터
     p.counter_proposal_file_name = file_name
+    p.counter_proposal_slides_url = slides_url  # 변환 슬라이드 폴더 (최신)
     p.status = "custom"  # 맞춤제안 전송 → 상태 갱신
     db.commit()
     db.refresh(p)
@@ -454,4 +463,25 @@ def to_detail(db: Session, p: Proposal) -> dict:
             ],
         )
 
-    return dict(**to_summary(p), items=[_item(it) for it in p.items])
+    slides_url, slides = _counter_slides(p)
+    return dict(
+        **to_summary(p),
+        items=[_item(it) for it in p.items],
+        counter_proposal_slides_url=slides_url,
+        counter_proposal_slides=slides,
+    )
+
+
+def _counter_slides(p: Proposal) -> tuple[Optional[str], list[dict]]:
+    """맞춤제안 변환 슬라이드 폴더의 meta.json 을 읽어 슬라이드 목록 반환."""
+    url = p.counter_proposal_slides_url
+    if not url:
+        return None, []
+    rel = url[len("/uploads"):] if url.startswith("/uploads") else url
+    meta_path = os.path.join(get_settings().upload_dir, rel.lstrip("/"), "meta.json")
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return url, []
+    return url, meta.get("slides", [])

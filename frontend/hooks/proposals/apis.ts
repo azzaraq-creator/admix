@@ -125,8 +125,15 @@ export interface ProposalItem {
   plans: PlanOption[];
 }
 
+export interface CounterSlide {
+  image: string;
+  thumb: string;
+}
+
 export interface ProposalDetail extends ProposalSummary {
   items: ProposalItem[];
+  counter_proposal_slides_url?: string | null;
+  counter_proposal_slides?: CounterSlide[];
 }
 
 export interface ProposalLimitDetail {

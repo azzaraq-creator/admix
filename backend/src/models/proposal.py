@@ -45,6 +45,7 @@ class Proposal(Base):
     memo = Column(Text, nullable=True)
     counter_proposal_file_url = Column(String(1000), nullable=True)
     counter_proposal_file_name = Column(String(500), nullable=True)
+    counter_proposal_slides_url = Column(String(1000), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 

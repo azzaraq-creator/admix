@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import uuid as uuidlib
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
 from src.schemas.proposal import AdminProposalDetail, ProposalListResponse
-from src.services import proposal_service
+from src.services import deck_converter, proposal_service
 from src.utils.deps import get_current_admin
 
 router = APIRouter(prefix="/admin/proposals", tags=["proposals"])
@@ -63,14 +64,32 @@ async def upload_counter_proposal(
     dest_dir = Path(settings.upload_dir) / "proposals" / proposal_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     stored_name = f"{uuidlib.uuid4().hex}{ext}"
-    (dest_dir / stored_name).write_bytes(content)
+    pptx_path = dest_dir / stored_name
+    pptx_path.write_bytes(content)
     file_url = f"/uploads/proposals/{proposal_id}/{stored_name}"
 
+    # PPT → 슬라이드 이미지 변환 (고객 화면에서 미리보기로 표시)
+    deck_id = uuidlib.uuid4().hex
+    slides_dir = dest_dir / deck_id
+    title = os.path.splitext(file.filename or stored_name)[0]
+    try:
+        deck_converter.convert_ppt_to_slides(str(pptx_path), str(slides_dir), title)
+    except Exception as exc:  # noqa: BLE001 — 변환 실패 사용자에게 전달
+        pptx_path.unlink(missing_ok=True)
+        shutil.rmtree(slides_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=f"PPT 변환 실패: {exc}") from exc
+    slides_url = f"/uploads/proposals/{proposal_id}/{deck_id}"
+
     p = proposal_service.save_counter_proposal_file(
-        db, proposal_id, file_url=file_url, file_name=file.filename or stored_name
+        db,
+        proposal_id,
+        file_url=file_url,
+        file_name=file.filename or stored_name,
+        slides_url=slides_url,
     )
     if p is None:
-        (dest_dir / stored_name).unlink(missing_ok=True)
+        pptx_path.unlink(missing_ok=True)
+        shutil.rmtree(slides_dir, ignore_errors=True)
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
     return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))
 
