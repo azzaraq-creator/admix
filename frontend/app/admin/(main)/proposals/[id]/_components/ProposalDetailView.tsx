@@ -132,6 +132,27 @@ export function ProposalDetailView() {
   const member = proposal?.member;
   const counterFiles = proposal?.counter_files ?? [];
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPpt = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await proposalsApi.exportPpt(params.id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${proposal?.title ?? "제안서"}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExporting(false);
+    } catch {
+      setExporting(false);
+    }
+  };
+
   const handleDownloadCounter = async (counterId: string, fileName: string) => {
     try {
       const res = await proposalsApi.downloadCounterProposal(
@@ -191,10 +212,12 @@ export function ProposalDetailView() {
           </p>
           <button
             type="button"
-            className="flex h-[36px] items-center gap-[10px] rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+            onClick={handleExportPpt}
+            disabled={exporting}
+            className="flex h-[36px] items-center gap-[10px] rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
           >
             <DownloadIcon className="size-[16px]" />
-            PPT 다운로드
+            {exporting ? "생성 중…" : "PPT 다운로드"}
           </button>
         </div>
 

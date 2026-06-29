@@ -73,6 +73,11 @@ export const proposalsApi = {
       `/admin/proposals/${proposalId}/counter-proposal/${counterId}/download`,
       { responseType: "blob" },
     ),
+  exportPpt: (id: string) =>
+    api.get<Blob>(`/admin/proposals/${id}/export-ppt`, {
+      responseType: "blob",
+      timeout: 60000,
+    }),
 };
 
 // ===== 클라이언트(장바구니/플래닝) =====

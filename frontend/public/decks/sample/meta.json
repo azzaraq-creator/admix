@@ -1,0 +1,26 @@
+{
+  "title": "제안서 샘플 양식 v2",
+  "totalSlides": 5,
+  "slides": [
+    {
+      "image": "slide-1.png",
+      "thumb": "thumb-1.png"
+    },
+    {
+      "image": "slide-2.png",
+      "thumb": "thumb-2.png"
+    },
+    {
+      "image": "slide-3.png",
+      "thumb": "thumb-3.png"
+    },
+    {
+      "image": "slide-4.png",
+      "thumb": "thumb-4.png"
+    },
+    {
+      "image": "slide-5.png",
+      "thumb": "thumb-5.png"
+    }
+  ]
+}

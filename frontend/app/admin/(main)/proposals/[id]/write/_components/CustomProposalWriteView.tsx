@@ -5,10 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
-import {
-  useAdminProposalDetail,
-  useUploadCounterProposal,
-} from "@/hooks/proposals";
+import { useUploadCounterProposal } from "@/hooks/proposals";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 
@@ -25,10 +22,9 @@ export function CustomProposalWriteView() {
 
   const { confirm, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
-  const { data: proposal } = useAdminProposalDetail(params.id);
   const uploadMutation = useUploadCounterProposal();
 
-  const fileName = staged?.name ?? proposal?.counter_proposal_file_name ?? null;
+  const fileName = staged?.name ?? null;
 
   const goBack = () => router.push(`/admin/proposals/${params.id}`);
 
