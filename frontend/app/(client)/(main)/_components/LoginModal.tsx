@@ -6,7 +6,7 @@ import { useState, type FormEvent, type SVGProps } from "react";
 
 import { LogoFull, XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import { authKeys, useLogin } from "@/hooks/auth";
+import { authApi, authKeys, useLogin } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
@@ -85,10 +85,13 @@ export function LoginModal() {
         remember: keepLoggedIn,
       });
       setTokens(res.access_token, res.refresh_token, keepLoggedIn);
-      await queryClient.invalidateQueries({
-        queryKey: authKeys.me,
-        refetchType: "all",
-      });
+      // 로그인 직후 me 캐시를 즉시 채워 사이드바가 바로 반영되도록 한다.
+      // useMe 는 enabled:!!token 이라 로그인 전엔 disabled 상태이고,
+      // disabled 옵저버는 invalidate 로 refetch 되지 않으므로 fetchQuery 로 강제 조회.
+      // me 조회 실패가 로그인 성공을 뒤집지 않도록 catch 로 흡수.
+      await queryClient
+        .fetchQuery({ queryKey: authKeys.me, queryFn: authApi.me })
+        .catch(() => {});
       setEmail("");
       setPassword("");
       setLoginModalOpen(false);
