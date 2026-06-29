@@ -19,13 +19,14 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.user import User
 from src.schemas.ad_session import (
+    AdChatCount,
     AdSessionCreate,
     AdSessionDetail,
     AdSessionSummary,
     AdSessionUpdate,
 )
 from src.services import ad_session_service as svc
-from src.utils.deps import get_current_user_optional
+from src.utils.deps import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/chat/graph", tags=["chat-graph"])
 
@@ -48,6 +49,15 @@ def create_session(
 @router.get("/sessions", response_model=List[AdSessionSummary])
 def list_sessions(db: Session = Depends(get_db)):
     return svc.list_sessions(db, limit=50)
+
+
+@router.get("/chat-count", response_model=AdChatCount)
+def get_chat_count(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """로그인 사용자의 전체 세션 누적 챗 횟수(와리가리 횟수)."""
+    return AdChatCount(chat_count=svc.count_user_chats(db, current.id))
 
 
 @router.get("/sessions/{session_id}", response_model=AdSessionDetail)

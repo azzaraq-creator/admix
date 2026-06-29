@@ -152,6 +152,20 @@ def get_user_chat_detail(db: Session, user_id: str) -> Optional[dict]:
     )
 
 
+def count_user_chats(db: Session, user_id: uuid.UUID) -> int:
+    """사용자의 전체 세션에 걸친 와리가리 챗 횟수 = user 역할 메시지 수.
+
+    새 세션을 시작해도 과거 세션 메시지가 그대로 남아 누적 집계된다.
+    """
+    return (
+        db.query(func.count(AdMessage.id))
+        .join(AdSession, AdMessage.session_id == AdSession.id)
+        .filter(AdSession.user_id == user_id, AdMessage.role == MessageRole.user)
+        .scalar()
+        or 0
+    )
+
+
 def update_title(db: Session, session_id: str, title: str) -> Optional[AdSession]:
     s = get_session(db, session_id)
     if not s:

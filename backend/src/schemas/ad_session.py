@@ -82,3 +82,8 @@ class AdUserChatDetail(BaseModel):
     email: str
     membership: Optional[str] = None
     sessions: List[AdSessionAdminRow]
+
+
+class AdChatCount(BaseModel):
+    # 로그인 사용자의 전체 세션에 걸친 와리가리 챗 횟수(user 메시지 수).
+    chat_count: int
