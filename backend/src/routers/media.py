@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.schemas.media import MediaCardListResponse, MediaDetail, MediaListResponse
+from src.schemas.media import (
+    MediaCardListResponse,
+    MediaDetail,
+    MediaFilterOptions,
+    MediaListResponse,
+)
 from src.services import media_service
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -23,13 +28,36 @@ def list_moving_media(db: Session = Depends(get_db)) -> MediaCardListResponse:
     return MediaCardListResponse(total=len(items), items=items)
 
 
+@router.get("/fixed/filter-options", response_model=MediaFilterOptions)
+def get_fixed_filter_options(db: Session = Depends(get_db)) -> MediaFilterOptions:
+    return MediaFilterOptions(**media_service.get_fixed_filter_options(db))
+
+
 @router.get("/fixed", response_model=MediaCardListResponse)
 def list_fixed_media(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    category: list[str] | None = Query(None),
+    ooh_type: list[str] | None = Query(None),
+    exposure_type: list[str] | None = Query(None),
+    media_shape: list[str] | None = Query(None),
+    product_master_type: list[str] | None = Query(None),
+    price_min: int | None = Query(None, ge=0),
+    price_max: int | None = Query(None, ge=0),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
-    total, items = media_service.list_fixed_media(db, limit=limit, offset=offset)
+    total, items = media_service.list_fixed_media(
+        db,
+        limit=limit,
+        offset=offset,
+        categories=category,
+        ooh_types=ooh_type,
+        exposure_types=exposure_type,
+        media_shapes=media_shape,
+        product_master_types=product_master_type,
+        price_min=price_min,
+        price_max=price_max,
+    )
     return MediaCardListResponse(total=total, items=items)
 
 

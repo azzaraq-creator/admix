@@ -35,6 +35,16 @@ class MediaCardListResponse(BaseModel):
     items: list[MediaCardRow]
 
 
+class MediaFilterOptions(BaseModel):
+    categories: list[str]
+    ooh_types: list[str]
+    exposure_types: list[str]
+    media_shapes: list[str]
+    product_master_types: list[str]
+    price_min: int | None
+    price_max: int | None
+
+
 class MediaFeature(BaseModel):
     label: str
     value: str

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import and_, text
+from sqlalchemy import and_, func, text
 from sqlalchemy.orm import Session
 
 from src.models.media_master import Media
@@ -61,11 +61,84 @@ def list_moving_media(db: Session) -> list[dict]:
     return [_media_card(m) for m in rows]
 
 
-def list_fixed_media(db: Session, *, limit: int, offset: int) -> tuple[int, list[dict]]:
+def list_fixed_media(
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+) -> tuple[int, list[dict]]:
     base = db.query(Media).filter(Media.media_source == "FIXED")
+    if categories:
+        base = base.filter(Media.category_large.in_(categories))
+    if ooh_types:
+        base = base.filter(Media.ooh_type.in_(ooh_types))
+    if exposure_types:
+        base = base.filter(Media.exposure_type.in_(exposure_types))
+    if media_shapes:
+        base = base.filter(Media.media_shape.in_(media_shapes))
+    if price_min is not None:
+        base = base.filter(Media.min_advertisement_fee_krw >= price_min)
+    if price_max is not None:
+        base = base.filter(Media.min_advertisement_fee_krw <= price_max)
+    if product_master_types:
+        # 매체판매유형 = 해당 매체 플랜의 product_master_type 집합 기준(조인 IN)
+        plan_media_ids = db.query(MediaPlan.media_id).filter(
+            MediaPlan.product_master_type.in_(product_master_types)
+        )
+        base = base.filter(Media.media_id.in_(plan_media_ids))
     total = base.count()
     rows = base.order_by(Media.media_id).limit(limit).offset(offset).all()
     return total, [_media_card(m) for m in rows]
+
+
+def get_fixed_filter_options(db: Session) -> dict:
+    """매체검색 필터 옵션 — FIXED 매체 기준 distinct 값 + 가격(최소광고비) 범위."""
+
+    def _distinct(col) -> list[str]:
+        rows = (
+            db.query(col)
+            .filter(Media.media_source == "FIXED", col.isnot(None))
+            .distinct()
+            .order_by(col)
+            .all()
+        )
+        return [r[0] for r in rows]
+
+    pmt_rows = (
+        db.query(MediaPlan.product_master_type)
+        .join(Media, MediaPlan.media_id == Media.media_id)
+        .filter(
+            Media.media_source == "FIXED",
+            MediaPlan.product_master_type.isnot(None),
+        )
+        .distinct()
+        .order_by(MediaPlan.product_master_type)
+        .all()
+    )
+    price = (
+        db.query(
+            func.min(Media.min_advertisement_fee_krw),
+            func.max(Media.min_advertisement_fee_krw),
+        )
+        .filter(Media.media_source == "FIXED")
+        .first()
+    )
+    return dict(
+        categories=_distinct(Media.category_large),
+        ooh_types=_distinct(Media.ooh_type),
+        exposure_types=_distinct(Media.exposure_type),
+        media_shapes=_distinct(Media.media_shape),
+        product_master_types=[r[0] for r in pmt_rows],
+        price_min=price[0] if price else None,
+        price_max=price[1] if price else None,
+    )
 
 
 def _plan_subtitle(p: MediaPlan) -> str | None:
