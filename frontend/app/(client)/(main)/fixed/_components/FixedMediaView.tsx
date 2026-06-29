@@ -13,6 +13,7 @@ import type { MediaItemData } from "@/components/common/MediaItem";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
 import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
 import { useMediaDetail } from "@/hooks/media";
+import type { Mode } from "../../_components/ModeToggle";
 import { ChatPanel } from "./ChatPanel";
 import { MapArea, type MapMarker } from "./MapArea";
 
@@ -53,7 +54,11 @@ function formatFee(krw: number | null): string {
 
 const DRAWER_HALF_WIDTH = 192;
 
-export function FixedMediaView() {
+export function FixedMediaView({
+  initialMode = "ai",
+}: {
+  initialMode?: Mode;
+}) {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
@@ -155,6 +160,7 @@ export function FixedMediaView() {
       >
         {chatOpen && (
           <ChatPanel
+            initialMode={initialMode}
             onSelectMedia={setSelectedMedia}
             selectedId={selectedMedia?.id}
             onRecommendations={handleRecommendations}

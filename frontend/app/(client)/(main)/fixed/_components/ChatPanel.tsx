@@ -51,6 +51,7 @@ const MAX_LENGTH = 500;
 const MAX_TEXTAREA_HEIGHT = 120;
 
 export function ChatPanel({
+  initialMode = "ai",
   onSelectMedia,
   selectedId,
   onRecommendations,
@@ -58,6 +59,7 @@ export function ChatPanel({
   onOpenDetail,
   onAddProposal,
 }: {
+  initialMode?: Mode;
   onSelectMedia?: (item: MediaItemData) => void;
   selectedId?: string;
   onRecommendations?: (markers: MapMarker[]) => void;
@@ -65,7 +67,7 @@ export function ChatPanel({
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
 }) {
-  const [mode, setMode] = useState<Mode>("ai");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [value, setValue] = useState("");
   const [location, setLocation] = useState("");
   const [showPhotos, setShowPhotos] = useState(true);
@@ -344,6 +346,7 @@ export function ChatPanel({
           <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-white px-[24px] py-[10px]">
             <textarea
               ref={textareaRef}
+              autoFocus
               rows={1}
               value={value}
               maxLength={MAX_LENGTH}
