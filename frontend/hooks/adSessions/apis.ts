@@ -41,4 +41,10 @@ export const adSessionsApi = {
 
   remove: (id: string) =>
     api.delete(`/chat/graph/sessions/${id}`).then(() => undefined),
+
+  // 로그인 사용자의 전체 세션 누적 챗 횟수(와리가리 횟수). 로그인 필요.
+  chatCount: () =>
+    api
+      .get<{ chat_count: number }>("/chat/graph/chat-count")
+      .then((r) => r.data.chat_count),
 };

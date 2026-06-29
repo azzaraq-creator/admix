@@ -222,6 +222,27 @@ export function useV2Chat() {
     return s.id;
   }, [sessionId]);
 
+  /**
+   * 새 세션 시작: 화면 대화를 비우고 새 세션을 즉시 생성한다.
+   * 서버의 기존 세션 레코드는 그대로 남으므로, 사용자의 전체 세션에 걸친
+   * 누적 챗 횟수 집계에는 영향이 없다(새 세션이라고 카운트가 초기화되지 않음).
+   */
+  const newSession = useCallback(async () => {
+    if (running) return;
+    setMessages([]);
+    setSessionId(null);
+    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    try {
+      const s = await adSessionsApi.create(null);
+      setSessionId(s.id);
+      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, s.id);
+    } catch (err) {
+      // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
+      const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
+      toast.error(msg);
+    }
+  }, [running]);
+
   const handleEventBlock = useCallback(
     (block: string, assistantId: string) => {
       let eventName = "message";
@@ -453,6 +474,7 @@ export function useV2Chat() {
     sessionId,
     submit,
     removeSlot,
+    newSession,
     currentSlots,
     lastConfirmingId,
   };

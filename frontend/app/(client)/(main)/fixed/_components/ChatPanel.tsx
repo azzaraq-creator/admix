@@ -16,6 +16,7 @@ import {
   // type EnrichedCode, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
   type V2Message,
 } from "@/hooks/adRecommendV2";
+import { useMe } from "@/hooks/auth";
 import { useFixedMediaInfinite } from "@/hooks/media";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
@@ -61,6 +62,8 @@ export function ChatPanel({
   const endRef = useRef<HTMLDivElement>(null);
 
   const chat = useV2Chat();
+  const { data: me } = useMe();
+  const isLoggedIn = !!me;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useFixedMediaInfinite();
@@ -196,14 +199,22 @@ export function ChatPanel({
               믹시
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setText("")}
-            className="flex items-center gap-[4px] rounded-[8px] text-[#2f3442]"
-          >
-            <RotateCwIcon className="size-[18px]" />
-            <span className="text-sm font-medium leading-[20px]">새로고침</span>
-          </button>
+          {isLoggedIn && (
+            <button
+              type="button"
+              disabled={chat.running}
+              onClick={() => {
+                setText("");
+                void chat.newSession();
+              }}
+              className="flex items-center gap-[4px] rounded-[8px] text-[#2f3442] disabled:opacity-50"
+            >
+              <RotateCwIcon className="size-[18px]" />
+              <span className="text-sm font-medium leading-[20px]">
+                새 대화
+              </span>
+            </button>
+          )}
         </div>
       )}
 
