@@ -4,27 +4,25 @@ import { useEffect, useRef, useState } from "react";
 
 import { MediaFilterBar } from "@/components/common/MediaFilterBar";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
-import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import {
   ArrowUpIcon,
-  FolderIcon,
   RotateCwIcon,
   SparkleIcon,
   // XIcon, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 } from "@/components/icons";
 import {
-  CATEGORY_LABELS,
-  mergeEnriched,
   useV2Chat,
+  // CATEGORY_LABELS, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
   // type EnrichedCode, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
-  type SlotKey,
   type V2Message,
-  type V2MediaItem,
 } from "@/hooks/adRecommendV2";
 import { useFixedMediaInfinite } from "@/hooks/media";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { ModeToggle, type Mode } from "../../_components/ModeToggle";
+import { AssistantBubble } from "./chat/AssistantBubble";
+import { formatFee } from "./chat/format";
+import { UserBubble } from "./chat/UserBubble";
 import type { MapMarker } from "./MapArea";
 
 const FAQS = [
@@ -32,20 +30,6 @@ const FAQS = [
   "홍대에서 5,000만원 예산으로 광고 매체를 추천받고 싶어요",
   "잠실역에서 20대 여성을 타겟한 인기 광고 매체를 추천받고 싶어요",
 ];
-
-function formatFee(krw: number | null): string {
-  if (krw == null) return "최소집행금액 협의";
-  return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
-}
-
-function formatV2Price(raw?: string): string {
-  if (!raw) return "최소집행금액 협의";
-  const digits = raw.replace(/[^0-9]/g, "");
-  if (!digits) return raw;
-  const n = Number(digits);
-  if (!Number.isFinite(n)) return raw;
-  return `최소집행금액 ${Math.round(n / 10000).toLocaleString()}만원`;
-}
 
 const MAX_LENGTH = 500;
 const MAX_TEXTAREA_HEIGHT = 120;
@@ -384,291 +368,6 @@ export function ChatPanel({
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-function UserBubble({ content }: { content: string }) {
-  return (
-    <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-[16px] rounded-br-[4px] bg-[#f0f5f9] px-[16px] py-[10px] text-base leading-[24px] text-black">
-        {content}
-      </div>
-    </div>
-  );
-}
-
-function AssistantBubble({
-  message,
-  selectedId,
-  onSelectMedia,
-  onFocusMedia,
-  showPhotos,
-  onTogglePhotos,
-  onOpenDetail,
-  onAddProposal,
-}: {
-  message: V2Message;
-  selectedId?: string;
-  onSelectMedia?: (item: MediaItemData) => void;
-  onFocusMedia?: (mediaId: string) => void;
-  showPhotos: boolean;
-  onTogglePhotos: (next: boolean) => void;
-  onOpenDetail?: (item: MediaItemData) => void;
-  onAddProposal?: (mediaId: string) => void;
-}) {
-  if (message.isLoading) {
-    return (
-      <div className="flex items-center gap-[8px] text-base text-[#757575]">
-        <RotateCwIcon className="size-[16px] animate-spin text-primary" />
-        <span>추천 중...</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-[12px]">
-      {message.confirmation && (
-        <ConfirmationView
-          changes={message.confirmation.changes}
-          messageText={message.confirmation.message}
-        />
-      )}
-      {message.response_type === "need_more" && (
-        <MatchedChips message={message} />
-      )}
-      {message.response_type === "list" &&
-        message.items &&
-        message.items.length > 0 && (
-          <>
-            <div className="flex items-start gap-[8px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons/ai-icon.png"
-                alt=""
-                className="size-[24px] shrink-0"
-              />
-              <p className="text-base leading-[24px] text-black">
-                분석 완료! 가장 적합한 매체 {message.items.length}개를
-                정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성
-                요청해보세요.
-              </p>
-            </div>
-            <ConditionChips message={message} />
-            <ChatMediaList
-              items={message.items}
-              selectedId={selectedId}
-              onSelectMedia={onSelectMedia}
-              onFocusMedia={onFocusMedia}
-              showPhotos={showPhotos}
-              onTogglePhotos={onTogglePhotos}
-              onAddProposal={onAddProposal}
-            />
-          </>
-        )}
-      {message.message && message.response_type !== "list" && (
-        <div className="flex items-start gap-[8px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons/ai-icon.png"
-                alt=""
-                className="size-[24px] shrink-0"
-              />
-          <p className="whitespace-pre-line text-base leading-[24px] text-black">
-            {message.message}
-          </p>
-        </div>
-      )}
-      {message.response_type === "proposal" && message.proposal && (
-        <ProposalCard
-          name={message.proposal.name}
-          count={message.proposal.media_count}
-        />
-      )}
-      {message.response_type === "media_detail" && message.media?.media_id && (
-        <button
-          type="button"
-          onClick={() =>
-            onOpenDetail?.({
-              id: message.media!.media_id as string,
-              name: message.media!.name ?? "",
-              price: "",
-              images: message.media!.thumbnail_url
-                ? [message.media!.thumbnail_url]
-                : [],
-            })
-          }
-          className="mt-1 inline-flex items-center justify-center rounded-[8px] border border-primary px-[14px] py-[6px] text-sm font-medium text-primary transition-colors hover:bg-secondary"
-        >
-          상세보기
-        </button>
-      )}
-    </div>
-  );
-}
-
-function ProposalCard({ name, count }: { name: string; count: number }) {
-  return (
-    <div className="flex items-center gap-[10px] rounded-[8px] bg-[#f8fafc] px-[16px] py-[16px]">
-      <FolderIcon className="size-[20px] shrink-0 text-[#757575]" />
-      <span className="flex-1 truncate text-base font-medium leading-[24px] text-black">
-        {name}
-      </span>
-      <span className="text-base font-medium leading-[24px] tabular-nums text-[#757575]">
-        {count}
-      </span>
-    </div>
-  );
-}
-
-function ConfirmationView({
-  changes,
-  messageText,
-}: {
-  changes?: { category: string; old_values: string[]; new_values: string[] }[];
-  messageText?: string;
-}) {
-  return (
-    <div className="space-y-[8px] rounded-[8px] border border-[#ffe0a3] bg-[#fff8ec] px-[12px] py-[10px]">
-      <div className="text-xs font-semibold tracking-wide text-[#ff920a]">
-        ⚠️ 조건 변경 확인 필요
-      </div>
-      {messageText && (
-        <p className="whitespace-pre-line text-sm leading-[20px] text-black">
-          {messageText}
-        </p>
-      )}
-      {changes && changes.length > 0 && (
-        <ul className="space-y-[4px] text-xs text-[#757575]">
-          {changes.map((ch, i) => {
-            const label = CATEGORY_LABELS[ch.category as SlotKey] || ch.category;
-            return (
-              <li key={`${ch.category}-${i}`}>
-                <span className="text-[#757575]">{label}</span>{" "}
-                {(ch.old_values || []).join(", ") || "(없음)"} →{" "}
-                {(ch.new_values || []).join(", ") || "(없음)"}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function MatchedChips({ message }: { message: V2Message }) {
-  const merged = mergeEnriched(
-    message.previous_context_detail,
-    message.enriched_extracted,
-  );
-  const rows: { label: string; values: string[] }[] = [];
-  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
-    const items = merged[cat] || [];
-    if (items.length > 0)
-      rows.push({ label, values: items.map((e) => e.description || e.code) });
-  }
-  if (rows.length === 0) return null;
-
-  return (
-    <div className="space-y-[8px]">
-      <div className="text-xs font-medium tracking-wide text-[#757575]">
-        매칭된 조건
-      </div>
-      <div className="flex flex-wrap gap-[6px]">
-        {rows.map(({ label, values }) => (
-          <span
-            key={label}
-            className="rounded-[6px] border border-stroke bg-secondary px-[8px] py-[2px] text-xs"
-          >
-            <span className="text-[#757575]">{label}</span>{" "}
-            <span className="text-black">{values.join(", ")}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ConditionChips({ message }: { message: V2Message }) {
-  const merged = mergeEnriched(
-    message.previous_context_detail,
-    message.enriched_extracted,
-  );
-  const rows: { label: string; values: string[] }[] = [];
-  for (const [cat, label] of Object.entries(CATEGORY_LABELS)) {
-    const items = merged[cat] || [];
-    if (items.length > 0)
-      rows.push({ label, values: items.map((e) => e.description || e.code) });
-  }
-  if (rows.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-[6px]">
-      {rows.map(({ label, values }) => (
-        <span
-          key={label}
-          className="rounded-[6px] bg-[#e5f6f6] px-[10px] py-[4px] text-xs font-medium text-[#00aaa4]"
-        >
-          {label} : {values.join("·")}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function ChatMediaList({
-  items,
-  selectedId,
-  onSelectMedia,
-  onFocusMedia,
-  showPhotos,
-  onTogglePhotos,
-  onAddProposal,
-}: {
-  items: V2MediaItem[];
-  selectedId?: string;
-  onSelectMedia?: (item: MediaItemData) => void;
-  onFocusMedia?: (mediaId: string) => void;
-  showPhotos: boolean;
-  onTogglePhotos: (next: boolean) => void;
-  onAddProposal?: (mediaId: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-[8px]">
-      <div className="flex justify-end">
-        <SimpleViewToggle
-          simple={!showPhotos}
-          onChange={(next) => onTogglePhotos(!next)}
-        />
-      </div>
-      {items.map((it, idx) => {
-        const id = it.media_id ?? it.id;
-        const images = [it.thumbnail_url, ...(it.detail_images ?? [])].filter(
-          (u): u is string => Boolean(u),
-        );
-        return (
-          <MediaItem
-            key={it.id}
-            id={id}
-            name={it.name || "(매체명 없음)"}
-            price={formatV2Price(it.price)}
-            images={images}
-            rank={idx + 1}
-            simple={!showPhotos}
-            selected={id === selectedId}
-            onClick={() => {
-              onSelectMedia?.({
-                id,
-                name: it.name,
-                price: formatV2Price(it.price),
-                images,
-              });
-              onFocusMedia?.(id);
-            }}
-            onAddProposal={() => onAddProposal?.(id)}
-          />
-        );
-      })}
     </div>
   );
 }
