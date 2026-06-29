@@ -31,6 +31,9 @@ alembic>=1.13,<2
 # Excel import (scripts/import_media.py)
 openpyxl>=3.1
 
+# 제안서 PPT 생성 (python-pptx 템플릿 채우기)
+python-pptx>=1.0
+
 # Test
 pytest==8.3.0
 pytest-asyncio==0.24.0

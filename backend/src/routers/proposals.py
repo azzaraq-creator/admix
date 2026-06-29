@@ -3,20 +3,26 @@ from __future__ import annotations
 
 import os
 import shutil
+import tempfile
 import uuid as uuidlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 
 from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.schemas.proposal import AdminProposalDetail, ProposalListResponse
-from src.services import deck_converter, proposal_service
+from src.services import deck_converter, ppt_builder, proposal_service
 from src.utils.deps import get_current_admin
+
+PPTX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+)
 
 router = APIRouter(prefix="/admin/proposals", tags=["proposals"])
 
@@ -143,4 +149,30 @@ def download_counter_proposal(
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
     return FileResponse(
         path, filename=cf.file_name, media_type="application/octet-stream"
+    )
+
+
+@router.get("/{proposal_id}/export-ppt")
+def export_proposal_ppt(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin),
+) -> FileResponse:
+    """고객 제안서를 python-pptx 로 생성해 다운로드."""
+    detail = proposal_service.get_admin_detail(db, proposal_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+    tmp_dir = tempfile.mkdtemp()
+    out_path = os.path.join(tmp_dir, "proposal.pptx")
+    try:
+        ppt_builder.generate_proposal_ppt(detail, out_path)
+    except Exception as exc:  # noqa: BLE001 — 생성 실패 사용자에게 전달
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=f"PPT 생성 실패: {exc}") from exc
+    title = detail.get("title") or "제안서"
+    return FileResponse(
+        out_path,
+        filename=f"{title}.pptx",
+        media_type=PPTX_MEDIA_TYPE,
+        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
