@@ -80,6 +80,38 @@ export interface MediaFilterParams {
   productMasterType?: string[];
   priceMin?: number | null;
   priceMax?: number | null;
+  neLat?: number | null;
+  swLat?: number | null;
+  neLng?: number | null;
+  swLng?: number | null;
+}
+
+export interface MapBounds {
+  neLat: number;
+  swLat: number;
+  neLng: number;
+  swLng: number;
+  zoom: number;
+}
+
+export interface MediaMarkerDto {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string;
+  categoryLarge: string | null;
+  minAdvertisementFeeKrw: number | null;
+}
+
+export interface MediaClusterDto {
+  lat: number;
+  lng: number;
+  count: number;
+}
+
+export interface MediaClusterResponse {
+  clusters: MediaClusterDto[];
+  markers: MediaMarkerDto[];
 }
 
 export interface MediaFilterOptions {
@@ -93,6 +125,30 @@ export interface MediaFilterOptions {
   price_histogram: number[];
 }
 
+function appendFilters(q: URLSearchParams, f?: MediaFilterParams): void {
+  f?.category?.forEach((v) => q.append("category", v));
+  f?.oohType?.forEach((v) => q.append("ooh_type", v));
+  f?.exposureType?.forEach((v) => q.append("exposure_type", v));
+  f?.mediaShape?.forEach((v) => q.append("media_shape", v));
+  f?.productMasterType?.forEach((v) => q.append("product_master_type", v));
+  if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
+  if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
+}
+
+function appendBounds(q: URLSearchParams, f?: MediaFilterParams): void {
+  if (
+    f?.neLat != null &&
+    f?.swLat != null &&
+    f?.neLng != null &&
+    f?.swLng != null
+  ) {
+    q.set("north_east_latitude", String(f.neLat));
+    q.set("south_west_latitude", String(f.swLat));
+    q.set("north_east_longitude", String(f.neLng));
+    q.set("south_west_longitude", String(f.swLng));
+  }
+}
+
 function buildFixedQuery(
   limit: number,
   offset: number,
@@ -101,13 +157,19 @@ function buildFixedQuery(
   const q = new URLSearchParams();
   q.set("limit", String(limit));
   q.set("offset", String(offset));
-  f?.category?.forEach((v) => q.append("category", v));
-  f?.oohType?.forEach((v) => q.append("ooh_type", v));
-  f?.exposureType?.forEach((v) => q.append("exposure_type", v));
-  f?.mediaShape?.forEach((v) => q.append("media_shape", v));
-  f?.productMasterType?.forEach((v) => q.append("product_master_type", v));
-  if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
-  if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
+  appendFilters(q, f);
+  appendBounds(q, f);
+  return q.toString();
+}
+
+function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
+  const q = new URLSearchParams();
+  q.set("north_east_latitude", String(bounds.neLat));
+  q.set("south_west_latitude", String(bounds.swLat));
+  q.set("north_east_longitude", String(bounds.neLng));
+  q.set("south_west_longitude", String(bounds.swLng));
+  q.set("zoom_level", String(bounds.zoom));
+  appendFilters(q, f);
   return q.toString();
 }
 
@@ -119,6 +181,12 @@ export const mediaApi = {
     api
       .get<MediaCardListResponse>(
         `/media/fixed?${buildFixedQuery(limit, offset, filters)}`,
+      )
+      .then((r) => r.data),
+  fixedClusters: (bounds: MapBounds, filters?: MediaFilterParams) =>
+    api
+      .get<MediaClusterResponse>(
+        `/media/fixed/clusters?${buildClusterQuery(bounds, filters)}`,
       )
       .then((r) => r.data),
   fixedFilterOptions: () =>

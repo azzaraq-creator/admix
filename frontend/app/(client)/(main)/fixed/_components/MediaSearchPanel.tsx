@@ -5,13 +5,16 @@ import { useEffect, useRef, useState } from "react";
 
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
 import {
+  useFixedClusters,
   useFixedFilterOptions,
   useFixedMediaInfinite,
+  type MapBounds,
   type MediaFilterParams,
 } from "@/hooks/media";
 
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { formatFee } from "./chat/format";
+import { geocodeAddress, type MapCluster, type MapMarker } from "./MapArea";
 import { MediaSearchFilter } from "./search/MediaSearchFilter";
 import {
   toOptions,
@@ -36,19 +39,41 @@ function parseFilter(sp: URLSearchParams): FixedFilterState {
   };
 }
 
+function parseBounds(sp: URLSearchParams): MapBounds | null {
+  const num = (k: string) => {
+    const v = sp.get(k);
+    return v != null && v !== "" ? Number(v) : null;
+  };
+  const neLat = num("neLat");
+  const swLat = num("swLat");
+  const neLng = num("neLng");
+  const swLng = num("swLng");
+  const zoom = num("zoom");
+  if (neLat == null || swLat == null || neLng == null || swLng == null) {
+    return null;
+  }
+  return { neLat, swLat, neLng, swLng, zoom: zoom ?? 5 };
+}
+
 export function MediaSearchPanel({
   selectedId,
   onSelectMedia,
   onAddProposal,
+  onMapData,
+  onRequestMapMove,
 }: {
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
+  onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
+  onRequestMapMove?: (center: { lat: number; lng: number }) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const filter = parseFilter(new URLSearchParams(searchParams.toString()));
+  const sp = new URLSearchParams(searchParams.toString());
+  const filter = parseFilter(sp);
+  const bounds = parseBounds(sp);
 
   const [location, setLocation] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -67,7 +92,7 @@ export function MediaSearchPanel({
       ? { min: opts.price_min, max: opts.price_max, histogram: opts.price_histogram }
       : null;
 
-  const filterParams: MediaFilterParams = {
+  const chipFilters: MediaFilterParams = {
     category: filter.category,
     oohType: filter.oohType,
     exposureType: filter.exposureType,
@@ -76,9 +101,16 @@ export function MediaSearchPanel({
     priceMin: filter.priceMin,
     priceMax: filter.priceMax,
   };
+  const listFilters: MediaFilterParams = {
+    ...chipFilters,
+    neLat: bounds?.neLat ?? null,
+    swLat: bounds?.swLat ?? null,
+    neLng: bounds?.neLng ?? null,
+    swLng: bounds?.swLng ?? null,
+  };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useFixedMediaInfinite(filterParams);
+    useFixedMediaInfinite(listFilters);
   const searchResults: MediaItemData[] = (data?.pages ?? []).flatMap((page) =>
     page.items.map((row) => ({
       id: row.id,
@@ -88,6 +120,25 @@ export function MediaSearchPanel({
       popular: row.badge === "popular",
     })),
   );
+
+  const { data: clusterData } = useFixedClusters(bounds, chipFilters);
+  useEffect(() => {
+    if (!clusterData) return;
+    onMapData?.({
+      markers: clusterData.markers.map((m) => ({
+        id: m.id,
+        lat: m.lat,
+        lng: m.lng,
+        name: m.name,
+        categoryLarge: m.categoryLarge,
+      })),
+      clusters: clusterData.clusters.map((c) => ({
+        lat: c.lat,
+        lng: c.lng,
+        count: c.count,
+      })),
+    });
+  }, [clusterData, onMapData]);
 
   const applyFilter = (next: FixedFilterState) => {
     const q = new URLSearchParams();
@@ -99,7 +150,17 @@ export function MediaSearchPanel({
     next.mediaShape.forEach((v) => q.append("mediaShape", v));
     if (next.priceMin != null) q.set("priceMin", String(next.priceMin));
     if (next.priceMax != null) q.set("priceMax", String(next.priceMax));
+    // 현재 지도 영역(bbox)은 필터 변경 시에도 유지.
+    for (const k of ["neLat", "swLat", "neLng", "swLng", "zoom"]) {
+      const v = sp.get(k);
+      if (v != null) q.set(k, v);
+    }
     router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  };
+
+  const handleSearchSubmit = async () => {
+    const center = await geocodeAddress(location);
+    if (center) onRequestMapMove?.(center);
   };
 
   useEffect(() => {
@@ -121,6 +182,7 @@ export function MediaSearchPanel({
         <LocationSearchInput
           value={location}
           onChange={setLocation}
+          onSubmit={handleSearchSubmit}
           className="w-full"
         />
       </div>

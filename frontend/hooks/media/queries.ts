@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { mediaApi, type MediaFilterParams } from "./apis";
+import { mediaApi, type MapBounds, type MediaFilterParams } from "./apis";
 import { mediaKeys } from "./keys";
 
 const FIXED_PAGE_SIZE = 20;
@@ -29,6 +29,17 @@ export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>
       const loaded = allPages.reduce((sum, page) => sum + page.items.length, 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
+    staleTime: 60 * 1000,
+  });
+
+export const useFixedClusters = (
+  bounds: MapBounds | null,
+  filters?: MediaFilterParams,
+) =>
+  useQuery({
+    queryKey: mediaKeys.fixedClusters(bounds ?? ({} as MapBounds), filters),
+    queryFn: () => mediaApi.fixedClusters(bounds as MapBounds, filters),
+    enabled: !!bounds,
     staleTime: 60 * 1000,
   });
 

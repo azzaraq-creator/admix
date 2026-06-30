@@ -4,6 +4,7 @@ media 단일값 + 대표 플랜(plan_no=1)의 상품표시명을 합쳐 한 행�
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime
 
 from sqlalchemy import and_, func, text
@@ -61,19 +62,22 @@ def list_moving_media(db: Session) -> list[dict]:
     return [_media_card(m) for m in rows]
 
 
-def list_fixed_media(
+def _fixed_base_query(
     db: Session,
     *,
-    limit: int,
-    offset: int,
-    categories: list[str] | None = None,
-    ooh_types: list[str] | None = None,
-    exposure_types: list[str] | None = None,
-    media_shapes: list[str] | None = None,
-    product_master_types: list[str] | None = None,
-    price_min: int | None = None,
-    price_max: int | None = None,
-) -> tuple[int, list[dict]]:
+    categories: list[str] | None,
+    ooh_types: list[str] | None,
+    exposure_types: list[str] | None,
+    media_shapes: list[str] | None,
+    product_master_types: list[str] | None,
+    price_min: int | None,
+    price_max: int | None,
+    ne_lat: float | None = None,
+    sw_lat: float | None = None,
+    ne_lng: float | None = None,
+    sw_lng: float | None = None,
+):
+    """FIXED 매체 공통 필터 쿼리. 리스트·지도클러스터가 동일 조건을 공유한다."""
     base = db.query(Media).filter(Media.media_source == "FIXED")
     if categories:
         base = base.filter(Media.category_large.in_(categories))
@@ -93,9 +97,155 @@ def list_fixed_media(
             MediaPlan.product_master_type.in_(product_master_types)
         )
         base = base.filter(Media.media_id.in_(plan_media_ids))
+    if None not in (ne_lat, sw_lat, ne_lng, sw_lng):
+        # 지도 화면 영역(bounding box) 종속 — 리스트=지도 영역.
+        base = base.filter(
+            Media.latitude.isnot(None),
+            Media.longitude.isnot(None),
+            Media.latitude >= sw_lat,
+            Media.latitude <= ne_lat,
+            Media.longitude >= sw_lng,
+            Media.longitude <= ne_lng,
+        )
+    return base
+
+
+def list_fixed_media(
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    ne_lat: float | None = None,
+    sw_lat: float | None = None,
+    ne_lng: float | None = None,
+    sw_lng: float | None = None,
+) -> tuple[int, list[dict]]:
+    base = _fixed_base_query(
+        db,
+        categories=categories,
+        ooh_types=ooh_types,
+        exposure_types=exposure_types,
+        media_shapes=media_shapes,
+        product_master_types=product_master_types,
+        price_min=price_min,
+        price_max=price_max,
+        ne_lat=ne_lat,
+        sw_lat=sw_lat,
+        ne_lng=ne_lng,
+        sw_lng=sw_lng,
+    )
     total = base.count()
     rows = base.order_by(Media.media_id).limit(limit).offset(offset).all()
     return total, [_media_card(m) for m in rows]
+
+
+# 지도 마커 클러스터링 — zoom_level 기반 그리드 셀 크기(도 단위).
+# kakao 지도 레벨은 1=최대확대 … 14=최대축소. 축소(level↑)일수록 셀이 커져 더 많이 묶인다.
+_CLUSTER_CELL_DEG_BASE = 0.0006
+_CLUSTER_MIN_LEVEL = 1
+# 이 레벨 이하(= 더 확대)에선 클러스터를 만들지 않고 개별 마커(핀)만 표시.
+_CLUSTER_DECLUSTER_LEVEL = 4
+
+
+def _cluster_cell_deg(zoom_level: int) -> float:
+    step = max(0, zoom_level - _CLUSTER_MIN_LEVEL)
+    return _CLUSTER_CELL_DEG_BASE * (2 ** step)
+
+
+def _marker_from_row(r, lat: float, lng: float) -> dict:
+    name = " ".join(
+        p for p in [(r.name or "").strip(), (r.second_name or "").strip()] if p
+    )
+    return dict(
+        id=r.media_id,
+        lat=lat,
+        lng=lng,
+        name=name or "-",
+        categoryLarge=r.category_large,
+        minAdvertisementFeeKrw=r.min_advertisement_fee_krw,
+    )
+
+
+def list_fixed_clusters(
+    db: Session,
+    *,
+    zoom_level: int,
+    ne_lat: float,
+    sw_lat: float,
+    ne_lng: float,
+    sw_lng: float,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+) -> dict:
+    """지도 화면(bbox) 안 FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환."""
+    base = _fixed_base_query(
+        db,
+        categories=categories,
+        ooh_types=ooh_types,
+        exposure_types=exposure_types,
+        media_shapes=media_shapes,
+        product_master_types=product_master_types,
+        price_min=price_min,
+        price_max=price_max,
+        ne_lat=ne_lat,
+        sw_lat=sw_lat,
+        ne_lng=ne_lng,
+        sw_lng=sw_lng,
+    )
+    rows = base.with_entities(
+        Media.media_id,
+        Media.name,
+        Media.second_name,
+        Media.category_large,
+        Media.latitude,
+        Media.longitude,
+        Media.min_advertisement_fee_krw,
+    ).all()
+
+    points = [
+        (r, float(r.latitude), float(r.longitude))
+        for r in rows
+        if r.latitude is not None and r.longitude is not None
+    ]
+
+    # 확대 임계치 이하: 클러스터 없이 개별 핀만.
+    if zoom_level <= _CLUSTER_DECLUSTER_LEVEL:
+        markers = [_marker_from_row(r, lat, lng) for r, lat, lng in points]
+        return dict(clusters=[], markers=markers)
+
+    cell = _cluster_cell_deg(zoom_level)
+    buckets: dict[tuple[int, int], list] = {}
+    for r, lat, lng in points:
+        key = (math.floor(lat / cell), math.floor(lng / cell))
+        buckets.setdefault(key, []).append((r, lat, lng))
+
+    clusters: list[dict] = []
+    markers = []
+    for members in buckets.values():
+        if len(members) == 1:
+            markers.append(_marker_from_row(*members[0]))
+        else:
+            n = len(members)
+            clusters.append(
+                dict(
+                    lat=sum(m[1] for m in members) / n,
+                    lng=sum(m[2] for m in members) / n,
+                    count=n,
+                )
+            )
+    return dict(clusters=clusters, markers=markers)
 
 
 def get_fixed_filter_options(db: Session) -> dict:

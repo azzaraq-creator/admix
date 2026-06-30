@@ -35,6 +35,26 @@ class MediaCardListResponse(BaseModel):
     items: list[MediaCardRow]
 
 
+class MediaMarker(BaseModel):
+    id: str
+    lat: float
+    lng: float
+    name: str
+    categoryLarge: str | None
+    minAdvertisementFeeKrw: int | None
+
+
+class MediaCluster(BaseModel):
+    lat: float
+    lng: float
+    count: int
+
+
+class MediaClusterResponse(BaseModel):
+    clusters: list[MediaCluster]
+    markers: list[MediaMarker]
+
+
 class MediaFilterOptions(BaseModel):
     categories: list[str]
     ooh_types: list[str]

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.schemas.media import (
     MediaCardListResponse,
+    MediaClusterResponse,
     MediaDetail,
     MediaFilterOptions,
     MediaListResponse,
@@ -44,6 +45,10 @@ def list_fixed_media(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    north_east_latitude: float | None = Query(None),
+    south_west_latitude: float | None = Query(None),
+    north_east_longitude: float | None = Query(None),
+    south_west_longitude: float | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
     total, items = media_service.list_fixed_media(
@@ -57,8 +62,46 @@ def list_fixed_media(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        ne_lat=north_east_latitude,
+        sw_lat=south_west_latitude,
+        ne_lng=north_east_longitude,
+        sw_lng=south_west_longitude,
     )
     return MediaCardListResponse(total=total, items=items)
+
+
+@router.get("/fixed/clusters", response_model=MediaClusterResponse)
+def list_fixed_clusters(
+    north_east_latitude: float = Query(...),
+    south_west_latitude: float = Query(...),
+    north_east_longitude: float = Query(...),
+    south_west_longitude: float = Query(...),
+    zoom_level: int = Query(..., ge=1, le=20),
+    category: list[str] | None = Query(None),
+    ooh_type: list[str] | None = Query(None),
+    exposure_type: list[str] | None = Query(None),
+    media_shape: list[str] | None = Query(None),
+    product_master_type: list[str] | None = Query(None),
+    price_min: int | None = Query(None, ge=0),
+    price_max: int | None = Query(None, ge=0),
+    db: Session = Depends(get_db),
+) -> MediaClusterResponse:
+    data = media_service.list_fixed_clusters(
+        db,
+        zoom_level=zoom_level,
+        ne_lat=north_east_latitude,
+        sw_lat=south_west_latitude,
+        ne_lng=north_east_longitude,
+        sw_lng=south_west_longitude,
+        categories=category,
+        ooh_types=ooh_type,
+        exposure_types=exposure_type,
+        media_shapes=media_shape,
+        product_master_types=product_master_type,
+        price_min=price_min,
+        price_max=price_max,
+    )
+    return MediaClusterResponse(**data)
 
 
 @router.get("/{media_id}", response_model=MediaDetail)

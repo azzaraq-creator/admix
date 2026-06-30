@@ -20,6 +20,8 @@ interface KakaoLatLng {
 
 interface KakaoLatLngBounds {
   extend: (latlng: KakaoLatLng) => void;
+  getSouthWest: () => KakaoLatLng;
+  getNorthEast: () => KakaoLatLng;
 }
 
 interface KakaoMarkerImage {
@@ -51,8 +53,36 @@ interface KakaoMap {
   relayout: () => void;
   setCenter: (latlng: KakaoLatLng) => void;
   setLevel: (level: number) => void;
+  getLevel: () => number;
   setBounds: (bounds: KakaoLatLngBounds) => void;
+  getBounds: () => KakaoLatLngBounds;
   getProjection: () => KakaoProjection;
+}
+
+interface KakaoGeocoderResult {
+  x: string;
+  y: string;
+}
+
+interface KakaoPlacesResult {
+  x: string;
+  y: string;
+}
+
+interface KakaoServices {
+  Geocoder: new () => {
+    addressSearch: (
+      query: string,
+      callback: (result: KakaoGeocoderResult[], status: string) => void,
+    ) => void;
+  };
+  Places: new () => {
+    keywordSearch: (
+      query: string,
+      callback: (result: KakaoPlacesResult[], status: string) => void,
+    ) => void;
+  };
+  Status: { OK: string };
 }
 
 interface KakaoMaps {
@@ -92,12 +122,36 @@ interface KakaoMaps {
       handler: () => void,
     ) => void;
   };
+  services?: KakaoServices;
 }
 
 declare global {
   interface Window {
     kakao?: { maps: KakaoMaps };
   }
+}
+
+export type MapMoveType = "program" | "zoom" | "drag";
+
+export interface MapBoundsPayload {
+  neLat: number;
+  swLat: number;
+  neLng: number;
+  swLng: number;
+  zoom: number;
+  moveType: MapMoveType;
+}
+
+export interface MapCluster {
+  lat: number;
+  lng: number;
+  count: number;
+}
+
+export interface MoveTarget {
+  lat: number;
+  lng: number;
+  level?: number;
 }
 
 const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY ?? "";
@@ -181,7 +235,7 @@ function loadKakaoSdk(): Promise<void> {
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
     script.addEventListener("load", () => resolve());
     script.addEventListener("error", () =>
       reject(new Error("Kakao Maps SDK load failed")),
@@ -190,23 +244,75 @@ function loadKakaoSdk(): Promise<void> {
   });
 }
 
+// 주소·장소명 → 좌표. 장소 키워드 검색 우선, 실패 시 주소 검색 fallback.
+export async function geocodeAddress(
+  query: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  await loadKakaoSdk();
+  const maps = window.kakao?.maps;
+  if (!maps) return null;
+
+  return new Promise((resolve) => {
+    maps.load(() => {
+      const services = maps.services;
+      if (!services) {
+        resolve(null);
+        return;
+      }
+      const places = new services.Places();
+      places.keywordSearch(trimmed, (placeResult, placeStatus) => {
+        if (placeStatus === services.Status.OK && placeResult.length > 0) {
+          resolve({
+            lat: Number(placeResult[0].y),
+            lng: Number(placeResult[0].x),
+          });
+          return;
+        }
+        const geocoder = new services.Geocoder();
+        geocoder.addressSearch(trimmed, (addrResult, addrStatus) => {
+          if (addrStatus === services.Status.OK && addrResult.length > 0) {
+            resolve({
+              lat: Number(addrResult[0].y),
+              lng: Number(addrResult[0].x),
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    });
+  });
+}
+
 export function MapArea({
   className,
   markers = [],
+  clusters = [],
   onMarkerClick,
+  onClusterClick,
   focusId,
   focusOffsetX = 0,
   focusCenter = true,
+  autoFit = true,
+  moveTarget,
+  onBoundsChange,
   popupId,
   popupContent,
   onPopupClose,
 }: {
   className?: string;
   markers?: MapMarker[];
+  clusters?: MapCluster[];
   onMarkerClick?: (id: string) => void;
+  onClusterClick?: (cluster: MapCluster) => void;
   focusId?: string;
   focusOffsetX?: number;
   focusCenter?: boolean;
+  autoFit?: boolean;
+  moveTarget?: MoveTarget | null;
+  onBoundsChange?: (bounds: MapBoundsPayload) => void;
   popupId?: string | null;
   popupContent?: ReactNode;
   onPopupClose?: () => void;
@@ -214,9 +320,13 @@ export function MapArea({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
   const markerObjsRef = useRef<{ marker: KakaoMarker; data: MapMarker }[]>([]);
+  const clusterOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const imageCacheRef = useRef<Record<string, KakaoMarkerImage>>({});
   const shownFocusRef = useRef<string | undefined>(undefined);
   const overlayRef = useRef<KakaoCustomOverlay | null>(null);
+  const programmaticMoveRef = useRef(false);
+  const zoomedRef = useRef(false);
+  const draggedRef = useRef(false);
   const [popupEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === "undefined") return null;
     const el = document.createElement("div");
@@ -227,12 +337,18 @@ export function MapArea({
   });
   const onPopupCloseRef = useRef(onPopupClose);
   const onMarkerClickRef = useRef(onMarkerClick);
+  const onClusterClickRef = useRef(onClusterClick);
+  const onBoundsChangeRef = useRef(onBoundsChange);
+  const autoFitRef = useRef(autoFit);
   const [mapReady, setMapReady] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
 
   useEffect(() => {
     onPopupCloseRef.current = onPopupClose;
     onMarkerClickRef.current = onMarkerClick;
+    onClusterClickRef.current = onClusterClick;
+    onBoundsChangeRef.current = onBoundsChange;
+    autoFitRef.current = autoFit;
   });
 
   useEffect(() => {
@@ -248,6 +364,8 @@ export function MapArea({
             center: new maps.LatLng(SEOUL_CITY_HALL.lat, SEOUL_CITY_HALL.lng),
             level: 5,
           });
+          // 초기 위치의 첫 idle은 사용자 이동이 아님(버튼 오노출 방지).
+          programmaticMoveRef.current = true;
           setMapReady(true);
         });
       })
@@ -259,11 +377,62 @@ export function MapArea({
     };
   }, []);
 
+  // 지도 idle → 현재 bbox·zoom + 이동 유형(zoom/drag/program)을 부모로 통지.
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+
+    const markZoom = () => {
+      zoomedRef.current = true;
+    };
+    const markDrag = () => {
+      draggedRef.current = true;
+    };
+    const handleIdle = () => {
+      const bounds = map.getBounds();
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      // 프로그램 이동(지오코딩/클러스터 클릭)이 우선 — zoom_changed가 같이 떠도 무시.
+      let moveType: MapMoveType;
+      if (programmaticMoveRef.current) {
+        programmaticMoveRef.current = false;
+        moveType = "program";
+      } else if (zoomedRef.current) {
+        moveType = "zoom";
+      } else if (draggedRef.current) {
+        moveType = "drag";
+      } else {
+        moveType = "program";
+      }
+      zoomedRef.current = false;
+      draggedRef.current = false;
+      onBoundsChangeRef.current?.({
+        neLat: ne.getLat(),
+        neLng: ne.getLng(),
+        swLat: sw.getLat(),
+        swLng: sw.getLng(),
+        zoom: map.getLevel(),
+        moveType,
+      });
+    };
+
+    maps.event.addListener(map, "zoom_changed", markZoom);
+    maps.event.addListener(map, "dragend", markDrag);
+    maps.event.addListener(map, "idle", handleIdle);
+    return () => {
+      maps.event.removeListener(map, "zoom_changed", markZoom);
+      maps.event.removeListener(map, "dragend", markDrag);
+      maps.event.removeListener(map, "idle", handleIdle);
+    };
+  }, [mapReady]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
 
     const fitToMarkers = () => {
+      if (!autoFitRef.current) return;
       const maps = window.kakao?.maps;
       const map = mapRef.current;
       if (!maps || !map) return;
@@ -334,13 +503,57 @@ export function MapArea({
       bounds.extend(pos);
     });
 
+    if (!autoFit) return;
     if (valid.length === 1) {
       map.setCenter(new maps.LatLng(valid[0].lat, valid[0].lng));
       map.setLevel(5);
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, mapReady]);
+  }, [markers, mapReady, autoFit]);
+
+  // 검색어 지오코딩 결과로 지도 이동(프로그램 이동 → 사용자 이동 아님으로 표시).
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map || !moveTarget) return;
+    programmaticMoveRef.current = true;
+    map.setCenter(new maps.LatLng(moveTarget.lat, moveTarget.lng));
+    if (moveTarget.level != null) map.setLevel(moveTarget.level);
+  }, [moveTarget, mapReady]);
+
+  // 클러스터 버블 — CustomOverlay. 클릭 시 줌인 → idle → 재조회로 분해.
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+
+    clusterOverlaysRef.current.forEach((o) => o.setMap(null));
+    clusterOverlaysRef.current = [];
+
+    clusters.forEach((c) => {
+      const size = c.count >= 100 ? 60 : c.count >= 10 ? 48 : 40;
+      const el = document.createElement("div");
+      el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:rgba(0,170,164,0.85);border:2px solid #ffffff;color:#ffffff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;`;
+      el.textContent = String(c.count);
+      el.addEventListener("click", () => {
+        programmaticMoveRef.current = true;
+        map.setCenter(new maps.LatLng(c.lat, c.lng));
+        map.setLevel(Math.max(1, map.getLevel() - 2));
+        onClusterClickRef.current?.(c);
+      });
+      const overlay = new maps.CustomOverlay({
+        position: new maps.LatLng(c.lat, c.lng),
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        zIndex: 5,
+        clickable: true,
+      });
+      overlay.setMap(map);
+      clusterOverlaysRef.current.push(overlay);
+    });
+  }, [clusters, mapReady]);
 
   // 포커스 — 선택 마커 이미지/줌만 갱신 (범위 재설정·재생성 없음 → 흔들림 방지)
   useEffect(() => {
