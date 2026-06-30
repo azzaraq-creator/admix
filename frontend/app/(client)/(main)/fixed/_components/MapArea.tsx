@@ -327,6 +327,7 @@ export function MapArea({
   const programmaticMoveRef = useRef(false);
   const zoomedRef = useRef(false);
   const draggedRef = useRef(false);
+  const listenerCleanupRef = useRef<(() => void) | null>(null);
   const [popupEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === "undefined") return null;
     const el = document.createElement("div");
@@ -360,12 +361,57 @@ export function MapArea({
         if (cancelled || !maps || !container) return;
         maps.load(() => {
           if (cancelled || !container) return;
-          mapRef.current = new maps.Map(container, {
+          const map = new maps.Map(container, {
             center: new maps.LatLng(SEOUL_CITY_HALL.lat, SEOUL_CITY_HALL.lng),
             level: 5,
           });
+          mapRef.current = map;
           // 초기 위치의 첫 idle은 사용자 이동이 아님(버튼 오노출 방지).
           programmaticMoveRef.current = true;
+
+          // idle/zoom/drag 리스너를 지도 생성과 동시에 부착 → 첫 idle(초기 커밋) 놓침 방지.
+          const markZoom = () => {
+            zoomedRef.current = true;
+          };
+          const markDrag = () => {
+            draggedRef.current = true;
+          };
+          const handleIdle = () => {
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            // 프로그램 이동(지오코딩/클러스터 클릭)이 우선 — zoom_changed가 같이 떠도 무시.
+            let moveType: MapMoveType;
+            if (programmaticMoveRef.current) {
+              programmaticMoveRef.current = false;
+              moveType = "program";
+            } else if (zoomedRef.current) {
+              moveType = "zoom";
+            } else if (draggedRef.current) {
+              moveType = "drag";
+            } else {
+              moveType = "program";
+            }
+            zoomedRef.current = false;
+            draggedRef.current = false;
+            onBoundsChangeRef.current?.({
+              neLat: ne.getLat(),
+              neLng: ne.getLng(),
+              swLat: sw.getLat(),
+              swLng: sw.getLng(),
+              zoom: map.getLevel(),
+              moveType,
+            });
+          };
+          maps.event.addListener(map, "zoom_changed", markZoom);
+          maps.event.addListener(map, "dragend", markDrag);
+          maps.event.addListener(map, "idle", handleIdle);
+          listenerCleanupRef.current = () => {
+            maps.event.removeListener(map, "zoom_changed", markZoom);
+            maps.event.removeListener(map, "dragend", markDrag);
+            maps.event.removeListener(map, "idle", handleIdle);
+          };
+
           setMapReady(true);
         });
       })
@@ -374,58 +420,9 @@ export function MapArea({
       });
     return () => {
       cancelled = true;
+      listenerCleanupRef.current?.();
     };
   }, []);
-
-  // 지도 idle → 현재 bbox·zoom + 이동 유형(zoom/drag/program)을 부모로 통지.
-  useEffect(() => {
-    const maps = window.kakao?.maps;
-    const map = mapRef.current;
-    if (!mapReady || !maps || !map) return;
-
-    const markZoom = () => {
-      zoomedRef.current = true;
-    };
-    const markDrag = () => {
-      draggedRef.current = true;
-    };
-    const handleIdle = () => {
-      const bounds = map.getBounds();
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      // 프로그램 이동(지오코딩/클러스터 클릭)이 우선 — zoom_changed가 같이 떠도 무시.
-      let moveType: MapMoveType;
-      if (programmaticMoveRef.current) {
-        programmaticMoveRef.current = false;
-        moveType = "program";
-      } else if (zoomedRef.current) {
-        moveType = "zoom";
-      } else if (draggedRef.current) {
-        moveType = "drag";
-      } else {
-        moveType = "program";
-      }
-      zoomedRef.current = false;
-      draggedRef.current = false;
-      onBoundsChangeRef.current?.({
-        neLat: ne.getLat(),
-        neLng: ne.getLng(),
-        swLat: sw.getLat(),
-        swLng: sw.getLng(),
-        zoom: map.getLevel(),
-        moveType,
-      });
-    };
-
-    maps.event.addListener(map, "zoom_changed", markZoom);
-    maps.event.addListener(map, "dragend", markDrag);
-    maps.event.addListener(map, "idle", handleIdle);
-    return () => {
-      maps.event.removeListener(map, "zoom_changed", markZoom);
-      maps.event.removeListener(map, "dragend", markDrag);
-      maps.event.removeListener(map, "idle", handleIdle);
-    };
-  }, [mapReady]);
 
   useEffect(() => {
     const container = containerRef.current;

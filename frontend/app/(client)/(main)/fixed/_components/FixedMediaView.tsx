@@ -61,6 +61,9 @@ function formatFee(krw: number | null): string {
 
 const DRAWER_HALF_WIDTH = 192;
 
+// 매체검색 모드 기본 진입 위치 — 강남역. URL에 bbox가 없을 때 이 영역으로 스코프.
+const DEFAULT_SEARCH_CENTER = { lat: 37.497942, lng: 127.027621, level: 5 };
+
 export function FixedMediaView({
   initialMode = "ai",
 }: {
@@ -69,6 +72,9 @@ export function FixedMediaView({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // /fixed?mode=search 직접 진입 + URL에 bbox 없음 → 기본 위치(강남역)로 스코프.
+  const scopeDefault =
+    initialMode === "search" && !searchParams.has("neLat");
   const [mode, setMode] = useState<Mode>(initialMode);
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
@@ -77,14 +83,16 @@ export function FixedMediaView({
   const [searchMarkers, setSearchMarkers] = useState<MapMarker[]>([]);
   const [searchClusters, setSearchClusters] = useState<MapCluster[]>([]);
   const [mapMoved, setMapMoved] = useState(false);
-  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(() =>
+    scopeDefault ? { ...DEFAULT_SEARCH_CENTER } : null,
+  );
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
     null,
   );
   const liveBoundsRef = useRef<MapBoundsPayload | null>(null);
-  const pendingAutoCommitRef = useRef(false);
+  const pendingAutoCommitRef = useRef(scopeDefault);
 
   const activeMarkers = mode === "search" ? searchMarkers : markers;
 
