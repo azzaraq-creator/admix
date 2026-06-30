@@ -328,6 +328,7 @@ export function MapArea({
   const zoomedRef = useRef(false);
   const draggedRef = useRef(false);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [popupEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === "undefined") return null;
     const el = document.createElement("div");
@@ -376,22 +377,11 @@ export function MapArea({
           const markDrag = () => {
             draggedRef.current = true;
           };
-          const handleIdle = () => {
+          const emit = (moveType: MapMoveType) => {
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest();
             const ne = bounds.getNorthEast();
-            // 프로그램 이동(지오코딩/클러스터 클릭)이 우선 — zoom_changed가 같이 떠도 무시.
-            let moveType: MapMoveType;
-            if (programmaticMoveRef.current) {
-              programmaticMoveRef.current = false;
-              moveType = "program";
-            } else if (zoomedRef.current) {
-              moveType = "zoom";
-            } else if (draggedRef.current) {
-              moveType = "drag";
-            } else {
-              moveType = "program";
-            }
+            programmaticMoveRef.current = false;
             zoomedRef.current = false;
             draggedRef.current = false;
             onBoundsChangeRef.current?.({
@@ -403,10 +393,28 @@ export function MapArea({
               moveType,
             });
           };
+          const handleIdle = () => {
+            // 프로그램 이동(지오코딩/클러스터/moveTarget)은 setCenter+setLevel이
+            // idle을 여러 번 발생시키므로, debounce로 최종 settled 상태만 통지.
+            if (programmaticMoveRef.current) {
+              if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+              idleTimerRef.current = setTimeout(() => emit("program"), 180);
+              return;
+            }
+            // 사용자 줌/드래그는 즉시 통지. (플래그 없으면 program 취급 → 버튼 오노출 방지)
+            emit(
+              zoomedRef.current
+                ? "zoom"
+                : draggedRef.current
+                  ? "drag"
+                  : "program",
+            );
+          };
           maps.event.addListener(map, "zoom_changed", markZoom);
           maps.event.addListener(map, "dragend", markDrag);
           maps.event.addListener(map, "idle", handleIdle);
           listenerCleanupRef.current = () => {
+            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
             maps.event.removeListener(map, "zoom_changed", markZoom);
             maps.event.removeListener(map, "dragend", markDrag);
             maps.event.removeListener(map, "idle", handleIdle);

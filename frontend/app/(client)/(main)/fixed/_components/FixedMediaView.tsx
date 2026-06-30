@@ -72,9 +72,9 @@ export function FixedMediaView({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // /fixed?mode=search 직접 진입 + URL에 bbox 없음 → 기본 위치(강남역)로 스코프.
-  const scopeDefault =
-    initialMode === "search" && !searchParams.has("neLat");
+  // /fixed?mode=search 진입(새로고침 포함) → 항상 기본 위치(강남역)로 스코프.
+  // (이전 세션의 URL bbox가 남아 있어도 강남역으로 초기화)
+  const scopeDefault = initialMode === "search";
   const [mode, setMode] = useState<Mode>(initialMode);
   const [chatOpen, setChatOpen] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
@@ -157,7 +157,10 @@ export function FixedMediaView({
         // 리스트(검색 영역)는 고정, 줌만 갱신 → 클러스터만 재조정.
         commitZoomOnly(level);
       } else {
-        // 영역 재설정(지오코딩 검색): 리스트도 그 영역으로.
+        // 재검색(지오코딩): 기존 선택/포커스/팝업 해제 후 그 영역으로 재설정.
+        setSelectedMedia(null);
+        setFocusId(undefined);
+        setPopupId(null);
         pendingAutoCommitRef.current = true;
       }
     },
