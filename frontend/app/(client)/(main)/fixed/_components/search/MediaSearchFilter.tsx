@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { ChevronDownIcon, RotateCwIcon } from "@/components/icons";
 
@@ -48,6 +53,64 @@ export function MediaSearchFilter({
         (value.priceMax != null && value.priceMax < price.max)
       : value.priceMin != null || value.priceMax != null;
 
+  // 접힘 바 가로 스크롤 그랩-드래그.
+  // 임계값을 넘겨 "드래그"로 판정된 뒤에만 포인터 캡처 → 순수 클릭(버튼)은
+  // 캡처 없이 그대로 click 이 발동하고, 드래그였을 때만 trailing click 을 억제.
+  const DRAG_THRESHOLD = 5;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const drag = useRef({
+    down: false,
+    dragging: false,
+    startX: 0,
+    startScroll: 0,
+    pointerId: 0,
+  });
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    drag.current = {
+      down: true,
+      dragging: false,
+      startX: event.clientX,
+      startScroll: el.scrollLeft,
+      pointerId: event.pointerId,
+    };
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el || !drag.current.down) return;
+    const dx = event.clientX - drag.current.startX;
+    if (!drag.current.dragging) {
+      if (Math.abs(dx) <= DRAG_THRESHOLD) return;
+      drag.current.dragging = true;
+      el.setPointerCapture(drag.current.pointerId);
+    }
+    el.scrollLeft = drag.current.startScroll - dx;
+  };
+
+  const onPointerUp = () => {
+    const el = scrollRef.current;
+    if (el && drag.current.dragging) {
+      try {
+        el.releasePointerCapture(drag.current.pointerId);
+      } catch {
+        // 캡처가 이미 해제된 경우 무시
+      }
+    }
+    drag.current.down = false;
+    // dragging 값은 직후 onClickCapture 가 읽고 리셋 (다음 pointerdown 에서도 초기화)
+  };
+
+  const onClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (drag.current.dragging) {
+      event.preventDefault();
+      event.stopPropagation();
+      drag.current.dragging = false;
+    }
+  };
+
   const toggleChip = (key: ChipDimKey, optValue: string) => {
     const cur = value[key];
     const next = cur.includes(optValue)
@@ -66,7 +129,15 @@ export function MediaSearchFilter({
   if (!open) {
     return (
       <div className="flex items-center gap-[16px] border-b border-stroke py-[12px]">
-        <div className="flex flex-1 items-center gap-[6px] overflow-x-auto px-[16px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          ref={scrollRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onClickCapture={onClickCapture}
+          className="flex flex-1 cursor-grab select-none items-center gap-[6px] overflow-x-auto px-[16px] active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           <button
             type="button"
             onClick={reset}
