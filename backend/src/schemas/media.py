@@ -43,6 +43,8 @@ class MediaFilterOptions(BaseModel):
     product_master_types: list[str]
     price_min: int | None
     price_max: int | None
+    # 가격 범위 슬라이더용 분포 히스토그램(min~max 구간 균등 버킷별 매체 수)
+    price_histogram: list[int]
 
 
 class MediaFeature(BaseModel):

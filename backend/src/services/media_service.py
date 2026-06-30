@@ -130,15 +130,48 @@ def get_fixed_filter_options(db: Session) -> dict:
         .filter(Media.media_source == "FIXED")
         .first()
     )
+    price_min = price[0] if price else None
+    price_max = price[1] if price else None
     return dict(
         categories=_distinct(Media.category_large),
         ooh_types=_distinct(Media.ooh_type),
         exposure_types=_distinct(Media.exposure_type),
         media_shapes=_distinct(Media.media_shape),
         product_master_types=[r[0] for r in pmt_rows],
-        price_min=price[0] if price else None,
-        price_max=price[1] if price else None,
+        price_min=price_min,
+        price_max=price_max,
+        price_histogram=_price_histogram(db, price_min, price_max),
     )
+
+
+_PRICE_HISTOGRAM_BUCKETS = 24
+
+
+def _price_histogram(
+    db: Session, price_min: int | None, price_max: int | None
+) -> list[int]:
+    """min~max 가격 구간을 균등 버킷으로 나눠 버킷별 FIXED 매체 수를 센다."""
+    if price_min is None or price_max is None or price_max <= price_min:
+        return []
+    fees = (
+        db.query(Media.min_advertisement_fee_krw)
+        .filter(
+            Media.media_source == "FIXED",
+            Media.min_advertisement_fee_krw.isnot(None),
+        )
+        .all()
+    )
+    n = _PRICE_HISTOGRAM_BUCKETS
+    span = price_max - price_min
+    counts = [0] * n
+    for (fee,) in fees:
+        idx = int((fee - price_min) * n / span)
+        if idx >= n:
+            idx = n - 1
+        elif idx < 0:
+            idx = 0
+        counts[idx] += 1
+    return counts
 
 
 def _plan_subtitle(p: MediaPlan) -> str | None:
