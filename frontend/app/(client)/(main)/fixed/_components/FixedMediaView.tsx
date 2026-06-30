@@ -101,6 +101,17 @@ export function FixedMediaView({
     [router, pathname, searchParams],
   );
 
+  // 줌만 갱신 — 검색 영역(bbox)은 고정, zoom_level만 바꿔 클러스터를 다시 묶는다.
+  const commitZoomOnly = useCallback(
+    (zoom: number) => {
+      const q = new URLSearchParams(searchParams.toString());
+      if (!q.has("neLat")) return; // 검색 영역이 없으면 줌만으로는 조회하지 않음.
+      q.set("zoom", String(zoom));
+      router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
       liveBoundsRef.current = b;
@@ -115,15 +126,14 @@ export function FixedMediaView({
       }
       if (mode !== "search") return;
       if (b.moveType === "zoom") {
-        // 줌은 자동 재조회(클러스터 즉시 갱신).
-        setMapMoved(false);
-        commitBounds(b);
+        // 줌은 검색 영역 고정, zoom_level만 갱신 → 클러스터만 재조정(결과 확장 X).
+        commitZoomOnly(b.zoom);
       } else if (b.moveType === "drag") {
-        // 이동(드래그)은 '현재 위치 검색' 버튼으로.
+        // 이동(드래그)은 '현재 위치 검색' 버튼으로 영역 변경.
         setMapMoved(true);
       }
     },
-    [commitBounds, mode],
+    [commitBounds, commitZoomOnly, mode],
   );
 
   const handleRequestMapMove = useCallback(

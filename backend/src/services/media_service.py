@@ -151,7 +151,8 @@ def list_fixed_media(
 _CLUSTER_CELL_DEG_BASE = 0.0006
 _CLUSTER_MIN_LEVEL = 1
 # 이 레벨 이하(= 더 확대)에선 클러스터를 만들지 않고 개별 마커(핀)만 표시.
-_CLUSTER_DECLUSTER_LEVEL = 4
+# 1 = 최대 확대(레벨1)일 때만 개별 핀. 레벨 2+에선 그리드 클러스터링이 줌에 따라 변한다.
+_CLUSTER_DECLUSTER_LEVEL = 1
 
 
 def _cluster_cell_deg(zoom_level: int) -> float:
