@@ -72,13 +72,58 @@ export interface MediaDetail {
   population: MediaPopulation | null;
 }
 
+export interface MediaFilterParams {
+  category?: string[];
+  oohType?: string[];
+  exposureType?: string[];
+  mediaShape?: string[];
+  productMasterType?: string[];
+  priceMin?: number | null;
+  priceMax?: number | null;
+}
+
+export interface MediaFilterOptions {
+  categories: string[];
+  ooh_types: string[];
+  exposure_types: string[];
+  media_shapes: string[];
+  product_master_types: string[];
+  price_min: number | null;
+  price_max: number | null;
+  price_histogram: number[];
+}
+
+function buildFixedQuery(
+  limit: number,
+  offset: number,
+  f?: MediaFilterParams,
+): string {
+  const q = new URLSearchParams();
+  q.set("limit", String(limit));
+  q.set("offset", String(offset));
+  f?.category?.forEach((v) => q.append("category", v));
+  f?.oohType?.forEach((v) => q.append("ooh_type", v));
+  f?.exposureType?.forEach((v) => q.append("exposure_type", v));
+  f?.mediaShape?.forEach((v) => q.append("media_shape", v));
+  f?.productMasterType?.forEach((v) => q.append("product_master_type", v));
+  if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
+  if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
+  return q.toString();
+}
+
 export const mediaApi = {
   list: () => api.get<MediaListResponse>("/media").then((r) => r.data),
   movingList: () =>
     api.get<MediaCardListResponse>("/media/moving").then((r) => r.data),
-  fixedList: (limit: number, offset: number) =>
+  fixedList: (limit: number, offset: number, filters?: MediaFilterParams) =>
     api
-      .get<MediaCardListResponse>("/media/fixed", { params: { limit, offset } })
+      .get<MediaCardListResponse>(
+        `/media/fixed?${buildFixedQuery(limit, offset, filters)}`,
+      )
+      .then((r) => r.data),
+  fixedFilterOptions: () =>
+    api
+      .get<MediaFilterOptions>("/media/fixed/filter-options")
       .then((r) => r.data),
   detail: (id: string) =>
     api.get<MediaDetail>(`/media/${id}`).then((r) => r.data),

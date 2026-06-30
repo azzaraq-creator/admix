@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
 
@@ -44,11 +44,13 @@ export function ChatPanel({
           onAddProposal={onAddProposal}
         />
       ) : (
-        <MediaSearchPanel
-          selectedId={selectedId}
-          onSelectMedia={onSelectMedia}
-          onAddProposal={onAddProposal}
-        />
+        <Suspense fallback={null}>
+          <MediaSearchPanel
+            selectedId={selectedId}
+            onSelectMedia={onSelectMedia}
+            onAddProposal={onAddProposal}
+          />
+        </Suspense>
       )}
     </div>
   );

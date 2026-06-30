@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { mediaApi } from "./apis";
+import { mediaApi, type MediaFilterParams } from "./apis";
 import { mediaKeys } from "./keys";
 
 const FIXED_PAGE_SIZE = 20;
@@ -19,16 +19,24 @@ export const useMovingMediaList = () =>
     staleTime: 60 * 1000,
   });
 
-export const useFixedMediaInfinite = () =>
+export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>
   useInfiniteQuery({
-    queryKey: mediaKeys.fixedList(),
-    queryFn: ({ pageParam }) => mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam),
+    queryKey: mediaKeys.fixedList(filters),
+    queryFn: ({ pageParam }) =>
+      mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam, filters),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.items.length, 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
     staleTime: 60 * 1000,
+  });
+
+export const useFixedFilterOptions = () =>
+  useQuery({
+    queryKey: mediaKeys.fixedFilterOptions(),
+    queryFn: mediaApi.fixedFilterOptions,
+    staleTime: 5 * 60 * 1000,
   });
 
 export const useMediaDetail = (id: string | null) =>
