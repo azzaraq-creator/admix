@@ -3,8 +3,17 @@
 const RANGE_INPUT_CLASS =
   "pointer-events-none absolute left-0 top-0 h-[20px] w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#00aaa4] [&::-moz-range-thumb]:border-solid [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#00aaa4] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0px_1px_2px_rgba(0,0,0,0.2)]";
 
-function won(n: number): string {
-  return `₩${Math.round(n).toLocaleString()}`;
+const STEP = 1_000_000; // 백만원 단위 이동
+
+function priceLabel(n: number): string {
+  return `${Math.round(n / STEP).toLocaleString("ko-KR")}백만원`;
+}
+
+// 저가 구간에 데이터가 몰려 선형 스케일이면 막대 하나만 커진다.
+// 로그 스케일로 그려 작은 구간도 보이게 한다(분포가 다양해 보이도록).
+function barHeightPct(count: number, maxCount: number): number {
+  if (count <= 0) return 3;
+  return Math.max(8, (Math.log(count + 1) / Math.log(maxCount + 1)) * 100);
 }
 
 export function PriceRangeFilter({
@@ -22,11 +31,14 @@ export function PriceRangeFilter({
   valueMax: number | null;
   onChange: (lo: number, hi: number) => void;
 }) {
-  const lo = valueMin ?? min;
-  const hi = valueMax ?? max;
-  const span = Math.max(1, max - min);
-  const loPct = ((lo - min) / span) * 100;
-  const hiPct = ((hi - min) / span) * 100;
+  // 슬라이더 범위를 백만원 경계로 정렬(라벨이 정수 백만원으로 떨어지도록).
+  const rmin = Math.floor(min / STEP) * STEP;
+  const rmax = Math.max(rmin + STEP, Math.ceil(max / STEP) * STEP);
+  const lo = valueMin ?? rmin;
+  const hi = valueMax ?? rmax;
+  const span = Math.max(1, rmax - rmin);
+  const loPct = ((lo - rmin) / span) * 100;
+  const hiPct = ((hi - rmin) / span) * 100;
   const maxCount = Math.max(1, ...histogram);
   const buckets = histogram.length;
 
@@ -35,14 +47,14 @@ export function PriceRangeFilter({
       {buckets > 0 && (
         <div className="flex h-[48px] items-end gap-[2px]">
           {histogram.map((count, i) => {
-            const bStart = min + (i * span) / buckets;
-            const bEnd = min + ((i + 1) * span) / buckets;
+            const bStart = rmin + (i * span) / buckets;
+            const bEnd = rmin + ((i + 1) * span) / buckets;
             const inRange = bEnd >= lo && bStart <= hi;
             return (
               <div
                 key={i}
                 className={`flex-1 rounded-t-[2px] ${inRange ? "bg-[#00aaa4]" : "bg-[#e4e5ee]"}`}
-                style={{ height: `${Math.max(4, (count / maxCount) * 100)}%` }}
+                style={{ height: `${barHeightPct(count, maxCount)}%` }}
               />
             );
           })}
@@ -57,8 +69,9 @@ export function PriceRangeFilter({
         />
         <input
           type="range"
-          min={min}
-          max={max}
+          min={rmin}
+          max={rmax}
+          step={STEP}
           value={lo}
           aria-label="최저 가격"
           onChange={(e) => onChange(Math.min(Number(e.target.value), hi), hi)}
@@ -66,8 +79,9 @@ export function PriceRangeFilter({
         />
         <input
           type="range"
-          min={min}
-          max={max}
+          min={rmin}
+          max={rmax}
+          step={STEP}
           value={hi}
           aria-label="최대 가격"
           onChange={(e) => onChange(lo, Math.max(Number(e.target.value), lo))}
@@ -81,7 +95,7 @@ export function PriceRangeFilter({
             최저
           </span>
           <span className="text-[16px] font-medium leading-[24px] text-[#2f3442]">
-            {won(lo)}
+            {priceLabel(lo)}
           </span>
         </div>
         <div className="flex flex-col items-end gap-[2px]">
@@ -89,7 +103,7 @@ export function PriceRangeFilter({
             최대
           </span>
           <span className="text-[16px] font-medium leading-[24px] text-[#2f3442]">
-            {won(hi)}
+            {priceLabel(hi)}
           </span>
         </div>
       </div>
