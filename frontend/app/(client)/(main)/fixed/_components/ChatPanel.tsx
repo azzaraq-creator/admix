@@ -30,7 +30,12 @@ export function ChatPanel({
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
   onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
-  onRequestMapMove?: (center: { lat: number; lng: number }) => void;
+  onRequestMapMove?: (center: {
+    lat: number;
+    lng: number;
+    level?: number;
+    rescope?: boolean;
+  }) => void;
 }) {
   return (
     <div className="flex h-full w-full shrink-0 flex-col border-r border-[#e8e8e8] bg-white sm:w-[384px]">

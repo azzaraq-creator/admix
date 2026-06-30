@@ -145,11 +145,23 @@ export function FixedMediaView({
   );
 
   const handleRequestMapMove = useCallback(
-    (center: { lat: number; lng: number }) => {
-      pendingAutoCommitRef.current = true;
-      setMoveTarget({ lat: center.lat, lng: center.lng, level: 5 });
+    (center: {
+      lat: number;
+      lng: number;
+      level?: number;
+      rescope?: boolean;
+    }) => {
+      const level = center.level ?? 5;
+      setMoveTarget({ lat: center.lat, lng: center.lng, level });
+      if (center.rescope === false) {
+        // 리스트(검색 영역)는 고정, 줌만 갱신 → 클러스터만 재조정.
+        commitZoomOnly(level);
+      } else {
+        // 영역 재설정(지오코딩 검색): 리스트도 그 영역으로.
+        pendingAutoCommitRef.current = true;
+      }
     },
-    [],
+    [commitZoomOnly],
   );
 
   const handleSearchHere = useCallback(() => {

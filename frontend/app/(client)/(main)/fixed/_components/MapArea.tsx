@@ -599,7 +599,10 @@ export function MapArea({
       map.setCenter(center);
     }
 
-    shownFocusRef.current = focusId;
+    // 마커를 찾았을 때만(또는 포커스 해제 시) 기록 → 이동·재조회로 마커가 늦게 생겨도 재포커스 가능.
+    if (next || focusId === undefined) {
+      shownFocusRef.current = focusId;
+    }
   }, [focusId, focusOffsetX, focusCenter, markers, mapReady]);
 
   useEffect(() => {

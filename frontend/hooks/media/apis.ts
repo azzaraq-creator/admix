@@ -24,6 +24,8 @@ export interface MediaCardRow {
   minAdvertisementFeeKrw: number | null;
   thumbnailUrl: string | null;
   badge: "popular" | "new" | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface MediaCardListResponse {

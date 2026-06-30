@@ -28,6 +28,8 @@ class MediaCardRow(BaseModel):
     minAdvertisementFeeKrw: int | None
     thumbnailUrl: str | None
     badge: str | None
+    lat: float | None = None
+    lng: float | None = None
 
 
 class MediaCardListResponse(BaseModel):

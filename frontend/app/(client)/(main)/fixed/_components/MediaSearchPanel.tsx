@@ -68,7 +68,12 @@ export function MediaSearchPanel({
   onFocusMedia?: (mediaId: string) => void;
   onAddProposal?: (mediaId: string) => void;
   onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
-  onRequestMapMove?: (center: { lat: number; lng: number }) => void;
+  onRequestMapMove?: (center: {
+    lat: number;
+    lng: number;
+    level?: number;
+    rescope?: boolean;
+  }) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -113,15 +118,35 @@ export function MediaSearchPanel({
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useFixedMediaInfinite(listFilters);
-  const searchResults: MediaItemData[] = (data?.pages ?? []).flatMap((page) =>
-    page.items.map((row) => ({
-      id: row.id,
-      name: row.name,
-      price: formatFee(row.minAdvertisementFeeKrw),
-      images: row.thumbnailUrl ? [row.thumbnailUrl] : [],
-      popular: row.badge === "popular",
-    })),
+  const rows = (data?.pages ?? []).flatMap((page) => page.items);
+  const searchResults: MediaItemData[] = rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    price: formatFee(row.minAdvertisementFeeKrw),
+    images: row.thumbnailUrl ? [row.thumbnailUrl] : [],
+    popular: row.badge === "popular",
+  }));
+  const coordsById = new Map(
+    rows
+      .filter((r) => r.lat != null && r.lng != null)
+      .map((r) => [r.id, { lat: r.lat as number, lng: r.lng as number }]),
   );
+
+  // 리스트 클릭 → 그 매체 위치로 줌인. 개별 핀이면 확대 포커싱, 클러스터면 그 위치가 가운데로.
+  const FOCUS_ZOOM_LEVEL = 3;
+  const handleItemClick = (item: MediaItemData) => {
+    onSelectMedia?.(item);
+    onFocusMedia?.(item.id);
+    const c = coordsById.get(item.id);
+    // rescope=false: 리스트(검색 영역)는 고정, 지도만 그 매체로 줌인.
+    if (c)
+      onRequestMapMove?.({
+        lat: c.lat,
+        lng: c.lng,
+        level: FOCUS_ZOOM_LEVEL,
+        rescope: false,
+      });
+  };
 
   const { data: clusterData } = useFixedClusters(bounds, chipFilters);
   useEffect(() => {
@@ -201,10 +226,7 @@ export function MediaSearchPanel({
               key={item.id}
               {...item}
               selected={item.id === selectedId}
-              onClick={() => {
-                onSelectMedia?.(item);
-                onFocusMedia?.(item.id);
-              }}
+              onClick={() => handleItemClick(item)}
               onAddProposal={() => onAddProposal?.(item.id)}
               className="rounded-none border-0 border-b"
             />

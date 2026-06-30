@@ -49,6 +49,8 @@ def _media_card(m: Media) -> dict:
         minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
         thumbnailUrl=m.thumbnail_url,
         badge=_media_badge(m),
+        lat=float(m.latitude) if m.latitude is not None else None,
+        lng=float(m.longitude) if m.longitude is not None else None,
     )
 
 
