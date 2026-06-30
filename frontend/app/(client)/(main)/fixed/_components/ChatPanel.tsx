@@ -52,6 +52,7 @@ export function ChatPanel({
           <MediaSearchPanel
             selectedId={selectedId}
             onSelectMedia={onSelectMedia}
+            onFocusMedia={onFocusMedia}
             onAddProposal={onAddProposal}
             onMapData={onMapData}
             onRequestMapMove={onRequestMapMove}

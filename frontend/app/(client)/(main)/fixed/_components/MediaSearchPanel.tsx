@@ -58,12 +58,14 @@ function parseBounds(sp: URLSearchParams): MapBounds | null {
 export function MediaSearchPanel({
   selectedId,
   onSelectMedia,
+  onFocusMedia,
   onAddProposal,
   onMapData,
   onRequestMapMove,
 }: {
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
+  onFocusMedia?: (mediaId: string) => void;
   onAddProposal?: (mediaId: string) => void;
   onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
   onRequestMapMove?: (center: { lat: number; lng: number }) => void;
@@ -199,7 +201,10 @@ export function MediaSearchPanel({
               key={item.id}
               {...item}
               selected={item.id === selectedId}
-              onClick={() => onSelectMedia?.(item)}
+              onClick={() => {
+                onSelectMedia?.(item);
+                onFocusMedia?.(item.id);
+              }}
               onAddProposal={() => onAddProposal?.(item.id)}
               className="rounded-none border-0 border-b"
             />
