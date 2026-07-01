@@ -24,14 +24,37 @@ def list_media(db: Session = Depends(get_db)) -> MediaListResponse:
 
 
 @router.get("/moving", response_model=MediaCardListResponse)
-def list_moving_media(db: Session = Depends(get_db)) -> MediaCardListResponse:
-    items = media_service.list_moving_media(db)
+def list_moving_media(
+    category: list[str] | None = Query(None),
+    ooh_type: list[str] | None = Query(None),
+    exposure_type: list[str] | None = Query(None),
+    media_shape: list[str] | None = Query(None),
+    product_master_type: list[str] | None = Query(None),
+    price_min: int | None = Query(None, ge=0),
+    price_max: int | None = Query(None, ge=0),
+    db: Session = Depends(get_db),
+) -> MediaCardListResponse:
+    items = media_service.list_moving_media(
+        db,
+        categories=category,
+        ooh_types=ooh_type,
+        exposure_types=exposure_type,
+        media_shapes=media_shape,
+        product_master_types=product_master_type,
+        price_min=price_min,
+        price_max=price_max,
+    )
     return MediaCardListResponse(total=len(items), items=items)
+
+
+@router.get("/moving/filter-options", response_model=MediaFilterOptions)
+def get_moving_filter_options(db: Session = Depends(get_db)) -> MediaFilterOptions:
+    return MediaFilterOptions(**media_service.get_media_filter_options(db, "MOVING"))
 
 
 @router.get("/fixed/filter-options", response_model=MediaFilterOptions)
 def get_fixed_filter_options(db: Session = Depends(get_db)) -> MediaFilterOptions:
-    return MediaFilterOptions(**media_service.get_fixed_filter_options(db))
+    return MediaFilterOptions(**media_service.get_media_filter_options(db, "FIXED"))
 
 
 @router.get("/fixed", response_model=MediaCardListResponse)

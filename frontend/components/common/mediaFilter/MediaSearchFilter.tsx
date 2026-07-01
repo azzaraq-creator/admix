@@ -10,17 +10,16 @@ import {
 import { ChevronDownIcon, RotateCwIcon } from "@/components/icons";
 
 import {
-  EMPTY_FIXED_FILTER,
+  EMPTY_MEDIA_FILTER,
   FILTER_DIMS,
   dimSelectionCount,
   type ChipDimKey,
   type FilterOption,
   type FilterPanelKey,
-  type FixedFilterState,
+  type MediaFilterState,
+  type PriceMeta,
 } from "./filterConfig";
 import { PriceRangeFilter } from "./PriceRangeFilter";
-
-type PriceMeta = { min: number; max: number; histogram: number[] } | null;
 
 function CountBadge({ count }: { count: number }) {
   return (
@@ -36,8 +35,8 @@ export function MediaSearchFilter({
   optionsByKey,
   price,
 }: {
-  value: FixedFilterState;
-  onChange: (next: FixedFilterState) => void;
+  value: MediaFilterState;
+  onChange: (next: MediaFilterState) => void;
   optionsByKey: Record<ChipDimKey, FilterOption[]>;
   price: PriceMeta;
 }) {
@@ -119,7 +118,7 @@ export function MediaSearchFilter({
     onChange({ ...value, [key]: next });
   };
 
-  const reset = () => onChange(EMPTY_FIXED_FILTER);
+  const reset = () => onChange(EMPTY_MEDIA_FILTER);
 
   const openWith = (key: FilterPanelKey) => {
     setActiveKey(key);

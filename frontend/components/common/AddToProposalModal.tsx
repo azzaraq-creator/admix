@@ -19,15 +19,28 @@ import { cn } from "@/lib/utils";
 
 type AddToProposalModalProps = {
   mediaId: string;
+  // 담을 때 지정할 플랜(plan_no). 디테일 패널 "매체 목록"에서 선택한 값.
+  planNo?: number;
   onClose: () => void;
 };
 
+// 담기는 "작성중"(편집 가능) 제안서에만 가능 — 맞춤제안/집행요청/계약완료 제외.
+// ProposalsView.toStatus 의 "작성중" 분류와 동일 기준.
+function isDraftProposal(status: string): boolean {
+  return (
+    status !== "contracted" &&
+    status !== "custom" &&
+    status !== "execution_requested"
+  );
+}
+
 export function AddToProposalModal({
   mediaId,
+  planNo,
   onClose,
 }: AddToProposalModalProps) {
   const { data } = useMyProposals();
-  const proposals = data ?? [];
+  const proposals = (data ?? []).filter((p) => isDraftProposal(p.status));
   const createProposal = useCreateProposal();
   const addItems = useAddProposalItems();
 
@@ -62,8 +75,11 @@ export function AddToProposalModal({
     if (selected.length === 0 || submitting) return;
     setSubmitting(true);
     try {
+      const plans = planNo != null ? { [mediaId]: planNo } : undefined;
       await Promise.all(
-        selected.map((id) => addItems.mutateAsync({ id, mediaIds: [mediaId] })),
+        selected.map((id) =>
+          addItems.mutateAsync({ id, mediaIds: [mediaId], plans }),
+        ),
       );
       onClose();
     } finally {

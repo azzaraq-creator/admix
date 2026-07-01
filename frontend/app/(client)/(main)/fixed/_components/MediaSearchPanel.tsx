@@ -12,18 +12,18 @@ import {
   type MediaFilterParams,
 } from "@/hooks/media";
 
+import { MediaSearchFilter } from "@/components/common/mediaFilter/MediaSearchFilter";
+import {
+  buildFilterUi,
+  toChipFilterParams,
+  type MediaFilterState,
+} from "@/components/common/mediaFilter/filterConfig";
+
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { formatFee } from "./chat/format";
 import { geocodeAddress, type MapCluster, type MapMarker } from "./MapArea";
-import { MediaSearchFilter } from "./search/MediaSearchFilter";
-import {
-  toOptions,
-  type ChipDimKey,
-  type FilterOption,
-  type FixedFilterState,
-} from "./search/filterConfig";
 
-function parseFilter(sp: URLSearchParams): FixedFilterState {
+function parseFilter(sp: URLSearchParams): MediaFilterState {
   const num = (k: string) => {
     const v = sp.get(k);
     return v != null && v !== "" ? Number(v) : null;
@@ -87,27 +87,9 @@ export function MediaSearchPanel({
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const { data: opts } = useFixedFilterOptions();
-  const optionsByKey: Record<ChipDimKey, FilterOption[]> = {
-    category: toOptions("category", opts?.categories ?? []),
-    saleType: toOptions("saleType", opts?.product_master_types ?? []),
-    oohType: toOptions("oohType", opts?.ooh_types ?? []),
-    exposureType: toOptions("exposureType", opts?.exposure_types ?? []),
-    mediaShape: toOptions("mediaShape", opts?.media_shapes ?? []),
-  };
-  const price =
-    opts && opts.price_min != null && opts.price_max != null
-      ? { min: opts.price_min, max: opts.price_max, histogram: opts.price_histogram }
-      : null;
+  const { optionsByKey, price } = buildFilterUi(opts);
 
-  const chipFilters: MediaFilterParams = {
-    category: filter.category,
-    oohType: filter.oohType,
-    exposureType: filter.exposureType,
-    mediaShape: filter.mediaShape,
-    productMasterType: filter.saleType,
-    priceMin: filter.priceMin,
-    priceMax: filter.priceMax,
-  };
+  const chipFilters: MediaFilterParams = toChipFilterParams(filter);
   const listFilters: MediaFilterParams = {
     ...chipFilters,
     neLat: bounds?.neLat ?? null,
@@ -170,7 +152,7 @@ export function MediaSearchPanel({
     });
   }, [clusterData, onMapData]);
 
-  const applyFilter = (next: FixedFilterState) => {
+  const applyFilter = (next: MediaFilterState) => {
     const q = new URLSearchParams();
     q.set("mode", "search");
     next.category.forEach((v) => q.append("category", v));

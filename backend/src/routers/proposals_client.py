@@ -133,7 +133,7 @@ def add_items(
     user: Optional[User] = Depends(get_current_user_optional),
 ):
     p = _get_owned_or_404(db, proposal_id, user, body.session_id)
-    p = proposal_service.add_items(db, p, body.media_ids)
+    p = proposal_service.add_items(db, p, body.media_ids, body.plans)
     return ProposalDetail(**proposal_service.to_detail(db, p))
 
 

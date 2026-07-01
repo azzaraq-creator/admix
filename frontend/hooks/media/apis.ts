@@ -166,6 +166,12 @@ function buildFixedQuery(
   return q.toString();
 }
 
+function buildMovingQuery(f?: MediaFilterParams): string {
+  const q = new URLSearchParams();
+  appendFilters(q, f);
+  return q.toString();
+}
+
 function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
   const q = new URLSearchParams();
   q.set("north_east_latitude", String(bounds.neLat));
@@ -179,8 +185,16 @@ function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
 
 export const mediaApi = {
   list: () => api.get<MediaListResponse>("/media").then((r) => r.data),
-  movingList: () =>
-    api.get<MediaCardListResponse>("/media/moving").then((r) => r.data),
+  movingList: (filters?: MediaFilterParams) => {
+    const qs = buildMovingQuery(filters);
+    return api
+      .get<MediaCardListResponse>(`/media/moving${qs ? `?${qs}` : ""}`)
+      .then((r) => r.data);
+  },
+  movingFilterOptions: () =>
+    api
+      .get<MediaFilterOptions>("/media/moving/filter-options")
+      .then((r) => r.data),
   fixedList: (limit: number, offset: number, filters?: MediaFilterParams) =>
     api
       .get<MediaCardListResponse>(

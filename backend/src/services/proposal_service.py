@@ -305,8 +305,16 @@ def _recount(proposal: Proposal) -> None:
     proposal.total_amount = sum(it.price or 0 for it in proposal.items)
 
 
-def add_items(db: Session, proposal: Proposal, media_ids: list[str]) -> Proposal:
-    """media_ids 를 매체 마스터에서 조회해 스냅샷으로 담는다. 중복은 무시."""
+def add_items(
+    db: Session,
+    proposal: Proposal,
+    media_ids: list[str],
+    plans: dict[str, int] | None = None,
+) -> Proposal:
+    """media_ids 를 매체 마스터에서 조회해 스냅샷으로 담는다. 중복은 무시.
+
+    plans({media_id: plan_no}) 가 주어지면 담을 때 해당 플랜을 지정한다.
+    """
     existing = {it.media_id for it in proposal.items}
     wanted = [m for m in dict.fromkeys(media_ids) if m and m not in existing]
     if wanted:
@@ -324,6 +332,7 @@ def add_items(db: Session, proposal: Proposal, media_ids: list[str]) -> Proposal
                     name=media.name,
                     price=media.min_advertisement_fee_krw,
                     thumbnail_url=media.thumbnail_url,
+                    selected_plan_no=plans.get(mid) if plans else None,
                 )
             )
         _recount(proposal)

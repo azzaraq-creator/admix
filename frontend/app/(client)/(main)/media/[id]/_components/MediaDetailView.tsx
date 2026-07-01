@@ -22,6 +22,7 @@ export function MediaDetailView() {
   const mediaList = detail.plans.map((p) => ({
     title: p.title,
     subtitle: p.subtitle ?? "",
+    planNo: p.planNo,
   }));
   const population = detail.population
     ? {
@@ -38,6 +39,7 @@ export function MediaDetailView() {
 
   return (
     <MediaDetailContent
+      mediaId={detail.id}
       name={detail.name}
       price={formatFee(detail.minAdvertisementFeeKrw)}
       badge={detail.badge ?? null}

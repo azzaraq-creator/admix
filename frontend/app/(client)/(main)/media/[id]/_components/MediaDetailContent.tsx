@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 
+import { AddToProposalModal } from "@/components/common/AddToProposalModal";
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
 import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
 const DESCRIPTION =
   "맥스비전은 서울 지하철 1~4호선 주요 유동역사 24개소에 설치된 대형 디지털 광고 매체입니다. 역사 내 동선 중심부나 개찰구 주변, 환승 통로, 연결 계단 등 시야 확보가 우수한 위치에 설치되어 이용객의 이동 동선과 맞물린 자연스러운 노출이 가능합니다. 기존 사이니지보다 큰 사이즈의 디지털 스크린으로 구성되어 시각적 주목도가 높으며 일부 구간은 음성 송출이 가능해 브랜드 영상 콘텐츠 전달력이 우수합니다.";
 
-type MediaListItem = { title: string; subtitle: string };
+type MediaListItem = { title: string; subtitle: string; planNo?: number };
 
 const MEDIA_LIST_DEFAULT: MediaListItem[] = Array.from({ length: 6 }, () => ({
   title: "영상(20초) / 팬클럽 광고",
@@ -103,6 +104,7 @@ export function MediaDetailContent({
   population = null,
   className,
   hidePopulation = false,
+  mediaId,
 }: {
   name?: string;
   price?: string;
@@ -115,9 +117,11 @@ export function MediaDetailContent({
   population?: PopulationData | null;
   className?: string;
   hidePopulation?: boolean;
+  mediaId?: string;
 } = {}) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedList, setSelectedList] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
 
   const showPopulation = !hidePopulation && !!population;
   const primaryGender = population
@@ -169,6 +173,8 @@ export function MediaDetailContent({
                 size="lg"
                 className="shrink-0"
                 leftIcon={<FolderIcon />}
+                disabled={!mediaId}
+                onClick={() => setAddOpen(true)}
               >
                 매체 담기
               </Button>
@@ -310,6 +316,14 @@ export function MediaDetailContent({
           )}
         </div>
       </div>
+
+      {addOpen && mediaId && (
+        <AddToProposalModal
+          mediaId={mediaId}
+          planNo={mediaList[selectedList]?.planNo}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
     </div>
   );
 }

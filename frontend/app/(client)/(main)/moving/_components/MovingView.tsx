@@ -2,21 +2,22 @@
 
 import { useState } from "react";
 
-import { MediaFilterBar } from "@/components/common/MediaFilterBar";
+import { MediaSearchFilter } from "@/components/common/mediaFilter/MediaSearchFilter";
+import {
+  EMPTY_MEDIA_FILTER,
+  buildFilterUi,
+  toChipFilterParams,
+  type MediaFilterState,
+} from "@/components/common/mediaFilter/filterConfig";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
-import { useMediaDetail, useMovingMediaList } from "@/hooks/media";
+import {
+  useMediaDetail,
+  useMovingFilterOptions,
+  useMovingMediaList,
+} from "@/hooks/media";
 import { MediaDetailContent } from "../../media/[id]/_components/MediaDetailContent";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { MovingMediaCard, type MovingMediaData } from "./MovingMediaCard";
-
-const FILTERS = [
-  "카테고리",
-  "가격 범위",
-  "매체 판매 유형",
-  "매체 타입",
-  "설치 장소",
-  "매체 형태",
-];
 
 function formatFee(krw: number | null): string {
   if (krw == null) return "최소집행금액 협의";
@@ -24,7 +25,10 @@ function formatFee(krw: number | null): string {
 }
 
 export function MovingView() {
-  const { data } = useMovingMediaList();
+  const [filter, setFilter] = useState<MediaFilterState>(EMPTY_MEDIA_FILTER);
+  const { data: opts } = useMovingFilterOptions();
+  const { optionsByKey, price } = buildFilterUi(opts);
+  const { data } = useMovingMediaList(toChipFilterParams(filter));
   const mediaList: MovingMediaData[] = (data?.items ?? []).map((item) => ({
     id: item.id,
     name: item.name,
@@ -47,6 +51,7 @@ export function MovingView() {
   const planList = detail?.plans.map((p) => ({
     title: p.title,
     subtitle: p.subtitle ?? "",
+    planNo: p.planNo,
   }));
   const detailImage = detail?.thumbnailUrl ?? detail?.imageUrls[0] ?? null;
 
@@ -65,7 +70,12 @@ export function MovingView() {
             className="w-full"
           />
         </div>
-        <MediaFilterBar filters={FILTERS} />
+        <MediaSearchFilter
+          value={filter}
+          onChange={setFilter}
+          optionsByKey={optionsByKey}
+          price={price}
+        />
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(228px,1fr))]">
             {mediaList.map((media) => (
@@ -104,6 +114,7 @@ export function MovingView() {
               className="sm:hidden"
             />
             <MediaDetailContent
+              mediaId={selected.id}
               name={selected.name}
               price={selected.price}
               badge={detail?.badge ?? null}

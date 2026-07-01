@@ -54,19 +54,36 @@ def _media_card(m: Media) -> dict:
     )
 
 
-def list_moving_media(db: Session) -> list[dict]:
-    rows = (
-        db.query(Media)
-        .filter(Media.media_source == "MOVING")
-        .order_by(Media.media_id)
-        .all()
+def list_moving_media(
+    db: Session,
+    *,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+) -> list[dict]:
+    base = _media_base_query(
+        db,
+        media_source="MOVING",
+        categories=categories,
+        ooh_types=ooh_types,
+        exposure_types=exposure_types,
+        media_shapes=media_shapes,
+        product_master_types=product_master_types,
+        price_min=price_min,
+        price_max=price_max,
     )
+    rows = base.order_by(Media.media_id).all()
     return [_media_card(m) for m in rows]
 
 
-def _fixed_base_query(
+def _media_base_query(
     db: Session,
     *,
+    media_source: str = "FIXED",
     categories: list[str] | None,
     ooh_types: list[str] | None,
     exposure_types: list[str] | None,
@@ -79,8 +96,8 @@ def _fixed_base_query(
     ne_lng: float | None = None,
     sw_lng: float | None = None,
 ):
-    """FIXED 매체 공통 필터 쿼리. 리스트·지도클러스터가 동일 조건을 공유한다."""
-    base = db.query(Media).filter(Media.media_source == "FIXED")
+    """매체 공통 필터 쿼리. 리스트·지도클러스터가 동일 조건을 공유한다."""
+    base = db.query(Media).filter(Media.media_source == media_source)
     if categories:
         base = base.filter(Media.category_large.in_(categories))
     if ooh_types:
@@ -129,7 +146,7 @@ def list_fixed_media(
     ne_lng: float | None = None,
     sw_lng: float | None = None,
 ) -> tuple[int, list[dict]]:
-    base = _fixed_base_query(
+    base = _media_base_query(
         db,
         categories=categories,
         ooh_types=ooh_types,
@@ -201,7 +218,7 @@ def list_fixed_clusters(
     price_max: int | None = None,
 ) -> dict:
     """지도 화면(bbox) 안 FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환."""
-    base = _fixed_base_query(
+    base = _media_base_query(
         db,
         categories=categories,
         ooh_types=ooh_types,
@@ -262,13 +279,13 @@ def list_fixed_clusters(
     return dict(clusters=clusters, markers=markers)
 
 
-def get_fixed_filter_options(db: Session) -> dict:
-    """매체검색 필터 옵션 — FIXED 매체 기준 distinct 값 + 가격(최소광고비) 범위."""
+def get_media_filter_options(db: Session, media_source: str = "FIXED") -> dict:
+    """매체검색 필터 옵션 — 매체 기준 distinct 값 + 가격(최소광고비) 범위."""
 
     def _distinct(col) -> list[str]:
         rows = (
             db.query(col)
-            .filter(Media.media_source == "FIXED", col.isnot(None))
+            .filter(Media.media_source == media_source, col.isnot(None))
             .distinct()
             .order_by(col)
             .all()
@@ -279,7 +296,7 @@ def get_fixed_filter_options(db: Session) -> dict:
         db.query(MediaPlan.product_master_type)
         .join(Media, MediaPlan.media_id == Media.media_id)
         .filter(
-            Media.media_source == "FIXED",
+            Media.media_source == media_source,
             MediaPlan.product_master_type.isnot(None),
         )
         .distinct()
@@ -291,7 +308,7 @@ def get_fixed_filter_options(db: Session) -> dict:
             func.min(Media.min_advertisement_fee_krw),
             func.max(Media.min_advertisement_fee_krw),
         )
-        .filter(Media.media_source == "FIXED")
+        .filter(Media.media_source == media_source)
         .first()
     )
     price_min = price[0] if price else None
@@ -304,7 +321,7 @@ def get_fixed_filter_options(db: Session) -> dict:
         product_master_types=[r[0] for r in pmt_rows],
         price_min=price_min,
         price_max=price_max,
-        price_histogram=_price_histogram(db, price_min, price_max),
+        price_histogram=_price_histogram(db, price_min, price_max, media_source),
     )
 
 
@@ -312,15 +329,18 @@ _PRICE_HISTOGRAM_BUCKETS = 24
 
 
 def _price_histogram(
-    db: Session, price_min: int | None, price_max: int | None
+    db: Session,
+    price_min: int | None,
+    price_max: int | None,
+    media_source: str = "FIXED",
 ) -> list[int]:
-    """min~max 가격 구간을 균등 버킷으로 나눠 버킷별 FIXED 매체 수를 센다."""
+    """min~max 가격 구간을 균등 버킷으로 나눠 버킷별 매체 수를 센다."""
     if price_min is None or price_max is None or price_max <= price_min:
         return []
     fees = (
         db.query(Media.min_advertisement_fee_krw)
         .filter(
-            Media.media_source == "FIXED",
+            Media.media_source == media_source,
             Media.min_advertisement_fee_krw.isnot(None),
         )
         .all()

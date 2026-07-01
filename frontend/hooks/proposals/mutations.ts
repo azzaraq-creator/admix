@@ -16,8 +16,15 @@ export const useCreateProposal = () => {
 export const useAddProposalItems = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, mediaIds }: { id: string; mediaIds: string[] }) =>
-      proposalsClientApi.addItems(id, mediaIds),
+    mutationFn: ({
+      id,
+      mediaIds,
+      plans,
+    }: {
+      id: string;
+      mediaIds: string[];
+      plans?: Record<string, number>;
+    }) => proposalsClientApi.addItems(id, mediaIds, plans),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
       qc.invalidateQueries({ queryKey: proposalsKeys.detail(id) });

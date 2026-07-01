@@ -12,11 +12,18 @@ export const useMediaList = () =>
     staleTime: 60 * 1000,
   });
 
-export const useMovingMediaList = () =>
+export const useMovingMediaList = (filters?: MediaFilterParams) =>
   useQuery({
-    queryKey: mediaKeys.movingList(),
-    queryFn: mediaApi.movingList,
+    queryKey: mediaKeys.movingList(filters),
+    queryFn: () => mediaApi.movingList(filters),
     staleTime: 60 * 1000,
+  });
+
+export const useMovingFilterOptions = () =>
+  useQuery({
+    queryKey: mediaKeys.movingFilterOptions(),
+    queryFn: mediaApi.movingFilterOptions,
+    staleTime: 5 * 60 * 1000,
   });
 
 export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>

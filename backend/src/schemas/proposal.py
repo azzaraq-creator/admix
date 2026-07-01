@@ -123,6 +123,7 @@ class RenameProposalRequest(BaseModel):
 class AddItemsRequest(BaseModel):
     media_ids: list[str] = Field(min_length=1)
     session_id: Optional[str] = None
+    plans: Optional[dict[str, int]] = None  # {media_id: plan_no} — 담을 때 지정한 플랜
 
 
 class ReorderItemsRequest(BaseModel):

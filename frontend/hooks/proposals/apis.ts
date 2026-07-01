@@ -193,10 +193,15 @@ export const proposalsClientApi = {
     api
       .delete(`/proposals/${id}`, { params: { session_id: getSessionId() } })
       .then(() => undefined),
-  addItems: (id: string, mediaIds: string[]) =>
+  addItems: (
+    id: string,
+    mediaIds: string[],
+    plans?: Record<string, number>,
+  ) =>
     api
       .post<ProposalDetail>(`/proposals/${id}/items`, {
         media_ids: mediaIds,
+        plans,
         session_id: getSessionId(),
       })
       .then((r) => r.data),
