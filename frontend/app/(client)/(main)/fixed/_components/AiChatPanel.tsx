@@ -58,6 +58,11 @@ export function AiChatPanel({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages]);
 
+  // 복원 중엔 textarea가 disabled라 autoFocus가 실패 → 복원 완료 시 입력창 포커스.
+  useEffect(() => {
+    if (!chat.restoring) textareaRef.current?.focus();
+  }, [chat.restoring]);
+
   // media_detail 응답이 오면 해당 매체 마커를 지도 가운데로 포커싱 (Drawer 자동오픈 X, 중복 방지)
   const focusedMediaRef = useRef<string | null>(null);
   useEffect(() => {

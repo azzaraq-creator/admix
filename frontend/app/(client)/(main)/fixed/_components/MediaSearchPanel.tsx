@@ -211,6 +211,7 @@ export function MediaSearchPanel({
           onChange={setLocation}
           onSubmit={handleSearchSubmit}
           className="w-full"
+          autoFocus
         />
       </div>
       <MediaSearchFilter

@@ -9,6 +9,7 @@ type LocationSearchInputProps = {
   onSubmit?: () => void;
   placeholder?: string;
   className?: string;
+  autoFocus?: boolean;
 };
 
 export function LocationSearchInput({
@@ -17,6 +18,7 @@ export function LocationSearchInput({
   onSubmit,
   placeholder = "강남역 역삼로 10길 6",
   className,
+  autoFocus = false,
 }: LocationSearchInputProps) {
   return (
     <form
@@ -31,6 +33,7 @@ export function LocationSearchInput({
     >
       <input
         type="text"
+        autoFocus={autoFocus}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

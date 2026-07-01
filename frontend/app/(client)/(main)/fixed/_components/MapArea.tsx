@@ -329,6 +329,7 @@ export function MapArea({
   const draggedRef = useRef(false);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moveTargetRef = useRef(moveTarget);
   const [popupEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === "undefined") return null;
     const el = document.createElement("div");
@@ -351,6 +352,7 @@ export function MapArea({
     onClusterClickRef.current = onClusterClick;
     onBoundsChangeRef.current = onBoundsChange;
     autoFitRef.current = autoFit;
+    moveTargetRef.current = moveTarget;
   });
 
   useEffect(() => {
@@ -381,14 +383,30 @@ export function MapArea({
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest();
             const ne = bounds.getNorthEast();
+            let neLat = ne.getLat();
+            let swLat = sw.getLat();
+            let neLng = ne.getLng();
+            let swLng = sw.getLng();
+            // 모바일 진입 시 지도가 숨김(크기 0)이면 getBounds가 한 점을 반환한다.
+            // degenerate(넓이 0) bbox면 중심 기준 기본 span으로 확장(빈 결과 방지).
+            if (Math.abs(neLat - swLat) < 1e-6 || Math.abs(neLng - swLng) < 1e-6) {
+              const cLat = (neLat + swLat) / 2;
+              const cLng = (neLng + swLng) / 2;
+              const D_LAT = 0.03;
+              const D_LNG = 0.03;
+              neLat = cLat + D_LAT;
+              swLat = cLat - D_LAT;
+              neLng = cLng + D_LNG;
+              swLng = cLng - D_LNG;
+            }
             programmaticMoveRef.current = false;
             zoomedRef.current = false;
             draggedRef.current = false;
             onBoundsChangeRef.current?.({
-              neLat: ne.getLat(),
-              neLng: ne.getLng(),
-              swLat: sw.getLat(),
-              swLng: sw.getLng(),
+              neLat,
+              neLng,
+              swLat,
+              swLng,
               zoom: map.getLevel(),
               moveType,
             });
@@ -469,6 +487,14 @@ export function MapArea({
       prevHeight = height;
       if (becameVisible) {
         map.relayout();
+        // 모바일: 지도가 숨김(크기 0)으로 생성돼 센터가 어긋나므로, 보이게 될 때 재센터링.
+        const maps = window.kakao?.maps;
+        const mt = moveTargetRef.current;
+        if (maps && mt) {
+          programmaticMoveRef.current = true;
+          map.setCenter(new maps.LatLng(mt.lat, mt.lng));
+          if (mt.level != null) map.setLevel(mt.level);
+        }
         fitToMarkers();
       }
     });

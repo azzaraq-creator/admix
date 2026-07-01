@@ -11,7 +11,7 @@ import {
 } from "@/components/common/MediaDetailDrawer";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
-import { ChevronLeftIcon, MapPinIcon } from "@/components/icons";
+import { ChevronLeftIcon, ListIcon, MapPinIcon } from "@/components/icons";
 import { useMediaDetail } from "@/hooks/media";
 import type { Mode } from "../../_components/ModeToggle";
 import { ChatPanel } from "./ChatPanel";
@@ -350,7 +350,11 @@ export function FixedMediaView({
         onClick={() => setMobileMap((value) => !value)}
         className="absolute bottom-[24px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-primary px-[16px] py-[8px] text-white drop-shadow-[0px_2px_8px_rgba(0,0,0,0.2)] sm:hidden"
       >
-        <MapPinIcon className="size-[18px]" />
+        {mobileMap ? (
+          <ListIcon className="size-[18px]" />
+        ) : (
+          <MapPinIcon className="size-[18px]" />
+        )}
         <span className="text-sm font-medium whitespace-nowrap">
           {mobileMap ? "목록보기" : "지도보기"}
         </span>

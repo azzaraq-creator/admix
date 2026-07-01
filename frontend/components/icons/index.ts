@@ -2,6 +2,7 @@ export type { IconProps } from "./types";
 export { Logo } from "./Logo";
 export { ColumnsToggleIcon } from "./ColumnsToggleIcon";
 export { MenuIcon } from "./MenuIcon";
+export { ListIcon } from "./ListIcon";
 export { MapIcon } from "./MapIcon";
 export { MapPinIcon } from "./MapPinIcon";
 export { MaximizeIcon } from "./MaximizeIcon";
