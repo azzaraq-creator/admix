@@ -27,7 +27,7 @@ export function MarkerMediaPopup({
   return (
     <div
       className={cn(
-        "flex w-[340px] flex-col gap-[12px] rounded-[12px] border-b border-[#e8e8e8] bg-[#f6f6f6] px-[16px] py-[24px] drop-shadow-[0px_0px_6px_rgba(0,0,0,0.32)] sm:w-[383px]",
+        "flex w-[min(340px,calc(100vw-24px))] flex-col gap-[12px] rounded-[12px] border-b border-[#e8e8e8] bg-[#f6f6f6] px-[16px] py-[24px] drop-shadow-[0px_0px_6px_rgba(0,0,0,0.32)] sm:w-[383px]",
         className,
       )}
     >
@@ -37,7 +37,7 @@ export function MarkerMediaPopup({
         className="justify-end"
       />
 
-      <div className="flex max-h-[360px] flex-col gap-[12px] overflow-y-auto">
+      <div className="flex max-h-[min(360px,50vh)] flex-col gap-[12px] overflow-y-auto">
         {items.map((item) => (
           <MediaItem
             key={item.id}

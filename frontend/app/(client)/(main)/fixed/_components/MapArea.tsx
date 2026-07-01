@@ -354,6 +354,7 @@ export function MapArea({
   const autoFitRef = useRef(autoFit);
   const [mapReady, setMapReady] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
+  const [shiftX, setShiftX] = useState(0);
 
   useEffect(() => {
     onPopupCloseRef.current = onPopupClose;
@@ -748,6 +749,14 @@ export function MapArea({
     if (container && projection) {
       const point = projection.containerPointFromCoords(pos);
       setFlipUp(point.y > container.clientHeight - POPUP_FLIP_MARGIN);
+      // 수평: 팝업이 지도 좌우를 벗어나지 않도록 시프트 계산.
+      const halfW = Math.min(191, Math.max(0, (container.clientWidth - 24) / 2));
+      const margin = 12;
+      let sx = 0;
+      if (point.x - halfW < margin) sx = margin - (point.x - halfW);
+      else if (point.x + halfW > container.clientWidth - margin)
+        sx = container.clientWidth - margin - (point.x + halfW);
+      setShiftX(sx);
     }
   }, [popupId, popupPosition, markers, mapReady]);
 
@@ -758,9 +767,10 @@ export function MapArea({
         ? createPortal(
             <div
               className={cn(
-                "absolute left-1/2 -translate-x-1/2",
+                "absolute left-1/2",
                 flipUp ? "bottom-[30px]" : "top-[30px]",
               )}
+              style={{ transform: `translateX(calc(-50% + ${shiftX}px))` }}
             >
               {popupContent}
             </div>,
