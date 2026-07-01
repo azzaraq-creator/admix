@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { FaqPanel } from "./FaqPanel";
 import { HistoryPanel } from "./HistoryPanel";
+import { InquiryDetailPage } from "./InquiryDetailPage";
 import { InquiryModal } from "./InquiryModal";
 
 type TabKey = "received" | "history" | "faq";
@@ -97,6 +98,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
   const [activeTab, setActiveTab] = useState<TabKey>("received");
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [inquiryId, setInquiryId] = useState<string | null>(null);
   const tabs = member ? TABS_MEMBER : TABS_GUEST;
   const showSearch = activeTab === "faq" || activeTab === "history";
 
@@ -114,6 +116,15 @@ export function ContactView({ member = false }: { member?: boolean }) {
     }
     setToast("복사가 완료되었습니다.");
   };
+
+  // 문의 상세는 제목/탭/검색 없는 단독 화면.
+  if (inquiryId) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
+        <InquiryDetailPage id={inquiryId} onBack={() => setInquiryId(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
@@ -366,7 +377,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
         </div>
       )}
 
-      {activeTab === "history" && <HistoryPanel query={searchQuery} />}
+      {activeTab === "history" && (
+        <HistoryPanel query={searchQuery} onSelect={setInquiryId} />
+      )}
 
       {activeTab === "faq" && <FaqPanel query={searchQuery} />}
 

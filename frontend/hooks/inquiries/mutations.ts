@@ -1,7 +1,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { inquiriesApi } from "./apis";
+import {
+  inquiriesApi,
+  inquiriesClientApi,
+  type InquiryCreatePayload,
+} from "./apis";
 import { inquiriesKeys } from "./keys";
+
+export const useCreateInquiry = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: InquiryCreatePayload) =>
+      inquiriesClientApi.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inquiriesKeys.myList() });
+    },
+  });
+};
 
 export const useAnswerInquiry = () => {
   const qc = useQueryClient();
