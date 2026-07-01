@@ -3,7 +3,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-import { getAdminToken } from "./adminToken";
+import { clearAdminToken, getAdminToken } from "./adminToken";
 import {
   clearUserToken,
   getPersist,
@@ -51,6 +51,21 @@ api.interceptors.response.use(
       | undefined;
 
     const url = original?.url ?? "";
+
+    // 관리자 토큰 만료/무효(401): refresh 수단이 없으므로 토큰 정리 후 로그인으로.
+    // 로그인 엔드포인트는 제외(잘못된 자격증명 시 리다이렉트 루프 방지).
+    if (
+      error.response?.status === 401 &&
+      isAdminRequest(url) &&
+      !url.includes("/admin/auth/")
+    ) {
+      clearAdminToken();
+      if (typeof window !== "undefined") {
+        window.location.href = "/admin/login";
+      }
+      return Promise.reject(error);
+    }
+
     const isAuthEndpoint =
       url.includes("/auth/login") ||
       url.includes("/auth/register") ||

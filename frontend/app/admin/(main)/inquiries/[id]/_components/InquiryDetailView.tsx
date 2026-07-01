@@ -61,6 +61,8 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
   const answerMutation = useAnswerInquiry();
 
   const [answer, setAnswer] = useState(inquiry.answer ?? "");
+  // 답변 완료된 문의는 수정 불가(읽기 전용).
+  const answered = inquiry.status === "답변 완료";
 
   const handleComplete = async () => {
     if (!answer.trim()) {
@@ -130,14 +132,22 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
         <textarea
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
+          readOnly={answered}
           placeholder="답변 내용을 입력해 주세요."
-          className="h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] bg-[#f0f0f3] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f]"
+          className={`h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f] ${
+            answered ? "cursor-default bg-[#f6f6f6]" : "bg-[#f0f0f3]"
+          }`}
         />
         <div className="flex items-center justify-between">
           <ListButton onClick={() => router.push("/admin/inquiries")} />
-          <PrimaryButton onClick={handleComplete} disabled={answerMutation.isPending}>
-            답변 완료 처리
-          </PrimaryButton>
+          {!answered && (
+            <PrimaryButton
+              onClick={handleComplete}
+              disabled={answerMutation.isPending}
+            >
+              답변 완료 처리
+            </PrimaryButton>
+          )}
         </div>
       </div>
 
