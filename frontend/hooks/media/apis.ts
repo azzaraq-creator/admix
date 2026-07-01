@@ -103,6 +103,8 @@ export interface MediaMarkerDto {
   name: string;
   categoryLarge: string | null;
   minAdvertisementFeeKrw: number | null;
+  thumbnailUrl: string | null;
+  badge: "popular" | "new" | null;
 }
 
 export interface MediaClusterDto {

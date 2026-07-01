@@ -11,6 +11,9 @@ export interface MapMarker {
   lng: number;
   name: string;
   categoryLarge?: string | null;
+  minAdvertisementFeeKrw?: number | null;
+  thumbnailUrl?: string | null;
+  badge?: "popular" | "new" | null;
 }
 
 interface KakaoLatLng {
@@ -292,6 +295,7 @@ export function MapArea({
   clusters = [],
   onMarkerClick,
   onClusterClick,
+  onGroupClick,
   focusId,
   focusOffsetX = 0,
   focusCenter = true,
@@ -299,6 +303,7 @@ export function MapArea({
   moveTarget,
   onBoundsChange,
   popupId,
+  popupPosition,
   popupContent,
   onPopupClose,
 }: {
@@ -307,6 +312,7 @@ export function MapArea({
   clusters?: MapCluster[];
   onMarkerClick?: (id: string) => void;
   onClusterClick?: (cluster: MapCluster) => void;
+  onGroupClick?: (markers: MapMarker[]) => void;
   focusId?: string;
   focusOffsetX?: number;
   focusCenter?: boolean;
@@ -314,6 +320,7 @@ export function MapArea({
   moveTarget?: MoveTarget | null;
   onBoundsChange?: (bounds: MapBoundsPayload) => void;
   popupId?: string | null;
+  popupPosition?: { lat: number; lng: number } | null;
   popupContent?: ReactNode;
   onPopupClose?: () => void;
 }) {
@@ -321,6 +328,7 @@ export function MapArea({
   const mapRef = useRef<KakaoMap | null>(null);
   const markerObjsRef = useRef<{ marker: KakaoMarker; data: MapMarker }[]>([]);
   const clusterOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  const groupOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const imageCacheRef = useRef<Record<string, KakaoMarkerImage>>({});
   const shownFocusRef = useRef<string | undefined>(undefined);
   const overlayRef = useRef<KakaoCustomOverlay | null>(null);
@@ -341,6 +349,7 @@ export function MapArea({
   const onPopupCloseRef = useRef(onPopupClose);
   const onMarkerClickRef = useRef(onMarkerClick);
   const onClusterClickRef = useRef(onClusterClick);
+  const onGroupClickRef = useRef(onGroupClick);
   const onBoundsChangeRef = useRef(onBoundsChange);
   const autoFitRef = useRef(autoFit);
   const [mapReady, setMapReady] = useState(false);
@@ -350,6 +359,7 @@ export function MapArea({
     onPopupCloseRef.current = onPopupClose;
     onMarkerClickRef.current = onMarkerClick;
     onClusterClickRef.current = onClusterClick;
+    onGroupClickRef.current = onGroupClick;
     onBoundsChangeRef.current = onBoundsChange;
     autoFitRef.current = autoFit;
     moveTargetRef.current = moveTarget;
@@ -510,6 +520,8 @@ export function MapArea({
 
     markerObjsRef.current.forEach(({ marker }) => marker.setMap(null));
     markerObjsRef.current = [];
+    groupOverlaysRef.current.forEach((o) => o.setMap(null));
+    groupOverlaysRef.current = [];
     shownFocusRef.current = undefined;
 
     const valid = markers.filter(
@@ -517,21 +529,59 @@ export function MapArea({
     );
     if (valid.length === 0) return;
 
-    const bounds = new maps.LatLngBounds();
+    // 거의 같은 위치(≈11m)의 마커를 그룹핑 → 최대 확대에서도 겹치는 핀을 하나로.
+    const GROUP_PRECISION = 1e4; // 소수 4자리 ≈ 11m
+    const groups = new Map<string, MapMarker[]>();
     valid.forEach((m) => {
-      const pos = new maps.LatLng(m.lat, m.lng);
-      const marker = new maps.Marker({
-        position: pos,
-        image: markerImageFor(maps, imageCacheRef.current, m.categoryLarge, false),
-        title: m.name,
-        zIndex: 1,
-      });
-      marker.setMap(map);
-      maps.event.addListener(marker, "click", () =>
-        onMarkerClickRef.current?.(m.id),
-      );
-      markerObjsRef.current.push({ marker, data: m });
+      const key = `${Math.round(m.lat * GROUP_PRECISION)},${Math.round(
+        m.lng * GROUP_PRECISION,
+      )}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(m);
+      else groups.set(key, [m]);
+    });
+
+    const bounds = new maps.LatLngBounds();
+    groups.forEach((members) => {
+      const first = members[0];
+      const pos = new maps.LatLng(first.lat, first.lng);
       bounds.extend(pos);
+      if (members.length === 1) {
+        const m = first;
+        const marker = new maps.Marker({
+          position: pos,
+          image: markerImageFor(
+            maps,
+            imageCacheRef.current,
+            m.categoryLarge,
+            false,
+          ),
+          title: m.name,
+          zIndex: 1,
+        });
+        marker.setMap(map);
+        maps.event.addListener(marker, "click", () =>
+          onMarkerClickRef.current?.(m.id),
+        );
+        markerObjsRef.current.push({ marker, data: m });
+      } else {
+        // 겹친 마커 → 카운트 배지. 클릭 시 그 매체들을 리스트 팝업으로.
+        const size = members.length >= 100 ? 48 : members.length >= 10 ? 44 : 40;
+        const el = document.createElement("div");
+        el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:#00aaa4;border:2.6px solid #007571;color:#ffffff;font-size:14px;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.25);cursor:pointer;`;
+        el.textContent = String(members.length);
+        el.addEventListener("click", () => onGroupClickRef.current?.(members));
+        const overlay = new maps.CustomOverlay({
+          position: pos,
+          content: el,
+          xAnchor: 0.5,
+          yAnchor: 0.5,
+          zIndex: 6,
+          clickable: true,
+        });
+        overlay.setMap(map);
+        groupOverlaysRef.current.push(overlay);
+      }
     });
 
     if (!autoFit) return;
@@ -661,12 +711,31 @@ export function MapArea({
     };
   }, [mapReady, popupEl]);
 
+  // 팝업 위에서의 스크롤/드래그가 지도(줌·이동)로 전파되지 않도록 네이티브 이벤트 차단.
+  // (React onWheel stopPropagation은 카카오 네이티브 리스너를 못 막음)
+  useEffect(() => {
+    const el = popupEl;
+    if (!el) return;
+    const stop = (e: Event) => e.stopPropagation();
+    el.addEventListener("wheel", stop);
+    el.addEventListener("touchmove", stop);
+    el.addEventListener("mousedown", stop);
+    return () => {
+      el.removeEventListener("wheel", stop);
+      el.removeEventListener("touchmove", stop);
+      el.removeEventListener("mousedown", stop);
+    };
+  }, [popupEl]);
+
   useEffect(() => {
     const maps = window.kakao?.maps;
     const overlay = overlayRef.current;
     const map = mapRef.current;
     if (!maps || !overlay || !map) return;
-    const target = popupId ? markers.find((m) => m.id === popupId) : undefined;
+    // 명시적 위치(겹침 그룹) 우선, 없으면 popupId 마커 위치.
+    const target =
+      popupPosition ??
+      (popupId ? markers.find((m) => m.id === popupId) : undefined);
     if (!target) {
       overlay.setMap(null);
       return;
@@ -680,12 +749,12 @@ export function MapArea({
       const point = projection.containerPointFromCoords(pos);
       setFlipUp(point.y > container.clientHeight - POPUP_FLIP_MARGIN);
     }
-  }, [popupId, markers, mapReady]);
+  }, [popupId, popupPosition, markers, mapReady]);
 
   return (
     <div className={className}>
       <div ref={containerRef} className="h-full w-full bg-[#e9edf0]" />
-      {popupId && popupEl
+      {(popupId || popupPosition) && popupEl
         ? createPortal(
             <div
               className={cn(

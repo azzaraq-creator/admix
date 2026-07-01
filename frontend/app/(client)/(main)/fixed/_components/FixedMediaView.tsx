@@ -88,6 +88,7 @@ export function FixedMediaView({
   );
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
   const [popupId, setPopupId] = useState<string | null>(null);
+  const [groupPopup, setGroupPopup] = useState<MapMarker[] | null>(null);
   const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
     null,
   );
@@ -237,9 +238,29 @@ export function FixedMediaView({
       ]
     : [];
 
+  const groupItems: MediaItemData[] = (groupPopup ?? []).map((m) => ({
+    id: m.id,
+    name: m.name,
+    price: formatFee(m.minAdvertisementFeeKrw ?? null),
+    images: m.thumbnailUrl ? [m.thumbnailUrl] : [],
+    popular: m.badge === "popular",
+  }));
+
   const handleMarkerClick = (id: string) => {
+    setGroupPopup(null);
     setPopupId(id);
     setFocusId(id);
+  };
+
+  // 겹친 마커(카운트 배지) 클릭 → 그 매체들을 리스트 팝업으로.
+  const handleGroupClick = useCallback((mk: MapMarker[]) => {
+    setPopupId(null);
+    setGroupPopup(mk);
+  }, []);
+
+  const closePopup = () => {
+    setPopupId(null);
+    setGroupPopup(null);
   };
 
   // 새 추천 리스트 → 마커 갱신 + 포커스/팝업 해제(전체 범위로)
@@ -265,13 +286,28 @@ export function FixedMediaView({
         moveTarget={moveTarget}
         onBoundsChange={handleBoundsChange}
         onClusterClick={handleClusterClick}
+        onGroupClick={handleGroupClick}
         onMarkerClick={handleMarkerClick}
         focusId={focusId}
         focusOffsetX={selectedMedia ? DRAWER_HALF_WIDTH : 0}
         focusCenter={!popupId}
         popupId={popupId}
+        popupPosition={
+          groupPopup && groupPopup.length > 0
+            ? { lat: groupPopup[0].lat, lng: groupPopup[0].lng }
+            : null
+        }
         popupContent={
-          popupId ? (
+          groupPopup ? (
+            <MarkerMediaPopup
+              items={groupItems}
+              onSelect={(item) => {
+                setSelectedMedia(item);
+                setGroupPopup(null);
+              }}
+              onAddProposal={(item) => setAddProposalMediaId(item.id)}
+            />
+          ) : popupId ? (
             <MarkerMediaPopup
               items={popupItems}
               onSelect={(item) => {
@@ -282,7 +318,7 @@ export function FixedMediaView({
             />
           ) : null
         }
-        onPopupClose={() => setPopupId(null)}
+        onPopupClose={closePopup}
         className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
           chatOpen ? "sm:left-[384px]" : "sm:left-0"
         } ${mobileMap ? "block" : "hidden"}`}

@@ -158,6 +158,9 @@ export function MediaSearchPanel({
         lng: m.lng,
         name: m.name,
         categoryLarge: m.categoryLarge,
+        minAdvertisementFeeKrw: m.minAdvertisementFeeKrw,
+        thumbnailUrl: m.thumbnailUrl,
+        badge: m.badge,
       })),
       clusters: clusterData.clusters.map((c) => ({
         lat: c.lat,

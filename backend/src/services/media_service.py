@@ -166,6 +166,12 @@ def _marker_from_row(r, lat: float, lng: float) -> dict:
     name = " ".join(
         p for p in [(r.name or "").strip(), (r.second_name or "").strip()] if p
     )
+    if r.is_popular_yn:
+        badge = "popular"
+    elif r.is_newly_built_yn:
+        badge = "new"
+    else:
+        badge = None
     return dict(
         id=r.media_id,
         lat=lat,
@@ -173,6 +179,8 @@ def _marker_from_row(r, lat: float, lng: float) -> dict:
         name=name or "-",
         categoryLarge=r.category_large,
         minAdvertisementFeeKrw=r.min_advertisement_fee_krw,
+        thumbnailUrl=r.thumbnail_url,
+        badge=badge,
     )
 
 
@@ -215,6 +223,9 @@ def list_fixed_clusters(
         Media.latitude,
         Media.longitude,
         Media.min_advertisement_fee_krw,
+        Media.thumbnail_url,
+        Media.is_popular_yn,
+        Media.is_newly_built_yn,
     ).all()
 
     points = [

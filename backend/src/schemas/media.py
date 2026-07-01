@@ -44,6 +44,8 @@ class MediaMarker(BaseModel):
     name: str
     categoryLarge: str | None
     minAdvertisementFeeKrw: int | None
+    thumbnailUrl: str | None = None
+    badge: str | None = None
 
 
 class MediaCluster(BaseModel):
