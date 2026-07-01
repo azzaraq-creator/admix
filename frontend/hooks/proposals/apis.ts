@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { getSessionId } from "@/lib/session";
 import { getUserToken } from "@/lib/userToken";
 
 export interface ProposalRow {
@@ -81,14 +82,6 @@ export const proposalsApi = {
 };
 
 // ===== 클라이언트(장바구니/플래닝) =====
-
-const SESSION_KEY = "adRecommendV2.sessionId";
-
-function getSessionId(): string | null {
-  return typeof window !== "undefined"
-    ? localStorage.getItem(SESSION_KEY)
-    : null;
-}
 
 export function isMember(): boolean {
   return Boolean(getUserToken());

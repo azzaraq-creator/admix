@@ -8,6 +8,7 @@ import {
   ListButton,
   PrimaryButton,
 } from "@/components/common/buttons";
+import { extractApiError } from "@/lib/apiError";
 import {
   Select,
   SelectContent,
@@ -26,13 +27,6 @@ import {
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
 import { FAQ_TYPE_OPTIONS } from "./index";
-
-function extractError(err: unknown): string {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })
-    ?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  return "요청 처리 중 오류가 발생했습니다.";
-}
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
@@ -133,7 +127,7 @@ function FaqForm({
     } catch (err) {
       await alert({
         title: "처리 실패",
-        description: extractError(err),
+        description: extractApiError(err),
         confirmText: "확인",
       });
     }
@@ -158,7 +152,7 @@ function FaqForm({
     } catch (err) {
       await alert({
         title: "삭제 실패",
-        description: extractError(err),
+        description: extractApiError(err),
         confirmText: "확인",
       });
     }

@@ -77,6 +77,7 @@ export const memberSearchOptionList: SearchOption[] = [
       { label: "정상", value: "정상" },
       { label: "탈퇴", value: "탈퇴" },
       { label: "제재", value: "제재" },
+      { label: "휴면", value: "휴면" },
     ],
   },
   {

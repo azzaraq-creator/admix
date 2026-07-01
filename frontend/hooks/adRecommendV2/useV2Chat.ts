@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { adSessionsApi } from "@/hooks/adSessions";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+import { API_BASE_URL } from "@/lib/api";
+import { SESSION_KEY } from "@/lib/session";
 
 export type V2ResponseType =
   | "chat"
@@ -122,7 +122,6 @@ export function mergeEnriched(
 }
 
 const MIN_INPUT_LEN = 3;
-const STORAGE_KEY = "adRecommendV2.sessionId";
 
 type SavedMsg = {
   id: string;
@@ -191,7 +190,7 @@ export function useV2Chat() {
   // 마운트 시 저장된 세션 복원 (비회원도 새로고침/재방문에 챗봇 유지)
   useEffect(() => {
     const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      typeof window !== "undefined" ? localStorage.getItem(SESSION_KEY) : null;
     if (!stored) return;
     let cancelled = false;
     (async () => {
@@ -203,7 +202,7 @@ export function useV2Chat() {
         setMessages((detail.messages ?? []).map(restoreMessage));
       } catch {
         // 세션 만료/삭제 → 스토리지 정리 후 새 세션으로
-        if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+        if (typeof window !== "undefined") localStorage.removeItem(SESSION_KEY);
         if (!cancelled) setSessionId(null);
       } finally {
         if (!cancelled) setRestoring(false);
@@ -218,7 +217,7 @@ export function useV2Chat() {
     if (sessionId) return sessionId;
     const s = await adSessionsApi.create(null);
     setSessionId(s.id);
-    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, s.id);
+    if (typeof window !== "undefined") localStorage.setItem(SESSION_KEY, s.id);
     return s.id;
   }, [sessionId]);
 
@@ -231,11 +230,11 @@ export function useV2Chat() {
     if (running) return;
     setMessages([]);
     setSessionId(null);
-    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== "undefined") localStorage.removeItem(SESSION_KEY);
     try {
       const s = await adSessionsApi.create(null);
       setSessionId(s.id);
-      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, s.id);
+      if (typeof window !== "undefined") localStorage.setItem(SESSION_KEY, s.id);
     } catch (err) {
       // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
       const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
@@ -382,7 +381,7 @@ export function useV2Chat() {
 
       try {
         const sid = await ensureSession();
-        const res = await fetch(`${API_URL}/recommend/v2/stream`, {
+        const res = await fetch(`${API_BASE_URL}/recommend/v2/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: q, session_id: sid }),
@@ -421,7 +420,7 @@ export function useV2Chat() {
       setRunning(true);
 
       try {
-        const res = await fetch(`${API_URL}/recommend/v2/slot/remove`, {
+        const res = await fetch(`${API_BASE_URL}/recommend/v2/slot/remove`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId, category, code }),

@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { extractApiError } from "@/lib/apiError";
 import { useAnswerInquiry, useInquiry, type InquiryDetail } from "@/hooks/inquiries";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
@@ -11,13 +12,6 @@ import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
 const CARD_CLASS =
   "rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
-
-function extractError(err: unknown): string {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })
-    ?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  return "처리 중 오류가 발생했습니다.";
-}
 
 function InfoRow({
   label,
@@ -89,7 +83,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
     } catch (err) {
       await alert({
         title: "처리 실패",
-        description: extractError(err),
+        description: extractApiError(err, "처리 중 오류가 발생했습니다."),
         confirmText: "확인",
       });
     }

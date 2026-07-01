@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { PrimaryButton } from "@/components/common/buttons";
+import { extractApiError } from "@/lib/apiError";
 import {
   Select,
   SelectContent,
@@ -26,13 +27,6 @@ const CARD_CLASS =
 const CARD_TITLE = "text-xl font-semibold leading-[24px] text-[#2a2a2a]";
 const INPUT_CLASS =
   "h-[40px] flex-1 rounded-[6px] border border-[#ebebeb] bg-white px-[13px] text-sm font-medium text-black outline-none placeholder:text-[#767676]";
-
-function extractError(err: unknown): string {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })
-    ?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  return "저장 중 오류가 발생했습니다.";
-}
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
@@ -122,7 +116,7 @@ export function BasicInfoTab({ member }: { member: MemberDetail }) {
     } catch (err) {
       await alert({
         title: "저장 실패",
-        description: extractError(err),
+        description: extractApiError(err, "저장 중 오류가 발생했습니다."),
         confirmText: "확인",
       });
     }

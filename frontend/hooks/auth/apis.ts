@@ -1,12 +1,5 @@
 import { api } from "@/lib/api";
-
-const SESSION_KEY = "adRecommendV2.sessionId";
-
-function getSessionId(): string | null {
-  return typeof window !== "undefined"
-    ? localStorage.getItem(SESSION_KEY)
-    : null;
-}
+import { getSessionId } from "@/lib/session";
 
 export interface LoginResponse {
   access_token: string;

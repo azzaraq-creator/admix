@@ -12,9 +12,10 @@ import {
   setTokens,
 } from "./userToken";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
-export const api = axios.create({ baseURL });
+export const api = axios.create({ baseURL: API_BASE_URL });
 
 function isAdminRequest(url: string | undefined): boolean {
   return (url ?? "").startsWith("/admin");
@@ -38,7 +39,7 @@ async function refreshAccessToken(): Promise<string> {
   const res = await axios.post<{
     access_token: string;
     refresh_token: string;
-  }>(`${baseURL}/auth/refresh`, { refresh_token: refreshToken });
+  }>(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
   setTokens(res.data.access_token, res.data.refresh_token, getPersist());
   return res.data.access_token;
 }

@@ -14,6 +14,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 30 * 1000,
             retry: 1,
+            throwOnError: (error) => {
+              const status = (
+                error as { response?: { status?: number } }
+              )?.response?.status;
+              return status === undefined || status >= 500;
+            },
           },
         },
       }),

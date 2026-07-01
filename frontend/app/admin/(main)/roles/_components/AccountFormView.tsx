@@ -9,6 +9,7 @@ import {
   ListButton,
   PrimaryButton,
 } from "@/components/common/buttons";
+import { extractApiError } from "@/lib/apiError";
 import {
   Select,
   SelectContent,
@@ -37,13 +38,6 @@ const INPUT_CLASS =
   "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary disabled:bg-[#f5f5f5] disabled:text-[#737586]";
 const SELECT_TRIGGER_CLASS =
   "w-full rounded-[6px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]";
-
-function extractError(err: unknown): string {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })
-    ?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  return "요청 처리 중 오류가 발생했습니다.";
-}
 
 function Field({
   label,
@@ -168,7 +162,7 @@ function AccountForm({
     } catch (err) {
       await alert({
         title: "저장 실패",
-        description: extractError(err),
+        description: extractApiError(err),
         confirmText: "확인",
       });
     }
@@ -193,7 +187,7 @@ function AccountForm({
     } catch (err) {
       await alert({
         title: "삭제 실패",
-        description: extractError(err),
+        description: extractApiError(err),
         confirmText: "확인",
       });
     }
@@ -243,7 +237,7 @@ function AccountForm({
         </Field>
         <Field label="비밀번호" required={!isEdit}>
           <input
-            type="text"
+            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={

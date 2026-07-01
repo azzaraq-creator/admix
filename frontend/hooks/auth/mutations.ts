@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { authApi, type RegisterPayload } from "./apis";
+import { authKeys } from "./keys";
 
 export const useLogin = () =>
   useMutation({
@@ -31,12 +32,17 @@ export const useChangePassword = () =>
     }) => authApi.changePassword(currentPassword, newPassword),
   });
 
-export const useUpdateProfile = () =>
-  useMutation({
+export const useUpdateProfile = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
     mutationFn: (payload: {
       name?: string;
       company_name?: string;
       phone?: string;
       marketing_consent?: boolean;
     }) => authApi.updateProfile(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
   });
+};

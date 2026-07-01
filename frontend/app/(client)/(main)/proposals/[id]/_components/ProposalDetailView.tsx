@@ -666,7 +666,7 @@ function ProposalEditorView({ id }: { id: string }) {
             <div className="flex items-center justify-between border-b border-[#e8e8e8] px-[24px] py-[6px]">
               <p className="flex items-center gap-[6px] text-sm font-medium leading-[20px] text-[#757575]">
                 <span>최종 수정</span>
-                <span>2024.05.20 15:30</span>
+                <span>{fmtDateTime(proposal?.updated_at)}</span>
               </p>
               {!locked && (
                 <Button

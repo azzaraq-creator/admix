@@ -63,6 +63,7 @@ export const proposalSearchOptionList: SearchOption[] = [
     optionList: [
       { label: "신규", value: "신규" },
       { label: "맞춤제안", value: "맞춤제안" },
+      { label: "집행 요청", value: "집행 요청" },
       { label: "계약 완료", value: "계약 완료" },
       { label: "취소", value: "취소" },
     ],

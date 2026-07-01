@@ -7,6 +7,7 @@ import { useState } from "react";
 import { LogoFull } from "@/components/icons";
 import { useAdminLogin } from "@/hooks/adminAuth";
 import { setAdminToken } from "@/lib/adminToken";
+import { extractApiError } from "@/lib/apiError";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -26,13 +27,7 @@ export default function AdminLoginPage() {
       router.replace("/admin");
       router.refresh();
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: unknown } } })
-        ?.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : "로그인에 실패했습니다. 다시 시도해주세요.",
-      );
+      setError(extractApiError(err, "로그인에 실패했습니다. 다시 시도해주세요."));
     }
   };
 
