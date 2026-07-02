@@ -120,7 +120,7 @@ export default function SignupPage() {
             <span className="font-normal text-[#2f3442]">
               이미 회원이신가요?
             </span>
-            <Link href="/login" className="font-bold text-primary">
+            <Link href="/" className="font-bold text-primary">
               로그인
             </Link>
           </div>
