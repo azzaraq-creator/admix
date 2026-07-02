@@ -37,7 +37,7 @@ PLACEHOLDER_TX = RGBColor(0xA0, 0xA0, 0xA0)
 ROWS_PER_PAGE = 5
 EMPTY = "-"
 
-# 표지·Thanks 배경 패턴 (frontend thanks-pattern.png 복사본)
+# 표지·Thanks 풀블리드 배경 이미지 (1920×1080)
 COVER_BG = os.path.join(os.path.dirname(__file__), "..", "assets", "cover-bg.png")
 
 SUMMARY_COLS = [
@@ -119,13 +119,11 @@ def _bg(slide, color: RGBColor) -> None:
 
 
 def _bg_pattern(slide) -> None:
-    """표지·Thanks 공용 배경 — 검정 바탕 + 방사형 도트 패턴 중앙 배치."""
-    _bg(slide, RGBColor(0x11, 0x11, 0x11))
+    """표지·Thanks 공용 배경 — 1920×1080 배경 이미지를 슬라이드 전체에 풀블리드."""
     if os.path.exists(COVER_BG):
-        size = _px(1400)
-        left = Emu(int((SLIDE_W - size) / 2))
-        top = Emu(int((SLIDE_H - size) / 2))
-        slide.shapes.add_picture(COVER_BG, left, top, width=size, height=size)
+        slide.shapes.add_picture(COVER_BG, 0, 0, width=SLIDE_W, height=SLIDE_H)
+    else:
+        _bg(slide, RGBColor(0x5A, 0x5A, 0x5A))
 
 
 def _rect(slide, left, top, width, height, color: RGBColor):
