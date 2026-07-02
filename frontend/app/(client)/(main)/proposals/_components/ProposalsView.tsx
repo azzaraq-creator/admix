@@ -15,6 +15,7 @@ import {
 } from "@/hooks/proposals";
 import { StatusChip } from "@/components/proposals/StatusChip";
 import { useConfirm } from "@/hooks/useConfirm";
+import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 import { NewProposalModal } from "./NewProposalModal";
@@ -38,24 +39,11 @@ function toStatus(raw: string): Status {
   return "작성중";
 }
 
-function pad(value: number) {
-  return String(value).padStart(2, "0");
-}
-
-function formatUpdatedAt(iso: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
-}
-
 function toView(p: ProposalSummary): Proposal {
   return {
     id: p.id,
     title: p.title,
-    updatedAt: formatUpdatedAt(p.updated_at),
+    updatedAt: formatDateTime(p.updated_at),
     status: toStatus(p.status),
     rawStatus: p.status,
   };

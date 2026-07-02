@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Fragment,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,14 +14,11 @@ import {
   DownloadIcon,
   FileInputIcon,
   FileXIcon,
-  GripVerticalIcon,
   MaximizeIcon,
   MinusIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
-  XIcon,
-  ChevronLeftIcon,
 } from "@/components/icons";
 import {
   isMember,
@@ -39,34 +33,24 @@ import {
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useSonner } from "@/hooks/useSonner";
+import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 import { openLoginModal } from "../../../_components/useLoginModal";
 import { CounterProposalDeckView } from "./CounterProposalDeckView";
+import { SlideLightbox, type Slide } from "./SlideLightbox";
+import { SlideSidebar } from "./SlideSidebar";
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
 import { StatusChip } from "@/components/proposals/StatusChip";
 import { SummarySlide, SummaryThumb } from "@/components/proposals/SummaryTemplate";
 import { ThanksSlide, ThanksThumb } from "@/components/proposals/ThanksTemplate";
 
-
-type Slide = { id: string; name: string };
-
 const PREVIEW = "/proposals/sample.png";
 const SUMMARY_PAGE_SIZE = 5;
 const ZOOM_MIN = 25;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 25;
-
-function fmtDateTime(iso?: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(
-    d.getHours(),
-  )}:${p(d.getMinutes())}`;
-}
 
 export function ProposalDetailView({ id }: { id: string }) {
   const { data: proposal } = useProposalDetail(id);
@@ -124,9 +108,7 @@ function ProposalEditorView({ id }: { id: string }) {
   const [zoom, setZoom] = useState(100);
   const [lightbox, setLightbox] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const activeThumbRef = useRef<HTMLButtonElement>(null);
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
-  const dragIndex = useRef<number | null>(null);
 
   // 미리보기 그랩-드래그(팬). 확대 시 넘치는 슬라이드를 끌어서 이동.
   // 임계값 이상 움직일 때만 팬 시작 → 단순 클릭(Select·입력 등)은 그대로 통과.
@@ -284,29 +266,6 @@ function ProposalEditorView({ id }: { id: string }) {
 
   const title = proposal?.title ?? "";
 
-  // 전체보기 오버레이: Esc 닫기 / 좌우 화살표로 슬라이드 이동
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setLightbox(false);
-      else if (event.key === "ArrowLeft")
-        setLightboxIndex((i) => Math.max(0, i - 1));
-      else if (event.key === "ArrowRight")
-        setLightboxIndex((i) => Math.min(slides.length - 1, i + 1));
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox, slides.length]);
-
-  // 전체보기 하단 스트립: 현재 슬라이드를 보이게 스크롤
-  useEffect(() => {
-    if (lightbox)
-      activeThumbRef.current?.scrollIntoView({
-        block: "nearest",
-        inline: "center",
-      });
-  }, [lightbox, lightboxIndex]);
-
   // 슬라이드 1장 렌더 (전체보기 큰 화면·하단 스트립 공용)
   const renderSlideNode = (slide: Slide, mapEnabled: boolean) => {
     const summaryPage = parseSummaryPage(slide.id);
@@ -327,6 +286,30 @@ function ProposalEditorView({ id }: { id: string }) {
       <MediaThumb item={mediaItem} mapEnabled={mapEnabled} />
     ) : null;
   };
+
+  // 좌측 사이드바 썸네일 (미리보기 슬라이드와 달리 orderedItems 기준 + PREVIEW fallback)
+  const renderSidebarThumb = (slide: Slide) => {
+    const summaryPage = parseSummaryPage(slide.id);
+    if (summaryPage !== null && displayProposal)
+      return (
+        <SummaryThumb
+          proposal={displayProposal}
+          rows={summaryPages[summaryPage] ?? []}
+          startIndex={summaryPage * SUMMARY_PAGE_SIZE}
+        />
+      );
+    if (slide.id === "cover")
+      return <CoverThumb updatedAt={proposal?.updated_at ?? null} />;
+    if (slide.id === "thanks") return <ThanksThumb />;
+    const thumbMediaItem =
+      orderedItems.find((it) => it.media_id === slide.id) ?? null;
+    return thumbMediaItem ? (
+      <MediaThumb item={thumbMediaItem} />
+    ) : (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img src={PREVIEW} alt="" className="size-full object-cover" />
+    );
+  };
   const submitted = proposal?.status === "execution_requested";
   // 제출(집행 요청)·계약 완료 상태는 편집 불가
   const locked = submitted || proposal?.status === "contracted";
@@ -344,10 +327,8 @@ function ProposalEditorView({ id }: { id: string }) {
     }
   };
 
-  const handleDrop = (dropIndex: number) => {
-    const from = dragIndex.current;
-    dragIndex.current = null;
-    if (from === null || from === dropIndex) return;
+  const handleReorder = (from: number, dropIndex: number) => {
+    if (from === dropIndex) return;
     const lastIndex = slides.length - 1;
     // 표지·서머리·마지막 슬라이드는 고정, 중간 매체 슬라이드만 순서변경
     const isReorderable = (i: number) => i >= firstMediaIndex && i < lastIndex;
@@ -505,7 +486,7 @@ function ProposalEditorView({ id }: { id: string }) {
             <div className="flex items-center gap-[12px]">
               <StatusChip status={proposal?.status ?? "new"} />
               <p className="text-sm font-medium leading-[20px] text-[#757575]">
-                {fmtDateTime(proposal?.updated_at)}
+                {formatDateTime(proposal?.updated_at)}
               </p>
             </div>
           </div>
@@ -545,128 +526,22 @@ function ProposalEditorView({ id }: { id: string }) {
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
-            <div className="flex h-[48px] items-center px-[24px]">
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
-                슬라이드 <span className="text-primary">{slides.length}</span>
-              </p>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
-              {slides.map((slide, index) => {
-                const lastIndex = slides.length - 1;
-                const isFixed = index < firstMediaIndex || index === lastIndex;
-                const canEdit = !isFixed && !locked;
-                const showDivider =
-                  index === firstMediaIndex ||
-                  (index === lastIndex && lastIndex > firstMediaIndex);
-                const summaryPage = parseSummaryPage(slide.id);
-                const thumbMediaItem =
-                  orderedItems.find((it) => it.media_id === slide.id) ?? null;
-                return (
-                  <Fragment key={slide.id}>
-                    {showDivider && (
-                      <div className="h-px w-full shrink-0 bg-[#e8e8e8]" />
-                    )}
-                    <div
-                      draggable={canEdit}
-                      onDragStart={() => {
-                        if (canEdit) dragIndex.current = index;
-                      }}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleDrop(index)}
-                      onDragEnd={() => {
-                        dragIndex.current = null;
-                      }}
-                      className={cn(
-                        "flex items-center border-l-2 border-transparent",
-                        canEdit && "hover:border-primary",
-                      )}
-                    >
-                      {canEdit ? (
-                        <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-[#c9cad3] active:cursor-grabbing" />
-                      ) : (
-                        <span className="size-[16px] shrink-0" />
-                      )}
-                      <div className="flex min-w-0 flex-1 items-start">
-                        <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
-                          {index + 1}
-                        </p>
-                        <div className="flex min-w-0 flex-1 flex-col gap-[8px] pl-[6px]">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedId(slide.id)}
-                            className={cn(
-                              "group relative aspect-[1920/1080] w-full overflow-hidden rounded-[8px]",
-                              selectedId === slide.id
-                                ? "ring-2 ring-inset ring-primary"
-                                : "ring-1 ring-inset ring-stroke",
-                            )}
-                          >
-                            {summaryPage !== null && displayProposal ? (
-                              <SummaryThumb
-                                proposal={displayProposal}
-                                rows={summaryPages[summaryPage] ?? []}
-                                startIndex={summaryPage * SUMMARY_PAGE_SIZE}
-                              />
-                            ) : slide.id === "cover" ? (
-                              <CoverThumb
-                                updatedAt={proposal?.updated_at ?? null}
-                              />
-                            ) : slide.id === "thanks" ? (
-                              <ThanksThumb />
-                            ) : thumbMediaItem ? (
-                              <MediaThumb item={thumbMediaItem} />
-                            ) : (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={PREVIEW}
-                                alt=""
-                                className="size-full object-cover"
-                              />
-                            )}
-                            {canEdit && (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                aria-label="슬라이드 삭제"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleDeleteSlide(index + 1, slide.id, slide.name);
-                                }}
-                                className="absolute right-[7px] top-[7px] flex items-center rounded-full bg-black/70 p-[4px] text-white"
-                              >
-                                <TrashIcon className="size-[14px]" />
-                              </span>
-                            )}
-                          </button>
-                          <p className="text-center text-sm font-medium leading-[20px] text-black">
-                            {slide.name}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </Fragment>
-                );
-              })}
-            </div>
-            {!locked && (
-              <div className="border-t border-stroke px-[24px] py-[12px]">
-                <Link
-                  href="/fixed"
-                  className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
-                >
-                  <PlusIcon className="size-[24px]" />
-                  매체추가
-                </Link>
-              </div>
-            )}
-          </aside>
+          <SlideSidebar
+            slides={slides}
+            firstMediaIndex={firstMediaIndex}
+            locked={locked}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onReorder={handleReorder}
+            onDeleteSlide={handleDeleteSlide}
+            renderThumb={renderSidebarThumb}
+          />
 
           <section className="relative flex min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between border-b border-[#e8e8e8] px-[24px] py-[6px]">
               <p className="flex items-center gap-[6px] text-sm font-medium leading-[20px] text-[#757575]">
                 <span>최종 수정</span>
-                <span>{fmtDateTime(proposal?.updated_at)}</span>
+                <span>{formatDateTime(proposal?.updated_at)}</span>
               </p>
               {!locked && (
                 <Button
@@ -778,82 +653,14 @@ function ProposalEditorView({ id }: { id: string }) {
         </div>
       </div>
 
-      {lightbox && slides[lightboxIndex] && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[70] flex flex-col gap-[16px] bg-black/90 p-[36px]"
-        >
-          <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={() => setLightbox(false)}
-              aria-label="닫기"
-              className="flex size-[48px] items-center justify-center text-white"
-            >
-              <XIcon className="size-[32px]" />
-            </button>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-            <div className="flex min-h-0 flex-1 items-center gap-[24px]">
-              <button
-                type="button"
-                onClick={() => setLightboxIndex((i) => Math.max(0, i - 1))}
-                disabled={lightboxIndex === 0}
-                aria-label="이전 슬라이드"
-                className="flex size-[48px] shrink-0 items-center justify-center text-white disabled:opacity-30"
-              >
-                <ChevronLeftIcon className="size-[48px]" />
-              </button>
-              <div className="flex h-full min-w-0 flex-1 items-center justify-center">
-                <div
-                  className="relative aspect-[1920/1080] max-h-full overflow-hidden rounded-[8px] bg-white"
-                  style={{ width: "min(100%, calc((100vh - 320px) * 16 / 9))" }}
-                >
-                  {renderSlideNode(slides[lightboxIndex], true)}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setLightboxIndex((i) => Math.min(slides.length - 1, i + 1))
-                }
-                disabled={lightboxIndex === slides.length - 1}
-                aria-label="다음 슬라이드"
-                className="flex size-[48px] shrink-0 items-center justify-center text-white disabled:opacity-30"
-              >
-                <ChevronLeftIcon className="size-[48px] rotate-180" />
-              </button>
-            </div>
-
-            <div className="flex justify-center">
-              <div className="rounded-full bg-black/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
-                <span className="text-white">{lightboxIndex + 1} </span>
-                <span className="text-[#767676]">/ {slides.length}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center gap-[8px] overflow-x-auto">
-            {slides.map((slide, idx) => (
-              <button
-                key={slide.id}
-                ref={idx === lightboxIndex ? activeThumbRef : undefined}
-                type="button"
-                onClick={() => setLightboxIndex(idx)}
-                className={cn(
-                  "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-white transition-opacity",
-                  idx === lightboxIndex
-                    ? "ring-2 ring-white"
-                    : "opacity-50 hover:opacity-80",
-                )}
-              >
-                {renderSlideNode(slide, false)}
-              </button>
-            ))}
-          </div>
-        </div>
+      {lightbox && (
+        <SlideLightbox
+          slides={slides}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightbox(false)}
+          renderSlide={renderSlideNode}
+        />
       )}
       {confirmDialog}
 

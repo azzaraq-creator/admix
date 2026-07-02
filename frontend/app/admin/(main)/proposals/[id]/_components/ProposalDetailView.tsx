@@ -19,6 +19,7 @@ import {
 } from "@/hooks/proposals";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
+import { formatDate } from "@/lib/date";
 
 import { ProposalStatusBadge, type ProposalStatus } from "../../_components";
 
@@ -30,14 +31,6 @@ const MEMBERSHIP_TEXT: Record<string, string> = {
   individual: "개인",
   corporate: "기업",
 };
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
-}
 
 type AdminSlide =
   | { kind: "cover"; name: string }

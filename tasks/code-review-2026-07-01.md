@@ -29,15 +29,20 @@
     - effect 실행 순서 보존(markers→moveTarget 순서 유지), ref-sync는 훅별 분리(write-only라 순서 무관)
     - `markerObjsRef`만 컴포넌트가 소유해 useKakaoMap(resize)·useMapMarkers 공유
 
-- [ ] **H3. `ProposalDetailView.tsx`(client) 881줄 분해**
-  - 팬/드래그(133-188)→훅, 라이트박스(781-857)·사이드바(548-663)→컴포넌트
-  - `app/(client)/(main)/proposals/[id]/_components/ProposalDetailView.tsx`
+- [~] **H3. `ProposalDetailView.tsx`(client) 881→688줄 분해** ✅(부분) 2026-07-02
+  - `SlideLightbox.tsx`(125줄): 전체보기 오버레이 + 키보드/스크롤 effect. `renderSlide` 콜백으로 데이터 의존 차단
+  - `SlideSidebar.tsx`(130줄): 좌측 슬라이드 목록. 드래그는 내부 소유, reorder/delete/thumb는 콜백(`renderThumb`)
+  - effect 순서·동작 보존, tsc/lint 통과
+  - ⏭️ 미착수(사용자 판단): 팬/드래그는 훅으로 안 뺌(미리보기와 응집, 이득 적음). "브레인"(파생데이터+핸들러)도 유지
+  - ⚠️ 검증 한계: 브라우저 미검증 → dev 서버에서 제안서 상세(슬라이드 선택/드래그/전체보기) 눈으로 확인 권장
 
 > 철회/재분류: SSE 인증헤더(백엔드 session_id 식별로 무관, 철회), 토큰 쿠키 저장(SSR guard 아키텍처상 불가피)
 
 ---
 
 ## 🟡 중간
+
+- [x] **M4-b. `fmtDateTime` 3중 중복 → `lib/date.ts`** ✅ 2026-07-02 — `formatDateTime`(시각)=client ProposalDetailView·ProposalsView 통합, `formatDate`(날짜만)=admin. 형식 다른 걸 확인해 2함수로 분리. (참고: admin `API_BASE` 미사용+baseURL 중복 — 별도 정리 대상)
 
 - [x] **M1. 하드코딩 가짜 데이터** — `proposals/[id]/ProposalDetailView.tsx:669` "2024.05.20 15:30" → `{fmtDateTime(proposal?.updated_at)}` ✅ 2026-07-01
 - [x] **M2. `extractError` 단일화** ✅ 2026-07-01 — `lib/apiError.ts`의 `extractApiError(err, fallback?)` 신규. admin 5곳(`AccountFormView`/`FaqFormView`/`BasicInfoTab`/`InquiryDetailView`/`login`) 통합. BasicInfoTab("저장 중..")·InquiryDetailView("처리 중..")·login은 원래 fallback 문구를 인자로 보존.
