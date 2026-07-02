@@ -7,6 +7,7 @@ import { Button } from "@/components/common/buttons";
 import { PlusIcon, SearchIcon } from "@/components/icons";
 import {
   isMember,
+  proposalsClientApi,
   useCreateProposal,
   useDeleteProposal,
   useMyProposals,
@@ -59,11 +60,13 @@ function ProposalCard({
   onOpen,
   onDelete,
   onDownload,
+  downloading,
 }: {
   proposal: Proposal;
   onOpen: () => void;
   onDelete: () => void;
   onDownload: () => void;
+  downloading: boolean;
 }) {
   return (
     <div
@@ -106,8 +109,9 @@ function ProposalCard({
               event.stopPropagation();
               onDownload();
             }}
+            disabled={downloading}
             aria-label="제안서 다운로드"
-            className="flex items-center rounded-[6px] bg-[#f8fafc] p-[5px]"
+            className="flex cursor-pointer items-center rounded-[6px] bg-[#f8fafc] p-[5px] disabled:cursor-default disabled:opacity-40"
           >
             <Icon name="download-primary" className="size-[21px]" />
           </button>
@@ -125,6 +129,7 @@ export function ProposalsView() {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
 
   const proposals: Proposal[] = (data ?? []).map(toView);
@@ -183,7 +188,7 @@ export function ProposalsView() {
     if (ok) await deleteMutation.mutateAsync(proposal.id);
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (proposal: Proposal) => {
     if (!isMember()) {
       await confirm({
         title: "로그인 후 다운로드 할 수 있어요.",
@@ -191,6 +196,24 @@ export function ProposalsView() {
           "제안서 다운로드는 회원 전용 기능이에요.\n로그인 후 제안서를 저장하고 관리해 보세요.",
         confirmText: "로그인 화면으로",
       });
+      return;
+    }
+    if (downloadingId) return;
+    setDownloadingId(proposal.id);
+    try {
+      const res = await proposalsClientApi.exportPpt(proposal.id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${proposal.title || "제안서"}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // 다운로드 실패 시 무시
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -254,7 +277,8 @@ export function ProposalsView() {
               proposal={proposal}
               onOpen={() => router.push(`/proposals/${proposal.id}`)}
               onDelete={() => handleDelete(proposal)}
-              onDownload={handleDownload}
+              onDownload={() => handleDownload(proposal)}
+              downloading={downloadingId === proposal.id}
             />
           ))}
         </div>

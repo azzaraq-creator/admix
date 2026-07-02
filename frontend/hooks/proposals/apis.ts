@@ -224,4 +224,10 @@ export const proposalsClientApi = {
     api.post<ProposalSummary>(`/proposals/${id}/submit`).then((r) => r.data),
   cancelSubmit: (id: string) =>
     api.post<ProposalSummary>(`/proposals/${id}/cancel`).then((r) => r.data),
+  exportPpt: (id: string) =>
+    api.get<Blob>(`/proposals/${id}/export-ppt`, {
+      responseType: "blob",
+      params: { session_id: getSessionId() },
+      timeout: 60000,
+    }),
 };
