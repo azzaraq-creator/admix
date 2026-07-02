@@ -18,9 +18,16 @@
   - `providers.tsx` QueryClient에 `throwOnError` 술어 추가 — **네트워크 오류·5xx에만 throw**(4xx·401은 인터셉터/기존 처리 유지, 백그라운드 refetch 무분별 폭발 방지)
   - ⚠️ 한계: `loading.tsx`는 라우트 전환/초기 suspense만 커버. 클라이언트 react-query 로딩 스피너는 미포함 — 필요 시 뷰별 isLoading 또는 Suspense 도입(후속). 레이아웃(Sidebar) 내부 에러는 상위 경계로 버블(현재 미배치)
 
-- [ ] **H2. `MapArea.tsx` 782줄 분해**
-  - Kakao 타입(19-135)→`.d.ts`, SDK로더/지오코딩(224-290)→`lib/kakao.ts`, effect 8개→`useKakaoMap`/`useMapMarkers` 훅
-  - `app/(client)/(main)/fixed/_components/MapArea.tsx`
+- [x] **H2. `MapArea.tsx` 782줄 분해 완료** ✅ 2026-07-02 (컴포넌트 본문 118줄)
+  - Kakao SDK 타입 12개 + `declare global` + `loadKakaoSdk`(services 통합) + `geocodeAddress` → `lib/kakaoMap.ts`
+  - 도메인 타입 5개(MapMarker/MapMoveType/MapBoundsPayload/MapCluster/MoveTarget) → `fixed/_components/mapTypes.ts`
+  - MapArea가 재export(`geocodeAddress` + 도메인 타입) → importer 4곳(FixedMediaView/MediaSearchPanel/ChatPanel/AiChatPanel) 무변경
+  - 부수효과: 로더 통합으로 잠재버그 해소(StaticKakaoMap이 먼저 SDK 로드 시 지오코딩 services 누락되던 케이스)
+  - ✅ 2단계 완료 2026-07-02: effect 10개 → 3개 훅으로 그룹핑
+    - `useKakaoMap`(SDK init+resize), `useMapMarkers`(마커/클러스터/포커스+moveTarget), `useMapPopup`(팝업 3종)
+    - MapArea 컴포넌트 본문 585→118줄, 훅 호출 3줄 + render만 남김
+    - effect 실행 순서 보존(markers→moveTarget 순서 유지), ref-sync는 훅별 분리(write-only라 순서 무관)
+    - `markerObjsRef`만 컴포넌트가 소유해 useKakaoMap(resize)·useMapMarkers 공유
 
 - [ ] **H3. `ProposalDetailView.tsx`(client) 881줄 분해**
   - 팬/드래그(133-188)→훅, 라이트박스(781-857)·사이드바(548-663)→컴포넌트
