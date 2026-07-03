@@ -1,12 +1,10 @@
 import os
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.config import get_settings
-from src.database import Base, engine
 from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.admin_chat import router as admin_chat_router
@@ -24,19 +22,9 @@ from src.routers.recommend_v2 import router as recommend_v2_router
 
 settings = get_settings()
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 모델 메타데이터 등록을 보장하기 위해 import (B 구조 들어가면 추가).
-    import src.models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
-    yield
-
-
 app = FastAPI(
     title="ooh-recommend",
     version="0.1.0",
-    lifespan=lifespan,
     docs_url="/swagger",
     redoc_url="/redoc",
 )
