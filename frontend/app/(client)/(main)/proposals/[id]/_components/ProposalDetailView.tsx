@@ -463,7 +463,9 @@ function ProposalEditorView({ id }: { id: string }) {
                   onChange={(event) => setDraft(event.target.value)}
                   onBlur={commitRename}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") commitRename();
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      commitRename();
+                    }
                   }}
                   className="min-w-0 border-b border-primary text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black outline-none"
                 />

@@ -191,7 +191,7 @@ export function CommonTable<T>({
           placeholder={opt.placeholder}
           onChange={(e) => setField(opt.name, e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
               e.preventDefault();
               handleSearch();
             }

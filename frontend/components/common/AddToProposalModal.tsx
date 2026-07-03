@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   CircleCheckIcon,
@@ -59,14 +59,20 @@ export function AddToProposalModal({
   const hasMedia = (proposal: { media_ids: string[] }) =>
     proposal.media_ids.includes(mediaId);
 
+  const creatingRef = useRef(false);
+
   const handleCreate = () => {
     const title = newName.trim();
-    if (!title || createProposal.isPending) return;
+    if (!title || creatingRef.current) return;
+    creatingRef.current = true;
     createProposal.mutate(title, {
       onSuccess: (created) => {
         setCreating(false);
         setNewName("");
         setSelected((prev) => [...prev, created.id]);
+      },
+      onSettled: () => {
+        creatingRef.current = false;
       },
     });
   };
@@ -120,7 +126,9 @@ export function AddToProposalModal({
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreate();
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                      handleCreate();
+                    }
                   }}
                   placeholder="제안서 이름을 입력해 주세요."
                   className="w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-[#2f3442] outline-none placeholder:text-[#9ca3af] focus:border-[#00aaa4]"
