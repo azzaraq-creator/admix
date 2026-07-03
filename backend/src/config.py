@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     naver_client_id: str = ""
     naver_client_secret: str = ""
-    naver_redirect_uri: str = "http://localhost:8000/auth/sns/naver/callback"
+    naver_redirect_uri: str = "http://localhost:3000/oauth/naver/callback"
 
     @property
     def frontend_origins(self) -> list[str]:

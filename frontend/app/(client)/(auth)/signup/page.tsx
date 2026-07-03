@@ -46,10 +46,10 @@ export default function SignupPage() {
   const [tab, setTab] = useState<Tab>("individual");
   const [snsPending, setSnsPending] = useState(false);
 
-  const handleKakaoStart = async () => {
+  const handleSnsStart = async (provider: "kakao" | "naver") => {
     setSnsPending(true);
     try {
-      window.location.href = await authApi.snsAuthorizeUrl("kakao");
+      window.location.href = await authApi.snsAuthorizeUrl(provider);
     } catch {
       setSnsPending(false);
     }
@@ -91,7 +91,7 @@ export default function SignupPage() {
               <div className="flex w-full flex-col items-center gap-[14px]">
                 <button
                   type="button"
-                  onClick={handleKakaoStart}
+                  onClick={() => handleSnsStart("kakao")}
                   disabled={snsPending}
                   className={`${startButtonClass} bg-[#ffe400] text-[#2f3442] disabled:opacity-60`}
                 >
@@ -100,7 +100,9 @@ export default function SignupPage() {
                 </button>
                 <button
                   type="button"
-                  className={`${startButtonClass} bg-[#00cb4b] text-[#2f3442]`}
+                  onClick={() => handleSnsStart("naver")}
+                  disabled={snsPending}
+                  className={`${startButtonClass} bg-[#00cb4b] text-[#2f3442] disabled:opacity-60`}
                 >
                   <NaverMark className="size-[24px] shrink-0" />
                   네이버로 시작하기

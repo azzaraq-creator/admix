@@ -67,10 +67,10 @@ export function LoginModal() {
   const [restrictedOpen, setRestrictedOpen] = useState(false);
   const [snsPending, setSnsPending] = useState(false);
 
-  const handleKakaoLogin = async () => {
+  const handleSnsLogin = async (provider: "kakao" | "naver") => {
     setSnsPending(true);
     try {
-      window.location.href = await authApi.snsAuthorizeUrl("kakao");
+      window.location.href = await authApi.snsAuthorizeUrl(provider);
     } catch {
       setSnsPending(false);
     }
@@ -209,7 +209,7 @@ export function LoginModal() {
               <button
                 type="button"
                 aria-label="카카오로 로그인"
-                onClick={handleKakaoLogin}
+                onClick={() => handleSnsLogin("kakao")}
                 disabled={snsPending}
                 className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
               >
@@ -218,7 +218,9 @@ export function LoginModal() {
               <button
                 type="button"
                 aria-label="네이버로 로그인"
-                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px]"
+                onClick={() => handleSnsLogin("naver")}
+                disabled={snsPending}
+                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
               >
                 <NaverIcon className="size-[24px] shrink-0" />
               </button>
