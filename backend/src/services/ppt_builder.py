@@ -344,11 +344,13 @@ def build_media(prs, item: dict) -> None:
     settings = get_settings()
     lat, lng = item.get("latitude"), item.get("longitude")
     map_url = None
-    if lat is not None and lng is not None and settings.google_maps_api_key:
+    if lat is not None and lng is not None and settings.geoapify_api_key:
         map_url = (
-            "https://maps.googleapis.com/maps/api/staticmap"
-            f"?center={lat},{lng}&zoom=16&size=500x500&scale=2"
-            f"&markers=color:red%7C{lat},{lng}&key={settings.google_maps_api_key}"
+            "https://maps.geoapify.com/v1/staticmap"
+            "?style=osm-bright&width=500&height=500&scaleFactor=2"
+            f"&center=lonlat:{lng},{lat}&zoom=16"
+            f"&marker=lonlat:{lng},{lat};color:%23ff0000;size:medium"
+            f"&apiKey={settings.geoapify_api_key}"
         )
     _image_or_placeholder(slide, _px(1382), _px(40), _px(500), _px(500),
                           map_url, "위치 정보 없음")
