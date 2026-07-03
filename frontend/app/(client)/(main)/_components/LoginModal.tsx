@@ -65,6 +65,16 @@ export function LoginModal() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [credentialError, setCredentialError] = useState(false);
   const [restrictedOpen, setRestrictedOpen] = useState(false);
+  const [snsPending, setSnsPending] = useState(false);
+
+  const handleKakaoLogin = async () => {
+    setSnsPending(true);
+    try {
+      window.location.href = await authApi.snsAuthorizeUrl("kakao");
+    } catch {
+      setSnsPending(false);
+    }
+  };
 
   const closeLogin = (value: boolean) => {
     setLoginModalOpen(value);
@@ -199,7 +209,9 @@ export function LoginModal() {
               <button
                 type="button"
                 aria-label="카카오로 로그인"
-                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px]"
+                onClick={handleKakaoLogin}
+                disabled={snsPending}
+                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
               >
                 <KakaoIcon className="size-[24px] shrink-0" />
               </button>

@@ -21,6 +21,11 @@ export const useRegister = () =>
     mutationFn: (payload: RegisterPayload) => authApi.register(payload),
   });
 
+export const useWithdraw = () =>
+  useMutation({
+    mutationFn: () => authApi.withdraw(),
+  });
+
 export const useChangePassword = () =>
   useMutation({
     mutationFn: ({

@@ -100,7 +100,18 @@ def authenticate(db: Session, email: str, password: str) -> User:
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
     if user.status == "sanctioned":
         raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
+    if user.status == "withdrawn":
+        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
     return user
+
+
+def withdraw(db: Session, user: User) -> None:
+    user.status = "withdrawn"
+    user.withdrawn_at = datetime.now(timezone.utc)
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id, RefreshToken.revoked == False  # noqa: E712
+    ).update({"revoked": True})
+    db.commit()
 
 
 def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:

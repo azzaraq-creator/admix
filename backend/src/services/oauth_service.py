@@ -108,6 +108,8 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     )
     if account is not None:
         user = db.query(User).filter(User.id == account.user_id).first()
+        if user is not None and user.status == "withdrawn":
+            raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
         account.access_token = access_token
         account.refresh_token = token_data.get("refresh_token")
         db.commit()
@@ -116,6 +118,8 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     user = None
     if profile.get("email"):
         user = db.query(User).filter(User.email == profile["email"]).first()
+    if user is not None and user.status == "withdrawn":
+        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
     if user is None:
         user = User(
             email=profile.get("email") or f"{provider}_{provider_id}@social.local",

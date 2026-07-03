@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type SVGProps } from "react";
 
 import { Logo, LogoFull } from "@/components/icons";
+import { authApi } from "@/hooks/auth";
 
 function KakaoMark(props: SVGProps<SVGSVGElement>) {
   return (
@@ -43,6 +44,16 @@ const startButtonClass =
 export default function SignupPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("individual");
+  const [snsPending, setSnsPending] = useState(false);
+
+  const handleKakaoStart = async () => {
+    setSnsPending(true);
+    try {
+      window.location.href = await authApi.snsAuthorizeUrl("kakao");
+    } catch {
+      setSnsPending(false);
+    }
+  };
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
@@ -80,7 +91,9 @@ export default function SignupPage() {
               <div className="flex w-full flex-col items-center gap-[14px]">
                 <button
                   type="button"
-                  className={`${startButtonClass} bg-[#ffe400] text-[#2f3442]`}
+                  onClick={handleKakaoStart}
+                  disabled={snsPending}
+                  className={`${startButtonClass} bg-[#ffe400] text-[#2f3442] disabled:opacity-60`}
                 >
                   <KakaoMark className="size-[24px] shrink-0" />
                   카카오로 시작하기

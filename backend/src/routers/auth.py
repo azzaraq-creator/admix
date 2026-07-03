@@ -85,6 +85,15 @@ def update_me(
     )
 
 
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def withdraw(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    auth_service.withdraw(db, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 def change_password(
     body: ChangePasswordRequest,

@@ -47,6 +47,14 @@ export const authApi = {
         session_id: getSessionId(),
       })
       .then((r) => r.data),
+  snsAuthorizeUrl: (provider: string) =>
+    api.get<{ url: string }>(`/auth/sns/${provider}`).then((r) => r.data.url),
+  snsExchange: (provider: string, code: string, state: string) =>
+    api
+      .get<LoginResponse>(`/auth/sns/${provider}/callback`, {
+        params: { code, state },
+      })
+      .then((r) => r.data),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/auth/change-password", {
@@ -59,4 +67,5 @@ export const authApi = {
     phone?: string;
     marketing_consent?: boolean;
   }) => api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
+  withdraw: () => api.delete("/auth/me"),
 };

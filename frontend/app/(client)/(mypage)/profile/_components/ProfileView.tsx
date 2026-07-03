@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/common/buttons";
 import { UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
-import { authKeys, useMe, useUpdateProfile } from "@/hooks/auth";
+import { authKeys, useMe, useUpdateProfile, useWithdraw } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
 import { clearUserToken } from "@/lib/userToken";
 
@@ -39,6 +39,7 @@ export function ProfileView() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
   const updateProfile = useUpdateProfile();
+  const withdraw = useWithdraw();
   const { confirm, confirmDialog } = useConfirm();
   const [marketingOverride, setMarketingOverride] = useState<boolean | null>(
     null,
@@ -88,7 +89,19 @@ export function ProfileView() {
         "계정 삭제는 영구적이며 돌이킬 수 없습니다. 사용자님의 데이터는 30일 이내에 삭제됩니다.",
       confirmText: "탈퇴",
     });
-    if (ok) router.push("/");
+    if (!ok) return;
+    try {
+      await withdraw.mutateAsync();
+      clearUserToken();
+      queryClient.removeQueries({ queryKey: authKeys.me });
+      router.push("/");
+    } catch {
+      await confirm({
+        title: "회원 탈퇴에 실패했습니다.",
+        description: "잠시 후 다시 시도해 주세요.",
+        confirmText: "확인",
+      });
+    }
   };
 
   return (
