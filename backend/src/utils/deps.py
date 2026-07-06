@@ -32,6 +32,10 @@ def _user_from_token(token: str, db: Session) -> User:
     user = db.query(User).filter(User.id == uid).first()
     if user is None:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
+    if user.status == "sanctioned":
+        raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
+    if user.status == "withdrawn":
+        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
     return user
 
 

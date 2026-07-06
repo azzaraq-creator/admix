@@ -1,6 +1,7 @@
 """JWT 토큰 발급/검증 + 비밀번호 해시."""
 from __future__ import annotations
 
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -48,3 +49,11 @@ def decode_token(token: str, secret: str) -> dict | None:
 
 def generate_url_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    """고엔트로피 토큰(refresh 등)의 저장용 해시. 원본은 DB에 저장하지 않는다.
+
+    토큰은 이미 랜덤 고엔트로피라 bcrypt 대신 빠른 SHA-256으로 충분(salt 불필요).
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

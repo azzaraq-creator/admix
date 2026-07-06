@@ -14,6 +14,7 @@ from src.utils.security import (
     decode_token,
     generate_url_token,
     hash_password,
+    hash_token,
     verify_password,
 )
 
@@ -35,7 +36,7 @@ def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, 
         refresh_expires,
     )
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_expires)
-    db.add(RefreshToken(token=refresh, user_id=user.id, expires_at=expires_at))
+    db.add(RefreshToken(token=hash_token(refresh), user_id=user.id, expires_at=expires_at))
     db.commit()
     return access, refresh
 
@@ -118,9 +119,16 @@ def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:
     payload = decode_token(refresh_token, settings.jwt_refresh_secret)
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="유효하지 않은 리프레시 토큰입니다.")
-    row = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
-    if row is None or row.revoked:
+    row = db.query(RefreshToken).filter(RefreshToken.token == hash_token(refresh_token)).first()
+    if row is None:
         raise HTTPException(status_code=401, detail="만료되었거나 폐기된 토큰입니다.")
+    if row.revoked:
+        # 이미 폐기된 토큰의 재사용 = 탈취 정황(RFC 6819). 해당 유저 전체 세션 무효화.
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == row.user_id, RefreshToken.revoked == False  # noqa: E712
+        ).update({"revoked": True})
+        db.commit()
+        raise HTTPException(status_code=401, detail="보안을 위해 다시 로그인해 주세요.")
     if row.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="만료되었거나 폐기된 토큰입니다.")
     user = db.query(User).filter(User.id == row.user_id).first()
@@ -132,7 +140,7 @@ def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:
 
 
 def revoke_refresh_token(db: Session, refresh_token: str) -> None:
-    row = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
+    row = db.query(RefreshToken).filter(RefreshToken.token == hash_token(refresh_token)).first()
     if row is not None and not row.revoked:
         row.revoked = True
         db.commit()

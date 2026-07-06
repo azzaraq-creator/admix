@@ -91,6 +91,16 @@ def _fetch_profile(provider: str, access_token: str) -> dict:
     }
 
 
+def _ensure_usable(user: User | None) -> None:
+    """소셜 로그인 대상 계정의 상태 검증 — authenticate()와 동일 정책(휴면은 허용)."""
+    if user is None:
+        return
+    if user.status == "sanctioned":
+        raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
+    if user.status == "withdrawn":
+        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
+
+
 def login_with_provider(db: Session, provider: str, code: str, state: str) -> User:
     token_data = _exchange_code(provider, code, state)
     access_token = token_data.get("access_token")
@@ -108,8 +118,7 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     )
     if account is not None:
         user = db.query(User).filter(User.id == account.user_id).first()
-        if user is not None and user.status == "withdrawn":
-            raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
+        _ensure_usable(user)
         account.access_token = access_token
         account.refresh_token = token_data.get("refresh_token")
         db.commit()
@@ -118,8 +127,7 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     user = None
     if profile.get("email"):
         user = db.query(User).filter(User.email == profile["email"]).first()
-    if user is not None and user.status == "withdrawn":
-        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
+    _ensure_usable(user)
     if user is None:
         user = User(
             email=profile.get("email") or f"{provider}_{provider_id}@social.local",
