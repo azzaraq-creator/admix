@@ -16,7 +16,7 @@ from src.schemas.ad_session import (
     AdUserChatDetail,
 )
 from src.services import ad_session_service as svc
-from src.utils.deps import get_current_admin
+from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/admin/chat", tags=["admin-chat"])
 
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/admin/chat", tags=["admin-chat"])
 @router.get("/overview", response_model=AdChatOverviewResponse)
 def chat_overview(
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("chat")),
 ) -> AdChatOverviewResponse:
     """회원별 집계 + 비회원 세션 행. (회원=이름/이메일 1행, 비회원=세션별 1행)"""
     items = svc.list_chat_overview(db)
@@ -35,7 +35,7 @@ def chat_overview(
 def user_chat_detail(
     user_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("chat")),
 ) -> AdUserChatDetail:
     detail = svc.get_user_chat_detail(db, user_id)
     if detail is None:
@@ -47,7 +47,7 @@ def user_chat_detail(
 def get_chat_session(
     session_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("chat")),
 ) -> AdSessionDetail:
     s = svc.get_session(db, session_id)
     if not s:

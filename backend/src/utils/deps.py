@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.database import get_db
-from src.models.admin import Admin
+from src.models.admin import Admin, MASTER_ACCOUNT_TYPE
 from src.models.user import User
 from src.utils.security import decode_token
 
@@ -78,3 +78,23 @@ def get_current_admin(
     if admin.status != "active":
         raise HTTPException(status_code=403, detail="비활성화된 계정입니다.")
     return admin
+
+
+def get_current_master_admin(admin: Admin = Depends(get_current_admin)) -> Admin:
+    """마스터(최고 관리자) 전용 가드. 관리자 계정 생성/수정/삭제에 사용."""
+    if admin.account_type != MASTER_ACCOUNT_TYPE:
+        raise HTTPException(status_code=403, detail="마스터 계정만 접근할 수 있습니다.")
+    return admin
+
+
+def require_permission(menu_key: str):
+    """메뉴별 권한(admin_permission) 가드. 마스터는 권한 설정과 무관하게 전체 허용."""
+
+    def _dep(admin: Admin = Depends(get_current_admin)) -> Admin:
+        if admin.account_type == MASTER_ACCOUNT_TYPE:
+            return admin
+        if menu_key not in {p.menu_key for p in admin.permissions}:
+            raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        return admin
+
+    return _dep

@@ -7,12 +7,25 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from src.models.admin import Admin
+from src.models.admin import Admin, MASTER_ACCOUNT_TYPE
 from src.models.admin_permission import AdminPermission
 from src.schemas.admin import AdminAccountCreate, AdminAccountUpdate
 from src.utils.security import hash_password, verify_password
 
-VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account"}
+VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account", "chat"}
+
+
+def _other_active_masters(db: Session, exclude_id: uuid.UUID) -> int:
+    """자신을 제외한 활성 마스터 계정 수."""
+    return (
+        db.query(Admin)
+        .filter(
+            Admin.account_type == MASTER_ACCOUNT_TYPE,
+            Admin.status == "active",
+            Admin.id != exclude_id,
+        )
+        .count()
+    )
 
 
 def _validate_perms(perms: list[str]) -> list[str]:
@@ -105,6 +118,14 @@ def update_account(db: Session, admin_id: uuid.UUID, data: AdminAccountUpdate) -
     if admin is None:
         raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
     fields = data.model_dump(exclude_unset=True)
+    if admin.account_type == MASTER_ACCOUNT_TYPE:
+        demoted = fields.get("account_type", MASTER_ACCOUNT_TYPE) != MASTER_ACCOUNT_TYPE
+        disabled = fields.get("status", "active") != "active"
+        if (demoted or disabled) and _other_active_masters(db, admin.id) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="마지막 마스터 계정은 강등하거나 비활성화할 수 없습니다.",
+            )
     if "password" in fields:
         pw = fields.pop("password")
         if pw:
@@ -123,5 +144,9 @@ def delete_account(db: Session, admin_id: uuid.UUID) -> None:
     admin = db.query(Admin).filter(Admin.id == admin_id).first()
     if admin is None:
         raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
+    if admin.account_type == MASTER_ACCOUNT_TYPE and _other_active_masters(db, admin.id) == 0:
+        raise HTTPException(
+            status_code=400, detail="마지막 마스터 계정은 삭제할 수 없습니다."
+        )
     db.delete(admin)
     db.commit()

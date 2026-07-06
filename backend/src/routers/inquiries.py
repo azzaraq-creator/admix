@@ -14,14 +14,14 @@ from src.schemas.inquiry import (
     InquiryListResponse,
 )
 from src.services import inquiry_service
-from src.utils.deps import get_current_admin
+from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/admin/inquiries", tags=["inquiries"])
 
 
 @router.get("", response_model=InquiryListResponse)
 def list_inquiries(
-    db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)
+    db: Session = Depends(get_db), _: Admin = Depends(require_permission("business"))
 ) -> InquiryListResponse:
     items = inquiry_service.list_inquiries(db)
     return InquiryListResponse(total=len(items), items=items)
@@ -31,7 +31,7 @@ def list_inquiries(
 def get_inquiry(
     inquiry_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("business")),
 ) -> InquiryDetail:
     return inquiry_service.get_inquiry(db, inquiry_id)
 
@@ -41,6 +41,6 @@ def answer_inquiry(
     inquiry_id: uuid.UUID,
     body: InquiryAnswerUpdate,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(require_permission("business")),
 ) -> InquiryDetail:
     return inquiry_service.answer_inquiry(db, inquiry_id, body, admin)

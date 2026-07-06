@@ -13,6 +13,9 @@ from sqlalchemy.orm import relationship
 
 from src.database import Base
 
+# 마스터(최고 관리자) 계정 식별값 — account_type 에 저장. 프론트 roles 페이지와 동일.
+MASTER_ACCOUNT_TYPE = "마스터 계정"
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)

@@ -292,37 +292,41 @@ function AccountForm({
         )}
       </div>
 
-      <p className="text-lg font-bold leading-[28px] text-black">권한 설정</p>
-      <div className="grid grid-cols-3 gap-[16px]">
-        {PERMISSIONS.map((perm) => {
-          const checked = perms.includes(PERMISSION_KEYS[perm]);
-          return (
-            <label
-              key={perm}
-              className="flex cursor-pointer items-center gap-[10px] rounded-[8px] border border-stroke px-[20px] py-[14px]"
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => togglePerm(perm)}
-                className="sr-only"
-              />
-              <span
-                className={`flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border ${
-                  checked ? "border-primary bg-primary" : "border-stroke bg-white"
-                }`}
-              >
-                {checked && (
-                  <Check className="size-[12px] text-white" strokeWidth={3} />
-                )}
-              </span>
-              <span className="text-base font-medium leading-[24px] text-black">
-                {perm}
-              </span>
-            </label>
-          );
-        })}
-      </div>
+      {type !== "마스터 계정" && (
+        <>
+          <p className="text-lg font-bold leading-[28px] text-black">권한 설정</p>
+          <div className="grid grid-cols-3 gap-[16px]">
+            {PERMISSIONS.map((perm) => {
+              const checked = perms.includes(PERMISSION_KEYS[perm]);
+              return (
+                <label
+                  key={perm}
+                  className="flex cursor-pointer items-center gap-[10px] rounded-[8px] border border-stroke px-[20px] py-[14px]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => togglePerm(perm)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border ${
+                      checked ? "border-primary bg-primary" : "border-stroke bg-white"
+                    }`}
+                  >
+                    {checked && (
+                      <Check className="size-[12px] text-white" strokeWidth={3} />
+                    )}
+                  </span>
+                  <span className="text-base font-medium leading-[24px] text-black">
+                    {perm}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <div className="flex items-center justify-between">
         <ListButton onClick={goList} />

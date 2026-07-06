@@ -5,25 +5,29 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ChevronDownIcon, LogoFull, LogOutIcon } from "@/components/icons";
+import { useAdminMe } from "@/hooks/adminAuth";
 import { clearAdminToken } from "@/lib/adminToken";
 
-type NavLink = { label: string; href: string };
+const MASTER_ACCOUNT_TYPE = "마스터 계정";
+
+// permKey = admin_permission menu_key. "account"(계정 관리)는 마스터 전용.
+type NavLink = { label: string; href: string; permKey: string };
 
 const TOP_LINKS: NavLink[] = [
-  { label: "대시보드", href: "/admin" },
-  { label: "광고 매체 관리", href: "/admin/media" },
-  { label: "회원 관리", href: "/admin/members" },
-  { label: "AI 채팅 관리", href: "/admin/chat" },
+  { label: "대시보드", href: "/admin", permKey: "dashboard" },
+  { label: "광고 매체 관리", href: "/admin/media", permKey: "media" },
+  { label: "회원 관리", href: "/admin/members", permKey: "member" },
+  { label: "AI 채팅 관리", href: "/admin/chat", permKey: "chat" },
 ];
 
 const BUSINESS_LINKS: NavLink[] = [
-  { label: "제안 관리", href: "/admin/proposals" },
-  { label: "문의 관리", href: "/admin/inquiries" },
+  { label: "제안 관리", href: "/admin/proposals", permKey: "business" },
+  { label: "문의 관리", href: "/admin/inquiries", permKey: "business" },
 ];
 
 const BOTTOM_LINKS: NavLink[] = [
-  { label: "FAQ 관리", href: "/admin/faq" },
-  { label: "계정 관리", href: "/admin/roles" },
+  { label: "FAQ 관리", href: "/admin/faq", permKey: "faq" },
+  { label: "계정 관리", href: "/admin/roles", permKey: "account" },
 ];
 
 function isActive(pathname: string | null, href: string) {
@@ -35,13 +39,27 @@ function isActive(pathname: string | null, href: string) {
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: me } = useAdminMe();
+  const isMaster = me?.account_type === MASTER_ACCOUNT_TYPE;
+  const perms = me?.permissions ?? [];
+  // 대시보드는 로그인 기본 페이지라 항상 노출. 마스터는 전체 노출.
+  // "account"(계정 관리)는 마스터 전용. 그 외는 권한 보유 시 노출.
+  const canSee = (permKey: string) => {
+    if (permKey === "dashboard") return true;
+    if (isMaster) return true;
+    if (permKey === "account") return false;
+    return perms.includes(permKey);
+  };
+  const topLinks = TOP_LINKS.filter((link) => canSee(link.permKey));
+  const businessLinks = BUSINESS_LINKS.filter((link) => canSee(link.permKey));
+  const bottomLinks = BOTTOM_LINKS.filter((link) => canSee(link.permKey));
 
   const handleLogout = () => {
     clearAdminToken();
     router.replace("/admin/login");
     router.refresh();
   };
-  const businessActive = BUSINESS_LINKS.some((link) =>
+  const businessActive = businessLinks.some((link) =>
     isActive(pathname, link.href),
   );
   const [businessOpen, setBusinessOpen] = useState(true);
@@ -58,7 +76,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-[16px] overflow-y-auto px-[20px] py-[16px]">
-        {TOP_LINKS.map((link) => (
+        {topLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
@@ -68,6 +86,7 @@ export function AdminSidebar() {
           </Link>
         ))}
 
+        {businessLinks.length > 0 && (
         <div className="flex flex-col gap-[6px]">
           <button
             type="button"
@@ -85,7 +104,7 @@ export function AdminSidebar() {
           </button>
           {businessOpen && (
             <div className="flex flex-col gap-[6px]">
-              {BUSINESS_LINKS.map((link) => {
+              {businessLinks.map((link) => {
                 const active = isActive(pathname, link.href);
                 return (
                   <Link
@@ -104,8 +123,9 @@ export function AdminSidebar() {
             </div>
           )}
         </div>
+        )}
 
-        {BOTTOM_LINKS.map((link) => (
+        {bottomLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}

@@ -27,19 +27,20 @@ export const ACCOUNT_STATUS_OPTIONS = [
   { label: "비활성", value: "비활성" },
 ];
 
+// 대시보드는 로그인 기본 페이지라 권한 대상에서 제외(모든 관리자 노출).
 export const PERMISSIONS = [
-  "대시보드",
   "광고 매체 관리",
   "회원 관리",
+  "AI 채팅 관리",
   "비즈니스 관리",
   "FAQ 관리",
   "계정 관리",
 ];
 
 export const PERMISSION_KEYS: Record<string, string> = {
-  대시보드: "dashboard",
   "광고 매체 관리": "media",
   "회원 관리": "member",
+  "AI 채팅 관리": "chat",
   "비즈니스 관리": "business",
   "FAQ 관리": "faq",
   "계정 관리": "account",

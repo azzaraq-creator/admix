@@ -18,7 +18,7 @@ from src.models.admin import Admin
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.schemas.proposal import AdminProposalDetail, ProposalListResponse
 from src.services import deck_converter, ppt_builder, proposal_service
-from src.utils.deps import get_current_admin
+from src.utils.deps import require_permission
 
 PPTX_MEDIA_TYPE = (
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -32,7 +32,7 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 
 @router.get("", response_model=ProposalListResponse)
 def list_proposals(
-    db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)
+    db: Session = Depends(get_db), _: Admin = Depends(require_permission("business"))
 ) -> ProposalListResponse:
     items = proposal_service.list_proposals(db)
     return ProposalListResponse(total=len(items), items=items)
@@ -42,7 +42,7 @@ def list_proposals(
 def get_proposal(
     proposal_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("business")),
 ) -> AdminProposalDetail:
     detail = proposal_service.get_admin_detail(db, proposal_id)
     if detail is None:
@@ -55,7 +55,7 @@ async def upload_counter_proposal(
     proposal_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(require_permission("business")),
 ) -> AdminProposalDetail:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -107,7 +107,7 @@ async def upload_counter_proposal(
 def accept_proposal(
     proposal_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("business")),
 ) -> AdminProposalDetail:
     """집행 수락 — 상태를 계약 완료(contracted)로 변경."""
     p = proposal_service.update_status(db, proposal_id, "contracted")
@@ -121,7 +121,7 @@ def download_counter_proposal(
     proposal_id: str,
     counter_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("business")),
 ) -> FileResponse:
     """맞춤제안 원본 PPT 다운로드 — 업로드 당시 파일명 유지."""
     try:
@@ -156,7 +156,7 @@ def download_counter_proposal(
 def export_proposal_ppt(
     proposal_id: str,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("business")),
 ) -> FileResponse:
     """고객 제안서를 python-pptx 로 생성해 다운로드."""
     detail = proposal_service.get_admin_detail(db, proposal_id)
