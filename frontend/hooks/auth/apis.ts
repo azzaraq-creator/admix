@@ -55,6 +55,8 @@ export const authApi = {
         params: { code, state },
       })
       .then((r) => r.data),
+  logout: (refreshToken: string) =>
+    api.post("/auth/logout", { refresh_token: refreshToken }),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/auth/change-password", {

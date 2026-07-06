@@ -7,9 +7,15 @@ import { useState } from "react";
 import { Button } from "@/components/common/buttons";
 import { UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
-import { authKeys, useMe, useUpdateProfile, useWithdraw } from "@/hooks/auth";
+import {
+  authApi,
+  authKeys,
+  useMe,
+  useUpdateProfile,
+  useWithdraw,
+} from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
-import { clearUserToken } from "@/lib/userToken";
+import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
@@ -76,7 +82,15 @@ export function ProfileView() {
 
   const closeModal = () => setOpenModal(null);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await authApi.logout(refreshToken); // 서버에서 refresh 토큰 폐기 (best-effort)
+      } catch {
+        // 폐기 실패해도 로컬 로그아웃은 진행
+      }
+    }
     clearUserToken();
     queryClient.removeQueries({ queryKey: authKeys.me });
     router.push("/");

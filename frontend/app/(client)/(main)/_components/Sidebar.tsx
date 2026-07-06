@@ -19,8 +19,8 @@ import {
   MapIcon,
   UserIcon,
 } from "@/components/icons";
-import { authKeys, useMe } from "@/hooks/auth";
-import { clearUserToken } from "@/lib/userToken";
+import { authApi, authKeys, useMe } from "@/hooks/auth";
+import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
 import { setLnbExpanded, useLnbExpanded } from "./useLnb";
 import { openLoginModal } from "./useLoginModal";
@@ -66,7 +66,15 @@ export function Sidebar() {
 
   const setOpen = setLnbExpanded;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await authApi.logout(refreshToken); // 서버에서 refresh 토큰 폐기 (best-effort)
+      } catch {
+        // 폐기 실패해도 로컬 로그아웃은 진행
+      }
+    }
     clearUserToken();
     queryClient.removeQueries({ queryKey: authKeys.me });
     setProfileOpen(false);
