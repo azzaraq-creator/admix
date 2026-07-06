@@ -82,8 +82,8 @@ function CompareRow({
         )}
       />
       <p className="text-base font-semibold leading-[24px]">
-        <span className="text-[#757575]">{items[0]}</span>{" "}
-        <span className={isAdmix ? "text-primary" : "text-[#757575]"}>
+        <span className="text-grey-500">{items[0]}</span>{" "}
+        <span className={isAdmix ? "text-primary" : "text-grey-500"}>
           {items[1]}
         </span>
       </p>
@@ -99,7 +99,7 @@ export function ServiceIntroView() {
           <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
             서비스 소개
           </p>
-          <p className="text-[14px] font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
+          <p className="text-[14px] font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
             회사 및 서비스 소개를 확인하세요
           </p>
         </div>
@@ -117,7 +117,7 @@ export function ServiceIntroView() {
               <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
                 광고 캠페인을 AI와 대화로
               </p>
-              <p className="text-[14px] font-normal leading-[20px] text-[#e2e2e2] sm:text-base sm:leading-[24px]">
+              <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
                 탐색부터 계약까지 전 과정을 하나의 대화로 완성합니다.
               </p>
             </div>
@@ -155,7 +155,7 @@ export function ServiceIntroView() {
         <div className="flex w-full items-stretch gap-[8px] sm:gap-[24px]">
           <div className="flex flex-1 flex-col gap-[8px]">
             <div className="flex flex-col">
-              <div className="flex items-center justify-center bg-[#737586] px-[10px] py-[12px] sm:py-[20px]">
+              <div className="flex items-center justify-center bg-disabled px-[10px] py-[12px] sm:py-[20px]">
                 <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
                   타사 서비스
                 </p>
@@ -220,7 +220,7 @@ export function ServiceIntroView() {
                   <p className="whitespace-pre-line text-[16px] font-medium leading-[24px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
                     {card.title}
                   </p>
-                  <p className="whitespace-pre-line text-[12px] font-medium leading-[16px] text-[#757575] sm:text-sm sm:leading-[20px]">
+                  <p className="whitespace-pre-line text-[12px] font-medium leading-[16px] text-grey-500 sm:text-sm sm:leading-[20px]">
                     {card.desc}
                   </p>
                 </div>
@@ -252,13 +252,13 @@ export function ServiceIntroView() {
                 <br />
                 <span className="text-primary">첫 캠페인</span>이 완성됩니다.
               </p>
-              <p className="text-[14px] font-normal leading-[20px] text-[#e2e2e2] sm:text-base sm:leading-[24px]">
+              <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
                 복잡한 기획 없이 지금 바로 시작해 보세요.
               </p>
             </div>
             <Link
               href="/fixed"
-              className="flex w-fit items-center gap-[4px] rounded-[8px] bg-[#f1f5f9] px-[12px] py-[8px] text-sm font-medium text-black"
+              className="flex w-fit items-center gap-[4px] rounded-[8px] bg-platinum-100 px-[12px] py-[8px] text-sm font-medium text-black"
             >
               매체 둘러보기
               <ChevronRightIcon className="size-[18px]" />

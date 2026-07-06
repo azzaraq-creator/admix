@@ -38,7 +38,7 @@ function OAuthCallback() {
   const failed = !code || !PROVIDER_LABEL[provider] || exchangeFailed;
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-[16px] text-[16px] font-medium text-[#2f3442]">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-[16px] text-[16px] font-medium text-black">
       {failed ? (
         <>
           <p>{label} 로그인에 실패했습니다.</p>

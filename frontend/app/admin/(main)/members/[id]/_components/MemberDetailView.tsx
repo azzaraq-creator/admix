@@ -63,7 +63,7 @@ export function MemberDetailView() {
 
   if (!member) {
     return (
-      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+      <p className="text-sm font-medium leading-[20px] text-disabled">
         불러오는 중...
       </p>
     );
@@ -104,7 +104,7 @@ export function MemberDetailView() {
 
       <div className="flex items-center gap-[48px] rounded-[12px] border border-[#cdcdcd] p-[36px]">
         <div className="flex flex-1 items-center gap-[21px]">
-          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
+          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-grey-50">
             <Building2 className="size-[60px] text-[#767676]" />
           </div>
           <div className="flex flex-1 flex-col gap-[20px]">
@@ -121,7 +121,7 @@ export function MemberDetailView() {
                 <span className="text-sm font-medium leading-normal text-[#494a4a]">
                   사업자정보
                 </span>
-                <span className="inline-flex w-fit items-center rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] text-[#545454]">
+                <span className="inline-flex w-fit items-center rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] text-[#545454]">
                   {bizStatus}
                 </span>
               </div>

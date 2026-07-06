@@ -17,7 +17,7 @@ const PROPOSAL_STATUS_CLASS: Record<ProposalStatus, string> = {
   취소: "bg-[#fef2f2] text-[#ef4444]",
   신규: "bg-[#eef2ff] text-[#4f6bed]",
   맞춤제안: "bg-[#fdf6e3] text-[#c99a2e]",
-  "계약 완료": "bg-[#e5f6f6] text-[#007571]",
+  "계약 완료": "bg-primary-50 text-primary-800",
 };
 
 function StatusBadge({ className, label }: { className: string; label: string }) {
@@ -31,7 +31,7 @@ function StatusBadge({ className, label }: { className: string; label: string })
 }
 
 export const proposalColumnList: TableColumn<ProposalHistory>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "proposalName", label: "제안서 명" },
   { name: "name", label: "이름" },
   { name: "totalAmount", label: "전체 금액 합계" },
@@ -45,7 +45,7 @@ export const proposalColumnList: TableColumn<ProposalHistory>[] = [
       />
     ),
   },
-  { name: "registeredAt", label: "등록일", className: "text-[#737586]" },
+  { name: "registeredAt", label: "등록일", className: "text-disabled" },
 ];
 
 /* ---------- 문의 이력 ---------- */
@@ -63,11 +63,11 @@ export type InquiryHistory = {
 
 const INQUIRY_STATUS_CLASS: Record<InquiryStatus, string> = {
   "답변 대기": "bg-[#fdf6e3] text-[#c99a2e]",
-  "답변 완료": "bg-[#e5f6f6] text-[#007571]",
+  "답변 완료": "bg-primary-50 text-primary-800",
 };
 
 export const inquiryColumnList: TableColumn<InquiryHistory>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "name", label: "이름" },
   { name: "title", label: "제목" },
   {
@@ -87,7 +87,7 @@ export const inquiryColumnList: TableColumn<InquiryHistory>[] = [
       />
     ),
   },
-  { name: "submittedAt", label: "제출일", className: "text-[#737586]" },
+  { name: "submittedAt", label: "제출일", className: "text-disabled" },
 ];
 
 /* ---------- 제재 이력 ---------- */
@@ -100,7 +100,7 @@ export type Sanction = {
 };
 
 export const sanctionColumnList: TableColumn<Sanction>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "reason", label: "제재 이력" },
   { name: "sanctionedAt", label: "제재 일자" },
   { name: "endAt", label: "제재 종료" },

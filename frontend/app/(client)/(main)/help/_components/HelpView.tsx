@@ -24,7 +24,7 @@ export function HelpView({ initialTab }: { initialTab: HelpTabKey }) {
                 type="button"
                 onClick={() => setTab(key)}
                 className={`p-[10px] text-base font-semibold whitespace-nowrap ${
-                  tab === key ? "text-primary" : "text-[#757575]"
+                  tab === key ? "text-primary" : "text-grey-500"
                 }`}
               >
                 {label}

@@ -19,7 +19,7 @@ export function MatchedChips({ message }: { message: V2Message }) {
 
   return (
     <div className="space-y-[8px]">
-      <div className="text-xs font-medium tracking-wide text-[#757575]">
+      <div className="text-xs font-medium tracking-wide text-grey-500">
         매칭된 조건
       </div>
       <div className="flex flex-wrap gap-[6px]">
@@ -28,7 +28,7 @@ export function MatchedChips({ message }: { message: V2Message }) {
             key={label}
             className="rounded-[6px] border border-stroke bg-secondary px-[8px] py-[2px] text-xs"
           >
-            <span className="text-[#757575]">{label}</span>{" "}
+            <span className="text-grey-500">{label}</span>{" "}
             <span className="text-black">{values.join(", ")}</span>
           </span>
         ))}
@@ -55,7 +55,7 @@ export function ConditionChips({ message }: { message: V2Message }) {
       {rows.map(({ label, values }) => (
         <span
           key={label}
-          className="rounded-[6px] bg-[#e5f6f6] px-[10px] py-[4px] text-xs font-medium text-[#00aaa4]"
+          className="rounded-[6px] bg-primary-50 px-[10px] py-[4px] text-xs font-medium text-primary"
         >
           {label} : {values.join("·")}
         </span>

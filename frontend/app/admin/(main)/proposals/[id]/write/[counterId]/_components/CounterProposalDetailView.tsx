@@ -72,7 +72,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
       <p className="text-lg font-bold leading-[28px] text-black">PPT 파일첨부</p>
 
       <div className="flex items-center gap-[12px] rounded-[8px] border border-stroke px-[20px] py-[18px]">
-        <FileText className="size-[24px] shrink-0 text-[#737586]" />
+        <FileText className="size-[24px] shrink-0 text-disabled" />
         <span className="truncate text-base font-semibold leading-[24px] text-black">
           {file?.file_name ?? "-"}
         </span>

@@ -15,7 +15,7 @@ export function ModeToggle({
 }) {
   return (
     <div
-      className={`flex items-center gap-[6px] rounded-full bg-[#f1f5f9] p-[8px] ${
+      className={`flex items-center gap-[6px] rounded-full bg-platinum-100 p-[8px] ${
         className ?? "w-[335px]"
       }`}
     >
@@ -32,7 +32,7 @@ export function ModeToggle({
         />
         <span
           className={`relative z-10 flex items-center gap-[10px] transition-colors duration-300 ${
-            value === "ai" ? "text-white" : "text-[#757575]"
+            value === "ai" ? "text-white" : "text-grey-500"
           }`}
         >
           <SparkleIcon
@@ -54,7 +54,7 @@ export function ModeToggle({
         />
         <span
           className={`relative z-10 text-sm font-medium whitespace-nowrap transition-colors duration-300 ${
-            value === "search" ? "text-white" : "text-[#757575]"
+            value === "search" ? "text-white" : "text-grey-500"
           }`}
         >
           매체 검색

@@ -13,11 +13,11 @@ export type Proposal = {
 };
 
 export const proposalColumnList: TableColumn<Proposal>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "name", label: "제안명", className: "text-black" },
   { name: "member", label: "회원명", className: "text-black" },
   { name: "mediaCount", label: "매체 수", className: "text-black" },
   { name: "budget", label: "예상 예산", className: "text-black" },
   { name: "status", label: "상태", className: "text-black" },
-  { name: "date", label: "접수일", className: "text-[#737586]" },
+  { name: "date", label: "접수일", className: "text-disabled" },
 ];

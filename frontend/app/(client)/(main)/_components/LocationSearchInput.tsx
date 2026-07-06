@@ -37,7 +37,7 @@ export function LocationSearchInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className=" min-w-0 flex-1 bg-transparent text-base font-medium text-black outline-none placeholder:text-[#757575]"
+        className=" min-w-0 flex-1 bg-transparent text-base font-medium text-black outline-none placeholder:text-grey-500"
       />
       <button
         type="submit"

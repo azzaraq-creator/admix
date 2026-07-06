@@ -68,7 +68,7 @@ function MediaOption({
         <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black">
           {title}
         </p>
-        <p className="text-base font-medium leading-[24px] text-[#757575]">
+        <p className="text-base font-medium leading-[24px] text-grey-500">
           {subtitle}
         </p>
       </div>
@@ -163,7 +163,7 @@ export function MediaDetailContent({
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
                     {name}
                   </p>
-                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
+                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
                     {price}
                   </p>
                 </div>
@@ -181,9 +181,9 @@ export function MediaDetailContent({
             </div>
 
             {showPopulation && population && (
-            <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] py-[24px]">
+            <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 py-[24px]">
               <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
+                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
                   월평균 유동인구 수
                 </p>
                 <p className="w-full text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
@@ -192,7 +192,7 @@ export function MediaDetailContent({
               </div>
               <div className="h-[52px] w-px self-stretch bg-stroke" />
               <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
+                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
                   주요 인구층
                 </p>
                 <div className="flex w-full items-center justify-center gap-[12px] whitespace-nowrap text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
@@ -221,14 +221,14 @@ export function MediaDetailContent({
               onClick={() => setDescExpanded((v) => !v)}
               className="flex items-center justify-center gap-[8px]"
             >
-              <span className="h-px flex-1 bg-[#f6f6f6]" />
-              <span className="flex items-center gap-[4px] rounded-full bg-[#f6f6f6] px-[16px] py-[6px] text-[18px] leading-[28px] tracking-[-0.04px] text-black">
+              <span className="h-px flex-1 bg-grey-50" />
+              <span className="flex items-center gap-[4px] rounded-full bg-grey-50 px-[16px] py-[6px] text-[18px] leading-[28px] tracking-[-0.04px] text-black">
                 매체 설명 {descExpanded ? "접기" : "더보기"}
                 <ChevronDownIcon
                   className={cn("size-[20px] transition-transform", descExpanded && "rotate-180")}
                 />
               </span>
-              <span className="h-px flex-1 bg-[#f6f6f6]" />
+              <span className="h-px flex-1 bg-grey-50" />
             </button>
           </div>
 
@@ -255,7 +255,7 @@ export function MediaDetailContent({
             <div className="flex items-center gap-[15px] rounded-[8px] border border-stroke p-[40px]">
               <MaximizeIcon className="size-[58px] shrink-0 text-black" />
               <div className="flex flex-col gap-[6px]">
-                <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
+                <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
                   사이즈 및 규격
                 </p>
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
@@ -275,7 +275,7 @@ export function MediaDetailContent({
                     key={label}
                     className="flex min-w-[296px] flex-1 flex-col gap-[6px] border-b border-stroke py-[6px] pr-[16px]"
                   >
-                    <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#757575]">
+                    <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
                       {label}
                     </p>
                     <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">

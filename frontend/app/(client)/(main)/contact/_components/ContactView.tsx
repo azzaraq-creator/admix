@@ -132,7 +132,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
         <p className="text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black">
           문의하기
         </p>
-        <p className="text-base font-medium leading-[24px] text-[#737586]">
+        <p className="text-base font-medium leading-[24px] text-disabled">
           궁금한 내용을 확인하거나 문의를 남겨보세요.
         </p>
       </div>
@@ -148,7 +148,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 "-mb-px px-[10px] py-[10px] text-base font-medium leading-[24px]",
                 activeTab === tab.key
                   ? "text-primary sm:border-b-2 sm:border-primary"
-                  : "text-[#737586]",
+                  : "text-disabled",
               )}
             >
               {tab.label}
@@ -162,9 +162,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="검색어를 입력하세요."
-              className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#757575]"
+              className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-grey-500"
             />
-            <SearchIcon className="size-[16px] shrink-0 text-[#757575]" />
+            <SearchIcon className="size-[16px] shrink-0 text-grey-500" />
           </div>
         )}
       </div>
@@ -178,7 +178,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 <div className="flex w-full flex-col gap-[8px]">
                   <button
                     type="button"
-                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+                    className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-black"
                   >
                     <Icon name="kakao" className="size-[24px]" />
                     카카오톡 상담
@@ -248,7 +248,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     {PHONE}
                   </p>
                 </div>
-                <div className="flex w-full flex-col items-center gap-[2px] rounded-[8px] bg-[#f6f6f6] py-[8px] text-center">
+                <div className="flex w-full flex-col items-center gap-[2px] rounded-[8px] bg-grey-50 py-[8px] text-center">
                   <p className="text-base font-medium leading-[24px] text-black">
                     운영시간
                   </p>
@@ -256,7 +256,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     <p className="text-base font-medium leading-[24px] text-black">
                       평일 09:00 ~ 18:00
                     </p>
-                    <p className="text-sm font-medium leading-[20px] text-[#737586]">
+                    <p className="text-sm font-medium leading-[20px] text-disabled">
                       (주말 및 공휴일 휴무)
                     </p>
                   </div>
@@ -312,7 +312,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 <div className="flex w-full flex-col items-start gap-[10px] px-[32px]">
                   {INQUIRY_TYPES.map((type) => (
                     <div key={type} className="flex w-full items-center gap-[13px]">
-                      <span className="size-[8px] shrink-0 rounded-full bg-[#2f3442]" />
+                      <span className="size-[8px] shrink-0 rounded-full bg-black" />
                       <p className="text-base font-medium leading-[24px] text-black">
                         {type}
                       </p>
@@ -332,7 +332,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 <p className="text-base font-medium leading-[24px] text-black">
                   문의 전 확인해 보세요
                 </p>
-                <p className="text-sm font-medium leading-[20px] text-[#737586]">
+                <p className="text-sm font-medium leading-[20px] text-disabled">
                   자주 묻는 질문에서 궁금증을 빠르게 해결할 수 있습니다.
                 </p>
               </div>
@@ -355,8 +355,8 @@ export function ContactView({ member = false }: { member?: boolean }) {
               <div className="flex flex-col gap-[6px]">
                 {NOTICES.map((notice) => (
                   <div key={notice} className="flex w-full items-center gap-[8px]">
-                    <span className="size-[6px] shrink-0 rounded-full bg-[#737586]" />
-                    <p className="flex-1 text-sm font-medium leading-[20px] text-[#737586]">
+                    <span className="size-[6px] shrink-0 rounded-full bg-disabled" />
+                    <p className="flex-1 text-sm font-medium leading-[20px] text-disabled">
                       {notice}
                     </p>
                   </div>
@@ -386,7 +386,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
       <InquiryModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {toast && (
-        <div className="fixed bottom-[36px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-[16px] rounded-[8px] bg-[#2f3442] px-[20px] py-[14px] shadow-lg">
+        <div className="fixed bottom-[36px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-[16px] rounded-[8px] bg-black px-[20px] py-[14px] shadow-lg">
           <span className="flex items-center gap-[8px] text-sm font-medium text-white">
             <CircleCheckIcon className="size-[20px] text-[#22c55e]" />
             {toast}

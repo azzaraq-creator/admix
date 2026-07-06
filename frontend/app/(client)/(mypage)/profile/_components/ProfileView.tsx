@@ -29,9 +29,9 @@ function formatPhone(phone: string | null | undefined): string {
 const ROW_CLASS =
   "flex items-center gap-[12px] border-b border-[#e8e8e8] py-[12px] sm:gap-[42px] sm:py-[28px]";
 const LABEL_CLASS = "text-base font-semibold leading-[24px] text-black";
-const VALUE_CLASS = "text-base font-medium leading-[24px] text-[#737586]";
+const VALUE_CLASS = "text-base font-medium leading-[24px] text-disabled";
 const ACTION_CLASS =
-  "shrink-0 text-sm font-semibold leading-[20px] text-[#757575] underline sm:text-base sm:leading-[24px]";
+  "shrink-0 text-sm font-semibold leading-[20px] text-grey-500 underline sm:text-base sm:leading-[24px]";
 const FIELD_CLASS = "flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]";
 
 export function ProfileView() {
@@ -110,7 +110,7 @@ export function ProfileView() {
         <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
           계정 정보
         </p>
-        <p className="text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
+        <p className="text-sm font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
           회원 정보 및 계정 설정을 관리할 수 있습니다.
         </p>
       </div>
@@ -124,7 +124,7 @@ export function ProfileView() {
             <p className="truncate text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
               {name}
             </p>
-            <p className="truncate text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
+            <p className="truncate text-sm font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
               {email}
             </p>
           </div>
@@ -165,11 +165,11 @@ export function ProfileView() {
           <div className={FIELD_CLASS}>
             <div className="flex items-center gap-[12px]">
               <p className={LABEL_CLASS}>사업자등록증</p>
-              <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
+              <span className="rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
                 미등록
               </span>
             </div>
-            <p className="text-sm font-medium leading-[20px] text-[#737586]">
+            <p className="text-sm font-medium leading-[20px] text-disabled">
               등록된 사업자등록증이 없습니다.
             </p>
           </div>
@@ -185,7 +185,7 @@ export function ProfileView() {
         <div className="flex items-center gap-[12px] py-[12px] sm:gap-[42px] sm:py-[28px]">
           <div className="flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]">
             <p className={LABEL_CLASS}>마케팅 정보 수신 동의</p>
-            <p className="text-sm font-medium leading-[20px] text-[#737586]">
+            <p className="text-sm font-medium leading-[20px] text-disabled">
               (신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있습니다.)
             </p>
           </div>
@@ -202,14 +202,14 @@ export function ProfileView() {
           <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
             회원 탈퇴
           </p>
-          <p className="text-sm font-medium leading-[20px] text-[#737586] sm:text-base sm:leading-[24px]">
+          <p className="text-sm font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
             계정을 삭제하면 모든 데이터를 복구할 수 없게 됩니다.
           </p>
         </div>
         <button
           type="button"
           onClick={handleWithdraw}
-          className="w-full shrink-0 rounded-[8px] border border-[#ff6c64] bg-white px-[12px] py-[8px] text-sm font-medium text-[#ff6c64] sm:w-auto sm:px-[16px] sm:py-[12px] sm:text-base"
+          className="w-full shrink-0 rounded-[8px] border border-red-400 bg-white px-[12px] py-[8px] text-sm font-medium text-red-400 sm:w-auto sm:px-[16px] sm:py-[12px] sm:text-base"
         >
           회원 탈퇴
         </button>

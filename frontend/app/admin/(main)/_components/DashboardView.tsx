@@ -82,7 +82,7 @@ function StatCardItem({ card }: { card: StatCard }) {
             key={row.label}
             className="flex items-center justify-between gap-[12px]"
           >
-            <span className="text-sm leading-[20px] text-[#737586]">
+            <span className="text-sm leading-[20px] text-disabled">
               {row.label}
             </span>
             <span className="text-base font-semibold leading-[24px] text-black">

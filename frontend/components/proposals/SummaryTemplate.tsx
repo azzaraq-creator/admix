@@ -35,7 +35,7 @@ function formatWon(value: number): string {
 function HeaderStat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex w-full items-start gap-[46px]">
-      <div className="w-[2px] shrink-0 self-stretch bg-[#e4e5ee]" />
+      <div className="w-[2px] shrink-0 self-stretch bg-stroke" />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-[9px] text-[32px] leading-[1.4] tracking-[-0.8px] text-white [word-break:break-word]">
         <p className="font-medium">{label}</p>
         <p className="w-full font-bold">{value}</p>
@@ -71,7 +71,7 @@ function BoxedCell({ width, children }: { width: number; children: ReactNode }) 
       style={{ width }}
       className="flex items-center justify-center px-[24px] py-[8px]"
     >
-      <div className="flex w-full items-center justify-center rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+      <div className="flex w-full items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
         <p className="whitespace-nowrap text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
           {children}
         </p>
@@ -81,7 +81,7 @@ function BoxedCell({ width, children }: { width: number; children: ReactNode }) 
 }
 
 const INPUT_CLASS =
-  "w-full min-w-0 bg-transparent text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454] outline-none placeholder:text-[#c9cad3]";
+  "w-full min-w-0 bg-transparent text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454] outline-none placeholder:text-placeholder";
 
 function QuantityCell({
   width,
@@ -99,7 +99,7 @@ function QuantityCell({
       style={{ width }}
       className="flex items-center justify-center px-[24px] py-[8px]"
     >
-      <div className="flex w-full items-center justify-center rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+      <div className="flex w-full items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
         <input
           type="text"
           inputMode="numeric"
@@ -127,7 +127,7 @@ function DateInput({
   onChange?: (value: string) => void;
 }) {
   return (
-    <div className="flex w-full items-center justify-center gap-[10px] rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+    <div className="flex w-full items-center justify-center gap-[10px] rounded-[8px] border border-stroke px-[16px] py-[8px]">
       <input
         type="text"
         placeholder="YYYY.MM.DD"
@@ -200,7 +200,7 @@ export function SummaryTemplate({
 
   return (
     <div className="flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white">
-      <div className="flex shrink-0 flex-col items-start bg-[#00aaa4] px-[80px] py-[40px]">
+      <div className="flex shrink-0 flex-col items-start bg-primary px-[80px] py-[40px]">
         <div className="flex w-full items-center gap-[48px]">
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[31px] whitespace-nowrap text-white">
             <p className="text-[80px] font-bold leading-none tracking-[-2px]">
@@ -224,7 +224,7 @@ export function SummaryTemplate({
 
           <div className="flex items-center self-stretch">
             <div className="flex h-full items-center gap-[46px]">
-              <div className="h-full w-[2px] shrink-0 bg-[#e4e5ee]" />
+              <div className="h-full w-[2px] shrink-0 bg-stroke" />
               <div className="flex flex-col items-start gap-[9px] text-white">
                 <p className="whitespace-nowrap text-[32px] font-medium leading-[1.4] tracking-[-0.8px]">
                   전체 금액 합계(GROSS) *VAT 별도
@@ -239,7 +239,7 @@ export function SummaryTemplate({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-[40px] pt-[24px]">
-        <div className="flex w-full items-center bg-[#f6f6f6]">
+        <div className="flex w-full items-center bg-grey-50">
           {HEADER_COLUMNS.map((column) => (
             <Cell key={column.label} width={column.width}>
               {column.label}
@@ -250,7 +250,7 @@ export function SummaryTemplate({
         {rows.map((item, index) => (
           <div
             key={item.media_id}
-            className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-[#e4e5ee] py-[16px]"
+            className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-stroke py-[16px]"
           >
             <Cell width={COL.no}>{startIndex + index + 1}</Cell>
             <Cell width={COL.type}>{item.category ?? EMPTY}</Cell>
@@ -295,7 +295,7 @@ export function SummaryTemplate({
           (_, i) => (
             <div
               key={`filler-${i}`}
-              className="w-full flex-1 border-b border-[#e4e5ee]"
+              className="w-full flex-1 border-b border-stroke"
             />
           ),
         )}

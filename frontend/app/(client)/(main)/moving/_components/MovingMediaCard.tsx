@@ -54,7 +54,7 @@ export function MovingMediaCard({
         <p className="truncate text-[16px] font-bold leading-[24px] text-black sm:text-[20px] sm:leading-[28px] sm:tracking-[-0.08px]">
           {data.name}
         </p>
-        <p className="truncate text-sm font-medium leading-[20px] text-[#757575]">
+        <p className="truncate text-sm font-medium leading-[20px] text-grey-500">
           {data.price}
         </p>
       </div>

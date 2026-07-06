@@ -27,7 +27,7 @@ export function ProposalCard({
       onClick={onOpen}
       className="flex cursor-pointer flex-col overflow-hidden rounded-[12px] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.16)]"
     >
-      <div className="relative aspect-[1920/1080] w-full overflow-hidden bg-[#2f3442]">
+      <div className="relative aspect-[1920/1080] w-full overflow-hidden bg-black">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/proposals/sample.png"
@@ -51,7 +51,7 @@ export function ProposalCard({
           <p className="truncate text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black">
             {proposal.title}
           </p>
-          <p className="text-sm font-medium leading-[20px] text-[#757575]">
+          <p className="text-sm font-medium leading-[20px] text-grey-500">
             최종 수정 {proposal.updatedAt}
           </p>
         </div>
@@ -65,7 +65,7 @@ export function ProposalCard({
             }}
             disabled={downloading}
             aria-label="제안서 다운로드"
-            className="flex cursor-pointer items-center rounded-[6px] bg-[#f8fafc] p-[5px] disabled:cursor-default disabled:opacity-40"
+            className="flex cursor-pointer items-center rounded-[6px] bg-platinum-50 p-[5px] disabled:cursor-default disabled:opacity-40"
           >
             <Icon name="download-primary" className="size-[21px]" />
           </button>

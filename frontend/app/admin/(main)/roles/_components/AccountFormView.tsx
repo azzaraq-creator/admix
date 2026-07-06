@@ -35,7 +35,7 @@ const STATUS_OPTIONS: { label: string; value: AdminStatus }[] = [
 ];
 
 const INPUT_CLASS =
-  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary disabled:bg-[#f5f5f5] disabled:text-[#737586]";
+  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary disabled:bg-[#f5f5f5] disabled:text-disabled";
 const SELECT_TRIGGER_CLASS =
   "w-full rounded-[6px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]";
 
@@ -67,7 +67,7 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
 
   if (isEdit && !detail) {
     return (
-      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+      <p className="text-sm font-medium leading-[20px] text-disabled">
         불러오는 중...
       </p>
     );
@@ -284,7 +284,7 @@ function AccountForm({
               </Select>
             </Field>
             <Field label="생성일">
-              <span className="text-sm font-medium leading-[20px] text-[#737586]">
+              <span className="text-sm font-medium leading-[20px] text-disabled">
                 {detail?.created_at?.slice(0, 10) ?? "-"}
               </span>
             </Field>

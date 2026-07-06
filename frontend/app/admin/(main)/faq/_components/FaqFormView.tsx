@@ -34,7 +34,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
       <span className="w-[80px] shrink-0 text-base font-medium leading-[24px] text-[#2a2a2a]">
         {label}
       </span>
-      <span className="text-base font-medium leading-[24px] text-[#737586]">
+      <span className="text-base font-medium leading-[24px] text-disabled">
         {value}
       </span>
     </div>
@@ -62,7 +62,7 @@ export function FaqFormView({ mode }: { mode: "create" | "edit" }) {
 
   if (isEdit && !detail) {
     return (
-      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+      <p className="text-sm font-medium leading-[20px] text-disabled">
         불러오는 중...
       </p>
     );

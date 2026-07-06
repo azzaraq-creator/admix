@@ -7,7 +7,7 @@ import { XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 
 export const MODAL_INPUT_CLASS =
-  "h-[56px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3]";
+  "h-[56px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
 
 export function ProfileModalShell({
   open,

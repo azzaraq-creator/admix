@@ -15,7 +15,7 @@ export type ChatMessageRow = {
 };
 
 export const messageColumnList: TableColumn<ChatMessageRow>[] = [
-  { name: "no", label: "순번", className: "text-[#737586]" },
+  { name: "no", label: "순번", className: "text-disabled" },
   { name: "role", label: "역할" },
   {
     name: "content",
@@ -30,7 +30,7 @@ export const messageColumnList: TableColumn<ChatMessageRow>[] = [
         {m.content && <span className="whitespace-pre-line">{m.content}</span>}
         {m.items && m.items.length > 0 && (
           <div className="rounded-[8px] border border-stroke bg-[#f9fafc] p-[10px] text-xs leading-[18px]">
-            <span className="font-medium text-[#737586]">
+            <span className="font-medium text-disabled">
               추천 매체 {m.matchCount ?? m.items.length}건
               {m.matchCount && m.matchCount > m.items.length
                 ? ` 중 ${m.items.length}건 노출`
@@ -45,5 +45,5 @@ export const messageColumnList: TableColumn<ChatMessageRow>[] = [
       </div>
     ),
   },
-  { name: "time", label: "시간", className: "text-[#737586]" },
+  { name: "time", label: "시간", className: "text-disabled" },
 ];

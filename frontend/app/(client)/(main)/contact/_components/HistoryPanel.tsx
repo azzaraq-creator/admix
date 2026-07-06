@@ -22,7 +22,7 @@ export function HistoryPanel({
   if (!isLoading && items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-[8px] py-[60px]">
-        <p className="text-base font-medium leading-[24px] text-[#737586]">
+        <p className="text-base font-medium leading-[24px] text-disabled">
           {keyword ? "검색 결과가 없습니다." : "접수한 문의가 없습니다."}
         </p>
       </div>
@@ -44,7 +44,7 @@ export function HistoryPanel({
               {item.subject}
             </p>
           </div>
-          <ChevronRightIcon className="size-[20px] shrink-0 text-[#2f3442]" />
+          <ChevronRightIcon className="size-[20px] shrink-0 text-black" />
         </button>
       ))}
     </div>

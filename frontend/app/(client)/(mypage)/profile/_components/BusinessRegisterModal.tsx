@@ -25,21 +25,21 @@ export function BusinessRegisterModal({
     >
       <div className="flex flex-col gap-[20px]">
         <div className="flex flex-col gap-[12px]">
-          <p className="text-sm font-medium leading-[20px] text-[#737586]">
+          <p className="text-sm font-medium leading-[20px] text-disabled">
             새로운 사업자등록증을 업로드해주세요.
           </p>
           <button
             type="button"
             className="flex h-[162px] flex-col items-center justify-center gap-[12px] rounded-[8px] border border-dashed border-stroke"
           >
-            <div className="flex size-[72px] items-center justify-center rounded-[12px] bg-[#f6f6f6]">
-              <FileUpIcon className="size-[32px] text-[#757575]" />
+            <div className="flex size-[72px] items-center justify-center rounded-[12px] bg-grey-50">
+              <FileUpIcon className="size-[32px] text-grey-500" />
             </div>
             <div className="flex flex-col items-center gap-[6px]">
               <p className="text-sm font-medium leading-[20px] text-black">
                 파일을 드래그하거나 클릭하여 업로드
               </p>
-              <p className="text-xs font-medium leading-[16px] text-[#737586]">
+              <p className="text-xs font-medium leading-[16px] text-disabled">
                 PDF 형식, 최대 10MB
               </p>
             </div>
@@ -49,16 +49,16 @@ export function BusinessRegisterModal({
         <div className="h-px w-full bg-stroke" />
 
         <div className="flex items-start gap-[8px]">
-          <CircleAlertIcon className="mt-[1px] size-[18px] shrink-0 text-[#737586]" />
+          <CircleAlertIcon className="mt-[1px] size-[18px] shrink-0 text-disabled" />
           <div className="flex flex-col gap-[8px]">
-            <p className="text-sm font-semibold leading-[16px] text-[#2f3442]">
+            <p className="text-sm font-semibold leading-[16px] text-black">
               안내 사항
             </p>
             <div className="flex flex-col gap-[6px]">
               {NOTICES.map((notice) => (
                 <div key={notice} className="flex items-center gap-[12px]">
-                  <span className="size-[4px] shrink-0 rounded-full bg-[#737586]" />
-                  <p className="text-xs font-medium leading-[16px] text-[#737586]">
+                  <span className="size-[4px] shrink-0 rounded-full bg-disabled" />
+                  <p className="text-xs font-medium leading-[16px] text-disabled">
                     {notice}
                   </p>
                 </div>

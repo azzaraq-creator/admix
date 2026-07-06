@@ -34,8 +34,8 @@ type Tab = "individual" | "corporate";
 const tabClass = (active: boolean) =>
   `flex flex-1 items-center justify-center p-[10px] text-[16px] leading-[24px] ${
     active
-      ? "border-b-[3px] border-[#2f3442] font-semibold text-[#2f3442]"
-      : "border-b border-stroke font-medium text-[#737586]"
+      ? "border-b-[3px] border-black font-semibold text-black"
+      : "border-b border-stroke font-medium text-disabled"
   }`;
 
 const startButtonClass =
@@ -62,7 +62,7 @@ export default function SignupPage() {
           <LogoFull />
         </div>
 
-        <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-[#2f3442] sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
+        <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
           아우라웍스와 함께
           <br />
           광고 매체 찾기를 시작해 보세요!
@@ -93,7 +93,7 @@ export default function SignupPage() {
                   type="button"
                   onClick={() => handleSnsStart("kakao")}
                   disabled={snsPending}
-                  className={`${startButtonClass} bg-[#ffe400] text-[#2f3442] disabled:opacity-60`}
+                  className={`${startButtonClass} bg-[#ffe400] text-black disabled:opacity-60`}
                 >
                   <KakaoMark className="size-[24px] shrink-0" />
                   카카오로 시작하기
@@ -102,7 +102,7 @@ export default function SignupPage() {
                   type="button"
                   onClick={() => handleSnsStart("naver")}
                   disabled={snsPending}
-                  className={`${startButtonClass} bg-[#00cb4b] text-[#2f3442] disabled:opacity-60`}
+                  className={`${startButtonClass} bg-[#00cb4b] text-black disabled:opacity-60`}
                 >
                   <NaverMark className="size-[24px] shrink-0" />
                   네이버로 시작하기
@@ -132,7 +132,7 @@ export default function SignupPage() {
           <div className="h-px w-full bg-stroke" />
 
           <div className="flex w-full items-center justify-center gap-[8px] text-[16px] leading-[24px]">
-            <span className="font-normal text-[#2f3442]">
+            <span className="font-normal text-black">
               이미 회원이신가요?
             </span>
             <Link href="/" className="font-bold text-primary">

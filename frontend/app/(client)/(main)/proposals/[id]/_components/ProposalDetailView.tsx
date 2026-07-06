@@ -391,7 +391,7 @@ function ProposalEditorView({ id }: { id: string }) {
       title: "슬라이드를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-bold text-[#2f3442]">
+          <span className="font-bold text-black">
             {slideNumber}-{name}
           </span>
           가 제안서에서 삭제됩니다.
@@ -437,7 +437,7 @@ function ProposalEditorView({ id }: { id: string }) {
       title: "제안서를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-[#2f3442]">{title}</span>가 내
+          <span className="font-semibold text-black">{title}</span>가 내
           제안서에서 영구히 삭제됩니다.
         </>
       ),
@@ -479,7 +479,7 @@ function ProposalEditorView({ id }: { id: string }) {
                   type="button"
                   onClick={startRename}
                   aria-label="제안서명 수정"
-                  className="text-[#757575]"
+                  className="text-grey-500"
                 >
                   <PencilIcon className="size-[18px]" />
                 </button>
@@ -487,7 +487,7 @@ function ProposalEditorView({ id }: { id: string }) {
             </div>
             <div className="flex items-center gap-[12px]">
               <StatusChip status={proposal?.status ?? "new"} />
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="text-sm font-medium leading-[20px] text-grey-500">
                 {formatDateTime(proposal?.updated_at)}
               </p>
             </div>
@@ -520,7 +520,7 @@ function ProposalEditorView({ id }: { id: string }) {
               type="button"
               onClick={handleDelete}
               aria-label="제안서 삭제"
-              className="flex items-center justify-center rounded-[8px] border border-[#ff6c64] bg-white p-[12px] text-[#ff6c64]"
+              className="flex items-center justify-center rounded-[8px] border border-red-400 bg-white p-[12px] text-red-400"
             >
               <TrashIcon className="size-[24px]" />
             </button>
@@ -541,7 +541,7 @@ function ProposalEditorView({ id }: { id: string }) {
 
           <section className="relative flex min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between border-b border-[#e8e8e8] px-[24px] py-[6px]">
-              <p className="flex items-center gap-[6px] text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="flex items-center gap-[6px] text-sm font-medium leading-[20px] text-grey-500">
                 <span>최종 수정</span>
                 <span>{formatDateTime(proposal?.updated_at)}</span>
               </p>
@@ -611,7 +611,7 @@ function ProposalEditorView({ id }: { id: string }) {
               )}
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-[40px] flex justify-center">
-              <div className="pointer-events-auto flex items-center rounded-[12px] border border-[#f6f6f6] bg-white shadow-sm">
+              <div className="pointer-events-auto flex items-center rounded-[12px] border border-grey-50 bg-white shadow-sm">
                 <button
                   type="button"
                   onClick={() => {
@@ -620,7 +620,7 @@ function ProposalEditorView({ id }: { id: string }) {
                     setLightbox(true);
                   }}
                   aria-label="전체보기"
-                  className="border-r border-[#f6f6f6] px-[14px] py-[10px] text-[#2f3442]"
+                  className="border-r border-grey-50 px-[14px] py-[10px] text-black"
                 >
                   <MaximizeIcon className="size-[18px]" />
                 </button>
@@ -631,7 +631,7 @@ function ProposalEditorView({ id }: { id: string }) {
                       setZoom((v) => Math.max(ZOOM_MIN, v - ZOOM_STEP))
                     }
                     aria-label="축소"
-                    className="text-[#2f3442]"
+                    className="text-black"
                   >
                     <MinusIcon className="size-[18px]" />
                   </button>
@@ -644,7 +644,7 @@ function ProposalEditorView({ id }: { id: string }) {
                       setZoom((v) => Math.min(ZOOM_MAX, v + ZOOM_STEP))
                     }
                     aria-label="확대"
-                    className="text-[#2f3442]"
+                    className="text-black"
                   >
                     <PlusIcon className="size-[18px]" />
                   </button>
@@ -669,8 +669,8 @@ function ProposalEditorView({ id }: { id: string }) {
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
         <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">
           <div className="flex flex-col items-center gap-[16px] px-[24px] py-[16px]">
-            <CircleAlertIcon className="size-[32px] text-[#737586]" />
-            <p className="text-center text-base font-semibold leading-[24px] text-[#2f3442]">
+            <CircleAlertIcon className="size-[32px] text-disabled" />
+            <p className="text-center text-base font-semibold leading-[24px] text-black">
               해당 기능은 모바일에서 지원되지 않습니다.
               <br />
               데스크톱으로 이용해주시기 바랍니다.
@@ -679,7 +679,7 @@ function ProposalEditorView({ id }: { id: string }) {
           <button
             type="button"
             onClick={() => router.push("/proposals")}
-            className="w-full border-t border-stroke py-[12px] text-center text-base font-semibold text-[#2f3442]"
+            className="w-full border-t border-stroke py-[12px] text-center text-base font-semibold text-black"
           >
             닫기
           </button>

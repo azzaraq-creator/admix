@@ -22,9 +22,9 @@ export type Member = {
 };
 
 const BIZ_STATUS_CLASS: Record<BizStatus, string> = {
-  미등록: "bg-[#f1f5f9] text-[#64748b]",
+  미등록: "bg-platinum-100 text-[#64748b]",
   "검토 대기": "bg-[#fdf6e3] text-[#c99a2e]",
-  "검토 완료": "bg-[#e5f6f6] text-[#007571]",
+  "검토 완료": "bg-primary-50 text-primary-800",
   "인증 반려": "bg-[#fef2f2] text-[#ef4444]",
 };
 
@@ -39,7 +39,7 @@ export function BizStatusBadge({ status }: { status: BizStatus }) {
 }
 
 export const memberColumnList: TableColumn<Member>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "type", label: "회원 유형" },
   { name: "company", label: "회사명" },
   { name: "name", label: "이름" },
@@ -51,7 +51,7 @@ export const memberColumnList: TableColumn<Member>[] = [
     renderer: (item) => <BizStatusBadge status={item.bizStatus} />,
   },
   { name: "marketing", label: "마케팅 수신" },
-  { name: "joinedAt", label: "가입일", className: "text-[#737586]" },
+  { name: "joinedAt", label: "가입일", className: "text-disabled" },
 ];
 
 export const memberSearchOptionList: SearchOption[] = [

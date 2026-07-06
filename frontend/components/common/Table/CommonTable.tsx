@@ -180,7 +180,7 @@ export function CommonTable<T>({
       )}
     >
       {opt.label && (
-        <label className="shrink-0 whitespace-nowrap text-sm font-medium leading-[20px] text-[#2f3442]">
+        <label className="shrink-0 whitespace-nowrap text-sm font-medium leading-[20px] text-black">
           {opt.label}
         </label>
       )}
@@ -196,7 +196,7 @@ export function CommonTable<T>({
               handleSearch();
             }
           }}
-          className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-stroke bg-white px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3] focus:border-primary"
+          className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-stroke bg-white px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
         />
       )}
       {opt.type === "select" && (
@@ -224,7 +224,7 @@ export function CommonTable<T>({
             placeholder={opt.placeholder ?? "날짜 입력"}
             onChange={(v) => setField(`${opt.name}__from`, v)}
           />
-          <span className="text-sm text-[#737586]">-</span>
+          <span className="text-sm text-disabled">-</span>
           <DateField
             value={tempSearch[`${opt.name}__to`] ?? ""}
             placeholder={opt.placeholder ?? "날짜 입력"}
@@ -258,7 +258,7 @@ export function CommonTable<T>({
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-[#f1f5f9]"
+                    className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-platinum-100"
                   >
                     <RotateCw className="size-[16px]" />
                     초기화
@@ -320,7 +320,7 @@ export function CommonTable<T>({
                   key={col.name}
                   className={cn(
                     col.className,
-                    "h-[48px] px-[16px] py-0 text-center text-sm font-semibold leading-[20px] text-[#2f3442]",
+                    "h-[48px] px-[16px] py-0 text-center text-sm font-semibold leading-[20px] text-black",
                   )}
                 >
                   {col.label}
@@ -333,7 +333,7 @@ export function CommonTable<T>({
               <TableRow>
                 <TableCell
                   colSpan={colCount}
-                  className="h-[160px] px-[16px] text-center text-sm font-medium leading-[20px] text-[#737586]"
+                  className="h-[160px] px-[16px] text-center text-sm font-medium leading-[20px] text-disabled"
                 >
                   {emptyMessage}
                 </TableCell>
@@ -343,7 +343,7 @@ export function CommonTable<T>({
                 <TableRow
                   key={idKey ? String(item[idKey]) : idx}
                   className={cn(
-                    "h-[56px] border-b-[1.25px] border-[#E5E5E5] hover:bg-[#f8fafc]",
+                    "h-[56px] border-b-[1.25px] border-[#E5E5E5] hover:bg-platinum-50",
                     onRowClick && "cursor-pointer",
                     rowClassName?.(item),
                   )}
@@ -437,9 +437,9 @@ function DateField({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-[40px] w-full rounded-[8px] border border-stroke bg-white pl-[12px] pr-[36px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3] focus:border-primary"
+        className="h-[40px] w-full rounded-[8px] border border-stroke bg-white pl-[12px] pr-[36px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
       />
-      <Calendar className="pointer-events-none absolute right-[12px] top-1/2 size-[16px] -translate-y-1/2 text-[#737586]" />
+      <Calendar className="pointer-events-none absolute right-[12px] top-1/2 size-[16px] -translate-y-1/2 text-disabled" />
     </div>
   );
 }

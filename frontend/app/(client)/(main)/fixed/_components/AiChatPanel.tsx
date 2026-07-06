@@ -159,7 +159,7 @@ export function AiChatPanel({
               setText("");
               void chat.newSession();
             }}
-            className="flex items-center gap-[4px] rounded-[8px] text-[#2f3442] disabled:opacity-50"
+            className="flex items-center gap-[4px] rounded-[8px] text-black disabled:opacity-50"
           >
             <RotateCwIcon className="size-[18px]" />
             <span className="text-sm font-medium leading-[20px]">새 대화</span>
@@ -230,7 +230,7 @@ export function AiChatPanel({
                     key={faq}
                     type="button"
                     onClick={() => void chat.submit(faq, { allowShort: true })}
-                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-[#f1f5f9]"
+                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-platinum-100"
                   >
                     <SparkleIcon className="size-[24px] shrink-0 text-primary" />
                     <span className="flex-1 text-base font-medium leading-[24px] text-black">
@@ -247,7 +247,7 @@ export function AiChatPanel({
       <div className="flex flex-col items-center gap-[10px] px-[24px] pb-[24px] pt-[8px]">
         {chat.lastConfirmingId && (
           <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-[#f9fafc] px-[16px] py-[10px]">
-            <span className="flex-1 text-sm font-medium text-[#757575]">
+            <span className="flex-1 text-sm font-medium text-grey-500">
               조건을 교체할까요?
             </span>
             <button
@@ -290,7 +290,7 @@ export function AiChatPanel({
               chat.restoring ? "이전 대화 복원 중..." : "매체 조건을 입력하세요"
             }
             disabled={chat.restoring}
-            className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-[#757575] disabled:opacity-60"
+            className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-grey-500 disabled:opacity-60"
           />
           <button
             type="button"
@@ -302,7 +302,7 @@ export function AiChatPanel({
             <ArrowUpIcon className="size-[18px]" />
           </button>
         </div>
-        <p className="w-full text-center text-xs font-medium leading-[16px] text-[#757575]">
+        <p className="w-full text-center text-xs font-medium leading-[16px] text-grey-500">
           AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.
         </p>
       </div>
@@ -329,7 +329,7 @@ function SlotBar({
 
   return (
     <div className="flex flex-col gap-[6px] border-b border-stroke bg-[#f9fafc] px-[24px] py-[12px]">
-      <div className="text-xs font-medium tracking-wide text-[#757575]">
+      <div className="text-xs font-medium tracking-wide text-grey-500">
         현재 조건
       </div>
       <div className="flex flex-wrap gap-[6px]">
@@ -341,7 +341,7 @@ function SlotBar({
                 key={`${cat}-${e.code}`}
                 className="inline-flex items-center gap-[6px] rounded-[6px] border border-primary/30 bg-secondary py-[2px] pl-[8px] pr-[4px] text-xs"
               >
-                <span className="text-[#757575]">{label}</span>
+                <span className="text-grey-500">{label}</span>
                 <span className="text-black">{valueLabel}</span>
                 <button
                   type="button"
@@ -349,7 +349,7 @@ function SlotBar({
                   onClick={() => onRemove(cat, e.code, valueLabel)}
                   aria-label={`${label} ${valueLabel} 제거`}
                   className={cn(
-                    "flex size-[16px] items-center justify-center rounded text-[#757575] transition-colors hover:bg-primary/15 hover:text-black",
+                    "flex size-[16px] items-center justify-center rounded text-grey-500 transition-colors hover:bg-primary/15 hover:text-black",
                     disabled && "cursor-not-allowed opacity-40",
                   )}
                 >

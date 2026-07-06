@@ -27,7 +27,7 @@ export function MarkerMediaPopup({
   return (
     <div
       className={cn(
-        "flex w-[min(340px,calc(100vw-24px))] flex-col gap-[12px] rounded-[12px] border-b border-[#e8e8e8] bg-[#f6f6f6] px-[16px] py-[24px] drop-shadow-[0px_0px_6px_rgba(0,0,0,0.32)] sm:w-[383px]",
+        "flex w-[min(340px,calc(100vw-24px))] flex-col gap-[12px] rounded-[12px] border-b border-[#e8e8e8] bg-grey-50 px-[16px] py-[24px] drop-shadow-[0px_0px_6px_rgba(0,0,0,0.32)] sm:w-[383px]",
         className,
       )}
     >

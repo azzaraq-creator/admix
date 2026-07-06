@@ -74,7 +74,7 @@ function BoxedCell({
       style={width ? { width } : undefined}
       className={`flex items-center justify-center px-[24px] py-[8px] ${flex ? "min-w-px flex-1" : "shrink-0"}`}
     >
-      <div className="flex items-center justify-center rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+      <div className="flex items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
         <p className="whitespace-nowrap text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
           {children}
         </p>
@@ -113,7 +113,7 @@ export function MediaTemplate({
       <div className="flex gap-[10px]">
         <div className="flex h-[500px] w-[500px] shrink-0 flex-col gap-[16px] bg-white p-[24px]">
           <div className="flex flex-col gap-[8px]">
-            <p className="text-[32px] font-semibold leading-[1.4] tracking-[-0.8px] text-[#2f3442] [word-break:break-word]">
+            <p className="text-[32px] font-semibold leading-[1.4] tracking-[-0.8px] text-black [word-break:break-word]">
               {item.name ?? EMPTY}
             </p>
             {meta.length > 0 && (
@@ -121,9 +121,9 @@ export function MediaTemplate({
                 {meta.map((value, index) => (
                   <Fragment key={`${value}-${index}`}>
                     {index > 0 && (
-                      <div className="h-[16px] w-[2px] shrink-0 bg-[#e4e5ee]" />
+                      <div className="h-[16px] w-[2px] shrink-0 bg-stroke" />
                     )}
-                    <p className="whitespace-nowrap text-[16px] font-normal leading-[1.4] tracking-[-0.4px] text-[#737586]">
+                    <p className="whitespace-nowrap text-[16px] font-normal leading-[1.4] tracking-[-0.4px] text-disabled">
                       {value}
                     </p>
                   </Fragment>
@@ -132,13 +132,13 @@ export function MediaTemplate({
             )}
           </div>
           {item.description && (
-            <p className="text-[16px] font-medium leading-[1.4] tracking-[-0.4px] text-[#2f3442] [word-break:break-word]">
+            <p className="text-[16px] font-medium leading-[1.4] tracking-[-0.4px] text-black [word-break:break-word]">
               {item.description}
             </p>
           )}
         </div>
 
-        <div className="h-[500px] w-[822px] shrink-0 overflow-hidden rounded-[12px] bg-[#f6f6f6]">
+        <div className="h-[500px] w-[822px] shrink-0 overflow-hidden rounded-[12px] bg-grey-50">
           {item.thumbnail_url && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -149,7 +149,7 @@ export function MediaTemplate({
           )}
         </div>
 
-        <div className="h-[500px] w-[500px] shrink-0 overflow-hidden rounded-[12px] bg-[#f6f6f6]">
+        <div className="h-[500px] w-[500px] shrink-0 overflow-hidden rounded-[12px] bg-grey-50">
           {mapEnabled && hasCoords ? (
             <StaticKakaoMap
               latitude={item.latitude as number}
@@ -165,7 +165,7 @@ export function MediaTemplate({
       </div>
 
       <div className="flex flex-col">
-        <div className="flex w-full items-center bg-[#f6f6f6]">
+        <div className="flex w-full items-center bg-grey-50">
           <HeadCell flex>상품명</HeadCell>
           <HeadCell width={219}>노출회수</HeadCell>
           <HeadCell width={219}>판매수량</HeadCell>
@@ -175,14 +175,14 @@ export function MediaTemplate({
           <HeadCell width={218}>광고비</HeadCell>
           <HeadCell width={218}>제작비용</HeadCell>
         </div>
-        <div className="flex w-full items-center border-b border-[#e4e5ee] py-[16px]">
+        <div className="flex w-full items-center border-b border-stroke py-[16px]">
           {plans && plans.length > 1 && onPlanChange ? (
             <div className="flex min-w-px flex-1 items-center justify-center px-[24px] py-[8px]">
               <Select
                 value={selectedPlanNo != null ? String(selectedPlanNo) : undefined}
                 onValueChange={(value) => onPlanChange(Number(value))}
               >
-                <SelectTrigger className="h-auto w-full gap-[8px] rounded-[8px] border-[#e4e5ee] px-[16px] py-[8px] text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
+                <SelectTrigger className="h-auto w-full gap-[8px] rounded-[8px] border-stroke px-[16px] py-[8px] text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
                   <span className="flex-1 truncate text-center">
                     {currentPlan?.product_display_name ??
                       currentPlan?.product_name ??
@@ -202,7 +202,7 @@ export function MediaTemplate({
             </div>
           ) : (
             <div className="flex min-w-px flex-1 items-center justify-center px-[24px] py-[8px]">
-              <div className="flex w-full items-center justify-center rounded-[8px] border border-[#e4e5ee] px-[16px] py-[8px]">
+              <div className="flex w-full items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
                 <p className="text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454] [word-break:break-word]">
                   {item.product ?? EMPTY}
                 </p>

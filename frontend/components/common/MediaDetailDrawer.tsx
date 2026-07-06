@@ -78,20 +78,20 @@ export function MediaDetailDrawer({
             <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
               {media.name}
               {data.subName && (
-                <span className="ml-[6px] text-[14px] font-medium text-[#757575]">
+                <span className="ml-[6px] text-[14px] font-medium text-grey-500">
                   {data.subName}
                 </span>
               )}
             </p>
-            <p className="text-sm font-medium leading-[20px] text-[#757575]">
+            <p className="text-sm font-medium leading-[20px] text-grey-500">
               {media.price}
             </p>
           </div>
 
           {hasPopulation && (
-          <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-[#f6f6f6] p-[12px]">
+          <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 p-[12px]">
             <div className="flex flex-1 flex-col items-center">
-              <p className="w-full text-center text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="w-full text-center text-sm font-medium leading-[20px] text-grey-500">
                 월평균 유동인구수
               </p>
               <p className="w-full text-center text-base font-bold leading-[24px] text-black">
@@ -100,7 +100,7 @@ export function MediaDetailDrawer({
             </div>
             <div className="h-[40px] w-px self-stretch bg-stroke" />
             <div className="flex flex-1 flex-col items-center">
-              <p className="w-full text-center text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="w-full text-center text-sm font-medium leading-[20px] text-grey-500">
                 주요 인구층
               </p>
               <div className="flex w-full items-center justify-center gap-[6px] whitespace-nowrap text-base font-bold leading-[24px] text-black">
@@ -119,7 +119,7 @@ export function MediaDetailDrawer({
             <button
               type="button"
               onClick={onAddProposal}
-              className="flex flex-1 items-center justify-center rounded-[8px] bg-[#f1f5f9] px-[16px] py-[12px] text-base font-medium text-black"
+              className="flex flex-1 items-center justify-center rounded-[8px] bg-platinum-100 px-[16px] py-[12px] text-base font-medium text-black"
             >
               매체 담기
             </button>
@@ -161,14 +161,14 @@ export function MediaDetailDrawer({
             onClick={() => setDescExpanded((v) => !v)}
             className="flex items-center justify-center gap-[8px]"
           >
-            <span className="h-px flex-1 bg-[#f6f6f6]" />
-            <span className="flex items-center gap-[2px] rounded-full bg-[#f6f6f6] px-[16px] py-[6px] text-sm leading-[20px] text-black">
+            <span className="h-px flex-1 bg-grey-50" />
+            <span className="flex items-center gap-[2px] rounded-full bg-grey-50 px-[16px] py-[6px] text-sm leading-[20px] text-black">
               매체 설명 {descExpanded ? "접기" : "더보기"}
               <ChevronDownIcon
                 className={`size-[18px] transition-transform ${descExpanded ? "rotate-180" : ""}`}
               />
             </span>
-            <span className="h-px flex-1 bg-[#f6f6f6]" />
+            <span className="h-px flex-1 bg-grey-50" />
           </button>
         </section>
         )}

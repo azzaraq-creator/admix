@@ -8,8 +8,8 @@ import { formatDateTime, InquiryStatusChip } from "./inquiryUtils";
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex min-w-[310px] flex-1 items-center gap-[24px]">
-      <p className="w-[58px] shrink-0 text-[#757575]">{label}</p>
-      <p className="text-[#2f3442]">{value || "-"}</p>
+      <p className="w-[58px] shrink-0 text-grey-500">{label}</p>
+      <p className="text-black">{value || "-"}</p>
     </div>
   );
 }
@@ -28,7 +28,7 @@ export function InquiryDetailPage({
       <button
         type="button"
         onClick={onBack}
-        className="flex w-fit items-center gap-[6px] text-base font-bold leading-[24px] text-[#2f3442]"
+        className="flex w-fit items-center gap-[6px] text-base font-bold leading-[24px] text-black"
       >
         <ChevronLeftIcon className="size-[24px]" />
         뒤로가기
@@ -38,7 +38,7 @@ export function InquiryDetailPage({
         <div className="flex flex-col gap-[24px]">
           <div className="flex flex-col gap-[12px]">
             <div className="flex items-center gap-[12px]">
-              <p className="text-base font-bold leading-[26px] tracking-[-0.4px] text-[#2f3442]">
+              <p className="text-base font-bold leading-[26px] tracking-[-0.4px] text-black">
                 내 문의
               </p>
               <InquiryStatusChip status={inquiry.status} />
@@ -57,8 +57,8 @@ export function InquiryDetailPage({
                 <Field label="제출일" value={formatDateTime(inquiry.createdAt)} />
               </div>
               <div className="flex w-full items-start gap-[24px]">
-                <p className="shrink-0 text-[#757575]">문의 내용</p>
-                <p className="min-w-0 flex-1 whitespace-pre-wrap text-[#2f3442]">
+                <p className="shrink-0 text-grey-500">문의 내용</p>
+                <p className="min-w-0 flex-1 whitespace-pre-wrap text-black">
                   {inquiry.content}
                 </p>
               </div>
@@ -66,7 +66,7 @@ export function InquiryDetailPage({
           </div>
 
           <div className="flex flex-col gap-[12px]">
-            <p className="text-base font-bold leading-[26px] tracking-[-0.4px] text-[#2f3442]">
+            <p className="text-base font-bold leading-[26px] tracking-[-0.4px] text-black">
               답변 내용
             </p>
             {inquiry.answer ? (
@@ -75,17 +75,17 @@ export function InquiryDetailPage({
                   <p className="text-base font-semibold leading-[26px] tracking-[-0.4px] text-primary">
                     {inquiry.answererName || "ADMIX 고객지원"}
                   </p>
-                  <p className="text-sm font-medium leading-[22px] tracking-[-0.35px] text-[#737586]">
+                  <p className="text-sm font-medium leading-[22px] tracking-[-0.35px] text-disabled">
                     답변일 : {formatDateTime(inquiry.answeredAt)}
                   </p>
                 </div>
-                <p className="whitespace-pre-wrap text-base font-medium leading-[32px] tracking-[-0.4px] text-[#2f3442]">
+                <p className="whitespace-pre-wrap text-base font-medium leading-[32px] tracking-[-0.4px] text-black">
                   {inquiry.answer}
                 </p>
               </div>
             ) : (
               <div className="rounded-[12px] border border-stroke p-[24px]">
-                <p className="text-base font-medium leading-[26px] tracking-[-0.4px] text-[#737586]">
+                <p className="text-base font-medium leading-[26px] tracking-[-0.4px] text-disabled">
                   현재 문의가 정상적으로 접수되었습니다. 담당자가 확인 후 답변을
                   등록할 예정입니다.
                 </p>

@@ -102,23 +102,23 @@ export function AddToProposalModal({
     >
       <DialogContent className="flex w-[512px] max-w-[calc(100vw-32px)] flex-col p-0">
         <div className="flex items-center justify-between px-[30px] py-[20px]">
-          <DialogTitle className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-[#2f3442]">
+          <DialogTitle className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
             제안서에 매체 추가
           </DialogTitle>
           <button type="button" onClick={onClose} aria-label="닫기">
-            <XIcon className="size-[24px] text-[#2f3442]" />
+            <XIcon className="size-[24px] text-black" />
           </button>
         </div>
 
         <div className="flex flex-col gap-[20px] px-[30px]">
           <div className="flex flex-col gap-[12px]">
-            <p className="text-[16px] font-medium leading-[24px] text-[#2f3442]">
+            <p className="text-[16px] font-medium leading-[24px] text-black">
               내 제안서
             </p>
 
             {creating ? (
-              <div className="flex flex-col gap-[12px] rounded-[12px] border border-[#00aaa4] p-[16px]">
-                <p className="text-sm font-medium leading-[20px] text-[#00aaa4]">
+              <div className="flex flex-col gap-[12px] rounded-[12px] border border-primary p-[16px]">
+                <p className="text-sm font-medium leading-[20px] text-primary">
                   제안서 이름
                 </p>
                 <input
@@ -131,7 +131,7 @@ export function AddToProposalModal({
                     }
                   }}
                   placeholder="제안서 이름을 입력해 주세요."
-                  className="w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-[#2f3442] outline-none placeholder:text-[#9ca3af] focus:border-[#00aaa4]"
+                  className="w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#9ca3af] focus:border-primary"
                 />
                 <div className="flex justify-end gap-[8px]">
                   <button
@@ -140,7 +140,7 @@ export function AddToProposalModal({
                       setCreating(false);
                       setNewName("");
                     }}
-                    className="rounded-[8px] bg-[#f1f5f9] px-[16px] py-[8px] text-sm font-medium leading-[20px] text-[#2f3442]"
+                    className="rounded-[8px] bg-platinum-100 px-[16px] py-[8px] text-sm font-medium leading-[20px] text-black"
                   >
                     취소
                   </button>
@@ -148,7 +148,7 @@ export function AddToProposalModal({
                     type="button"
                     onClick={handleCreate}
                     disabled={!newName.trim() || createProposal.isPending}
-                    className="rounded-[8px] bg-[#00aaa4] px-[16px] py-[8px] text-sm font-medium leading-[20px] text-white disabled:opacity-50"
+                    className="rounded-[8px] bg-primary px-[16px] py-[8px] text-sm font-medium leading-[20px] text-white disabled:opacity-50"
                   >
                     제안서 만들기
                   </button>
@@ -158,10 +158,10 @@ export function AddToProposalModal({
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-dashed border-[#00aaa4] bg-[#e5f6f6] px-[24px] py-[14px]"
+                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-dashed border-primary bg-primary-50 px-[24px] py-[14px]"
               >
-                <PlusIcon className="size-[20px] text-[#00aaa4]" />
-                <span className="text-[16px] font-bold leading-[24px] text-[#00aaa4]">
+                <PlusIcon className="size-[20px] text-primary" />
+                <span className="text-[16px] font-bold leading-[24px] text-primary">
                   새 제안서 만들기
                 </span>
               </button>
@@ -171,10 +171,10 @@ export function AddToProposalModal({
           {proposals.length === 0 ? (
             <div className="flex flex-col items-center gap-[8px] py-[40px]">
               <PackageOpenIcon className="size-[48px] text-[#d3d4d6]" />
-              <p className="text-[16px] font-bold leading-[24px] text-[#2f3442]">
+              <p className="text-[16px] font-bold leading-[24px] text-black">
                 보유한 제안서가 없습니다.
               </p>
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="text-sm font-medium leading-[20px] text-grey-500">
                 새 제안서를 만들어 매체를 추가해 보세요.
               </p>
             </div>
@@ -190,21 +190,21 @@ export function AddToProposalModal({
                     disabled={added}
                     onClick={() => toggle(proposal.id)}
                     className={cn(
-                      "flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f8fafc] px-[16px] py-[14px] text-left",
+                      "flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-platinum-50 px-[16px] py-[14px] text-left",
                       added && "cursor-not-allowed opacity-50",
                     )}
                   >
-                    <FolderIcon className="size-[20px] shrink-0 text-[#2f3442]" />
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-[#2f3442]">
+                    <FolderIcon className="size-[20px] shrink-0 text-black" />
+                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-black">
                       {proposal.title}
                     </span>
                     {added ? (
-                      <span className="shrink-0 text-sm font-medium leading-[20px] text-[#757575]">
+                      <span className="shrink-0 text-sm font-medium leading-[20px] text-grey-500">
                         이미 추가됨
                       </span>
                     ) : (
                       checked && (
-                        <CircleCheckIcon className="size-[24px] shrink-0 text-[#00aaa4]" />
+                        <CircleCheckIcon className="size-[24px] shrink-0 text-primary" />
                       )
                     )}
                   </button>
@@ -221,7 +221,7 @@ export function AddToProposalModal({
             disabled={selected.length === 0 || submitting}
             className={cn(
               "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-white",
-              selected.length === 0 ? "bg-[#cdcdcd]" : "bg-[#00aaa4]",
+              selected.length === 0 ? "bg-[#cdcdcd]" : "bg-primary",
             )}
           >
             선택한 제안서에 추가하기

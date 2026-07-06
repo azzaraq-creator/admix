@@ -10,7 +10,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  new: "bg-[#f6f6f6] text-[#545454]",
+  new: "bg-grey-50 text-[#545454]",
   custom: "bg-[#fff3d3] text-[#ff920a]",
   execution_requested: "bg-[#d6f1ff] text-[#0689ff]",
   contracted: "bg-secondary text-primary",

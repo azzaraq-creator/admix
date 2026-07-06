@@ -78,7 +78,7 @@ export function ProposalsView() {
       title: "제안서를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-[#2f3442]">{proposal.title}</span>
+          <span className="font-semibold text-black">{proposal.title}</span>
           가 내 제안서에서 삭제됩니다.
         </>
       ),
@@ -141,7 +141,7 @@ export function ProposalsView() {
               onClick={() => setActiveTab(tab)}
               className={cn(
                 "p-[10px] text-base font-semibold leading-[24px]",
-                activeTab === tab ? "text-primary" : "text-[#757575]",
+                activeTab === tab ? "text-primary" : "text-grey-500",
               )}
             >
               {tab}
@@ -154,18 +154,18 @@ export function ProposalsView() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="검색어를 입력하세요."
-            className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#757575]"
+            className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-black outline-none placeholder:text-grey-500"
           />
-          <SearchIcon className="size-[16px] shrink-0 text-[#757575]" />
+          <SearchIcon className="size-[16px] shrink-0 text-grey-500" />
         </div>
       </div>
 
       {isLoading ? (
-        <p className="py-[40px] text-center text-sm font-medium text-[#757575]">
+        <p className="py-[40px] text-center text-sm font-medium text-grey-500">
           불러오는 중...
         </p>
       ) : items.length === 0 ? (
-        <p className="py-[40px] text-center text-sm font-medium text-[#757575]">
+        <p className="py-[40px] text-center text-sm font-medium text-grey-500">
           아직 제안서가 없어요. 새 제안서를 만들어보세요.
         </p>
       ) : (

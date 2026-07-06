@@ -48,7 +48,7 @@ function CheckIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 const inputClass =
-  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-[#2f3442] outline-none placeholder:text-[#c9cad3]";
+  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
 
 function getErrorStatus(error: unknown): number | undefined {
   return (error as { response?: { status?: number } })?.response?.status;
@@ -123,7 +123,7 @@ export function LoginModal() {
             <LogoFull className="h-[24px]" />
             <DialogClose
               aria-label="닫기"
-              className="flex size-[24px] items-center justify-center text-[#2f3442] outline-none"
+              className="flex size-[24px] items-center justify-center text-black outline-none"
             >
               <XIcon className="size-[24px]" />
             </DialogClose>
@@ -182,13 +182,13 @@ export function LoginModal() {
                     >
                       <CheckIcon className="h-[5.5px] w-[7px]" />
                     </span>
-                    <span className="text-[14px] font-medium leading-[20px] text-[#2f3442]">
+                    <span className="text-[14px] font-medium leading-[20px] text-black">
                       로그인 유지
                     </span>
                   </button>
                   <button
                     type="button"
-                    className="text-[14px] font-medium leading-[20px] text-[#2f3442]"
+                    className="text-[14px] font-medium leading-[20px] text-black"
                   >
                     비밀번호 재설정
                   </button>
@@ -227,7 +227,7 @@ export function LoginModal() {
             </div>
 
             <div className="flex w-full items-center justify-center gap-[8px] text-[16px] leading-[24px]">
-              <span className="font-normal text-[#2f3442]">
+              <span className="font-normal text-black">
                 아직 회원이 아니신가요?
               </span>
               <button
@@ -247,7 +247,7 @@ export function LoginModal() {
 
       <Dialog open={restrictedOpen} onOpenChange={setRestrictedOpen}>
         <DialogContent className="flex w-[400px] max-w-[calc(100vw-32px)] flex-col items-center gap-[20px] px-[30px] py-[20px]">
-          <div className="flex w-full flex-col items-start gap-[12px] text-[#2f3442]">
+          <div className="flex w-full flex-col items-start gap-[12px] text-black">
             <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px]">
               서비스 이용이 제한되었습니다.
             </p>

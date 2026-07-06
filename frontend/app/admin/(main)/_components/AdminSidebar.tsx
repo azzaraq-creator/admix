@@ -48,7 +48,7 @@ export function AdminSidebar() {
 
   const topClass = (active: boolean) =>
     `flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
-      active ? "bg-primary text-white" : "text-[#364153] hover:bg-[#f1f5f9]"
+      active ? "bg-primary text-white" : "text-[#364153] hover:bg-platinum-100"
     }`;
 
   return (
@@ -74,7 +74,7 @@ export function AdminSidebar() {
             onClick={() => setBusinessOpen((value) => !value)}
             className={`flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
               businessActive ? "text-primary" : "text-[#364153]"
-            } hover:bg-[#f1f5f9]`}
+            } hover:bg-platinum-100`}
           >
             <span className="flex-1 text-left">비즈니스 관리</span>
             <ChevronDownIcon
@@ -94,7 +94,7 @@ export function AdminSidebar() {
                     className={`flex items-center rounded-[8px] py-[10px] pl-[36px] pr-[20px] text-sm leading-[20px] ${
                       active
                         ? "font-semibold text-primary"
-                        : "font-medium text-[#4a5565] hover:bg-[#f1f5f9]"
+                        : "font-medium text-[#4a5565] hover:bg-platinum-100"
                     }`}
                   >
                     {link.label}
@@ -120,7 +120,7 @@ export function AdminSidebar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-[#f1f5f9]"
+          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-platinum-100"
         >
           <LogOutIcon className="size-[20px] shrink-0" />
           로그아웃

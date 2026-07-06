@@ -28,7 +28,7 @@ export function AssistantBubble({
 }) {
   if (message.isLoading) {
     return (
-      <div className="flex items-center gap-[8px] text-base text-[#757575]">
+      <div className="flex items-center gap-[8px] text-base text-grey-500">
         <RotateCwIcon className="size-[16px] animate-spin text-primary" />
         <span>추천 중...</span>
       </div>

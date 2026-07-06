@@ -1,7 +1,7 @@
 "use client";
 
 const RANGE_INPUT_CLASS =
-  "pointer-events-none absolute left-0 top-0 h-[20px] w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#00aaa4] [&::-moz-range-thumb]:border-solid [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#00aaa4] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0px_1px_2px_rgba(0,0,0,0.2)]";
+  "pointer-events-none absolute left-0 top-0 h-[20px] w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:border-solid [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0px_1px_2px_rgba(0,0,0,0.2)]";
 
 const STEP = 1_000_000; // 백만원 단위 이동
 
@@ -53,7 +53,7 @@ export function PriceRangeFilter({
             return (
               <div
                 key={i}
-                className={`flex-1 rounded-t-[2px] ${inRange ? "bg-[#00aaa4]" : "bg-[#e4e5ee]"}`}
+                className={`flex-1 rounded-t-[2px] ${inRange ? "bg-primary" : "bg-stroke"}`}
                 style={{ height: `${barHeightPct(count, maxCount)}%` }}
               />
             );
@@ -62,9 +62,9 @@ export function PriceRangeFilter({
       )}
 
       <div className="relative h-[20px]">
-        <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-[#e4e5ee]" />
+        <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-stroke" />
         <div
-          className="absolute top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-[#00aaa4]"
+          className="absolute top-1/2 h-[4px] -translate-y-1/2 rounded-full bg-primary"
           style={{ left: `${loPct}%`, right: `${100 - hiPct}%` }}
         />
         <input
@@ -91,18 +91,18 @@ export function PriceRangeFilter({
 
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-[2px]">
-          <span className="text-[12px] font-medium leading-[16px] text-[#757575]">
+          <span className="text-[12px] font-medium leading-[16px] text-grey-500">
             최저
           </span>
-          <span className="text-[16px] font-medium leading-[24px] text-[#2f3442]">
+          <span className="text-[16px] font-medium leading-[24px] text-black">
             {priceLabel(lo)}
           </span>
         </div>
         <div className="flex flex-col items-end gap-[2px]">
-          <span className="text-[12px] font-medium leading-[16px] text-[#757575]">
+          <span className="text-[12px] font-medium leading-[16px] text-grey-500">
             최대
           </span>
-          <span className="text-[16px] font-medium leading-[24px] text-[#2f3442]">
+          <span className="text-[16px] font-medium leading-[24px] text-black">
             {priceLabel(hi)}
           </span>
         </div>

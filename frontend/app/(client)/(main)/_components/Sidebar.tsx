@@ -197,22 +197,22 @@ export function Sidebar() {
                         className="flex items-center justify-between border-b-[0.917px] border-stroke px-[6px] py-[12px]"
                       >
                         <span className="flex items-center gap-[6px]">
-                          <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-[#00aaa4]">
+                          <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-primary">
                             <UserIcon className="size-[14px] text-white" />
                           </span>
-                          <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                          <span className="text-base font-medium leading-[24px] text-black">
                             {displayName}
                           </span>
                         </span>
-                        <ChevronRightIcon className="size-[16px] shrink-0 text-[#2f3442]" />
+                        <ChevronRightIcon className="size-[16px] shrink-0 text-black" />
                       </Link>
                       <Link
                         href="/help"
                         onClick={handleNavClick}
                         className="flex items-center gap-[6px] px-[6px] py-[12px]"
                       >
-                        <CircleAlertIcon className="size-[20px] shrink-0 text-[#2f3442]" />
-                        <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                        <CircleAlertIcon className="size-[20px] shrink-0 text-black" />
+                        <span className="text-base font-medium leading-[24px] text-black">
                           도움말
                         </span>
                       </Link>
@@ -224,8 +224,8 @@ export function Sidebar() {
                         }}
                         className="flex items-center gap-[6px] px-[6px] py-[12px]"
                       >
-                        <LogOutIcon className="size-[20px] shrink-0 text-[#2f3442]" />
-                        <span className="text-base font-medium leading-[24px] text-[#2f3442]">
+                        <LogOutIcon className="size-[20px] shrink-0 text-black" />
+                        <span className="text-base font-medium leading-[24px] text-black">
                           로그아웃
                         </span>
                       </button>
@@ -243,13 +243,13 @@ export function Sidebar() {
                     }
                     setProfileOpen((value) => !value);
                   }}
-                  className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors hover:bg-[#e5f6f6]"
+                  className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors hover:bg-primary-50"
                 >
-                  <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-[#00aaa4]">
+                  <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-primary">
                     <UserIcon className="size-[14px] text-white" />
                   </span>
                   <span
-                    className={`pointer-events-none whitespace-nowrap text-base font-medium text-[#2f3442] ${
+                    className={`pointer-events-none whitespace-nowrap text-base font-medium text-black ${
                       expanded ? "opacity-100" : "hidden"
                     }`}
                   >

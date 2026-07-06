@@ -36,7 +36,7 @@ function ToggleButton({
       onClick={onClick}
       aria-label={open ? "답변 접기" : "답변 펼치기"}
       className={cn(
-        "flex size-[32px] shrink-0 items-center justify-center rounded-full bg-white text-[#2f3442] drop-shadow-[0px_0px_2px_rgba(0,0,0,0.12)]",
+        "flex size-[32px] shrink-0 items-center justify-center rounded-full bg-white text-black drop-shadow-[0px_0px_2px_rgba(0,0,0,0.12)]",
         invisible && "invisible",
       )}
     >
@@ -80,7 +80,7 @@ function FaqItem({
         <div className="flex w-full items-start gap-[12px] sm:gap-[24px]">
           <div className="flex min-w-0 flex-1 sm:gap-[36px]">
             <div className="hidden shrink-0 sm:block sm:w-[120px]" />
-            <p className="flex-1 whitespace-pre-line text-sm font-medium leading-[20px] text-[#737586]">
+            <p className="flex-1 whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
               {faq.answer}
             </p>
           </div>
@@ -132,7 +132,7 @@ export function FaqPanel({ query }: { query: string }) {
               "rounded-full px-[12px] py-[6px] text-base font-medium leading-[24px]",
               category === value
                 ? "bg-primary text-white"
-                : "bg-[#f1f5f9] text-[#2f3442]",
+                : "bg-platinum-100 text-black",
             )}
           >
             {value}

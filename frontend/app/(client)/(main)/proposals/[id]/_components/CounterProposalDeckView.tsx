@@ -77,7 +77,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
             </p>
             <div className="flex items-center gap-[12px]">
               <StatusChip status={proposal?.status ?? "custom"} />
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="text-sm font-medium leading-[20px] text-grey-500">
                 {fmtDateTime(proposal?.updated_at)}
               </p>
             </div>
@@ -95,14 +95,14 @@ export function CounterProposalDeckView({ id }: { id: string }) {
         <div className="flex min-h-0 flex-1">
           <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
             <div className="flex h-[48px] items-center px-[24px]">
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="text-sm font-medium leading-[20px] text-grey-500">
                 슬라이드 <span className="text-primary">{total}</span>
               </p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
               {slides.map((slide, index) => (
                 <div key={index} className="flex items-start">
-                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
+                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-grey-500">
                     {index + 1}
                   </p>
                   <button
@@ -141,12 +141,12 @@ export function CounterProposalDeckView({ id }: { id: string }) {
               )}
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-[40px] flex justify-center">
-              <div className="pointer-events-auto flex items-center rounded-[12px] border border-[#f6f6f6] bg-white shadow-sm">
+              <div className="pointer-events-auto flex items-center rounded-[12px] border border-grey-50 bg-white shadow-sm">
                 <button
                   type="button"
                   onClick={() => setLightbox(true)}
                   aria-label="전체보기"
-                  className="border-r border-[#f6f6f6] px-[14px] py-[10px] text-[#2f3442]"
+                  className="border-r border-grey-50 px-[14px] py-[10px] text-black"
                 >
                   <MaximizeIcon className="size-[18px]" />
                 </button>
@@ -155,7 +155,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                     type="button"
                     onClick={() => setZoom((v) => Math.max(ZOOM_MIN, v - ZOOM_STEP))}
                     aria-label="축소"
-                    className="text-[#2f3442]"
+                    className="text-black"
                   >
                     <MinusIcon className="size-[18px]" />
                   </button>
@@ -166,7 +166,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                     type="button"
                     onClick={() => setZoom((v) => Math.min(ZOOM_MAX, v + ZOOM_STEP))}
                     aria-label="확대"
-                    className="text-[#2f3442]"
+                    className="text-black"
                   >
                     <PlusIcon className="size-[18px]" />
                   </button>
@@ -188,7 +188,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
         <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">
           <div className="flex flex-col items-center gap-[16px] px-[24px] py-[16px]">
-            <p className="text-center text-base font-semibold leading-[24px] text-[#2f3442]">
+            <p className="text-center text-base font-semibold leading-[24px] text-black">
               해당 기능은 모바일에서 지원되지 않습니다.
               <br />
               데스크톱으로 이용해주시기 바랍니다.

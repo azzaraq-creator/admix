@@ -18,12 +18,12 @@ export function ConfirmationView({
         </p>
       )}
       {changes && changes.length > 0 && (
-        <ul className="space-y-[4px] text-xs text-[#757575]">
+        <ul className="space-y-[4px] text-xs text-grey-500">
           {changes.map((ch, i) => {
             const label = CATEGORY_LABELS[ch.category as SlotKey] || ch.category;
             return (
               <li key={`${ch.category}-${i}`}>
-                <span className="text-[#757575]">{label}</span>{" "}
+                <span className="text-grey-500">{label}</span>{" "}
                 {(ch.old_values || []).join(", ") || "(없음)"} →{" "}
                 {(ch.new_values || []).join(", ") || "(없음)"}
               </li>

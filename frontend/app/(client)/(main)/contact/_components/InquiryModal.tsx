@@ -12,7 +12,7 @@ const CONTENT_PLACEHOLDER =
   "화장품 신제품 홍보하려고 하는데 강남 성수 지역에 MZ 타켓으로 7-8월 캠페인 생각하고 있어요.\n\n중고차 앱 프로모션 생각합니다. 서울 중요 지역 3곳 2040 대상으로 1달간 영상광고 집행 하려고 합니다.";
 
 const INPUT_CLASS =
-  "rounded-[8px] border border-stroke px-[16px] py-[18px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3]";
+  "rounded-[8px] border border-stroke px-[16px] py-[18px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{11}$/;

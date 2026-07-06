@@ -26,7 +26,7 @@ export function AiSearchArea() {
         }}
         className="flex w-full min-w-[343px] max-h-[128px] cursor-pointer flex-col gap-[10px] rounded-[24px] border border-primary bg-white px-[24px] py-[16px] drop-shadow-[0px_0px_8px_rgba(0,170,164,0.36)] sm:w-[560px] sm:max-w-none"
       >
-        <p className="max-h-[48px] min-h-[48px] w-full text-base font-medium leading-[24px] text-[#757575] sm:min-h-[24px]">
+        <p className="max-h-[48px] min-h-[48px] w-full text-base font-medium leading-[24px] text-grey-500 sm:min-h-[24px]">
           강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩 하고싶어요
         </p>
         <div className="flex w-full items-center justify-end">

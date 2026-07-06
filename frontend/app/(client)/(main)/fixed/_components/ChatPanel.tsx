@@ -34,7 +34,6 @@ export function ChatPanel({
     lat: number;
     lng: number;
     level?: number;
-    rescope?: boolean;
   }) => void;
 }) {
   return (

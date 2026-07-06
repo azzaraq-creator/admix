@@ -18,7 +18,7 @@ export type Media = {
 
 function RegionCell({ region }: { region: string }) {
   if (region === "-") {
-    return <span className="text-[#737586]">-</span>;
+    return <span className="text-disabled">-</span>;
   }
   return <span className="block max-w-[180px] truncate">{region}</span>;
 }

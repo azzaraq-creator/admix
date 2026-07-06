@@ -94,9 +94,9 @@ export function VisitorLineChart() {
       </svg>
 
       <div className="flex items-center justify-center gap-[6px]">
-        <span className="h-[2px] w-[16px] rounded-full bg-[#00aaa4]" />
-        <span className="size-[8px] rounded-full border-2 border-[#00aaa4] bg-white" />
-        <span className="text-xs font-medium leading-[16px] text-[#737586]">
+        <span className="h-[2px] w-[16px] rounded-full bg-primary" />
+        <span className="size-[8px] rounded-full border-2 border-primary bg-white" />
+        <span className="text-xs font-medium leading-[16px] text-disabled">
           문의
         </span>
       </div>

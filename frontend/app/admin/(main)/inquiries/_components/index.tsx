@@ -17,7 +17,7 @@ export type Inquiry = {
 
 const STATUS_CLASS: Record<InquiryStatus, string> = {
   "답변 대기": "bg-[#fdf6e3] text-[#c99a2e]",
-  "답변 완료": "bg-[#e5f6f6] text-[#007571]",
+  "답변 완료": "bg-primary-50 text-primary-800",
 };
 
 export function InquiryStatusBadge({ status }: { status: InquiryStatus }) {
@@ -31,7 +31,7 @@ export function InquiryStatusBadge({ status }: { status: InquiryStatus }) {
 }
 
 export const inquiryColumnList: TableColumn<Inquiry>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "name", label: "이름" },
   { name: "title", label: "제목" },
   {
@@ -46,7 +46,7 @@ export const inquiryColumnList: TableColumn<Inquiry>[] = [
     label: "상태",
     renderer: (item) => <InquiryStatusBadge status={item.status} />,
   },
-  { name: "submittedAt", label: "제출일", className: "text-[#737586]" },
+  { name: "submittedAt", label: "제출일", className: "text-disabled" },
 ];
 
 export const inquirySearchOptionList: SearchOption[] = [

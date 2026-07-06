@@ -107,8 +107,8 @@ export function ProposalBarChart() {
       </svg>
 
       <div className="flex items-center justify-center gap-[6px]">
-        <span className="size-[8px] rounded-[2px] bg-[#00aaa4]" />
-        <span className="text-xs font-medium leading-[16px] text-[#737586]">
+        <span className="size-[8px] rounded-[2px] bg-primary" />
+        <span className="text-xs font-medium leading-[16px] text-disabled">
           문의 건수
         </span>
       </div>

@@ -50,13 +50,13 @@ export const PERMISSION_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export const accountColumnList: TableColumn<Account>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "name", label: "이름" },
   { name: "email", label: "이메일(ID)" },
   { name: "type", label: "계정 유형" },
   { name: "role", label: "부서/역할" },
   { name: "status", label: "상태" },
-  { name: "createdAt", label: "생성일", className: "text-[#737586]" },
+  { name: "createdAt", label: "생성일", className: "text-disabled" },
 ];
 
 export const accountSearchOptionList: SearchOption[] = [

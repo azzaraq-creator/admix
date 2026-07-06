@@ -130,7 +130,7 @@ export function MobileMediaDetail({
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                   {name}
                 </p>
-                <p className="text-sm font-medium leading-[20px] text-[#757575]">
+                <p className="text-sm font-medium leading-[20px] text-grey-500">
                   {price}
                 </p>
               </div>
@@ -144,12 +144,12 @@ export function MobileMediaDetail({
             </button>
           </div>
 
-          <div className="flex items-center rounded-[12px] bg-[#f6f6f6] py-[12px]">
+          <div className="flex items-center rounded-[12px] bg-grey-50 py-[12px]">
             {stats.map((stat, index) => (
               <div key={stat.label} className="flex flex-1 items-center">
                 {index > 0 && <div className="h-[44px] w-px bg-stroke" />}
                 <div className="flex flex-1 flex-col items-center gap-[2px] px-[12px] text-center">
-                  <p className="text-sm font-medium leading-[20px] text-[#757575]">
+                  <p className="text-sm font-medium leading-[20px] text-grey-500">
                     {stat.label}
                   </p>
                   <p className="text-base font-bold leading-[24px] text-black">
@@ -176,7 +176,7 @@ export function MobileMediaDetail({
             onClick={() => setDescExpanded((v) => !v)}
             className="flex items-center justify-center gap-[8px]"
           >
-            <span className="h-px flex-1 bg-[#f6f6f6]" />
+            <span className="h-px flex-1 bg-grey-50" />
             <span className="flex items-center gap-[4px] text-sm leading-[20px] text-black">
               매체 설명 {descExpanded ? "접기" : "더보기"}
               <ChevronDownIcon
@@ -186,7 +186,7 @@ export function MobileMediaDetail({
                 )}
               />
             </span>
-            <span className="h-px flex-1 bg-[#f6f6f6]" />
+            <span className="h-px flex-1 bg-grey-50" />
           </button>
         </div>
 
@@ -210,7 +210,7 @@ export function MobileMediaDetail({
                       {item.title}
                     </p>
                     {item.subtitle && (
-                      <p className="text-sm font-medium leading-[20px] text-[#757575]">
+                      <p className="text-sm font-medium leading-[20px] text-grey-500">
                         {item.subtitle}
                       </p>
                     )}
@@ -237,7 +237,7 @@ export function MobileMediaDetail({
           <div className="flex items-center gap-[16px] rounded-[8px] border border-stroke px-[16px] py-[12px]">
             <MaximizeIcon className="size-[24px] shrink-0 text-black" />
             <div className="flex flex-col gap-[2px]">
-              <p className="text-sm font-medium leading-[20px] text-[#757575]">
+              <p className="text-sm font-medium leading-[20px] text-grey-500">
                 사이즈 및 규격
               </p>
               <p className="text-base font-medium leading-[20px] text-black">
@@ -256,7 +256,7 @@ export function MobileMediaDetail({
                 key={label}
                 className="flex flex-col gap-[2px] border-b border-stroke py-[12px] last:border-b-0"
               >
-                <p className="text-sm font-medium leading-[20px] text-[#757575]">
+                <p className="text-sm font-medium leading-[20px] text-grey-500">
                   {label}
                 </p>
                 <p className="text-base font-medium leading-[20px] text-black">

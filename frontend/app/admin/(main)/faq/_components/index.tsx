@@ -20,11 +20,11 @@ export const FAQ_TYPE_OPTIONS: { label: string; value: FaqType }[] = [
 ];
 
 export const faqColumnList: TableColumn<Faq>[] = [
-  { name: "no", label: "No", className: "text-[#737586]" },
+  { name: "no", label: "No", className: "text-disabled" },
   { name: "type", label: "유형" },
   { name: "title", label: "제목" },
   { name: "author", label: "작성자" },
-  { name: "createdAt", label: "작성일", className: "text-[#737586]" },
+  { name: "createdAt", label: "작성일", className: "text-disabled" },
 ];
 
 export const faqSearchOptionList: SearchOption[] = [

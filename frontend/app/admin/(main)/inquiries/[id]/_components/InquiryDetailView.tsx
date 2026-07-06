@@ -40,7 +40,7 @@ export function InquiryDetailView() {
 
   if (!inquiry) {
     return (
-      <p className="text-sm font-medium leading-[20px] text-[#737586]">
+      <p className="text-sm font-medium leading-[20px] text-disabled">
         불러오는 중...
       </p>
     );
@@ -129,7 +129,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
           readOnly={answered}
           placeholder="답변 내용을 입력해 주세요."
           className={`h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f] ${
-            answered ? "cursor-default bg-[#f6f6f6]" : "bg-[#f0f0f3]"
+            answered ? "cursor-default bg-grey-50" : "bg-[#f0f0f3]"
           }`}
         />
         <div className="flex items-center justify-between">

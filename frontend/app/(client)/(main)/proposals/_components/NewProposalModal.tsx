@@ -48,7 +48,7 @@ export function NewProposalModal({
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="제안서 이름을 입력해 주세요."
-            className="h-[54px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#c9cad3]"
+            className="h-[54px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder"
           />
         </div>
         <div className="px-[30px] py-[20px]">

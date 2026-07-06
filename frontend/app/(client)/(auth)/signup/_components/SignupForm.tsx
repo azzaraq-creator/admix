@@ -54,7 +54,7 @@ function AgreeCheckbox({
       className={`flex size-[20px] shrink-0 cursor-pointer items-center justify-center rounded-[6px] border ${
         checked
           ? "border-primary bg-primary text-white"
-          : "border-[#c9cad3] bg-white text-transparent"
+          : "border-placeholder bg-white text-transparent"
       }`}
     >
       <CheckIcon className="h-[6.25px] w-[8.46px]" />
@@ -70,7 +70,7 @@ function FieldLabel({
   required?: boolean;
 }) {
   return (
-    <p className="text-[14px] font-bold leading-[20px] text-[#2f3442]">
+    <p className="text-[14px] font-bold leading-[20px] text-black">
       {children}
       {required && <span className="text-[#ed2115]">*</span>}
     </p>
@@ -78,7 +78,7 @@ function FieldLabel({
 }
 
 const inputClass =
-  "w-full rounded-[8px] border border-stroke px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-[#2f3442] outline-none placeholder:text-[#c9cad3] focus:border-primary";
+  "w-full rounded-[8px] border border-stroke px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
@@ -233,7 +233,7 @@ export function SignupForm({
           <LogoFull />
         </div>
 
-        <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-[#2f3442] sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
+        <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
           회원가입을 하고
           <br />
           적합한 광고 매체를 찾아보세요!
@@ -350,7 +350,7 @@ export function SignupForm({
 
               <div className="flex w-full flex-col gap-[12px]">
                 <div className="flex w-full flex-col gap-[4px]">
-                  <p className="text-[14px] font-bold leading-[20px] text-[#2f3442]">
+                  <p className="text-[14px] font-bold leading-[20px] text-black">
                     사업자등록증
                   </p>
                   <p className="text-[14px] font-normal leading-[20px] text-grey-500">
@@ -368,7 +368,7 @@ export function SignupForm({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full cursor-pointer items-center justify-center gap-[8px] rounded-[8px] bg-platinum-100 px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-[#2f3442]"
+                  className="flex w-full cursor-pointer items-center justify-center gap-[8px] rounded-[8px] bg-platinum-100 px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-black"
                 >
                   <span className="overflow-hidden text-ellipsis whitespace-nowrap">
                     {fileName || "파일 업로드"}

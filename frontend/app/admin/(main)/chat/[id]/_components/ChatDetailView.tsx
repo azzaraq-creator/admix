@@ -112,14 +112,14 @@ function GuestDetail({ sessionId }: { sessionId: string }) {
   return (
     <>
       <div className="flex items-center gap-[21px] rounded-[12px] border border-[#cdcdcd] px-[24px] py-[20px]">
-        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
+        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-grey-50">
           <Building2 className="size-[28px] text-[#767676]" />
         </div>
         <div className="flex flex-col gap-[6px]">
           <p className="text-[20px] font-semibold leading-[28px] text-black">
             비회원
           </p>
-          <p className="text-xs font-medium leading-[16px] text-[#737586]">
+          <p className="text-xs font-medium leading-[16px] text-disabled">
             {data
               ? `${data.title} · 생성 ${formatDateTime(data.created_at)} · 메시지 ${messages.length}`
               : isLoading
@@ -146,16 +146,16 @@ function MemberDetail({ userId }: { userId: string }) {
   return (
     <>
       <div className="flex items-center gap-[21px] rounded-[12px] border border-[#cdcdcd] px-[24px] py-[20px]">
-        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-[#f6f6f6]">
+        <div className="flex size-[64px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-grey-50">
           <Building2 className="size-[28px] text-[#767676]" />
         </div>
         <div className="flex flex-col gap-[6px]">
           <p className="text-[20px] font-semibold leading-[28px] text-black">
             {data?.name ?? (isLoading ? "불러오는 중..." : "회원")}
           </p>
-          <div className="flex items-center gap-[12px] text-xs font-medium leading-[16px] text-[#737586]">
+          <div className="flex items-center gap-[12px] text-xs font-medium leading-[16px] text-disabled">
             {data?.membership && (
-              <span className="rounded-[6px] bg-[#f6f6f6] px-[10px] py-[4px] text-[#545454]">
+              <span className="rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-[#545454]">
                 {MEMBERSHIP_LABEL[data.membership] ?? data.membership}
               </span>
             )}
@@ -177,23 +177,23 @@ function MemberDetail({ userId }: { userId: string }) {
                 type="button"
                 onClick={() => setSelectedId(conv.id)}
                 className={`flex items-center justify-between gap-[12px] border-b border-[#f1f1f4] px-[24px] py-[18px] text-left transition-colors ${
-                  conv.id === activeId ? "bg-[#f6f6f6]" : "hover:bg-[#fafafa]"
+                  conv.id === activeId ? "bg-grey-50" : "hover:bg-[#fafafa]"
                 }`}
               >
                 <div className="flex min-w-0 flex-col gap-[6px]">
                   <p className="truncate text-sm font-semibold leading-[20px] text-black">
                     {conv.title}
                   </p>
-                  <p className="text-xs font-medium leading-[16px] text-[#737586]">
+                  <p className="text-xs font-medium leading-[16px] text-disabled">
                     {formatDateTime(conv.updated_at)} · 메시지{" "}
                     {conv.message_count}
                   </p>
                 </div>
-                <ChevronRightIcon className="size-[20px] shrink-0 text-[#737586]" />
+                <ChevronRightIcon className="size-[20px] shrink-0 text-disabled" />
               </button>
             ))}
             {sessions.length === 0 && (
-              <p className="px-[24px] py-[18px] text-sm text-[#737586]">
+              <p className="px-[24px] py-[18px] text-sm text-disabled">
                 {isLoading ? "불러오는 중..." : "대화 내역이 없습니다."}
               </p>
             )}

@@ -32,7 +32,7 @@ export function SlideSidebar({
   return (
     <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
       <div className="flex h-[48px] items-center px-[24px]">
-        <p className="text-sm font-medium leading-[20px] text-[#757575]">
+        <p className="text-sm font-medium leading-[20px] text-grey-500">
           슬라이드 <span className="text-primary">{slides.length}</span>
         </p>
       </div>
@@ -69,12 +69,12 @@ export function SlideSidebar({
                 )}
               >
                 {canEdit ? (
-                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-[#c9cad3] active:cursor-grabbing" />
+                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-placeholder active:cursor-grabbing" />
                 ) : (
                   <span className="size-[16px] shrink-0" />
                 )}
                 <div className="flex min-w-0 flex-1 items-start">
-                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-[#757575]">
+                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-grey-500">
                     {index + 1}
                   </p>
                   <div className="flex min-w-0 flex-1 flex-col gap-[8px] pl-[6px]">

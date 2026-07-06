@@ -249,7 +249,7 @@ export function ProposalDetailView() {
               </p>
               <MaximizeIcon className="size-[24px] text-[#2a2a2a]" />
             </div>
-            <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px] border border-[#e4e5ee]">
+            <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px] border border-stroke">
               {current?.kind === "cover" && (
                 <CoverThumb updatedAt={proposal?.updated_at ?? null} />
               )}
@@ -290,7 +290,7 @@ export function ProposalDetailView() {
               ))}
             </div>
             {counterFiles.length === 0 ? (
-              <div className="flex h-[88px] items-center justify-center text-sm font-medium leading-[20px] text-[#737586]">
+              <div className="flex h-[88px] items-center justify-center text-sm font-medium leading-[20px] text-disabled">
                 등록된 맞춤제안이 없습니다.
               </div>
             ) : (
@@ -302,7 +302,7 @@ export function ProposalDetailView() {
                   <div className="flex flex-1 items-center justify-center truncate px-[24px]">
                     {cf.file_name}
                   </div>
-                  <div className="flex flex-1 items-center justify-center px-[24px] text-[#737586]">
+                  <div className="flex flex-1 items-center justify-center px-[24px] text-disabled">
                     {cf.author_name ?? "-"}
                   </div>
                   <div className="flex flex-1 items-center justify-center px-[24px]">
