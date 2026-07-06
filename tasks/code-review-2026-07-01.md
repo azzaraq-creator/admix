@@ -52,7 +52,10 @@
 - [ ] **M5. `CommonTable.tsx`(566줄) 책임 혼합** — 서버검색+클라이언트페이징. `DateField`/`PageSizeSelect`/`Pagination`/`getPageItems` 분리 (20곳 사용)
 - [ ] **M6. `MediaDetailDrawer` ↔ `MobileMediaDetail` 중복** — 설명더보기/유동인구/스탯카드 뷰포트별 이중 구현 → 공용 하위 컴포넌트
 - [ ] **M7. `MobileMediaDetail.tsx:23-70` 하드코딩 목업 기본값** — `name="서울 버스 TV"` 등 → 필수 prop/빈 상태
-- [ ] **M8. 색상 토큰 우회 하드코딩** — `#00aaa4`(=primary) 13곳, grey/secondary 52곳. 특히 `AddToProposalModal.tsx`
+- [~] **M8. 색상 토큰 우회 하드코딩** ✅(1차) 2026-07-06
+  - **①토큰 존재 색**: `[#hex]` arbitrary → 토큰 클래스 치환 완료(`#2f3442`→black, `#757575`→grey-500, `#00aaa4`→primary, `#e4e5ee`→stroke, `#e2e2e2`→grey-200 등 244건/55파일, tsc 통과)
+  - **신설 토큰**: `disabled`(#737586, 74건), `placeholder`(#c9cad3, 10건) → globals.css `@theme` 등록 후 치환
+  - **②토큰 없는 색**(danger/warning/success·중간톤 그레이 등 70여 종): [design-tokens.md](../docs/design-tokens.md) "미토큰화 하드코딩 색상" 섹션에 그룹별 기재 — 디자인 팔레트 확정 후 후속
 - [x] **M9. 데이터레이어 정리** ✅ 2026-07-01
   - 세션키 3중 중복 → `lib/session.ts` (`SESSION_KEY`+`getSessionId`). auth/proposals는 `getSessionId` import, useV2Chat은 `SESSION_KEY` 재사용(읽기/쓰기 유지)
   - baseURL 이중 하드코딩 → `lib/api.ts`에서 `API_BASE_URL` export, useV2Chat이 import
