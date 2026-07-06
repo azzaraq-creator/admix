@@ -11,6 +11,7 @@ from src.routers.admin_chat import router as admin_chat_router
 from src.routers.auth import router as auth_router
 from src.routers.chat_graph import router as chat_graph_router
 from src.routers.faq import router as faq_router
+from src.routers.admin_media import router as admin_media_router
 from src.routers.media import router as media_router
 from src.routers.inquiries import router as inquiries_router
 from src.routers.inquiries_client import router as inquiries_client_router
@@ -42,6 +43,7 @@ app.include_router(auth_router)
 app.include_router(oauth_router)
 app.include_router(faq_router)
 app.include_router(media_router)
+app.include_router(admin_media_router)
 app.include_router(members_router)
 app.include_router(proposals_router)
 app.include_router(proposals_client_router)
