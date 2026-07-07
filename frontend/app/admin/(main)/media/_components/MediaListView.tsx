@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import {
@@ -12,6 +13,7 @@ import { useMediaList } from "@/hooks/media";
 import { mediaColumnList, mediaSearchOptionList, type Media } from "./index";
 
 export function MediaListView() {
+  const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
   const { data } = useMediaList();
 
@@ -38,6 +40,7 @@ export function MediaListView() {
         idKey="no"
         searchOptionList={mediaSearchOptionList}
         onSearch={setSearch}
+        onRowClick={(item) => router.push(`/admin/media/${item.no}`)}
         totalCount={filtered.length}
         usePageSizeSelect
         pageSize={10}
@@ -58,6 +61,7 @@ export function MediaListView() {
             </button>
             <button
               type="button"
+              onClick={() => router.push("/admin/media/new")}
               className="flex h-[40px] items-center gap-[6px] rounded-[8px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
             >
               <PlusIcon className="size-[16px]" />

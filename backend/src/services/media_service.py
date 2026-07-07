@@ -5,14 +5,26 @@ media 단일값 + 대표 플랜(plan_no=1)의 상품표시명을 합쳐 한 행�
 from __future__ import annotations
 
 import math
+import os
+import uuid
 from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
 
-from sqlalchemy import and_, func, text
+from fastapi import HTTPException, UploadFile
+from sqlalchemy import and_, func, inspect as sa_inspect, text
 from sqlalchemy.orm import Session
 
+from src.config import get_settings
+from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.services.graph.settings import SANGWON_MAX_DISTANCE_M, SANGWON_QUARTER
+
+# admin 매체 상세/등록 폼 — 자동 관리 컬럼(수정 대상 아님)
+_MEDIA_AUTO_COLS = {"created_at", "updated_at"}
+_MEDIA_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_MEDIA_IMAGE_MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
 _SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
 _EXPOSURE_TYPE = {"INSIDE": "실내", "OUTSIDE": "실외"}
@@ -509,3 +521,135 @@ def list_media(db: Session) -> list[dict]:
             )
         )
     return items
+
+
+# ===== admin 매체 상세/등록/수정 (media 전 컬럼) =====
+
+
+def _media_columns() -> list[str]:
+    """Media 모델의 전체 컬럼명(선언 순서)."""
+    return [c.key for c in sa_inspect(Media).mapper.column_attrs]
+
+
+def _image_dict(img: MediaImage) -> dict:
+    return dict(
+        id=str(img.id),
+        image_url=img.image_url,
+        sort_order=img.sort_order,
+        is_thumbnail=img.is_thumbnail,
+    )
+
+
+def _serialize_media(m: Media) -> dict:
+    """Media 전 컬럼 + 이미지 목록을 JSON 친화 dict 로 직렬화."""
+    data: dict = {}
+    for col in _media_columns():
+        val = getattr(m, col)
+        data[col] = float(val) if isinstance(val, Decimal) else val
+    data["images"] = [_image_dict(img) for img in m.images]
+    return data
+
+
+def _get_media_or_404(db: Session, media_id: str) -> Media:
+    m = db.query(Media).filter(Media.media_id == media_id).first()
+    if m is None:
+        raise HTTPException(status_code=404, detail="매체를 찾을 수 없습니다.")
+    return m
+
+
+def get_admin_media(db: Session, media_id: str) -> dict:
+    return _serialize_media(_get_media_or_404(db, media_id))
+
+
+def create_media(db: Session, payload: dict) -> dict:
+    media_id = (payload.get("media_id") or "").strip()
+    if not media_id:
+        raise HTTPException(status_code=400, detail="매체 ID(media_id)는 필수입니다.")
+    if db.query(Media).filter(Media.media_id == media_id).first():
+        raise HTTPException(status_code=409, detail="이미 존재하는 매체 ID입니다.")
+    editable = set(_media_columns()) - _MEDIA_AUTO_COLS
+    data = {k: v for k, v in payload.items() if k in editable}
+    data["media_id"] = media_id
+    m = Media(**data)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return _serialize_media(m)
+
+
+def update_media(db: Session, media_id: str, payload: dict) -> dict:
+    m = _get_media_or_404(db, media_id)
+    editable = set(_media_columns()) - _MEDIA_AUTO_COLS - {"media_id"}
+    for key, value in payload.items():
+        if key in editable:
+            setattr(m, key, value)
+    db.commit()
+    db.refresh(m)
+    return _serialize_media(m)
+
+
+def delete_media(db: Session, media_id: str) -> None:
+    db.delete(_get_media_or_404(db, media_id))
+    db.commit()
+
+
+def add_media_image(db: Session, media_id: str, file: UploadFile) -> dict:
+    """업로드 파일을 저장하고 media_image 행 추가. 첫 이미지는 대표(is_thumbnail)로.
+
+    thumbnail_url 컬럼은 건드리지 않는다(별도 텍스트 필드로 독립 관리).
+    """
+    m = _get_media_or_404(db, media_id)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in _MEDIA_IMAGE_EXTS:
+        raise HTTPException(status_code=400, detail="지원하지 않는 이미지 형식입니다.")
+    content = file.file.read(_MEDIA_IMAGE_MAX_BYTES + 1)
+    if len(content) > _MEDIA_IMAGE_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="이미지 용량은 10MB 이하만 가능합니다.")
+
+    upload_dir = get_settings().upload_dir
+    rel_dir = os.path.join("media", media_id)
+    abs_dir = Path(upload_dir) / rel_dir
+    abs_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex}{ext}"
+    (abs_dir / stored_name).write_bytes(content)
+    image_url = f"/uploads/{rel_dir}/{stored_name}"
+
+    next_order = max((img.sort_order for img in m.images), default=-1) + 1
+    is_first = len(m.images) == 0
+    db.add(
+        MediaImage(
+            media_id=media_id,
+            image_url=image_url,
+            sort_order=next_order,
+            is_thumbnail=is_first,
+        )
+    )
+    db.commit()
+    db.refresh(m)
+    return _serialize_media(m)
+
+
+def delete_media_image(db: Session, media_id: str, image_id: str) -> dict:
+    m = _get_media_or_404(db, media_id)
+    img = (
+        db.query(MediaImage)
+        .filter(MediaImage.id == image_id, MediaImage.media_id == media_id)
+        .first()
+    )
+    if img is None:
+        raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다.")
+    was_thumb = img.is_thumbnail
+    db.delete(img)
+    db.flush()
+    if was_thumb:
+        remaining = (
+            db.query(MediaImage)
+            .filter(MediaImage.media_id == media_id)
+            .order_by(MediaImage.sort_order)
+            .first()
+        )
+        if remaining:
+            remaining.is_thumbnail = True
+    db.commit()
+    db.refresh(m)
+    return _serialize_media(m)

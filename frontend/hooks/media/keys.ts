@@ -14,4 +14,5 @@ export const mediaKeys = {
   fixedFilterOptions: () =>
     [...mediaKeys.all, "fixed", "filter-options"] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,
+  adminDetail: (id: string) => [...mediaKeys.all, "admin", "detail", id] as const,
 };

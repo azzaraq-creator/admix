@@ -214,3 +214,43 @@ export const mediaApi = {
   detail: (id: string) =>
     api.get<MediaDetail>(`/media/${id}`).then((r) => r.data),
 };
+
+// ===== admin 매체 상세/등록 (media 전 컬럼) =====
+
+export interface MediaImageItem {
+  id: string;
+  image_url: string;
+  sort_order: number;
+  is_thumbnail: boolean;
+}
+
+export interface AdminMediaDetail {
+  media_id: string;
+  thumbnail_url: string | null;
+  images: MediaImageItem[];
+  [key: string]: unknown;
+}
+
+export type AdminMediaPayload = Record<string, unknown>;
+
+export const adminMediaApi = {
+  get: (id: string) =>
+    api.get<AdminMediaDetail>(`/admin/media/${id}`).then((r) => r.data),
+  create: (payload: AdminMediaPayload) =>
+    api.post<AdminMediaDetail>("/admin/media", payload).then((r) => r.data),
+  update: (id: string, payload: AdminMediaPayload) =>
+    api.patch<AdminMediaDetail>(`/admin/media/${id}`, payload).then((r) => r.data),
+  remove: (id: string) =>
+    api.delete(`/admin/media/${id}`).then(() => undefined),
+  uploadImage: (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api
+      .post<AdminMediaDetail>(`/admin/media/${id}/images`, fd)
+      .then((r) => r.data);
+  },
+  deleteImage: (id: string, imageId: string) =>
+    api
+      .delete<AdminMediaDetail>(`/admin/media/${id}/images/${imageId}`)
+      .then((r) => r.data),
+};

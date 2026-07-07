@@ -1,6 +1,11 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { mediaApi, type MapBounds, type MediaFilterParams } from "./apis";
+import {
+  adminMediaApi,
+  mediaApi,
+  type MapBounds,
+  type MediaFilterParams,
+} from "./apis";
 import { mediaKeys } from "./keys";
 
 const FIXED_PAGE_SIZE = 20;
@@ -10,6 +15,13 @@ export const useMediaList = () =>
     queryKey: mediaKeys.list(),
     queryFn: mediaApi.list,
     staleTime: 60 * 1000,
+  });
+
+export const useAdminMediaDetail = (id: string | null) =>
+  useQuery({
+    queryKey: mediaKeys.adminDetail(id ?? ""),
+    queryFn: () => adminMediaApi.get(id as string),
+    enabled: !!id,
   });
 
 export const useMovingMediaList = (filters?: MediaFilterParams) =>
