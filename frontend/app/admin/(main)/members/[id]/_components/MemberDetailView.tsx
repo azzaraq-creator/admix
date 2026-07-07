@@ -103,15 +103,15 @@ export function MemberDetailView() {
       <h1 className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">회원 상세</h1>
 
       <div className="flex items-center gap-[48px] rounded-[12px] border border-[#cdcdcd] p-[36px]">
-        <div className="flex flex-1 items-center gap-[21px]">
+        <div className="flex min-w-0 flex-1 items-center gap-[21px]">
           <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-grey-50">
             <Building2 className="size-[60px] text-[#767676]" />
           </div>
-          <div className="flex flex-1 flex-col gap-[20px]">
+          <div className="flex min-w-0 flex-1 flex-col gap-[20px]">
             <p className="text-[36px] font-semibold leading-[1.4] text-black">
               {member.name ?? "-"}
             </p>
-            <div className="flex items-center gap-[22px]">
+            <div className="flex flex-wrap items-center gap-x-[22px] gap-y-[16px]">
               <HeaderInfo
                 label="회원 유형"
                 value={TYPE_LABEL[member.membership_type] ?? member.membership_type}
@@ -131,7 +131,7 @@ export function MemberDetailView() {
           </div>
         </div>
 
-        <div className="flex items-stretch gap-[16px] rounded-[8px] border border-[#cdcdcd] p-[16px]">
+        <div className="flex shrink-0 items-stretch gap-[16px] rounded-[8px] border border-[#cdcdcd] p-[16px]">
           <HeaderStat label="제안 건수" value={String(member.proposal_count)} />
           <div className="w-px self-stretch bg-[#e6e6e6]" />
           <HeaderStat label="문의 건수" value={String(member.inquiry_count)} />
@@ -158,7 +158,9 @@ export function MemberDetailView() {
         })}
       </div>
 
-      {tab === "basic" && <BasicInfoTab member={member} />}
+      {tab === "basic" && (
+        <BasicInfoTab member={member} onList={() => router.push("/admin/members")} />
+      )}
 
       {tab === "proposals" && (
         <CommonTable
@@ -190,12 +192,14 @@ export function MemberDetailView() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <ListButton
-          onClick={() => router.push("/admin/members")}
-          className="w-[100px] px-0"
-        />
-      </div>
+      {tab !== "basic" && (
+        <div className="flex items-center justify-between">
+          <ListButton
+            onClick={() => router.push("/admin/members")}
+            className="w-[100px] px-0"
+          />
+        </div>
+      )}
     </div>
   );
 }

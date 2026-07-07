@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-import { PrimaryButton } from "@/components/common/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { extractApiError } from "@/lib/apiError";
 import {
   Select,
@@ -68,7 +68,13 @@ function ReadValue({ value }: { value: string }) {
   );
 }
 
-export function BasicInfoTab({ member }: { member: MemberDetail }) {
+export function BasicInfoTab({
+  member,
+  onList,
+}: {
+  member: MemberDetail;
+  onList: () => void;
+}) {
   const { alert, confirmDialog } = useAdminConfirm();
   const updateMember = useUpdateMember();
   const updateBiz = useUpdateBizReg();
@@ -190,7 +196,7 @@ export function BasicInfoTab({ member }: { member: MemberDetail }) {
             <p className={CARD_TITLE}>사업자 등록 정보</p>
             <div className="flex flex-col gap-[16px]">
               <Row label="상태" required>
-                <Select value={bizStatus} onValueChange={(v) => setBizStatus(v ?? "unregistered")}>
+                <Select items={BIZ_OPTIONS} value={bizStatus} onValueChange={(v) => setBizStatus(v ?? "unregistered")}>
                   <SelectTrigger className="h-[40px] flex-1 rounded-[6px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
                     <SelectValue placeholder="상태 선택" />
                   </SelectTrigger>
@@ -223,7 +229,8 @@ export function BasicInfoTab({ member }: { member: MemberDetail }) {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <ListButton onClick={onList} className="w-[100px] px-0" />
         <PrimaryButton onClick={handleSave} disabled={saving}>
           저장
         </PrimaryButton>

@@ -201,6 +201,7 @@ export function CommonTable<T>({
       )}
       {opt.type === "select" && (
         <Select
+          items={[{ value: "", label: opt.placeholder ?? "전체" }, ...opt.optionList]}
           value={tempSearch[opt.name] ?? ""}
           onValueChange={(value) => setField(opt.name, (value as string) ?? "")}
         >

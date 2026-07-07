@@ -185,7 +185,7 @@ function FaqForm({
         </FieldRow>
         <FieldRow>
           <FieldLabel label="유형" />
-          <Select value={type} onValueChange={(value) => setType(value ?? "")}>
+          <Select items={FAQ_TYPE_OPTIONS} value={type} onValueChange={(value) => setType(value ?? "")}>
             <SelectTrigger className="w-full rounded-[6px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]">
               <SelectValue placeholder="유형 선택" />
             </SelectTrigger>

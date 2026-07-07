@@ -203,7 +203,7 @@ function AccountForm({
 
       <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
         <Field label="계정 유형" required>
-          <Select value={type} onValueChange={(v) => setType(v ?? "")}>
+          <Select items={ACCOUNT_TYPE_OPTIONS} value={type} onValueChange={(v) => setType(v ?? "")}>
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="유형 선택" />
             </SelectTrigger>
@@ -268,6 +268,7 @@ function AccountForm({
           <>
             <Field label="상태">
               <Select
+                items={STATUS_OPTIONS}
                 value={status}
                 onValueChange={(v) => setStatus(v as AdminStatus)}
               >
