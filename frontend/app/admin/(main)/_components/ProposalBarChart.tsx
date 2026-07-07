@@ -4,10 +4,8 @@ const MONTHS = [
   "1월", "2월", "3월", "4월", "5월", "6월",
   "7월", "8월", "9월", "10월", "11월", "12월",
 ];
-const VALUES = [120, 150, 180, 220, 190, 250, 210, 240, 200, 230, 260, 280];
 
-const MAX = 300;
-const STEP = 50;
+const DIV = 5;
 const W = 640;
 const H = 340;
 const PL = 44;
@@ -19,10 +17,16 @@ const PLOT_H = H - PT - PB;
 const SLOT = PLOT_W / MONTHS.length;
 const BAR_W = 22;
 
-const yFor = (value: number) => PT + PLOT_H * (1 - value / MAX);
-const gridValues = Array.from({ length: MAX / STEP + 1 }, (_, i) => i * STEP);
+export function ProposalBarChart({ values }: { values: number[] }) {
+  const data = MONTHS.map((_, i) => values[i] ?? 0);
+  const maxVal = Math.max(...data, 0);
+  const max = Math.max(DIV, Math.ceil(maxVal / DIV) * DIV);
+  const step = max / DIV;
 
-export function ProposalBarChart() {
+  const yFor = (value: number) => PT + PLOT_H * (1 - value / max);
+  const gridValues = Array.from({ length: DIV + 1 }, (_, i) => i * step);
+  const peakIndex = data.reduce((best, v, i) => (v > data[best] ? i : best), 0);
+
   return (
     <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke p-[24px]">
       <div className="flex items-center justify-between">
@@ -58,7 +62,7 @@ export function ProposalBarChart() {
           );
         })}
 
-        {VALUES.map((value, index) => {
+        {data.map((value, index) => {
           const x = PL + SLOT * index + SLOT / 2 - BAR_W / 2;
           const y = yFor(value);
           return (
@@ -86,30 +90,32 @@ export function ProposalBarChart() {
           </text>
         ))}
 
-        <g>
-          <rect
-            x={PL + SLOT * 0 + SLOT / 2 - 26}
-            y={yFor(VALUES[0]) - 30}
-            width={52}
-            height={24}
-            rx={4}
-            fill="#2f3442"
-          />
-          <text
-            x={PL + SLOT * 0 + SLOT / 2}
-            y={yFor(VALUES[0]) - 14}
-            textAnchor="middle"
-            className="fill-white text-[12px] font-medium"
-          >
-            1,234
-          </text>
-        </g>
+        {maxVal > 0 && (
+          <g>
+            <rect
+              x={PL + SLOT * peakIndex + SLOT / 2 - 26}
+              y={yFor(data[peakIndex]) - 30}
+              width={52}
+              height={24}
+              rx={4}
+              fill="#2f3442"
+            />
+            <text
+              x={PL + SLOT * peakIndex + SLOT / 2}
+              y={yFor(data[peakIndex]) - 14}
+              textAnchor="middle"
+              className="fill-white text-[12px] font-medium"
+            >
+              {data[peakIndex].toLocaleString()}
+            </text>
+          </g>
+        )}
       </svg>
 
       <div className="flex items-center justify-center gap-[6px]">
         <span className="size-[8px] rounded-[2px] bg-primary" />
         <span className="text-xs font-medium leading-[16px] text-disabled">
-          문의 건수
+          제안 건수
         </span>
       </div>
     </div>

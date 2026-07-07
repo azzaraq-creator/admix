@@ -10,6 +10,7 @@ from src.routers.admin_auth import router as admin_auth_router
 from src.routers.admin_chat import router as admin_chat_router
 from src.routers.auth import router as auth_router
 from src.routers.chat_graph import router as chat_graph_router
+from src.routers.dashboard import router as dashboard_router
 from src.routers.faq import router as faq_router
 from src.routers.admin_media import router as admin_media_router
 from src.routers.media import router as media_router
@@ -54,6 +55,7 @@ app.include_router(admin_auth_router)
 app.include_router(admin_chat_router)
 app.include_router(chat_graph_router)
 app.include_router(recommend_v2_router)
+app.include_router(dashboard_router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
