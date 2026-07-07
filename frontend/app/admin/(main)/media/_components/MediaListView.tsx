@@ -19,11 +19,11 @@ export function MediaListView() {
 
   const filtered = useMemo<Media[]>(() => {
     const list = data?.items ?? [];
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const type = search.type;
     return list.filter((item) => {
       if (type && item.mediaType !== type) return false;
-      if (keyword && !item.name.includes(keyword)) return false;
+      if (keyword && !item.name.toLowerCase().includes(keyword)) return false;
       return true;
     });
   }, [data, search]);

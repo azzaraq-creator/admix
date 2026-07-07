@@ -1,7 +1,7 @@
 "use client";
 
 import { Upload } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { XIcon } from "@/components/icons";
 import { API_BASE_URL } from "@/lib/api";
@@ -19,20 +19,38 @@ const toSrc = (url: string) =>
 export function MediaPhotoSection({
   mediaId,
   images,
+  pendingFiles,
+  onPendingChange,
 }: {
   mediaId: string | null;
   images: MediaImageItem[];
+  pendingFiles: File[];
+  onPendingChange: (files: File[]) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const upload = useUploadMediaImage();
   const remove = useDeleteMediaImage();
-  const reachedMax = images.length >= MAX_IMAGES;
-  const disabled = !mediaId || upload.isPending || reachedMax;
+
+  // 등록 모드: 로컬 대기 파일 미리보기 URL (변경 시 이전 URL revoke)
+  const previews = useMemo(
+    () => pendingFiles.map((f) => URL.createObjectURL(f)),
+    [pendingFiles],
+  );
+  useEffect(() => () => previews.forEach(URL.revokeObjectURL), [previews]);
+
+  const count = mediaId ? images.length : pendingFiles.length;
+  const reachedMax = count >= MAX_IMAGES;
+  const disabled = upload.isPending || reachedMax;
 
   const handleFiles = async (files: FileList | null) => {
-    if (!mediaId || !files) return;
-    for (const file of Array.from(files)) {
-      await upload.mutateAsync({ id: mediaId, file });
+    if (!files) return;
+    const arr = Array.from(files);
+    if (mediaId) {
+      for (const file of arr) {
+        await upload.mutateAsync({ id: mediaId, file });
+      }
+    } else {
+      onPendingChange([...pendingFiles, ...arr]);
     }
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -40,11 +58,11 @@ export function MediaPhotoSection({
   return (
     <section className="flex flex-col gap-[16px]">
       <h2 className="text-lg font-bold leading-[28px] text-black">
-        매체 사진 {images.length}/{MAX_IMAGES}
+        매체 사진 {count}/{MAX_IMAGES}
       </h2>
       {!mediaId && (
         <p className="text-sm font-medium leading-[20px] text-disabled">
-          저장 후 이미지를 등록할 수 있습니다.
+          저장 시 함께 등록됩니다.
         </p>
       )}
 
@@ -75,28 +93,25 @@ export function MediaPhotoSection({
         {/* 썸네일 스트립 */}
         <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
           <div className="flex items-center gap-[10px] overflow-x-auto">
-            {images.map((img) => (
-              <div
-                key={img.id}
-                className="relative flex size-[200px] shrink-0 flex-col items-end rounded-[8px] p-[16px]"
-              >
-                <img
-                  src={toSrc(img.image_url)}
-                  alt=""
-                  className="pointer-events-none absolute inset-0 size-full rounded-[8px] object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    mediaId && remove.mutate({ id: mediaId, imageId: img.id })
-                  }
-                  className="relative flex items-center rounded-full bg-black/70 p-[8px] transition-opacity hover:opacity-90"
-                  aria-label="이미지 삭제"
-                >
-                  <XIcon className="size-[18px] text-white" />
-                </button>
-              </div>
-            ))}
+            {mediaId
+              ? images.map((img) => (
+                  <Thumbnail
+                    key={img.id}
+                    src={toSrc(img.image_url)}
+                    onDelete={() =>
+                      remove.mutate({ id: mediaId, imageId: img.id })
+                    }
+                  />
+                ))
+              : pendingFiles.map((file, i) => (
+                  <Thumbnail
+                    key={`${file.name}-${i}`}
+                    src={previews[i]}
+                    onDelete={() =>
+                      onPendingChange(pendingFiles.filter((_, idx) => idx !== i))
+                    }
+                  />
+                ))}
           </div>
         </div>
       </div>
@@ -110,5 +125,25 @@ export function MediaPhotoSection({
         onChange={(e) => handleFiles(e.target.files)}
       />
     </section>
+  );
+}
+
+function Thumbnail({ src, onDelete }: { src: string; onDelete: () => void }) {
+  return (
+    <div className="relative flex size-[200px] shrink-0 flex-col items-end rounded-[8px] p-[16px]">
+      <img
+        src={src}
+        alt=""
+        className="pointer-events-none absolute inset-0 size-full rounded-[8px] object-cover"
+      />
+      <button
+        type="button"
+        onClick={onDelete}
+        className="relative flex items-center rounded-full bg-black/70 p-[8px] transition-opacity hover:opacity-90"
+        aria-label="이미지 삭제"
+      >
+        <XIcon className="size-[18px] text-white" />
+      </button>
+    </div>
   );
 }
