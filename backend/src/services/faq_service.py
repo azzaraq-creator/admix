@@ -19,7 +19,7 @@ def _to_response(faq: Faq) -> dict:
         sort_order=faq.sort_order,
         is_published=faq.is_published,
         created_by=faq.created_by,
-        author=faq.creator.name if faq.creator else None,
+        author=faq.created_by_name or (faq.creator.name if faq.creator else None),
         created_at=faq.created_at,
         updated_at=faq.updated_at,
     )
@@ -32,8 +32,8 @@ def _get_or_404(db: Session, faq_id: uuid.UUID) -> Faq:
     return faq
 
 
-def create_faq(db: Session, data: FaqCreate) -> dict:
-    faq = Faq(**data.model_dump())
+def create_faq(db: Session, data: FaqCreate, author_name: str | None = None) -> dict:
+    faq = Faq(**data.model_dump(), created_by_name=author_name)
     db.add(faq)
     db.commit()
     db.refresh(faq)

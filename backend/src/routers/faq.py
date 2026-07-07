@@ -22,9 +22,9 @@ router = APIRouter(prefix="/faqs", tags=["faq"])
 def create_faq(
     body: FaqCreate,
     db: Session = Depends(get_db),
-    _: Admin = Depends(require_permission("faq")),
+    admin: Admin = Depends(require_permission("faq")),
 ) -> FaqResponse:
-    return faq_service.create_faq(db, body)
+    return faq_service.create_faq(db, body, author_name=admin.name)
 
 
 @router.get("", response_model=list[FaqResponse])

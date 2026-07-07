@@ -39,6 +39,7 @@ class Inquiry(Base):
     answered_by = Column(
         UUID(as_uuid=True), ForeignKey("admin.id", ondelete="SET NULL"), nullable=True
     )
+    answered_by_name = Column(String(100), nullable=True)
     answered_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 

@@ -31,6 +31,7 @@ class Faq(Base):
     created_by = Column(
         UUID(as_uuid=True), ForeignKey("admin.id", ondelete="SET NULL"), nullable=True
     )
+    created_by_name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 

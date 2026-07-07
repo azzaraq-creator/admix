@@ -45,8 +45,8 @@ def _get_or_404(db: Session, inquiry_id: uuid.UUID) -> Inquiry:
 
 
 def _detail(db: Session, q: Inquiry) -> dict:
-    answerer = None
-    if q.answered_by is not None:
+    answerer = q.answered_by_name
+    if answerer is None and q.answered_by is not None:
         admin = db.query(Admin).filter(Admin.id == q.answered_by).first()
         answerer = admin.name if admin else None
     return dict(
@@ -117,8 +117,8 @@ def get_my_inquiry(
     )
     if q is None:
         raise HTTPException(status_code=404, detail="문의를 찾을 수 없습니다.")
-    answerer = None
-    if q.answered_by is not None:
+    answerer = q.answered_by_name
+    if answerer is None and q.answered_by is not None:
         admin = db.query(Admin).filter(Admin.id == q.answered_by).first()
         answerer = admin.name if admin else None
     return dict(
@@ -144,6 +144,7 @@ def answer_inquiry(
     q.answer = data.answer
     q.status = "answered"
     q.answered_by = admin.id
+    q.answered_by_name = admin.name
     q.answered_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(q)
