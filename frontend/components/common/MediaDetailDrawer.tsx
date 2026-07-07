@@ -7,10 +7,12 @@ import { ChevronDownIcon, MapPinIcon, XIcon } from "@/components/icons";
 import { AgeBarChart } from "./AgeBarChart";
 import { GenderDonut } from "./GenderDonut";
 import { ImageLightbox } from "./ImageLightbox";
+import { MediaDetailImages } from "./MediaDetailImages";
 import type { MediaItemData } from "./MediaItem";
 
 export type MediaDetail = {
   subName?: string;
+  images?: string[];
   monthlyTraffic?: string;
   mainAudience?: { gender: string; age: string }[];
   address?: string;
@@ -37,7 +39,11 @@ export function MediaDetailDrawer({
   const [descExpanded, setDescExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const data = detail ?? {};
-  const images = media.images?.length ? media.images : [null, null];
+  // 상세 API의 전체 이미지 우선(개수 기반 배치·더보기용), 없으면 목록 카드 이미지로 폴백.
+  const images =
+    data.images?.length
+      ? data.images
+      : (media.images?.filter((src): src is string => Boolean(src)) ?? []);
   const mainAudience = data.mainAudience ?? [];
   const ageRatio = data.ageRatio ?? [];
   const genderRatio = data.genderRatio;
@@ -46,22 +52,7 @@ export function MediaDetailDrawer({
   return (
     <div className="relative flex h-screen w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
       <div className="relative shrink-0">
-        <div className="flex h-[200px] w-full items-center justify-center gap-[2px] overflow-hidden bg-white">
-          {images.map((src, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => setLightboxIndex(index)}
-              aria-label="이미지 크게보기"
-              className="relative aspect-square min-w-0 flex-1 cursor-pointer self-stretch bg-[#d9d9d9]"
-            >
-              {src && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt="" className="size-full object-cover" />
-              )}
-            </button>
-          ))}
-        </div>
+        <MediaDetailImages images={images} onOpen={setLightboxIndex} />
         <button
           type="button"
           onClick={onClose}

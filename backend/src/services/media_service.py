@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import and_, func, inspect as sa_inspect, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from src.config import get_settings
 from src.models.media_image import MediaImage
@@ -55,11 +55,17 @@ def _fmt_date(dt: datetime | None) -> str:
 
 def _media_card(m: Media) -> dict:
     name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
+    # 카드 이미지: 썸네일 우선 → media_image(sort_order) 순, 중복 제거 후 최대 3장.
+    images: list[str] = []
+    for url in [m.thumbnail_url, *(img.image_url for img in m.images)]:
+        if url and url not in images:
+            images.append(url)
     return dict(
         id=m.media_id,
         name=name or "-",
         minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
         thumbnailUrl=m.thumbnail_url,
+        images=images[:3],
         badge=_media_badge(m),
         lat=float(m.latitude) if m.latitude is not None else None,
         lng=float(m.longitude) if m.longitude is not None else None,
@@ -88,7 +94,7 @@ def list_moving_media(
         price_min=price_min,
         price_max=price_max,
     )
-    rows = base.order_by(Media.media_id).all()
+    rows = base.options(selectinload(Media.images)).order_by(Media.media_id).all()
     return [_media_card(m) for m in rows]
 
 
@@ -173,7 +179,13 @@ def list_fixed_media(
         sw_lng=sw_lng,
     )
     total = base.count()
-    rows = base.order_by(Media.media_id).limit(limit).offset(offset).all()
+    rows = (
+        base.options(selectinload(Media.images))
+        .order_by(Media.media_id)
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
     return total, [_media_card(m) for m in rows]
 
 

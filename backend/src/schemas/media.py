@@ -27,6 +27,7 @@ class MediaCardRow(BaseModel):
     name: str
     minAdvertisementFeeKrw: int | None
     thumbnailUrl: str | None
+    images: list[str] = []
     badge: str | None
     lat: float | None = None
     lng: float | None = None

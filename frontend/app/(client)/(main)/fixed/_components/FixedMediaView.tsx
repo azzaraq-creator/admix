@@ -29,7 +29,13 @@ function toDrawerDetail(
 ): DrawerDetail | undefined {
   if (!detail) return undefined;
   const pop = detail.population;
+  // 썸네일 우선 + 상세 이미지, 중복 제거 (디테일패널 개수 기반 배치용).
+  const images: string[] = [];
+  for (const url of [detail.thumbnailUrl, ...detail.imageUrls]) {
+    if (url && !images.includes(url)) images.push(url);
+  }
   return {
+    images,
     description: detail.description ?? undefined,
     address: detail.address ?? undefined,
     monthlyTraffic: pop ? pop.monthlyFootTraffic.toLocaleString() : undefined,

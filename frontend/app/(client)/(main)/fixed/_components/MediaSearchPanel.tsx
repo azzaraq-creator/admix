@@ -105,7 +105,12 @@ export function MediaSearchPanel({
     id: row.id,
     name: row.name,
     price: formatFee(row.minAdvertisementFeeKrw),
-    images: row.thumbnailUrl ? [row.thumbnailUrl] : [],
+    images:
+      row.images?.length > 0
+        ? row.images
+        : row.thumbnailUrl
+          ? [row.thumbnailUrl]
+          : [],
     popular: row.badge === "popular",
   }));
   const coordsById = new Map(

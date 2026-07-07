@@ -23,6 +23,7 @@ export interface MediaCardRow {
   name: string;
   minAdvertisementFeeKrw: number | null;
   thumbnailUrl: string | null;
+  images: string[];
   badge: "popular" | "new" | null;
   lat: number | null;
   lng: number | null;
