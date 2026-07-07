@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     geoapify_api_key: str = ""  # 제안서 PPT 매체 슬라이드 정적지도용 (Geoapify Static Maps)
     port: int = 8000
 
+    # 비동기 AI 추천 (SQS + Lambda)
+    aws_region: str = "ap-northeast-2"
+    sqs_queue_url: str = ""  # admix-ai-jobs.fifo
+
     upload_dir: str = "/data/uploads"
 
     jwt_access_secret: str = "change-me-access-secret"

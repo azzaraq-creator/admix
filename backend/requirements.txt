@@ -34,6 +34,9 @@ openpyxl>=3.1
 # 제안서 PPT 생성 (python-pptx 템플릿 채우기)
 python-pptx>=1.0
 
+# AWS (SQS enqueue — 비동기 AI 추천 job)
+boto3>=1.35,<2
+
 # Test
 pytest==8.3.0
 pytest-asyncio==0.24.0

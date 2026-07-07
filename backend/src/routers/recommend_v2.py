@@ -150,3 +150,50 @@ def post_recommend_v2_slot_remove(
         session_id=body.session_id,
         save_filter_context_fn=lambda ctx: _save_filter_context(body.session_id, ctx),
     )
+
+
+# ===== 비동기 AI 추천 (SQS + Lambda) — enqueue + 폴링 =====
+
+
+class RecommendJobCreate(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    session_id: str | None = None
+    top_k: int = Field(DEFAULT_TOP_K, ge=1, le=100)
+
+
+class RecommendJobStatus(BaseModel):
+    job_id: str
+    status: str
+    result: dict | None = None
+    error: str | None = None
+
+
+@router.post(
+    "/v2/jobs",
+    response_model=RecommendJobStatus,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_recommend_job(body: RecommendJobCreate, db: Session = Depends(get_db)):
+    """비동기 AI 추천 job 생성 → SQS enqueue. 즉시 job_id 반환(202). 결과는 폴링."""
+    from src.services.ai_job_service import enqueue_recommend_job
+
+    job = enqueue_recommend_job(
+        db, message=body.message, top_k=body.top_k, session_id=body.session_id
+    )
+    return RecommendJobStatus(job_id=str(job.id), status=job.status)
+
+
+@router.get("/v2/jobs/{job_id}", response_model=RecommendJobStatus)
+def get_recommend_job(job_id: str, db: Session = Depends(get_db)):
+    """job 상태/결과 폴링."""
+    from src.services.ai_job_service import get_job
+
+    job = get_job(db, job_id)
+    if not job:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "job not found")
+    return RecommendJobStatus(
+        job_id=str(job.id),
+        status=job.status,
+        result=job.result,
+        error=job.error,
+    )

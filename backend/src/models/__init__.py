@@ -13,9 +13,11 @@ from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import PasswordReset, RefreshToken, SocialAccount, User
+from src.models.ai_recommend_job import AiRecommendJob
 
 __all__ = [
     "AdMessage",
+    "AiRecommendJob",
     "AdSession",
     "MessageRole",
     "KeywordCategory",

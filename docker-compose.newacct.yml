@@ -1,0 +1,15 @@
+# 신규 AWS 계정(787418837344) override — DB를 관리형 RDS로, postgres 컨테이너 미사용.
+# 사용법:
+#   docker compose --env-file backend/.env \
+#     -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.newacct.yml up -d backend
+#
+# 변경점:
+#   - backend.depends_on 초기화(!reset) → postgres 컨테이너에 의존/기동 안 함
+#   - backend.DATABASE_URL 을 RDS 엔드포인트(admix_recommend)로 override
+#   - POSTGRES_PASSWORD 는 backend/.env 에 RDS 마스터 비번으로 세팅(Secrets Manager 값)
+
+services:
+  backend:
+    depends_on: !reset []
+    environment:
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@admix-db.cjuy04k4msd0.ap-northeast-2.rds.amazonaws.com:5432/admix_recommend"
