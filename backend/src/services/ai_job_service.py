@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import uuid as uuid_lib
+from datetime import datetime, timezone
 from functools import lru_cache
 
 import boto3
@@ -14,6 +15,10 @@ from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.models.ai_recommend_job import AiRecommendJob
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 @lru_cache(maxsize=1)
@@ -69,3 +74,84 @@ def get_job(db: Session, job_id: str) -> AiRecommendJob | None:
     if not jid:
         return None
     return db.query(AiRecommendJob).filter(AiRecommendJob.id == jid).first()
+
+
+# ===== Lambda(consumer) 용 헬퍼 =====
+
+
+def load_filter_context(db: Session, session_id: str | None) -> dict | None:
+    """session_id 가 있으면 AdSession.filter_context 로드 (라우터 _load_filter_context 동일)."""
+    if not session_id:
+        return None
+    from src.models.ad_session import AdSession
+
+    try:
+        session = db.query(AdSession).filter(AdSession.id == session_id).first()
+        return session.filter_context if session else None
+    except Exception:
+        return None
+
+
+def make_save_filter_context_fn(session_id: str | None):
+    """filter_context 를 별도 SessionLocal 세션으로 저장하는 콜백 반환.
+
+    라우터 _save_filter_context 와 동일 규칙(set→list 정규화, 세션 없으면 생성).
+    session_id 없으면 no-op.
+    """
+    if not session_id:
+        return None
+
+    def _save(context: dict) -> None:
+        from src.database import SessionLocal
+        from src.models.ad_session import AdSession
+
+        db = SessionLocal()
+        try:
+            session_uuid = _to_uuid(session_id)
+            if not session_uuid:
+                return
+
+            def _normalize(obj):
+                if isinstance(obj, dict):
+                    return {k: _normalize(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, tuple)):
+                    return [_normalize(x) for x in obj]
+                elif isinstance(obj, set):
+                    return [_normalize(x) for x in obj]
+                return obj
+
+            normalized = _normalize(context)
+
+            session = db.query(AdSession).filter(AdSession.id == session_uuid).first()
+            if session:
+                session.filter_context = normalized
+            else:
+                session = AdSession(
+                    id=session_uuid,
+                    thread_id=str(session_uuid),
+                    filter_context=normalized,
+                )
+                db.add(session)
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+
+    return _save
+
+
+def mark_processing(db: Session, job: AiRecommendJob) -> None:
+    job.status = "processing"
+    job.updated_at = _utcnow()
+    db.commit()
+
+
+def finish_job(
+    db: Session, job: AiRecommendJob, result: dict | None, error: str | None
+) -> None:
+    job.status = "failed" if error else "done"
+    job.result = result
+    job.error = error
+    job.updated_at = _utcnow()
+    db.commit()

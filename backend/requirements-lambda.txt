@@ -1,0 +1,22 @@
+# Lambda 비동기 AI 추천 consumer 전용 슬림 의존성.
+# collect_recommend_events 경로가 실제로 import 하는 것만 포함.
+# (recommend_v2 → fastapi.responses / langchain_core / pydantic / sqlalchemy,
+#  media_service → fastapi, graph/llm → langchain_openai / openai,
+#  config → pydantic_settings, ai_job_service → boto3)
+# langgraph / langgraph-checkpoint / python-pptx / openpyxl / uvicorn 등
+# 무거운 의존성은 이 경로에서 쓰지 않아 제외.
+
+fastapi==0.115.0
+pydantic==2.9.0
+pydantic-settings==2.5.0
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+
+# LLM
+langchain-core>=0.3,<0.4
+langchain-openai>=0.2,<0.3
+openai>=1.50,<2
+
+# AWS
+boto3>=1.35,<2

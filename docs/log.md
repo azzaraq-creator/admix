@@ -4,6 +4,12 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-07 — GA4 애널리틱스 연동 검토·계획
+
+- 요청 "ga4 검토" → 전수 확인 결과 **GA4 미연동**(스크립트·의존성·env·layout·문서 모두 없음). 검토가 아닌 신규 연동 이슈로 정리.
+- 연동 계획 문서 작성([ga4-analytics-integration](plans/2026-07-07-ga4-analytics-integration.md)): Next 16 App Router라 `@next/third-parties`의 `GoogleAnalytics`를 **`app/(client)/layout.tsx`에만** 두어 admin/deck 제외, `NEXT_PUBLIC_GA_ID`(운영은 Amplify env), SPA page_view는 GA4 향상된 측정 위임(1차), 이벤트 맵(검색·AI추천·view_item·매체담기·제안서·가입/로그인/문의) 초안 + 동의(Consent) 처리. **코드 미구현(설계 단계).**
+- 미결정: 측정 ID 발급 주체, 동의 배너(Consent Mode v2) 도입 여부, admin 트래킹 분리, 이벤트 최종 스키마.
+
 ## 2026-07-07 — SQS+Lambda 비동기 AI 추천 아키텍처 계획
 
 - AWS 계정 이전 계기로 **AI 추천 LLM 호출을 EC2 동기 → SQS+Lambda 비동기**로 분리하는 설계 계획 작성([sqs-lambda-async-ai-recommend](plans/2026-07-07-sqs-lambda-async-ai-recommend.md)). 현재 코드(`recommend_v2.py`의 `extract_keywords`→`filter_media_items`) 흐름 기반.
@@ -19,6 +25,7 @@
 - **2단계 착수 설계 확정(2026-07-07)**: job 단위 = 챗 메시지 1건(기존 `recommend_v2_stream` 로직 재사용, 결과를 `ai_recommend_jobs`에 저장) / 세션·매체·제안서(PPT)는 EC2 동기 유지 / Lambda = `backend/src` 공유 컨테이너 이미지(ECR) / SQS FIFO(`MessageGroupId=session_id`)로 세션 순서보장. 계획서 §6-A.
 - **2단계 ① 인프라 착수(2026-07-07)**: SQS FIFO `admix-ai-jobs.fifo`(+DLQ, redrive 3), Lambda역할 `admix-lambda-role`, ECR `admix-ai-agent`, EC2역할에 SQS Send 추가. 다음: ② 백엔드(`ai_recommend_jobs` 테이블+enqueue/폴링) → ③ Lambda 컨테이너 → ④ 프론트.
 - **2단계 ② 백엔드 완료·검증(2026-07-07)**: `ai_recommend_jobs` 모델+alembic 028, `ai_job_service`(SQS FIFO enqueue), `POST/GET /recommend/v2/jobs`, config+boto3. EC2 배포 후 POST→202·SQS 메시지 1건·폴링 확인. IMDS hop limit 2로 컨테이너 역할 사용. 다음: ③ Lambda(recommend 로직 결과-반환형 리팩터 + 컨테이너 이미지→ECR + 이벤트소스매핑).
+- **2단계 ③ Lambda 완료·E2E 검증(2026-07-08)**: `collect_recommend_events`(_event_stream 구동해 이벤트 수집, 로직 중복 없음) + `lambda_handler.py` + `Dockerfile.lambda`(슬림). Lambda `admix-ai-agent`(비-VPC, 컨테이너 이미지) + SQS 이벤트매핑. **결정 변경 2건**: ①**VPC 없이 오픈 연결**(사용자 결정) — Lambda VPC 밖(OpenAI 직결) + RDS `publicly-accessible=on`+SG 5432 오픈(⚠️운영 전 조이기 필수), ②reserved concurrency는 Free Plan 계정 한도(10) 때문에 불가 → **이벤트매핑 `MaximumConcurrency=5`**로 대체. 이미지 빌드 시 Lambda가 OCI attestation 매니페스트 거부 → `buildx --provenance=false`. E2E: enqueue→SQS→Lambda→OpenAI+RDS→job done 확인. 남은 것: ④ 프론트(폴링+가짜 스트리밍).
 
 ## 2026-07-06 — 관리자 권한 체계 + 로그인 토큰 보안
 

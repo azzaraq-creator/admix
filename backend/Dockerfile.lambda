@@ -1,0 +1,13 @@
+# 비동기 AI 추천 consumer Lambda (컨테이너 이미지).
+# EC2 가 SQS FIFO 에 enqueue 한 job 을 이 Lambda 가 consume 해 결과를 DB 에 기록.
+FROM public.ecr.aws/lambda/python:3.12
+
+# 의존성 먼저 설치 (레이어 캐시). psycopg2-binary 는 libpq 정적 포함 → 별도 시스템 패키지 불필요.
+COPY requirements-lambda.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements-lambda.txt
+
+# 앱 코드
+COPY src ${LAMBDA_TASK_ROOT}/src
+COPY lambda_handler.py ${LAMBDA_TASK_ROOT}/
+
+CMD ["lambda_handler.handler"]

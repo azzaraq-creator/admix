@@ -68,7 +68,7 @@ AWS Amplify (Next.js)          EC2 / FastAPI (Public Subnet)
 ## 4. 핵심 결정 (논의 확정분)
 
 ### 4-1. 동시성 제한으로 분당 콜 수 조절 (Redis rate limiter 대신)
-- OpenAI 분당 호출 한도를 **Lambda reserved concurrency**로 근사 제어. 예: 동시 실행 N개로 고정하면 "N × (1콜당 평균 처리시간)"으로 분당 처리량이 자연스럽게 상한.
+- OpenAI 분당 호출 한도를 동시성으로 근사 제어. **실제 구현(2026-07-08)**: Free Plan 계정 총 동시성 한도가 **10**이라 Lambda *reserved* concurrency는 설정 불가(unreserved 최소 10 위반) → **SQS 이벤트 소스 매핑의 `ScalingConfig.MaximumConcurrency=5`**로 대체(동시 처리 5개 상한). 목적(분당 콜 제어) 동일 달성, 계정 한도 문제 없음.
 - **Redis 기반 정밀 rate limiter는 보류**. 필요성은 인지했으나(토큰 버킷 등), 초기엔 동시성 제한만으로 비슷하게 맞춰보고, 한도 초과(429)가 잦으면 그때 도입 재검토.
 - SQS가 버퍼 역할 → 순간 폭주해도 Lambda 동시성 상한에서 자연 큐잉. 처리 실패분은 재시도 + DLQ.
 
@@ -99,11 +99,13 @@ AWS Amplify (Next.js)          EC2 / FastAPI (Public Subnet)
 - [x] 검증: POST→202 pending, GET→폴링, SQS 메시지 1건 enqueue 확인.
 - [ ] 기존 SSE 엔드포인트(`/v2/stream`·`/v2/slot/remove`)는 **한시 유지**(프론트 전환 완료 후 제거) — ④에서 정리.
 
-### Lambda (AI Agent Tool)
-- [ ] `extract_keywords` / `filter_media_items` / 응답 조립 / `_explain_with_llm` 등 LLM+매칭 로직을 Lambda 패키지로 이식(공유 모듈화 vs 복제 결정).
-- [ ] SQS 이벤트 핸들러 + 결과를 `ai_recommend_jobs`에 기록. 실패 시 재시도/DLQ.
-- [ ] VPC 설정(Private Subnet RDS 접근) + RDS 커넥션(Lambda 콜드스타트·커넥션 수 고려, RDS Proxy 검토).
-- [ ] reserved concurrency 값 설정(§4-1) — OpenAI RPM 기준으로 산정.
+### Lambda (AI Agent Tool) — ✅ 완료 (2026-07-08, E2E 검증)
+- [x] 로직 이식: **중복 없이** `_event_stream`(전체 대화 로직)을 구동해 이벤트 수집하는 `collect_recommend_events()`(recommend_v2.py) 추가. Lambda 핸들러 `backend/lambda_handler.py`가 SQS record → `ai_recommend_jobs` 갱신.
+- [x] `ai_job_service`에 Lambda용 헬퍼(load/save filter_context, mark_processing, finish_job).
+- [x] 컨테이너 이미지: `backend/Dockerfile.lambda`(public.ecr.aws/lambda/python:3.12, `backend/src` 공유, 슬림 `requirements-lambda.txt`) → ECR `admix-ai-agent`. ⚠️ Lambda는 OCI attestation 매니페스트 거부 → `buildx --provenance=false`로 단일 매니페스트 빌드.
+- [x] Lambda 함수 `admix-ai-agent`(비-VPC, 이미지, 1024MB/300s, role `admix-lambda-role`) + SQS 이벤트 소스 매핑(batch 1).
+- [x] **VPC 없이 오픈 연결**(사용자 결정): Lambda는 VPC 밖 → OpenAI 직결, **RDS `publicly-accessible=on` + `admix-db-sg` 5432←0.0.0.0/0**. ⚠️ **DB 인터넷 노출(비번만 방어) — 운영 전 조이기 필수**(VPC+NAT 또는 EC2 워커 전환).
+- [x] E2E: enqueue→SQS FIFO→Lambda→OpenAI(키워드 추출)+RDS(매칭)→`ai_recommend_jobs` done→폴링 확인.
 
 ### 인프라 (신규 AWS 계정 — 그린필드)
 > 기존 EC2가 올라가 있는 계정에서 이어서 만드는 게 아니라 **신규 계정에서 EC2·RDS·SQS·Lambda·Amplify를 새로 구축**한다. 구 계정 리소스는 컷오버 전까지 유지 후 폐기.
@@ -136,7 +138,7 @@ AWS Amplify (Next.js)          EC2 / FastAPI (Public Subnet)
   - Lambda 실행역할 `admix-lambda-role` (Basic/VPC 실행 + SQS consume + Secrets RDS read)
   - ECR `787418837344.dkr.ecr.ap-northeast-2.amazonaws.com/admix-ai-agent`
   - EC2 역할 `admix-ec2-role` += SQS `SendMessage`(admix-sqs-send)
-  - [ ] Lambda 함수 생성·이벤트소스매핑·VPC연결(`admix-lambda-sg`)·reserved concurrency (③에서)
+  - [x] Lambda `admix-ai-agent`(비-VPC) + 이벤트소스매핑(MaximumConcurrency=5) 생성. (VPC/NAT 안 씀 — RDS 퍼블릭 오픈으로 대체)
 - [~] Amplify: **당분간 기존 앱(`main.d5zpc903rfz5q.amplifyapp.com`, 구 계정) 유지**하고 새 백엔드에 연결. Amplify 자체 이전(+GitHub 연동/repo 이전)은 나중에.
 - [ ] `deploy/README.md`의 구 계정 리소스(EC2 IP `13.125.7.82`, Amplify `d5zpc903rfz5q`) 신규 계정 값으로 갱신.
 - [~] 컷오버: 새 백엔드 HTTPS `https://43-201-172-34.sslip.io` 준비 완료. 백엔드 `FRONTEND_URL`(CORS)·kakao/naver redirect URI는 **기존 Amplify 도메인 그대로라 변경 불필요**. **남은 것: 기존 Amplify의 `NEXT_PUBLIC_API_URL`을 `https://43-201-172-34.sslip.io`로 변경 후 재배포**(구 계정 Amplify 콘솔 — 사용자 작업).

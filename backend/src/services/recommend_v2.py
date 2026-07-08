@@ -1590,3 +1590,41 @@ def recommend_v2_remove_slot_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ===== 비동기(SQS+Lambda) — SSE 대신 결과 수집 =====
+
+
+async def collect_recommend_events(
+    message: str,
+    db: Session,
+    top_k: int = DEFAULT_TOP_K,
+    filter_context: dict | None = None,
+    session_id: str | None = None,
+    save_filter_context_fn: Callable[[dict], None] | None = None,
+) -> dict:
+    """_event_stream 을 구동해 message 이벤트 데이터들을 수집.
+
+    SSE 스트리밍 대신 최종 결과를 반환한다(Lambda 용).
+    반환: {"events": [dict, ...], "error": str | None}
+    """
+    events: list[dict] = []
+    error: str | None = None
+
+    async for chunk in _event_stream(
+        message, db, top_k, filter_context, session_id, save_filter_context_fn
+    ):
+        event_type: str | None = None
+        data_raw: str | None = None
+        for line in chunk.splitlines():
+            if line.startswith("event:"):
+                event_type = line[len("event:"):].strip()
+            elif line.startswith("data:"):
+                data_raw = line[len("data:"):].strip()
+
+        if event_type == "message" and data_raw:
+            events.append(json.loads(data_raw))
+        elif event_type == "error" and data_raw:
+            error = json.loads(data_raw).get("message")
+
+    return {"events": events, "error": error}
