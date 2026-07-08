@@ -1,5 +1,8 @@
-import { FolderPlusIcon } from "@/components/icons";
+import { FolderPlusIcon, Logo } from "@/components/icons";
 import { cn } from "@/lib/utils";
+
+/** 매체 카드에 노출하는 썸네일 슬롯 수(이미지 없으면 로고 플레이스홀더). */
+const THUMBNAIL_COUNT = 3;
 
 export type MediaItemData = {
   id: string;
@@ -62,18 +65,20 @@ export function MediaItem({
       <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
         {!simple && (
           <div className="relative flex w-full items-start gap-[8px]">
-            {[0, 1, 2].map((index) => (
+            {Array.from({ length: THUMBNAIL_COUNT }, (_, index) => (
               <div
                 key={index}
-                className="relative aspect-square min-w-0 flex-1 overflow-hidden rounded-[4px] bg-[#d9d9d9]"
+                className="relative flex aspect-square min-w-0 flex-1 items-center justify-center overflow-hidden rounded-[4px] bg-[#eee]"
               >
-                {images[index] && (
+                {images[index] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={images[index]}
                     alt=""
                     className="size-full object-cover"
                   />
+                ) : (
+                  <Logo className="size-[24px] grayscale opacity-50" aria-hidden />
                 )}
               </div>
             ))}
