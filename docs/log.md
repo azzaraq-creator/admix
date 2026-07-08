@@ -26,6 +26,7 @@
 - **2단계 ① 인프라 착수(2026-07-07)**: SQS FIFO `admix-ai-jobs.fifo`(+DLQ, redrive 3), Lambda역할 `admix-lambda-role`, ECR `admix-ai-agent`, EC2역할에 SQS Send 추가. 다음: ② 백엔드(`ai_recommend_jobs` 테이블+enqueue/폴링) → ③ Lambda 컨테이너 → ④ 프론트.
 - **2단계 ② 백엔드 완료·검증(2026-07-07)**: `ai_recommend_jobs` 모델+alembic 028, `ai_job_service`(SQS FIFO enqueue), `POST/GET /recommend/v2/jobs`, config+boto3. EC2 배포 후 POST→202·SQS 메시지 1건·폴링 확인. IMDS hop limit 2로 컨테이너 역할 사용. 다음: ③ Lambda(recommend 로직 결과-반환형 리팩터 + 컨테이너 이미지→ECR + 이벤트소스매핑).
 - **2단계 ③ Lambda 완료·E2E 검증(2026-07-08)**: `collect_recommend_events`(_event_stream 구동해 이벤트 수집, 로직 중복 없음) + `lambda_handler.py` + `Dockerfile.lambda`(슬림). Lambda `admix-ai-agent`(비-VPC, 컨테이너 이미지) + SQS 이벤트매핑. **결정 변경 2건**: ①**VPC 없이 오픈 연결**(사용자 결정) — Lambda VPC 밖(OpenAI 직결) + RDS `publicly-accessible=on`+SG 5432 오픈(⚠️운영 전 조이기 필수), ②reserved concurrency는 Free Plan 계정 한도(10) 때문에 불가 → **이벤트매핑 `MaximumConcurrency=5`**로 대체. 이미지 빌드 시 Lambda가 OCI attestation 매니페스트 거부 → `buildx --provenance=false`. E2E: enqueue→SQS→Lambda→OpenAI+RDS→job done 확인. 남은 것: ④ 프론트(폴링+가짜 스트리밍).
+- **2단계 ④ 프론트 완료(2026-07-08)**: `useV2Chat.submit`을 SSE→**enqueue+폴링**(`/recommend/v2/jobs`) 전환, `applyEventData`로 렌더 공유, **가짜 스트리밍 loadingLabel 순환**(`AssistantBubble`), `removeSlot`은 SSE 유지. tsc 통과. **2단계(SQS+Lambda 비동기 추천) 코드 4단계 전부 완료.** 반영은 Amplify가 새 백엔드를 보도록 컷오버(`NEXT_PUBLIC_API_URL`) 필요. 운영 전 필수: JWT 시크릿·계정 유료+RDS 백업·RDS 노출 조이기·Amplify+Git 이전.
 
 ## 2026-07-06 — 관리자 권한 체계 + 로그인 토큰 보안
 

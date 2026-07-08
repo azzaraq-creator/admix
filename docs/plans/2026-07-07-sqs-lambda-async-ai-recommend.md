@@ -144,8 +144,9 @@ AWS Amplify (Next.js)          EC2 / FastAPI (Public Subnet)
 - [~] 컷오버: 새 백엔드 HTTPS `https://43-201-172-34.sslip.io` 준비 완료. 백엔드 `FRONTEND_URL`(CORS)·kakao/naver redirect URI는 **기존 Amplify 도메인 그대로라 변경 불필요**. **남은 것: 기존 Amplify의 `NEXT_PUBLIC_API_URL`을 `https://43-201-172-34.sslip.io`로 변경 후 재배포**(구 계정 Amplify 콘솔 — 사용자 작업).
 
 ### 프론트 (Amplify / Next.js)
-- [ ] AI 추천 호출을 enqueue → 폴링 패턴으로 변경(react-query polling 등).
-- [ ] 가짜 스트리밍 로딩 텍스트 컴포넌트(§4-2).
+- [x] AI 추천 호출 enqueue→폴링 전환 (2026-07-08): `hooks/adRecommendV2/useV2Chat.ts` `submit`이 `POST /recommend/v2/jobs`→`GET .../jobs/{id}` 폴링(1.2s, ~60s). `applyEventData`로 SSE/폴링 렌더 로직 공유. `removeSlot`은 SSE 유지(LLM 없음, EC2 동기).
+- [x] 가짜 스트리밍 로딩 텍스트 (2026-07-08): 폴링 중 `loadingLabel` 순환, `chat/AssistantBubble.tsx`가 `isLoading` 시 표시. tsc 통과.
+- [ ] 반영은 Amplify 재배포 필요 — 기존 Amplify가 새 백엔드(`NEXT_PUBLIC_API_URL`)를 봐야 동작(컷오버).
 
 ---
 

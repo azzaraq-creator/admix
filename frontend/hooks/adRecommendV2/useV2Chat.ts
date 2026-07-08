@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { adSessionsApi } from "@/hooks/adSessions";
@@ -85,6 +85,7 @@ export interface V2Message {
   previous_context_detail?: Record<string, EnrichedCode[]>;
   matched_categories?: number;
   isLoading?: boolean;
+  loadingLabel?: string;
   confirmation?: ConfirmationInfo;
   media?: V2MediaRef;
   proposal?: V2ProposalRef;
@@ -122,6 +123,30 @@ export function mergeEnriched(
 }
 
 const MIN_INPUT_LEN = 3;
+
+const POLL_INTERVAL_MS = 1200;
+const POLL_MAX_ATTEMPTS = 50;
+
+/** 가짜 스트리밍 로딩 문구(백엔드 async 처리 동안 순차 노출).
+ * 작업 종류(추천/제안서/상세)를 특정하지 않는 중립 문구. */
+const LOADING_LABELS = [
+  "요청을 확인하고 있어요…",
+  "내용을 처리하고 있어요…",
+  "답변을 준비하고 있어요…",
+];
+/** 문구 한 단계 진행에 필요한 폴링 tick 수(느리게 전환). */
+const LABEL_TICKS_PER_STEP = 2;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+type JobStatus = "pending" | "processing" | "done" | "failed";
+
+interface JobResponse {
+  job_id: string;
+  status: JobStatus;
+  result: { events: Array<Record<string, unknown>> } | null;
+  error: string | null;
+}
 
 type SavedMsg = {
   id: string;
@@ -187,6 +212,15 @@ export function useV2Chat() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
 
+  // 언마운트 시 진행 중인 폴링 루프를 중단(setState 누수 방지).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // 마운트 시 저장된 세션 복원 (비회원도 새로고침/재방문에 챗봇 유지)
   useEffect(() => {
     const stored =
@@ -242,6 +276,76 @@ export function useV2Chat() {
     }
   }, [running]);
 
+  /**
+   * 하나의 message 이벤트 data를 assistant 메시지에 반영.
+   * SSE 경로(removeSlot)와 async 폴링 경로(submit)가 공유한다.
+   */
+  const applyEventData = useCallback(
+    (data: Record<string, unknown>, assistantId: string) => {
+      const msgType = (data.type as V2ResponseType) || "chat";
+
+      if (msgType === "confirmation_required") {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  isLoading: false,
+                  loadingLabel: undefined,
+                  confirmation: {
+                    message: (data.message as string) || "",
+                    changes: (data.changes as ChangeEntry[]) || undefined,
+                    enriched_extracted:
+                      (data.enriched_extracted as Record<
+                        string,
+                        EnrichedCode[]
+                      >) || undefined,
+                    previous_context_detail:
+                      (data.previous_context_detail as Record<
+                        string,
+                        EnrichedCode[]
+                      >) || undefined,
+                  },
+                }
+              : m,
+          ),
+        );
+        return;
+      }
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                isLoading: false,
+                loadingLabel: undefined,
+                response_type: msgType,
+                message: (data.message as string) || "",
+                items: (data.items as V2MediaItem[]) || [],
+                match_count: (data.match_count as number) || 0,
+                enriched_extracted:
+                  (data.enriched_extracted as Record<
+                    string,
+                    EnrichedCode[]
+                  >) || undefined,
+                previous_context_detail:
+                  (data.previous_context_detail as Record<
+                    string,
+                    EnrichedCode[]
+                  >) || undefined,
+                matched_categories:
+                  (data.matched_categories as number) || undefined,
+                media: (data.media as V2MediaRef) || undefined,
+                proposal: (data.proposal as V2ProposalRef) || undefined,
+              }
+            : m,
+        ),
+      );
+    },
+    [],
+  );
+
   const handleEventBlock = useCallback(
     (block: string, assistantId: string) => {
       let eventName = "message";
@@ -260,64 +364,7 @@ export function useV2Chat() {
       }
 
       if (eventName === "message") {
-        const msgType = (data.type as V2ResponseType) || "chat";
-
-        if (msgType === "confirmation_required") {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    isLoading: false,
-                    confirmation: {
-                      message: (data.message as string) || "",
-                      changes: (data.changes as ChangeEntry[]) || undefined,
-                      enriched_extracted:
-                        (data.enriched_extracted as Record<
-                          string,
-                          EnrichedCode[]
-                        >) || undefined,
-                      previous_context_detail:
-                        (data.previous_context_detail as Record<
-                          string,
-                          EnrichedCode[]
-                        >) || undefined,
-                    },
-                  }
-                : m,
-            ),
-          );
-          return;
-        }
-
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  isLoading: false,
-                  response_type: msgType,
-                  message: (data.message as string) || "",
-                  items: (data.items as V2MediaItem[]) || [],
-                  match_count: (data.match_count as number) || 0,
-                  enriched_extracted:
-                    (data.enriched_extracted as Record<
-                      string,
-                      EnrichedCode[]
-                    >) || undefined,
-                  previous_context_detail:
-                    (data.previous_context_detail as Record<
-                      string,
-                      EnrichedCode[]
-                    >) || undefined,
-                  matched_categories:
-                    (data.matched_categories as number) || undefined,
-                  media: (data.media as V2MediaRef) || undefined,
-                  proposal: (data.proposal as V2ProposalRef) || undefined,
-                }
-              : m,
-          ),
-        );
+        applyEventData(data, assistantId);
       } else if (eventName === "done") {
         setMessages((prev) =>
           prev.map((m) =>
@@ -336,7 +383,7 @@ export function useV2Chat() {
         );
       }
     },
-    [],
+    [applyEventData],
   );
 
   const consumeStream = useCallback(
@@ -381,19 +428,115 @@ export function useV2Chat() {
 
       try {
         const sid = await ensureSession();
-        const res = await fetch(`${API_BASE_URL}/recommend/v2/stream`, {
+
+        // 백엔드 async(SQS+Lambda): job enqueue 후 상태 폴링.
+        const enqueueRes = await fetch(`${API_BASE_URL}/recommend/v2/jobs`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: q, session_id: sid }),
         });
-        await consumeStream(res, assistantId);
+        if (!enqueueRes.ok) {
+          throw new Error(`API 요청 실패: ${enqueueRes.status}`);
+        }
+        const enqueued = (await enqueueRes.json()) as JobResponse;
+        const jobId = enqueued.job_id;
+
+        let settled = false;
+        for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+          // 가짜 스트리밍: 여러 tick마다 다음 문구로 진행, 마지막 문구에서 고정.
+          const label =
+            LOADING_LABELS[
+              Math.min(
+                Math.floor(attempt / LABEL_TICKS_PER_STEP),
+                LOADING_LABELS.length - 1,
+              )
+            ];
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId && m.isLoading
+                ? { ...m, loadingLabel: label }
+                : m,
+            ),
+          );
+
+          await sleep(POLL_INTERVAL_MS);
+          if (!mountedRef.current) return;
+
+          const pollRes = await fetch(
+            `${API_BASE_URL}/recommend/v2/jobs/${jobId}`,
+          );
+          if (!pollRes.ok) {
+            throw new Error(`API 요청 실패: ${pollRes.status}`);
+          }
+          const job = (await pollRes.json()) as JobResponse;
+
+          if (job.status === "done") {
+            const events = job.result?.events ?? [];
+            for (const ev of events) {
+              applyEventData(ev, assistantId);
+            }
+            // 이벤트가 없으면 로딩만 해제.
+            if (events.length === 0) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, isLoading: false, loadingLabel: undefined }
+                    : m,
+                ),
+              );
+            }
+            settled = true;
+            break;
+          }
+
+          if (job.status === "failed") {
+            const msg = job.error || "처리 실패";
+            toast.error(msg);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      isLoading: false,
+                      loadingLabel: undefined,
+                      message: `오류: ${msg}`,
+                    }
+                  : m,
+              ),
+            );
+            settled = true;
+            break;
+          }
+        }
+
+        if (!settled) {
+          const msg = "응답 시간 초과";
+          toast.error(msg);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    isLoading: false,
+                    loadingLabel: undefined,
+                    message: `오류: ${msg}`,
+                  }
+                : m,
+            ),
+          );
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
         toast.error(msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, isLoading: false, message: `오류: ${msg}` }
+              ? {
+                  ...m,
+                  isLoading: false,
+                  loadingLabel: undefined,
+                  message: `오류: ${msg}`,
+                }
               : m,
           ),
         );
@@ -401,9 +544,10 @@ export function useV2Chat() {
         setRunning(false);
       }
     },
-    [running, ensureSession, consumeStream],
+    [running, ensureSession, applyEventData],
   );
 
+  // 슬롯 제거는 EC2에서 동기 SSE 유지(LLM 없음) — job 폴링 불필요.
   const removeSlot = useCallback(
     async (category: string, code: string, label: string) => {
       if (running || !sessionId) return;
