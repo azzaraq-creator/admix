@@ -20,5 +20,7 @@ class DashboardResponse(BaseModel):
     members: TodayTotal
     proposals: TodayTotal
     inquiries: InquiryMetric
+    visitors: TodayTotal  # 홈 진입 수 (GA4). 미설정 시 0.
     proposalMonthly: list[int]
+    visitorMonthly: list[int]  # 홈 진입 수 월별(연간 차트용)
     year: int

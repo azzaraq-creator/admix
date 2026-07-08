@@ -56,6 +56,8 @@
 | 2026-06-30 | [media-search-map-prd](plans/2026-06-30-media-search-map-prd.md) | 매체검색 지도 영역 검색 + 서버 줌 클러스터링 (PRD) |
 | 2026-07-04 | [social-login-deploy-ops](plans/2026-07-04-social-login-deploy-ops.md) | 카카오/네이버 소셜로그인 · 배포/env 운영 · create_all→alembic · Geoapify 지도 · IME 버그 |
 | 2026-07-07 | [sqs-lambda-async-ai-recommend](plans/2026-07-07-sqs-lambda-async-ai-recommend.md) | AI 추천 LLM 호출을 SQS+Lambda 비동기로 전환 (동시성 제한·SSE불가→가짜스트리밍) |
+| 2026-07-07 | [ga4-analytics-integration](plans/2026-07-07-ga4-analytics-integration.md) | GA4 홈 진입 수 연동 (계획→구현·런타임 연결 완료 · gtag/Data API/대시보드 · 코어 리포트 지연 24~48h 설명) |
+| 2026-07-08 | [password-reset-email-smtp](plans/2026-07-08-password-reset-email-smtp.md) | 비밀번호 재설정 이메일(Gmail SMTP) + 요청/재설정 페이지 + 컷오버 완료 |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 

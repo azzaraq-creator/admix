@@ -16,7 +16,9 @@ export interface DashboardResponse {
   members: DashboardTodayTotal;
   proposals: DashboardTodayTotal;
   inquiries: DashboardInquiryMetric;
+  visitors: DashboardTodayTotal;
   proposalMonthly: number[];
+  visitorMonthly: number[];
   year: number;
 }
 

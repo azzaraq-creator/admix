@@ -37,6 +37,9 @@ python-pptx>=1.0
 # AWS (SQS enqueue — 비동기 AI 추천 job)
 boto3>=1.35,<2
 
+# GA4 Data API (관리자 대시보드 홈 진입 수)
+google-analytics-data>=0.18,<1
+
 # Test
 pytest==8.3.0
 pytest-asyncio==0.24.0

@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import { YearSelect } from "./YearSelect";
 
 const MONTHS = [
@@ -18,6 +22,7 @@ const SLOT = PLOT_W / MONTHS.length;
 const BAR_W = 22;
 
 export function ProposalBarChart({ values }: { values: number[] }) {
+  const [hover, setHover] = useState<number | null>(null);
   const data = MONTHS.map((_, i) => values[i] ?? 0);
   const maxVal = Math.max(...data, 0);
   const max = Math.max(DIV, Math.ceil(maxVal / DIV) * DIV);
@@ -25,7 +30,13 @@ export function ProposalBarChart({ values }: { values: number[] }) {
 
   const yFor = (value: number) => PT + PLOT_H * (1 - value / max);
   const gridValues = Array.from({ length: DIV + 1 }, (_, i) => i * step);
-  const peakIndex = data.reduce((best, v, i) => (v > data[best] ? i : best), 0);
+
+  // 호버한 막대의 값 툴팁 — 위 공간이 부족하면 막대 위→아래로 뒤집어 잘림 방지.
+  const cx = hover !== null ? PL + SLOT * hover + SLOT / 2 : 0;
+  const barTop = hover !== null ? yFor(data[hover]) : 0;
+  const above = barTop - 30 >= 0;
+  const tipRectY = above ? barTop - 30 : barTop + 6;
+  const tipTextY = above ? barTop - 14 : barTop + 22;
 
   return (
     <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke p-[24px]">
@@ -78,6 +89,20 @@ export function ProposalBarChart({ values }: { values: number[] }) {
           );
         })}
 
+        {/* 투명 히트영역 — 값 0인 달 포함 컬럼 전체 호버 가능 */}
+        {MONTHS.map((month, index) => (
+          <rect
+            key={`hit-${month}`}
+            x={PL + SLOT * index}
+            y={PT}
+            width={SLOT}
+            height={PLOT_H}
+            fill="transparent"
+            onMouseEnter={() => setHover(index)}
+            onMouseLeave={() => setHover((h) => (h === index ? null : h))}
+          />
+        ))}
+
         {MONTHS.map((month, index) => (
           <text
             key={month}
@@ -90,23 +115,16 @@ export function ProposalBarChart({ values }: { values: number[] }) {
           </text>
         ))}
 
-        {maxVal > 0 && (
-          <g>
-            <rect
-              x={PL + SLOT * peakIndex + SLOT / 2 - 26}
-              y={yFor(data[peakIndex]) - 30}
-              width={52}
-              height={24}
-              rx={4}
-              fill="#2f3442"
-            />
+        {hover !== null && (
+          <g pointerEvents="none">
+            <rect x={cx - 26} y={tipRectY} width={52} height={24} rx={4} fill="#2f3442" />
             <text
-              x={PL + SLOT * peakIndex + SLOT / 2}
-              y={yFor(data[peakIndex]) - 14}
+              x={cx}
+              y={tipTextY}
               textAnchor="middle"
               className="fill-white text-[12px] font-medium"
             >
-              {data[peakIndex].toLocaleString()}
+              {data[hover].toLocaleString()}
             </text>
           </g>
         )}

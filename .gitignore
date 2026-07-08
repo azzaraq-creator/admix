@@ -18,6 +18,8 @@ dist/
 .env
 .env.local
 *.env.local
+backend/secrets/
+*.sa.json
 
 # OS
 .DS_Store

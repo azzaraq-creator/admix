@@ -4,6 +4,28 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-08 — 비밀번호 재설정 이메일(SMTP) + 컷오버 완료
+
+- **비밀번호 재설정 이메일**([password-reset-email-smtp](plans/2026-07-08-password-reset-email-smtp.md)): 토큰 응답 노출(코드리뷰 CRITICAL) 해소 → Gmail SMTP(`mailer.py`)로 재설정 링크 발송. `POST /auth/password-reset/request`는 토큰 미노출, **미등록 이메일 404**(UX 우선 — 이메일 열거 노출 감수). 프론트: 요청 화면을 모달→**`/find-account` 페이지(signup 스타일)**로 전환 + `/reset-password`(Suspense+token) 페이지. EC2 `.env`엔 SMTP 키 **병합**(통째 복사 시 RDS/SQS/CORS 덮임 주의). Gmail 앱비번 발신은 초기 **스팸** 분류.
+- **컷오버 완료**: 구 Amplify `NEXT_PUBLIC_API_URL` → 새 백엔드(`https://43-201-172-34.sslip.io`). CORS(`FRONTEND_URL`)에 Amplify+localhost 포함, 프리플라이트 확인. 배포 프론트→새 백엔드 재설정 E2E 정상. → **모든 API가 새 백엔드/새 RDS 기준**(구 회원 데이터 미이관).
+- 매체 썸네일 빈 슬롯 플레이스홀더(Figma) + 썸네일 개수 상수화(`THUMBNAIL_COUNT`). 커밋 `bc23ec1`. 재설정/SMTP는 `69f5f35`(main 푸시됨).
+
+## 2026-07-08 — GA4 홈 진입 수 구현·런타임 연결 완료 (데이터 지연 확인)
+
+- GA4 연동 코드 구현·검증([ga4-analytics-integration](plans/2026-07-07-ga4-analytics-integration.md) §9.4). 프론트 `@next/third-parties` `GoogleAnalytics`(client 그룹, `NEXT_PUBLIC_GA_ID`), 백엔드 `ga4_service`(GA4 Data API, date 차원 1회로 today/total/monthly, 미설정·실패 시 0) → `dashboard_service` 합류, 대시보드 `visitors` 카드 + `VisitorLineChart` 실데이터화(범례 "문의"→"방문자 수" 정정).
+- 확보값: 측정 ID `G-J3BPLSXTDX`, 속성 ID `544621425`. 서비스 계정 JSON은 `backend/secrets/`(gitignore). 검증: tsc·eslint 0, 백엔드 임포트 OK, 미설정 graceful 0 확인.
+- **남은 것(사용자)**: env 3개 주입(`NEXT_PUBLIC_GA_ID`/`GA4_PROPERTY_ID`/`GA4_CREDENTIALS_PATH`) + 서비스계정 JSON 배치(EC2는 rsync 제외라 직접 업로드) → 실데이터. 속성 신규라 이전 월 0, Data API 수 시간 지연.
+- **런타임 연결(로컬)**: `backend/.env`에 값 주입. **경로 버그 수정**(`GA4_CREDENTIALS_PATH`에 `backend/` 접두사 붙어 오해석 → backend cwd 기준 `secrets/...json`), venv가 **uv라 pip 없음 → `uv pip install google-analytics-data`**, `--reload` 재기동. **실 GA4 호출 성공**(크리덴셜·속성 뷰어 권한·API 정상).
+- **대시보드 크래시 수정**: 프론트 `.env.local`이 원격 EC2(구코드, `visitors` 없음)를 봐서 `summary.visitors` undefined → `summary?.visitors?.today` 방어. 로컬 확인은 `NEXT_PUBLIC_API_URL=http://localhost:8001` 리포인트. ⚠️ 프론트가 보는 백엔드에 새 코드+env 없으면 값 안 옴.
+- **데이터 지연(시간차) 확인**([§9.6](plans/2026-07-07-ga4-analytics-integration.md)): 대시보드는 GA4 **코어 리포트(`runReport`)** 사용 → 실시간 아님. 실증: 실시간 `activeUsers=1`·`screenPageViews=2`(수집 정상) vs 코어 7일 `0`(미처리). **새 속성은 표준 리포트 반영까지 최대 24~48h**, 이후 수 시간 지연. 즉시 반영 원하면 "오늘"만 `runRealtimeReport` 하이브리드(미구현).
+
+## 2026-07-08 — GA4 1차 범위 확정 (홈 진입 수 → 대시보드)
+
+- GA4 연동 방향 확정([ga4-analytics-integration](plans/2026-07-07-ga4-analytics-integration.md) §9): **1차는 "홈 진입 수(홈 방문 카운트)"만** 계측 → admin 대시보드 `VisitorLineChart`(현재 목데이터, 범례 "문의" 오기)를 실데이터로 교체.
+- 수집=프론트 gtag(`@next/third-parties`, client 그룹만), 표출=**GA4 Data API**(백엔드가 월별 `screenPageViews` pagePath=`/` 조회 → `dashboard_service` 합류). 자체 집계 대신 GA4 선택(마케팅 분석 병행 목적).
+- **GA4 속성 없음 → 신규 생성 필요**. 셋업 가이드(GA4 속성+측정ID/속성ID, GCP 서비스계정 JSON+Data API 사용설정, 속성 뷰어 권한) 문서화(§9.1~9.3). **크리덴셜 확보 후 프론트+백엔드+대시보드 한 번에 구현** — 코드 미착수.
+- 대기 중(사용자): 측정 ID·속성 ID·서비스계정 키 3종. 서비스계정 JSON은 자격증명 → 커밋/채팅 금지, EC2 .env로 주입.
+
 ## 2026-07-07 — GA4 애널리틱스 연동 검토·계획
 
 - 요청 "ga4 검토" → 전수 확인 결과 **GA4 미연동**(스크립트·의존성·env·layout·문서 모두 없음). 검토가 아닌 신규 연동 이슈로 정리.

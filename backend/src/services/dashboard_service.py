@@ -1,6 +1,6 @@
 """관리자 대시보드 집계 — 회원/제안/문의 카운트 + 연간 월별 제안 건수.
 
-방문자 수는 추적 인프라가 없어 대시보드에서 제외(프런트 목데이터 유지).
+방문자(홈 진입) 수는 GA4 Data API로 집계([ga4_service]). GA4 미설정 시 0.
 날짜 경계는 KST(UTC+9) 기준으로 계산한다.
 """
 from __future__ import annotations
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from src.models.inquiry import Inquiry
 from src.models.proposal import Proposal
 from src.models.user import User
+from src.services import ga4_service
 
 KST = timezone(timedelta(hours=9))
 
@@ -45,6 +46,8 @@ def get_dashboard(db: Session) -> dict:
     for (created,) in rows:
         monthly[created.astimezone(KST).month - 1] += 1
 
+    visits = ga4_service.get_home_visits(year.year)
+
     return {
         "members": {"today": _count(User, today), "total": _count(User)},
         "proposals": {"today": _count(Proposal, today), "total": _count(Proposal)},
@@ -54,6 +57,8 @@ def get_dashboard(db: Session) -> dict:
             "month": _count(Inquiry, month),
             "total": _count(Inquiry),
         },
+        "visitors": {"today": visits["today"], "total": visits["total"]},
         "proposalMonthly": monthly,
+        "visitorMonthly": visits["monthly"],
         "year": year.year,
     }

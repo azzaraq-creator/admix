@@ -30,8 +30,8 @@ export function DashboardView() {
     {
       title: "방문자 수",
       rows: [
-        { label: "오늘", value: "45명" },
-        { label: "누적", value: "2,530명" },
+        { label: "오늘", value: person(summary?.visitors?.today) },
+        { label: "누적", value: person(summary?.visitors?.total) },
       ],
     },
     {
@@ -89,7 +89,7 @@ export function DashboardView() {
 
       <div className="grid grid-cols-1 gap-[48px] xl:grid-cols-2">
         <ProposalBarChart values={summary?.proposalMonthly ?? []} />
-        <VisitorLineChart />
+        <VisitorLineChart values={summary?.visitorMonthly ?? []} />
       </div>
 
       <div className="flex flex-col gap-[16px]">
