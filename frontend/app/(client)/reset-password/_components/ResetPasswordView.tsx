@@ -45,14 +45,17 @@ export function ResetPasswordView() {
     router.replace("/");
   };
 
+  const canSubmit =
+    Boolean(password && confirmPassword) && !confirmMutation.isPending;
+
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-white px-[16px] py-[24px]">
-      <div className="flex w-[472px] max-w-full flex-col items-center gap-[32px] rounded-[24px] bg-white px-[16px] py-[24px] sm:px-[36px] sm:py-[46px]">
+    <main className="flex min-h-screen w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
         <div className="flex w-full items-center justify-center py-[24px]">
           <LogoFull className="h-[30px]" />
         </div>
 
-        <div className="flex w-full flex-col items-start gap-[12px] text-center text-black">
+        <div className="flex w-full flex-col items-center gap-[12px] text-center text-black">
           <p className="w-full text-[24px] font-semibold leading-[32px] tracking-[-0.1px] sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
             비밀번호 재설정
           </p>
@@ -64,10 +67,10 @@ export function ResetPasswordView() {
         {token ? (
           <form
             onSubmit={handleSubmit}
-            className="flex w-full flex-col items-center justify-center gap-[36px] sm:w-[400px]"
+            className="flex w-full flex-col items-center justify-center gap-[36px]"
           >
             <div className="flex w-full flex-col items-start gap-[12px]">
-              <p className="text-center text-[14px] font-bold leading-[20px] text-black">
+              <p className="text-[14px] font-bold leading-[20px] text-black">
                 비밀번호
               </p>
               <input
@@ -104,15 +107,21 @@ export function ResetPasswordView() {
             </div>
             <button
               type="submit"
-              disabled={confirmMutation.isPending}
-              className="flex w-full items-center justify-center rounded-[8px] bg-primary px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-white disabled:opacity-60"
+              disabled={!canSubmit}
+              className={cn(
+                "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
+                canSubmit
+                  ? "bg-primary text-white"
+                  : "bg-[#eee] text-[#757575]",
+              )}
             >
               {confirmMutation.isPending ? "재설정 중..." : "비밀번호 재설정"}
             </button>
           </form>
         ) : (
           <p className="w-full text-center text-[16px] font-medium leading-[24px] text-[#ff2c20]">
-            유효하지 않은 접근입니다. 비밀번호 재설정 메일의 링크로 다시 접속해 주세요.
+            유효하지 않은 접근입니다. 비밀번호 재설정 메일의 링크로 다시 접속해
+            주세요.
           </p>
         )}
       </div>
@@ -133,6 +142,6 @@ export function ResetPasswordView() {
           </button>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 }

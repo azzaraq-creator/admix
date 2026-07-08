@@ -141,7 +141,7 @@ AWS Amplify (Next.js)          EC2 / FastAPI (Public Subnet)
   - [x] Lambda `admix-ai-agent`(비-VPC) + 이벤트소스매핑(MaximumConcurrency=5) 생성. (VPC/NAT 안 씀 — RDS 퍼블릭 오픈으로 대체)
 - [~] Amplify: **당분간 기존 앱(`main.d5zpc903rfz5q.amplifyapp.com`, 구 계정) 유지**하고 새 백엔드에 연결. Amplify 자체 이전(+GitHub 연동/repo 이전)은 나중에.
 - [ ] `deploy/README.md`의 구 계정 리소스(EC2 IP `13.125.7.82`, Amplify `d5zpc903rfz5q`) 신규 계정 값으로 갱신.
-- [~] 컷오버: 새 백엔드 HTTPS `https://43-201-172-34.sslip.io` 준비 완료. 백엔드 `FRONTEND_URL`(CORS)·kakao/naver redirect URI는 **기존 Amplify 도메인 그대로라 변경 불필요**. **남은 것: 기존 Amplify의 `NEXT_PUBLIC_API_URL`을 `https://43-201-172-34.sslip.io`로 변경 후 재배포**(구 계정 Amplify 콘솔 — 사용자 작업).
+- [x] 컷오버 완료 (2026-07-08): 구 Amplify `NEXT_PUBLIC_API_URL` → `https://43-201-172-34.sslip.io`(새 백엔드). CORS(`FRONTEND_URL`)에 Amplify+localhost 포함, 프리플라이트 200 확인. 배포 프론트→새 백엔드 E2E 정상. **모든 API가 새 백엔드/새 RDS 기준**(구 회원 데이터 미이관). 상세 [password-reset-email-smtp](2026-07-08-password-reset-email-smtp.md) §4.
 
 ### 프론트 (Amplify / Next.js)
 - [x] AI 추천 호출 enqueue→폴링 전환 (2026-07-08): `hooks/adRecommendV2/useV2Chat.ts` `submit`이 `POST /recommend/v2/jobs`→`GET .../jobs/{id}` 폴링(1.2s, ~60s). `applyEventData`로 SSE/폴링 렌더 로직 공유. `removeSlot`은 SSE 유지(LLM 없음, EC2 동기).
