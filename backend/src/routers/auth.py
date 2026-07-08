@@ -1,7 +1,7 @@
 """이메일 인증 라우터 — 회원가입/로그인/로그아웃/토큰갱신/비밀번호."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -105,9 +105,18 @@ def change_password(
 
 
 @router.post("/password-reset/request")
-def password_reset_request(body: PasswordResetRequest, db: Session = Depends(get_db)) -> dict:
+def password_reset_request(
+    body: PasswordResetRequest,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
+    # 토큰은 응답으로 노출하지 않고 이메일로만 전달.
+    # (미등록 이메일은 404 로 안내 — UX 우선. 이메일 열거 노출은 감수.)
     token = auth_service.create_password_reset(db, body.email)
-    return {"reset_token": token}
+    if not token:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "가입되지 않은 이메일입니다.")
+    background.add_task(auth_service.send_password_reset_email, body.email, token)
+    return {"message": "입력하신 이메일로 재설정 링크를 보냈습니다."}
 
 
 @router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)

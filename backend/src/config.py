@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     aws_region: str = "ap-northeast-2"
     sqs_queue_url: str = ""  # admix-ai-jobs.fifo
 
+    # GA4 Data API (관리자 대시보드 홈 진입 수). 둘 중 하나라도 비면 GA4 집계 비활성(0 반환).
+    ga4_property_id: str = ""  # 숫자 속성 ID (측정 ID G-XXXX 아님)
+    ga4_credentials_path: str = ""  # 서비스 계정 JSON 경로 (비면 ADC/GOOGLE_APPLICATION_CREDENTIALS)
+
+    # 이메일 (SMTP) — 비밀번호 재설정 등. Gmail 앱 비밀번호 사용.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # 발신 표시 주소(미설정 시 smtp_user)
+    web_base_url: str = ""  # 이메일 링크용 공개 프론트 URL(미설정 시 FRONTEND_URL 첫 항목)
+
     upload_dir: str = "/data/uploads"
 
     jwt_access_secret: str = "change-me-access-secret"
@@ -41,6 +53,12 @@ class Settings(BaseSettings):
     @property
     def frontend_origins(self) -> list[str]:
         return [o.strip() for o in self.frontend_url.split(",") if o.strip()]
+
+    @property
+    def email_link_base(self) -> str:
+        """이메일 내 링크용 공개 프론트 URL. web_base_url 우선, 없으면 FRONTEND_URL 첫 항목."""
+        base = self.web_base_url or (self.frontend_origins[0] if self.frontend_origins else "")
+        return base.rstrip("/")
 
 
 @lru_cache

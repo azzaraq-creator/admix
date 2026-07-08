@@ -164,6 +164,27 @@ def create_password_reset(db: Session, email: str) -> str | None:
     return token
 
 
+def send_password_reset_email(email: str, token: str) -> None:
+    """비밀번호 재설정 링크 이메일 발송 (BackgroundTask 로 호출)."""
+    from src.utils.mailer import send_email
+
+    link = f"{settings.email_link_base}/reset-password?token={token}"
+    minutes = PASSWORD_RESET_TTL_SECONDS // 60
+    subject = "[ADMIX] 비밀번호 재설정 안내"
+    text = (
+        f"아래 링크에서 비밀번호를 재설정해 주세요. (링크는 {minutes}분간 유효합니다)\n\n"
+        f"{link}\n\n"
+        "본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다."
+    )
+    html = (
+        f"<p>아래 링크에서 비밀번호를 재설정해 주세요. (링크는 {minutes}분간 유효합니다)</p>"
+        f'<p><a href="{link}">비밀번호 재설정하기</a></p>'
+        f'<p style="color:#888;font-size:12px">{link}</p>'
+        '<p style="color:#888;font-size:12px">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>'
+    )
+    send_email(email, subject, text, html)
+
+
 def confirm_password_reset(db: Session, token: str, new_password: str) -> None:
     row = db.query(PasswordReset).filter(PasswordReset.token == token).first()
     if row is None or row.used or row.expires_at < datetime.now(timezone.utc):

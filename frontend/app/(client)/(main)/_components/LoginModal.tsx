@@ -188,6 +188,10 @@ export function LoginModal() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => {
+                      setLoginModalOpen(false);
+                      router.push("/find-account");
+                    }}
                     className="text-[14px] font-medium leading-[20px] text-black"
                   >
                     비밀번호 재설정

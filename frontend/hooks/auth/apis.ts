@@ -63,6 +63,15 @@ export const authApi = {
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  requestPasswordReset: (email: string) =>
+    api
+      .post<{ message: string }>("/auth/password-reset/request", { email })
+      .then((r) => r.data),
+  confirmPasswordReset: (token: string, newPassword: string) =>
+    api.post("/auth/password-reset/confirm", {
+      token,
+      new_password: newPassword,
+    }),
   updateProfile: (payload: {
     name?: string;
     company_name?: string;

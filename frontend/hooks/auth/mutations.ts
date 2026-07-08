@@ -26,6 +26,22 @@ export const useWithdraw = () =>
     mutationFn: () => authApi.withdraw(),
   });
 
+export const useRequestPasswordReset = () =>
+  useMutation({
+    mutationFn: (email: string) => authApi.requestPasswordReset(email),
+  });
+
+export const useConfirmPasswordReset = () =>
+  useMutation({
+    mutationFn: ({
+      token,
+      newPassword,
+    }: {
+      token: string;
+      newPassword: string;
+    }) => authApi.confirmPasswordReset(token, newPassword),
+  });
+
 export const useChangePassword = () =>
   useMutation({
     mutationFn: ({
