@@ -61,6 +61,10 @@ export const authApi = {
     api.post("/auth/email/verify/request", { email }),
   confirmEmailVerification: (email: string, code: string) =>
     api.post("/auth/email/verify/confirm", { email, code }),
+  changeContactEmail: (email: string, code: string) =>
+    api
+      .patch<MeResponse>("/auth/me/email", { email, code })
+      .then((r) => r.data),
   completeSnsSignup: (email: string, marketingConsent: boolean) =>
     api
       .post<MeResponse>("/auth/sns/complete", {

@@ -18,10 +18,11 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
+import { ContactEmailChangeModal } from "./ContactEmailChangeModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
 import { TextFieldModal } from "./TextFieldModal";
 
-type ModalKey = "password" | "company" | "name" | "phone" | "business";
+type ModalKey = "password" | "company" | "name" | "phone" | "business" | "email";
 
 function formatPhone(phone: string | null | undefined): string {
   if (!phone) return "";
@@ -37,7 +38,7 @@ const ROW_CLASS =
 const LABEL_CLASS = "text-base font-semibold leading-[24px] text-black";
 const VALUE_CLASS = "text-base font-medium leading-[24px] text-disabled";
 const ACTION_CLASS =
-  "shrink-0 text-sm font-semibold leading-[20px] text-grey-500 underline sm:text-base sm:leading-[24px]";
+  "shrink-0 cursor-pointer text-sm font-semibold leading-[20px] text-grey-500 underline sm:text-base sm:leading-[24px]";
 const FIELD_CLASS = "flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]";
 
 export function ProfileView() {
@@ -168,9 +169,18 @@ export function ProfileView() {
       </div>
 
       <div className="flex flex-col rounded-[12px] border border-stroke px-[16px] sm:px-[24px]">
-        <div className="flex flex-col gap-[6px] border-b border-[#e8e8e8] py-[12px] sm:gap-[12px] sm:py-[28px]">
-          <p className={LABEL_CLASS}>연락받을 이메일</p>
-          <p className={VALUE_CLASS}>{email}</p>
+        <div className={ROW_CLASS}>
+          <div className={FIELD_CLASS}>
+            <p className={LABEL_CLASS}>연락받을 이메일</p>
+            <p className={VALUE_CLASS}>{email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpenModal("email")}
+            className={ACTION_CLASS}
+          >
+            변경
+          </button>
         </div>
 
         {accountRows.map((row) => (
@@ -237,7 +247,7 @@ export function ProfileView() {
         <button
           type="button"
           onClick={handleWithdraw}
-          className="w-full shrink-0 rounded-[8px] border border-red-400 bg-white px-[12px] py-[8px] text-sm font-medium text-red-400 sm:w-auto sm:px-[16px] sm:py-[12px] sm:text-base"
+          className="w-full shrink-0 cursor-pointer rounded-[8px] border border-red-400 bg-white px-[12px] py-[8px] text-sm font-medium text-red-400 sm:w-auto sm:px-[16px] sm:py-[12px] sm:text-base"
         >
           회원 탈퇴
         </button>
@@ -283,6 +293,10 @@ export function ProfileView() {
       />
       <BusinessRegisterModal
         open={openModal === "business"}
+        onOpenChange={(value) => !value && closeModal()}
+      />
+      <ContactEmailChangeModal
+        open={openModal === "email"}
         onOpenChange={(value) => !value && closeModal()}
       />
 

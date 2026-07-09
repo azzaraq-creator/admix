@@ -257,3 +257,16 @@ def is_email_verified(db: Session, email: str) -> bool:
         .first()
         is not None
     )
+
+
+def change_contact_email(db: Session, user: User, email: str, code: str) -> User:
+    """연락받을(인증) 이메일 변경 — 인증코드 확인 후 email 갱신.
+
+    email 은 수신 가능 여부만 검증하므로 이미 가입된 이메일이어도 허용(중복 가능).
+    로그인 아이디(login_id)는 변경하지 않는다.
+    """
+    confirm_email_verification(db, email, code)
+    user.email = email
+    db.commit()
+    db.refresh(user)
+    return user

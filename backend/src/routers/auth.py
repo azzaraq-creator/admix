@@ -142,3 +142,12 @@ def email_verify_request(
 def email_verify_confirm(body: EmailVerifyConfirm, db: Session = Depends(get_db)) -> Response:
     auth_service.confirm_email_verification(db, body.email, body.code)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/me/email", response_model=UserResponse)
+def update_contact_email(
+    body: EmailVerifyConfirm,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    return auth_service.change_contact_email(db, current_user, body.email, body.code)
