@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/common/buttons";
-import { UserIcon } from "@/components/icons";
+import { KakaoBrandIcon, NaverBrandIcon, UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
 import {
   authApi,
@@ -68,6 +68,8 @@ export function ProfileView() {
 
   const name = me?.name?.trim() ? me.name : "";
   const email = me?.email ?? "";
+  const loginId = me?.login_id ?? "";
+  const snsProvider = me?.sns_provider ?? null;
   const companyName = me?.company_name ?? "";
   const rawPhone = me?.phone ?? "";
   const phone = formatPhone(me?.phone);
@@ -138,9 +140,21 @@ export function ProfileView() {
             <p className="truncate text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
               {name}
             </p>
-            <p className="truncate text-sm font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
-              {email}
-            </p>
+            <div className="flex items-center gap-[6px]">
+              {snsProvider === "kakao" && (
+                <span className="flex shrink-0 items-center justify-center rounded-full bg-[#ffe400] p-[4px]">
+                  <KakaoBrandIcon className="size-[16px] text-[#3c1e1e]" />
+                </span>
+              )}
+              {snsProvider === "naver" && (
+                <span className="flex shrink-0 items-center justify-center rounded-full bg-[#00cb4b] p-[4px]">
+                  <NaverBrandIcon className="size-[16px] text-white" />
+                </span>
+              )}
+              <p className="truncate text-sm font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
+                {loginId}
+              </p>
+            </div>
           </div>
         </div>
         <Button
@@ -155,7 +169,7 @@ export function ProfileView() {
 
       <div className="flex flex-col rounded-[12px] border border-stroke px-[16px] sm:px-[24px]">
         <div className="flex flex-col gap-[6px] border-b border-[#e8e8e8] py-[12px] sm:gap-[12px] sm:py-[28px]">
-          <p className={LABEL_CLASS}>아이디</p>
+          <p className={LABEL_CLASS}>연락받을 이메일</p>
           <p className={VALUE_CLASS}>{email}</p>
         </div>
 

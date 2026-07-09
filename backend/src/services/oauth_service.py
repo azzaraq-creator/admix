@@ -153,7 +153,9 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
         # 신규 소셜 가입: 수신 가능한 이메일 인증을 마치기 전까지 verified=False.
         # 프런트는 콜백 후 verified 를 확인해 미인증이면 이메일 인증 화면으로 보낸다.
         # 제공자가 이메일을 주면 화면에서 pre-fill 용으로 저장하고, 없으면 placeholder.
+        # 아이디 = 제공자(카카오/네이버) 이메일(필수). 이메일 미제공 시 provider_id 로 폴백.
         user = User(
+            login_id=profile.get("email") or f"{provider}_{provider_id}",
             email=profile.get("email") or f"{provider}_{provider_id}@social.local",
             password=None,
             name=profile.get("name"),
@@ -189,11 +191,8 @@ def complete_sns_signup(
 
     if not auth_service.is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
-    if email != user.email:
-        taken = db.query(User).filter(User.email == email, User.id != user.id).first()
-        if taken is not None:
-            raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
-        user.email = email
+    # 연락받을 이메일은 수신 가능 여부만 확인하므로 이미 가입된 이메일이어도 허용.
+    user.email = email
     user.verified = True
     user.marketing_consent = marketing_consent
     db.commit()

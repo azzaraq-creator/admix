@@ -19,7 +19,9 @@ export interface RegisterPayload {
 
 export interface MeResponse {
   id: string;
+  login_id: string;
   email: string;
+  sns_provider: string | null;
   name: string | null;
   phone: string | null;
   role: string;

@@ -60,7 +60,9 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    login_id: str
     email: str
+    sns_provider: str | None = None
     name: str | None = None
     phone: str | None = None
     role: str

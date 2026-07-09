@@ -27,7 +27,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), nullable=False, unique=True, index=True)
+    # 로그인 아이디 — 이메일가입은 email 과 동일, SNS 가입은 제공자(카카오/네이버) 이메일.
+    login_id = Column(String(255), nullable=False, unique=True, index=True)
+    # 연락받을(인증) 이메일 — 수신 가능 여부만 검증하므로 중복 허용(unique 아님).
+    email = Column(String(255), nullable=False, index=True)
     password = Column(String(255), nullable=True)
     name = Column(String(100), nullable=True)
     phone = Column(String(30), nullable=True, unique=True)
@@ -68,6 +71,11 @@ class User(Base):
         "Proposal", back_populates="member", cascade="all, delete-orphan"
     )
     inquiries = relationship("Inquiry", back_populates="member")
+
+    @property
+    def sns_provider(self) -> str | None:
+        """로그인에 사용된 소셜 제공자(kakao/naver). 이메일 가입은 None."""
+        return self.social_accounts[0].provider if self.social_accounts else None
 
 
 class RefreshToken(Base):

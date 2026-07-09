@@ -53,11 +53,12 @@ def register(
     company_name: str | None = None,
     marketing_consent: bool = False,
 ) -> User:
-    if db.query(User).filter(User.email == email).first():
+    if db.query(User).filter(User.login_id == email).first():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
     if phone and db.query(User).filter(User.phone == phone).first():
         raise HTTPException(status_code=409, detail="이미 가입된 전화번호입니다.")
     user = User(
+        login_id=email,
         email=email,
         password=hash_password(password),
         name=name,
@@ -98,7 +99,7 @@ def update_profile(
 
 
 def authenticate(db: Session, email: str, password: str) -> User:
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.login_id == email).first()
     if user is None or user.password is None or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
     if user.status == "sanctioned":

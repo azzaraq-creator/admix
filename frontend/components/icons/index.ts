@@ -43,3 +43,5 @@ export { LogoFull } from "./LogoFull";
 export { LogOutIcon } from "./LogOutIcon";
 export { FileDownIcon } from "./FileDownIcon";
 export { CalendarIcon } from "./CalendarIcon";
+export { KakaoBrandIcon } from "./KakaoBrandIcon";
+export { NaverBrandIcon } from "./NaverBrandIcon";
