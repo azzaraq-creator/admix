@@ -51,6 +51,7 @@ def list_members(db: Session) -> list[dict]:
             dict(
                 no=str(u.id),
                 type=_TYPE.get(u.membership_type, u.membership_type),
+                loginId=u.login_id,
                 company=u.company_name or "-",
                 name=u.name or "-",
                 email=u.email,
@@ -79,6 +80,7 @@ def get_member(db: Session, user_id: uuid.UUID) -> dict:
     inquiries = sorted(user.inquiries, key=lambda i: i.created_at, reverse=True)
     return dict(
         id=user.id,
+        login_id=user.login_id,
         email=user.email,
         name=user.name,
         phone=user.phone,

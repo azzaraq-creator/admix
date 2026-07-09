@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 class MemberRow(BaseModel):
     no: str
     type: str
+    loginId: str
     company: str
     name: str
     email: str
@@ -71,6 +72,7 @@ class InquiryRow(BaseModel):
 
 class MemberDetail(BaseModel):
     id: uuid.UUID
+    login_id: str
     email: str
     name: str | None = None
     phone: str | None = None

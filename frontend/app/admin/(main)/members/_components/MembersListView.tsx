@@ -40,6 +40,7 @@ export function MembersListView() {
         id: r.no,
         no: String(i + 1),
         type: r.type as MemberType,
+        loginId: r.loginId,
         company: r.company,
         name: r.name,
         email: r.email,

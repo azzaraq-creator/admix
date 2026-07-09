@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 export interface MemberRow {
   no: string;
   type: string;
+  loginId: string;
   company: string;
   name: string;
   email: string;
@@ -57,6 +58,7 @@ export interface MemberInquiryRow {
 
 export interface MemberDetail {
   id: string;
+  login_id: string;
   email: string;
   name: string | null;
   phone: string | null;

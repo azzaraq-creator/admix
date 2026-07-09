@@ -144,7 +144,10 @@ export function BasicInfoTab({
               <Row label="이름">
                 <ReadValue value={member.name ?? "-"} />
               </Row>
-              <Row label="이메일">
+              <Row label="가입 아이디">
+                <ReadValue value={member.login_id} />
+              </Row>
+              <Row label="연락받을 이메일">
                 <ReadValue value={member.email} />
               </Row>
               <Row label="전화번호">

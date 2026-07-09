@@ -11,6 +11,7 @@ export type Member = {
   id: string;
   no: string;
   type: MemberType;
+  loginId: string;
   company: string;
   name: string;
   email: string;
@@ -41,10 +42,11 @@ export function BizStatusBadge({ status }: { status: BizStatus }) {
 export const memberColumnList: TableColumn<Member>[] = [
   { name: "no", label: "No", className: "text-disabled" },
   { name: "type", label: "회원 유형" },
-  { name: "company", label: "회사명" },
+  { name: "loginId", label: "가입 아이디" },
   { name: "name", label: "이름" },
-  { name: "email", label: "이메일" },
+  { name: "email", label: "연락받을 이메일" },
   { name: "phone", label: "전화번호" },
+  { name: "company", label: "회사명" },
   {
     name: "bizStatus",
     label: "사업자 인증 상태",
