@@ -58,6 +58,7 @@
 | 2026-07-07 | [sqs-lambda-async-ai-recommend](plans/2026-07-07-sqs-lambda-async-ai-recommend.md) | AI 추천 LLM 호출을 SQS+Lambda 비동기로 전환 (동시성 제한·SSE불가→가짜스트리밍) |
 | 2026-07-07 | [ga4-analytics-integration](plans/2026-07-07-ga4-analytics-integration.md) | GA4 홈 진입 수 연동 (계획→구현·런타임 연결 완료 · gtag/Data API/대시보드 · 코어 리포트 지연 24~48h 설명) |
 | 2026-07-08 | [password-reset-email-smtp](plans/2026-07-08-password-reset-email-smtp.md) | 비밀번호 재설정 이메일(Gmail SMTP) + 요청/재설정 페이지 + 컷오버 완료 |
+| 2026-07-09 | [sns-email-verification-login-id](plans/2026-07-09-sns-email-verification-login-id.md) | SNS 로그인 이메일 인증(/signup/sns)·가입완료 화면·계정선택 + 아이디(login_id)/연락받을 이메일 분리(마이그 029~031) + 프로필/admin 반영 |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 

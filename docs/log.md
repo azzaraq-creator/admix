@@ -4,6 +4,23 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-09 — SNS/이메일 인증 정책 정교화 + 이메일 회원가입 인증
+
+- 위 작업의 후속 정교화([sns-email-verification-login-id §9](plans/2026-07-09-sns-email-verification-login-id.md)). 커밋 `60e6c4d`.
+- **소셜 매칭 버그 수정**: 소셜 최초 로그인 시 기존 유저 조회 `email`→**`login_id`**. email(연락받을)은 비유니크라 다른 계정 연락 이메일과 제공자 이메일이 같으면 오연결되던 버그(카카오 yuleemin 계정에 네이버 wishmin82가 붙음) → 수정 + 잘못된 링크 1건 수동 삭제.
+- **비밀번호 재설정**: 이메일 가입자 전용 → 조회를 `login_id`(가입 이메일)+`password IS NOT NULL`로 한정(SNS·중복 연락 이메일 제외).
+- **프로필 조건부**: SNS 계정은 비밀번호 행 미표시(통제 불가), 연락받을 이메일 "변경"은 SNS만(이메일 가입은 login_id=email=식별자).
+- **이메일 회원가입 인증 추가**: SNS와 동일 UI(이메일+전송/인증번호+인증완료), 전송 시 **login_id 중복 체크**(`GET /auth/register/email-available`), `register` 이메일 인증 완료 강제. 회원 관리에서 테스트 계정 `sichumin@gmail.com` 하드 삭제(요청).
+
+## 2026-07-09 — SNS 이메일 인증 + 아이디/연락받을 이메일 분리
+
+- 신규 기능([sns-email-verification-login-id](plans/2026-07-09-sns-email-verification-login-id.md)): 카카오/네이버 로그인 시 **수신 가능 이메일 인증**을 거치게 하고 **아이디(login_id)/연락받을 이메일(email)** 분리.
+- **데이터 모델**: `users.login_id` 추가(마이그 `030`, 이메일가입=email·SNS=제공자 이메일·백필=email), `users.email` **unique 제거**(마이그 `031`) — 연락 이메일 중복 허용, 식별은 login_id. `email_verifications` 테이블(마이그 `029`, 6자리·5분). `register`/`authenticate` 조회 login_id 기준, `me`에 `login_id`·`sns_provider` 추가.
+- **플로우**: 신규 SNS 유저 `verified=False` → 콜백에서 미인증이면 **`/signup/sns`**(이메일 인증+약관)→`POST /auth/sns/complete`. **가입완료 화면 `/signup/complete`**(시작하기→홈). 탈퇴 계정 SNS 재로그인=재활성화. 계정선택은 **카카오 `prompt=select_account`·네이버 `auth_type=reprompt`**(로그아웃-후-재로그인 방식은 UX·콘솔설정 문제로 폐기). `proxy.ts`에 `/signup/sns`·`/signup/complete` 예외(⚠️미들웨어 변경 시 프론트 dev 재시작).
+- **이메일 인증 API**: `POST /auth/email/verify/request|confirm`, **이미 가입된 이메일도 통과**(수신 가능만 검증). `PATCH /auth/me/email`(코드확인 후 연락 이메일 변경, login_id 불변).
+- **프로필**: 이름 밑 SNS 배지(카카오/네이버)+login_id, "아이디"→"연락받을 이메일", **연락받을 이메일 변경 모달**, 변경/탈퇴 버튼 커서. **admin 회원 목록/상세**: 가입 아이디/연락받을 이메일 컬럼·행 분리.
+- 커밋 `3fba341`·`01a2164`·`aa0de97`·`00cf370`(브랜치 `feat/aws-migration-sqs-lambda`). ⚠️ **백엔드 Docker 이미지라 코드 반영은 `docker compose up -d --build backend`**. 카카오/네이버 이메일은 콘솔 "필수 동의" 설정 필요.
+
 ## 2026-07-08 — 비밀번호 재설정 이메일(SMTP) + 컷오버 완료
 
 - **비밀번호 재설정 이메일**([password-reset-email-smtp](plans/2026-07-08-password-reset-email-smtp.md)): 토큰 응답 노출(코드리뷰 CRITICAL) 해소 → Gmail SMTP(`mailer.py`)로 재설정 링크 발송. `POST /auth/password-reset/request`는 토큰 미노출, **미등록 이메일 404**(UX 우선 — 이메일 열거 노출 감수). 프론트: 요청 화면을 모달→**`/find-account` 페이지(signup 스타일)**로 전환 + `/reset-password`(Suspense+token) 페이지. EC2 `.env`엔 SMTP 키 **병합**(통째 복사 시 RDS/SQS/CORS 덮임 주의). Gmail 앱비번 발신은 초기 **스팸** 분류.
