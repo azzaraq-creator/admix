@@ -208,7 +208,7 @@ export function SignupForm({
         queryKey: authKeys.me,
         refetchType: "all",
       });
-      router.replace("/");
+      router.replace("/signup/complete");
     } catch (error) {
       const response = (
         error as { response?: { status?: number; data?: { detail?: string } } }

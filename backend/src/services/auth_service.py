@@ -1,13 +1,14 @@
 """이메일 인증 비즈니스 로직 — 회원가입/로그인/토큰/비밀번호 재설정."""
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from src.config import get_settings
-from src.models.user import PasswordReset, RefreshToken, User
+from src.models.user import EmailVerification, PasswordReset, RefreshToken, User
 from src.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -21,6 +22,7 @@ from src.utils.security import (
 settings = get_settings()
 
 PASSWORD_RESET_TTL_SECONDS = 3600
+EMAIL_CODE_TTL_SECONDS = 300
 
 
 def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, str]:
@@ -198,3 +200,59 @@ def confirm_password_reset(db: Session, token: str, new_password: str) -> None:
         RefreshToken.user_id == user.id, RefreshToken.revoked == False  # noqa: E712
     ).update({"revoked": True})
     db.commit()
+
+
+def create_email_verification(db: Session, email: str) -> str:
+    """이메일 인증코드(6자리) 발급. 이전 미인증 코드는 정리하고 새로 발급."""
+    db.query(EmailVerification).filter(
+        EmailVerification.email == email, EmailVerification.verified == False  # noqa: E712
+    ).delete()
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=EMAIL_CODE_TTL_SECONDS)
+    db.add(EmailVerification(email=email, code=code, expires_at=expires_at))
+    db.commit()
+    return code
+
+
+def send_email_verification_code(email: str, code: str) -> None:
+    """이메일 인증코드 발송 (BackgroundTask 로 호출)."""
+    from src.utils.mailer import send_email
+
+    minutes = EMAIL_CODE_TTL_SECONDS // 60
+    subject = "[ADMIX] 이메일 인증번호 안내"
+    text = (
+        f"인증번호는 {code} 입니다. (인증번호는 {minutes}분간 유효합니다)\n\n"
+        "본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다."
+    )
+    html = (
+        f'<p>인증번호는 <strong style="font-size:20px">{code}</strong> 입니다.</p>'
+        f"<p>인증번호는 {minutes}분간 유효합니다.</p>"
+        '<p style="color:#888;font-size:12px">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>'
+    )
+    send_email(email, subject, text, html)
+
+
+def confirm_email_verification(db: Session, email: str, code: str) -> None:
+    """인증코드 확인. 성공 시 해당 이메일을 인증 완료 상태로 표시."""
+    row = (
+        db.query(EmailVerification)
+        .filter(EmailVerification.email == email, EmailVerification.verified == False)  # noqa: E712
+        .order_by(EmailVerification.created_at.desc())
+        .first()
+    )
+    if row is None or row.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="인증번호가 만료되었습니다. 다시 요청해 주세요.")
+    if row.code != code:
+        raise HTTPException(status_code=400, detail="인증번호가 올바르지 않습니다.")
+    row.verified = True
+    db.commit()
+
+
+def is_email_verified(db: Session, email: str) -> bool:
+    """해당 이메일에 대해 인증 완료된 코드가 존재하는지."""
+    return (
+        db.query(EmailVerification)
+        .filter(EmailVerification.email == email, EmailVerification.verified == True)  # noqa: E712
+        .first()
+        is not None
+    )

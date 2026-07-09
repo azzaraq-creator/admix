@@ -5,8 +5,15 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.schemas.auth import OAuthUrlResponse, TokenResponse
+from src.models.user import User
+from src.schemas.auth import (
+    OAuthUrlResponse,
+    SnsCompleteRequest,
+    TokenResponse,
+    UserResponse,
+)
 from src.services import auth_service, oauth_service
+from src.utils.deps import get_current_user
 from src.utils.security import generate_url_token
 
 router = APIRouter(prefix="/auth/sns", tags=["auth"])
@@ -28,3 +35,14 @@ def callback(
     user = oauth_service.login_with_provider(db, provider, code, state)
     access, refresh = auth_service.issue_tokens(db, user)
     return TokenResponse(access_token=access, refresh_token=refresh)
+
+
+@router.post("/complete", response_model=UserResponse)
+def complete(
+    body: SnsCompleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    return oauth_service.complete_sns_signup(
+        db, current_user, body.email, body.marketing_consent
+    )

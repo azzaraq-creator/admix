@@ -8,6 +8,8 @@ from src.database import get_db
 from src.models.user import User
 from src.schemas.auth import (
     ChangePasswordRequest,
+    EmailVerifyConfirm,
+    EmailVerifyRequest,
     LoginRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -122,4 +124,21 @@ def password_reset_request(
 @router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
 def password_reset_confirm(body: PasswordResetConfirm, db: Session = Depends(get_db)) -> Response:
     auth_service.confirm_password_reset(db, body.token, body.new_password)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/email/verify/request")
+def email_verify_request(
+    body: EmailVerifyRequest,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
+    code = auth_service.create_email_verification(db, body.email)
+    background.add_task(auth_service.send_email_verification_code, body.email, code)
+    return {"message": "입력하신 이메일로 인증번호를 보냈습니다."}
+
+
+@router.post("/email/verify/confirm", status_code=status.HTTP_204_NO_CONTENT)
+def email_verify_confirm(body: EmailVerifyConfirm, db: Session = Depends(get_db)) -> Response:
+    auth_service.confirm_email_verification(db, body.email, body.code)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

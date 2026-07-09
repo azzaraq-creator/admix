@@ -41,6 +41,16 @@ def _conf(provider: str) -> dict:
     return {**_PROVIDERS[provider], "client_id": creds[0], "client_secret": creds[1], "redirect_uri": creds[2]}
 
 
+# 로그인 시 계정 선택/재동의 화면 파라미터 (로그아웃·비밀번호 재입력 없음).
+# - kakao: prompt=select_account → 저장된 카카오 계정이 여러 개면 계정 선택 화면 표시,
+#   하나뿐이면 그대로 통과.
+# - naver: auth_type=reprompt → 재인증/재동의 화면 표출.
+_AUTHORIZE_EXTRA_PARAMS = {
+    "kakao": {"prompt": "select_account"},
+    "naver": {"auth_type": "reprompt"},
+}
+
+
 def build_authorize_url(provider: str, state: str) -> str:
     conf = _conf(provider)
     params = {
@@ -48,6 +58,7 @@ def build_authorize_url(provider: str, state: str) -> str:
         "client_id": conf["client_id"],
         "redirect_uri": conf["redirect_uri"],
         "state": state,
+        **_AUTHORIZE_EXTRA_PARAMS.get(provider, {}),
     }
     return f"{conf['authorize_url']}?{urlencode(params)}"
 
@@ -91,14 +102,19 @@ def _fetch_profile(provider: str, access_token: str) -> dict:
     }
 
 
-def _ensure_usable(user: User | None) -> None:
-    """소셜 로그인 대상 계정의 상태 검증 — authenticate()와 동일 정책(휴면은 허용)."""
-    if user is None:
-        return
-    if user.status == "sanctioned":
+def _ensure_not_sanctioned(user: User | None) -> None:
+    """제재(sanctioned) 계정만 차단. 휴면/탈퇴는 여기서 막지 않는다."""
+    if user is not None and user.status == "sanctioned":
         raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
+
+
+def _reactivate_if_withdrawn(user: User) -> None:
+    """탈퇴한 계정으로 다시 소셜 로그인하면 재가입으로 간주해 계정을 되살린다.
+    재가입은 이메일 인증을 다시 거치도록 verified=False 로 초기화한다."""
     if user.status == "withdrawn":
-        raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
+        user.status = "active"
+        user.withdrawn_at = None
+        user.verified = False
 
 
 def login_with_provider(db: Session, provider: str, code: str, state: str) -> User:
@@ -118,22 +134,30 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     )
     if account is not None:
         user = db.query(User).filter(User.id == account.user_id).first()
-        _ensure_usable(user)
+        _ensure_not_sanctioned(user)
+        if user is not None:
+            _reactivate_if_withdrawn(user)
         account.access_token = access_token
         account.refresh_token = token_data.get("refresh_token")
         db.commit()
+        db.refresh(user)
         return user
 
     user = None
     if profile.get("email"):
         user = db.query(User).filter(User.email == profile["email"]).first()
-    _ensure_usable(user)
+    _ensure_not_sanctioned(user)
+    if user is not None:
+        _reactivate_if_withdrawn(user)
     if user is None:
+        # 신규 소셜 가입: 수신 가능한 이메일 인증을 마치기 전까지 verified=False.
+        # 프런트는 콜백 후 verified 를 확인해 미인증이면 이메일 인증 화면으로 보낸다.
+        # 제공자가 이메일을 주면 화면에서 pre-fill 용으로 저장하고, 없으면 placeholder.
         user = User(
             email=profile.get("email") or f"{provider}_{provider_id}@social.local",
             password=None,
             name=profile.get("name"),
-            verified=True,
+            verified=False,
         )
         db.add(user)
         db.flush()
@@ -148,6 +172,30 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
             expires_at=None,
         )
     )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def complete_sns_signup(
+    db: Session, user: User, email: str, marketing_consent: bool
+) -> User:
+    """SNS 가입 마무리 — 인증된 이메일 확정 + 약관(마케팅) 동의 저장.
+
+    이메일 인증코드 확인(confirm)이 선행되어야 하며, 여기서 최종 이메일이
+    실제로 인증되었는지 재확인한다.
+    """
+    from src.services import auth_service
+
+    if not auth_service.is_email_verified(db, email):
+        raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
+    if email != user.email:
+        taken = db.query(User).filter(User.email == email, User.id != user.id).first()
+        if taken is not None:
+            raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
+        user.email = email
+    user.verified = True
+    user.marketing_consent = marketing_consent
     db.commit()
     db.refresh(user)
     return user

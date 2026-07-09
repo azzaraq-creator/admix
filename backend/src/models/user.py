@@ -106,6 +106,21 @@ class SocialAccount(Base):
     )
 
 
+class EmailVerification(Base):
+    """이메일 인증코드 — 회원가입/SNS 가입 시 수신 가능한 이메일 확인용.
+
+    유저 생성 전에도 발급되므로 email 기준으로 관리(FK 없음).
+    """
+    __tablename__ = "email_verifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), nullable=False, index=True)
+    code = Column(String(10), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    verified = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
 class PasswordReset(Base):
     __tablename__ = "password_resets"
 

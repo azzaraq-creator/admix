@@ -28,9 +28,15 @@ function OAuthCallback() {
     const state = search.get("state") ?? "";
     authApi
       .snsExchange(provider, code, state)
-      .then((res) => {
+      .then(async (res) => {
         setTokens(res.access_token, res.refresh_token, true);
-        router.replace("/");
+        // 인증된(수신 가능한) 이메일이 없는 소셜 가입은 이메일 인증 화면으로.
+        // me 조회 실패가 로그인 성공을 뒤집지 않도록 홈으로 폴백.
+        const verified = await authApi
+          .me()
+          .then((me) => me.verified)
+          .catch(() => true);
+        router.replace(verified ? "/" : "/signup/sns");
       })
       .catch(() => setExchangeFailed(true));
   }, [code, provider, search, router]);

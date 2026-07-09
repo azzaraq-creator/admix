@@ -73,3 +73,17 @@ class UserResponse(BaseModel):
 
 class OAuthUrlResponse(BaseModel):
     url: str
+
+
+class EmailVerifyRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailVerifyConfirm(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=10)
+
+
+class SnsCompleteRequest(BaseModel):
+    email: EmailStr
+    marketing_consent: bool = False

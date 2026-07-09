@@ -55,6 +55,17 @@ export const authApi = {
         params: { code, state },
       })
       .then((r) => r.data),
+  requestEmailVerification: (email: string) =>
+    api.post("/auth/email/verify/request", { email }),
+  confirmEmailVerification: (email: string, code: string) =>
+    api.post("/auth/email/verify/confirm", { email, code }),
+  completeSnsSignup: (email: string, marketingConsent: boolean) =>
+    api
+      .post<MeResponse>("/auth/sns/complete", {
+        email,
+        marketing_consent: marketingConsent,
+      })
+      .then((r) => r.data),
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refresh_token: refreshToken }),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
