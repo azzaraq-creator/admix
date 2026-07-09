@@ -145,7 +145,9 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
 
     user = None
     if profile.get("email"):
-        user = db.query(User).filter(User.email == profile["email"]).first()
+        # 계정 식별은 login_id(=제공자 이메일/가입 이메일) 기준.
+        # email 은 연락받을 이메일이라 다른 계정과 중복될 수 있어 매칭에 쓰면 안 된다.
+        user = db.query(User).filter(User.login_id == profile["email"]).first()
     _ensure_not_sanctioned(user)
     if user is not None:
         _reactivate_if_withdrawn(user)

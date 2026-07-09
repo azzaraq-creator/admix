@@ -57,6 +57,12 @@ export const authApi = {
         params: { code, state },
       })
       .then((r) => r.data),
+  checkEmailAvailable: (email: string) =>
+    api
+      .get<{ available: boolean }>("/auth/register/email-available", {
+        params: { email },
+      })
+      .then((r) => r.data.available),
   requestEmailVerification: (email: string) =>
     api.post("/auth/email/verify/request", { email }),
   confirmEmailVerification: (email: string, code: string) =>

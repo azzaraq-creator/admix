@@ -77,7 +77,16 @@ export function ProfileView() {
 
   const accountRows: { label: string; value: string; modal: ModalKey | null }[] =
     [
-      { label: "비밀번호", value: "**********", modal: "password" },
+      // SNS 로그인 계정은 비밀번호가 없어(통제 불가) 비밀번호 행 미표시. 이메일 가입만.
+      ...(snsProvider
+        ? []
+        : [
+            {
+              label: "비밀번호",
+              value: "**********",
+              modal: "password" as ModalKey,
+            },
+          ]),
       { label: "회사이름", value: companyName, modal: "company" },
       { label: "이름", value: name, modal: "name" },
       { label: "전화번호", value: phone, modal: "phone" },
@@ -174,13 +183,16 @@ export function ProfileView() {
             <p className={LABEL_CLASS}>연락받을 이메일</p>
             <p className={VALUE_CLASS}>{email}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpenModal("email")}
-            className={ACTION_CLASS}
-          >
-            변경
-          </button>
+          {/* 이메일 가입 계정은 연락받을 이메일 = 가입 아이디라 변경 불가. SNS 계정만 변경. */}
+          {snsProvider && (
+            <button
+              type="button"
+              onClick={() => setOpenModal("email")}
+              className={ACTION_CLASS}
+            >
+              변경
+            </button>
+          )}
         </div>
 
         {accountRows.map((row) => (

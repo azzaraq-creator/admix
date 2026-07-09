@@ -53,6 +53,8 @@ def register(
     company_name: str | None = None,
     marketing_consent: bool = False,
 ) -> User:
+    if not is_email_verified(db, email):
+        raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
     if db.query(User).filter(User.login_id == email).first():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
     if phone and db.query(User).filter(User.phone == phone).first():
@@ -157,7 +159,13 @@ def change_password(db: Session, user: User, current: str, new: str) -> None:
 
 
 def create_password_reset(db: Session, email: str) -> str | None:
-    user = db.query(User).filter(User.email == email).first()
+    # 비밀번호 재설정은 이메일 가입자 전용 → 가입한 이메일(login_id, 유니크) 기준 조회.
+    # 추가로 비밀번호 보유(password IS NOT NULL) 계정만 대상(SNS 전용 계정 제외).
+    user = (
+        db.query(User)
+        .filter(User.login_id == email, User.password.isnot(None))
+        .first()
+    )
     if user is None:
         return None
     token = generate_url_token()
@@ -257,6 +265,11 @@ def is_email_verified(db: Session, email: str) -> bool:
         .first()
         is not None
     )
+
+
+def is_email_registered(db: Session, email: str) -> bool:
+    """해당 이메일이 이미 가입 아이디(login_id)로 사용 중인지 — 이메일 가입 중복 체크용."""
+    return db.query(User).filter(User.login_id == email).first() is not None
 
 
 def change_contact_email(db: Session, user: User, email: str, code: str) -> User:

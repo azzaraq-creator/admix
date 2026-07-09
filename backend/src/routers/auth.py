@@ -127,6 +127,12 @@ def password_reset_confirm(body: PasswordResetConfirm, db: Session = Depends(get
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get("/register/email-available")
+def register_email_available(email: str, db: Session = Depends(get_db)) -> dict:
+    # 이메일 가입 시 login_id(=이메일) 중복 체크. 인증코드 전송 전 프론트에서 호출.
+    return {"available": not auth_service.is_email_registered(db, email)}
+
+
 @router.post("/email/verify/request")
 def email_verify_request(
     body: EmailVerifyRequest,

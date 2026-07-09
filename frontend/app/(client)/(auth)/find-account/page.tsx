@@ -88,7 +88,9 @@ export default function FindAccountPage() {
                   placeholder="이메일을 입력해 주세요."
                   className={cn(
                     inputClass,
-                    errorMsg ? "border-[#ff2c20] bg-[#fff2f1]" : "border-stroke",
+                    errorMsg
+                      ? "border-[#ff2c20] bg-[#fff2f1]"
+                      : "border-stroke",
                   )}
                 />
                 {errorMsg && (

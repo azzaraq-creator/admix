@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ChevronRightIcon, LogoFull } from "@/components/icons";
-import { authKeys, useRegister } from "@/hooks/auth";
+import { authApi, authKeys, useRegister } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
@@ -133,6 +133,19 @@ export function SignupForm({
   });
   const [agreementError, setAgreementError] = useState(false);
 
+  // 이메일 인증 (SNS 가입과 동일 UI) — 전송 시 login_id 중복 체크도 수행.
+  // 이메일 값은 인증 상태 파생/핸들러용으로 로컬 미러링(watch 미사용).
+  const [emailInput, setEmailInput] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendPending, setSendPending] = useState(false);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [verifyMsg, setVerifyMsg] = useState<{
+    type: "error" | "notice";
+    text: string;
+  } | null>(null);
+
   const schema = useMemo(
     () =>
       baseSchema
@@ -156,6 +169,7 @@ export function SignupForm({
     register,
     handleSubmit,
     setError,
+    clearErrors,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -188,7 +202,76 @@ export function SignupForm({
     });
   };
 
+  const emailValue = emailInput;
+  const emailVerified = verifiedEmail !== "" && verifiedEmail === emailValue;
+
+  // 이메일이 바뀌면 이전 전송/인증 상태 초기화 → 다시 인증하도록.
+  const resetVerify = () => {
+    setCodeSent(false);
+    setCode("");
+    setVerifiedEmail("");
+    setVerifyMsg(null);
+    clearErrors("email");
+  };
+
+  const handleSendCode = async () => {
+    if (!EMAIL_PATTERN.test(emailValue)) {
+      setError("email", { message: "이메일 형식이 올바르지 않습니다." });
+      return;
+    }
+    setSendPending(true);
+    clearErrors("email");
+    try {
+      const available = await authApi.checkEmailAvailable(emailValue);
+      if (!available) {
+        setError("email", { message: "이미 가입된 이메일입니다." });
+        return;
+      }
+      await authApi.requestEmailVerification(emailValue);
+      setCodeSent(true);
+      setVerifiedEmail("");
+      setCode("");
+      setVerifyMsg({
+        type: "notice",
+        text: "인증번호를 전송했습니다. 메일함을 확인해 주세요.",
+      });
+    } catch {
+      setVerifyMsg({
+        type: "error",
+        text: "인증번호 전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setSendPending(false);
+    }
+  };
+
+  const handleConfirmCode = async () => {
+    if (!code) {
+      setVerifyMsg({ type: "error", text: "인증번호를 입력해 주세요." });
+      return;
+    }
+    setConfirmPending(true);
+    try {
+      await authApi.confirmEmailVerification(emailValue, code);
+      setVerifiedEmail(emailValue);
+      setVerifyMsg({ type: "notice", text: "이메일 인증이 완료되었습니다." });
+    } catch (err) {
+      const detail = (
+        err as { response?: { data?: { detail?: string } } }
+      )?.response?.data?.detail;
+      setVerifyMsg({ type: "error", text: detail ?? "인증번호가 올바르지 않습니다." });
+    } finally {
+      setConfirmPending(false);
+    }
+  };
+
+  const emailReg = register("email");
+
   const onSubmit = handleSubmit(async (data) => {
+    if (!emailVerified) {
+      setError("email", { message: "이메일 인증을 완료해 주세요." });
+      return;
+    }
     if (!requiredChecked) {
       setAgreementError(true);
       return;
@@ -242,18 +325,70 @@ export function SignupForm({
         <div className="flex w-full flex-col gap-[36px]">
           <div className="flex w-full flex-col gap-[12px]">
             <FieldLabel required>이메일</FieldLabel>
+            <div className="flex w-full gap-[8px]">
+              <input
+                type="email"
+                placeholder="이메일을 입력해 주세요."
+                disabled={emailVerified}
+                className={cn(
+                  inputClass,
+                  "flex-1",
+                  errors.email && "border-[#ff2c20] bg-[#fff2f1]",
+                )}
+                {...emailReg}
+                onChange={(event) => {
+                  emailReg.onChange(event);
+                  setEmailInput(event.target.value);
+                  resetVerify();
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSendCode}
+                disabled={sendPending || emailVerified}
+                className="shrink-0 rounded-[8px] bg-platinum-100 px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-black disabled:opacity-60"
+              >
+                {sendPending ? "전송 중" : codeSent ? "재전송" : "전송"}
+              </button>
+            </div>
             <input
-              type="email"
-              placeholder="이메일을 입력해 주세요."
-              className={cn(
-                inputClass,
-                errors.email && "border-[#ff2c20] bg-[#fff2f1]",
-              )}
-              {...register("email")}
+              type="text"
+              inputMode="numeric"
+              value={code}
+              onChange={(event) => {
+                setCode(event.target.value);
+                setVerifyMsg(null);
+              }}
+              placeholder="인증번호를 입력해 주세요."
+              disabled={!codeSent || emailVerified}
+              className={cn(inputClass, "disabled:bg-[#fafafc]")}
             />
+            <button
+              type="button"
+              onClick={handleConfirmCode}
+              disabled={!codeSent || emailVerified || confirmPending}
+              className={cn(
+                "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
+                emailVerified || !codeSent || confirmPending
+                  ? "bg-grey-100 text-grey-500"
+                  : "cursor-pointer bg-primary text-white",
+              )}
+            >
+              {emailVerified ? "인증 완료됨" : confirmPending ? "확인 중" : "인증 완료"}
+            </button>
             {errors.email?.message && (
               <p className="text-[14px] font-medium leading-[20px] text-[#ff2c20]">
                 {errors.email.message}
+              </p>
+            )}
+            {verifyMsg && (
+              <p
+                className={cn(
+                  "text-[14px] font-medium leading-[20px]",
+                  verifyMsg.type === "error" ? "text-[#ff2c20]" : "text-primary",
+                )}
+              >
+                {verifyMsg.text}
               </p>
             )}
           </div>
