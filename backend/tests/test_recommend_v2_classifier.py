@@ -46,3 +46,16 @@ def test_explain_kept_with_last_list(monkeypatch):
 def test_general_passthrough(monkeypatch):
     monkeypatch.setattr(ic, "get_chat", lambda *_a, **_k: _FakeChat(Intent(intent="GENERAL")))
     assert classify_intent("여기 뭐하는 곳이야?", False, False) == "GENERAL"
+
+
+from src.services.graph import welcome as w
+from src.services.graph.welcome import generate_welcome
+
+
+def test_generate_welcome_canned_fallback_on_error(monkeypatch):
+    def _boom(*_a, **_k):
+        raise RuntimeError("no llm")
+
+    monkeypatch.setattr(w, "get_chat", _boom)
+    msg = generate_welcome("안녕")
+    assert "옥외광고" in msg and "추천" in msg
