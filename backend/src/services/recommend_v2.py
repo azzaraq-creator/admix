@@ -28,7 +28,10 @@ from sqlalchemy.orm import Session
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_master import Media
 from src.services import media_service, proposal_service
+from src.services.graph.intent_classifier import classify_intent
 from src.services.graph.llm import get_chat
+from src.services.graph.tools import resolve_media_via_tools, resolve_proposal_via_tools
+from src.services.graph.welcome import generate_welcome
 
 DEFAULT_TOP_K = 20
 MAX_CANDIDATE_FETCH = 2000  # 정렬 전 페치 상한 (현재 매체 913개)
@@ -1180,10 +1183,34 @@ async def _event_stream(
         # ─────────────────────────────────────────────────────────
         # 1.3) 제안서 의도 분기 — 생성/담기/이름변경
         # ─────────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────
+        # 1.2) Stage 1 — 의도 분류기
+        # ─────────────────────────────────────────────────────────
+        intent_label = await _run_sync_in_thread(
+            classify_intent, message, bool(last_items), bool(active_proposal_id)
+        )
+
+        # GENERAL — 인사/정체성/잡담 → 하이브리드 웰컴
+        if intent_label == "GENERAL":
+            welcome = await _run_sync_in_thread(generate_welcome, message)
+            save_filter_context_fn({**prev_slots, "pending_change": None})
+            yield emit({
+                "type": "chat",
+                "message": welcome,
+                "previous_context": prev_slots,
+                "previous_context_detail": _enrich_context(prev_slots, desc_map),
+            })
+            finalize()
+            yield "event: done\ndata: {}\n\n"
+            return
+
+        # ─────────────────────────────────────────────────────────
+        # 1.3) PROPOSAL — bind_tools 리졸버로 제안서 작업 판정
+        # ─────────────────────────────────────────────────────────
         intent = ProposalIntent()
-        if _has_proposal_hint(message):
+        if intent_label == "PROPOSAL":
             intent = await _run_sync_in_thread(
-                _resolve_proposal_intent, message, last_items or [], bool(active_proposal_id)
+                resolve_proposal_via_tools, message, last_items or [], bool(active_proposal_id)
             )
         if intent.action in ("create", "add_media", "rename"):
             member_id, owner_sid, owner_user = await _run_sync_in_thread(
@@ -1305,9 +1332,9 @@ async def _event_stream(
         # ─────────────────────────────────────────────────────────
         # 1.5) 의도 분기 — 직전 리스트가 있고 발화가 '특정 매체 질문'이면 상세 설명
         # ─────────────────────────────────────────────────────────
-        if last_items:
+        if intent_label == "EXPLAIN" and last_items:
             resolved = await _run_sync_in_thread(
-                _resolve_media_question, message, last_items
+                resolve_media_via_tools, message, last_items
             )
             if resolved is not None:
                 async for data in _iter_explain_event_data(
