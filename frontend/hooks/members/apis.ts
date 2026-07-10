@@ -27,6 +27,8 @@ export interface BusinessRegistrationOut {
   business_type: string | null;
   reject_reason: string | null;
   license_file_url: string | null;
+  license_file_name: string | null;
+  license_uploaded_at: string | null;
   verified_at: string | null;
 }
 

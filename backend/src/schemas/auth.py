@@ -6,6 +6,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from src.schemas.member import BusinessRegistrationOut
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -71,6 +73,7 @@ class UserResponse(BaseModel):
     company_name: str | None = None
     marketing_consent: bool = False
     created_at: datetime
+    business_registration: BusinessRegistrationOut | None = None
 
 
 class OAuthUrlResponse(BaseModel):

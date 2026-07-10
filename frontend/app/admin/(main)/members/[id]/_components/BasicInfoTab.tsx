@@ -2,7 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 
+import { DownloadIcon } from "@/components/icons";
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { LicenseFileInfo } from "@/components/common/LicenseFileInfo";
 import { extractApiError } from "@/lib/apiError";
 import {
   Select,
@@ -13,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useUpdateBizReg, useUpdateMember, type MemberDetail } from "@/hooks/members";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
+import { API_BASE_URL, api } from "@/lib/api";
 
 const TYPE_LABEL: Record<string, string> = { corporate: "기업", individual: "일반" };
 const BIZ_OPTIONS = [
@@ -90,6 +93,39 @@ export function BasicInfoTab({
   const [bizAddr, setBizAddr] = useState(biz?.address ?? "");
   const [bizType, setBizType] = useState(biz?.business_type ?? "");
   const [rejectReason, setRejectReason] = useState(biz?.reject_reason ?? "");
+
+  const licenseUrl = biz?.license_file_url
+    ? `${API_BASE_URL}${biz.license_file_url}`
+    : null;
+  const licenseFileUrl = biz?.license_file_url ?? "";
+  const isLicenseImage = /\.(png|jpe?g|gif|webp)$/i.test(licenseFileUrl);
+  // 원본 파일명 우선, 없으면(구 레코드) URL 확장자로 기본명 구성
+  const licenseExt = licenseFileUrl.includes(".")
+    ? licenseFileUrl.slice(licenseFileUrl.lastIndexOf("."))
+    : "";
+  const licenseName = biz?.license_file_name ?? `사업자등록증${licenseExt}`;
+
+  const handleDownload = async () => {
+    if (!licenseUrl) return;
+    try {
+      // 인증 admin 엔드포인트에서 blob으로 받아 원본 파일명으로 저장(CORS 무관).
+      const res = await api.get<Blob>(
+        `/admin/members/${member.id}/business-registration/download`,
+        { responseType: "blob" },
+      );
+      const objUrl = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = licenseName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      // 실패 시 새 탭으로 열어 저장 유도
+      window.open(licenseUrl, "_blank");
+    }
+  };
 
   const saving = updateMember.isPending || updateBiz.isPending;
 
@@ -227,6 +263,48 @@ export function BasicInfoTab({
               <Row label="반려 사유">
                 <input type="text" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="반려 사유 입력" className={INPUT_CLASS} />
               </Row>
+            </div>
+
+            <div className="flex flex-col gap-[16px]">
+              <p className="text-sm font-semibold leading-[20px] text-[#6d6d6d]">
+                등록증 파일
+              </p>
+              {licenseUrl ? (
+                <>
+                  {isLicenseImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={licenseUrl}
+                      alt="사업자등록증 미리보기"
+                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-[#ebebeb] object-cover"
+                    />
+                  ) : (
+                    <iframe
+                      src={licenseUrl}
+                      title="사업자등록증 미리보기"
+                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-[#ebebeb]"
+                    />
+                  )}
+                  <div className="flex items-center justify-between">
+                    <LicenseFileInfo
+                      name={licenseName}
+                      uploadedAt={biz?.license_uploaded_at ?? null}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      className="flex h-[36px] w-[100px] shrink-0 cursor-pointer items-center justify-center gap-[8px] rounded-[6px] border border-[#ebebeb] bg-white text-sm font-medium text-[#0a0a0a] shadow-sm"
+                    >
+                      <DownloadIcon className="size-[16px]" />
+                      다운로드
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm font-medium leading-[20px] text-[#767676]">
+                  등록된 파일이 없습니다.
+                </p>
+              )}
             </div>
           </div>
         </div>

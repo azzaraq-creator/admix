@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from src.config import get_settings
 from src.models.member_profile import BusinessRegistration
 from src.models.user import User
 from src.schemas.member import BusinessRegistrationUpdate, MemberUpdate
@@ -151,3 +153,54 @@ def update_business_registration(
         biz.verified_at = datetime.now(timezone.utc)
     db.commit()
     return get_member(db, user_id)
+
+
+def save_license_file(
+    db: Session, user_id: uuid.UUID, file_url: str, file_name: str | None = None
+) -> BusinessRegistration:
+    """회원 본인이 사업자등록증 파일 업로드 → 검토 대기 상태로 전환."""
+    user = _get_user(db, user_id)
+    biz = user.business_registration
+    if biz is None:
+        biz = BusinessRegistration(user_id=user.id, status="unregistered")
+        db.add(biz)
+    biz.license_file_url = file_url
+    biz.license_file_name = file_name
+    biz.license_uploaded_at = datetime.now(timezone.utc)
+    biz.status = "reviewing"
+    biz.reject_reason = None
+    biz.verified_at = None
+    db.commit()
+    db.refresh(biz)
+    return biz
+
+
+def cancel_license(db: Session, user_id: uuid.UUID) -> None:
+    """검토 중 사업자등록증 신청 취소 → 미등록으로 복귀(업로드 파일 제거)."""
+    user = _get_user(db, user_id)
+    biz = user.business_registration
+    if biz is None:
+        return
+    if biz.license_file_url:
+        rel = biz.license_file_url.removeprefix("/uploads/")
+        (Path(get_settings().upload_dir) / rel).unlink(missing_ok=True)
+    biz.license_file_url = None
+    biz.license_file_name = None
+    biz.license_uploaded_at = None
+    biz.status = "unregistered"
+    biz.reject_reason = None
+    biz.verified_at = None
+    db.commit()
+
+
+def get_license_file(db: Session, user_id: uuid.UUID) -> tuple[Path, str]:
+    """등록증 파일 디스크 경로 + 다운로드용 원본 파일명 반환(없으면 404)."""
+    user = _get_user(db, user_id)
+    biz = user.business_registration
+    if biz is None or not biz.license_file_url:
+        raise HTTPException(status_code=404, detail="등록된 사업자등록증 파일이 없습니다.")
+    rel = biz.license_file_url.removeprefix("/uploads/")
+    path = Path(get_settings().upload_dir) / rel
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    return path, (biz.license_file_name or path.name)

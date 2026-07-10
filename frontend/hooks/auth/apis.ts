@@ -17,6 +17,19 @@ export interface RegisterPayload {
   marketing_consent: boolean;
 }
 
+export interface BusinessRegistration {
+  status: "unregistered" | "reviewing" | "verified" | "rejected";
+  business_name: string | null;
+  business_registration_no: string | null;
+  address: string | null;
+  business_type: string | null;
+  reject_reason: string | null;
+  license_file_url: string | null;
+  license_file_name: string | null;
+  license_uploaded_at: string | null;
+  verified_at: string | null;
+}
+
 export interface MeResponse {
   id: string;
   login_id: string;
@@ -30,6 +43,7 @@ export interface MeResponse {
   company_name: string | null;
   marketing_consent: boolean;
   created_at: string;
+  business_registration: BusinessRegistration | null;
 }
 
 export const authApi = {
@@ -81,6 +95,17 @@ export const authApi = {
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refresh_token: refreshToken }),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
+  uploadBusinessRegistration: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<MeResponse>("/auth/me/business-registration", form)
+      .then((r) => r.data);
+  },
+  cancelBusinessRegistration: () =>
+    api
+      .delete<MeResponse>("/auth/me/business-registration")
+      .then((r) => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/auth/change-password", {
       current_password: currentPassword,

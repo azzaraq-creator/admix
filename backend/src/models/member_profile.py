@@ -44,6 +44,8 @@ class BusinessRegistration(Base):
     business_type = Column(String(200), nullable=True)
     reject_reason = Column(Text, nullable=True)
     license_file_url = Column(String(1000), nullable=True)
+    license_file_name = Column(String(500), nullable=True)
+    license_uploaded_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)

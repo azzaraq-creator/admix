@@ -4,6 +4,23 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-10 — 사업자등록증 상태 UI 정교화 + 파일 미리보기/다운로드 + 공용 컴포넌트
+
+- 위 end-to-end 구현의 후속 UI/UX 정교화([profile §3.4](policies/profile.md) · [admin-members §3.7](policies/admin-members.md)).
+- **원본 파일명·업로드 시각 저장**: 마이그 032로 `business_registration.license_file_name`/`license_uploaded_at` 추가, 업로드 시 기록 후 표시.
+- **admin 회원 상세**: 등록증 **미리보기**(이미지 `<img>`/PDF `<iframe>`) + **다운로드 버튼** 추가. 다운로드는 인증 엔드포인트 `GET /admin/members/{id}/business-registration/download`(`FileResponse`, 원본 파일명 attachment)로 CORS 무관하게 원본명 저장(Figma 1198:26350).
+- **유저 프로필 상태별 UI**(Figma 1100:27796/28626, 1115:36415): 검토중(주황 뱃지 + 안내문 + "취소")·인증 반려(빨강 뱃지 + "인증 반려 사유 : …")·검토 완료(민트 뱃지). "취소" → `DELETE /auth/me/business-registration`(파일 삭제·미등록 복귀). 유저단 reviewing 뱃지="검토중"(admin="검토 대기").
+- **공용 컴포넌트화**: 파일 표시(아이콘+원본파일명+업로드시각)를 `components/common/LicenseFileInfo` + 공용 `FileIcon`으로 추출, 가입·프로필·모달·admin 4곳 중복 제거(로컬 아이콘 4벌·시간포맷 3벌 통합, `lib/date.formatDateTime` 재사용).
+- **검토완료(verified) 혜택 확인**: 별도 등급 플래그 컬럼 없이 `business_registration.status=='verified'`로 판정 → 제안서 생성 **무제한**(guest 1/member 5), AI 채팅 **무제한**(비회원 5·개인 30·기업 미등록 100). 이미 문서화됨([proposals §2](policies/proposals.md) · [ai-media-recommend](policies/ai-media-recommend.md)), profile §3.4에 교차링크 추가.
+
+## 2026-07-10 — 사업자등록증 업로드 end-to-end 구현
+
+- 기존엔 UI만 있고 파일이 저장/조회되지 않던 사업자등록증 플로우를 실제 동작하도록 보강([profile §3.4](policies/profile.md) · [signup §3.2](policies/signup.md) · [admin-members §3.7](policies/admin-members.md)).
+- **백엔드**: `POST /auth/me/business-registration`(multipart, 인증) 신설 — PDF/이미지·10MB 검증 후 로컬 디스크(`{upload_dir}/business/{user_id}/…`, proposals와 동일 방식) 저장, 상태 `reviewing` 전환. `GET /auth/me`(`UserResponse`)에 `business_registration` 노출.
+- **가입**: 기업 가입 사업자등록증 UI를 Figma 반영(선택 칩 + "파일 업로드" 버튼), 가입 완료 직후 업로드(선택, best-effort).
+- **마이페이지**: 하드코딩 "미등록" → 실제 상태 뱃지 + 파일 보기 링크. 업로드 모달을 Figma대로 재구성(register/change 분기: 제목·문구·"등록하기"/"변경하기", 드래그앤드롭, 파일 칩, 빈 상태 원형 배지 아이콘 `public/icons/business-upload.svg`). 유저단 뱃지 reviewing="검토중"(admin은 "검토 대기").
+- **admin**: 회원 상세 기본정보 탭에 "등록증 파일" 보기 링크 추가(조회 전용).
+
 ## 2026-07-09 — SNS/이메일 인증 정책 정교화 + 이메일 회원가입 인증
 
 - 위 작업의 후속 정교화([sns-email-verification-login-id §9](plans/2026-07-09-sns-email-verification-login-id.md)). 커밋 `60e6c4d`.

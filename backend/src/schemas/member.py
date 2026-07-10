@@ -39,6 +39,8 @@ class BusinessRegistrationOut(BaseModel):
     business_type: str | None = None
     reject_reason: str | None = None
     license_file_url: str | None = None
+    license_file_name: str | None = None
+    license_uploaded_at: datetime | None = None
     verified_at: datetime | None = None
 
 

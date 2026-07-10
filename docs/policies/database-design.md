@@ -172,7 +172,7 @@
 > 회원 상세 헤더의 **제안 건수 / 문의 건수**는 `proposal` / `inquiry` count로 집계(저장 컬럼 불필요).
 
 ### 3.2 `business_registration` — 사업자 등록 정보 (1:1, 회원 상세 우측)
-기업 회원의 사업자 정보. `member_id` FK(UNIQUE). `status`(unregistered 미등록 / reviewing 심사중 / verified 등록 / rejected 반려), `business_name`(사업자명), `business_registration_no`(사업자등록번호), `address`(주소), `business_type`(사업의 종류=업태/종목), `reject_reason`(반려 사유), `license_file_url`(사업자등록증), `verified_at`.
+기업 회원의 사업자 정보. `member_id` FK(UNIQUE). `status`(unregistered 미등록 / reviewing 심사중 / verified 등록 / rejected 반려), `business_name`(사업자명), `business_registration_no`(사업자등록번호), `address`(주소), `business_type`(사업의 종류=업태/종목), `reject_reason`(반려 사유), `license_file_url`(사업자등록증 저장 경로), `license_file_name`(업로드 원본 파일명), `license_uploaded_at`(업로드 시각), `verified_at`. (파일명·업로드시각 컬럼은 마이그 032 추가.)
 
 ### 3.3 `member_sanction` — 회원 제재 (회원 상세 > 제재 관리 탭)
 제재 이력. `member_id` FK, `reason`(제재 사유, 예: "서비스 규제 위반"), `start_date`(제재 일자), `end_date`(제재 종료, 영구시 null), `created_by` FK→`admin`(처리 관리자), `created_at`. 활성 제재가 있으면 `member.status='sanctioned'`.

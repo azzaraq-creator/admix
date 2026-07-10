@@ -7,7 +7,7 @@ import { useMemo, useRef, useState, type SVGProps } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ChevronRightIcon, LogoFull } from "@/components/icons";
+import { ChevronRightIcon, FileIcon, LogoFull } from "@/components/icons";
 import { authApi, authKeys, useRegister } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
@@ -31,6 +31,21 @@ function UploadIcon(props: SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path
         d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 9l5-5 5 5M12 4v11"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CircleXIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx={12} cy={12} r={10} stroke="currentColor" strokeWidth={2} />
+      <path
+        d="m15 9-6 6M9 9l6 6"
         stroke="currentColor"
         strokeWidth={2}
         strokeLinecap="round"
@@ -123,7 +138,7 @@ export function SignupForm({
   const isCorporate = membershipType === "corporate";
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [agreements, setAgreements] = useState<Record<AgreementKey, boolean>>({
     age: false,
     tos: false,
@@ -287,6 +302,15 @@ export function SignupForm({
         marketing_consent: agreements.marketing,
       });
       setTokens(res.access_token, res.refresh_token, true);
+      // 사업자등록증은 가입 완료(인증) 후 업로드. 실패해도 가입은 유지되며
+      // 마이페이지에서 재등록 가능하므로 완료 플로우를 막지 않는다.
+      if (isCorporate && file) {
+        try {
+          await authApi.uploadBusinessRegistration(file);
+        } catch {
+          // 업로드 실패는 무시 (마이페이지에서 재시도 안내)
+        }
+      }
       await queryClient.invalidateQueries({
         queryKey: authKeys.me,
         refetchType: "all",
@@ -497,16 +521,37 @@ export function SignupForm({
                   type="file"
                   className="hidden"
                   onChange={(event) =>
-                    setFileName(event.target.files?.[0]?.name ?? "")
+                    setFile(event.target.files?.[0] ?? null)
                   }
                 />
+                {file && (
+                  <div className="flex w-full items-center justify-between rounded-[8px] border border-stroke px-[16px] py-[18px]">
+                    <div className="flex min-w-0 items-center gap-[10px]">
+                      <FileIcon className="size-[20px] shrink-0 text-black" />
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[14px] font-medium leading-[20px] text-black">
+                        {file.name}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="파일 삭제"
+                      onClick={() => {
+                        setFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="shrink-0 cursor-pointer text-grey-500"
+                    >
+                      <CircleXIcon className="size-[20px]" />
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full cursor-pointer items-center justify-center gap-[8px] rounded-[8px] bg-platinum-100 px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-black"
+                  className="flex w-full cursor-pointer items-center justify-center gap-[8px] rounded-[8px] bg-grey-100 px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-grey-500"
                 >
                   <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                    {fileName || "파일 업로드"}
+                    파일 업로드
                   </span>
                   <UploadIcon className="size-[24px] shrink-0" />
                 </button>

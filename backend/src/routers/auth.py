@@ -1,9 +1,23 @@
 """이메일 인증 라우터 — 회원가입/로그인/로그아웃/토큰갱신/비밀번호."""
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+import os
+import uuid as uuidlib
+from pathlib import Path
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
+from src.config import get_settings
 from src.database import get_db
 from src.models.user import User
 from src.schemas.auth import (
@@ -19,10 +33,13 @@ from src.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from src.services import auth_service, proposal_service
+from src.services import auth_service, member_service, proposal_service
 from src.utils.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+LICENSE_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
+LICENSE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -68,6 +85,47 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenRespons
 
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.post("/me/business-registration", response_model=UserResponse)
+async def upload_business_registration(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in LICENSE_ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400, detail="PDF 또는 이미지 파일만 업로드할 수 있습니다."
+        )
+    content = await file.read()
+    if len(content) > LICENSE_MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=400, detail="파일 크기는 10MB 이하만 가능합니다."
+        )
+
+    settings = get_settings()
+    dest_dir = Path(settings.upload_dir) / "business" / str(current_user.id)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuidlib.uuid4().hex}{ext}"
+    (dest_dir / stored_name).write_bytes(content)
+    file_url = f"/uploads/business/{current_user.id}/{stored_name}"
+
+    member_service.save_license_file(
+        db, current_user.id, file_url, file_name=file.filename
+    )
+    db.refresh(current_user)
+    return current_user
+
+
+@router.delete("/me/business-registration", response_model=UserResponse)
+def cancel_business_registration(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    member_service.cancel_license(db, current_user.id)
+    db.refresh(current_user)
     return current_user
 
 

@@ -67,3 +67,23 @@ export const useUpdateProfile = () => {
     },
   });
 };
+
+export const useUploadBusinessRegistration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => authApi.uploadBusinessRegistration(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+  });
+};
+
+export const useCancelBusinessRegistration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => authApi.cancelBusinessRegistration(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+  });
+};

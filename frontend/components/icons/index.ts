@@ -28,6 +28,7 @@ export { ChevronRightIcon } from "./ChevronRightIcon";
 export { CircleCheckIcon } from "./CircleCheckIcon";
 export { PencilIcon } from "./PencilIcon";
 export { DownloadIcon } from "./DownloadIcon";
+export { FileIcon } from "./FileIcon";
 export { FileInputIcon } from "./FileInputIcon";
 export { FileXIcon } from "./FileXIcon";
 export { TrashIcon } from "./TrashIcon";

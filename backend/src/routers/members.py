@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -58,3 +59,14 @@ def update_business_registration(
     _: Admin = Depends(require_permission("member")),
 ) -> MemberDetail:
     return member_service.update_business_registration(db, member_id, body)
+
+
+@router.get("/{member_id}/business-registration/download")
+def download_business_registration(
+    member_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> FileResponse:
+    path, filename = member_service.get_license_file(db, member_id)
+    # filename= 지정 시 Content-Disposition: attachment 로 원본 파일명 다운로드.
+    return FileResponse(path, filename=filename)

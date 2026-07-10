@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/common/buttons";
+import { LicenseFileInfo } from "@/components/common/LicenseFileInfo";
 import { KakaoBrandIcon, NaverBrandIcon, UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
 import {
   authApi,
   authKeys,
+  useCancelBusinessRegistration,
   useMe,
   useUpdateProfile,
   useWithdraw,
 } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
+import { API_BASE_URL } from "@/lib/api";
 import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
@@ -40,6 +43,15 @@ const VALUE_CLASS = "text-base font-medium leading-[24px] text-disabled";
 const ACTION_CLASS =
   "shrink-0 cursor-pointer text-sm font-semibold leading-[20px] text-grey-500 underline sm:text-base sm:leading-[24px]";
 const FIELD_CLASS = "flex min-w-0 flex-1 flex-col gap-[6px] sm:gap-[12px]";
+const CHIP_CLASS =
+  "rounded-[6px] px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px]";
+
+const BIZ_BADGE: Record<string, { label: string; className: string }> = {
+  unregistered: { label: "미등록", className: "bg-grey-50 text-[#545454]" },
+  reviewing: { label: "검토중", className: "bg-[#fff3d3] text-[#ff920a]" },
+  verified: { label: "검토 완료", className: "bg-[#e5f6f6] text-[#00aaa4]" },
+  rejected: { label: "인증 반려", className: "bg-[#ffe1df] text-[#ff2c20]" },
+};
 
 export function ProfileView() {
   const router = useRouter();
@@ -74,6 +86,33 @@ export function ProfileView() {
   const companyName = me?.company_name ?? "";
   const rawPhone = me?.phone ?? "";
   const phone = formatPhone(me?.phone);
+
+  const bizReg = me?.business_registration ?? null;
+  const bizStatus = bizReg?.status ?? "unregistered";
+  const bizBadge = BIZ_BADGE[bizStatus] ?? BIZ_BADGE.unregistered;
+  const bizFileUrl = bizReg?.license_file_url
+    ? `${API_BASE_URL}${bizReg.license_file_url}`
+    : null;
+  const bizFileName = bizReg?.license_file_name ?? "사업자등록증";
+
+  const cancelBiz = useCancelBusinessRegistration();
+  const handleCancelBiz = async () => {
+    const ok = await confirm({
+      title: "사업자등록증 검토를 취소하시겠습니까?",
+      description: "취소하면 업로드한 파일이 삭제되며 다시 등록해야 합니다.",
+      confirmText: "취소하기",
+    });
+    if (!ok) return;
+    try {
+      await cancelBiz.mutateAsync();
+    } catch {
+      await confirm({
+        title: "취소에 실패했습니다.",
+        description: "잠시 후 다시 시도해 주세요.",
+        confirmText: "확인",
+      });
+    }
+  };
 
   const accountRows: { label: string; value: string; modal: ModalKey | null }[] =
     [
@@ -212,24 +251,74 @@ export function ProfileView() {
         ))}
 
         <div className={ROW_CLASS}>
-          <div className={FIELD_CLASS}>
-            <div className="flex items-center gap-[12px]">
-              <p className={LABEL_CLASS}>사업자등록증</p>
-              <span className="rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#545454]">
-                미등록
-              </span>
-            </div>
-            <p className="text-sm font-medium leading-[20px] text-disabled">
-              등록된 사업자등록증이 없습니다.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpenModal("business")}
-            className={ACTION_CLASS}
-          >
-            등록
-          </button>
+          {bizStatus === "unregistered" ? (
+            <>
+              <div className={FIELD_CLASS}>
+                <div className="flex items-center gap-[12px]">
+                  <p className={LABEL_CLASS}>사업자등록증</p>
+                  <span className={`${CHIP_CLASS} ${bizBadge.className}`}>
+                    {bizBadge.label}
+                  </span>
+                </div>
+                <p className="text-sm font-medium leading-[20px] text-disabled">
+                  등록된 사업자등록증이 없습니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenModal("business")}
+                className={ACTION_CLASS}
+              >
+                등록
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
+                <div className="flex items-center gap-[12px]">
+                  <p className={LABEL_CLASS}>사업자등록증</p>
+                  <span className={`${CHIP_CLASS} ${bizBadge.className}`}>
+                    {bizBadge.label}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-[6px]">
+                  <a
+                    href={bizFileUrl ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-fit"
+                  >
+                    <LicenseFileInfo
+                      name={bizFileName}
+                      uploadedAt={bizReg?.license_uploaded_at ?? null}
+                    />
+                  </a>
+                  {bizStatus === "reviewing" && (
+                    <p className="text-xs font-medium leading-[16px] tracking-[0.0048px] text-grey-500">
+                      변경시, 검토 후 3영업일 이내 담당자가 확인 후 반영이 됩니다.
+                    </p>
+                  )}
+                  {bizStatus === "rejected" && bizReg?.reject_reason && (
+                    <p className="text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#ff6c64]">
+                      인증 반려 사유 : {bizReg.reject_reason}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={
+                  bizStatus === "reviewing"
+                    ? handleCancelBiz
+                    : () => setOpenModal("business")
+                }
+                disabled={bizStatus === "reviewing" && cancelBiz.isPending}
+                className={ACTION_CLASS}
+              >
+                {bizStatus === "reviewing" ? "취소" : "변경"}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-[12px] py-[12px] sm:gap-[42px] sm:py-[28px]">
@@ -306,6 +395,7 @@ export function ProfileView() {
       <BusinessRegisterModal
         open={openModal === "business"}
         onOpenChange={(value) => !value && closeModal()}
+        mode={bizStatus === "unregistered" ? "register" : "change"}
       />
       <ContactEmailChangeModal
         open={openModal === "email"}
