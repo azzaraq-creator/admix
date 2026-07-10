@@ -85,9 +85,10 @@ def test_proposal_create_then_add_flow(db, session, monkeypatch):
     sid = str(session.id)
 
     # 턴1: "1,2번으로 제안서 만들어줘" → 이름 미지정 create + indices
+    monkeypatch.setattr(v2, "classify_intent", lambda *_a, **_k: "PROPOSAL")
     monkeypatch.setattr(
         v2,
-        "_resolve_proposal_intent",
+        "resolve_proposal_via_tools",
         lambda *_a, **_k: v2.ProposalIntent(action="create", media_indices=[1, 2]),
     )
     events, ctx = _drive("1번 2번 매체로 제안서를 만들어줘", sid, {"last_items": last_items})
