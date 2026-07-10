@@ -86,3 +86,52 @@ def media_item_from_tool_calls(
             if name in (it.get("name") or ""):
                 return it
     return None
+
+
+# ===== LLM 리졸버 (bind_tools 호출 → 파서) =====
+
+
+def resolve_proposal_via_tools(message: str, last_items: list[dict], has_active: bool):
+    """발화를 제안서 도구(create/add/rename)로 매핑 → ProposalIntent."""
+    from src.services.recommend_v2 import ProposalIntent
+
+    listing = "\n".join(
+        f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items or [])
+    )
+    sys_prompt = (
+        "사용자 발화를 아래 제안서 도구 중 하나로 매핑하라.\n"
+        "- CreateProposal: 새 제안서 생성 (예: '제안서 만들어줘', 'XX로 제안서 만들어줘').\n"
+        "- AddMedia: 직전 추천 목록의 특정 매체를 담기 (예: '1번 3번 담아줘').\n"
+        "- RenameProposal: 기존 제안서 이름 변경 (예: '이름 XX로 바꿔줘').\n"
+        "- 제안서 작업이 아니면 어떤 도구도 호출하지 마라.\n"
+        "- '1번 3번으로 제안서 만들어줘'는 CreateProposal + media_indices.\n\n"
+        f"현재 작업중 제안서: {'있음' if has_active else '없음'}\n"
+        f"[직전 추천 매체]\n{listing or '(없음)'}"
+    )
+    try:
+        llm = get_chat(temperature=0.0).bind_tools([CreateProposal, AddMedia, RenameProposal])
+        resp = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())])
+    except Exception:
+        return ProposalIntent()
+    return proposal_intent_from_tool_calls(getattr(resp, "tool_calls", []) or [])
+
+
+def resolve_media_via_tools(message: str, last_items: list[dict]) -> Optional[dict]:
+    """발화가 직전 리스트의 특정 매체 질문이면 해당 item, 아니면 None."""
+    if not last_items:
+        return None
+    listing = "\n".join(
+        f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items)
+    )
+    sys_prompt = (
+        "사용자가 아래 '직전 추천 매체' 중 특정 매체의 상세 설명을 요청하면 "
+        "ExplainMedia 도구를 index(1-based) 또는 name 으로 호출하라. "
+        "새 검색조건이거나 목록과 무관하면 도구를 호출하지 마라.\n\n"
+        f"[직전 추천 매체]\n{listing}"
+    )
+    try:
+        llm = get_chat(temperature=0.0).bind_tools([ExplainMedia])
+        resp = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())])
+    except Exception:
+        return None
+    return media_item_from_tool_calls(getattr(resp, "tool_calls", []) or [], last_items)
