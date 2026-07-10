@@ -686,13 +686,6 @@ def _persist_message(
 # ===== 매체 상세 설명 (의도 분기 + LLM) =====
 
 
-class MediaQuestion(BaseModel):
-    """직전 추천 리스트에 대한 '특정 매체 질문' 판정 결과."""
-
-    is_about_media: bool = False
-    index: Optional[int] = None  # 1-based, 직전 리스트 기준
-
-
 def _last_items_from_payload(payload: dict | None) -> list[dict]:
     """list 이벤트 payload → 세션 보존용 경량 매체 목록(id/media_id/name)."""
     if not payload or payload.get("type") != "list":
@@ -701,31 +694,6 @@ def _last_items_from_payload(payload: dict | None) -> list[dict]:
         {"id": it.get("id"), "media_id": it.get("media_id"), "name": it.get("name")}
         for it in (payload.get("items") or [])
     ]
-
-
-def _resolve_media_question(message: str, last_items: list[dict]) -> Optional[dict]:
-    """직전 리스트가 있을 때 발화가 '특정 매체 상세 질문'인지 LLM 판정 → 해당 item 반환(아니면 None)."""
-    if not last_items:
-        return None
-    listing = "\n".join(f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items))
-    sys_prompt = (
-        "사용자는 아래 '직전에 추천된 매체 목록' 중 특정 매체의 상세 설명을 물을 수 있다.\n"
-        "- 발화가 목록의 특정 매체에 대한 질문/요청이면 is_about_media=true 와 1-based index 반환.\n"
-        '  (예: "3번 자세히", "첫번째 매체 설명해줘", "신사 BK빌딩 어때?")\n'
-        "- 새로운 검색 조건(지역/제품/예산/타깃 등)이거나 목록과 무관하면 is_about_media=false.\n\n"
-        f"[직전 추천 매체]\n{listing}"
-    )
-    try:
-        llm = get_chat(temperature=0.0).with_structured_output(MediaQuestion)
-        res: MediaQuestion = llm.invoke(
-            [SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())]
-        )
-    except Exception:
-        return None
-    if not res.is_about_media or not res.index:
-        return None
-    idx = res.index - 1
-    return last_items[idx] if 0 <= idx < len(last_items) else None
 
 
 def _explain_with_llm(item: dict, detail: dict | None) -> str:
@@ -797,16 +765,6 @@ async def _iter_explain_event_data(
 # ===== 제안서(장바구니/플래닝) 의도 분기 =====
 
 
-# 제안서 작업 신호 — 이 단어가 없으면 분류 LLM 을 건너뛴다(비용/오분류 방지).
-_PROPOSAL_HINT_RE = re.compile(
-    r"제안서|플래닝|장바구니|담아|담기|넣어|추가|빼줘|빼기|만들어|만들기|생성|이름.*(바꿔|변경)"
-)
-
-
-def _has_proposal_hint(text: str) -> bool:
-    return bool(_PROPOSAL_HINT_RE.search(text or ""))
-
-
 class ProposalIntent(BaseModel):
     """발화의 제안서 작업 분류."""
 
@@ -814,35 +772,6 @@ class ProposalIntent(BaseModel):
     name: Optional[str] = None  # create 시 지정한 제안서 이름
     new_name: Optional[str] = None  # rename 대상 이름
     media_indices: list[int] = Field(default_factory=list)  # 1-based, 직전 리스트 기준
-
-
-def _resolve_proposal_intent(
-    message: str, last_items: list[dict], has_active: bool
-) -> ProposalIntent:
-    """발화가 제안서 작업(생성/담기/이름변경)인지 LLM 분류. 아니면 action=none."""
-    listing = "\n".join(
-        f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items or [])
-    )
-    sys_prompt = (
-        "사용자 발화가 'OOH 제안서(장바구니)' 관련 작업인지 분류한다.\n"
-        "- action=create: 새 제안서 생성 요청 (예: '제안서 만들어줘', '제안서 생성', 'XXX로 제안서 만들어줘').\n"
-        "  name: 발화에 제안서 이름이 있으면 추출(없으면 null).\n"
-        "- action=add_media: 직전 추천 목록의 특정 매체를 제안서에 담기 (예: '1번 3번 5번 추가/넣어/담아줘').\n"
-        "  media_indices: 1-based 번호 목록.\n"
-        "- action=rename: 기존 제안서 이름 변경 (예: '제안서 이름 XXX로 바꿔줘'). new_name 추출.\n"
-        "- 제안서와 무관(새 검색조건/매체 상세질문/일반대화)하면 action=none.\n"
-        "- '1번 3번으로 제안서 만들어줘'는 create + media_indices 동시 가능.\n\n"
-        f"현재 작업중 제안서 존재: {'있음' if has_active else '없음'}\n"
-        f"[직전 추천 매체]\n{listing or '(없음)'}"
-    )
-    try:
-        llm = get_chat(temperature=0.0).with_structured_output(ProposalIntent)
-        res: ProposalIntent = llm.invoke(
-            [SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())]
-        )
-    except Exception:
-        return ProposalIntent()
-    return res
 
 
 def _proposal_owner_for_session(db: Session, session_id: str | None):
@@ -1180,9 +1109,6 @@ async def _event_stream(
             # yes/no 아니면 새 발화로 간주 → pending 폐기 후 일반 파이프라인으로 진행
             prev_context = {**prev_slots, "pending_change": None}
 
-        # ─────────────────────────────────────────────────────────
-        # 1.3) 제안서 의도 분기 — 생성/담기/이름변경
-        # ─────────────────────────────────────────────────────────
         # ─────────────────────────────────────────────────────────
         # 1.2) Stage 1 — 의도 분류기
         # ─────────────────────────────────────────────────────────
