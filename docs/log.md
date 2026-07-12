@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-10 — 챗봇 앞단 의도 분류기 + Tool Calling 라우터 (설계 스펙)
+
+- V2 챗봇의 발화 분기(현재: 정규식 힌트 + 의도별 structured-output 프로브 순차 캐스케이드)를 **통일된 앞단 의도 분류기(Stage1) + `.bind_tools()` 라우터(Stage2)** 로 재설계. 의도 4종(RECOMMEND/EXPLAIN/PROPOSAL/GENERAL), 전부 Lambda(`_event_stream`) 실행, 기존 실행 로직 보존·재사용. GENERAL(인사·페르소나·첫입력 가이드)은 하이브리드 생성. 스펙: [intent-classifier-tool-calling](plans/2026-07-10-intent-classifier-tool-calling.md) · TDD 구현 계획: [intent-classifier-tool-calling-plan](plans/2026-07-10-intent-classifier-tool-calling-plan.md).
+
 ## 2026-07-10 — 사업자등록증 상태 UI 정교화 + 파일 미리보기/다운로드 + 공용 컴포넌트
 
 - 위 end-to-end 구현의 후속 UI/UX 정교화([profile §3.4](policies/profile.md) · [admin-members §3.7](policies/admin-members.md)).
