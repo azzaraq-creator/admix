@@ -123,7 +123,7 @@ export function LoginModal() {
             <LogoFull className="h-[24px]" />
             <DialogClose
               aria-label="닫기"
-              className="flex size-[24px] items-center justify-center text-black outline-none"
+              className="flex size-[24px] cursor-pointer items-center justify-center text-black outline-none"
             >
               <XIcon className="size-[24px]" />
             </DialogClose>
@@ -192,7 +192,7 @@ export function LoginModal() {
                       setLoginModalOpen(false);
                       router.push("/find-account");
                     }}
-                    className="text-[14px] font-medium leading-[20px] text-black"
+                    className="cursor-pointer text-[14px] font-medium leading-[20px] text-black"
                   >
                     비밀번호 재설정
                   </button>
@@ -215,7 +215,7 @@ export function LoginModal() {
                 aria-label="카카오로 로그인"
                 onClick={() => handleSnsLogin("kakao")}
                 disabled={snsPending}
-                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
+                className="flex cursor-pointer items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
               >
                 <KakaoIcon className="size-[24px] shrink-0" />
               </button>
@@ -224,7 +224,7 @@ export function LoginModal() {
                 aria-label="네이버로 로그인"
                 onClick={() => handleSnsLogin("naver")}
                 disabled={snsPending}
-                className="flex items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
+                className="flex cursor-pointer items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
               >
                 <NaverIcon className="size-[24px] shrink-0" />
               </button>
