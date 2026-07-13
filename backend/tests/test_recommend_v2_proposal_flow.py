@@ -117,3 +117,19 @@ def test_proposal_create_then_add_flow(db, session, monkeypatch):
     pid = proposal_evt["proposal"]["id"]
     p = ps.get_owned(db, pid, session_id=session.id)
     assert p is not None and p.media_count == 2
+
+
+def test_proposal_intent_no_tool_asks_back_not_rerecommend(db, session, monkeypatch):
+    """PROPOSAL 로 분류됐지만 툴 미해결(none) → 되물음, 재추천 금지."""
+    sid = str(session.id)
+    last_items = [{"id": "0", "media_id": "M0", "name": "매체A"}]
+
+    monkeypatch.setattr(v2, "classify_intent", lambda *_a, **_k: "PROPOSAL")
+    monkeypatch.setattr(
+        v2, "resolve_proposal_via_tools", lambda *_a, **_k: v2.ProposalIntent(action="none")
+    )
+
+    events, _ctx = _drive("제안서담기", sid, {"last_items": last_items})
+
+    assert all(e.get("type") == "chat" for e in events), [e.get("type") for e in events]
+    assert any("번호" in (e.get("message") or "") for e in events)

@@ -1255,6 +1255,26 @@ async def _event_stream(
             yield "event: done\ndata: {}\n\n"
             return
 
+        # PROPOSAL 인데 도구 미해결(action=none) → 재추천으로 새지 말고 되물음
+        if intent_label == "PROPOSAL":
+            save_filter_context_fn({**prev_slots, "pending_change": None})
+            if last_items:
+                msg = "제안서에 담을 매체 번호를 추천 목록에서 알려주세요 😊 (예: '1번 3번 담아줘')"
+            else:
+                msg = (
+                    "먼저 매체를 추천받은 뒤 번호로 담아주세요 😊 "
+                    "새 제안서가 필요하면 '제안서 만들어줘'라고 해주세요."
+                )
+            yield emit({
+                "type": "chat",
+                "message": msg,
+                "previous_context": prev_slots,
+                "previous_context_detail": _enrich_context(prev_slots, desc_map),
+            })
+            finalize()
+            yield "event: done\ndata: {}\n\n"
+            return
+
         # ─────────────────────────────────────────────────────────
         # 1.5) 의도 분기 — 직전 리스트가 있고 발화가 '특정 매체 질문'이면 상세 설명
         # ─────────────────────────────────────────────────────────
