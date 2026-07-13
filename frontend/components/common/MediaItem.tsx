@@ -1,3 +1,4 @@
+import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import { FolderPlusIcon, Logo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -66,21 +67,14 @@ export function MediaItem({
         {!simple && (
           <div className="relative flex w-full items-start gap-[8px]">
             {Array.from({ length: THUMBNAIL_COUNT }, (_, index) => (
-              <div
+              <MediaThumbnail
                 key={index}
-                className="relative flex aspect-square min-w-0 flex-1 items-center justify-center overflow-hidden rounded-[4px] bg-[#eee]"
-              >
-                {images[index] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={images[index]}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
+                src={images[index]}
+                className="aspect-square min-w-0 flex-1 rounded-[4px]"
+                fallback={
                   <Logo className="size-[24px] grayscale opacity-50" aria-hidden />
-                )}
-              </div>
+                }
+              />
             ))}
             {popular && <PopularChip className="absolute left-[8px] top-[8px]" />}
           </div>

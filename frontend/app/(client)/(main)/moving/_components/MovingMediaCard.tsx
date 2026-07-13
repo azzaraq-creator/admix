@@ -1,3 +1,4 @@
+import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import { cn } from "@/lib/utils";
 
 export type MovingMediaData = {
@@ -43,13 +44,12 @@ export function MovingMediaCard({
         selected ? "bg-grey-50" : "bg-white",
       )}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-[8px] bg-[#d9d9d9] sm:aspect-auto sm:h-[196px]">
-        {data.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.image} alt="" className="size-full object-cover" />
-        )}
+      <MediaThumbnail
+        src={data.image}
+        className="aspect-square w-full rounded-[8px] sm:aspect-auto sm:h-[196px]"
+      >
         {data.badge && <Badge badge={data.badge} />}
-      </div>
+      </MediaThumbnail>
       <div className="flex flex-col gap-[2px]">
         <p className="truncate text-[16px] font-bold leading-[24px] text-black sm:text-[20px] sm:leading-[28px] sm:tracking-[-0.08px]">
           {data.name}
