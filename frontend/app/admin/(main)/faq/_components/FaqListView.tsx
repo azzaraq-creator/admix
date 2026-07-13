@@ -22,12 +22,12 @@ export function FaqListView() {
   const { data } = useFaqs();
 
   const filtered = useMemo<Faq[]>(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const type = search.type;
     return (data ?? [])
       .filter((r) => {
         if (type && r.faq_type !== type) return false;
-        if (keyword && !r.title.includes(keyword)) return false;
+        if (keyword && !r.title.toLowerCase().includes(keyword)) return false;
         return true;
       })
       .map((r, i) => ({

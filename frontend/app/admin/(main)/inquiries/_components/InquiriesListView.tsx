@@ -23,12 +23,16 @@ export function InquiriesListView() {
   const { data } = useAdminInquiries();
 
   const filtered = useMemo<Inquiry[]>(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const status = search.status;
     return (data?.items ?? [])
       .filter((r) => {
         if (status && r.status !== status) return false;
-        if (keyword && !r.title.includes(keyword) && !r.name.includes(keyword))
+        if (
+          keyword &&
+          !r.title.toLowerCase().includes(keyword) &&
+          !r.name.toLowerCase().includes(keyword)
+        )
           return false;
         return true;
       })

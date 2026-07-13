@@ -25,14 +25,18 @@ export function MembersListView() {
   const { data } = useMembers();
 
   const filtered = useMemo<Member[]>(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const { bizStatus, type, status } = search;
     return (data?.items ?? [])
       .filter((r) => {
         if (bizStatus && r.bizStatus !== bizStatus) return false;
         if (type && r.type !== type) return false;
         if (status && r.status !== status) return false;
-        if (keyword && !r.email.includes(keyword) && !r.name.includes(keyword))
+        if (
+          keyword &&
+          !r.email.toLowerCase().includes(keyword) &&
+          !r.name.toLowerCase().includes(keyword)
+        )
           return false;
         return true;
       })

@@ -14,9 +14,9 @@ export function HistoryPanel({
 }) {
   const { data: listData, isLoading } = useMyInquiries();
 
-  const keyword = query.trim();
+  const keyword = query.trim().toLowerCase();
   const items = (listData?.items ?? []).filter(
-    (item) => !keyword || item.subject.includes(keyword),
+    (item) => !keyword || item.subject.toLowerCase().includes(keyword),
   );
 
   if (!isLoading && items.length === 0) {

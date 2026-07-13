@@ -24,14 +24,18 @@ export function RolesListView() {
   const { data } = useAdminAccounts();
 
   const filtered = useMemo<Account[]>(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const { type, status } = search;
     return (data?.items ?? [])
       .filter((r) => {
         const krStatus = r.status === "active" ? "활성" : "비활성";
         if (type && r.type !== type) return false;
         if (status && krStatus !== status) return false;
-        if (keyword && !r.name.includes(keyword) && !r.email.includes(keyword))
+        if (
+          keyword &&
+          !r.name.toLowerCase().includes(keyword) &&
+          !r.email.toLowerCase().includes(keyword)
+        )
           return false;
         return true;
       })

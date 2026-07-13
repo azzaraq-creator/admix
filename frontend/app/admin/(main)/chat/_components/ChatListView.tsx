@@ -41,10 +41,12 @@ export function ChatListView() {
   );
 
   const filtered = useMemo(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     if (!keyword) return rows;
     return rows.filter(
-      (item) => item.name.includes(keyword) || item.email.includes(keyword),
+      (item) =>
+        item.name.toLowerCase().includes(keyword) ||
+        item.email.toLowerCase().includes(keyword),
     );
   }, [rows, search]);
 

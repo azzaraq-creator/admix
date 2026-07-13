@@ -23,12 +23,16 @@ export function ProposalsListView() {
   const { data } = useAdminProposals();
 
   const filtered = useMemo<Proposal[]>(() => {
-    const keyword = search.keyword?.trim();
+    const keyword = search.keyword?.trim().toLowerCase();
     const status = search.status;
     return (data?.items ?? [])
       .filter((r) => {
         if (status && r.status !== status) return false;
-        if (keyword && !r.name.includes(keyword) && !r.member.includes(keyword))
+        if (
+          keyword &&
+          !r.name.toLowerCase().includes(keyword) &&
+          !r.member.toLowerCase().includes(keyword)
+        )
           return false;
         return true;
       })

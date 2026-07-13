@@ -104,7 +104,7 @@ export function FaqPanel({ query }: { query: string }) {
       return next;
     });
 
-  const keyword = query.trim();
+  const keyword = query.trim().toLowerCase();
   const items: Faq[] = (data ?? [])
     .map((row) => ({
       id: row.id,
@@ -116,8 +116,8 @@ export function FaqPanel({ query }: { query: string }) {
       (faq) =>
         (category === "전체" || faq.category === category) &&
         (!keyword ||
-          faq.question.includes(keyword) ||
-          faq.answer.includes(keyword)),
+          faq.question.toLowerCase().includes(keyword) ||
+          faq.answer.toLowerCase().includes(keyword)),
     );
 
   return (
