@@ -36,7 +36,7 @@ const NOTICES = [
   "로그인한 사용자의 문의 내용은 고객지원 > 문의 내역에서 확인할 수 있습니다.",
 ];
 
-const PHONE = "02-1234-5678";
+const PHONE = "02-582-4560";
 const EMAIL = "admix.support@gmail.com";
 
 function Badge({ invisible }: { invisible?: boolean }) {
@@ -153,7 +153,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 <div className="flex w-full flex-col gap-[8px]">
                   <button
                     type="button"
-                    onClick={() => window.open("http://pf.kakao.com/_PaSXX/chat", "_blank")}
+                    onClick={() =>
+                      window.open("http://pf.kakao.com/_PaSXX/chat", "_blank")
+                    }
                     className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-black"
                   >
                     <Icon name="kakao" className="size-[24px]" />
