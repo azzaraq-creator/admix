@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Footer } from "@/components/layout/Footer";
 
 import { HELP_CONTENT, HELP_TABS, type HelpTabKey } from "../content";
 
 export function HelpView({ initialTab }: { initialTab: HelpTabKey }) {
-  const [tab, setTab] = useState<HelpTabKey>(initialTab);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab: HelpTabKey = HELP_TABS.some((t) => t.key === tabParam)
+    ? (tabParam as HelpTabKey)
+    : initialTab;
+
+  const goTab = (key: HelpTabKey) =>
+    router.push(key === "terms" ? "/help" : `/help?tab=${key}`, {
+      scroll: false,
+    });
 
   return (
     <div className="min-w-0 flex-1 overflow-y-auto">
@@ -22,7 +32,7 @@ export function HelpView({ initialTab }: { initialTab: HelpTabKey }) {
               <button
                 key={key}
                 type="button"
-                onClick={() => setTab(key)}
+                onClick={() => goTab(key)}
                 className={`p-[10px] text-base font-semibold whitespace-nowrap ${
                   tab === key ? "text-primary" : "text-grey-500"
                 }`}
