@@ -13,19 +13,12 @@ EC2(FastAPI)가 job 생성 후 SQS FIFO 에 enqueue → Lambda 가 이 핸들러
 """
 from __future__ import annotations
 
-import asyncio
 import json
 
 import src.models  # noqa: F401 — Base.metadata 에 모든 모델 등록 보장
 from src.database import SessionLocal
-from src.services.ai_job_service import (
-    finish_job,
-    get_job,
-    load_filter_context,
-    make_save_filter_context_fn,
-    mark_processing,
-)
-from src.services.recommend_v2 import DEFAULT_TOP_K, collect_recommend_events
+from src.services.ai_job_service import get_job, process_recommend_job
+from src.services.recommend_v2 import DEFAULT_TOP_K
 
 
 def handler(event, context):
@@ -47,23 +40,8 @@ def _process_record(record) -> None:
         if not job:
             return
 
-        mark_processing(db, job)
-
-        filter_context = load_filter_context(db, session_id)
-        save_fn = make_save_filter_context_fn(session_id)
-
-        result = asyncio.run(
-            collect_recommend_events(
-                message,
-                db,
-                top_k=top_k,
-                filter_context=filter_context,
-                session_id=session_id,
-                save_filter_context_fn=save_fn,
-            )
+        process_recommend_job(
+            db, job, message=message, top_k=top_k, session_id=session_id
         )
-
-        error = result.get("error")
-        finish_job(db, job, {"events": result["events"]}, error)
     finally:
         db.close()

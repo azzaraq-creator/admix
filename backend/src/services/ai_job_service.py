@@ -53,6 +53,16 @@ def enqueue_recommend_job(
     db.refresh(job)
 
     settings = get_settings()
+
+    # 로컬(SQS 미설정) — 큐/Lambda 없이 인라인 동기 처리 후 즉시 done 기록.
+    # Lambda 컨슈머와 동일한 process_recommend_job 을 재사용해 파리티 유지.
+    if not settings.sqs_queue_url:
+        process_recommend_job(
+            db, job, message=message, top_k=top_k, session_id=session_id
+        )
+        db.refresh(job)
+        return job
+
     _sqs_client().send_message(
         QueueUrl=settings.sqs_queue_url,
         MessageBody=json.dumps(
@@ -155,3 +165,36 @@ def finish_job(
     job.error = error
     job.updated_at = _utcnow()
     db.commit()
+
+
+def process_recommend_job(
+    db: Session,
+    job: AiRecommendJob,
+    *,
+    message: str,
+    top_k: int,
+    session_id: str | None,
+) -> None:
+    """job 을 동기 처리 — 추천 파이프라인 실행 후 결과 기록.
+
+    Lambda 컨슈머(lambda_handler)와 로컬 인라인 폴백(enqueue_recommend_job)이 공용.
+    파이프라인 내부 오류는 result['error'] 로 반환돼 job.status=failed 로 기록된다.
+    """
+    import asyncio
+
+    from src.services.recommend_v2 import collect_recommend_events
+
+    mark_processing(db, job)
+    filter_context = load_filter_context(db, session_id)
+    save_fn = make_save_filter_context_fn(session_id)
+    result = asyncio.run(
+        collect_recommend_events(
+            message,
+            db,
+            top_k=top_k,
+            filter_context=filter_context,
+            session_id=session_id,
+            save_filter_context_fn=save_fn,
+        )
+    )
+    finish_job(db, job, {"events": result["events"]}, result.get("error"))
