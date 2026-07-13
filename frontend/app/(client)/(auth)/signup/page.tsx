@@ -9,7 +9,12 @@ import { authApi } from "@/hooks/auth";
 
 function KakaoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M12 4.5C6.75 4.5 2.5 7.82 2.5 11.92c0 2.65 1.77 4.97 4.43 6.28-.2.69-.71 2.55-.81 2.95-.13.49.18.48.38.35.16-.1 2.5-1.7 3.51-2.39.65.09 1.31.14 1.99.14 5.25 0 9.5-3.32 9.5-7.42S17.25 4.5 12 4.5Z"
         fill="#2f3442"
@@ -20,7 +25,12 @@ function KakaoMark(props: SVGProps<SVGSVGElement>) {
 
 function NaverMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M5 5.5h3.7l5.6 7.5V5.5H19v13h-3.7l-5.6-7.5v7.5H5V5.5Z"
         fill="#fff"
@@ -63,9 +73,9 @@ export default function SignupPage() {
         </div>
 
         <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
-          아우라웍스와 함께
+          애드믹스와 함께
           <br />
-          광고 매체 찾기를 시작해 보세요!
+          옥외광고를 시작하세요!
         </h1>
 
         <div className="flex w-full flex-col gap-[24px]">
@@ -132,9 +142,7 @@ export default function SignupPage() {
           <div className="h-px w-full bg-stroke" />
 
           <div className="flex w-full items-center justify-center gap-[8px] text-[16px] leading-[24px]">
-            <span className="font-normal text-black">
-              이미 회원이신가요?
-            </span>
+            <span className="font-normal text-black">이미 회원이신가요?</span>
             <Link href="/" className="font-bold text-primary">
               로그인
             </Link>

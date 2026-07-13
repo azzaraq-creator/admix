@@ -14,7 +14,12 @@ import { setTokens } from "@/lib/userToken";
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 9 7" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 9 7"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M1 3.7 3.3 6 8 1"
         stroke="currentColor"
@@ -28,7 +33,12 @@ function CheckIcon(props: SVGProps<SVGSVGElement>) {
 
 function UploadIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 9l5-5 5 5M12 4v11"
         stroke="currentColor"
@@ -42,7 +52,12 @@ function UploadIcon(props: SVGProps<SVGSVGElement>) {
 
 function CircleXIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <circle cx={12} cy={12} r={10} stroke="currentColor" strokeWidth={2} />
       <path
         d="m15 9-6 6M9 9l6 6"
@@ -111,7 +126,9 @@ const baseSchema = z.object({
     ),
   passwordConfirm: z.string().min(1, "비밀번호를 한번 더 입력해 주세요."),
   name: z.string().min(1, "이름을 입력해 주세요."),
-  phone: z.string().regex(/^\d{11}$/, "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요."),
+  phone: z
+    .string()
+    .regex(/^\d{11}$/, "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요."),
   company: z.string(),
 });
 
@@ -119,7 +136,12 @@ type FormValues = z.infer<typeof baseSchema>;
 
 type AgreementKey = "age" | "tos" | "privacy" | "location" | "marketing";
 
-const REQUIRED_AGREEMENTS: AgreementKey[] = ["age", "tos", "privacy", "location"];
+const REQUIRED_AGREEMENTS: AgreementKey[] = [
+  "age",
+  "tos",
+  "privacy",
+  "location",
+];
 
 const LINKED_AGREEMENTS: { key: AgreementKey; label: string }[] = [
   { key: "tos", label: "[필수] 아우라웍스 서비스 이용약관 동의" },
@@ -271,10 +293,12 @@ export function SignupForm({
       setVerifiedEmail(emailValue);
       setVerifyMsg({ type: "notice", text: "이메일 인증이 완료되었습니다." });
     } catch (err) {
-      const detail = (
-        err as { response?: { data?: { detail?: string } } }
-      )?.response?.data?.detail;
-      setVerifyMsg({ type: "error", text: detail ?? "인증번호가 올바르지 않습니다." });
+      const detail = (err as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail;
+      setVerifyMsg({
+        type: "error",
+        text: detail ?? "인증번호가 올바르지 않습니다.",
+      });
     } finally {
       setConfirmPending(false);
     }
@@ -341,9 +365,9 @@ export function SignupForm({
         </div>
 
         <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
-          회원가입을 하고
+          회원가입하고
           <br />
-          적합한 광고 매체를 찾아보세요!
+          최적의 광고 매체를 찾아보세요!
         </h1>
 
         <div className="flex w-full flex-col gap-[36px]">
@@ -398,7 +422,11 @@ export function SignupForm({
                   : "cursor-pointer bg-primary text-white",
               )}
             >
-              {emailVerified ? "인증 완료됨" : confirmPending ? "확인 중" : "인증 완료"}
+              {emailVerified
+                ? "인증 완료됨"
+                : confirmPending
+                  ? "확인 중"
+                  : "인증 완료"}
             </button>
             {errors.email?.message && (
               <p className="text-[14px] font-medium leading-[20px] text-[#ff2c20]">
@@ -409,7 +437,9 @@ export function SignupForm({
               <p
                 className={cn(
                   "text-[14px] font-medium leading-[20px]",
-                  verifyMsg.type === "error" ? "text-[#ff2c20]" : "text-primary",
+                  verifyMsg.type === "error"
+                    ? "text-[#ff2c20]"
+                    : "text-primary",
                 )}
               >
                 {verifyMsg.text}
@@ -520,9 +550,7 @@ export function SignupForm({
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  onChange={(event) =>
-                    setFile(event.target.files?.[0] ?? null)
-                  }
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
                 {file && (
                   <div className="flex w-full items-center justify-between rounded-[8px] border border-stroke px-[16px] py-[18px]">
@@ -537,7 +565,8 @@ export function SignupForm({
                       aria-label="파일 삭제"
                       onClick={() => {
                         setFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        if (fileInputRef.current)
+                          fileInputRef.current.value = "";
                       }}
                       className="shrink-0 cursor-pointer text-grey-500"
                     >

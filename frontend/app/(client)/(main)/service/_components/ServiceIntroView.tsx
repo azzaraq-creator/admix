@@ -115,7 +115,7 @@ export function ServiceIntroView() {
             <AdmixLogo />
             <div className="flex flex-col">
               <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
-                광고 캠페인을 AI와 대화로
+                광고 캠페인을, AI와 대화로.
               </p>
               <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
                 탐색부터 계약까지 전 과정을 하나의 대화로 완성합니다.

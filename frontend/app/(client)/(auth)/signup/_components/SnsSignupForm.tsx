@@ -16,7 +16,12 @@ const inputClass =
 
 type AgreementKey = "age" | "tos" | "privacy" | "location" | "marketing";
 
-const REQUIRED_AGREEMENTS: AgreementKey[] = ["age", "tos", "privacy", "location"];
+const REQUIRED_AGREEMENTS: AgreementKey[] = [
+  "age",
+  "tos",
+  "privacy",
+  "location",
+];
 
 const LINKED_AGREEMENTS: { key: AgreementKey; label: string }[] = [
   { key: "tos", label: "[필수] 아우라웍스 서비스 이용약관 동의" },
@@ -26,7 +31,12 @@ const LINKED_AGREEMENTS: { key: AgreementKey; label: string }[] = [
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 9 7" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 9 7"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M1 3.7 3.3 6 8 1"
         stroke="currentColor"
@@ -136,7 +146,9 @@ export function SnsSignupForm() {
       setCodeSent(true);
       setNotice("인증번호를 전송했습니다. 메일함을 확인해 주세요.");
     } catch {
-      setEmailError("인증번호 전송에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      setEmailError(
+        "인증번호 전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setSendPending(false);
     }
@@ -154,9 +166,8 @@ export function SnsSignupForm() {
       setEmailVerified(true);
       setNotice("이메일 인증이 완료되었습니다.");
     } catch (error) {
-      const detail = (
-        error as { response?: { data?: { detail?: string } } }
-      )?.response?.data?.detail;
+      const detail = (error as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail;
       setCodeError(detail ?? "인증번호가 올바르지 않습니다.");
     } finally {
       setConfirmPending(false);
@@ -181,10 +192,11 @@ export function SnsSignupForm() {
       });
       router.replace("/signup/complete");
     } catch (error) {
-      const detail = (
-        error as { response?: { data?: { detail?: string } } }
-      )?.response?.data?.detail;
-      setEmailError(detail ?? "가입을 완료하지 못했습니다. 다시 시도해 주세요.");
+      const detail = (error as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail;
+      setEmailError(
+        detail ?? "가입을 완료하지 못했습니다. 다시 시도해 주세요.",
+      );
       setCompletePending(false);
     }
   };
@@ -199,9 +211,9 @@ export function SnsSignupForm() {
         </div>
 
         <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
-          회원가입을 하고
+          회원가입하고
           <br />
-          적합한 광고 매체를 찾아보세요!
+          최적의 광고 매체를 찾아보세요!
         </h1>
 
         <div className="flex w-full flex-col gap-[36px]">
@@ -220,7 +232,9 @@ export function SnsSignupForm() {
                 className={cn(
                   inputClass,
                   "flex-1",
-                  emailError ? "border-[#ff2c20] bg-[#fff2f1]" : "border-stroke",
+                  emailError
+                    ? "border-[#ff2c20] bg-[#fff2f1]"
+                    : "border-stroke",
                 )}
               />
               <button
@@ -261,7 +275,11 @@ export function SnsSignupForm() {
                     : "cursor-pointer bg-primary text-white",
                 )}
               >
-                {emailVerified ? "인증 완료됨" : confirmPending ? "확인 중" : "인증 완료"}
+                {emailVerified
+                  ? "인증 완료됨"
+                  : confirmPending
+                    ? "확인 중"
+                    : "인증 완료"}
               </button>
             </div>
 
@@ -301,7 +319,10 @@ export function SnsSignupForm() {
                 </p>
               </div>
               {LINKED_AGREEMENTS.map(({ key, label }) => (
-                <div key={key} className="flex w-full items-center justify-between">
+                <div
+                  key={key}
+                  className="flex w-full items-center justify-between"
+                >
                   <div className="flex items-center gap-[8px]">
                     <AgreeCheckbox
                       checked={agreements[key]}

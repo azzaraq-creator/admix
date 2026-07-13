@@ -19,10 +19,10 @@ export function SignupCompleteView() {
 
         <div className="flex w-full flex-col items-center text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:gap-[12px] sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
           <p>
-            <span className="text-primary">{name}</span>님
+            <span className="text-primary">{name}</span>님께
           </p>
-          <p>회원님에게 적합한</p>
-          <p>광고 매체를 추천해드릴게요!</p>
+          <p>딱 맞는 광고 매체를</p>
+          <p>추천해드릴게요!</p>
         </div>
 
         <button

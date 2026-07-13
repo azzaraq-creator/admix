@@ -146,7 +146,11 @@ export function AiChatPanel({
       <div className="flex items-center justify-between border-b border-stroke px-[24px] py-[12px]">
         <div className="flex items-center gap-[8px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/ai-icon.png" alt="" className="size-[18px] shrink-0" />
+          <img
+            src="/icons/ai-icon.png"
+            alt=""
+            className="size-[18px] shrink-0"
+          />
           <span className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-primary">
             믹시
           </span>
@@ -216,7 +220,7 @@ export function AiChatPanel({
                   <span className="font-semibold text-primary">믹시</span>
                   에요.
                 </p>
-                <p>조건에 딱 맞는 추천을 해드릴게요.</p>
+                <p>조건에 딱 맞는 매체를 찾아드릴게요.</p>
               </div>
             </div>
 
@@ -294,7 +298,9 @@ export function AiChatPanel({
           />
           <button
             type="button"
-            disabled={value.trim().length === 0 || chat.running || chat.restoring}
+            disabled={
+              value.trim().length === 0 || chat.running || chat.restoring
+            }
             onClick={handleSend}
             aria-label="전송"
             className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white disabled:opacity-50"
