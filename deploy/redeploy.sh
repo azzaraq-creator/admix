@@ -4,14 +4,14 @@
 # 사용법:
 #   bash deploy/redeploy.sh
 #
-# 환경변수 (기본값):
-#   EC2_HOST   ubuntu@13.125.7.82
-#   SSH_KEY    ~/.ssh/ooh-key.pem
+# 환경변수 (기본값 = 신 계정 787418837344 운영):
+#   EC2_HOST   ubuntu@43.201.172.34         (Elastic IP, admix-backend)
+#   SSH_KEY    ~/.ssh/admix-key.pem
 #   REPO_DIR   /home/ubuntu/ooh-recommend
 #
 # 동작:
 #   1) 로컬 monorepo 루트를 EC2 의 REPO_DIR 로 rsync (.git/node_modules/.env/macOS 메타 등 제외)
-#   2) ssh 로 docker compose --env-file backend/.env 로 backend 만 rebuild
+#   2) ssh 로 docker compose (yml + prod + newacct override) 로 backend 만 rebuild
 #   3) alembic upgrade head (마이그 없으면 no-op)
 #   4) /health 확인
 #
@@ -19,13 +19,18 @@
 #  - macOS 메타파일(`._*`, `.DS_Store`)을 반드시 exclude. 안 그러면 EC2 가 쓰레기로 도배됨.
 #  - 항상 **monorepo 루트** 를 rsync 한다. backend/ 단독으로 보내면 디렉토리가 평탄화돼서
 #    docker-compose 의 `build.context: ./backend` 가 깨진다 (과거 사고 이력 있음).
+#    (rsync 실행 시 셸 작업디렉토리에 의존하지 않도록 이 스크립트는 항상 절대경로 $ROOT 를 소스로 쓴다.)
 #  - EC2 의 backend/.env 는 rsync exclude 로 보존된다. 새 시크릿이 필요하면 EC2 에서 직접 수정.
+#  - 신 계정은 DB 가 RDS 이고 postgres 컨테이너를 안 띄운다. 그래서 compose 에 반드시
+#    `-f docker-compose.newacct.yml` 를 포함해야 한다(DATABASE_URL→RDS, postgres 컨테이너 미기동).
+#    이게 빠지면 backend 가 로컬 postgres(빈 DB)로 붙어 위험하다.
 
 set -euo pipefail
 
-EC2_HOST="${EC2_HOST:-ubuntu@13.125.7.82}"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/ooh-key.pem}"
+EC2_HOST="${EC2_HOST:-ubuntu@43.201.172.34}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/admix-key.pem}"
 REPO_DIR="${REPO_DIR:-/home/ubuntu/ooh-recommend}"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.newacct.yml"
 
 # 스크립트 위치 기준 monorepo 루트 — 어디서 실행해도 같은 동작.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -64,7 +69,7 @@ ssh "${SSH_OPTS[@]}" "$EC2_HOST" "
   set -euo pipefail
   cd $REPO_DIR
   docker compose --env-file backend/.env \
-    -f docker-compose.yml -f docker-compose.prod.yml \
+    $COMPOSE_FILES \
     up -d --build backend 2>&1 | tail -15
 "
 
