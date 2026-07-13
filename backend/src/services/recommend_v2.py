@@ -696,8 +696,12 @@ def _last_items_from_payload(payload: dict | None) -> list[dict]:
     ]
 
 
-def _explain_with_llm(item: dict, detail: dict | None) -> str:
-    """매체 상세(detail) 기반으로 사용자용 설명 생성. detail 없으면 제한적 안내."""
+def _explain_with_llm(item: dict, detail: dict | None, aspect: str | None = None) -> str:
+    """매체 상세(detail) 기반 설명 생성.
+
+    aspect 가 있으면 해당 세부 항목만 1~2문장으로 답하고, 없으면 전반적 설명(4~6문장).
+    detail 없으면 제한적 안내.
+    """
     name = item.get("name") or "해당 매체"
     if detail:
         facts: list[str] = []
@@ -721,12 +725,20 @@ def _explain_with_llm(item: dict, detail: dict | None) -> str:
         facts_str = "\n".join(f"- {f}" for f in facts) or "(추가 정보 없음)"
     else:
         facts_str = "(상세 정보가 제한적입니다)"
-    sys_prompt = (
-        "당신은 OOH(옥외광고) 매체 컨설턴트입니다. 아래 매체 정보를 바탕으로 사용자에게 "
-        "이 매체를 친절하고 간결하게(4~6문장) 한국어로 설명하세요. "
-        "정보에 없는 내용은 지어내지 말고, 있는 정보 위주로 장점과 활용 포인트를 짚어주세요."
-    )
-    human = f"매체명: {name}\n[정보]\n{facts_str}"
+    if aspect:
+        sys_prompt = (
+            "당신은 OOH(옥외광고) 매체 컨설턴트입니다. 아래 매체 정보 중 "
+            f"사용자가 물은 '{aspect}' 항목만 골라 1~2문장으로 간결히 한국어로 답하세요. "
+            "정보에 없는 내용은 지어내지 말고, 해당 항목 값이 없으면 정보가 없다고 알려주세요."
+        )
+        human = f"매체명: {name}\n사용자 질문 항목: {aspect}\n[정보]\n{facts_str}"
+    else:
+        sys_prompt = (
+            "당신은 OOH(옥외광고) 매체 컨설턴트입니다. 아래 매체 정보를 바탕으로 사용자에게 "
+            "이 매체를 친절하고 간결하게(4~6문장) 한국어로 설명하세요. "
+            "정보에 없는 내용은 지어내지 말고, 있는 정보 위주로 장점과 활용 포인트를 짚어주세요."
+        )
+        human = f"매체명: {name}\n[정보]\n{facts_str}"
     try:
         res = get_chat(temperature=0.3).invoke(
             [SystemMessage(content=sys_prompt), HumanMessage(content=human)]
@@ -741,13 +753,17 @@ async def _iter_explain_event_data(
     db: Session,
     slots: dict,
     desc_map: dict[str, str],
+    aspect: str | None = None,
 ) -> AsyncIterator[dict]:
-    """특정 매체 → 상세(media 테이블) + LLM 설명 → media_detail 이벤트."""
+    """특정 매체 → 상세(media 테이블) + LLM 설명 → media_detail 이벤트.
+
+    aspect 가 있으면 해당 세부 항목만 답한다.
+    """
     media_id = item.get("media_id")
     detail = None
     if media_id:
         detail = await _run_sync_in_thread(media_service.get_media_detail, db, str(media_id))
-    explanation = await _run_sync_in_thread(_explain_with_llm, item, detail)
+    explanation = await _run_sync_in_thread(_explain_with_llm, item, detail, aspect)
     yield {
         "type": "media_detail",
         "message": explanation,
@@ -1279,12 +1295,12 @@ async def _event_stream(
         # 1.5) 의도 분기 — 직전 리스트가 있고 발화가 '특정 매체 질문'이면 상세 설명
         # ─────────────────────────────────────────────────────────
         if intent_label == "EXPLAIN" and last_items:
-            resolved = await _run_sync_in_thread(
+            resolved, aspect = await _run_sync_in_thread(
                 resolve_media_via_tools, message, last_items
             )
             if resolved is not None:
                 async for data in _iter_explain_event_data(
-                    resolved, db, prev_slots, desc_map
+                    resolved, db, prev_slots, desc_map, aspect
                 ):
                     yield emit(data)
                 finalize()

@@ -86,8 +86,8 @@ def test_recommend_routes_to_extract(session, monkeypatch):
 def test_explain_routes_to_media(session, monkeypatch):
     last_items = [{"id": "0", "media_id": None, "name": "테스트매체"}]
     monkeypatch.setattr(v2, "classify_intent", lambda *_a, **_k: "EXPLAIN")
-    monkeypatch.setattr(v2, "resolve_media_via_tools", lambda _m, items: items[0])
-    monkeypatch.setattr(v2, "_explain_with_llm", lambda _item, _detail: "설명입니다")
+    monkeypatch.setattr(v2, "resolve_media_via_tools", lambda _m, items: (items[0], None))
+    monkeypatch.setattr(v2, "_explain_with_llm", lambda _item, _detail, _aspect=None: "설명입니다")
     events, _ = _drive("1번 자세히", str(session.id), {"last_items": last_items})
     assert any(e.get("type") == "media_detail" for e in events)
 

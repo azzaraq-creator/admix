@@ -21,6 +21,13 @@ class ExplainMedia(BaseModel):
 
     index: Optional[int] = Field(None, description="1-based 리스트 번호")
     name: Optional[str] = Field(None, description="번호 대신 매체명으로 지목 시")
+    aspect: Optional[str] = Field(
+        None,
+        description=(
+            "사용자가 물은 세부 항목. 예: '주소', '최소 집행금액', '규격', '유동인구', "
+            "'리드타임', '카테고리'. 특정 항목 없이 전반적 설명이면 null."
+        ),
+    )
 
 
 class CreateProposal(BaseModel):
@@ -79,20 +86,21 @@ def proposal_intent_from_tool_calls(tool_calls: list[dict]):
 
 def media_item_from_tool_calls(
     tool_calls: list[dict], last_items: list[dict]
-) -> Optional[dict]:
-    """tool_calls → 직전 리스트의 해당 item (없으면 None)."""
+) -> tuple[Optional[dict], Optional[str]]:
+    """tool_calls → (직전 리스트의 해당 item, aspect). 매칭 없으면 (None, None)."""
     if not tool_calls or not last_items:
-        return None
+        return None, None
     args = tool_calls[0].get("args") or {}
+    aspect = (args.get("aspect") or "").strip() or None
     idx = args.get("index")
     if isinstance(idx, int) and 1 <= idx <= len(last_items):
-        return last_items[idx - 1]
+        return last_items[idx - 1], aspect
     name = (args.get("name") or "").strip()
     if name:
         for it in last_items:
             if name in (it.get("name") or ""):
-                return it
-    return None
+                return it, aspect
+    return None, None
 
 
 # ===== LLM 리졸버 (bind_tools 호출 → 파서) =====
@@ -130,16 +138,20 @@ def resolve_proposal_via_tools(message: str, last_items: list[dict], has_active:
     return proposal_intent_from_tool_calls(getattr(resp, "tool_calls", []) or [])
 
 
-def resolve_media_via_tools(message: str, last_items: list[dict]) -> Optional[dict]:
-    """발화가 직전 리스트의 특정 매체 질문이면 해당 item, 아니면 None."""
+def resolve_media_via_tools(
+    message: str, last_items: list[dict]
+) -> tuple[Optional[dict], Optional[str]]:
+    """발화가 직전 리스트의 특정 매체 질문이면 (item, aspect), 아니면 (None, None)."""
     if not last_items:
-        return None
+        return None, None
     listing = "\n".join(
         f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items)
     )
     sys_prompt = (
         "사용자가 아래 '직전 추천 매체' 중 특정 매체의 상세 설명을 요청하면 "
         "ExplainMedia 도구를 index(1-based) 또는 name 으로 호출하라. "
+        "특정 세부 항목(주소·집행금액·규격·유동인구 등)을 물으면 그 항목을 aspect 에 담고, "
+        "전반적 설명이면 aspect 를 비워라. "
         "새 검색조건이거나 목록과 무관하면 도구를 호출하지 마라.\n\n"
         f"[직전 추천 매체]\n{listing}"
     )
@@ -147,5 +159,5 @@ def resolve_media_via_tools(message: str, last_items: list[dict]) -> Optional[di
         llm = get_chat(temperature=0.0).bind_tools([ExplainMedia])
         resp = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=message.strip())])
     except Exception:
-        return None
+        return None, None
     return media_item_from_tool_calls(getattr(resp, "tool_calls", []) or [], last_items)

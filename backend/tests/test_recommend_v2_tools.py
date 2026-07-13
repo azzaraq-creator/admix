@@ -35,21 +35,31 @@ def test_proposal_parser_no_tool_call_is_none():
 
 def test_media_parser_by_index():
     items = [{"id": "0", "name": "A"}, {"id": "1", "name": "B"}]
-    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 2}}], items)["name"] == "B"
+    item, aspect = media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 2}}], items)
+    assert item["name"] == "B" and aspect is None
 
 
 def test_media_parser_by_name_substring():
     items = [{"id": "0", "name": "신사 BK빌딩"}]
-    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"name": "BK빌딩"}}], items)["id"] == "0"
+    item, _ = media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"name": "BK빌딩"}}], items)
+    assert item["id"] == "0"
+
+
+def test_media_parser_returns_aspect():
+    items = [{"id": "0", "name": "Glory"}]
+    item, aspect = media_item_from_tool_calls(
+        [{"name": "ExplainMedia", "args": {"index": 1, "aspect": "주소"}}], items
+    )
+    assert item["id"] == "0" and aspect == "주소"
 
 
 def test_media_parser_out_of_range_is_none():
     items = [{"id": "0", "name": "A"}]
-    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 9}}], items) is None
+    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 9}}], items) == (None, None)
 
 
 def test_media_parser_empty_items_is_none():
-    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 1}}], []) is None
+    assert media_item_from_tool_calls([{"name": "ExplainMedia", "args": {"index": 1}}], []) == (None, None)
 
 
 from src.services.graph import tools as t
@@ -96,10 +106,12 @@ def test_resolve_proposal_via_tools_error_returns_none_action(monkeypatch):
 def test_resolve_media_via_tools_maps_tool_call(monkeypatch):
     monkeypatch.setattr(
         t, "get_chat",
-        lambda *_a, **_k: _FakeChat(_FakeResp([{"name": "ExplainMedia", "args": {"index": 1}}])),
+        lambda *_a, **_k: _FakeChat(_FakeResp(
+            [{"name": "ExplainMedia", "args": {"index": 1, "aspect": "주소"}}]
+        )),
     )
-    item = t.resolve_media_via_tools("1번 자세히", [{"id": "0", "name": "A"}])
-    assert item["id"] == "0"
+    item, aspect = t.resolve_media_via_tools("1번 주소 알려줘", [{"id": "0", "name": "A"}])
+    assert item["id"] == "0" and aspect == "주소"
 
 
 def test_resolve_media_via_tools_error_returns_none(monkeypatch):
@@ -107,4 +119,4 @@ def test_resolve_media_via_tools_error_returns_none(monkeypatch):
         raise RuntimeError("no llm")
 
     monkeypatch.setattr(t, "get_chat", _boom)
-    assert t.resolve_media_via_tools("x", [{"id": "0", "name": "A"}]) is None
+    assert t.resolve_media_via_tools("x", [{"id": "0", "name": "A"}]) == (None, None)
