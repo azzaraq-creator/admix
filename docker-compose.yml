@@ -35,6 +35,7 @@ services:
     # 코드 변경 시 `docker compose up -d --build backend` 로 rebuild.
     volumes:
       - ooh-uploads:/data/uploads   # 업로드 파일 영속화 (rebuild 시 보존)
+      - ./backend/secrets:/app/secrets:ro   # GA4 서비스계정 키 (이미지에 굽지 않고 마운트)
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 volumes:
