@@ -1,14 +1,16 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/common/buttons";
+import { Icon } from "@/components/common/Icon";
 import { CircleCheckIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
+import { ContactCard } from "./ContactCard";
 import { FaqPanel } from "./FaqPanel";
 import { HistoryPanel } from "./HistoryPanel";
-import { InquiryDetailPage } from "./InquiryDetailPage";
 import { InquiryModal } from "./InquiryModal";
 
 type TabKey = "received" | "history" | "faq";
@@ -23,7 +25,11 @@ const TABS_MEMBER: { key: TabKey; label: string }[] = [
   { key: "faq", label: "자주 묻는 질문" },
 ];
 
-const INQUIRY_TYPES = ["매체 및 상품 문의", "견적 및 제안 관련 문의", "기타 문의"];
+const INQUIRY_TYPES = [
+  "매체 및 상품 문의",
+  "견적 및 제안 관련 문의",
+  "기타 문의",
+];
 
 const NOTICES = [
   "실시간 상담은 운영시간 내에 이용 가능합니다.",
@@ -31,12 +37,7 @@ const NOTICES = [
 ];
 
 const PHONE = "02-1234-5678";
-const EMAIL = "email@gmail.com";
-
-function Icon({ name, className }: { name: string; className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/icons/${name}.svg`} alt="" className={className} />;
-}
+const EMAIL = "admix.support@gmail.com";
 
 function Badge({ invisible }: { invisible?: boolean }) {
   return (
@@ -67,40 +68,23 @@ function IconCircle({
   );
 }
 
-function ContactCard({
-  highlight,
-  children,
-  footer,
-}: {
-  highlight?: boolean;
-  children: ReactNode;
-  footer: ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex h-[492px] min-w-[300px] flex-1 flex-col items-center rounded-[12px] border px-[32px] py-[20px]",
-        highlight ? "border-primary bg-[#f4fbfa]" : "border-stroke bg-white",
-      )}
-    >
-      <div className="flex h-[452px] w-full flex-col items-center justify-between">
-        <div className="flex w-full flex-col items-center justify-center gap-[24px]">
-          {children}
-        </div>
-        {footer}
-      </div>
-    </div>
-  );
-}
-
 export function ContactView({ member = false }: { member?: boolean }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [toast, setToast] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("received");
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [inquiryId, setInquiryId] = useState<string | null>(null);
   const tabs = member ? TABS_MEMBER : TABS_GUEST;
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabKey = tabs.some((tab) => tab.key === tabParam)
+    ? (tabParam as TabKey)
+    : "received";
   const showSearch = activeTab === "faq" || activeTab === "history";
+
+  const goTab = (key: TabKey) =>
+    router.push(key === "received" ? "/contact" : `/contact?tab=${key}`, {
+      scroll: false,
+    });
 
   useEffect(() => {
     if (!toast) return;
@@ -116,15 +100,6 @@ export function ContactView({ member = false }: { member?: boolean }) {
     }
     setToast("복사가 완료되었습니다.");
   };
-
-  // 문의 상세는 제목/탭/검색 없는 단독 화면.
-  if (inquiryId) {
-    return (
-      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
-        <InquiryDetailPage id={inquiryId} onBack={() => setInquiryId(null)} />
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1016px] flex-col gap-[16px] px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
@@ -143,7 +118,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => goTab(tab.key)}
               className={cn(
                 "-mb-px px-[10px] py-[10px] text-base font-medium leading-[24px]",
                 activeTab === tab.key
@@ -178,6 +153,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 <div className="flex w-full flex-col gap-[8px]">
                   <button
                     type="button"
+                    onClick={() => window.open("http://pf.kakao.com/_PaSXX/chat", "_blank")}
                     className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#fddc37] px-[16px] py-[12px] text-base font-medium text-black"
                   >
                     <Icon name="kakao" className="size-[24px]" />
@@ -272,7 +248,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     size="md"
                     fullWidth
                     onClick={() => setModalOpen(true)}
-                    leftIcon={<Icon name="square-pen" className="size-[24px]" />}
+                    leftIcon={
+                      <Icon name="square-pen" className="size-[24px]" />
+                    }
                   >
                     문의 작성하기
                   </Button>
@@ -282,7 +260,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     size="md"
                     fullWidth
                     onClick={() => copy(EMAIL)}
-                    leftIcon={<Icon name="square-pen" className="size-[24px]" />}
+                    leftIcon={
+                      <Icon name="square-pen" className="size-[24px]" />
+                    }
                   >
                     메일주소 복사
                   </Button>
@@ -304,14 +284,17 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     확인 후 답변드리겠습니다.
                   </p>
                   {!member && (
-                    <p className="text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-primary">
+                    <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-primary">
                       {EMAIL}
                     </p>
                   )}
                 </div>
                 <div className="flex w-full flex-col items-start gap-[10px] px-[32px]">
                   {INQUIRY_TYPES.map((type) => (
-                    <div key={type} className="flex w-full items-center gap-[13px]">
+                    <div
+                      key={type}
+                      className="flex w-full items-center gap-[13px]"
+                    >
                       <span className="size-[8px] shrink-0 rounded-full bg-black" />
                       <p className="text-base font-medium leading-[24px] text-black">
                         {type}
@@ -340,7 +323,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setActiveTab("faq")}
+              onClick={() => goTab("faq")}
               className="ml-[68px] shrink-0 sm:ml-0"
             >
               자주 묻는 질문 보기
@@ -354,7 +337,10 @@ export function ContactView({ member = false }: { member?: boolean }) {
               </p>
               <div className="flex flex-col gap-[6px]">
                 {NOTICES.map((notice) => (
-                  <div key={notice} className="flex w-full items-center gap-[8px]">
+                  <div
+                    key={notice}
+                    className="flex w-full items-center gap-[8px]"
+                  >
                     <span className="size-[6px] shrink-0 rounded-full bg-disabled" />
                     <p className="flex-1 text-sm font-medium leading-[20px] text-disabled">
                       {notice}
@@ -378,7 +364,10 @@ export function ContactView({ member = false }: { member?: boolean }) {
       )}
 
       {activeTab === "history" && (
-        <HistoryPanel query={searchQuery} onSelect={setInquiryId} />
+        <HistoryPanel
+          query={searchQuery}
+          onSelect={(id) => router.push(`/contact/inquiries/${id}`)}
+        />
       )}
 
       {activeTab === "faq" && <FaqPanel query={searchQuery} />}
