@@ -6,7 +6,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
+
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 
 from src.database import get_db
 from src.models.admin import Admin
@@ -19,6 +24,22 @@ from src.services import ad_session_service as svc
 from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/admin/chat", tags=["admin-chat"])
+
+
+@router.get("/export")
+def export_chat(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("chat")),
+) -> Response:
+    """전체 대화 내역 xlsx 다운로드."""
+    content = svc.export_chat_xlsx(db)
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="ai_chat_logs.xlsx"'
+        },
+    )
 
 
 @router.get("/overview", response_model=AdChatOverviewResponse)

@@ -56,6 +56,78 @@ def _message_counts(db: Session) -> dict:
     )
 
 
+def export_chat_xlsx(db: Session) -> bytes:
+    """전체 채팅 대화 내역을 xlsx 로 export — 턴(사용자 질문+챗봇 답변)별 1행."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from sqlalchemy.orm import selectinload
+
+    from src.models.user import User
+
+    sessions = (
+        db.query(AdSession)
+        .options(selectinload(AdSession.messages))
+        .order_by(AdSession.created_at)
+        .all()
+    )
+    uids = {s.user_id for s in sessions if s.user_id}
+    users = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(uids)).all()}
+        if uids
+        else {}
+    )
+
+    def _fmt(dt) -> str:
+        return dt.strftime("%Y-%m-%d %H:%M") if dt is not None else ""
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "대화내역"
+    ws.append(
+        [
+            "사용자ID",
+            "사용자명",
+            "세션ID",
+            "세션제목",
+            "turn",
+            "사용자 질문",
+            "챗봇 답변",
+            "시각",
+            "비고",
+        ]
+    )
+    for s in sessions:
+        u = users.get(s.user_id) if s.user_id else None
+        uid = u.login_id if u else ""
+        uname = (u.name or "") if u else "비회원"
+        sid = str(s.id)
+        stitle = s.title or ""
+        turn = 0
+        pending: Optional[tuple[str, str]] = None  # (질문, 시각)
+        for m in s.messages:
+            if m.role == MessageRole.user:
+                if pending is not None:
+                    turn += 1
+                    ws.append(
+                        [uid, uname, sid, stitle, turn, pending[0], "", pending[1], ""]
+                    )
+                pending = (m.content, _fmt(m.created_at))
+            else:
+                turn += 1
+                q = pending[0] if pending else ""
+                t = pending[1] if pending else _fmt(m.created_at)
+                ws.append([uid, uname, sid, stitle, turn, q, m.content, t, ""])
+                pending = None
+        if pending is not None:
+            turn += 1
+            ws.append([uid, uname, sid, stitle, turn, pending[0], "", pending[1], ""])
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def list_chat_overview(db: Session) -> list[dict]:
     """admin 챗로그 개요 — 회원은 이름/이메일별 집계 1행, 비회원은 세션별 1행.
 

@@ -38,6 +38,10 @@ export interface AdUserChatDetail {
 export const adminChatApi = {
   overview: () =>
     api.get<AdChatOverviewResponse>("/admin/chat/overview").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/chat/export", { responseType: "blob" })
+      .then((r) => r.data),
 
   user: (userId: string) =>
     api

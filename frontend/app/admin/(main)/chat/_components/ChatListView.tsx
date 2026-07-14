@@ -7,9 +7,22 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { useAdminChatOverview } from "@/hooks/adminChat";
+import { ExcelDownloadButton } from "@/components/common/buttons";
+import { adminChatApi, useAdminChatOverview } from "@/hooks/adminChat";
+import { useSonner } from "@/hooks/useSonner";
 
 import { chatColumnList, chatSearchOptionList, type ChatRow } from "./index";
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -24,6 +37,15 @@ export function ChatListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
   const { data, isLoading } = useAdminChatOverview();
+  const { error } = useSonner();
+
+  const handleExport = async () => {
+    try {
+      triggerDownload(await adminChatApi.exportExcel(), "AI_대화목록.xlsx");
+    } catch {
+      error("다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   const rows: ChatRow[] = useMemo(
     () =>
@@ -65,6 +87,7 @@ export function ChatListView() {
         usePageSizeSelect
         pageSize={10}
         idKey="key"
+        topRightContent={<ExcelDownloadButton onClick={handleExport} />}
         emptyMessage={isLoading ? "불러오는 중..." : "대화 내역이 없습니다."}
         onRowClick={(item) =>
           router.push(`/admin/chat/${item.key}?kind=${item.kind}`)
