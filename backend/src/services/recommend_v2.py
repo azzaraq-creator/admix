@@ -1159,13 +1159,22 @@ async def _event_stream(
         # ─────────────────────────────────────────────────────────
         intent = ProposalIntent()
         if intent_label == "PROPOSAL":
+            # 소유자 먼저 계산 → active_proposal_id 가 없으면 현재 세션의 최근
+            # 제안서를 활성으로 보충한다. 챗봇 밖('내 제안서' 페이지)에서 만든
+            # 제안서도 세션(session_id) 소유이므로 챗봇이 인식하도록.
+            member_id, owner_sid, owner_user = await _run_sync_in_thread(
+                _proposal_owner_for_session, db, session_id
+            )
+            if not active_proposal_id:
+                latest = await _run_sync_in_thread(
+                    _get_active_or_latest, db, None, member_id, owner_sid
+                )
+                if latest:
+                    active_proposal_id = str(latest.id)
             intent = await _run_sync_in_thread(
                 resolve_proposal_via_tools, message, last_items or [], bool(active_proposal_id)
             )
         if intent.action in ("create", "add_media", "rename"):
-            member_id, owner_sid, owner_user = await _run_sync_in_thread(
-                _proposal_owner_for_session, db, session_id
-            )
 
             # rename — 활성/최근 제안서 이름 변경
             if intent.action == "rename":

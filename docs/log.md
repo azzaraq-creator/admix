@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-14 — 챗봇이 '내 제안서'에서 만든 세션 제안서 인식 (버그 수정)
+
+- 비회원이 "내 제안서" 페이지에서 만든 제안서를 챗봇이 못 찾고 "보유중인 제안서가 없어요"만 반복하던 버그. 원인: 챗봇 담기가 `active_proposal_id`(챗봇이 직접 담은 제안서)에만 의존 → 챗봇 밖에서 만든 제안서(session_id 소유, member_id 없음)는 인식 못 함. `resolve_proposal_via_tools`도 `bool(active_proposal_id)`로 판단이 갈림. 수정: PROPOSAL 처리 진입 시 소유자 계산 후 `active_proposal_id`가 없으면 `_get_active_or_latest`로 **현재 세션 최근 제안서를 활성으로 보충**(`recommend_v2.py` 1160~). DB 검증: 제안서·챗세션 session_id 일치 확인(비회원=member_id 없이 session_id 소유). 관련: [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md).
+
 ## 2026-07-14 — 챗봇 담기 active_proposal_id 잔재 폴백 (버그 수정)
 
 - 게스트가 "내 제안서" 페이지에서 만든 제안서를 챗봇이 담지 못하고 "제안서를 찾지 못했어요. 다시 시도해주세요."만 반복하던 버그. 원인: 챗봇이 세션 `filter_context.active_proposal_id`(현재 작업 제안서)로만 담는데, 그 값이 잔재/무효(다른 소유·삭제, 예: 회원으로 승계된 제안서를 게스트 세션이 계속 가리킴)면 폴백 없이 바로 에러(`recommend_v2.py` add_media 1191, 확인 후 담기 1034 경로). 수정: 두 경로 모두 `_get_active_or_latest`로 **현재 세션 최근 제안서 폴백** 후 담기. active 무효여도 게스트가 방금 만든 제안서로 정상 담김. 실측 검증(무효 active→게스트 제안서 폴백 확인).
