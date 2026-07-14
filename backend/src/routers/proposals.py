@@ -7,7 +7,7 @@ import tempfile
 import uuid as uuidlib
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
@@ -53,6 +53,7 @@ def get_proposal(
 @router.post("/{proposal_id}/counter-proposal", response_model=AdminProposalDetail)
 async def upload_counter_proposal(
     proposal_id: str,
+    background: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     admin: Admin = Depends(require_permission("business")),
@@ -100,7 +101,17 @@ async def upload_counter_proposal(
         pptx_path.unlink(missing_ok=True)
         shutil.rmtree(slides_dir, ignore_errors=True)
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
-    return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))
+
+    detail = proposal_service.get_admin_detail(db, proposal_id)
+    # 제안서 소유 회원의 연락받을 이메일로 맞춤제안 도착 알림 발송
+    recipient = (detail.get("member") or {}).get("email")
+    if recipient:
+        background.add_task(
+            proposal_service.send_custom_proposal_email,
+            recipient,
+            detail.get("title") or "",
+        )
+    return AdminProposalDetail(**detail)
 
 
 @router.post("/{proposal_id}/accept", response_model=AdminProposalDetail)
