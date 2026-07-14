@@ -6,6 +6,7 @@ import { useState, type SVGProps } from "react";
 
 import { ChevronRightIcon, LogoFull } from "@/components/icons";
 import { authApi, authKeys, useMe } from "@/hooks/auth";
+import { useClaimGuestProposals } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,6 +75,7 @@ export function SnsSignupForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: me } = useMe();
+  const claimGuest = useClaimGuestProposals();
 
   // 제공자가 준 이메일을 pre-fill(수정 가능). 사용자가 입력하기 전까지는
   // me 값을 그대로 노출하고, 입력하면 emailInput 이 우선한다. placeholder
@@ -186,6 +188,8 @@ export function SnsSignupForm() {
     setCompletePending(true);
     try {
       await authApi.completeSnsSignup(email, agreements.marketing);
+      // 소셜 신규 가입 완료 → 게스트 제안서+챗 세션 회원 승계 (best-effort).
+      await claimGuest.mutateAsync().catch(() => {});
       await queryClient.invalidateQueries({
         queryKey: authKeys.me,
         refetchType: "all",

@@ -34,15 +34,20 @@
 - `AddToProposalModal`이 열릴 때 게스트면 `ensureGuestSession()` 먼저 실행 → session_id 확보 후 `useMyProposals` refetch. 제안서 생성/담기 전에도 세션 보장.
 - 단일 세션 정책 유지: `SESSION_KEY` 하나만 관리(챗과 공유).
 
-### 3.3 회원 승계 API — 로그인/가입 시 게스트 제안서 이관
+### 3.3 회원 승계 API — 회원가입 시 게스트 제안서 이관 (로그인 제외)
 - **서버**: `POST /proposals/claim` (인증 필수). body `{ session_id }`.
   - `proposal_service.claim_guest_proposals(db, session_id, member_id)`:
     - 해당 `session_id` 소유(게스트) 제안서를 `member_id`로 이관, `session_id=NULL`.
     - 해당 `ad_session.user_id`도 `member_id`로 연결(챗 히스토리 승계).
   - 회원 제안서 한도(`MEMBER_LIMIT=5`)는 **승계 시 예외**(게스트 자산 보존). 게스트는 최대 1건(`GUEST_LIMIT=1`)이라 실무상 초과 없음.
   - 멱등: 이미 이관됐거나 대상 없으면 no-op(0건).
-- **프론트**: `claimGuestProposals()` 헬퍼 — `getSessionId()`가 있으면 `POST /proposals/claim` 호출, 완료 후 제안서 쿼리 invalidate. 실패해도 로그인 흐름은 진행(best-effort).
-  - 호출 지점 3곳(로그인 성공 = `setTokens` 직후): `oauth/[provider]/callback/page.tsx`, `(main)/_components/LoginModal.tsx`, `(auth)/signup/_components/SignupForm.tsx`.
+- **프론트**: `useClaimGuestProposals` 훅 — `getSessionId()`가 있으면 `POST /proposals/claim` 호출, 완료 후 제안서 쿼리 invalidate. 실패해도 흐름은 진행(best-effort).
+  - **호출 지점 = 회원가입만**:
+    - 이메일 회원가입: `(auth)/signup/_components/SignupForm.tsx`
+    - 소셜 신규 가입 완료: `(auth)/signup/_components/SnsSignupForm.tsx` (`completeSnsSignup` 직후)
+  - **로그인은 승계하지 않음**: 이메일 로그인(`(main)/_components/LoginModal.tsx`)·소셜 콜백(`oauth/[provider]/callback/page.tsx`)에서는 호출하지 않는다.
+
+**정책 근거 (로그인 승계 제외)**: 로그인 사용자는 이미 본인 제안서를 보유할 수 있고, `getSessionId()`가 이번에 담은 세션이 아니라 **예전 방문의 잔여 게스트 세션**일 수 있어 무관한 제안서·챗이 딸려오는 오병합 위험이 있다. 회원가입(이메일/소셜 신규)은 새 계정이라 이 충돌이 없어 자동 승계한다. 소셜은 콜백(로그인/재로그인 공통 진입)이 아니라 **신규 가입 완료 지점(SnsSignupForm)**에서만 승계해 재로그인과 구분한다. 챗 세션 승계도 제안서와 동일 정책(승계할 때만 `ad_session.user_id` 연결).
 
 ## 4. 승계 후 게스트 세션 처리
 
@@ -69,12 +74,12 @@
 - `lib/session.ts` (또는 신규 util) — `ensureGuestSession()`
 - `components/common/AddToProposalModal.tsx` — 게스트 세션 보장
 - `hooks/proposals/apis.ts` + mutations — `claim` API + 헬퍼
-- 로그인 3곳 — `claimGuestProposals()` 호출
+- 회원가입 2곳(`SignupForm`, `SnsSignupForm`) — `useClaimGuestProposals` 호출 (로그인/소셜콜백은 제외)
 
 ## 7. 검증
 
 - 프론트 `tsc --noEmit` 통과.
-- 백엔드: 게스트 세션으로 제안서 생성 → 로그인 → `POST /proposals/claim` → 회원 목록에 제안서 노출, `session_id` NULL 확인.
+- 백엔드: 게스트 세션으로 제안서 생성 → **회원가입** → `POST /proposals/claim` → 회원 목록에 제안서 노출, `session_id` NULL 확인. **로그인 시엔 승계 안 됨** 확인.
 - 핫픽스: 세션 get 5xx 모킹 시 `SESSION_KEY` 유지 확인.
 
 ## 관련 문서

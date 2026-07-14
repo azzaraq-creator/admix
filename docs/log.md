@@ -10,7 +10,7 @@
 
 ## 2026-07-14 — 게스트 제안서 세션 안정화 + 회원 승계 (PRD)
 
-- 비회원 제안서 담기에서 "이미 제안서가 있는데 없다고 판단 → 생성 플로우"로 빠지는 버그. 근본 원인: 게스트 제안서 소유가 휘발성 챗 세션 id(`proposal.session_id` → `ad_sessions` FK)에 묶임 + `useV2Chat` 복원 실패 시 네트워크/5xx에도 `localStorage` 세션을 영구 삭제(`useV2Chat.ts:242-245`) → 제안서 고아. 해결: ①핫픽스(404/410만 세션 삭제, 일시오류엔 유지) ②게스트 세션 안정화(`ensureGuestSession`으로 담기 전 세션 보장, 단일 세션 정책 유지) ③로그인/가입 시 `POST /proposals/claim`으로 게스트 제안서+챗 세션을 회원으로 승계. 스펙: [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md).
+- 비회원 제안서 담기에서 "이미 제안서가 있는데 없다고 판단 → 생성 플로우"로 빠지는 버그. 근본 원인: 게스트 제안서 소유가 휘발성 챗 세션 id(`proposal.session_id` → `ad_sessions` FK)에 묶임 + `useV2Chat` 복원 실패 시 네트워크/5xx에도 `localStorage` 세션을 영구 삭제(`useV2Chat.ts:242-245`) → 제안서 고아. 해결: ①핫픽스(404/410만 세션 삭제, 일시오류엔 유지) ②게스트 세션 안정화(`ensureGuestSession`으로 담기 전 세션 보장, 단일 세션 정책 유지) ③**회원가입(이메일/소셜 신규)** 시 `POST /proposals/claim`으로 게스트 제안서+챗 세션을 회원으로 승계 — **로그인은 제외**(잔여 게스트 세션 오병합 방지, SnsSignupForm 신규 가입 완료 지점에서만 소셜 승계). 스펙: [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md).
 
 ## 2026-07-13 — 챗봇 대화 횟수 티어별 제한 (PRD)
 
