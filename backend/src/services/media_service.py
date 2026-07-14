@@ -4,14 +4,17 @@ media 단일값 + 대표 플랜(plan_no=1)의 상품표시명을 합쳐 한 행�
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
+from openpyxl import Workbook
 from sqlalchemy import and_, func, inspect as sa_inspect, text
 from sqlalchemy.orm import Session, selectinload
 
@@ -541,6 +544,47 @@ def list_media(db: Session) -> list[dict]:
 def _media_columns() -> list[str]:
     """Media 모델의 전체 컬럼명(선언 순서)."""
     return [c.key for c in sa_inspect(Media).mapper.column_attrs]
+
+
+def _xlsx_cell(val):
+    """openpyxl 셀에 넣을 수 있는 값으로 변환."""
+    if val is None:
+        return ""
+    if isinstance(val, bool):
+        return "Y" if val else "N"
+    if isinstance(val, Decimal):
+        return float(val)
+    if isinstance(val, datetime):
+        return val.isoformat()
+    if isinstance(val, (dict, list)):
+        return json.dumps(val, ensure_ascii=False)
+    return val
+
+
+def _build_xlsx(headers: list[str], rows: list[list]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "media"
+    ws.append(headers)
+    for row in rows:
+        ws.append(row)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def export_media_xlsx(db: Session) -> bytes:
+    """전체 매체 데이터를 xlsx 로 export — 헤더=전 컬럼, 행=매체."""
+    cols = _media_columns()
+    medias = db.query(Media).order_by(Media.created_at.desc()).all()
+    rows = [[_xlsx_cell(getattr(m, c)) for c in cols] for m in medias]
+    return _build_xlsx(cols, rows)
+
+
+def media_template_xlsx() -> bytes:
+    """엑셀 일괄등록용 빈 양식 — 헤더=등록 폼 컬럼(자동 컬럼 제외)."""
+    cols = [c for c in _media_columns() if c not in _MEDIA_AUTO_COLS]
+    return _build_xlsx(cols, [])
 
 
 def _image_dict(img: MediaImage) -> dict:

@@ -8,6 +8,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends, File, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
 from src.database import get_db
 from src.models.admin import Admin
 from src.schemas.media import MediaListResponse
@@ -24,6 +28,37 @@ def list_media(
 ) -> MediaListResponse:
     items = media_service.list_media(db)
     return MediaListResponse(total=len(items), items=items)
+
+
+@router.get("/export")
+def export_media(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> Response:
+    """전체 매체 데이터 xlsx 다운로드."""
+    content = media_service.export_media_xlsx(db)
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="media_data.xlsx"'
+        },
+    )
+
+
+@router.get("/template")
+def download_media_template(
+    _: Admin = Depends(require_permission("media")),
+) -> Response:
+    """엑셀 일괄등록용 빈 양식 xlsx 다운로드."""
+    content = media_service.media_template_xlsx()
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="media_template.xlsx"'
+        },
+    )
 
 
 @router.get("/{media_id}")

@@ -186,6 +186,14 @@ function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
 
 export const mediaApi = {
   list: () => api.get<MediaListResponse>("/admin/media").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/media/export", { responseType: "blob" })
+      .then((r) => r.data),
+  downloadTemplate: () =>
+    api
+      .get<Blob>("/admin/media/template", { responseType: "blob" })
+      .then((r) => r.data),
   movingList: (filters?: MediaFilterParams) => {
     const qs = buildMovingQuery(filters);
     return api
