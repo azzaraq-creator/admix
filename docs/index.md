@@ -64,6 +64,7 @@
 | 2026-07-13 | [chat-usage-tier-limit](plans/2026-07-13-chat-usage-tier-limit.md) | 챗봇 대화 횟수 티어별 제한 (비회원 10 / 일반회원 30 / 사업자 무제한, session_id 티어 판별, limit_reached 이벤트) |
 | 2026-07-14 | [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md) | 게스트 제안서가 휘발성 챗 세션에 묶여 소실되는 버그 — 세션 안정화(핫픽스+담기 세션 보장) + 회원가입(로그인 제외) 시 회원 승계 API |
 | 2026-07-14 | [proposal-inquiry-email-notify](plans/2026-07-14-proposal-inquiry-email-notify.md) | 맞춤제안 전송·문의 답변 시 회원 연락 이메일 알림(Figma 다크 템플릿) + 메일 CTA 딥링크 로그인 처리(문의내역 모달 / 제안서 상세 3-상태) |
+| 2026-07-14 | [auth-email-html-branding](plans/2026-07-14-auth-email-html-branding.md) | 이메일 인증코드·비밀번호 재설정 메일을 Figma 다크 브랜디드 HTML로 교체(로고·CTA 버튼) + 인증코드 TTL 10분(600), 재설정 TTL 1시간 유지(보안) |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 

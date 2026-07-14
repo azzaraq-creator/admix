@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-14 — 인증 이메일 브랜디드 HTML (인증코드·비밀번호 재설정)
+
+- 텍스트/최소 HTML로 나가던 이메일 인증코드·비밀번호 재설정 메일을 Figma 다크 브랜디드 템플릿(로고·제목·본문·CTA)으로 교체(`auth_service.py`). 인증코드: 코드 블록 + TTL `EMAIL_CODE_TTL_SECONDS` 300→600(10분). 재설정: `비밀번호 재설정` 버튼(reset 링크) + TTL 1시간 **유지**(디자인 24시간이지만 보안상 미채택, 문구는 TTL 기준 동적). 로고는 기존 `admix-logo-email.png` 재사용. 상세: [auth-email-html-branding](plans/2026-07-14-auth-email-html-branding.md).
+
 ## 2026-07-14 — 제안서·문의 이메일 알림 + 딥링크 로그인 처리 (PRD)
 
 - 맞춤제안 전송(`status=custom`)·문의 답변(`status=answered`) 시 회원 연락 이메일로 Figma 다크 템플릿 알림 발송(`send_email` 재사용, BackgroundTasks). 이메일 로고는 PNG(`frontend/public/service/admix-logo-email.png`, Amplify 서빙). CTA 딥링크: 문의=`/contact?tab=history`(비로그인 시 로그인 모달), 제안서=`/proposals/{id}`(상세 3-상태: 소유자 표시 / 비로그인 모달 / 타계정 권한없음+목록이동). 제안서 알림 발송·문의 알림·문의 CTA 수정·문의내역 모달까지 배포 완료(`d28f720`/`1d7a53e`/`e131b77`/`594ba82`), 제안서 상세 딥링크+3-상태 진행 예정. 상세: [proposal-inquiry-email-notify](plans/2026-07-14-proposal-inquiry-email-notify.md).

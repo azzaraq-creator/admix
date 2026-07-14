@@ -22,7 +22,7 @@ from src.utils.security import (
 settings = get_settings()
 
 PASSWORD_RESET_TTL_SECONDS = 3600
-EMAIL_CODE_TTL_SECONDS = 300
+EMAIL_CODE_TTL_SECONDS = 600
 
 
 def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, str]:
@@ -179,20 +179,74 @@ def send_password_reset_email(email: str, token: str) -> None:
     """비밀번호 재설정 링크 이메일 발송 (BackgroundTask 로 호출)."""
     from src.utils.mailer import send_email
 
-    link = f"{settings.email_link_base}/reset-password?token={token}"
-    minutes = PASSWORD_RESET_TTL_SECONDS // 60
-    subject = "[ADMIX] 비밀번호 재설정 안내"
+    base = settings.email_link_base
+    link = f"{base}/reset-password?token={token}"
+    seconds = PASSWORD_RESET_TTL_SECONDS
+    expiry = f"{seconds // 3600}시간" if seconds % 3600 == 0 else f"{seconds // 60}분"
+    logo_html = (
+        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        if base
+        else 'ADMIX<span style="color:#00AAA4">●</span>'
+    )
+    subject = "[ADMIX] 새로운 비밀번호를 재설정해주세요"
     text = (
-        f"아래 링크에서 비밀번호를 재설정해 주세요. (링크는 {minutes}분간 유효합니다)\n\n"
+        "안녕하세요.\n"
+        "회원님의 비밀번호 재설정 요청이 접수되었습니다.\n"
+        "아래 링크를 클릭하여 새로운 비밀번호를 설정해 주세요.\n\n"
         f"{link}\n\n"
-        "본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다."
+        f"링크는 보안을 위해 {expiry} 후 만료됩니다.\n"
+        "만약 비밀번호 재설정을 요청하지 않으셨다면 본 메일을 무시해 주세요.\n"
+        "감사합니다.\n\n"
+        "ADMIX 드림"
     )
-    html = (
-        f"<p>아래 링크에서 비밀번호를 재설정해 주세요. (링크는 {minutes}분간 유효합니다)</p>"
-        f'<p><a href="{link}">비밀번호 재설정하기</a></p>'
-        f'<p style="color:#888;font-size:12px">{link}</p>'
-        '<p style="color:#888;font-size:12px">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>'
-    )
+    html = f"""\
+<div style="margin:0;padding:0;background-color:#000000">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+    <tr>
+      <td align="center" style="padding:24px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+          <tr>
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+              {logo_html}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+              [ADMIX] 새로운 비밀번호를 재설정해주세요
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              안녕하세요.<br>
+              회원님의 비밀번호 재설정 요청이 접수되었습니다.<br>
+              아래 버튼을 클릭하여 새로운 비밀번호를 설정해 주세요.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td bgcolor="#00AAA4" style="border-radius:8px">
+                    <a href="{link}" style="display:inline-block;padding:12px 16px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px">비밀번호 재설정</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              링크는 보안을 위해 {expiry} 후 만료됩니다.<br>
+              만약 비밀번호 재설정을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
+              감사합니다.<br><br>
+              ADMIX 드림
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>"""
     send_email(email, subject, text, html)
 
 
@@ -228,16 +282,66 @@ def send_email_verification_code(email: str, code: str) -> None:
     from src.utils.mailer import send_email
 
     minutes = EMAIL_CODE_TTL_SECONDS // 60
-    subject = "[ADMIX] 이메일 인증번호 안내"
+    base = settings.email_link_base
+    logo_html = (
+        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        if base
+        else 'ADMIX<span style="color:#00AAA4">●</span>'
+    )
+    subject = "[ADMIX] 이메일 인증코드를 확인해주세요"
     text = (
-        f"인증번호는 {code} 입니다. (인증번호는 {minutes}분간 유효합니다)\n\n"
-        "본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다."
+        "안녕하세요.\n"
+        "회원가입을 위한 이메일 인증 요청이 접수되었습니다.\n"
+        "아래 인증코드를 입력하여 이메일 인증을 완료해 주세요.\n\n"
+        f"인증코드 : {code}\n\n"
+        f"인증코드는 보안을 위해 {minutes}분 후 만료됩니다.\n"
+        "만약 이메일 인증을 요청하지 않으셨다면 본 메일을 무시해 주세요.\n"
+        "감사합니다.\n\n"
+        "ADMIX 드림"
     )
-    html = (
-        f'<p>인증번호는 <strong style="font-size:20px">{code}</strong> 입니다.</p>'
-        f"<p>인증번호는 {minutes}분간 유효합니다.</p>"
-        '<p style="color:#888;font-size:12px">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>'
-    )
+    html = f"""\
+<div style="margin:0;padding:0;background-color:#000000">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+    <tr>
+      <td align="center" style="padding:24px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+          <tr>
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+              {logo_html}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+              [ADMIX] 이메일 인증코드를 확인해주세요
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              안녕하세요.<br>
+              회원가입을 위한 이메일 인증 요청이 접수되었습니다.<br>
+              아래 인증코드를 입력하여 이메일 인증을 완료해 주세요.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#ffffff">
+              <p style="margin:0;font-size:16px;font-weight:500;line-height:24px">인증코드</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:700;line-height:32px;letter-spacing:-0.1px">{code}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              인증코드는 보안을 위해 {minutes}분 후 만료됩니다.<br>
+              만약 이메일 인증을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
+              감사합니다.<br><br>
+              ADMIX 드림
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>"""
     send_email(email, subject, text, html)
 
 
