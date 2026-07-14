@@ -167,7 +167,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
     from src.utils.mailer import send_email
 
     base = get_settings().email_link_base
-    my_url = f"{base}/contact/inquiries" if base else ""
+    my_url = f"{base}/contact?tab=history" if base else ""
     logo_html = (
         f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
