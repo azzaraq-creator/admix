@@ -82,6 +82,22 @@
 - 백엔드: 게스트 세션으로 제안서 생성 → **회원가입** → `POST /proposals/claim` → 회원 목록에 제안서 노출, `session_id` NULL 확인. **로그인 시엔 승계 안 됨** 확인.
 - 핫픽스: 세션 get 5xx 모킹 시 `SESSION_KEY` 유지 확인.
 
+## 8. 구현 후 발견·수정한 버그 (챗봇 제안서 인식)
+
+구현·테스트 중, 게스트가 제안서에 매체를 담을 때 "제안서를 찾지 못했어요"/"보유중인 제안서가 없어요"가 나오는 문제가 확인됨. DB로 원인을 좁힌 결과 **소유 구조는 정상**(비회원 제안서 = `member_id` 없이 `session_id` 소유, 챗세션 `id`와 일치)이었고, **챗봇 담기 로직**이 원인이었다. 두 건 수정:
+
+### 8.1 `active_proposal_id` 잔재/무효 시 폴백 (커밋 `6b7bf9e`)
+- 챗봇은 "현재 작업 제안서"(`filter_context.active_proposal_id`)로 담는데, 그 값이 잔재/무효(다른 소유·삭제, 예: 회원으로 승계돼 `member_id`가 붙은 제안서를 게스트 세션이 계속 가리킴)면 **폴백 없이 바로 에러**였다.
+- 수정: `add_media`(1191)·확인 후 담기(1034) 두 경로 모두 `_get_active_or_latest`로 **현재 세션 최근 제안서 폴백** 후 담기.
+
+### 8.2 챗봇 밖('내 제안서' 페이지) 생성 제안서 인식 (커밋 `53c2668`)
+- 챗봇 담기가 `active_proposal_id`(챗봇이 직접 담은 제안서)에만 의존 → "내 제안서" 페이지에서 만든 제안서(`session_id` 소유지만 `active_proposal_id`엔 없음)를 **무시**하고 "보유중인 제안서가 없어요"로 응답. `resolve_proposal_via_tools`도 `bool(active_proposal_id)`로 판단이 갈림.
+- 수정: PROPOSAL 처리 진입 시 소유자 계산 후, `active_proposal_id`가 없으면 `_get_active_or_latest`로 **현재 세션 최근 제안서를 활성으로 보충**(`recommend_v2.py` 1160~). 이후 리졸버·담기 경로가 세션 제안서를 정상 인식.
+
+### 8.3 확인된 정상 동작 (요구사항 대조)
+- 비회원 제안서는 `member_id` 없이 `session_id`(로컬) 소유 — 이미 그렇게 동작(§3 설계대로).
+- 회원가입 시에만 `claim`으로 제안서+챗세션에 `member_id` 승계, 로그인은 승계 안 함 (§3.3).
+
 ## 관련 문서
 - [챗 대화 횟수 티어별 제한](2026-07-13-chat-usage-tier-limit.md) — 비회원 세션 1개·10회 제약 근거
 - [SQS/Lambda 비동기 AI 추천](2026-07-07-sqs-lambda-async-ai-recommend.md)
