@@ -1033,15 +1033,23 @@ async def _event_stream(
                     return
                 if _is_yes(message):
                     media_ids = _media_ids_from_indices(last_items or [], media_indices)
-                    proposal = await _run_sync_in_thread(
-                        _add_items_sync, db, proposal_id, member_id, owner_sid, media_ids
+                    # proposal_id 가 잔재/무효면 현재 세션 최근 제안서로 폴백.
+                    target = await _run_sync_in_thread(
+                        _get_active_or_latest, db, proposal_id, member_id, owner_sid
+                    )
+                    proposal = (
+                        await _run_sync_in_thread(
+                            _add_items_sync, db, str(target.id), member_id, owner_sid, media_ids
+                        )
+                        if target
+                        else None
                     )
                     _carry["pending_proposal"] = None
                     if proposal is None:
                         save_filter_context_fn({**prev_slots, "pending_change": None})
                         yield emit({
                             "type": "chat",
-                            "message": "제안서를 찾지 못했어요. 다시 시도해주세요.",
+                            "message": "담을 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
                             "previous_context": prev_slots,
                             "previous_context_detail": _enrich_context(prev_slots, desc_map),
                         })
@@ -1198,13 +1206,22 @@ async def _event_stream(
                         "previous_context_detail": _enrich_context(prev_slots, desc_map),
                     })
                 else:
-                    proposal = await _run_sync_in_thread(
-                        _add_items_sync, db, active_proposal_id, member_id, owner_sid, media_ids
+                    # active_proposal_id 가 잔재/무효(다른 소유·삭제)면 현재
+                    # 세션의 최근 제안서로 폴백해 담는다(막다른 에러 방지).
+                    target = await _run_sync_in_thread(
+                        _get_active_or_latest, db, active_proposal_id, member_id, owner_sid
+                    )
+                    proposal = (
+                        await _run_sync_in_thread(
+                            _add_items_sync, db, str(target.id), member_id, owner_sid, media_ids
+                        )
+                        if target
+                        else None
                     )
                     if proposal is None:
                         yield emit({
                             "type": "chat",
-                            "message": "제안서를 찾지 못했어요. 다시 시도해주세요.",
+                            "message": "담을 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
                             "previous_context": prev_slots,
                             "previous_context_detail": _enrich_context(prev_slots, desc_map),
                         })

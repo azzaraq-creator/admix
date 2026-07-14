@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-14 — 챗봇 담기 active_proposal_id 잔재 폴백 (버그 수정)
+
+- 게스트가 "내 제안서" 페이지에서 만든 제안서를 챗봇이 담지 못하고 "제안서를 찾지 못했어요. 다시 시도해주세요."만 반복하던 버그. 원인: 챗봇이 세션 `filter_context.active_proposal_id`(현재 작업 제안서)로만 담는데, 그 값이 잔재/무효(다른 소유·삭제, 예: 회원으로 승계된 제안서를 게스트 세션이 계속 가리킴)면 폴백 없이 바로 에러(`recommend_v2.py` add_media 1191, 확인 후 담기 1034 경로). 수정: 두 경로 모두 `_get_active_or_latest`로 **현재 세션 최근 제안서 폴백** 후 담기. active 무효여도 게스트가 방금 만든 제안서로 정상 담김. 실측 검증(무효 active→게스트 제안서 폴백 확인).
+
 ## 2026-07-14 — docker-compose GA4 secrets 마운트 운영 전용 분리
 
 - GA4 서비스계정 키(`./backend/secrets:/app/secrets:ro`) 마운트가 base `docker-compose.yml`(로컬 공용)에 있어 macOS Docker Desktop file sharing 권한으로 로컬 backend 기동 실패(`operation not permitted`). GA4는 운영 대시보드 전용이므로 base에서 제거하고 `docker-compose.prod.yml`(운영 override)로 이동 — base 로컬 기동은 secrets 없이 정상(미설정 시 0 집계 graceful), 운영은 `-f docker-compose.yml -f docker-compose.prod.yml`로 병합 시 마운트됨. 앞선 GA4 커밋의 마운트 위치 정정.
