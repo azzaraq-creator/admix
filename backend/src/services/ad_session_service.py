@@ -166,6 +166,23 @@ def count_user_chats(db: Session, user_id: uuid.UUID) -> int:
     )
 
 
+def count_session_chats(db: Session, session_id: str) -> int:
+    """단일 세션(session_id)의 user 역할 메시지 수 = 비회원 게스트 대화 횟수.
+
+    회원과 달리 게스트는 user_id 가 없어 세션 단위로만 누적 집계한다.
+    """
+    try:
+        sid = uuid.UUID(str(session_id))
+    except (ValueError, AttributeError):
+        return 0
+    return (
+        db.query(func.count(AdMessage.id))
+        .filter(AdMessage.session_id == sid, AdMessage.role == MessageRole.user)
+        .scalar()
+        or 0
+    )
+
+
 def update_title(db: Session, session_id: str, title: str) -> Optional[AdSession]:
     s = get_session(db, session_id)
     if not s:

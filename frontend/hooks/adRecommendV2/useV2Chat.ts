@@ -13,7 +13,10 @@ export type V2ResponseType =
   | "need_more"
   | "confirmation_required"
   | "media_detail"
-  | "proposal";
+  | "proposal"
+  | "limit_reached";
+
+export type LimitAction = "login" | "business";
 
 export type SlotKey = "ind" | "prd" | "obj" | "tgt" | "loc" | "cat" | "budget";
 
@@ -89,6 +92,8 @@ export interface V2Message {
   confirmation?: ConfirmationInfo;
   media?: V2MediaRef;
   proposal?: V2ProposalRef;
+  cta?: string;
+  limitAction?: LimitAction;
 }
 
 const randomId = () =>
@@ -338,6 +343,8 @@ export function useV2Chat() {
                   (data.matched_categories as number) || undefined,
                 media: (data.media as V2MediaRef) || undefined,
                 proposal: (data.proposal as V2ProposalRef) || undefined,
+                cta: (data.cta as string) || undefined,
+                limitAction: (data.action as LimitAction) || undefined,
               }
             : m,
         ),
@@ -610,6 +617,14 @@ export function useV2Chat() {
     return null;
   })();
 
+  /** 마지막 assistant 응답이 대화 한도 도달인지 — 입력창 비활성/CTA용. */
+  const lastMessage = messages[messages.length - 1];
+  const limitReached =
+    lastMessage?.type === "assistant" &&
+    lastMessage.response_type === "limit_reached";
+  const limitAction = limitReached ? lastMessage.limitAction : undefined;
+  const limitCta = limitReached ? lastMessage.cta : undefined;
+
   return {
     messages,
     running,
@@ -620,5 +635,8 @@ export function useV2Chat() {
     newSession,
     currentSlots,
     lastConfirmingId,
+    limitReached,
+    limitAction,
+    limitCta,
   };
 }

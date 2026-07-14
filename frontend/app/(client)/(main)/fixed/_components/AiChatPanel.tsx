@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
@@ -17,6 +18,7 @@ import {
 } from "@/hooks/adRecommendV2";
 import { useMe } from "@/hooks/auth";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
+import { openLoginModal } from "../../_components/useLoginModal";
 import { AssistantBubble } from "./chat/AssistantBubble";
 import { UserBubble } from "./chat/UserBubble";
 import type { MapMarker } from "./MapArea";
@@ -53,6 +55,12 @@ export function AiChatPanel({
   const chat = useV2Chat();
   const { data: me } = useMe();
   const isLoggedIn = !!me;
+  const router = useRouter();
+
+  const handleLimitCta = () => {
+    if (chat.limitAction === "login") openLoginModal();
+    else if (chat.limitAction === "business") router.push("/profile");
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -272,6 +280,16 @@ export function AiChatPanel({
             </button>
           </div>
         )}
+        {chat.limitReached && chat.limitAction && (
+          <button
+            type="button"
+            onClick={handleLimitCta}
+            className="flex w-full items-center justify-center rounded-[12px] bg-primary px-[16px] py-[12px] text-sm font-semibold text-white"
+          >
+            {chat.limitCta ??
+              (chat.limitAction === "login" ? "로그인하고 계속" : "사업자 등록하기")}
+          </button>
+        )}
         <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-white px-[24px] py-[10px]">
           <textarea
             ref={textareaRef}
@@ -291,15 +309,22 @@ export function AiChatPanel({
               }
             }}
             placeholder={
-              chat.restoring ? "이전 대화 복원 중..." : "매체 조건을 입력하세요"
+              chat.limitReached
+                ? "대화 한도에 도달했어요"
+                : chat.restoring
+                  ? "이전 대화 복원 중..."
+                  : "매체 조건을 입력하세요"
             }
-            disabled={chat.restoring}
+            disabled={chat.restoring || chat.limitReached}
             className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-grey-500 disabled:opacity-60"
           />
           <button
             type="button"
             disabled={
-              value.trim().length === 0 || chat.running || chat.restoring
+              value.trim().length === 0 ||
+              chat.running ||
+              chat.restoring ||
+              chat.limitReached
             }
             onClick={handleSend}
             aria-label="전송"
