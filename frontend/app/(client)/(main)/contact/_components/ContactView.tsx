@@ -6,8 +6,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/common/buttons";
 import { Icon } from "@/components/common/Icon";
 import { CircleCheckIcon, SearchIcon } from "@/components/icons";
+import { useMe } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
+import { setLoginModalOpen } from "../../_components/useLoginModal";
 import { ContactCard } from "./ContactCard";
 import { FaqPanel } from "./FaqPanel";
 import { HistoryPanel } from "./HistoryPanel";
@@ -74,7 +76,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
   const [toast, setToast] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const tabs = member ? TABS_MEMBER : TABS_GUEST;
+  const { data: me } = useMe();
+  const isMember = member || !!me;
+  const tabs = isMember ? TABS_MEMBER : TABS_GUEST;
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey = tabs.some((tab) => tab.key === tabParam)
     ? (tabParam as TabKey)
@@ -85,6 +89,14 @@ export function ContactView({ member = false }: { member?: boolean }) {
     router.push(key === "received" ? "/contact" : `/contact?tab=${key}`, {
       scroll: false,
     });
+
+  // 비로그인 상태로 문의내역 딥링크(?tab=history)로 진입 시 로그인 유도.
+  // 로그인 성공하면 me 캐시가 채워져 isMember→true, history 탭이 자동 표시된다.
+  useEffect(() => {
+    if (!isMember && tabParam === "history") {
+      setLoginModalOpen(true);
+    }
+  }, [isMember, tabParam]);
 
   useEffect(() => {
     if (!toast) return;
@@ -244,7 +256,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
 
             <ContactCard
               footer={
-                member ? (
+                isMember ? (
                   <Button
                     variant="tertiary"
                     size="md"
@@ -285,7 +297,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     <br />
                     확인 후 답변드리겠습니다.
                   </p>
-                  {!member && (
+                  {!isMember && (
                     <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-primary">
                       {EMAIL}
                     </p>
