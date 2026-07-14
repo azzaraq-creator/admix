@@ -7,6 +7,7 @@
 #   - postgres: 비밀번호를 ${POSTGRES_PASSWORD} env 로 분리 (.env.production)
 #   - backend: 호스트 127.0.0.1 에만 바인딩 (nginx reverse proxy 만 접근)
 #   - backend: DATABASE_URL 도 ${POSTGRES_PASSWORD} 반영
+#   - backend: GA4 서비스계정 키 마운트 (운영 전용 — 로컬 Docker Desktop file sharing 이슈 회피)
 
 services:
   postgres:
@@ -21,3 +22,5 @@ services:
       DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/ooh_recommend"
     ports: !override
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend/secrets:/app/secrets:ro   # GA4 서비스계정 키 (운영 전용, base ooh-uploads 와 병합됨)
