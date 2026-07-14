@@ -1,7 +1,9 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +11,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/common/buttons";
+import { useMe } from "@/hooks/auth";
 import {
   CircleAlertIcon,
   DownloadIcon,
@@ -23,6 +26,7 @@ import {
 import {
   isMember,
   proposalsClientApi,
+  proposalsKeys,
   useCancelSubmitProposal,
   useDeleteProposal,
   useProposalDetail,
@@ -54,7 +58,33 @@ const ZOOM_MAX = 200;
 const ZOOM_STEP = 25;
 
 export function ProposalDetailView({ id }: { id: string }) {
-  const { data: proposal } = useProposalDetail(id);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { error } = useSonner();
+  const { data: me } = useMe();
+  const { data: proposal, isLoading, isError } = useProposalDetail(id);
+
+  // 로그인/계정 전환 후 이 제안서를 회원 토큰으로 재조회 (detail 키가 정적이라 수동 무효화).
+  useEffect(() => {
+    if (me) {
+      queryClient.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
+    }
+  }, [me, id, queryClient]);
+
+  // 조회 실패 처리: 비로그인 → 로그인 모달(성공 시 위 무효화로 재조회),
+  // 타계정 로그인(접근 불가) → 권한 없음 안내 후 내 제안서 목록으로 이동.
+  useEffect(() => {
+    if (isLoading || proposal) return;
+    if (!me) {
+      openLoginModal();
+    } else if (isError) {
+      error("접근 권한이 없습니다.");
+      router.replace("/proposals");
+    }
+    // error/router 는 안정적이지 않거나 재실행 불필요 — 상태값 변화에만 반응.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, isError, proposal, me]);
+
   if (
     proposal?.status === "custom" &&
     (proposal.counter_proposal_slides?.length ?? 0) > 0

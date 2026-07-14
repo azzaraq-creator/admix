@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-14 — 제안서·문의 이메일 알림 + 딥링크 로그인 처리 (PRD)
+
+- 맞춤제안 전송(`status=custom`)·문의 답변(`status=answered`) 시 회원 연락 이메일로 Figma 다크 템플릿 알림 발송(`send_email` 재사용, BackgroundTasks). 이메일 로고는 PNG(`frontend/public/service/admix-logo-email.png`, Amplify 서빙). CTA 딥링크: 문의=`/contact?tab=history`(비로그인 시 로그인 모달), 제안서=`/proposals/{id}`(상세 3-상태: 소유자 표시 / 비로그인 모달 / 타계정 권한없음+목록이동). 제안서 알림 발송·문의 알림·문의 CTA 수정·문의내역 모달까지 배포 완료(`d28f720`/`1d7a53e`/`e131b77`/`594ba82`), 제안서 상세 딥링크+3-상태 진행 예정. 상세: [proposal-inquiry-email-notify](plans/2026-07-14-proposal-inquiry-email-notify.md).
+
 ## 2026-07-14 — 챗봇이 '내 제안서'에서 만든 세션 제안서 인식 (버그 수정)
 
 - 비회원이 "내 제안서" 페이지에서 만든 제안서를 챗봇이 못 찾고 "보유중인 제안서가 없어요"만 반복하던 버그. 원인: 챗봇 담기가 `active_proposal_id`(챗봇이 직접 담은 제안서)에만 의존 → 챗봇 밖에서 만든 제안서(session_id 소유, member_id 없음)는 인식 못 함. `resolve_proposal_via_tools`도 `bool(active_proposal_id)`로 판단이 갈림. 수정: PROPOSAL 처리 진입 시 소유자 계산 후 `active_proposal_id`가 없으면 `_get_active_or_latest`로 **현재 세션 최근 제안서를 활성으로 보충**(`recommend_v2.py` 1160~). DB 검증: 제안서·챗세션 session_id 일치 확인(비회원=member_id 없이 session_id 소유). 관련: [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md).

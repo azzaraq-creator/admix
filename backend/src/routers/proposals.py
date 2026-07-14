@@ -109,6 +109,7 @@ async def upload_counter_proposal(
         background.add_task(
             proposal_service.send_custom_proposal_email,
             recipient,
+            proposal_id,
             detail.get("title") or "",
         )
     return AdminProposalDetail(**detail)

@@ -244,14 +244,16 @@ def save_counter_proposal_file(
     return p
 
 
-def send_custom_proposal_email(email: str, proposal_title: str) -> None:
+def send_custom_proposal_email(
+    email: str, proposal_id: str, proposal_title: str
+) -> None:
     """맞춤제안 전송 시 회원의 연락받을 이메일로 알림 발송 (BackgroundTask 로 호출)."""
     from html import escape
 
     from src.utils.mailer import send_email
 
     base = get_settings().email_link_base
-    my_url = f"{base}/proposals" if base else ""
+    my_url = f"{base}/proposals/{proposal_id}" if base else ""
     logo_html = (
         f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
