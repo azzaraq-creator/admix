@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { authApi } from "@/hooks/auth";
+import { useClaimGuestProposals } from "@/hooks/proposals";
 import { setTokens } from "@/lib/userToken";
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -20,6 +21,7 @@ function OAuthCallback() {
   const code = search.get("code");
   const [exchangeFailed, setExchangeFailed] = useState(false);
   const ran = useRef(false);
+  const claimGuest = useClaimGuestProposals();
 
   useEffect(() => {
     if (!code || !PROVIDER_LABEL[provider] || ran.current) return;
@@ -30,6 +32,8 @@ function OAuthCallback() {
       .snsExchange(provider, code, state)
       .then(async (res) => {
         setTokens(res.access_token, res.refresh_token, true);
+        // 게스트 세션 제안서를 회원으로 승계 (best-effort).
+        await claimGuest.mutateAsync().catch(() => {});
         // 인증된(수신 가능한) 이메일이 없는 소셜 가입은 이메일 인증 화면으로.
         // me 조회 실패가 로그인 성공을 뒤집지 않도록 홈으로 폴백.
         const verified = await authApi

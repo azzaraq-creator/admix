@@ -5,3 +5,7 @@ export function getSessionId(): string | null {
     ? localStorage.getItem(SESSION_KEY)
     : null;
 }
+
+export function setSessionId(id: string): void {
+  if (typeof window !== "undefined") localStorage.setItem(SESSION_KEY, id);
+}

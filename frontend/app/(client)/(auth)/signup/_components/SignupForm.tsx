@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { ChevronRightIcon, FileIcon, LogoFull } from "@/components/icons";
 import { authApi, authKeys, useRegister } from "@/hooks/auth";
+import { useClaimGuestProposals } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
@@ -157,6 +158,7 @@ export function SignupForm({
   const router = useRouter();
   const queryClient = useQueryClient();
   const registerMutation = useRegister();
+  const claimGuest = useClaimGuestProposals();
   const isCorporate = membershipType === "corporate";
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -326,6 +328,8 @@ export function SignupForm({
         marketing_consent: agreements.marketing,
       });
       setTokens(res.access_token, res.refresh_token, true);
+      // 게스트 세션 제안서를 회원으로 승계 (best-effort — 실패해도 가입 유지).
+      await claimGuest.mutateAsync().catch(() => {});
       // 사업자등록증은 가입 완료(인증) 후 업로드. 실패해도 가입은 유지되며
       // 마이페이지에서 재등록 가능하므로 완료 플로우를 막지 않는다.
       if (isCorporate && file) {

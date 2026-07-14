@@ -87,6 +87,34 @@ def can_create_proposal(
     return _owner_count(db, member_id=member_id, session_id=session_id) < limit
 
 
+def claim_guest_proposals(
+    db: Session, *, session_id: uuid.UUID, member_id: uuid.UUID
+) -> int:
+    """게스트 세션 소유 제안서를 회원으로 이관하고 챗 세션도 회원에 연결.
+
+    로그인/회원가입 시 호출. 대상 없으면 0(멱등). 회원 제안서 개수 한도는 승계 시
+    적용하지 않는다(게스트 자산 보존).
+    """
+    from src.models.ad_session import AdSession
+
+    proposals = (
+        db.query(Proposal)
+        .filter(Proposal.session_id == session_id, Proposal.member_id.is_(None))
+        .all()
+    )
+    for p in proposals:
+        p.member_id = member_id
+        p.session_id = None
+
+    # 게스트 챗 세션도 회원 소유로 연결 (챗 히스토리 승계)
+    db.query(AdSession).filter(
+        AdSession.id == session_id, AdSession.user_id.is_(None)
+    ).update({AdSession.user_id: member_id}, synchronize_session=False)
+
+    db.commit()
+    return len(proposals)
+
+
 def _fmt_date(dt) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 

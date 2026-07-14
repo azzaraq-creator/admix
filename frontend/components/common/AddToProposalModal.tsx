@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   CircleCheckIcon,
@@ -10,11 +10,14 @@ import {
   XIcon,
 } from "@/components/icons";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { adSessionsApi } from "@/hooks/adSessions";
 import {
+  isMember,
   useAddProposalItems,
   useCreateProposal,
   useMyProposals,
 } from "@/hooks/proposals";
+import { getSessionId, setSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 type AddToProposalModalProps = {
@@ -39,10 +42,30 @@ export function AddToProposalModal({
   planNo,
   onClose,
 }: AddToProposalModalProps) {
-  const { data } = useMyProposals();
+  const { data, refetch } = useMyProposals();
   const proposals = (data ?? []).filter((p) => isDraftProposal(p.status));
   const createProposal = useCreateProposal();
   const addItems = useAddProposalItems();
+
+  // 게스트인데 세션이 없으면(챗 미사용/세션 소실) 담기 전에 세션을 확보한다.
+  // 세션이 없으면 제안서 조회가 비어 "제안서 없음"으로 오판되므로.
+  useEffect(() => {
+    if (isMember() || getSessionId()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await adSessionsApi.create(null);
+        if (cancelled) return;
+        setSessionId(s.id);
+        refetch();
+      } catch {
+        // 세션 생성 실패 — 재열기 시 재시도
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refetch]);
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");

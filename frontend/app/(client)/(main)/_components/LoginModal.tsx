@@ -7,6 +7,7 @@ import { useState, type FormEvent, type SVGProps } from "react";
 import { LogoFull, XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { authApi, authKeys, useLogin } from "@/hooks/auth";
+import { useClaimGuestProposals } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
@@ -59,6 +60,7 @@ export function LoginModal() {
   const queryClient = useQueryClient();
   const open = useLoginModalOpen();
   const loginMutation = useLogin();
+  const claimGuest = useClaimGuestProposals();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -95,6 +97,8 @@ export function LoginModal() {
         remember: keepLoggedIn,
       });
       setTokens(res.access_token, res.refresh_token, keepLoggedIn);
+      // 게스트 세션 제안서를 회원으로 승계 (best-effort — 실패해도 로그인 유지).
+      await claimGuest.mutateAsync().catch(() => {});
       // 로그인 직후 me 캐시를 즉시 채워 사이드바가 바로 반영되도록 한다.
       // useMe 는 enabled:!!token 이라 로그인 전엔 disabled 상태이고,
       // disabled 옵저버는 invalidate 로 refetch 되지 않으므로 fetchQuery 로 강제 조회.

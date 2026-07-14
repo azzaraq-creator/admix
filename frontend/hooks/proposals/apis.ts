@@ -230,4 +230,9 @@ export const proposalsClientApi = {
       params: { session_id: getSessionId() },
       timeout: 60000,
     }),
+  // 로그인/가입 시 게스트 세션 제안서 + 챗 세션을 회원으로 승계.
+  claim: (sessionId: string) =>
+    api
+      .post<{ claimed: number }>("/proposals/claim", { session_id: sessionId })
+      .then((r) => r.data),
 };

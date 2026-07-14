@@ -239,10 +239,16 @@ export function useV2Chat() {
         const detail = await adSessionsApi.get(stored);
         if (cancelled) return;
         setMessages((detail.messages ?? []).map(restoreMessage));
-      } catch {
-        // 세션 만료/삭제 → 스토리지 정리 후 새 세션으로
-        if (typeof window !== "undefined") localStorage.removeItem(SESSION_KEY);
-        if (!cancelled) setSessionId(null);
+      } catch (err) {
+        // 404/410(만료·삭제)만 세션 정리. 네트워크/5xx 등 일시 오류엔 세션을
+        // 유지한다 — 게스트 세션에 묶인 제안서가 일시 오류로 고아가 되는 것 방지.
+        const status = (err as { response?: { status?: number } })?.response
+          ?.status;
+        if (status === 404 || status === 410) {
+          if (typeof window !== "undefined")
+            localStorage.removeItem(SESSION_KEY);
+          if (!cancelled) setSessionId(null);
+        }
       } finally {
         if (!cancelled) setRestoring(false);
       }

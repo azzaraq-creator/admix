@@ -14,6 +14,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
@@ -84,6 +85,26 @@ def list_proposals(
     member_id, sid = _owner(user, session_id)
     rows = proposal_service.list_for_owner(db, member_id=member_id, session_id=sid)
     return [ProposalSummary(**proposal_service.to_summary(p)) for p in rows]
+
+
+class ClaimProposalsRequest(BaseModel):
+    session_id: str
+
+
+@router.post("/claim")
+def claim_proposals(
+    body: ClaimProposalsRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """로그인/회원가입 시 게스트 세션 제안서 + 챗 세션을 회원으로 승계."""
+    sid = _parse_uuid(body.session_id)
+    if sid is None:
+        return {"claimed": 0}
+    claimed = proposal_service.claim_guest_proposals(
+        db, session_id=sid, member_id=user.id
+    )
+    return {"claimed": claimed}
 
 
 def _get_owned_or_404(

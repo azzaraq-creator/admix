@@ -1,7 +1,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { getSessionId } from "@/lib/session";
+
 import { proposalsApi, proposalsClientApi } from "./apis";
 import { proposalsKeys } from "./keys";
+
+export const useClaimGuestProposals = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => {
+      const sid = getSessionId();
+      if (!sid) return Promise.resolve({ claimed: 0 });
+      return proposalsClientApi.claim(sid);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
+    },
+  });
+};
 
 export const useCreateProposal = () => {
   const qc = useQueryClient();
