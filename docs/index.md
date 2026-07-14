@@ -61,6 +61,8 @@
 | 2026-07-09 | [sns-email-verification-login-id](plans/2026-07-09-sns-email-verification-login-id.md) | SNS 로그인 이메일 인증(/signup/sns)·가입완료 화면·계정선택 + 아이디(login_id)/연락받을 이메일 분리(마이그 029~031) + 프로필/admin 반영 |
 | 2026-07-10 | [intent-classifier-tool-calling](plans/2026-07-10-intent-classifier-tool-calling.md) | 챗봇 앞단 의도 분류기(RECOMMEND/EXPLAIN/PROPOSAL/GENERAL) + bind_tools 라우터 재설계 (스펙) |
 | 2026-07-10 | [intent-classifier-tool-calling-plan](plans/2026-07-10-intent-classifier-tool-calling-plan.md) | 위 스펙의 TDD 구현 계획 (tools/classifier/welcome 모듈 + _event_stream 배선, 8 태스크) |
+| 2026-07-13 | [chat-usage-tier-limit](plans/2026-07-13-chat-usage-tier-limit.md) | 챗봇 대화 횟수 티어별 제한 (비회원 10 / 일반회원 30 / 사업자 무제한, session_id 티어 판별, limit_reached 이벤트) |
+| 2026-07-14 | [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md) | 게스트 제안서가 휘발성 챗 세션에 묶여 소실되는 버그 — 세션 안정화(핫픽스+담기 세션 보장) + 로그인/가입 시 회원 승계 API |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 

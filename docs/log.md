@@ -4,6 +4,18 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-14 — docker-compose GA4 secrets 마운트 운영 전용 분리
+
+- GA4 서비스계정 키(`./backend/secrets:/app/secrets:ro`) 마운트가 base `docker-compose.yml`(로컬 공용)에 있어 macOS Docker Desktop file sharing 권한으로 로컬 backend 기동 실패(`operation not permitted`). GA4는 운영 대시보드 전용이므로 base에서 제거하고 `docker-compose.prod.yml`(운영 override)로 이동 — base 로컬 기동은 secrets 없이 정상(미설정 시 0 집계 graceful), 운영은 `-f docker-compose.yml -f docker-compose.prod.yml`로 병합 시 마운트됨. 앞선 GA4 커밋의 마운트 위치 정정.
+
+## 2026-07-14 — 게스트 제안서 세션 안정화 + 회원 승계 (PRD)
+
+- 비회원 제안서 담기에서 "이미 제안서가 있는데 없다고 판단 → 생성 플로우"로 빠지는 버그. 근본 원인: 게스트 제안서 소유가 휘발성 챗 세션 id(`proposal.session_id` → `ad_sessions` FK)에 묶임 + `useV2Chat` 복원 실패 시 네트워크/5xx에도 `localStorage` 세션을 영구 삭제(`useV2Chat.ts:242-245`) → 제안서 고아. 해결: ①핫픽스(404/410만 세션 삭제, 일시오류엔 유지) ②게스트 세션 안정화(`ensureGuestSession`으로 담기 전 세션 보장, 단일 세션 정책 유지) ③로그인/가입 시 `POST /proposals/claim`으로 게스트 제안서+챗 세션을 회원으로 승계. 스펙: [guest-proposal-session-claim](plans/2026-07-14-guest-proposal-session-claim.md).
+
+## 2026-07-13 — 챗봇 대화 횟수 티어별 제한 (PRD)
+
+- AI 추천 챗봇을 티어별로 제한: **비회원 10회 / 일반회원(사업자 미승인) 30회 / 사업자(verified) 무제한**. 카운트=user 발화 수(총 누적), 리셋 없음. 티어 판별은 `/recommend/v2/jobs`가 인증을 안 받으므로 `session_id → AdSession.user_id → business_registration`로 수행. 한도 도달 시 `enqueue_recommend_job`에서 파이프라인 스킵하고 `limit_reached` 이벤트 반환 → 프론트 입력창 비활성 + 안내 버블 + CTA(로그인/사업자등록). 스펙: [chat-usage-tier-limit](plans/2026-07-13-chat-usage-tier-limit.md).
+
 ## 2026-07-10 — 챗봇 앞단 의도 분류기 + Tool Calling 라우터 (설계 스펙)
 
 - V2 챗봇의 발화 분기(현재: 정규식 힌트 + 의도별 structured-output 프로브 순차 캐스케이드)를 **통일된 앞단 의도 분류기(Stage1) + `.bind_tools()` 라우터(Stage2)** 로 재설계. 의도 4종(RECOMMEND/EXPLAIN/PROPOSAL/GENERAL), 전부 Lambda(`_event_stream`) 실행, 기존 실행 로직 보존·재사용. GENERAL(인사·페르소나·첫입력 가이드)은 하이브리드 생성. 스펙: [intent-classifier-tool-calling](plans/2026-07-10-intent-classifier-tool-calling.md) · TDD 구현 계획: [intent-classifier-tool-calling-plan](plans/2026-07-10-intent-classifier-tool-calling-plan.md).
