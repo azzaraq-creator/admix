@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -40,7 +40,8 @@ def get_inquiry(
 def answer_inquiry(
     inquiry_id: uuid.UUID,
     body: InquiryAnswerUpdate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     admin: Admin = Depends(require_permission("business")),
 ) -> InquiryDetail:
-    return inquiry_service.answer_inquiry(db, inquiry_id, body, admin)
+    return inquiry_service.answer_inquiry(db, inquiry_id, body, admin, background)
