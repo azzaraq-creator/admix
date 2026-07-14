@@ -7,8 +7,12 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
+
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 
 from src.database import get_db
 from src.models.admin import Admin
@@ -30,6 +34,22 @@ def list_members(
 ) -> MemberListResponse:
     items = member_service.list_members(db)
     return MemberListResponse(total=len(items), items=items)
+
+
+@router.get("/export")
+def export_members(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> Response:
+    """회원 목록 xlsx 다운로드."""
+    content = member_service.export_members_xlsx(db)
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="members.xlsx"'
+        },
+    )
 
 
 @router.get("/{member_id}", response_model=MemberDetail)

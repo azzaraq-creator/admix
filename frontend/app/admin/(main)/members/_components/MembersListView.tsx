@@ -8,7 +8,8 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ExcelDownloadButton } from "@/components/common/buttons";
-import { useMembers } from "@/hooks/members";
+import { membersApi, useMembers } from "@/hooks/members";
+import { useSonner } from "@/hooks/useSonner";
 
 import {
   memberColumnList,
@@ -19,10 +20,30 @@ import {
   type MemberType,
 } from "./index";
 
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function MembersListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
   const { data } = useMembers();
+  const { error } = useSonner();
+
+  const handleExport = async () => {
+    try {
+      triggerDownload(await membersApi.exportExcel(), "회원_목록.xlsx");
+    } catch {
+      error("다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   const filtered = useMemo<Member[]>(() => {
     const keyword = search.keyword?.trim().toLowerCase();
@@ -70,7 +91,7 @@ export function MembersListView() {
         usePageSizeSelect
         pageSize={10}
         onRowClick={(item) => router.push(`/admin/members/${item.id}`)}
-        topRightContent={<ExcelDownloadButton />}
+        topRightContent={<ExcelDownloadButton onClick={handleExport} />}
       />
     </div>
   );

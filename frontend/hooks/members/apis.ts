@@ -105,6 +105,10 @@ export interface BizRegUpdatePayload {
 export const membersApi = {
   list: () =>
     api.get<MemberListResponse>("/admin/members").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/members/export", { responseType: "blob" })
+      .then((r) => r.data),
   get: (id: string) =>
     api.get<MemberDetail>(`/admin/members/${id}`).then((r) => r.data),
   update: (id: string, payload: MemberUpdatePayload) =>

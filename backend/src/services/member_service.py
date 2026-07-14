@@ -67,6 +67,38 @@ def list_members(db: Session) -> list[dict]:
     return rows
 
 
+_EXPORT_COLUMNS = [
+    ("type", "회원 유형"),
+    ("loginId", "가입 아이디"),
+    ("name", "이름"),
+    ("email", "연락받을 이메일"),
+    ("phone", "전화번호"),
+    ("company", "회사명"),
+    ("bizStatus", "사업자 인증 상태"),
+    ("marketing", "마케팅 수신"),
+    ("status", "상태"),
+    ("joinedAt", "가입일"),
+]
+
+
+def export_members_xlsx(db: Session) -> bytes:
+    """회원 목록을 xlsx 로 export — 헤더=관리자 목록 컬럼."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    rows = list_members(db)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "members"
+    ws.append([label for _, label in _EXPORT_COLUMNS])
+    for r in rows:
+        ws.append([r.get(key, "") for key, _ in _EXPORT_COLUMNS])
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def _get_user(db: Session, user_id: uuid.UUID) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
