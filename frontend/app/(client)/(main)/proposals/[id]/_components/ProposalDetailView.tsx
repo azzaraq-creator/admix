@@ -22,6 +22,7 @@ import {
 } from "@/components/icons";
 import {
   isMember,
+  proposalsClientApi,
   useCancelSubmitProposal,
   useDeleteProposal,
   useProposalDetail,
@@ -77,6 +78,7 @@ function ProposalEditorView({ id }: { id: string }) {
   const removeItemMutation = useRemoveProposalItem();
 
   const [editing, setEditing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [draft, setDraft] = useState("");
   const [selectedId, setSelectedId] = useState("cover");
   const [selectedPlans, setSelectedPlans] = useState<Record<string, number>>(
@@ -402,6 +404,36 @@ function ProposalEditorView({ id }: { id: string }) {
     if (ok) await removeItemMutation.mutateAsync({ id, mediaId });
   };
 
+  const handleDownload = async () => {
+    if (!isMember()) {
+      const ok = await confirm({
+        title: "로그인 후 다운로드 할 수 있어요.",
+        description:
+          "제안서 다운로드는 회원 전용 기능이에요.\n로그인 후 제안서를 저장하고 관리해 보세요.",
+        confirmText: "로그인 화면으로",
+      });
+      if (ok) openLoginModal();
+      return;
+    }
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await proposalsClientApi.exportPpt(id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${proposal?.title || "제안서"}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // 다운로드 실패 시 무시
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!isMember()) {
       const ok = await confirm({
@@ -493,8 +525,14 @@ function ProposalEditorView({ id }: { id: string }) {
             </div>
           </div>
           <div className="flex items-center gap-[8px]">
-            <Button variant="tertiary" size="md" leftIcon={<DownloadIcon />}>
-              내보내기
+            <Button
+              variant="tertiary"
+              size="md"
+              leftIcon={<DownloadIcon />}
+              onClick={handleDownload}
+              disabled={downloading}
+            >
+              {downloading ? "내보내는 중..." : "내보내기"}
             </Button>
             {submitted ? (
               <Button
