@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from src.config import get_settings
+from src.models.member_profile import MemberSanction
 from src.models.user import EmailVerification, PasswordReset, RefreshToken, User
 from src.utils.security import (
     create_access_token,
@@ -104,10 +106,25 @@ def authenticate(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.login_id == email).first()
     if user is None or user.password is None or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
-    if user.status == "sanctioned":
-        raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
     if user.status == "withdrawn":
         raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
+    # 제재는 status 플래그가 아니라 제재 기간(오늘이 start_date~end_date 사이)으로 판정.
+    # end_date 없음 = 무기한. 미래 제재/종료된 제재는 로그인 차단하지 않는다.
+    today = date.today()
+    active_sanction = (
+        db.query(MemberSanction)
+        .filter(
+            MemberSanction.user_id == user.id,
+            MemberSanction.start_date <= today,
+            or_(
+                MemberSanction.end_date.is_(None),
+                MemberSanction.end_date >= today,
+            ),
+        )
+        .first()
+    )
+    if active_sanction is not None:
+        raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
     return user
 
 

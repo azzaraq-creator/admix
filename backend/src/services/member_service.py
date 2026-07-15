@@ -6,10 +6,11 @@ canonical 값은 목록 응답에서만 한글로 변환(상세는 canonical 유
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
@@ -190,6 +191,31 @@ def _get_sanction(
     return sanction
 
 
+def _recompute_sanction_status(db: Session, user: User) -> None:
+    """활성 제재(오늘이 start_date~end_date 사이) 유무로 status 갱신.
+
+    active↔sanctioned 만 전환(withdrawn/dormant 등은 건드리지 않음). 로그인 차단은
+    auth_service 가 날짜로 직접 판정하므로 이 status 는 관리자 목록 표시용.
+    """
+    today = date.today()
+    active = (
+        db.query(MemberSanction)
+        .filter(
+            MemberSanction.user_id == user.id,
+            MemberSanction.start_date <= today,
+            or_(
+                MemberSanction.end_date.is_(None),
+                MemberSanction.end_date >= today,
+            ),
+        )
+        .count()
+    )
+    if active > 0:
+        user.status = "sanctioned"
+    elif user.status == "sanctioned":
+        user.status = "active"
+
+
 def create_sanction(
     db: Session, user_id: uuid.UUID, data: SanctionCreate, admin_id: uuid.UUID
 ) -> dict:
@@ -204,7 +230,8 @@ def create_sanction(
             created_by=admin_id,
         )
     )
-    user.status = "sanctioned"  # 제재 추가 → 로그인 차단(auth_service 403)
+    db.flush()
+    _recompute_sanction_status(db, user)
     db.commit()
     return get_member(db, user_id)
 
@@ -212,12 +239,14 @@ def create_sanction(
 def update_sanction(
     db: Session, user_id: uuid.UUID, sanction_id: uuid.UUID, data: SanctionCreate
 ) -> dict:
-    _get_user(db, user_id)
+    user = _get_user(db, user_id)
     sanction = _get_sanction(db, user_id, sanction_id)
     sanction.reason = data.reason
     sanction.detail = data.detail
     sanction.start_date = data.start_date
     sanction.end_date = data.end_date
+    db.flush()
+    _recompute_sanction_status(db, user)
     db.commit()
     return get_member(db, user_id)
 
@@ -229,14 +258,7 @@ def delete_sanction(
     sanction = _get_sanction(db, user_id, sanction_id)
     db.delete(sanction)
     db.flush()
-    # 남은 제재가 없으면 제재 상태 해제(정상 복귀).
-    remaining = (
-        db.query(MemberSanction)
-        .filter(MemberSanction.user_id == user.id)
-        .count()
-    )
-    if remaining == 0 and user.status == "sanctioned":
-        user.status = "active"
+    _recompute_sanction_status(db, user)
     db.commit()
     return get_member(db, user_id)
 
