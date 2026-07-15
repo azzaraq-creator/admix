@@ -631,7 +631,7 @@ function ProposalEditorView({ id }: { id: string }) {
               onPointerUp={handlePreviewPanEnd}
               onPointerCancel={handlePreviewPanEnd}
               className={cn(
-                "flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]",
+                "flex min-h-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-white p-[40px]",
                 grabbing ? "cursor-grabbing select-none" : "cursor-grab",
               )}
             >
