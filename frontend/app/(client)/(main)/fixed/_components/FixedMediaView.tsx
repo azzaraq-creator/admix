@@ -375,6 +375,7 @@ export function FixedMediaView({
               media={selectedMedia}
               detail={toDrawerDetail(detail)}
               onClose={closeDetail}
+              onAddProposal={() => setAddProposalMediaId(selectedMedia.id)}
               onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
             />
           </div>
