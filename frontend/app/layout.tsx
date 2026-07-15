@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Providers } from "./providers";
+import "react-day-picker/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

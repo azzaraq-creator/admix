@@ -1,14 +1,20 @@
 "use client";
 
 import { Building2 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useState } from "react";
 
-import { ListButton } from "@/components/common/buttons";
+import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { CommonTable } from "@/components/common/Table/CommonTable";
-import { useMember } from "@/hooks/members";
+import { useMember, type SanctionOut } from "@/hooks/members";
 
 import { BasicInfoTab } from "./BasicInfoTab";
+import { SanctionModal } from "./SanctionModal";
 import {
   inquiryColumnList,
   proposalColumnList,
@@ -57,9 +63,23 @@ function HeaderInfo({ label, value }: { label: string; value: string }) {
 
 export function MemberDetailView() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
   const { data: member } = useMember(params.id);
-  const [tab, setTab] = useState<TabKey>("basic");
+  const tabParam = searchParams.get("tab");
+  const tab: TabKey = TABS.some((t) => t.key === tabParam)
+    ? (tabParam as TabKey)
+    : "basic";
+
+  const goTab = (key: TabKey) =>
+    router.push(key === "basic" ? pathname : `${pathname}?tab=${key}`, {
+      scroll: false,
+    });
+
+  const [sanctionModal, setSanctionModal] = useState<
+    { mode: "add" } | { mode: "detail"; sanction: SanctionOut } | null
+  >(null);
 
   if (!member) {
     return (
@@ -74,8 +94,10 @@ export function MemberDetailView() {
     : "미등록";
 
   const sanctions: Sanction[] = member.sanctions.map((s, i) => ({
+    id: s.id,
     no: String(i + 1),
     reason: s.reason,
+    detail: s.detail ?? "",
     sanctionedAt: s.start_date,
     endAt: s.end_date ?? "-",
   }));
@@ -145,7 +167,7 @@ export function MemberDetailView() {
             <button
               key={item.key}
               type="button"
-              onClick={() => setTab(item.key)}
+              onClick={() => goTab(item.key)}
               className={`px-[36px] py-[16px] text-base leading-[1.4] ${
                 active
                   ? "border-b-2 border-black font-bold text-black"
@@ -182,12 +204,23 @@ export function MemberDetailView() {
 
       {tab === "sanctions" && (
         <div className="flex flex-col gap-[16px]">
-          <p className="text-lg font-bold leading-[28px] text-black">제재 이력 관리</p>
+          <div className="flex w-full items-center justify-between">
+            <p className="text-[20px] font-semibold leading-[24px] text-[#2a2a2a]">
+              제재 이력 관리
+            </p>
+            <PrimaryButton onClick={() => setSanctionModal({ mode: "add" })}>
+              제재 추가
+            </PrimaryButton>
+          </div>
           <CommonTable
             columnList={sanctionColumnList}
             data={sanctions}
             useSearch={false}
             pageSize={10}
+            onRowClick={(row) => {
+              const raw = member.sanctions.find((s) => s.id === row.id);
+              if (raw) setSanctionModal({ mode: "detail", sanction: raw });
+            }}
           />
         </div>
       )}
@@ -199,6 +232,17 @@ export function MemberDetailView() {
             className="w-[100px] px-0"
           />
         </div>
+      )}
+
+      {sanctionModal && (
+        <SanctionModal
+          memberId={member.id}
+          memberEmail={member.email}
+          sanction={
+            sanctionModal.mode === "detail" ? sanctionModal.sanction : null
+          }
+          onClose={() => setSanctionModal(null)}
+        />
       )}
     </div>
   );

@@ -35,9 +35,17 @@ export interface BusinessRegistrationOut {
 export interface SanctionOut {
   id: string;
   reason: string;
+  detail: string | null;
   start_date: string;
   end_date: string | null;
   created_at: string;
+}
+
+export interface SanctionPayload {
+  reason: string;
+  detail: string | null;
+  start_date: string;
+  end_date: string | null;
 }
 
 export interface MemberProposalRow {
@@ -116,5 +124,20 @@ export const membersApi = {
   updateBizReg: (id: string, payload: BizRegUpdatePayload) =>
     api
       .patch<MemberDetail>(`/admin/members/${id}/business-registration`, payload)
+      .then((r) => r.data),
+  createSanction: (id: string, payload: SanctionPayload) =>
+    api
+      .post<MemberDetail>(`/admin/members/${id}/sanctions`, payload)
+      .then((r) => r.data),
+  updateSanction: (id: string, sanctionId: string, payload: SanctionPayload) =>
+    api
+      .patch<MemberDetail>(
+        `/admin/members/${id}/sanctions/${sanctionId}`,
+        payload,
+      )
+      .then((r) => r.data),
+  deleteSanction: (id: string, sanctionId: string) =>
+    api
+      .delete<MemberDetail>(`/admin/members/${id}/sanctions/${sanctionId}`)
       .then((r) => r.data),
 };

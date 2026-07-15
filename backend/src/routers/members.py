@@ -21,6 +21,7 @@ from src.schemas.member import (
     MemberDetail,
     MemberListResponse,
     MemberUpdate,
+    SanctionCreate,
 )
 from src.services import member_service
 from src.utils.deps import require_permission
@@ -79,6 +80,41 @@ def update_business_registration(
     _: Admin = Depends(require_permission("member")),
 ) -> MemberDetail:
     return member_service.update_business_registration(db, member_id, body)
+
+
+@router.post("/{member_id}/sanctions", response_model=MemberDetail)
+def create_sanction(
+    member_id: uuid.UUID,
+    body: SanctionCreate,
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_permission("member")),
+) -> MemberDetail:
+    return member_service.create_sanction(db, member_id, body, admin.id)
+
+
+@router.patch(
+    "/{member_id}/sanctions/{sanction_id}", response_model=MemberDetail
+)
+def update_sanction(
+    member_id: uuid.UUID,
+    sanction_id: uuid.UUID,
+    body: SanctionCreate,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> MemberDetail:
+    return member_service.update_sanction(db, member_id, sanction_id, body)
+
+
+@router.delete(
+    "/{member_id}/sanctions/{sanction_id}", response_model=MemberDetail
+)
+def delete_sanction(
+    member_id: uuid.UUID,
+    sanction_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> MemberDetail:
+    return member_service.delete_sanction(db, member_id, sanction_id)
 
 
 @router.get("/{member_id}/business-registration/download")

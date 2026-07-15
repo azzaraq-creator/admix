@@ -66,6 +66,7 @@ class MemberSanction(Base):
         index=True,
     )
     reason = Column(String(300), nullable=False)
+    detail = Column(Text, nullable=True)
     start_date = Column(Date, nullable=False, default=date.today)
     end_date = Column(Date, nullable=True)
     created_by = Column(

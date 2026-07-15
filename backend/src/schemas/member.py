@@ -49,6 +49,7 @@ class SanctionOut(BaseModel):
 
     id: uuid.UUID
     reason: str
+    detail: str | None = None
     start_date: date
     end_date: date | None = None
     created_at: datetime
@@ -93,6 +94,13 @@ class MemberDetail(BaseModel):
     sanctions: list[SanctionOut] = []
     proposals: list[ProposalRow] = []
     inquiries: list[InquiryRow] = []
+
+
+class SanctionCreate(BaseModel):
+    reason: str
+    detail: str | None = None
+    start_date: date
+    end_date: date | None = None
 
 
 class MemberUpdate(BaseModel):

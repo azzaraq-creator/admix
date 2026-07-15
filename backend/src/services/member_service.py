@@ -13,9 +13,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
-from src.models.member_profile import BusinessRegistration
+from src.models.member_profile import BusinessRegistration, MemberSanction
 from src.models.user import User
-from src.schemas.member import BusinessRegistrationUpdate, MemberUpdate
+from src.schemas.member import (
+    BusinessRegistrationUpdate,
+    MemberUpdate,
+    SanctionCreate,
+)
 
 _TYPE = {"corporate": "기업", "individual": "일반"}
 _PROPOSAL_STATUS = {
@@ -166,6 +170,73 @@ def update_member(db: Session, user_id: uuid.UUID, data: MemberUpdate) -> dict:
             user.withdrawn_at = datetime.now(timezone.utc)
         elif fields["status"] != "withdrawn":
             user.withdrawn_at = None
+    db.commit()
+    return get_member(db, user_id)
+
+
+def _get_sanction(
+    db: Session, user_id: uuid.UUID, sanction_id: uuid.UUID
+) -> MemberSanction:
+    sanction = (
+        db.query(MemberSanction)
+        .filter(
+            MemberSanction.id == sanction_id,
+            MemberSanction.user_id == user_id,
+        )
+        .first()
+    )
+    if sanction is None:
+        raise HTTPException(status_code=404, detail="제재 이력을 찾을 수 없습니다.")
+    return sanction
+
+
+def create_sanction(
+    db: Session, user_id: uuid.UUID, data: SanctionCreate, admin_id: uuid.UUID
+) -> dict:
+    user = _get_user(db, user_id)
+    db.add(
+        MemberSanction(
+            user_id=user.id,
+            reason=data.reason,
+            detail=data.detail,
+            start_date=data.start_date,
+            end_date=data.end_date,
+            created_by=admin_id,
+        )
+    )
+    user.status = "sanctioned"  # 제재 추가 → 로그인 차단(auth_service 403)
+    db.commit()
+    return get_member(db, user_id)
+
+
+def update_sanction(
+    db: Session, user_id: uuid.UUID, sanction_id: uuid.UUID, data: SanctionCreate
+) -> dict:
+    _get_user(db, user_id)
+    sanction = _get_sanction(db, user_id, sanction_id)
+    sanction.reason = data.reason
+    sanction.detail = data.detail
+    sanction.start_date = data.start_date
+    sanction.end_date = data.end_date
+    db.commit()
+    return get_member(db, user_id)
+
+
+def delete_sanction(
+    db: Session, user_id: uuid.UUID, sanction_id: uuid.UUID
+) -> dict:
+    user = _get_user(db, user_id)
+    sanction = _get_sanction(db, user_id, sanction_id)
+    db.delete(sanction)
+    db.flush()
+    # 남은 제재가 없으면 제재 상태 해제(정상 복귀).
+    remaining = (
+        db.query(MemberSanction)
+        .filter(MemberSanction.user_id == user.id)
+        .count()
+    )
+    if remaining == 0 and user.status == "sanctioned":
+        user.status = "active"
     db.commit()
     return get_member(db, user_id)
 

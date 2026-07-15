@@ -93,8 +93,10 @@ export const inquiryColumnList: TableColumn<InquiryHistory>[] = [
 /* ---------- 제재 이력 ---------- */
 
 export type Sanction = {
+  id: string;
   no: string;
   reason: string;
+  detail: string;
   sanctionedAt: string;
   endAt: string;
 };
