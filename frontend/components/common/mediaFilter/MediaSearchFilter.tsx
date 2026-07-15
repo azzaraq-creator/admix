@@ -214,6 +214,7 @@ export function MediaSearchFilter({
       {activeKey === "price" ? (
         price ? (
           <PriceRangeFilter
+            key={`${value.priceMin}-${value.priceMax}`}
             min={price.min}
             max={price.max}
             histogram={price.histogram}
