@@ -1,0 +1,383 @@
+%% ADMIX 옥외광고 추천 플랫폼 — 실제 구현 스키마 기준 ERD (as-built)
+%% 출처: backend/src/models/*.py (SQLAlchemy). 이 파일을 고친 뒤
+%%   npx @mermaid-js/mermaid-cli -i admix-erd.mermaid -o admix-erd.svg 로 재생성.
+erDiagram
+
+  %% ===== 매체 도메인 =====
+  media {
+    varchar media_id PK
+    bigint source_detail_id UK
+    varchar name
+    varchar second_name
+    varchar building_name
+    varchar category_small
+    varchar category_large
+    int category_id
+    varchar parent_category_code
+    varchar ooh_type
+    varchar exposure_type
+    varchar sales_type
+    varchar media_source
+    varchar loc_code
+    varchar loc_label
+    bigint market_profile_id
+    varchar market_area
+    varchar market_dong
+    varchar legal_dong
+    varchar accurate_address
+    varchar full_address_jibun
+    varchar address
+    varchar address_detail
+    varchar district
+    varchar city
+    numeric latitude
+    numeric longitude
+    varchar market_keyword
+    varchar moving_location_detail
+    text audience_summary
+    bigint min_advertisement_fee_krw
+    bigint max_advertisement_fee_krw
+    bigint min_production_fee_krw
+    bigint max_production_fee_krw
+    text production_fees_summary
+    boolean any_production_fee_yn
+    int plan_count
+    varchar execution_status
+    int lead_time_bizdays
+    int device_quantity
+    int surface_quantity
+    varchar media_shape
+    text media_shape_summary
+    int properties_count
+    text properties_summary
+    jsonb properties_extra_json
+    varchar final_grade
+    varchar feature
+    numeric quality_score
+    varchar gangnam_dong_grade
+    text gangnam_grade_reason
+    varchar grade_method
+    text grade_evidence
+    text area_evidence
+    text ind_evidence
+    varchar thumbnail_url
+    int image_count
+    boolean is_newly_built_yn
+    boolean is_popular_yn
+    varchar popular_type
+    text special_remarks
+    int children_count
+    varchar device_type
+    text description
+    jsonb markers_vo
+    varchar properties_type
+    numeric road_view_heading
+    numeric road_view_latitude
+    numeric road_view_longitude
+    numeric road_view_pitch
+    jsonb map_bounds_vo
+    jsonb recommended_media_items
+    jsonb list_labels
+    bigint company_media_id
+    bigint company_mapper_user_id
+    timestamptz source_created_at
+    timestamptz source_updated_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  media_plan {
+    uuid id PK
+    varchar media_id FK
+    int plan_no
+    varchar product_name
+    varchar product_display_name
+    varchar product_master_type
+    int contractual_duration
+    varchar contractual_duration_type
+    bigint advertisement_fee
+    boolean is_advertisement_fee_yn
+    bigint production_fee
+    boolean is_production_fee_yn
+    int exposure_duration_seconds
+    int exposure_count
+    int broadcasts_count_auto
+    int broadcasts_count_manual
+    varchar ooh_type
+    text ooh_kind_type
+    varchar default_device_type
+    int default_device_quantity
+    int default_surface_quantity
+    varchar active_device_type
+    int active_device_quantity
+    int active_surface_quantity
+    int pm_count
+    varchar operation_day_of_week
+    varchar operation_start_time
+    varchar operation_end_time
+    int operation_hours
+    timestamptz created_at
+  }
+
+  media_image {
+    uuid id PK
+    varchar media_id FK
+    varchar image_url
+    int sort_order
+    boolean is_thumbnail
+    timestamptz created_at
+  }
+
+  %% 키워드 기반 추천(recommend_v2)용 독립 테이블 — media 와 FK 연결 없음
+  media_items {
+    uuid id PK
+    varchar media_source
+    text all_image_urls
+    jsonb ind_codes
+    text raw_ind
+    text raw_prd
+    text raw_obj
+    text raw_tgt
+    text raw_loc
+    text raw_cat
+    timestamptz updated_at
+  }
+
+  media_keywords {
+    uuid id PK
+    enum category
+    varchar code
+  }
+
+  %% ===== 회원/인증 도메인 =====
+  users {
+    uuid id PK
+    varchar login_id UK
+    varchar email
+    varchar password
+    varchar name
+    varchar phone UK
+    varchar role
+    boolean verified
+    varchar verify_token
+    varchar membership_type
+    varchar position
+    varchar industry
+    boolean marketing_consent
+    varchar status
+    timestamptz withdrawn_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  refresh_tokens {
+    uuid id PK
+    varchar token UK
+    uuid user_id FK
+    timestamptz expires_at
+    boolean revoked
+    timestamptz created_at
+  }
+
+  social_accounts {
+    uuid id PK
+    varchar provider
+    varchar provider_id
+    uuid user_id FK
+    text access_token
+    text refresh_token
+    timestamptz expires_at
+    timestamptz created_at
+  }
+
+  email_verifications {
+    uuid id PK
+    varchar email
+    varchar code
+    timestamptz expires_at
+    boolean verified
+    timestamptz created_at
+  }
+
+  password_resets {
+    uuid id PK
+    varchar token UK
+    uuid user_id FK
+    timestamptz expires_at
+    boolean used
+    timestamptz created_at
+  }
+
+  business_registration {
+    uuid id PK
+    uuid user_id FK,UK
+    varchar status
+    varchar business_registration_no
+    varchar address
+    varchar business_type
+    text reject_reason
+    varchar license_file_url
+    varchar license_file_name
+    timestamptz license_uploaded_at
+    timestamptz verified_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  member_sanction {
+    uuid id PK
+    uuid user_id FK
+    varchar reason
+    text detail
+    date start_date
+    date end_date
+    uuid created_by FK
+    timestamptz created_at
+  }
+
+  %% ===== 관리자 도메인 =====
+  admin {
+    uuid id PK
+    varchar email UK
+    varchar password_hash
+    varchar name
+    varchar account_type
+    varchar department
+    varchar phone
+    varchar status
+    timestamptz last_login_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  admin_permission {
+    uuid admin_id PK,FK
+    varchar menu_key PK
+  }
+
+  %% ===== AI 채팅 도메인 =====
+  ad_sessions {
+    uuid id PK
+    varchar title
+    varchar thread_id UK
+    uuid user_id FK
+    jsonb filter_context
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ad_messages {
+    uuid id PK
+    uuid session_id FK
+    enum role
+    text content
+    jsonb payload
+    timestamptz created_at
+  }
+
+  ai_recommend_jobs {
+    uuid id PK
+    uuid session_id FK
+    varchar status
+    jsonb request
+    text error
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  %% ===== 제안서 도메인 =====
+  proposal {
+    uuid id PK
+    uuid member_id FK
+    uuid session_id FK
+    varchar title
+    varchar status
+    int media_count
+    bigint total_amount
+    text memo
+    varchar counter_proposal_file_url
+    varchar counter_proposal_file_name
+    varchar counter_proposal_slides_url
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  proposal_item {
+    uuid id PK
+    uuid proposal_id FK
+    varchar media_id
+    bigint price
+    int position
+    int selected_plan_no
+    varchar start_date
+    varchar end_date
+    int quantity
+    timestamptz created_at
+  }
+
+  proposal_counter_file {
+    uuid id PK
+    uuid proposal_id FK
+    varchar file_url
+    varchar file_name
+    varchar author_name
+    varchar slides_url
+    timestamptz created_at
+  }
+
+  %% ===== 문의/FAQ 도메인 =====
+  inquiry {
+    uuid id PK
+    uuid member_id FK
+    varchar name
+    varchar email
+    varchar phone
+    varchar company
+    varchar subject
+    text content
+    varchar status
+    text answer
+    uuid answered_by FK
+    varchar answered_by_name
+    timestamptz answered_at
+    timestamptz created_at
+  }
+
+  faq {
+    uuid id PK
+    varchar faq_type
+    varchar title
+    text content
+    int sort_order
+    boolean is_published
+    uuid created_by FK
+    varchar created_by_name
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  %% ===== 관계 =====
+  media ||--o{ media_plan : ""
+  media ||--o{ media_image : ""
+  media ||--o{ proposal_item : "media_id (논리, FK아님)"
+
+  users ||--o{ refresh_tokens : ""
+  users ||--o{ social_accounts : ""
+  users ||--o{ password_resets : ""
+  users ||--o| business_registration : ""
+  users ||--o{ member_sanction : ""
+  users ||--o{ proposal : ""
+  users ||--o{ inquiry : ""
+  users ||--o{ ad_sessions : ""
+
+  admin ||--o{ admin_permission : ""
+  admin ||--o{ faq : "created_by"
+  admin ||--o{ inquiry : "answered_by"
+  admin ||--o{ member_sanction : "created_by"
+
+  ad_sessions ||--o{ ad_messages : ""
+  ad_sessions ||--o{ ai_recommend_jobs : ""
+  ad_sessions ||--o{ proposal : ""
+
+  proposal ||--o{ proposal_item : ""
+  proposal ||--o{ proposal_counter_file : ""
