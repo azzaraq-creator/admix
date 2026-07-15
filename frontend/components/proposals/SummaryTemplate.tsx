@@ -1,9 +1,16 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { CalendarIcon } from "@/components/icons";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { ProposalDetail, ProposalItem } from "@/hooks/proposals";
+import { cn } from "@/lib/utils";
 
 import { SlideScaler } from "./SlideScaler";
 
@@ -117,28 +124,85 @@ function QuantityCell({
   );
 }
 
+// "YYYY.MM.DD"(점) 또는 "YYYY-MM-DD"(대시) 모두 허용해 Date 로 파싱
+function parseDate(s?: string | null): Date | undefined {
+  if (!s) return undefined;
+  const d = new Date(`${s.replace(/\./g, "-")}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+// 서머리 표시 형식(lib/date 와 동일한 점 구분)으로 저장
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
+}
+
+const DATE_BOX =
+  "flex w-full items-center justify-center gap-[10px] rounded-[8px] border border-stroke px-[16px] py-[8px]";
+const DATE_TEXT =
+  "flex-1 text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px]";
+
 function DateInput({
   interactive,
   value,
   onChange,
+  minDate,
+  maxDate,
 }: {
   interactive: boolean;
   value?: string | null;
   onChange?: (value: string) => void;
+  minDate?: string | null; // 이 날짜 이전 비활성(종료일 등)
+  maxDate?: string | null; // 이 날짜 이후 비활성(시작일 등)
 }) {
-  return (
-    <div className="flex w-full items-center justify-center gap-[10px] rounded-[8px] border border-stroke px-[16px] py-[8px]">
-      <input
-        type="text"
-        placeholder="YYYY.MM.DD"
-        readOnly={!interactive}
-        value={value ?? ""}
-        onChange={(event) => onChange?.(event.target.value)}
-        aria-label="날짜"
-        className={INPUT_CLASS}
-      />
+  const [open, setOpen] = useState(false);
+
+  const label = (
+    <>
+      <span className={cn(DATE_TEXT, value ? "text-[#545454]" : "text-placeholder")}>
+        {value || "YYYY.MM.DD"}
+      </span>
       <CalendarIcon className="size-[20px] shrink-0 text-[#545454]" />
-    </div>
+    </>
+  );
+
+  if (!interactive) {
+    return <div className={DATE_BOX}>{label}</div>;
+  }
+
+  const selected = parseDate(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const min = parseDate(minDate);
+  // 하한 = 오늘과 minDate 중 더 늦은 날(항상 오늘 이후만 선택 가능).
+  const floor = min && min > today ? min : today;
+  const max = parseDate(maxDate);
+  const disabled = [
+    { before: floor },
+    ...(max ? [{ after: max }] : []),
+  ];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className={cn(DATE_BOX, "outline-none")} aria-label="날짜 선택">
+        {label}
+      </PopoverTrigger>
+      <PopoverContent>
+        <Calendar
+          mode="single"
+          defaultMonth={selected ?? floor}
+          selected={selected}
+          onSelect={(d) => {
+            if (!d) return;
+            onChange?.(toDateStr(d));
+            setOpen(false);
+          }}
+          disabled={disabled}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -277,6 +341,7 @@ export function SummaryTemplate({
               <DateInput
                 interactive={interactive}
                 value={item.start_date}
+                maxDate={item.end_date}
                 onChange={(value) =>
                   onDateChange?.(item.media_id, "start_date", value)
                 }
@@ -284,6 +349,7 @@ export function SummaryTemplate({
               <DateInput
                 interactive={interactive}
                 value={item.end_date}
+                minDate={item.start_date}
                 onChange={(value) =>
                   onDateChange?.(item.media_id, "end_date", value)
                 }
