@@ -4,7 +4,12 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
+
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 
 from src.database import get_db
 from src.models.admin import Admin
@@ -25,6 +30,22 @@ def list_inquiries(
 ) -> InquiryListResponse:
     items = inquiry_service.list_inquiries(db)
     return InquiryListResponse(total=len(items), items=items)
+
+
+@router.get("/export")
+def export_inquiries(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("business")),
+) -> Response:
+    """문의 목록 xlsx 다운로드."""
+    content = inquiry_service.export_inquiries_xlsx(db)
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="inquiries.xlsx"'
+        },
+    )
 
 
 @router.get("/{inquiry_id}", response_model=InquiryDetail)

@@ -55,6 +55,40 @@ def list_accounts(db: Session) -> list[dict]:
     ]
 
 
+_ACCOUNT_EXPORT_COLUMNS = [
+    ("name", "이름"),
+    ("email", "이메일(ID)"),
+    ("type", "계정 유형"),
+    ("role", "부서/역할"),
+    ("status", "상태"),
+    ("createdAt", "생성일"),
+]
+
+
+def export_accounts_xlsx(db: Session) -> bytes:
+    """관리자 계정 목록을 xlsx 로 export — 헤더=계정 관리 목록 컬럼."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    rows = list_accounts(db)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "accounts"
+    ws.append([label for _, label in _ACCOUNT_EXPORT_COLUMNS])
+    for r in rows:
+        values = []
+        for key, _ in _ACCOUNT_EXPORT_COLUMNS:
+            v = r.get(key, "")
+            if key == "status":
+                v = "활성" if v == "active" else "비활성"
+            values.append(v)
+        ws.append(values)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def authenticate_admin(db: Session, email: str, password: str) -> Admin:
     admin = db.query(Admin).filter(Admin.email == email).first()
     if (

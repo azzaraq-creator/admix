@@ -8,7 +8,8 @@ import {
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ExcelDownloadButton } from "@/components/common/buttons";
-import { useAdminAccounts } from "@/hooks/adminAccounts";
+import { adminAccountsApi, useAdminAccounts } from "@/hooks/adminAccounts";
+import { useSonner } from "@/hooks/useSonner";
 
 import {
   accountColumnList,
@@ -18,10 +19,30 @@ import {
   type AccountType,
 } from "./index";
 
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function RolesListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
   const { data } = useAdminAccounts();
+  const { error } = useSonner();
+
+  const handleExport = async () => {
+    try {
+      triggerDownload(await adminAccountsApi.exportExcel(), "계정_목록.xlsx");
+    } catch {
+      error("다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   const filtered = useMemo<Account[]>(() => {
     const keyword = search.keyword?.trim().toLowerCase();
@@ -67,7 +88,7 @@ export function RolesListView() {
         onRowClick={(item) => router.push(`/admin/roles/${item.id}`)}
         topRightContent={
           <>
-            <ExcelDownloadButton />
+            <ExcelDownloadButton onClick={handleExport} />
             <button
               type="button"
               onClick={() => router.push("/admin/roles/create")}

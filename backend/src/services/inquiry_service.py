@@ -37,6 +37,33 @@ def list_inquiries(db: Session) -> list[dict]:
     ]
 
 
+_EXPORT_COLUMNS = [
+    ("name", "이름"),
+    ("title", "제목"),
+    ("content", "문의 내용"),
+    ("status", "상태"),
+    ("submittedAt", "제출일"),
+]
+
+
+def export_inquiries_xlsx(db: Session) -> bytes:
+    """문의 목록을 xlsx 로 export — 헤더=admin 목록 컬럼."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    rows = list_inquiries(db)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "inquiries"
+    ws.append([label for _, label in _EXPORT_COLUMNS])
+    for r in rows:
+        ws.append([r.get(key, "") for key, _ in _EXPORT_COLUMNS])
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def _get_or_404(db: Session, inquiry_id: uuid.UUID) -> Inquiry:
     q = db.query(Inquiry).filter(Inquiry.id == inquiry_id).first()
     if q is None:

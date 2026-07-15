@@ -51,6 +51,10 @@ export interface AdminProposalDetail {
 export const proposalsApi = {
   list: () =>
     api.get<ProposalListResponse>("/admin/proposals").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/proposals/export", { responseType: "blob" })
+      .then((r) => r.data),
   get: (id: string) =>
     api
       .get<AdminProposalDetail>(`/admin/proposals/${id}`)

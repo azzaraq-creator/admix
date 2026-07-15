@@ -54,6 +54,10 @@ export interface AdminAccountUpdatePayload {
 export const adminAccountsApi = {
   list: () =>
     api.get<AdminAccountListResponse>("/admin/accounts").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/accounts/export", { responseType: "blob" })
+      .then((r) => r.data),
   get: (id: string) =>
     api.get<AdminAccountDetail>(`/admin/accounts/${id}`).then((r) => r.data),
   create: (payload: AdminAccountCreatePayload) =>

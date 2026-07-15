@@ -8,7 +8,7 @@ import uuid as uuidlib
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
@@ -23,6 +23,9 @@ from src.utils.deps import require_permission
 PPTX_MEDIA_TYPE = (
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 )
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 
 router = APIRouter(prefix="/admin/proposals", tags=["proposals"])
 
@@ -36,6 +39,22 @@ def list_proposals(
 ) -> ProposalListResponse:
     items = proposal_service.list_proposals(db)
     return ProposalListResponse(total=len(items), items=items)
+
+
+@router.get("/export")
+def export_proposals(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("business")),
+) -> Response:
+    """제안 목록 xlsx 다운로드."""
+    content = proposal_service.export_proposals_xlsx(db)
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="proposals.xlsx"'
+        },
+    )
 
 
 @router.get("/{proposal_id}", response_model=AdminProposalDetail)

@@ -41,6 +41,25 @@ def create_account(
     return admin_service.create_account(db, body)
 
 
+@router.get("/export")
+def export_accounts(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin),
+) -> Response:
+    """관리자 계정 목록 xlsx 다운로드."""
+    content = admin_service.export_accounts_xlsx(db)
+    return Response(
+        content=content,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": 'attachment; filename="admin_accounts.xlsx"'
+        },
+    )
+
+
 @router.get("/{admin_id}", response_model=AdminAccountDetail)
 def get_account(
     admin_id: uuid.UUID,

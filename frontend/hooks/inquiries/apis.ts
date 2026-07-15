@@ -32,6 +32,10 @@ export interface InquiryDetail {
 export const inquiriesApi = {
   list: () =>
     api.get<InquiryListResponse>("/admin/inquiries").then((r) => r.data),
+  exportExcel: () =>
+    api
+      .get<Blob>("/admin/inquiries/export", { responseType: "blob" })
+      .then((r) => r.data),
   get: (id: string) =>
     api.get<InquiryDetail>(`/admin/inquiries/${id}`).then((r) => r.data),
   answer: (id: string, answer: string) =>

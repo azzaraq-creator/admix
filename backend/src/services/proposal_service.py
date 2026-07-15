@@ -140,6 +140,34 @@ def list_proposals(db: Session) -> list[dict]:
     ]
 
 
+_EXPORT_COLUMNS = [
+    ("name", "제안서 명"),
+    ("member", "이름"),
+    ("mediaCount", "매체 수"),
+    ("totalAmount", "전체 금액 합계"),
+    ("status", "상태"),
+    ("registeredAt", "등록일"),
+]
+
+
+def export_proposals_xlsx(db: Session) -> bytes:
+    """제안 목록을 xlsx 로 export — 헤더=admin 목록 컬럼."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    rows = list_proposals(db)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "proposals"
+    ws.append([label for _, label in _EXPORT_COLUMNS])
+    for r in rows:
+        ws.append([r.get(key, "") for key, _ in _EXPORT_COLUMNS])
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
     """admin 제안 상세 — 회원 정보 + 슬라이드(매체) 항목. 없으면 None."""
     try:
