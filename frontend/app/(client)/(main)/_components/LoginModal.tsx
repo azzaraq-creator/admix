@@ -107,6 +107,11 @@ export function LoginModal() {
       setEmail("");
       setPassword("");
       setLoginModalOpen(false);
+      // 모달 로그인은 페이지 이동이 없어 서버 컴포넌트(예: 쿠키 기반 member 판정)와
+      // 게스트로 이미 캐시된 쿼리(예: 내 제안서)가 그대로 남는다. 사이드바(useMe)만
+      // 반영되고 페이지는 비회원처럼 보이는 문제 → 로그인 시점에 강제 재동기화.
+      queryClient.invalidateQueries();
+      router.refresh();
     } catch (error) {
       if (getErrorStatus(error) === 403) {
         setLoginModalOpen(false);
