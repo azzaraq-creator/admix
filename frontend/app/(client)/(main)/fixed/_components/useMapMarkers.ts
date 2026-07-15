@@ -71,6 +71,22 @@ function markerImageFor(
   return cache[src];
 }
 
+const GROUP_PRECISION = 1e4; // 소수 4자리 ≈ 11m — 좌표 겹침 그룹 키
+
+function groupKeyOf(lat: number, lng: number): string {
+  return `${Math.round(lat * GROUP_PRECISION)},${Math.round(
+    lng * GROUP_PRECISION,
+  )}`;
+}
+
+// 숫자핀(클러스터·겹침 그룹) 공통 디자인. selected 면 흰 링 + 확대(단일 핀 포커스와 동일 규칙).
+function numberPinCss(size: number, selected: boolean): string {
+  const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:#00aaa4;border:2px solid #2a9591;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;transform-origin:center;transition:transform .12s ease;`;
+  return selected
+    ? `${base}box-shadow:0 0 0 3px #ffffff,0 4px 2px rgba(0,0,0,0.25);transform:scale(1.4);`
+    : `${base}box-shadow:0 4px 2px rgba(0,0,0,0.25);`;
+}
+
 export function useMapMarkers({
   mapRef,
   mapReady,
@@ -78,6 +94,7 @@ export function useMapMarkers({
   markerObjsRef,
   markers,
   clusters,
+  selectedGroup,
   autoFit,
   focusId,
   focusOffsetX,
@@ -93,6 +110,7 @@ export function useMapMarkers({
   markerObjsRef: RefObject<{ marker: KakaoMarker; data: MapMarker }[]>;
   markers: MapMarker[];
   clusters: MapCluster[];
+  selectedGroup?: MapMarker[] | null;
   autoFit: boolean;
   focusId?: string;
   focusOffsetX: number;
@@ -103,17 +121,31 @@ export function useMapMarkers({
   onGroupClick?: (markers: MapMarker[]) => void;
 }) {
   const clusterOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
-  const groupOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  const groupOverlaysRef = useRef<
+    {
+      overlay: KakaoCustomOverlay;
+      el: HTMLDivElement;
+      key: string;
+      size: number;
+    }[]
+  >([]);
   const imageCacheRef = useRef<Record<string, KakaoMarkerImage>>({});
   const shownFocusRef = useRef<string | undefined>(undefined);
   const onMarkerClickRef = useRef(onMarkerClick);
   const onClusterClickRef = useRef(onClusterClick);
   const onGroupClickRef = useRef(onGroupClick);
 
+  const selectedGroupKey =
+    selectedGroup && selectedGroup.length > 0
+      ? groupKeyOf(selectedGroup[0].lat, selectedGroup[0].lng)
+      : undefined;
+  const selectedGroupKeyRef = useRef(selectedGroupKey);
+
   useEffect(() => {
     onMarkerClickRef.current = onMarkerClick;
     onClusterClickRef.current = onClusterClick;
     onGroupClickRef.current = onGroupClick;
+    selectedGroupKeyRef.current = selectedGroupKey;
   });
 
   // 마커 생성 + 범위 맞춤 — markers 변경 시에만 (포커스 변경으로는 재실행 안 됨)
@@ -124,7 +156,7 @@ export function useMapMarkers({
 
     markerObjsRef.current.forEach(({ marker }) => marker.setMap(null));
     markerObjsRef.current = [];
-    groupOverlaysRef.current.forEach((o) => o.setMap(null));
+    groupOverlaysRef.current.forEach((o) => o.overlay.setMap(null));
     groupOverlaysRef.current = [];
     shownFocusRef.current = undefined;
 
@@ -134,7 +166,6 @@ export function useMapMarkers({
     if (valid.length === 0) return;
 
     // 거의 같은 위치(≈11m)의 마커를 그룹핑 → 최대 확대에서도 겹치는 핀을 하나로.
-    const GROUP_PRECISION = 1e4; // 소수 4자리 ≈ 11m
     const groups = new Map<string, MapMarker[]>();
     valid.forEach((m) => {
       const key = `${Math.round(m.lat * GROUP_PRECISION)},${Math.round(
@@ -146,7 +177,7 @@ export function useMapMarkers({
     });
 
     const bounds = new maps.LatLngBounds();
-    groups.forEach((members) => {
+    groups.forEach((members, key) => {
       const first = members[0];
       const pos = new maps.LatLng(first.lat, first.lng);
       bounds.extend(pos);
@@ -171,8 +202,9 @@ export function useMapMarkers({
       } else {
         // 겹친 마커 → 카운트 배지. 클릭 시 그 매체들을 리스트 팝업으로.
         const size = members.length >= 100 ? 48 : members.length >= 10 ? 44 : 40;
+        const selected = key === selectedGroupKeyRef.current;
         const el = document.createElement("div");
-        el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:#00aaa4;border:2.6px solid #007571;color:#ffffff;font-size:14px;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.25);cursor:pointer;`;
+        el.style.cssText = numberPinCss(size, selected);
         el.textContent = String(members.length);
         el.addEventListener("click", () => onGroupClickRef.current?.(members));
         const overlay = new maps.CustomOverlay({
@@ -180,11 +212,11 @@ export function useMapMarkers({
           content: el,
           xAnchor: 0.5,
           yAnchor: 0.5,
-          zIndex: 6,
+          zIndex: selected ? 8 : 6,
           clickable: true,
         });
         overlay.setMap(map);
-        groupOverlaysRef.current.push(overlay);
+        groupOverlaysRef.current.push({ overlay, el, key, size });
       }
     });
 
@@ -219,7 +251,7 @@ export function useMapMarkers({
     clusters.forEach((c) => {
       const size = c.count >= 100 ? 60 : c.count >= 10 ? 48 : 40;
       const el = document.createElement("div");
-      el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:rgba(0,170,164,0.85);border:2px solid #ffffff;color:#ffffff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;`;
+      el.style.cssText = numberPinCss(size, false);
       el.textContent = String(c.count);
       el.addEventListener("click", () => {
         programmaticMoveRef.current = true;
@@ -239,6 +271,16 @@ export function useMapMarkers({
       clusterOverlaysRef.current.push(overlay);
     });
   }, [clusters, mapReady, mapRef, programmaticMoveRef]);
+
+  // 겹침 그룹 배지 선택(팝업 열림) — 재생성 없이 흰링+확대만 토글.
+  useEffect(() => {
+    for (const g of groupOverlaysRef.current) {
+      g.el.setAttribute(
+        "style",
+        numberPinCss(g.size, g.key === selectedGroupKey),
+      );
+    }
+  }, [selectedGroupKey]);
 
   // 포커스 — 선택 마커 이미지/줌만 갱신 (범위 재설정·재생성 없음 → 흔들림 방지)
   useEffect(() => {

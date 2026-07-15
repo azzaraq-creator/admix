@@ -29,6 +29,7 @@ export function MapArea({
   className,
   markers = [],
   clusters = [],
+  selectedGroup,
   onMarkerClick,
   onClusterClick,
   onGroupClick,
@@ -46,6 +47,7 @@ export function MapArea({
   className?: string;
   markers?: MapMarker[];
   clusters?: MapCluster[];
+  selectedGroup?: MapMarker[] | null;
   onMarkerClick?: (id: string) => void;
   onClusterClick?: (cluster: MapCluster) => void;
   onGroupClick?: (markers: MapMarker[]) => void;
@@ -76,6 +78,7 @@ export function MapArea({
     markerObjsRef,
     markers,
     clusters,
+    selectedGroup,
     autoFit,
     focusId,
     focusOffsetX,

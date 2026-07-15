@@ -46,6 +46,7 @@ class MediaMarker(BaseModel):
     categoryLarge: str | None
     minAdvertisementFeeKrw: int | None
     thumbnailUrl: str | None = None
+    images: list[str] = []
     badge: str | None = None
 
 

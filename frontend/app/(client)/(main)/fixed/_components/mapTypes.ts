@@ -6,6 +6,7 @@ export interface MapMarker {
   categoryLarge?: string | null;
   minAdvertisementFeeKrw?: number | null;
   thumbnailUrl?: string | null;
+  images?: string[];
   badge?: "popular" | "new" | null;
 }
 

@@ -206,7 +206,23 @@ def _cluster_cell_deg(zoom_level: int) -> float:
     return _CLUSTER_CELL_DEG_BASE * (2 ** step)
 
 
-def _marker_from_row(r, lat: float, lng: float) -> dict:
+def _images_by_media(db: Session, media_ids: list[str]) -> dict[str, list[str]]:
+    """media_id → media_image url 목록(sort_order). 마커 카드 이미지용 일괄 조회."""
+    if not media_ids:
+        return {}
+    rows = (
+        db.query(MediaImage.media_id, MediaImage.image_url)
+        .filter(MediaImage.media_id.in_(media_ids))
+        .order_by(MediaImage.media_id, MediaImage.sort_order)
+        .all()
+    )
+    out: dict[str, list[str]] = {}
+    for mid, url in rows:
+        out.setdefault(mid, []).append(url)
+    return out
+
+
+def _marker_from_row(r, lat: float, lng: float, img_map: dict) -> dict:
     name = " ".join(
         p for p in [(r.name or "").strip(), (r.second_name or "").strip()] if p
     )
@@ -216,6 +232,12 @@ def _marker_from_row(r, lat: float, lng: float) -> dict:
         badge = "new"
     else:
         badge = None
+    # 카드 이미지: 썸네일 우선 → media_image(sort_order), 중복 제거 최대 3장 — 검색 리스트(_media_card)와 동일.
+    images: list[str] = []
+    for url in [r.thumbnail_url, *img_map.get(r.media_id, [])]:
+        if url and url not in images:
+            images.append(url)
+    images = images[:3]
     return dict(
         id=r.media_id,
         lat=lat,
@@ -223,7 +245,8 @@ def _marker_from_row(r, lat: float, lng: float) -> dict:
         name=name or "-",
         categoryLarge=r.category_large,
         minAdvertisementFeeKrw=r.min_advertisement_fee_krw,
-        thumbnailUrl=r.thumbnail_url,
+        thumbnailUrl=images[0] if images else None,
+        images=images,
         badge=badge,
     )
 
@@ -278,31 +301,35 @@ def list_fixed_clusters(
         if r.latitude is not None and r.longitude is not None
     ]
 
-    # 확대 임계치 이하: 클러스터 없이 개별 핀만.
-    if zoom_level <= _CLUSTER_DECLUSTER_LEVEL:
-        markers = [_marker_from_row(r, lat, lng) for r, lat, lng in points]
-        return dict(clusters=[], markers=markers)
-
-    cell = _cluster_cell_deg(zoom_level)
-    buckets: dict[tuple[int, int], list] = {}
-    for r, lat, lng in points:
-        key = (math.floor(lat / cell), math.floor(lng / cell))
-        buckets.setdefault(key, []).append((r, lat, lng))
-
+    # 마커로 나갈 행 결정(확대 임계치 이하: 전부 개별 핀 / 그 외: 1개짜리 버킷만).
     clusters: list[dict] = []
-    markers = []
-    for members in buckets.values():
-        if len(members) == 1:
-            markers.append(_marker_from_row(*members[0]))
-        else:
-            n = len(members)
-            clusters.append(
-                dict(
-                    lat=sum(m[1] for m in members) / n,
-                    lng=sum(m[2] for m in members) / n,
-                    count=n,
+    if zoom_level <= _CLUSTER_DECLUSTER_LEVEL:
+        marker_points = points
+    else:
+        cell = _cluster_cell_deg(zoom_level)
+        buckets: dict[tuple[int, int], list] = {}
+        for r, lat, lng in points:
+            key = (math.floor(lat / cell), math.floor(lng / cell))
+            buckets.setdefault(key, []).append((r, lat, lng))
+        marker_points = []
+        for members in buckets.values():
+            if len(members) == 1:
+                marker_points.append(members[0])
+            else:
+                n = len(members)
+                clusters.append(
+                    dict(
+                        lat=sum(m[1] for m in members) / n,
+                        lng=sum(m[2] for m in members) / n,
+                        count=n,
+                    )
                 )
-            )
+
+    # 마커 매체 이미지 일괄 조회 → 검색 리스트와 동일한 카드 이미지(최대 3장).
+    img_map = _images_by_media(db, [r.media_id for r, _, _ in marker_points])
+    markers = [
+        _marker_from_row(r, lat, lng, img_map) for r, lat, lng in marker_points
+    ]
     return dict(clusters=clusters, markers=markers)
 
 

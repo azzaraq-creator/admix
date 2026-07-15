@@ -248,7 +248,12 @@ export function FixedMediaView({
     id: m.id,
     name: m.name,
     price: formatFee(m.minAdvertisementFeeKrw ?? null),
-    images: m.thumbnailUrl ? [m.thumbnailUrl] : [],
+    images:
+      m.images && m.images.length > 0
+        ? m.images
+        : m.thumbnailUrl
+          ? [m.thumbnailUrl]
+          : [],
     popular: m.badge === "popular",
   }));
 
@@ -259,8 +264,10 @@ export function FixedMediaView({
   };
 
   // 겹친 마커(카운트 배지) 클릭 → 그 매체들을 리스트 팝업으로.
+  // 개별 핀 포커스는 해제(겹침핀 활성화 시 다른 핀 selected 유지 방지).
   const handleGroupClick = useCallback((mk: MapMarker[]) => {
     setPopupId(null);
+    setFocusId(undefined);
     setGroupPopup(mk);
   }, []);
 
@@ -288,6 +295,7 @@ export function FixedMediaView({
       <MapArea
         markers={activeMarkers}
         clusters={mode === "search" ? searchClusters : []}
+        selectedGroup={groupPopup}
         autoFit={mode !== "search"}
         moveTarget={moveTarget}
         onBoundsChange={handleBoundsChange}
