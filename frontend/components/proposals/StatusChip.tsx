@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 const STATUS_LABEL: Record<string, string> = {
   new: "작성중",
   custom: "맞춤제안",
-  execution_requested: "집행 요청",
-  contracted: "계약 완료",
+  execution_requested: "제출완료",
+  contracted: "계약완료",
   cancelled: "취소",
 };
 

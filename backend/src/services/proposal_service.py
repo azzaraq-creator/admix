@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -18,12 +19,15 @@ from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import User
 
+# 백엔드 원본 status → admin 표시 라벨.
+# 유저 노출 라벨(작성중/제출완료/…)은 프런트 StatusChip 이 별도 관리.
+# new(작성중)는 admin 목록에서 제외되므로 라벨은 폴백용.
 _STATUS = {
     "cancelled": "취소",
-    "new": "신규",
+    "new": "작성중",
     "custom": "맞춤제안",
-    "execution_requested": "집행 요청",
-    "contracted": "계약 완료",
+    "execution_requested": "신규",
+    "contracted": "계약완료",
 }
 
 # 티어별 제안서(플래닝) 개수 제한. None = 무제한.
@@ -71,6 +75,8 @@ def _owner_count(
         q = q.filter(Proposal.member_id == member_id)
     else:
         q = q.filter(Proposal.session_id == session_id)
+    # 삭제(논리삭제)한 제안서는 생성 한도에 포함하지 않는다.
+    q = q.filter(Proposal.deleted_at.is_(None))
     return q.count()
 
 
@@ -120,9 +126,11 @@ def _fmt_date(dt) -> str:
 
 
 def list_proposals(db: Session) -> list[dict]:
+    # 작성중(new)은 admin 목록에서 제외 — 유저가 제출(execution_requested)해야 노출.
     rows = (
         db.query(Proposal)
         .options(joinedload(Proposal.member))
+        .filter(Proposal.status != "new")
         .order_by(Proposal.created_at.desc())
         .all()
     )
@@ -134,6 +142,9 @@ def list_proposals(db: Session) -> list[dict]:
             mediaCount=str(p.media_count),
             totalAmount=f"{p.total_amount:,}원",
             status=_STATUS.get(p.status, p.status),
+            # "삭제됨" 배지는 계약완료 삭제 건 전용. 제출완료/맞춤제안 삭제는
+            # status=cancelled(취소)로만 표기(deleted_at 은 목록 숨김·한도 제외용이라 유지).
+            deleted=p.deleted_at is not None and p.status != "cancelled",
             registeredAt=_fmt_date(p.created_at),
         )
         for p in rows
@@ -202,6 +213,7 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
         id=str(p.id),
         title=p.title,
         status=_STATUS.get(p.status, p.status),
+        deleted=p.deleted_at is not None and p.status != "cancelled",
         total_amount=p.total_amount,
         updated_at=p.updated_at.isoformat() if p.updated_at else None,
         counter_proposal_file_url=p.counter_proposal_file_url,
@@ -406,6 +418,8 @@ def list_for_owner(
         q = q.filter(Proposal.session_id == session_id)
     else:
         return []
+    # 유저가 삭제(논리삭제)한 제안서는 목록에서 숨긴다.
+    q = q.filter(Proposal.deleted_at.is_(None))
     return q.order_by(Proposal.updated_at.desc()).all()
 
 
@@ -424,7 +438,7 @@ def get_owned(
     p = (
         db.query(Proposal)
         .options(joinedload(Proposal.items))
-        .filter(Proposal.id == pid)
+        .filter(Proposal.id == pid, Proposal.deleted_at.is_(None))
         .first()
     )
     if p is None:
@@ -444,7 +458,18 @@ def rename(db: Session, proposal: Proposal, title: str) -> Proposal:
 
 
 def delete(db: Session, proposal: Proposal) -> None:
-    db.delete(proposal)
+    """유저 삭제. 상태에 따라 처리가 갈린다.
+    - new(작성중): 완전삭제(행 제거) — admin 에 노출된 적 없는 초안.
+    - execution_requested/custom(제출완료·맞춤제안): status=cancelled(취소) 로 전환.
+    - contracted(계약완료): status 유지 + deleted_at 기록 → admin 에 "계약완료 + 삭제됨".
+    """
+    if proposal.status == "new":
+        db.delete(proposal)
+        db.commit()
+        return
+    if proposal.status in ("execution_requested", "custom"):
+        proposal.status = "cancelled"
+    proposal.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 

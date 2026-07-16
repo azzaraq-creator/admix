@@ -65,6 +65,7 @@ export function ProposalsListView() {
         mediaCount: r.mediaCount,
         totalAmount: r.totalAmount,
         status: r.status as ProposalStatus,
+        deleted: r.deleted,
         registeredAt: r.registeredAt,
       }));
   }, [data, search]);

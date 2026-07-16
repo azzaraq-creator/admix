@@ -3,12 +3,7 @@ import type {
   TableColumn,
 } from "@/components/common/Table/CommonTable";
 
-export type ProposalStatus =
-  | "신규"
-  | "맞춤제안"
-  | "집행 요청"
-  | "계약 완료"
-  | "취소";
+export type ProposalStatus = "신규" | "맞춤제안" | "계약완료" | "취소";
 
 export type Proposal = {
   id: string;
@@ -18,21 +13,21 @@ export type Proposal = {
   mediaCount: string;
   totalAmount: string;
   status: ProposalStatus;
+  deleted: boolean; // 계약완료 삭제 건 = 상태 유지 + "삭제됨" 표기
   registeredAt: string;
 };
 
 const STATUS_CLASS: Record<ProposalStatus, string> = {
   신규: "bg-[#d6f1ff] text-[#0689ff]",
   맞춤제안: "bg-[#fdf6e3] text-[#c99a2e]",
-  "집행 요청": "bg-primary-50 text-primary-800",
-  "계약 완료": "bg-platinum-100 text-[#64748b]",
+  계약완료: "bg-platinum-100 text-[#64748b]",
   취소: "bg-[#fef2f2] text-[#ef4444]",
 };
 
 export function ProposalStatusBadge({ status }: { status: ProposalStatus }) {
   return (
     <span
-      className={`inline-flex items-center rounded-[6px] px-[10px] py-[4px] text-xs font-medium leading-[16px] ${STATUS_CLASS[status]}`}
+      className={`inline-flex items-center rounded-[6px] px-[10px] py-[4px] text-xs font-medium leading-[16px] ${STATUS_CLASS[status] ?? STATUS_CLASS["신규"]}`}
     >
       {status}
     </span>
@@ -48,7 +43,16 @@ export const proposalColumnList: TableColumn<Proposal>[] = [
   {
     name: "status",
     label: "상태",
-    renderer: (item) => <ProposalStatusBadge status={item.status} />,
+    renderer: (item) => (
+      <div className="flex items-center gap-[6px]">
+        <ProposalStatusBadge status={item.status} />
+        {item.deleted && (
+          <span className="inline-flex items-center rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] text-grey-500">
+            삭제됨
+          </span>
+        )}
+      </div>
+    ),
   },
   { name: "registeredAt", label: "등록일", className: "text-disabled" },
 ];
@@ -63,8 +67,7 @@ export const proposalSearchOptionList: SearchOption[] = [
     optionList: [
       { label: "신규", value: "신규" },
       { label: "맞춤제안", value: "맞춤제안" },
-      { label: "집행 요청", value: "집행 요청" },
-      { label: "계약 완료", value: "계약 완료" },
+      { label: "계약완료", value: "계약완료" },
       { label: "취소", value: "취소" },
     ],
   },

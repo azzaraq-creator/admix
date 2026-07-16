@@ -13,6 +13,7 @@ class ProposalRow(BaseModel):
     mediaCount: str
     totalAmount: str
     status: str
+    deleted: bool = False  # 계약완료 삭제 건 = 상태 유지 + "삭제됨" 표기
     registeredAt: str
 
 
@@ -102,6 +103,7 @@ class AdminProposalDetail(BaseModel):
     id: str
     title: str
     status: str
+    deleted: bool = False
     total_amount: int = 0
     updated_at: Optional[str] = None
     counter_proposal_file_url: Optional[str] = None

@@ -67,13 +67,13 @@ export function ProposalDetailView() {
   const { confirm, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
 
-  const accepted = proposal?.status === "계약 완료";
+  const accepted = proposal?.status === "계약완료";
 
   const handleAccept = async () => {
     const ok = await confirm({
       title: "집행을 수락하시겠습니까?",
       description:
-        "수락하면 제안서 상태가 계약 완료로 변경됩니다.",
+        "수락하면 제안서 상태가 계약완료로 변경됩니다.",
       confirmText: "집행 수락",
     });
     if (!ok) return;
@@ -347,7 +347,7 @@ export function ProposalDetailView() {
             onClick={handleAccept}
             disabled={accepted || acceptMutation.isPending}
           >
-            {accepted ? "계약 완료" : "집행 수락"}
+            {accepted ? "계약완료" : "집행 수락"}
           </PrimaryButton>
         </div>
       </div>

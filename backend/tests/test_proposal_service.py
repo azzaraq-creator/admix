@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from src.database import SessionLocal
 from src.models.ad_session import AdSession
 from src.models.media_master import Media
+from src.models.proposal import Proposal
 from src.services import proposal_service as ps
 
 
@@ -111,3 +112,147 @@ def test_get_owned_respects_session(db, session):
     import uuid
 
     assert ps.get_owned(db, str(p.id), session_id=uuid.uuid4()) is None
+
+
+# ---------- 상태 라벨 매핑 (admin 표시) ----------
+
+
+def test_admin_status_label_mapping():
+    # execution_requested(제출완료) → admin "신규", 계약완료 붙여쓰기, 집행 요청 라벨 제거
+    assert ps._STATUS["execution_requested"] == "신규"
+    assert ps._STATUS["custom"] == "맞춤제안"
+    assert ps._STATUS["contracted"] == "계약완료"
+    assert ps._STATUS["cancelled"] == "취소"
+    assert "집행 요청" not in ps._STATUS.values()
+
+
+# ---------- 유저 삭제 분기 (완전삭제 / 취소 전환 / 상태유지+삭제시각) ----------
+
+
+@pytest.fixture
+def cleanup_proposals(db):
+    """테스트가 만든 제안서를 id 로 직접 하드삭제. 소프트삭제(deleted_at) 건은
+    list_for_owner 로 조회되지 않아 session fixture teardown 이 못 지우므로 여기서 정리."""
+    ids: list = []
+    yield ids
+    if ids:
+        db.query(Proposal).filter(Proposal.id.in_(ids)).delete(
+            synchronize_session=False
+        )
+        db.commit()
+
+
+def _make(db, session, status: str, cleanup) -> Proposal:
+    # 셋업 단계라 한도 검증은 끈다(여러 건 생성 필요).
+    p = ps.create_proposal(
+        db,
+        f"삭제테스트-{status}",
+        session_id=session.id,
+        user=None,
+        enforce_limit=False,
+    )
+    cleanup.append(p.id)
+    if status != "new":
+        p.status = status
+        db.commit()
+        db.refresh(p)
+    return p
+
+
+def test_delete_new_is_hard_deleted(db, session, cleanup_proposals):
+    p = _make(db, session, "new", cleanup_proposals)
+    pid = p.id
+    ps.delete(db, p)
+    # 작성중 초안 = 완전삭제(행 제거)
+    assert db.query(Proposal).filter(Proposal.id == pid).first() is None
+
+
+def test_delete_execution_requested_becomes_cancelled(db, session, cleanup_proposals):
+    p = _make(db, session, "execution_requested", cleanup_proposals)
+    pid = p.id
+    ps.delete(db, p)
+    row = db.query(Proposal).filter(Proposal.id == pid).first()
+    assert row is not None  # 논리삭제 — 행 유지
+    assert row.status == "cancelled"
+    assert row.deleted_at is not None
+
+
+def test_delete_custom_becomes_cancelled(db, session, cleanup_proposals):
+    p = _make(db, session, "custom", cleanup_proposals)
+    pid = p.id
+    ps.delete(db, p)
+    row = db.query(Proposal).filter(Proposal.id == pid).first()
+    assert row is not None
+    assert row.status == "cancelled"
+    assert row.deleted_at is not None
+
+
+def test_delete_contracted_keeps_status_and_sets_deleted_at(
+    db, session, cleanup_proposals
+):
+    p = _make(db, session, "contracted", cleanup_proposals)
+    pid = p.id
+    ps.delete(db, p)
+    row = db.query(Proposal).filter(Proposal.id == pid).first()
+    assert row is not None
+    assert row.status == "contracted"  # 계약완료 상태 유지
+    assert row.deleted_at is not None  # + 삭제됨 표기용
+
+
+# ---------- 목록 필터 (삭제 건 숨김 / 작성중 제외) ----------
+
+
+def test_list_for_owner_excludes_deleted(db, session, cleanup_proposals):
+    keep = _make(db, session, "new", cleanup_proposals)
+    gone = _make(db, session, "execution_requested", cleanup_proposals)
+    ps.delete(db, gone)
+    ids = {p.id for p in ps.list_for_owner(db, session_id=session.id)}
+    assert keep.id in ids
+    assert gone.id not in ids  # 유저 목록에서 숨김
+
+
+def test_get_owned_excludes_deleted(db, session, cleanup_proposals):
+    p = _make(db, session, "execution_requested", cleanup_proposals)
+    ps.delete(db, p)
+    # 삭제된 제안서는 소유자여도 조회 불가(수정/재조회 차단)
+    assert ps.get_owned(db, str(p.id), session_id=session.id) is None
+
+
+def test_admin_list_excludes_new_and_flags_deleted(db, session, cleanup_proposals):
+    draft = _make(db, session, "new", cleanup_proposals)
+    submitted = _make(db, session, "execution_requested", cleanup_proposals)
+    cancelled = _make(db, session, "execution_requested", cleanup_proposals)
+    ps.delete(db, cancelled)  # 제출완료 삭제 → 취소
+    contracted_deleted = _make(db, session, "contracted", cleanup_proposals)
+    ps.delete(db, contracted_deleted)
+
+    rows = {r["id"]: r for r in ps.list_proposals(db)}
+    # 작성중(new)은 admin 목록에서 제외
+    assert str(draft.id) not in rows
+    # 제출완료 → admin "신규", 삭제됨 아님
+    assert rows[str(submitted.id)]["status"] == "신규"
+    assert rows[str(submitted.id)]["deleted"] is False
+    # 제출완료 삭제 → "취소"만, 삭제됨 배지는 붙지 않음
+    assert rows[str(cancelled.id)]["status"] == "취소"
+    assert rows[str(cancelled.id)]["deleted"] is False
+    # 계약완료 삭제 건 → 상태 유지 + deleted 플래그
+    assert rows[str(contracted_deleted.id)]["status"] == "계약완료"
+    assert rows[str(contracted_deleted.id)]["deleted"] is True
+
+
+def test_deleted_proposal_frees_limit_slot(db, session, cleanup_proposals):
+    # 게스트 한도 1건: 제출 후 삭제하면 한도가 풀려 새로 만들 수 있어야 한다.
+    p = _make(db, session, "execution_requested", cleanup_proposals)
+    assert (
+        ps.can_create_proposal(
+            db, member_id=None, session_id=session.id, user=None
+        )
+        is False
+    )
+    ps.delete(db, p)  # 논리삭제(취소)
+    assert (
+        ps.can_create_proposal(
+            db, member_id=None, session_id=session.id, user=None
+        )
+        is True
+    )

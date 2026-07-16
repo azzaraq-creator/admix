@@ -48,6 +48,9 @@ class Proposal(Base):
     counter_proposal_slides_url = Column(String(1000), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
+    # 유저 논리삭제 시각. 계약완료(contracted) 삭제 시 status 유지 + 이 값 기록 →
+    # admin 목록에서 원래 상태 + "삭제됨" 표기. 제출완료/맞춤제안 삭제는 status=cancelled 로 전환.
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     member = relationship("User", back_populates="proposals")
     items = relationship(

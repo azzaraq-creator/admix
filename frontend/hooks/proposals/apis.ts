@@ -9,6 +9,7 @@ export interface ProposalRow {
   mediaCount: string;
   totalAmount: string;
   status: string;
+  deleted: boolean;
   registeredAt: string;
 }
 

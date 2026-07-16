@@ -32,7 +32,7 @@
 | 인증 회원(verified) | 자기 제안서 | O | O | 무제한 |
 
 > 개수 한도는 **제안서 생성 시점**(다른 화면)에서 걸리며, 초과 시 백엔드가 409 `{reason:"limit_reached", tier, limit}` 반환. 이 상세 화면 자체에는 개수 한도 UI가 없다.
-> 상태가 `execution_requested`(집행 요청) 또는 `contracted`(계약 완료)면 편집 뷰가 **잠금(locked)**된다(아래 3, 4 참조).
+> 상태가 `execution_requested`(제출완료) 또는 `contracted`(계약완료)면 편집 뷰가 **잠금(locked)**된다(아래 3, 4 참조).
 
 ---
 
@@ -44,14 +44,15 @@
 - **기능**: 제안서명·상태·최종수정 표시 + 이름수정·내보내기·제출/제출취소·삭제 액션.
 - **규칙**:
   - **제안서명**: 텍스트 옆 연필 아이콘 클릭 시 인라인 입력으로 전환. `Enter`(한글 조합 중 제외) 또는 blur 시 확정. 값이 비었거나 기존과 같으면 저장 호출 안 함, 다르면 `PATCH /proposals/{id}` 로 rename. **잠금 상태면 연필 아이콘 숨김.**
-  - **상태 칩**: 백엔드 raw status → 라벨 매핑 — `new`=작성중, `custom`=맞춤제안, `execution_requested`=집행 요청, `contracted`=계약 완료, `cancelled`=취소.
+  - **상태 칩**: 백엔드 raw status → 고객 라벨 매핑 — `new`=작성중, `execution_requested`=제출완료, `custom`=맞춤제안, `contracted`=계약완료, `cancelled`=취소. (관리자 화면은 별도 라벨 — `execution_requested`="신규")
   - **최종 수정**: `updated_at` 를 `YYYY.MM.DD HH:mm` 로 표시(없으면 `-`).
   - **내보내기 버튼**: 노출되나 **onClick 핸들러가 연결돼 있지 않아 현재 아무 동작도 하지 않는다** (`exportPpt` 클라이언트 API는 존재하지만 편집 뷰에서 미연결). ❓
   - **제출/제출취소 버튼**(상태 분기):
     - `execution_requested` → `제출취소` 버튼. 클릭 시 확인 모달("제출을 취소하시겠습니까?") 후 `POST /proposals/{id}/cancel` → 상태 `new` 복귀(작성중, 재편집 가능).
     - 잠금 아님(`new` 등) → `제출하기` 버튼. **비회원이면** "제안서 제출은 로그인 후 이용 가능해요" 모달 → 확인 시 로그인 모달 오픈. **회원이면** "제안서를 제출하시겠습니까?"(제출 후 수정 불가 안내) 확인 후 `POST /proposals/{id}/submit` → 상태 `execution_requested`.
     - 잠금(`contracted`) → 제출/제출취소 버튼 모두 미노출.
-  - **삭제 버튼**(휴지통): 확인 모달("제안서를 삭제하시겠습니까?", destructive) 후 `DELETE /proposals/{id}` → `/proposals` 로 이동. 잠금 여부와 무관하게 항상 노출.
+  - **삭제 버튼**(휴지통): 확인 모달("제안서를 삭제하시겠습니까?", destructive) 후 `DELETE /proposals/{id}` → `/proposals` 로 이동. 잠금 여부와 무관하게 항상 노출(계약완료도 삭제 가능).
+    - **삭제 처리(상태별)**: `new`=완전삭제 / `execution_requested`·`custom`=`cancelled`(취소) 전환 / `contracted`=상태 유지 + `deleted_at` 기록. 삭제 후 유저 목록·상세에서 사라진다. 관리자 노출 규칙은 [admin-proposals.md](admin-proposals.md), 요약은 [proposals.md](proposals.md) 3.3.2.
 
 ### 3.1 좌측 슬라이드 사이드바 (편집 뷰)
 - **기능**: 덱의 전체 슬라이드 썸네일 목록 + 순서변경·삭제 + 매체추가.
@@ -121,10 +122,10 @@
 | 상태 | 발생 조건 | 노출 / 동작 |
 |---|---|---|
 | 편집(작성중) | `status=new` (또는 슬라이드 없는 custom) | 전체 편집 가능(순서·플랜·수량·기간·삭제·저장), 제출하기 노출 |
-| 제출됨(집행 요청) | `status=execution_requested` | 편집 잠금, 헤더에 `제출취소` 노출, 저장·매체추가·삭제(슬라이드)·드래그 불가 |
-| 계약 완료 | `status=contracted` | 편집 잠금, 제출/제출취소 버튼 미노출(제안서 삭제 버튼은 유지) |
+| 제출완료 | `status=execution_requested` | 편집 잠금, 헤더에 `제출취소` 노출, 저장·매체추가·삭제(슬라이드)·드래그 불가 |
+| 계약완료 | `status=contracted` | 편집 잠금, 제출/제출취소 버튼 미노출(제안서 삭제 버튼은 유지) |
 | 맞춤제안 덱 | `status=custom` + 변환 슬라이드 ≥1 | 편집 UI 대신 맞춤제안 덱 뷰(열람·원본 PPTX 다운로드) |
-| 취소 | `status=cancelled` | 상태 칩만 `취소` — 전용 화면 처리 ❓ |
+| 취소(삭제됨) | `status=cancelled` 또는 `deleted_at` 존재 | 유저 목록·상세에서 제외(`get_owned` 404). 고객은 이 화면에 도달하지 않음 |
 | 매체 0개 | items 없음 | 표지+빈 서머리+THANK YOU만, 저장은 API 호출 없이 토스트 |
 | 로딩 / 에러 | 상세 조회 중·실패 | ❓ (별도 스켈레톤/에러 UI 미확인) |
 | 모바일 | 뷰포트 <640px | 미지원 오버레이(3.8) |
@@ -140,7 +141,7 @@
 | 순서·플랜·수량·기간 저장 | `PUT /proposals/{id}/order` | 저장하기 클릭 |
 | 슬라이드(매체) 삭제 | `DELETE /proposals/{id}/items/{mediaId}` | 썸네일 휴지통 확인 후 |
 | 제출 / 제출취소 | `POST /proposals/{id}/submit` · `/cancel` | 회원 전용(토큰). 취소는 `execution_requested`만 허용 |
-| 제안서 삭제 | `DELETE /proposals/{id}` | 헤더 휴지통 확인 후 → `/proposals` 이동 |
+| 제안서 삭제 | `DELETE /proposals/{id}` | 헤더 휴지통 확인 후 → `/proposals` 이동. 상태별 분기(완전삭제/취소전환/상태유지+삭제됨) |
 | 맞춤제안 원본 PPTX 다운로드 | `GET /proposals/{id}/counter-proposal/download` | 맞춤제안 덱 뷰 내보내기 |
 | 맞춤제안 슬라이드 이미지 | `{NEXT_PUBLIC_API_URL}{slides_url}/{image|thumb}` 정적 파일 | 관리자 업로드 시 PPT→이미지 변환(`meta.json`) |
 | 매체 지도 | 카카오 정적지도(`StaticKakaoMap`) | 매체 슬라이드에 좌표 있을 때 |
@@ -154,7 +155,7 @@
 - [ ] 편집 뷰 헤더 **"내보내기" 버튼**: onClick 미연결 상태. `export-ppt`(python-pptx 생성)로 연결할지, 노출 자체를 뺄지 확정 필요.
 - [ ] 서머리 슬라이드 **시작일/종료일 입력**: 현재 자유 텍스트 입력(달력 피커 미연동). 입력 형식 검증·달력 UI 여부.
 - [ ] 매체 슬라이드 표의 **노출회수·기간 셀**: 현재 `-` 고정 표시. 데이터 소스/노출 규칙 미정.
-- [ ] `cancelled`(취소) 상태의 화면 처리(별도 안내/재작성 동선).
+- [x] `cancelled`(취소)/삭제 건은 유저 목록·상세에서 제외되어 고객이 도달하지 않음(2026-07-16 결정). 별도 재작성 동선 불필요.
 - [ ] 로딩·에러 상태의 화면 처리(스켈레톤/에러 폴백 미확인).
 - [ ] Figma 원본 프레임/node-id (편집 뷰·맞춤제안 덱 뷰·라이트박스·모바일 안내).
 
