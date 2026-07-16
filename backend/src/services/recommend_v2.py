@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_master import Media
 from src.services import media_service, proposal_service
-from src.services.graph.intent_classifier import classify_intent
+from src.services.graph.intent_classifier import classify_intent, classify_merge_intent
 from src.services.graph.llm import get_chat
 from src.services.graph.tools import resolve_media_via_tools, resolve_proposal_via_tools
 from src.services.graph.welcome import generate_welcome
@@ -493,6 +493,19 @@ _NO_PATTERNS = [
     r"^\s*유지[.!]?\s*$",
 ]
 
+# 추가 응답 — 슬롯 충돌 확인 시 기존 조건에 새 조건을 합집합(OR)으로 누적
+_ADD_PATTERNS = [
+    r"^\s*추가\s*(해?\s*줘?)?[.!]?\s*$",
+    r"^\s*둘\s*다[.!]?\s*$",
+    r"^\s*함께[.!]?\s*$",
+    r"^\s*같이[.!]?\s*$",
+    r"^\s*모두[.!]?\s*$",
+    r"^\s*다\s*[.!]?\s*$",
+    r"^\s*그리고[.!]?\s*$",
+    r"^\s*add[.!]?\s*$",
+    r"^\s*both[.!]?\s*$",
+]
+
 
 def _is_yes(text: str) -> bool:
     t = (text or "").strip()
@@ -502,6 +515,11 @@ def _is_yes(text: str) -> bool:
 def _is_no(text: str) -> bool:
     t = (text or "").strip()
     return any(re.match(p, t, re.IGNORECASE) for p in _NO_PATTERNS)
+
+
+def _is_add(text: str) -> bool:
+    t = (text or "").strip()
+    return any(re.match(p, t, re.IGNORECASE) for p in _ADD_PATTERNS)
 
 
 def _slots_dict(context: dict | None) -> dict:
@@ -550,9 +568,29 @@ def _detect_conflicts(slots: dict[str, list[str]], codes: ExtractedCodes) -> dic
     return conflicts
 
 
-def _apply_codes(slots: dict, codes: ExtractedCodes, replace_cats: set[str]) -> dict:
-    """slots 에 codes 적용. replace_cats 안에 있는 카테고리는 새 값으로 교체, 나머지는 빈 슬롯에만 채움.
+def _conflict_summary_text(
+    prev_slots: dict, conflicts: dict[str, list[str]], desc_map: dict[str, str]
+) -> str:
+    """충돌 내역을 add/replace 의도 판정 프롬프트용 텍스트로."""
+    lines: list[str] = []
+    for cat, new_vals in conflicts.items():
+        old = ", ".join(desc_map.get(c, c) for c in (prev_slots.get(cat) or []))
+        new = ", ".join(desc_map.get(c, c) for c in new_vals)
+        lines.append(f"- {_CATEGORY_LABEL.get(cat, cat)}: 기존 [{old}] / 새 값 [{new}]")
+    return "\n".join(lines)
 
+
+def _apply_codes(
+    slots: dict,
+    codes: ExtractedCodes,
+    replace_cats: set[str],
+    add_cats: set[str] = frozenset(),
+) -> dict:
+    """slots 에 codes 적용.
+
+    - add_cats: 기존 값에 새 값을 합집합(OR)으로 누적 (기존 유지 + 신규 추가)
+    - replace_cats: 새 값으로 교체
+    - 그 외: 빈 슬롯에만 채움
     budget 은 스칼라 — 새 값이 있으면 단순 교체.
     """
     out: dict = {
@@ -562,7 +600,9 @@ def _apply_codes(slots: dict, codes: ExtractedCodes, replace_cats: set[str]) -> 
         new_vals = list(getattr(codes, cat, []) or [])
         if not new_vals:
             continue
-        if cat in replace_cats:
+        if cat in add_cats:
+            out[cat] = list(dict.fromkeys((out.get(cat) or []) + new_vals))
+        elif cat in replace_cats:
             out[cat] = list(dict.fromkeys(new_vals))
         elif not out.get(cat):
             out[cat] = list(dict.fromkeys(new_vals))
@@ -1075,10 +1115,16 @@ async def _event_stream(
             conflicts = pending.get("conflicts") or {}
             new_extracted = ExtractedCodes(**{k: list(new_codes_dict.get(k, []) or []) for k in SLOT_KEYS})
 
-            if _is_yes(message):
-                # 충돌 카테고리는 교체 + 빈 슬롯도 동시에 채움
-                replace_cats = set(conflicts.keys())
-                next_slots = _apply_codes(prev_slots, new_extracted, replace_cats)
+            if _is_add(message) or _is_yes(message):
+                # 추가: 기존 ∪ 신규(OR) / 교체: 신규로 대체 — 빈 슬롯은 항상 채움
+                if _is_add(message):
+                    next_slots = _apply_codes(
+                        prev_slots, new_extracted, replace_cats=set(), add_cats=set(conflicts.keys())
+                    )
+                    _change_verb = "추가했어요"
+                else:
+                    next_slots = _apply_codes(prev_slots, new_extracted, set(conflicts.keys()))
+                    _change_verb = "교체했어요"
 
                 # 컨텍스트 저장 (pending 제거)
                 new_context = {**next_slots, "pending_change": None}
@@ -1093,7 +1139,7 @@ async def _event_stream(
                     changed_lines.append(f"  · {_CATEGORY_LABEL.get(cat, cat)}: {old_str or '(없음)'} → {new_str}")
                 yield emit({
                     "type": "chat",
-                    "message": "조건을 교체했어요:\n" + "\n".join(changed_lines),
+                    "message": f"조건을 {_change_verb}:\n" + "\n".join(changed_lines),
                     "extracted": new_extracted.model_dump(),
                     "enriched_extracted": _enrich_extracted(new_extracted, desc_map),
                     "previous_context": next_slots,
@@ -1137,7 +1183,11 @@ async def _event_stream(
         # 1.2) Stage 1 — 의도 분류기
         # ─────────────────────────────────────────────────────────
         intent_label = await _run_sync_in_thread(
-            classify_intent, message, bool(last_items), bool(active_proposal_id)
+            classify_intent,
+            message,
+            bool(last_items),
+            bool(active_proposal_id),
+            _format_slot_summary(prev_slots, desc_map),
         )
 
         # GENERAL — 인사/정체성/잡담 → 하이브리드 웰컴
@@ -1343,8 +1393,22 @@ async def _event_stream(
         # 3) 충돌 감지 → 차있는 슬롯에 새 값 들어오면 yes/no 확인
         # ─────────────────────────────────────────────────────────
         conflicts = _detect_conflicts(prev_slots, codes)
-
+        auto_add_cats: set[str] = set()
+        auto_replace_cats: set[str] = set()
         if conflicts:
+            # 발화에서 추가/교체 의도를 판정 — 분명하면 확인창 생략
+            merge_action = await _run_sync_in_thread(
+                classify_merge_intent,
+                message,
+                _conflict_summary_text(prev_slots, conflicts, desc_map),
+            )
+            if merge_action == "ADD":
+                auto_add_cats = set(conflicts.keys())
+            elif merge_action == "REPLACE":
+                auto_replace_cats = set(conflicts.keys())
+
+        if conflicts and not auto_add_cats and not auto_replace_cats:
+            # 의도가 애매 → 3지선다 확인창 (기존 흐름)
             # 빈 슬롯 채움은 동시에 적용 (충돌 카테고리는 보류)
             tentative_slots = _apply_codes(prev_slots, codes, replace_cats=set())
             # pending_change 저장
@@ -1363,7 +1427,9 @@ async def _event_stream(
                 new_str = ", ".join(desc_map.get(c, c) for c in new_vals)
                 change_lines.append(f"  · {_CATEGORY_LABEL.get(cat, cat)}: {old_str or '(없음)'} → {new_str}")
             msg = (
-                "기존에 설정된 조건과 충돌하는 항목이 있어요. 교체할까요? (예/아니오)\n"
+                "기존에 설정된 조건과 다른 항목이 들어왔어요. 어떻게 반영할까요?\n"
+                "· 추가: 기존 조건에 새 조건을 함께 (예: 홍대, 강남 둘 다)\n"
+                "· 교체: 새 조건으로 변경\n"
                 + "\n".join(change_lines)
             )
             yield emit({
@@ -1388,9 +1454,12 @@ async def _event_stream(
             return
 
         # ─────────────────────────────────────────────────────────
-        # 4) 충돌 없음 → 빈 슬롯에 새 값 채움 (또는 동일 값 유지)
+        # 4) 충돌 없음 / 추가·교체 자동반영 → 슬롯 적용 후 need_more|list
+        #    auto_add_cats: 합집합(OR) 누적 / auto_replace_cats: 교체 / 그 외: 빈 슬롯만 채움
         # ─────────────────────────────────────────────────────────
-        next_slots = _apply_codes(prev_slots, codes, replace_cats=set())
+        next_slots = _apply_codes(
+            prev_slots, codes, replace_cats=auto_replace_cats, add_cats=auto_add_cats
+        )
         matched_total = _count_filled_slots(next_slots)
 
         # 슬롯 2개 미만 → need_more

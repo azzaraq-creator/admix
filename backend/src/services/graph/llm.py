@@ -24,5 +24,16 @@ def get_chat(temperature: float = 0.0) -> ChatOpenAI:
 
 
 @lru_cache(maxsize=1)
+def _chat_strong_base(temperature: float) -> ChatOpenAI:
+    s = get_settings()
+    return ChatOpenAI(model=s.llm_model_strong, temperature=temperature, api_key=s.openai_api_key)
+
+
+def get_chat_strong(temperature: float = 0.0) -> ChatOpenAI:
+    """뉘앙스 판단용 상위 모델(gpt-4o 등). 소량 호출에만 사용."""
+    return _chat_strong_base(temperature)
+
+
+@lru_cache(maxsize=1)
 def get_embed_client() -> OpenAI:
     return OpenAI(api_key=get_settings().openai_api_key)

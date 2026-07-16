@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
+    # 뉘앙스 판단(추가/교체 의도 등)용 상위 모델. 소량 호출에만 선택 적용.
+    llm_model_strong: str = "gpt-4o"
     embed_model: str = "text-embedding-3-small"
     embed_dim: int = 1536
 

@@ -260,23 +260,31 @@ export function AiChatPanel({
         {chat.lastConfirmingId && (
           <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-[#f9fafc] px-[16px] py-[10px]">
             <span className="flex-1 text-sm font-medium text-grey-500">
-              조건을 교체할까요?
+              기존 조건에 어떻게 반영할까요?
             </span>
             <button
               type="button"
               disabled={chat.running}
-              onClick={() => void chat.submit("예", { allowShort: true })}
+              onClick={() => void chat.submit("추가", { allowShort: true })}
               className="rounded-[8px] bg-primary px-[12px] py-[6px] text-sm font-medium text-white disabled:opacity-50"
             >
-              예, 교체
+              추가
             </button>
             <button
               type="button"
               disabled={chat.running}
-              onClick={() => void chat.submit("아니오", { allowShort: true })}
+              onClick={() => void chat.submit("교체", { allowShort: true })}
               className="rounded-[8px] border border-stroke px-[12px] py-[6px] text-sm font-medium text-black disabled:opacity-50"
             >
-              아니오
+              교체
+            </button>
+            <button
+              type="button"
+              disabled={chat.running}
+              onClick={() => void chat.submit("취소", { allowShort: true })}
+              className="rounded-[8px] border border-stroke px-[12px] py-[6px] text-sm font-medium text-black disabled:opacity-50"
+            >
+              취소
             </button>
           </div>
         )}
