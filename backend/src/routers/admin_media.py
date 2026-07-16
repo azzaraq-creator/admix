@@ -5,7 +5,16 @@ routers/media.py(/media) 참조.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, File, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 XLSX_MEDIA_TYPE = (
@@ -59,6 +68,20 @@ def download_media_template(
             "Content-Disposition": 'attachment; filename="media_template.xlsx"'
         },
     )
+
+
+@router.post("/import")
+def import_media(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """엑셀 일괄등록 — media_id(No) 기준 중복 제외, 없는 행만 삽입."""
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="xlsx 파일만 업로드할 수 있습니다.")
+    content = file.file.read()
+    return media_service.import_media_xlsx(db, content)
 
 
 @router.get("/{media_id}")

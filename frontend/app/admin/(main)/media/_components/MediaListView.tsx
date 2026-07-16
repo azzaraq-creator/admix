@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
 import { ChevronDownIcon, PlusIcon } from "@/components/icons";
-import { mediaApi, useMediaList } from "@/hooks/media";
+import { mediaApi, useBulkImportMedia, useMediaList } from "@/hooks/media";
 import { useSonner } from "@/hooks/useSonner";
 
 import { mediaColumnList, mediaSearchOptionList, type Media } from "./index";
@@ -79,7 +79,9 @@ export function MediaListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
   const { data } = useMediaList();
-  const { error } = useSonner();
+  const { success, error } = useSonner();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkImport = useBulkImportMedia();
 
   const handleExcel = async (action: string) => {
     try {
@@ -93,6 +95,22 @@ export function MediaListView() {
       }
     } catch {
       error("다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
+
+  const handleImport = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const result = await bulkImport.mutateAsync(file);
+      const parts = [`${result.inserted}건 등록`];
+      if (result.skipped > 0) parts.push(`${result.skipped}건 중복 제외`);
+      if (result.failed > 0) parts.push(`${result.failed}건 실패`);
+      const notify = result.failed > 0 ? error : success;
+      notify(parts.join(", "));
+    } catch {
+      error("일괄 등록에 실패했습니다. 엑셀 양식을 확인해 주세요.");
     }
   };
 
@@ -126,11 +144,20 @@ export function MediaListView() {
         topRightContent={
           <>
             <ExcelDownloadMenu onSelect={handleExcel} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={handleImport}
+            />
             <button
               type="button"
-              className="flex h-[40px] items-center rounded-[8px] border border-primary px-[16px] text-sm font-medium leading-[20px] text-primary transition-colors hover:bg-primary-50"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={bulkImport.isPending}
+              className="flex h-[40px] items-center rounded-[8px] border border-primary px-[16px] text-sm font-medium leading-[20px] text-primary transition-colors hover:bg-primary-50 disabled:opacity-50"
             >
-              엑셀 일괄 등록
+              {bulkImport.isPending ? "등록 중…" : "엑셀 일괄 등록"}
             </button>
             <button
               type="button"

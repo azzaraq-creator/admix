@@ -14,8 +14,19 @@ from io import BytesIO
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
-from openpyxl import Workbook
-from sqlalchemy import and_, func, inspect as sa_inspect, text
+from openpyxl import Workbook, load_workbook
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Integer,
+    Numeric,
+    and_,
+    func,
+    inspect as sa_inspect,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, selectinload
 
 from src.config import get_settings
@@ -612,6 +623,149 @@ def media_template_xlsx() -> bytes:
     """엑셀 일괄등록용 빈 양식 — 헤더=등록 폼 컬럼(자동 컬럼 제외)."""
     cols = [c for c in _media_columns() if c not in _MEDIA_AUTO_COLS]
     return _build_xlsx(cols, [])
+
+
+def _is_blank(v) -> bool:
+    return v is None or (isinstance(v, str) and v.strip() == "")
+
+
+def _coerce_import_value(col, raw):
+    """xlsx 셀 값을 컬럼 타입에 맞는 파이썬 값으로 변환 — export(_xlsx_cell)의 역변환.
+
+    셀은 openpyxl 네이티브 타입(int/float/bool/datetime) 또는 문자열로 들어온다.
+    빈 값은 None. 변환 불가 시 ValueError 를 던져 호출부가 행 단위로 처리한다.
+    """
+    if _is_blank(raw):
+        return None
+    if isinstance(raw, str):
+        raw = raw.strip()
+
+    col_type = col.type
+    if isinstance(col_type, Boolean):
+        if isinstance(raw, bool):
+            return raw
+        s = str(raw).strip().lower()
+        if s in ("y", "true", "1"):
+            return True
+        if s in ("n", "false", "0"):
+            return False
+        raise ValueError(f"Y/N 값이 올바르지 않습니다: {raw!r}")
+    if isinstance(col_type, JSONB):
+        if isinstance(raw, (dict, list)):
+            return raw
+        return json.loads(raw)
+    if isinstance(col_type, DateTime):
+        if isinstance(raw, datetime):
+            return raw
+        return datetime.fromisoformat(str(raw))
+    if isinstance(col_type, (Integer, BigInteger)):
+        if isinstance(raw, bool):
+            raise ValueError(f"정수 값이 올바르지 않습니다: {raw!r}")
+        if isinstance(raw, (int, float)):
+            return int(raw)
+        return int(str(raw))
+    if isinstance(col_type, Numeric):
+        return float(raw)
+    return str(raw)
+
+
+_IMPORT_MAX_ERRORS = 50
+
+
+def import_media_xlsx(db: Session, content: bytes) -> dict:
+    """엑셀 일괄등록 — media_id(=No) 기준 중복 제외, 없는 행만 삽입.
+
+    반환: {total, inserted, skipped, failed, errors}. best-effort — 행별 savepoint 로
+    한 행이 실패해도 나머지는 계속 삽입한다.
+    """
+    try:
+        wb = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="엑셀 파일을 읽을 수 없습니다.")
+
+    ws = wb.active
+    rows = ws.iter_rows(values_only=True)
+    try:
+        header_row = next(rows)
+    except StopIteration:
+        raise HTTPException(status_code=400, detail="빈 파일입니다.")
+
+    headers = [str(h).strip() if h is not None else "" for h in header_row]
+    editable = set(_media_columns()) - _MEDIA_AUTO_COLS
+    if "media_id" not in headers:
+        raise HTTPException(
+            status_code=400,
+            detail="media_id 컬럼이 없습니다. 엑셀 양식(No 컬럼)을 확인해 주세요.",
+        )
+
+    col_index = {h: i for i, h in enumerate(headers) if h in editable}
+    mid_idx = headers.index("media_id")
+    columns = sa_inspect(Media).columns
+    existing_ids = {r[0] for r in db.query(Media.media_id).all()}
+
+    seen: set[str] = set()
+    inserted = skipped = failed = 0
+    errors: list[dict] = []
+
+    def cell(row: tuple, idx: int):
+        return row[idx] if idx < len(row) else None
+
+    for row_no, row in enumerate(rows, start=2):
+        if all(_is_blank(c) for c in row):
+            continue
+
+        mid_raw = cell(row, mid_idx)
+        if _is_blank(mid_raw):
+            failed += 1
+            if len(errors) < _IMPORT_MAX_ERRORS:
+                errors.append({"row": row_no, "media_id": "", "reason": "media_id(No) 누락"})
+            continue
+        mid = str(mid_raw).strip()
+
+        if mid in existing_ids or mid in seen:
+            skipped += 1
+            continue
+
+        data: dict = {}
+        row_error: str | None = None
+        for col_name, idx in col_index.items():
+            try:
+                data[col_name] = _coerce_import_value(columns[col_name], cell(row, idx))
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                row_error = f"{col_name}: {exc}"
+                break
+        if row_error:
+            failed += 1
+            if len(errors) < _IMPORT_MAX_ERRORS:
+                errors.append({"row": row_no, "media_id": mid, "reason": row_error})
+            continue
+
+        if _is_blank(data.get("name")):
+            failed += 1
+            if len(errors) < _IMPORT_MAX_ERRORS:
+                errors.append({"row": row_no, "media_id": mid, "reason": "매체명(name) 누락"})
+            continue
+
+        data["media_id"] = mid
+        try:
+            with db.begin_nested():
+                db.add(Media(**data))
+                db.flush()
+            inserted += 1
+            seen.add(mid)
+        except Exception:
+            failed += 1
+            if len(errors) < _IMPORT_MAX_ERRORS:
+                errors.append({"row": row_no, "media_id": mid, "reason": "저장 실패"})
+
+    db.commit()
+    return {
+        "total": inserted + skipped + failed,
+        "inserted": inserted,
+        "skipped": skipped,
+        "failed": failed,
+        "errors": errors,
+    }
 
 
 def _image_dict(img: MediaImage) -> dict:

@@ -243,6 +243,20 @@ export interface AdminMediaDetail {
 
 export type AdminMediaPayload = Record<string, unknown>;
 
+export interface MediaImportError {
+  row: number;
+  media_id: string;
+  reason: string;
+}
+
+export interface MediaImportResult {
+  total: number;
+  inserted: number;
+  skipped: number;
+  failed: number;
+  errors: MediaImportError[];
+}
+
 export const adminMediaApi = {
   get: (id: string) =>
     api.get<AdminMediaDetail>(`/admin/media/${id}`).then((r) => r.data),
@@ -263,4 +277,11 @@ export const adminMediaApi = {
     api
       .delete<AdminMediaDetail>(`/admin/media/${id}/images/${imageId}`)
       .then((r) => r.data),
+  bulkImport: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api
+      .post<MediaImportResult>("/admin/media/import", fd)
+      .then((r) => r.data);
+  },
 };

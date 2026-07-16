@@ -3,6 +3,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminMediaApi, type AdminMediaPayload } from "./apis";
 import { mediaKeys } from "./keys";
 
+export const useBulkImportMedia = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => adminMediaApi.bulkImport(file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: mediaKeys.list() }),
+  });
+};
+
 export const useCreateMedia = () => {
   const qc = useQueryClient();
   return useMutation({
