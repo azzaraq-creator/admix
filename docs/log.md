@@ -4,6 +4,16 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-16 — 제안서 상태 라벨 개편 + 유저 삭제 논리삭제(soft delete)
+
+- **상태 라벨 붙여쓰기 + 고객/관리자 분리**: 고객은 작성중/제출완료/맞춤제안/계약완료(`StatusChip`), 관리자는 신규(=`execution_requested`)/맞춤제안/계약완료/취소. "집행 요청" 라벨 제거. 고객 목록 탭 5종(전체/작성중/제출완료/맞춤제안/계약완료)으로 분리(기존 `execution_requested`가 "맞춤제안" 탭에 섞이던 문제 해소).
+- **관리자 목록에서 작성중(`new`) 제외** — 고객이 제출해야 "신규"로 노출.
+- **유저 삭제 = 상태별 분기**: `new`=완전삭제 / `execution_requested`·`custom`=`cancelled`(취소) 전환 / `contracted`=상태 유지 + `deleted_at` 기록(관리자 "계약완료 + 삭제됨" 배지, 성사 계약 이력 보존). 삭제 건은 유저 목록·상세(`get_owned` 404)·생성 한도에서 제외. `proposal.deleted_at` 컬럼 추가(마이그레이션 `034_proposal_deleted_at`). 백엔드 테스트 8건 추가(`test_proposal_service.py`, 전체 15 통과). 상세: [proposals](policies/proposals.md) · [proposal-detail](policies/proposal-detail.md) · [admin-proposals](policies/admin-proposals.md).
+
+## 2026-07-15 — 회원 제재 추가/상세 모달 + 날짜 기반 로그인 차단
+
+- admin 회원 상세 "제재 관리" 탭에 제재 추가/상세(수정·삭제) 모달 구현(추가·상세 동일 `SanctionModal`): 정지 사유 Select(5종, 기타 직접입력) + 상세 사유 textarea(`member_sanction.detail` 컬럼 신설, 마이그레이션 033) + 제재 기간(shadcn `react-day-picker` 캘린더, 오늘 이후·시작≤종료, 활성색 primary). `POST/PATCH/DELETE /admin/members/{id}/sanctions`. 상세 탭은 `?tab=` URL 구동. **로그인 차단은 `status` 플래그가 아니라 제재 기간(날짜)으로 판정**(`auth_service`) — 오늘이 활성 제재(start~end, 종료없음=무기한) 안일 때만 403 + 제한 모달, 미래·종료 제재는 허용. `status`는 제재 CRUD 시 `active↔sanctioned` 재계산(표시용). 배포 완료(`b0dbca1`/`3b6712e`). 상세: [admin-members](policies/admin-members.md) §3.10, [login](policies/login.md) §7.
+
 ## 2026-07-14 — 인증 이메일 브랜디드 HTML (인증코드·비밀번호 재설정)
 
 - 텍스트/최소 HTML로 나가던 이메일 인증코드·비밀번호 재설정 메일을 Figma 다크 브랜디드 템플릿(로고·제목·본문·CTA)으로 교체(`auth_service.py`). 인증코드: 코드 블록 + TTL `EMAIL_CODE_TTL_SECONDS` 300→600(10분). 재설정: `비밀번호 재설정` 버튼(reset 링크) + TTL 1시간 **유지**(디자인 24시간이지만 보안상 미채택, 문구는 TTL 기준 동적). 로고는 기존 `admix-logo-email.png` 재사용. 상세: [auth-email-html-branding](plans/2026-07-14-auth-email-html-branding.md).
