@@ -190,3 +190,50 @@ def test_recommend_v2_many_matches_returns_list_sorted_by_price(monkeypatch, db)
     assert prices == sorted(prices, reverse=True)
     item = res.items[0]
     assert item.id and item.name and item.media_source
+
+
+def test_response_item_images_from_media_image():
+    import uuid
+    from src.database import SessionLocal
+    from src.models.media_master import Media
+    from src.models.media_image import MediaImage
+    from src.models.media import MediaItem
+    from src.services.recommend_v2 import (
+        _media_meta_by_media_id,
+        _images_by_media_id,
+        _to_response_item,
+    )
+
+    db = SessionLocal()
+    mid = f"TESTM-{uuid.uuid4().hex[:8]}"
+    try:
+        m = Media(media_id=mid, name="테스트매체", latitude=37.5, longitude=127.0,
+                  category_large="옥외", category_small="빌보드")
+        db.add(m)
+        db.flush()
+        db.add(MediaImage(media_id=mid, image_url="/uploads/media/x/a.jpg",
+                          sort_order=0, is_thumbnail=True))
+        db.add(MediaImage(media_id=mid, image_url="/uploads/media/x/b.jpg",
+                          sort_order=1, is_thumbnail=False))
+        it = MediaItem(name="테스트매체", media_source="FIXED",
+                       thumbnail_url="https://attachments.houseofooh.com/old.jpg",
+                       all_image_urls="https://attachments.houseofooh.com/old.jpg",
+                       media_id=mid)
+        db.add(it)
+        db.commit()
+        db.refresh(it)
+
+        meta = _media_meta_by_media_id(db, [it])
+        imgs = _images_by_media_id(db, [it.media_id])
+        resp = _to_response_item(it, meta, imgs)
+
+        assert resp.thumbnail_url == "/uploads/media/x/a.jpg"
+        assert resp.detail_images == ["/uploads/media/x/a.jpg", "/uploads/media/x/b.jpg"]
+        assert resp.media_id == mid
+        assert resp.latitude == 37.5
+    finally:
+        db.query(MediaItem).filter(MediaItem.media_id == mid).delete()
+        db.query(MediaImage).filter(MediaImage.media_id == mid).delete()
+        db.query(Media).filter(Media.media_id == mid).delete()
+        db.commit()
+        db.close()

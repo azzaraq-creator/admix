@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.orm import Session
 
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
+from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.services import media_service, proposal_service
 from src.services.graph.intent_classifier import classify_intent, classify_merge_intent
@@ -305,52 +306,69 @@ def _split_image_urls(raw: Optional[str]) -> list[str]:
     return [u.strip() for u in raw.split("|") if u.strip()]
 
 
-def _media_meta_by_thumbnail(db: Session, items: list[MediaItem]) -> dict[str, dict]:
-    """media_items.thumbnail_url → media(master) 메타 배치 매핑.
-
-    두 테이블은 동일 매체(913개)이며 thumbnail_url 이 1:1 키.
-    media_id(Drawer 연동) + lat/lng·카테고리(지도 마커)용.
-    """
-    thumbs = [it.thumbnail_url for it in items if it.thumbnail_url]
-    if not thumbs:
+def _media_meta_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, dict]:
+    """media_items.media_id → media(master) 메타 배치 매핑 (lat/lng·카테고리)."""
+    ids = [it.media_id for it in items if it.media_id]
+    if not ids:
         return {}
     rows = (
         db.query(
-            Media.thumbnail_url,
             Media.media_id,
             Media.latitude,
             Media.longitude,
             Media.category_large,
             Media.category_small,
         )
-        .filter(Media.thumbnail_url.in_(thumbs))
+        .filter(Media.media_id.in_(ids))
         .all()
     )
     return {
-        t: {
-            "media_id": mid,
+        mid: {
             "latitude": float(lat) if lat is not None else None,
             "longitude": float(lng) if lng is not None else None,
             "category_large": cl,
             "category_small": cs,
         }
-        for t, mid, lat, lng, cl, cs in rows
-        if t
+        for mid, lat, lng, cl, cs in rows
     }
 
 
+def _images_by_media_id(db: Session, media_ids: list[str]) -> dict[str, list[str]]:
+    """media_id → media_image url 목록(대표 우선 → sort_order)."""
+    ids = [i for i in media_ids if i]
+    if not ids:
+        return {}
+    rows = (
+        db.query(MediaImage.media_id, MediaImage.image_url)
+        .filter(MediaImage.media_id.in_(ids))
+        .order_by(
+            MediaImage.media_id,
+            MediaImage.is_thumbnail.desc(),
+            MediaImage.sort_order,
+        )
+        .all()
+    )
+    out: dict[str, list[str]] = {}
+    for mid, url in rows:
+        out.setdefault(mid, []).append(url)
+    return out
+
+
 def _to_response_item(
-    item: MediaItem, meta_map: dict[str, dict] | None = None
+    item: MediaItem,
+    meta_map: dict[str, dict] | None = None,
+    images_map: dict[str, list[str]] | None = None,
 ) -> MediaItemResponse:
-    meta = (meta_map or {}).get(item.thumbnail_url or "") or {}
+    meta = (meta_map or {}).get(item.media_id or "") or {}
+    images = (images_map or {}).get(item.media_id or "") or []
     return MediaItemResponse(
         id=str(item.id),
-        media_id=meta.get("media_id"),
+        media_id=item.media_id,
         name=item.name,
         media_source=item.media_source,
         price=item.advertisement_fee or None,
-        thumbnail_url=item.thumbnail_url or None,
-        detail_images=_split_image_urls(item.all_image_urls),
+        thumbnail_url=images[0] if images else None,
+        detail_images=images,
         latitude=meta.get("latitude"),
         longitude=meta.get("longitude"),
         category_large=meta.get("category_large"),
@@ -452,11 +470,12 @@ def recommend_v2(user_text: str, db: Session, top_k: int = DEFAULT_TOP_K) -> Rec
         msg = f"조건에 맞는 매체를 {total}개 찾았어요."
 
     desc_map = load_keyword_descriptions(db)
-    media_id_map = _media_meta_by_thumbnail(db, selected)
+    media_meta = _media_meta_by_media_id(db, selected)
+    images_map = _images_by_media_id(db, [it.media_id for it in selected])
     return RecommendV2Response(
         type="list",
         message=msg,
-        items=[_to_response_item(it, media_id_map) for it in selected],
+        items=[_to_response_item(it, media_meta, images_map) for it in selected],
         match_count=total,
         extracted=codes.model_dump(),
         enriched_extracted=_enrich_extracted(codes, desc_map),
@@ -676,11 +695,14 @@ async def _iter_list_event_data(
         return
 
     selected = sort_by_price_desc(candidates, top_k=top_k)
-    media_id_map = await _run_sync_in_thread(_media_meta_by_thumbnail, db, selected)
+    media_meta = await _run_sync_in_thread(_media_meta_by_media_id, db, selected)
+    images_map = await _run_sync_in_thread(
+        _images_by_media_id, db, [it.media_id for it in selected]
+    )
     yield {
         "type": "list",
         "message": _build_list_message(total, len(selected)),
-        "items": [_to_response_item(it, media_id_map).model_dump() for it in selected],
+        "items": [_to_response_item(it, media_meta, images_map).model_dump() for it in selected],
         "match_count": total,
         "extracted": extracted_payload,
         "enriched_extracted": _enrich_extracted(merged_codes, desc_map),
