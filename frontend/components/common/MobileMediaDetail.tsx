@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
@@ -10,6 +11,7 @@ import {
   FolderIcon,
   MaximizeIcon,
 } from "@/components/icons";
+import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 export type MobileMediaStat = { label: string; value: ReactNode };
@@ -97,8 +99,14 @@ export function MobileMediaDetail({
     <div className={cn("flex w-full flex-col", className)}>
       <div className="relative h-[250px] w-full shrink-0 bg-[#d9d9d9]">
         {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className="size-full object-cover" />
+          <Image
+            src={mediaSrc(imageUrl)}
+            alt=""
+            fill
+            sizes="100vw"
+            unoptimized={!isOptimizable(mediaSrc(imageUrl))}
+            className="object-cover"
+          />
         )}
         {onBack && (
           <button

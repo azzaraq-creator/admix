@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import Image from "next/image";
+import { useState } from "react";
 
+import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type MediaThumbnailProps = {
   src?: string;
   className?: string;
+  /** Next Image sizes. 리스트 썸네일 기본 200px. */
+  sizes?: string;
   fallback?: React.ReactNode;
   children?: React.ReactNode;
 };
@@ -15,19 +19,12 @@ type MediaThumbnailProps = {
 export function MediaThumbnail({
   src,
   className,
+  sizes = "200px",
   fallback,
   children,
 }: MediaThumbnailProps) {
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const loaded = !!src && loadedSrc === src;
-
-  // ref 콜백은 src가 바뀔 때마다 새로 실행되므로, 캐시된 이미지(onLoad 미발화)도 즉시 표시된다.
-  const handleImgRef = useCallback(
-    (node: HTMLImageElement | null) => {
-      if (node?.complete) setLoadedSrc(src ?? null);
-    },
-    [src],
-  );
+  const [loaded, setLoaded] = useState(false);
+  const resolved = src ? mediaSrc(src) : null;
 
   return (
     <div
@@ -36,17 +33,18 @@ export function MediaThumbnail({
         className,
       )}
     >
-      {src ? (
+      {resolved ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={handleImgRef}
-            src={src}
+          <Image
+            src={resolved}
             alt=""
-            onLoad={() => setLoadedSrc(src)}
-            onError={() => setLoadedSrc(src)}
+            fill
+            sizes={sizes}
+            unoptimized={!isOptimizable(resolved)}
+            onLoad={() => setLoaded(true)}
+            onError={() => setLoaded(true)}
             className={cn(
-              "size-full object-cover transition-opacity duration-300",
+              "object-cover transition-opacity duration-300",
               loaded ? "opacity-100" : "opacity-0",
             )}
           />
