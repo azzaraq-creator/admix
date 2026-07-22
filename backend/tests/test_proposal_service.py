@@ -363,3 +363,27 @@ def test_rename_duplicate_returns_409_and_self_ok(client, db, session):
     # 자기 자신은 제외되므로 동일 이름 유지 rename 은 허용(200)
     r2 = client.patch(f"/proposals/{b.id}?session_id={sid}", json={"title": "이름B"})
     assert r2.status_code == 200
+
+
+def test_snapshot_thumbnail_from_media_image(db, session):
+    import uuid as _uuid
+    from src.models.media_master import Media
+    from src.models.media_image import MediaImage
+
+    mid = f"TESTM-{_uuid.uuid4().hex[:8]}"
+    m = Media(media_id=mid, name="담기매체",
+              thumbnail_url="https://attachments.houseofooh.com/legacy.jpg")
+    db.add(m)
+    db.flush()
+    db.add(MediaImage(media_id=mid, image_url="/uploads/media/x/rep.jpg",
+                      sort_order=0, is_thumbnail=True))
+    db.commit()
+    try:
+        prop = ps.create_proposal(db, "t", session_id=session.id, enforce_limit=False)
+        ps.add_items(db, prop, [mid])
+        item = next(it for it in prop.items if it.media_id == mid)
+        assert item.thumbnail_url == "/uploads/media/x/rep.jpg"
+    finally:
+        db.query(MediaImage).filter(MediaImage.media_id == mid).delete()
+        db.query(Media).filter(Media.media_id == mid).delete()
+        db.commit()
