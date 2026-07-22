@@ -21,6 +21,7 @@ from src.routers.proposals import router as proposals_router
 from src.routers.proposals_client import router as proposals_client_router
 from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
+from src.routers.recommend_react import router as recommend_react_router
 
 settings = get_settings()
 
@@ -55,6 +56,7 @@ app.include_router(admin_auth_router)
 app.include_router(admin_chat_router)
 app.include_router(chat_graph_router)
 app.include_router(recommend_v2_router)
+app.include_router(recommend_react_router)
 app.include_router(dashboard_router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)

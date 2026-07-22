@@ -57,10 +57,9 @@ export function AssistantBubble({
                 alt=""
                 className="size-[24px] shrink-0"
               />
-              <p className="text-base leading-[24px] text-black">
-                분석 완료! 가장 적합한 매체 {message.items.length}개를
-                정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성
-                요청해보세요.
+              <p className="whitespace-pre-line text-base leading-[24px] text-black">
+                {message.message ||
+                  `분석 완료! 가장 적합한 매체 ${message.items.length}개를 정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성 요청해보세요.`}
               </p>
             </div>
             <ConditionChips message={message} />

@@ -11,11 +11,11 @@ import {
   // XIcon, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 } from "@/components/icons";
 import {
-  useV2Chat,
+  useReactChat,
   // CATEGORY_LABELS, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
   // type EnrichedCode, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
   type V2Message,
-} from "@/hooks/adRecommendV2";
+} from "@/hooks/adRecommendReact";
 import { useMe } from "@/hooks/auth";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { openLoginModal } from "../../_components/useLoginModal";
@@ -52,7 +52,7 @@ export function AiChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const chat = useV2Chat();
+  const chat = useReactChat();
   const { data: me } = useMe();
   const isLoggedIn = !!me;
   const router = useRouter();

@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-22 — recommend_react (ReAct 추천 챗봇) 신설
+
+`ai_agent_re_Act_Pattern` 레퍼런스 기반으로 정식 LangGraph ReAct 그래프(`chatbot ⇄ tools` 순환 + NOT_FOUND `route_after_tools` fallback)를 신규 패키지 `backend/src/services/recommend_react/`(domain/tools/graph/persist)로 구현. **recommend_v2는 무변경 폴백으로 유지**(검증 후 삭제 예정). 슬롯 머신(need_more/confirmation/충돌판정) 제거 — 조건 누적·교체는 LLM이 DB 대화이력 맥락으로 판단(langgraph checkpointer 미사용). 도구 5종(SearchMedia/ExplainMedia/CreateProposal/AddMedia/RenameProposal)이 기존 이벤트 계약(list/proposal/media_detail/chat)을 그대로 방출 → 매체카드/제안서카드 재사용. 비교·최저가·예산플랜은 전용 도구 없이 추론으로 커버(§5.1). 잡 경로에 `version` 분기 추가(`ai_job_service`·`lambda_handler`, v2 로직 무변경), 새 라우터 `/recommend/react/jobs`, Lambda 의존성에 `langgraph` 추가. 프런트 `hooks/adRecommendReact`(useV2Chat 최소 diff 복제, 엔드포인트만 react) + `AiChatPanel` 스위치. 백엔드 86 tests 통과(v2 회귀 없음)·프런트 tsc 통과. **라이브 E2E(OpenAI+DB)는 사용자 환경에서 미검증**. 설계·계획: [spec](superpowers/specs/2026-07-22-recommend-react-design.md) · [plan](superpowers/plans/2026-07-22-recommend-react.md)
+
 ## 2026-07-22 — media_image 통합 Phase 1 완료
 
 `media_image`를 매체 이미지 단일 소스로 컷오버. `media_items.media_id` FK 신설+백필(913/913 매칭, Alembic 035). recommend_v2/media_service/proposal_service 이미지 소스를 media_image로 전환, 프론트 매체 이미지 `<img>`→next/image(리스트 소형/상세 대형) + `mediaSrc` 헬퍼로 `/uploads` 절대화. 백엔드 72 tests·프론트 build 통과. 외부(houseofooh) URL 삭제(Phase 2)는 운영 배포·검증 후. 설계·계획: [spec](superpowers/specs/2026-07-22-media-image-unification-design.md) · [plan](superpowers/plans/2026-07-22-media-image-unification.md)

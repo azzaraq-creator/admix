@@ -18,5 +18,8 @@ langchain-core>=0.3,<0.4
 langchain-openai>=0.2,<0.3
 openai>=1.50,<2
 
+# LangGraph (recommend_react ReAct 그래프 — Lambda consumer가 graph.invoke 실행)
+langgraph>=0.2,<0.3
+
 # AWS
 boto3>=1.35,<2

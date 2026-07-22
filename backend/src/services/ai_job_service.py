@@ -74,20 +74,21 @@ def _check_chat_limit(db: Session, session_id: str | None) -> dict | None:
 
 
 def enqueue_recommend_job(
-    db: Session, *, message: str, top_k: int, session_id: str | None
+    db: Session, *, message: str, top_k: int, session_id: str | None, version: str = "v2"
 ) -> AiRecommendJob:
     """job 레코드 생성 후 SQS FIFO 에 enqueue.
 
     MessageGroupId=session_id(없으면 job_id) → 세션별 순서 보장.
     MessageDeduplicationId=job_id → 중복 전송 방지.
     한도 초과 시 파이프라인을 실행하지 않고 즉시 done + limit_reached 로 반환.
+    version: "v2"(슬롯 파이프라인) | "react"(ReAct 그래프) — consumer 분기용.
     """
     limit_event = _check_chat_limit(db, session_id)
     if limit_event is not None:
         job = AiRecommendJob(
             session_id=_to_uuid(session_id),
             status="done",
-            request={"message": message, "top_k": top_k},
+            request={"message": message, "top_k": top_k, "version": version},
             result={"events": [limit_event]},
         )
         db.add(job)
@@ -98,7 +99,7 @@ def enqueue_recommend_job(
     job = AiRecommendJob(
         session_id=_to_uuid(session_id),
         status="pending",
-        request={"message": message, "top_k": top_k},
+        request={"message": message, "top_k": top_k, "version": version},
     )
     db.add(job)
     db.commit()
@@ -110,7 +111,7 @@ def enqueue_recommend_job(
     # Lambda 컨슈머와 동일한 process_recommend_job 을 재사용해 파리티 유지.
     if not settings.sqs_queue_url:
         process_recommend_job(
-            db, job, message=message, top_k=top_k, session_id=session_id
+            db, job, message=message, top_k=top_k, session_id=session_id, version=version
         )
         db.refresh(job)
         return job
@@ -123,6 +124,7 @@ def enqueue_recommend_job(
                 "session_id": session_id,
                 "message": message,
                 "top_k": top_k,
+                "version": version,
             }
         ),
         MessageGroupId=session_id or str(job.id),
@@ -226,17 +228,27 @@ def process_recommend_job(
     message: str,
     top_k: int,
     session_id: str | None,
+    version: str = "v2",
 ) -> None:
     """job 을 동기 처리 — 추천 파이프라인 실행 후 결과 기록.
 
     Lambda 컨슈머(lambda_handler)와 로컬 인라인 폴백(enqueue_recommend_job)이 공용.
+    version="react" 면 ReAct 그래프, 그 외엔 기존 v2 슬롯 파이프라인.
     파이프라인 내부 오류는 result['error'] 로 반환돼 job.status=failed 로 기록된다.
     """
     import asyncio
 
+    mark_processing(db, job)
+
+    if version == "react":
+        from src.services.recommend_react import collect_events
+
+        result = collect_events(message, db, top_k=top_k, session_id=session_id)
+        finish_job(db, job, {"events": result["events"]}, result.get("error"))
+        return
+
     from src.services.recommend_v2 import collect_recommend_events
 
-    mark_processing(db, job)
     filter_context = load_filter_context(db, session_id)
     save_fn = make_save_filter_context_fn(session_id)
     result = asyncio.run(

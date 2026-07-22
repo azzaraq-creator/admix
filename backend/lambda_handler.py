@@ -3,7 +3,7 @@
 EC2(FastAPI)가 job 생성 후 SQS FIFO 에 enqueue → Lambda 가 이 핸들러로 consume.
 각 record 를 처리해 ai_recommend_jobs.result/status 를 갱신한다.
 
-메시지 body(JSON): {"job_id": str, "session_id": str|None, "message": str, "top_k": int}
+메시지 body(JSON): {"job_id": str, "session_id": str|None, "message": str, "top_k": int, "version": str}
 
 실패 처리:
   - job 로직 오류(추천 파이프라인 내부 error): job.status=failed 로 기록하고 record 는
@@ -33,6 +33,7 @@ def _process_record(record) -> None:
     session_id = body.get("session_id")
     message = body["message"]
     top_k = body.get("top_k", DEFAULT_TOP_K)
+    version = body.get("version", "v2")
 
     db = SessionLocal()
     try:
@@ -41,7 +42,7 @@ def _process_record(record) -> None:
             return
 
         process_recommend_job(
-            db, job, message=message, top_k=top_k, session_id=session_id
+            db, job, message=message, top_k=top_k, session_id=session_id, version=version
         )
     finally:
         db.close()
