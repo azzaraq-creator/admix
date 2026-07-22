@@ -64,6 +64,13 @@ def create_proposal(
     member_id, session_id = _owner(user, body.session_id)
     if member_id is None and session_id is None:
         raise HTTPException(status_code=400, detail="session_id 가 필요합니다.")
+    if proposal_service.title_exists(
+        db, member_id=member_id, session_id=session_id, title=body.title
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"reason": "duplicate_name"},
+        )
     try:
         p = proposal_service.create_proposal(
             db, body.title, member_id=member_id, session_id=session_id, user=user
@@ -139,6 +146,17 @@ def rename_proposal(
     user: Optional[User] = Depends(get_current_user_optional),
 ):
     p = _get_owned_or_404(db, proposal_id, user, session_id)
+    if proposal_service.title_exists(
+        db,
+        member_id=p.member_id,
+        session_id=p.session_id,
+        title=body.title,
+        exclude_id=p.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"reason": "duplicate_name"},
+        )
     p = proposal_service.rename(db, p, body.title)
     return ProposalSummary(**proposal_service.to_summary(p))
 

@@ -31,6 +31,7 @@ import {
   useDeleteProposal,
   useProposalDetail,
   useRemoveProposalItem,
+  proposalErrorReason,
   useRenameProposal,
   useReorderProposal,
   useSubmitProposal,
@@ -97,7 +98,7 @@ export function ProposalDetailView({ id }: { id: string }) {
 function ProposalEditorView({ id }: { id: string }) {
   const router = useRouter();
   const { confirm, confirmDialog } = useConfirm();
-  const { success } = useSonner();
+  const { success, error } = useSonner();
 
   const { data: proposal } = useProposalDetail(id);
   const renameMutation = useRenameProposal();
@@ -355,7 +356,13 @@ function ProposalEditorView({ id }: { id: string }) {
     setEditing(false);
     const next = draft.trim();
     if (next && proposal && next !== proposal.title) {
-      void renameMutation.mutateAsync({ id, title: next });
+      renameMutation.mutateAsync({ id, title: next }).catch((err) => {
+        error(
+          proposalErrorReason(err) === "duplicate_name"
+            ? "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요."
+            : "이름을 변경하지 못했어요.",
+        );
+      });
     }
   };
 

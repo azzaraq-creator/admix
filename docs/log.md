@@ -4,6 +4,11 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-22 — 제안서 이름 중복검사 (생성·이름변경)
+
+- 같은 소유자(회원/세션)가 동일 이름 제안서를 만들거나 그 이름으로 변경 못 하게 차단. 백엔드 `proposal_service.title_exists`(삭제제외·`lower(trim)`·`exclude_id`) + 라우터 `POST /proposals`·`PATCH /proposals/{id}`에서 409 `{reason:"duplicate_name"}`. 챗봇(`recommend_v2` 직접 호출)·게스트 승계는 의도적 미적용. 프런트: `proposalErrorReason` 헬퍼 + AddToProposalModal·NewProposalModal 인라인에러 / ProposalDetailView 토스트. 문구 "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요.". 테스트 22개(단위5+API2 신규) 통과, tsc/eslint 통과.
+- **한도 도달 다이얼로그 통일**: `ProposalsView`에만 있던 `showLimitDialog`를 `hooks/proposals/useProposalLimitDialog` 공유 훅으로 추출 + `proposalLimitTier` 헬퍼. `AddToProposalModal`(담기 생성)도 한도 초과 시 동일 안내 다이얼로그 노출. Figma 2종은 여전히 보류(scrim만이라 재공유 필요, 문구는 기존 카피 유지). 상세: [proposal-name-duplicate-check](plans/2026-07-22-proposal-name-duplicate-check.md).
+
 ## 2026-07-22 — QA #4: fixed 지도 채팅 패널 접기 시 relayout 누락
 
 - fixed 페이지에서 채팅 패널 접기(`chatOpen=false`) 시 넓어진 영역이 지도로 안 채워지고 회색으로 남던 버그. 원인: `useKakaoMap.ts` ResizeObserver가 `becameVisible`(숨김→표시)에만 `map.relayout()` 호출 → 일반 너비 변경(패널 토글)엔 누락. 수정: 크기 변경(`sizeChanged`, 양수 유지)이면 항상 relayout, 재센터링/fit은 becameVisible에만. relayout이 중심·줌 보존해 지도 안 튐. `tsc`/eslint 통과. 브라우저 통합 동작이라 단위테스트 미작성. 상세: [qa-fixes](reviews/2026-07-22-qa-fixes.md) #4.

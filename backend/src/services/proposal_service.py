@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
@@ -91,6 +92,33 @@ def can_create_proposal(
     if limit is None:
         return True
     return _owner_count(db, member_id=member_id, session_id=session_id) < limit
+
+
+def title_exists(
+    db: Session,
+    *,
+    member_id: Optional[uuid.UUID],
+    session_id: Optional[uuid.UUID],
+    title: str,
+    exclude_id: Optional[uuid.UUID] = None,
+) -> bool:
+    """같은 소유자(회원/세션)가 동일 제목의 (삭제 안 된) 제안서를 이미 가졌는지.
+
+    비교는 앞뒤 공백 제거 + 대소문자 무시. exclude_id 는 rename 시 자기 자신 제외용.
+    """
+    norm = title.strip()
+    if not norm:
+        return False
+    q = db.query(Proposal.id)
+    if member_id is not None:
+        q = q.filter(Proposal.member_id == member_id)
+    else:
+        q = q.filter(Proposal.session_id == session_id)
+    q = q.filter(Proposal.deleted_at.is_(None))
+    q = q.filter(func.lower(func.trim(Proposal.title)) == norm.lower())
+    if exclude_id is not None:
+        q = q.filter(Proposal.id != exclude_id)
+    return db.query(q.exists()).scalar() is True
 
 
 def claim_guest_proposals(

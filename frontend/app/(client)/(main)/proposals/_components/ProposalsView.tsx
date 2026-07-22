@@ -7,11 +7,13 @@ import { Button } from "@/components/common/buttons";
 import { PlusIcon, SearchIcon } from "@/components/icons";
 import {
   isMember,
+  proposalErrorReason,
+  proposalLimitTier,
   proposalsClientApi,
   useCreateProposal,
   useDeleteProposal,
   useMyProposals,
-  type ProposalLimitDetail,
+  useProposalLimitDialog,
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ export function ProposalsView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
+  const { showLimitDialog, limitDialog } = useProposalLimitDialog();
 
   const proposals: Proposal[] = (data ?? []).map(toView);
   const keyword = query.trim();
@@ -39,37 +42,23 @@ export function ProposalsView() {
       (!keyword || proposal.title.includes(keyword)),
   );
 
-  const showLimitDialog = async (tier: ProposalLimitDetail["tier"]) => {
-    if (tier === "guest") {
-      const ok = await confirm({
-        title: "제안서 생성 한도 도달",
-        description:
-          "무료 체험용 제안서 생성 한도 1건을 모두 사용했어요.\n회원가입 후 더 많은 제안서를 생성하고 관리해 보세요.",
-        confirmText: "회원가입하기",
-      });
-      if (ok) router.push("/signup");
-    } else {
-      await confirm({
-        title: "제안서 생성 한도 도달",
-        description:
-          "제안서 생성 한도 5건을 모두 사용했어요.\n사업자 인증을 완료하면 무제한으로 이용할 수 있어요.",
-        confirmText: "프로필 이동",
-      });
-    }
-  };
-
   const handleNewProposal = () => setCreateOpen(true);
 
-  const handleCreate = async (name: string) => {
+  const handleCreate = async (name: string): Promise<string | null> => {
     try {
       await createMutation.mutateAsync(name);
+      return null;
     } catch (err) {
-      const detail = (
-        err as { response?: { status?: number; data?: { detail?: ProposalLimitDetail } } }
-      )?.response;
-      if (detail?.status === 409 && detail.data?.detail?.tier) {
-        await showLimitDialog(detail.data.detail.tier);
+      if (proposalErrorReason(err) === "duplicate_name") {
+        return "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요.";
       }
+      const tier = proposalLimitTier(err);
+      if (tier) {
+        // 한도 초과는 모달을 닫고 별도 안내 다이얼로그로. (await 안 함)
+        void showLimitDialog(tier);
+        return null;
+      }
+      return "제안서를 만들지 못했어요. 다시 시도해 주세요.";
     }
   };
 
@@ -189,6 +178,7 @@ export function ProposalsView() {
         onCreate={handleCreate}
       />
       {confirmDialog}
+      {limitDialog}
     </div>
   );
 }

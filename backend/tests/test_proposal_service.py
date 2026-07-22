@@ -7,6 +7,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
@@ -256,3 +257,109 @@ def test_deleted_proposal_frees_limit_slot(db, session, cleanup_proposals):
         )
         is True
     )
+
+
+# ---------- 제목 중복 검사 (title_exists) ----------
+
+
+def test_title_exists_same_owner_true(db, session):
+    ps.create_proposal(db, "플래닝A", session_id=session.id, user=None)
+    assert (
+        ps.title_exists(db, member_id=None, session_id=session.id, title="플래닝A")
+        is True
+    )
+
+
+def test_title_exists_trim_and_case_insensitive(db, session):
+    ps.create_proposal(db, "Plan A", session_id=session.id, user=None)
+    assert (
+        ps.title_exists(
+            db, member_id=None, session_id=session.id, title="  plan a  "
+        )
+        is True
+    )
+
+
+def test_title_exists_different_owner_false(db, session):
+    import uuid
+
+    ps.create_proposal(db, "플래닝A", session_id=session.id, user=None)
+    assert (
+        ps.title_exists(
+            db, member_id=None, session_id=uuid.uuid4(), title="플래닝A"
+        )
+        is False
+    )
+
+
+def test_title_exists_excludes_logically_deleted(db, session):
+    from datetime import datetime, timezone
+
+    p = ps.create_proposal(db, "플래닝A", session_id=session.id, user=None)
+    p.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    assert (
+        ps.title_exists(db, member_id=None, session_id=session.id, title="플래닝A")
+        is False
+    )
+
+
+def test_title_exists_exclude_id_allows_self_rename(db, session):
+    p = ps.create_proposal(db, "플래닝A", session_id=session.id, user=None)
+    # 자기 자신 제외 → 같은 이름으로 rename 허용
+    assert (
+        ps.title_exists(
+            db,
+            member_id=None,
+            session_id=session.id,
+            title="플래닝A",
+            exclude_id=p.id,
+        )
+        is False
+    )
+    # 제외하지 않으면 존재로 판정
+    assert (
+        ps.title_exists(db, member_id=None, session_id=session.id, title="플래닝A")
+        is True
+    )
+
+
+# ---------- 라우터 409 중복 계약 (API) ----------
+
+
+@pytest.fixture
+def client():
+    from fastapi import FastAPI
+
+    from src.routers.proposals_client import router
+
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app)
+
+
+def test_create_duplicate_returns_409(client, db, session):
+    sid = str(session.id)
+    r1 = client.post("/proposals", json={"title": "중복테스트", "session_id": sid})
+    assert r1.status_code == 201
+    r2 = client.post("/proposals", json={"title": "중복테스트", "session_id": sid})
+    assert r2.status_code == 409
+    assert r2.json()["detail"]["reason"] == "duplicate_name"
+
+
+def test_rename_duplicate_returns_409_and_self_ok(client, db, session):
+    sid = str(session.id)
+    # 게스트 한도 1건이라 서비스로 직접 2건 생성(enforce_limit=False).
+    ps.create_proposal(
+        db, "이름A", session_id=session.id, user=None, enforce_limit=False
+    )
+    b = ps.create_proposal(
+        db, "이름B", session_id=session.id, user=None, enforce_limit=False
+    )
+    # 다른 제안서 이름으로 변경 → 중복 409
+    r = client.patch(f"/proposals/{b.id}?session_id={sid}", json={"title": "이름A"})
+    assert r.status_code == 409
+    assert r.json()["detail"]["reason"] == "duplicate_name"
+    # 자기 자신은 제외되므로 동일 이름 유지 rename 은 허용(200)
+    r2 = client.patch(f"/proposals/{b.id}?session_id={sid}", json={"title": "이름B"})
+    assert r2.status_code == 200

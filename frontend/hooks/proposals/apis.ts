@@ -154,6 +154,27 @@ export interface ProposalLimitDetail {
   limit: number;
 }
 
+// 제안서 생성/이름변경 409 응답의 detail.reason 추출. 409 아니면 null.
+export function proposalErrorReason(err: unknown): string | null {
+  const res = (
+    err as { response?: { status?: number; data?: { detail?: { reason?: string } } } }
+  )?.response;
+  if (res?.status !== 409) return null;
+  return res.data?.detail?.reason ?? null;
+}
+
+// 한도 초과(409 limit_reached) 에러면 tier 반환, 아니면 null.
+export function proposalLimitTier(
+  err: unknown,
+): ProposalLimitDetail["tier"] | null {
+  const res = (
+    err as { response?: { status?: number; data?: { detail?: ProposalLimitDetail } } }
+  )?.response;
+  if (res?.status !== 409) return null;
+  const detail = res.data?.detail;
+  return detail?.reason === "limit_reached" ? detail.tier : null;
+}
+
 export const proposalsClientApi = {
   list: () =>
     api

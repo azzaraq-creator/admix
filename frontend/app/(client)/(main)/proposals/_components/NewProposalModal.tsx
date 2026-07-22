@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/common/buttons";
 import { XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export function NewProposalModal({
   open,
@@ -13,15 +14,31 @@ export function NewProposalModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (name: string) => void;
+  // 성공이면 null, 실패면 인라인으로 표시할 에러 문구를 반환.
+  onCreate: (name: string) => Promise<string | null>;
 }) {
   const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const trimmed = name.trim();
 
-  const handleCreate = () => {
-    if (!trimmed) return;
-    onCreate(trimmed);
+  const reset = () => {
     setName("");
+    setError(null);
+    setSubmitting(false);
+  };
+
+  const handleCreate = async () => {
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const message = await onCreate(trimmed);
+    setSubmitting(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    reset();
     onOpenChange(false);
   };
 
@@ -29,7 +46,7 @@ export function NewProposalModal({
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (!value) setName("");
+        if (!value) reset();
         onOpenChange(value);
       }}
     >
@@ -42,14 +59,25 @@ export function NewProposalModal({
             <XIcon className="size-[24px]" />
           </DialogClose>
         </div>
-        <div className="px-[30px]">
+        <div className="flex flex-col gap-[8px] px-[30px]">
           <input
             type="text"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              if (error) setError(null);
+            }}
             placeholder="제안서 이름을 입력해 주세요."
-            className="h-[54px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder"
+            className={cn(
+              "h-[54px] w-full rounded-[8px] border border-stroke px-[16px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder",
+              error && "border-red-500",
+            )}
           />
+          {error && (
+            <p className="text-sm font-medium leading-[20px] text-red-500">
+              {error}
+            </p>
+          )}
         </div>
         <div className="px-[30px] py-[20px]">
           <Button
@@ -57,7 +85,7 @@ export function NewProposalModal({
             size="lg"
             fullWidth
             onClick={handleCreate}
-            disabled={!trimmed}
+            disabled={!trimmed || submitting}
           >
             생성
           </Button>

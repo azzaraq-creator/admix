@@ -13,9 +13,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { adSessionsApi } from "@/hooks/adSessions";
 import {
   isMember,
+  proposalErrorReason,
+  proposalLimitTier,
   useAddProposalItems,
   useCreateProposal,
   useMyProposals,
+  useProposalLimitDialog,
 } from "@/hooks/proposals";
 import { getSessionId, setSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,7 @@ export function AddToProposalModal({
   const proposals = (data ?? []).filter((p) => isDraftProposal(p.status));
   const createProposal = useCreateProposal();
   const addItems = useAddProposalItems();
+  const { showLimitDialog, limitDialog } = useProposalLimitDialog();
 
   // 게스트인데 세션이 없으면(챗 미사용/세션 소실) 담기 전에 세션을 확보한다.
   // 세션이 없으면 제안서 조회가 비어 "제안서 없음"으로 오판되므로.
@@ -69,6 +73,7 @@ export function AddToProposalModal({
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,11 +93,24 @@ export function AddToProposalModal({
     const title = newName.trim();
     if (!title || creatingRef.current) return;
     creatingRef.current = true;
+    setNameError(null);
     createProposal.mutate(title, {
       onSuccess: (created) => {
         setCreating(false);
         setNewName("");
         setSelected((prev) => [...prev, created.id]);
+      },
+      onError: (err) => {
+        const tier = proposalLimitTier(err);
+        if (tier) {
+          void showLimitDialog(tier);
+          return;
+        }
+        setNameError(
+          proposalErrorReason(err) === "duplicate_name"
+            ? "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요."
+            : "제안서를 만들지 못했어요. 다시 시도해 주세요.",
+        );
       },
       onSettled: () => {
         creatingRef.current = false;
@@ -117,6 +135,7 @@ export function AddToProposalModal({
   };
 
   return (
+    <>
     <Dialog
       open
       onOpenChange={(next) => {
@@ -147,21 +166,33 @@ export function AddToProposalModal({
                 <input
                   autoFocus
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    if (nameError) setNameError(null);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       handleCreate();
                     }
                   }}
                   placeholder="제안서 이름을 입력해 주세요."
-                  className="w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#9ca3af] focus:border-primary"
+                  className={cn(
+                    "w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#9ca3af] focus:border-primary",
+                    nameError && "border-red-500 focus:border-red-500",
+                  )}
                 />
+                {nameError && (
+                  <p className="text-sm font-medium leading-[20px] text-red-500">
+                    {nameError}
+                  </p>
+                )}
                 <div className="flex justify-end gap-[8px]">
                   <button
                     type="button"
                     onClick={() => {
                       setCreating(false);
                       setNewName("");
+                      setNameError(null);
                     }}
                     className="rounded-[8px] bg-platinum-100 px-[16px] py-[8px] text-sm font-medium leading-[20px] text-black"
                   >
@@ -252,5 +283,7 @@ export function AddToProposalModal({
         </div>
       </DialogContent>
     </Dialog>
+      {limitDialog}
+    </>
   );
 }
