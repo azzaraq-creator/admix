@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-22 — QA 픽스 시작 (사이드바 로그인/프로필 버튼)
+
+- QA 지적 픽스 착수. #1 LNB 로그인/회원가입 버튼 아이콘–텍스트 gap `6→8px`, #2 로그인 이후 프로필 버튼 hover `primary-50→platinum-50`(다른 nav row와 통일). #3 사이드바 버튼 공통화(Option A) — `SIDEBAR_ROW_BASE` 상수 + `SidebarNavRow` 컴포넌트 추출(nav+help 사용), 프로필 버튼 base 공유, 로그인 버튼은 filled CTA 예외 유지. 전면 공통화·shadcn Button 재사용은 leaky/체계 불일치로 지양. 전부 behavior-preserving, `tsc`/`eslint` 통과. 프론트 테스트 인프라 없음 → CSS/구조 건은 lint/tsc 검증으로 갈음(브리틀 className 테스트 지양). 누적 로그: [qa-fixes](reviews/2026-07-22-qa-fixes.md).
+
 ## 2026-07-16 — 제안서 상태 라벨 개편 + 유저 삭제 논리삭제(soft delete)
 
 - **상태 라벨 붙여쓰기 + 고객/관리자 분리**: 고객은 작성중/제출완료/맞춤제안/계약완료(`StatusChip`), 관리자는 신규(=`execution_requested`)/맞춤제안/계약완료/취소. "집행 요청" 라벨 제거. 고객 목록 탭 5종(전체/작성중/제출완료/맞춤제안/계약완료)으로 분리(기존 `execution_requested`가 "맞춤제안" 탭에 섞이던 문제 해소).

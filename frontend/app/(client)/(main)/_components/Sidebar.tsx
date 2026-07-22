@@ -3,7 +3,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ComponentType, type MouseEvent, type SVGProps } from "react";
+import {
+  useState,
+  type ComponentType,
+  type MouseEvent,
+  type SVGProps,
+} from "react";
 
 import {
   AirplayIcon,
@@ -54,6 +59,48 @@ function LnbTooltip({ label, expanded }: { label: string; expanded: boolean }) {
   );
 }
 
+const SIDEBAR_ROW_BASE =
+  "flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors";
+
+const sidebarRowClass = (active: boolean) =>
+  `${SIDEBAR_ROW_BASE} ${active ? "bg-platinum-100" : "hover:bg-platinum-50"}`;
+
+const sidebarLabelClass = (expanded: boolean) =>
+  `pointer-events-none text-sm font-medium whitespace-nowrap transition-opacity duration-200 ${
+    expanded ? "opacity-100" : "opacity-0"
+  }`;
+
+function SidebarNavRow({
+  href,
+  label,
+  Icon,
+  active,
+  expanded,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  active: boolean;
+  expanded: boolean;
+  onClick: (event: MouseEvent) => void;
+}) {
+  return (
+    <>
+      <Link
+        href={href}
+        aria-label={label}
+        onClick={onClick}
+        className={sidebarRowClass(active)}
+      >
+        <Icon className="size-[24px] shrink-0" />
+        <span className={sidebarLabelClass(expanded)}>{label}</span>
+      </Link>
+      <LnbTooltip label={label} expanded={expanded} />
+    </>
+  );
+}
+
 export function Sidebar() {
   const expanded = useLnbExpanded();
   const pathname = usePathname();
@@ -87,15 +134,6 @@ export function Sidebar() {
     event.stopPropagation();
     if (window.innerWidth < 640) setOpen(false);
   };
-
-  const labelClass = `pointer-events-none text-sm font-medium whitespace-nowrap transition-opacity duration-200 ${
-    expanded ? "opacity-100" : "opacity-0"
-  }`;
-
-  const itemRowClass = (active: boolean) =>
-    `flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors ${
-      active ? "bg-platinum-100" : "hover:bg-platinum-50"
-    }`;
 
   return (
     <>
@@ -154,37 +192,30 @@ export function Sidebar() {
           )}
 
           <ul className="flex w-full flex-col gap-[12px]">
-            {MENU_ITEMS.map(({ key, label, Icon, href }) => {
-              const active = pathname?.startsWith(href) ?? false;
-              return (
-                <li key={key} className="group relative">
-                  <Link
-                    href={href}
-                    aria-label={label}
-                    onClick={handleNavClick}
-                    className={itemRowClass(active)}
-                  >
-                    <Icon className="size-[24px] shrink-0" />
-                    <span className={labelClass}>{label}</span>
-                  </Link>
-                  <LnbTooltip label={label} expanded={expanded} />
-                </li>
-              );
-            })}
+            {MENU_ITEMS.map(({ key, label, Icon, href }) => (
+              <li key={key} className="group relative">
+                <SidebarNavRow
+                  href={href}
+                  label={label}
+                  Icon={Icon}
+                  active={pathname?.startsWith(href) ?? false}
+                  expanded={expanded}
+                  onClick={handleNavClick}
+                />
+              </li>
+            ))}
           </ul>
 
           <div className="flex w-full flex-col gap-[12px]">
             <div className="group relative">
-              <Link
+              <SidebarNavRow
                 href="/help"
-                aria-label="도움말"
+                label="도움말"
+                Icon={CircleAlertIcon}
+                active={isHelp}
+                expanded={expanded}
                 onClick={handleNavClick}
-                className={itemRowClass(isHelp)}
-              >
-                <CircleAlertIcon className="size-[24px] shrink-0" />
-                <span className={labelClass}>도움말</span>
-              </Link>
-              <LnbTooltip label="도움말" expanded={expanded} />
+              />
             </div>
             {me ? (
               <div className="group relative">
@@ -251,7 +282,7 @@ export function Sidebar() {
                     }
                     setProfileOpen((value) => !value);
                   }}
-                  className="flex w-full items-center gap-[6px] rounded-[8px] p-[12px] text-black transition-colors hover:bg-primary-50"
+                  className={`${SIDEBAR_ROW_BASE} hover:bg-platinum-50`}
                 >
                   <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-primary">
                     <UserIcon className="size-[14px] text-white" />
@@ -274,7 +305,7 @@ export function Sidebar() {
                   stop(event);
                   openLoginModal();
                 }}
-                className="flex w-full items-center justify-center gap-[6px] rounded-[8px] bg-primary p-[12px] text-white transition-colors hover:bg-primary-800 active:bg-primary-900"
+                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-primary p-[12px] text-white transition-colors hover:bg-primary-800 active:bg-primary-900"
               >
                 <LogInIcon className="size-[24px] shrink-0" />
                 <span
