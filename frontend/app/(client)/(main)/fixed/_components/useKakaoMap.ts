@@ -163,12 +163,19 @@ export function useKakaoMap({
       const map = mapRef.current;
       if (!map) return;
       const { width, height } = entries[0].contentRect;
-      const becameVisible =
-        width > 0 && height > 0 && (prevWidth === 0 || prevHeight === 0);
+      if (width === 0 || height === 0) {
+        prevWidth = width;
+        prevHeight = height;
+        return;
+      }
+      const becameVisible = prevWidth === 0 || prevHeight === 0;
+      const sizeChanged = width !== prevWidth || height !== prevHeight;
       prevWidth = width;
       prevHeight = height;
+      // 컨테이너 크기 변경(채팅 패널 접기/펼치기 등) 시 타일 재배치. relayout이 없으면
+      // 새로 드러난 영역이 회색으로 남는다. relayout은 중심/줌을 보존해 지도가 튀지 않는다.
+      if (sizeChanged) map.relayout();
       if (becameVisible) {
-        map.relayout();
         // 모바일: 지도가 숨김(크기 0)으로 생성돼 센터가 어긋나므로, 보이게 될 때 재센터링.
         const maps = window.kakao?.maps;
         const mt = moveTargetRef.current;

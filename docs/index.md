@@ -71,7 +71,7 @@
 | 날짜 | 문서 | 요약 |
 |------|------|------|
 | 2026-07-06 | [backend-db-code-review](reviews/2026-07-06-backend-db-code-review.md) | 백엔드/DB 전면 코드리뷰 — CRITICAL 6건(admin·FAQ 인증부재, 재설정토큰 노출, OAuth state 부재, ad_sessions 마이그레이션 누락, 추천엔진 스레드 세션공유) 외 심각도별 정리 + 백엔드 인가 개념 |
-| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE) |
+| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE), #4 fixed 지도 패널 접기 시 relayout 누락 |
 
 ## 스킬 (skills/)
 

@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-22 — QA #4: fixed 지도 채팅 패널 접기 시 relayout 누락
+
+- fixed 페이지에서 채팅 패널 접기(`chatOpen=false`) 시 넓어진 영역이 지도로 안 채워지고 회색으로 남던 버그. 원인: `useKakaoMap.ts` ResizeObserver가 `becameVisible`(숨김→표시)에만 `map.relayout()` 호출 → 일반 너비 변경(패널 토글)엔 누락. 수정: 크기 변경(`sizeChanged`, 양수 유지)이면 항상 relayout, 재센터링/fit은 becameVisible에만. relayout이 중심·줌 보존해 지도 안 튐. `tsc`/eslint 통과. 브라우저 통합 동작이라 단위테스트 미작성. 상세: [qa-fixes](reviews/2026-07-22-qa-fixes.md) #4.
+
 ## 2026-07-22 — QA 픽스 시작 (사이드바 로그인/프로필 버튼)
 
 - QA 지적 픽스 착수. #1 LNB 로그인/회원가입 버튼 아이콘–텍스트 gap `6→8px`, #2 로그인 이후 프로필 버튼 hover `primary-50→platinum-50`(다른 nav row와 통일). #3 사이드바 버튼 공통화(Option A) — `SIDEBAR_ROW_BASE` 상수 + `SidebarNavRow` 컴포넌트 추출(nav+help 사용), 프로필 버튼 base 공유, 로그인 버튼은 filled CTA 예외 유지. 전면 공통화·shadcn Button 재사용은 leaky/체계 불일치로 지양. 전부 behavior-preserving, `tsc`/`eslint` 통과. 프론트 테스트 인프라 없음 → CSS/구조 건은 lint/tsc 검증으로 갈음(브리틀 className 테스트 지양). 누적 로그: [qa-fixes](reviews/2026-07-22-qa-fixes.md).
