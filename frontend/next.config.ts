@@ -7,8 +7,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "http", hostname: "localhost", port: "8001", pathname: "/uploads/**" },
-      // TODO(배포 전): 운영 백엔드 호스트로 교체 — PLACEHOLDER
-      { protocol: "https", hostname: "PROD_API_HOST_PLACEHOLDER", pathname: "/uploads/**" },
+      { protocol: "https", hostname: "43-201-172-34.sslip.io", pathname: "/uploads/**" },
     ],
   },
 };
