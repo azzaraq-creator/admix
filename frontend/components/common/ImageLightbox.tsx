@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ChevronLeftIcon, XIcon } from "@/components/icons";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type ImageLightboxProps = {
@@ -15,7 +16,7 @@ type ImageLightboxProps = {
 function Placeholder({ src }: { src?: string | null }) {
   if (!src) return <div className="size-full bg-[#d9d9d9]" />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" className="size-full object-contain" />;
+  return <img src={mediaSrc(src)} alt="" className="size-full object-contain" />;
 }
 
 export function ImageLightbox({

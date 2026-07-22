@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { PlusIcon } from "@/components/icons";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type MediaDetailImagesProps = {
@@ -38,7 +39,7 @@ function ImageCell({
     >
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="size-full object-cover" />
+        <img src={mediaSrc(src)} alt="" className="size-full object-cover" />
       )}
       {children}
     </button>
