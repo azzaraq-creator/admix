@@ -4,6 +4,14 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-22 — media_image 통합 Phase 1 완료
+
+`media_image`를 매체 이미지 단일 소스로 컷오버. `media_items.media_id` FK 신설+백필(913/913 매칭, Alembic 035). recommend_v2/media_service/proposal_service 이미지 소스를 media_image로 전환, 프론트 매체 이미지 `<img>`→next/image(리스트 소형/상세 대형) + `mediaSrc` 헬퍼로 `/uploads` 절대화. 백엔드 72 tests·프론트 build 통과. 외부(houseofooh) URL 삭제(Phase 2)는 운영 배포·검증 후. 설계·계획: [spec](superpowers/specs/2026-07-22-media-image-unification-design.md) · [plan](superpowers/plans/2026-07-22-media-image-unification.md)
+
+## 2026-07-22 — 매체 검색 빈 결과 화면 (fixed 검색패널 · moving)
+
+- 필터/검색 후 결과 0건일 때 빈 상태 노출. 중앙 정렬 회색 로고(42px, `grayscale`) + 2줄 안내("조건에 맞는 광고 매체를 찾지 못했어요." / "지역이나 검색 조건을 변경해 다시 찾아보세요.", grey-500 text-sm). 공유 컴포넌트 `components/common/MediaEmptyResults.tsx` 신설 → `MediaSearchPanel`(fixed)·`MovingView`(moving) 공용. 로딩 중 깜빡임 방지로 `!isLoading && length===0`에만 표시. Figma 2086:34689 기반(로고는 asset 만료URL이라 기존 `Logo`에 grayscale 필터로 대체). tsc/eslint 통과.
+
 ## 2026-07-22 — 제안서 이름 중복검사 (생성·이름변경)
 
 - 같은 소유자(회원/세션)가 동일 이름 제안서를 만들거나 그 이름으로 변경 못 하게 차단. 백엔드 `proposal_service.title_exists`(삭제제외·`lower(trim)`·`exclude_id`) + 라우터 `POST /proposals`·`PATCH /proposals/{id}`에서 409 `{reason:"duplicate_name"}`. 챗봇(`recommend_v2` 직접 호출)·게스트 승계는 의도적 미적용. 프런트: `proposalErrorReason` 헬퍼 + AddToProposalModal·NewProposalModal 인라인에러 / ProposalDetailView 토스트. 문구 "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요.". 테스트 22개(단위5+API2 신규) 통과, tsc/eslint 통과.
