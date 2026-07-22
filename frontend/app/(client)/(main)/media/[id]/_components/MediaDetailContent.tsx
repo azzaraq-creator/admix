@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
@@ -7,6 +8,7 @@ import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
 import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
 import { ChevronDownIcon, FolderIcon, MaximizeIcon } from "@/components/icons";
+import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 const DESCRIPTION =
@@ -138,10 +140,16 @@ export function MediaDetailContent({
   return (
     <div className={cn("flex flex-col items-center", className ?? "px-[100px] py-[80px]")}>
       <div className="flex w-full max-w-[1016px] flex-col">
-        <div className="h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
+        <div className="relative h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
           {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" className="size-full object-cover" />
+            <Image
+              src={mediaSrc(imageUrl)}
+              alt=""
+              fill
+              sizes="(max-width: 640px) 100vw, 1016px"
+              unoptimized={!isOptimizable(mediaSrc(imageUrl))}
+              className="object-cover"
+            />
           )}
         </div>
 

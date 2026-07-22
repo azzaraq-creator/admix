@@ -9,6 +9,7 @@ import {
   toChipFilterParams,
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
+import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
 import {
   useMediaDetail,
@@ -28,7 +29,7 @@ export function MovingView() {
   const [filter, setFilter] = useState<MediaFilterState>(EMPTY_MEDIA_FILTER);
   const { data: opts } = useMovingFilterOptions();
   const { optionsByKey, price } = buildFilterUi(opts);
-  const { data } = useMovingMediaList(toChipFilterParams(filter));
+  const { data, isLoading } = useMovingMediaList(toChipFilterParams(filter));
   const mediaList: MovingMediaData[] = (data?.items ?? []).map((item) => ({
     id: item.id,
     name: item.name,
@@ -77,19 +78,23 @@ export function MovingView() {
           price={price}
         />
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(228px,1fr))]">
-            {mediaList.map((media) => (
-              <MovingMediaCard
-                key={media.id}
-                data={media}
-                selected={media.id === selectedId}
-                onClick={() => {
-                  setSelectedId(media.id);
-                  setDetailOpen(true);
-                }}
-              />
-            ))}
-          </div>
+          {!isLoading && mediaList.length === 0 ? (
+            <MediaEmptyResults />
+          ) : (
+            <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(228px,1fr))]">
+              {mediaList.map((media) => (
+                <MovingMediaCard
+                  key={media.id}
+                  data={media}
+                  selected={media.id === selectedId}
+                  onClick={() => {
+                    setSelectedId(media.id);
+                    setDetailOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -98,7 +103,9 @@ export function MovingView() {
           detailOpen ? "block" : "hidden"
         }`}
       >
-        {selected && (
+        {!selected ? (
+          <MediaEmptyResults iconOnly />
+        ) : (
           <>
             <MobileMediaDetail
               name={selected.name}

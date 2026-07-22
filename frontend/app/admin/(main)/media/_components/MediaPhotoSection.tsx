@@ -1,6 +1,7 @@
 "use client";
 
 import { Upload } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useRef } from "react";
 
 import { XIcon } from "@/components/icons";
@@ -131,10 +132,13 @@ export function MediaPhotoSection({
 function Thumbnail({ src, onDelete }: { src: string; onDelete: () => void }) {
   return (
     <div className="relative flex size-[200px] shrink-0 flex-col items-end rounded-[8px] p-[16px]">
-      <img
+      <Image
         src={src}
         alt=""
-        className="pointer-events-none absolute inset-0 size-full rounded-[8px] object-cover"
+        fill
+        sizes="200px"
+        unoptimized={!src.includes("/uploads/")}
+        className="pointer-events-none rounded-[8px] object-cover"
       />
       <button
         type="button"

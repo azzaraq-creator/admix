@@ -506,6 +506,12 @@ def _recount(proposal: Proposal) -> None:
     proposal.total_amount = sum(it.price or 0 for it in proposal.items)
 
 
+def _rep_image_url(media: Media) -> str | None:
+    """media_image 대표 이미지 URL (is_thumbnail 우선, 없으면 sort_order 최소)."""
+    imgs = sorted(media.images, key=lambda i: (not i.is_thumbnail, i.sort_order))
+    return imgs[0].image_url if imgs else None
+
+
 def add_items(
     db: Session,
     proposal: Proposal,
@@ -532,7 +538,7 @@ def add_items(
                     media_id=mid,
                     name=media.name,
                     price=media.min_advertisement_fee_krw,
-                    thumbnail_url=media.thumbnail_url,
+                    thumbnail_url=_rep_image_url(media),
                     selected_plan_no=plans.get(mid) if plans else None,
                 )
             )

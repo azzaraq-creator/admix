@@ -71,15 +71,16 @@ def _media_card(m: Media) -> dict:
     name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
     # 카드 이미지: 썸네일 우선 → media_image(sort_order) 순, 중복 제거 후 최대 3장.
     images: list[str] = []
-    for url in [m.thumbnail_url, *(img.image_url for img in m.images)]:
+    for url in (img.image_url for img in m.images):
         if url and url not in images:
             images.append(url)
+    images = images[:3]
     return dict(
         id=m.media_id,
         name=name or "-",
         minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
-        thumbnailUrl=m.thumbnail_url,
-        images=images[:3],
+        thumbnailUrl=images[0] if images else None,
+        images=images,
         badge=_media_badge(m),
         lat=float(m.latitude) if m.latitude is not None else None,
         lng=float(m.longitude) if m.longitude is not None else None,
@@ -245,7 +246,7 @@ def _marker_from_row(r, lat: float, lng: float, img_map: dict) -> dict:
         badge = None
     # 카드 이미지: 썸네일 우선 → media_image(sort_order), 중복 제거 최대 3장 — 검색 리스트(_media_card)와 동일.
     images: list[str] = []
-    for url in [r.thumbnail_url, *img_map.get(r.media_id, [])]:
+    for url in img_map.get(r.media_id, []):
         if url and url not in images:
             images.append(url)
     images = images[:3]
