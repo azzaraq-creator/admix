@@ -63,7 +63,9 @@ function MediaOption({
       onClick={onClick}
       className={cn(
         "flex flex-1 items-center gap-[16px] rounded-[8px] p-[20px] text-left",
-        selected ? "border-2 border-primary bg-secondary" : "border border-stroke",
+        selected
+          ? "border-2 border-primary bg-secondary"
+          : "border border-stroke",
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
@@ -138,7 +140,12 @@ export function MediaDetailContent({
     : "";
 
   return (
-    <div className={cn("flex flex-col items-center", className ?? "px-[100px] py-[80px]")}>
+    <div
+      className={cn(
+        "flex flex-col items-center",
+        className ?? "px-[100px] py-[80px]",
+      )}
+    >
       <div className="flex w-full max-w-[1016px] flex-col">
         <div className="relative h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
           {imageUrl && (
@@ -189,28 +196,28 @@ export function MediaDetailContent({
             </div>
 
             {showPopulation && population && (
-            <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 py-[24px]">
-              <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                  월평균 유동인구 수
-                </p>
-                <p className="w-full text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                  {population.monthlyFootTraffic.toLocaleString()}
-                </p>
-              </div>
-              <div className="h-[52px] w-px self-stretch bg-stroke" />
-              <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                  주요 인구층
-                </p>
-                <div className="flex w-full items-center justify-center gap-[12px] whitespace-nowrap text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                  <span className="flex items-center gap-[4px]">
-                    <span>{primaryGender}</span>
-                    <span>{primaryAge}</span>
-                  </span>
+              <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 py-[24px]">
+                <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
+                  <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
+                    월평균 유동인구 수
+                  </p>
+                  <p className="w-full text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
+                    {population.monthlyFootTraffic.toLocaleString()}
+                  </p>
+                </div>
+                <div className="h-[52px] w-px self-stretch bg-stroke" />
+                <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
+                  <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
+                    주요 인구층
+                  </p>
+                  <div className="flex w-full items-center justify-center gap-[12px] whitespace-nowrap text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
+                    <span className="flex items-center gap-[4px]">
+                      <span>{primaryGender}</span>
+                      <span>{primaryAge}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </div>
 
@@ -233,7 +240,10 @@ export function MediaDetailContent({
               <span className="flex items-center gap-[4px] rounded-full bg-grey-50 px-[16px] py-[6px] text-[18px] leading-[28px] tracking-[-0.04px] text-black">
                 매체 설명 {descExpanded ? "접기" : "더보기"}
                 <ChevronDownIcon
-                  className={cn("size-[20px] transition-transform", descExpanded && "rotate-180")}
+                  className={cn(
+                    "size-[20px] transition-transform",
+                    descExpanded && "rotate-180",
+                  )}
                 />
               </span>
               <span className="h-px flex-1 bg-grey-50" />
@@ -241,37 +251,37 @@ export function MediaDetailContent({
           </div>
 
           {mediaList.length > 0 && (
-          <div className="flex flex-col gap-[24px]">
-            <SectionTitle>매체 목록</SectionTitle>
-            <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(196px,1fr))]">
-              {mediaList.map((item, index) => (
-                <MediaOption
-                  key={index}
-                  title={item.title}
-                  subtitle={item.subtitle}
-                  selected={selectedList === index}
-                  onClick={() => setSelectedList(index)}
-                />
-              ))}
+            <div className="flex flex-col gap-[24px]">
+              <SectionTitle>매체 목록</SectionTitle>
+              <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(332px,1fr))]">
+                {mediaList.map((item, index) => (
+                  <MediaOption
+                    key={index}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    selected={selectedList === index}
+                    onClick={() => setSelectedList(index)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
           )}
 
           {sizeText && (
-          <div className="flex flex-col gap-[24px]">
-            <SectionTitle>규격</SectionTitle>
-            <div className="flex items-center gap-[15px] rounded-[8px] border border-stroke p-[40px]">
-              <MaximizeIcon className="size-[58px] shrink-0 text-black" />
-              <div className="flex flex-col gap-[6px]">
-                <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                  사이즈 및 규격
-                </p>
-                <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
-                  {sizeText}
-                </p>
+            <div className="flex flex-col gap-[24px]">
+              <SectionTitle>규격</SectionTitle>
+              <div className="flex items-center gap-[15px] rounded-[8px] border border-stroke p-[40px]">
+                <MaximizeIcon className="size-[58px] shrink-0 text-black" />
+                <div className="flex flex-col gap-[6px]">
+                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
+                    사이즈 및 규격
+                  </p>
+                  <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
+                    {sizeText}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           <div className="flex flex-col gap-[24px]">
@@ -296,31 +306,34 @@ export function MediaDetailContent({
           </div>
 
           {showPopulation && population && (
-          <div className="flex flex-col gap-[24px]">
-            <SectionTitle>유동 인구 데이터</SectionTitle>
-            <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
-              <div className="flex flex-1 flex-col gap-[16px]">
-                <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
-                  성별 비율
-                </p>
-                <div className="flex flex-1 items-center justify-center">
-                  <GenderDonut male={population.malePct} female={population.femalePct} />
+            <div className="flex flex-col gap-[24px]">
+              <SectionTitle>유동 인구 데이터</SectionTitle>
+              <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
+                <div className="flex flex-1 flex-col gap-[16px]">
+                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
+                    성별 비율
+                  </p>
+                  <div className="flex flex-1 items-center justify-center">
+                    <GenderDonut
+                      male={population.malePct}
+                      female={population.femalePct}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-1 flex-col gap-[16px]">
-                <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
-                  연령대 비율
-                </p>
-                <div className="flex flex-1 items-center justify-center">
-                  <AgeBarChart
-                    data={population.ageRatios}
-                    maxBarHeight={240}
-                    className="w-full"
-                  />
+                <div className="flex flex-1 flex-col gap-[16px]">
+                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
+                    연령대 비율
+                  </p>
+                  <div className="flex flex-1 items-center justify-center">
+                    <AgeBarChart
+                      data={population.ageRatios}
+                      maxBarHeight={240}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </div>
