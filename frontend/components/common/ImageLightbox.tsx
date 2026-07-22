@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ChevronLeftIcon, XIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,11 @@ export function ImageLightbox({
   const prev = () => setIndex((i) => (i - 1 + total) % total);
   const next = () => setIndex((i) => (i + 1) % total);
 
-  return (
+  // 조상 stacking context(예: 드로어 부모의 z-10)에 갇히지 않도록 body로 portal.
+  // → 사이드바 등 전체 레이아웃 위에 오버레이가 뜬다.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal
@@ -93,6 +98,7 @@ export function ImageLightbox({
           </button>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
