@@ -55,6 +55,12 @@ class MediaItem(Base):
     advertisement_fee = Column(String(50), nullable=True)         # 원화 문자열 "10000000"
     thumbnail_url = Column(String(500), nullable=True)
     all_image_urls = Column(Text, nullable=True)                   # "url1 | url2"
+    media_id = Column(
+        String(20),
+        ForeignKey("media.media_id"),
+        nullable=True,
+        index=True,
+    )
     # 라벨 코드 배열 (Sheet2 코드 참조)
     ind_codes = Column(JSONB, nullable=False, default=list)         # ["IND-05", "IND-03"]
     prd_codes = Column(JSONB, nullable=False, default=list)         # ["PRD-06"]
