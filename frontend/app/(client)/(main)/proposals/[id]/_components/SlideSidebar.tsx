@@ -32,8 +32,8 @@ export function SlideSidebar({
   return (
     <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
       <div className="flex h-[48px] items-center px-[24px]">
-        <p className="text-sm font-medium leading-[20px] text-grey-500">
-          슬라이드 <span className="text-primary">{slides.length}</span>
+        <p className="text-sm leading-[20px] text-black font-semibold">
+          슬라이드 {slides.length}
         </p>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
@@ -69,7 +69,7 @@ export function SlideSidebar({
                 )}
               >
                 {canEdit ? (
-                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-placeholder active:cursor-grabbing" />
+                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-gray-500 active:cursor-grabbing" />
                 ) : (
                   <span className="size-[16px] shrink-0" />
                 )}
@@ -81,12 +81,7 @@ export function SlideSidebar({
                     <button
                       type="button"
                       onClick={() => onSelect(slide.id)}
-                      className={cn(
-                        "group relative aspect-[1920/1080] w-full overflow-hidden rounded-[8px]",
-                        selectedId === slide.id
-                          ? "ring-2 ring-inset ring-primary"
-                          : "ring-1 ring-inset ring-stroke",
-                      )}
+                      className="group relative aspect-[1920/1080] w-full overflow-hidden rounded-[8px]"
                     >
                       {renderThumb(slide)}
                       {canEdit && (
@@ -103,6 +98,15 @@ export function SlideSidebar({
                           <TrashIcon className="size-[14px]" />
                         </span>
                       )}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute inset-0 rounded-[8px] border-solid",
+                          selectedId === slide.id
+                            ? "border-[3px] border-primary"
+                            : "border-[1px] border-stroke",
+                        )}
+                      />
                     </button>
                     <p className="text-center text-sm font-medium leading-[20px] text-black">
                       {slide.name}

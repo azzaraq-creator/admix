@@ -49,8 +49,14 @@ import { SlideSidebar } from "./SlideSidebar";
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
 import { StatusChip } from "@/components/proposals/StatusChip";
-import { SummarySlide, SummaryThumb } from "@/components/proposals/SummaryTemplate";
-import { ThanksSlide, ThanksThumb } from "@/components/proposals/ThanksTemplate";
+import {
+  SummarySlide,
+  SummaryThumb,
+} from "@/components/proposals/SummaryTemplate";
+import {
+  ThanksSlide,
+  ThanksThumb,
+} from "@/components/proposals/ThanksTemplate";
 
 const PREVIEW = "/proposals/sample.png";
 const SUMMARY_PAGE_SIZE = 5;
@@ -404,7 +410,8 @@ function ProposalEditorView({ id }: { id: string }) {
       await reorderMutation.mutateAsync({
         id,
         mediaIds,
-        plans: Object.keys(selectedPlans).length > 0 ? selectedPlans : undefined,
+        plans:
+          Object.keys(selectedPlans).length > 0 ? selectedPlans : undefined,
         dates: Object.keys(dateEntries).length > 0 ? dateEntries : undefined,
         quantities:
           Object.keys(selectedQuantities).length > 0
@@ -532,7 +539,10 @@ function ProposalEditorView({ id }: { id: string }) {
                   onChange={(event) => setDraft(event.target.value)}
                   onBlur={commitRename}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing
+                    ) {
                       commitRename();
                     }
                   }}
@@ -638,7 +648,7 @@ function ProposalEditorView({ id }: { id: string }) {
               onPointerUp={handlePreviewPanEnd}
               onPointerCancel={handlePreviewPanEnd}
               className={cn(
-                "flex min-h-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-white p-[40px]",
+                "flex min-h-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#F0F0F1] p-[40px]",
                 grabbing ? "cursor-grabbing select-none" : "cursor-grab",
               )}
             >
