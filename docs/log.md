@@ -11,6 +11,7 @@
 ## 2026-07-22 — 매체 검색 빈 결과 화면 (fixed 검색패널 · moving)
 
 - 필터/검색 후 결과 0건일 때 빈 상태 노출. 중앙 정렬 회색 로고(42px, `grayscale`) + 2줄 안내("조건에 맞는 광고 매체를 찾지 못했어요." / "지역이나 검색 조건을 변경해 다시 찾아보세요.", grey-500 text-sm). 공유 컴포넌트 `components/common/MediaEmptyResults.tsx` 신설 → `MediaSearchPanel`(fixed)·`MovingView`(moving) 공용. 로딩 중 깜빡임 방지로 `!isLoading && length===0`에만 표시. Figma 2086:34689 기반(로고는 asset 만료URL이라 기존 `Logo`에 grayscale 필터로 대체). tsc/eslint 통과.
+- moving **상세 패널**도 선택 매체 없을 때(결과 0건 등) 빈 상태 노출 — 텍스트 없이 **로고만**(`MediaEmptyResults iconOnly`). Figma 2089:39235 기반.
 
 ## 2026-07-22 — 제안서 이름 중복검사 (생성·이름변경)
 

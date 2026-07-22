@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
 import { MediaItem, type MediaItemData } from "@/components/common/MediaItem";
 import {
   useFixedClusters,
@@ -98,7 +99,7 @@ export function MediaSearchPanel({
     swLng: bounds?.swLng ?? null,
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFixedMediaInfinite(listFilters);
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const searchResults: MediaItemData[] = rows.map((row) => ({
@@ -212,19 +213,23 @@ export function MediaSearchPanel({
         price={price}
       />
       <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex flex-col">
-          {searchResults.map((item) => (
-            <MediaItem
-              key={item.id}
-              {...item}
-              selected={item.id === selectedId}
-              onClick={() => handleItemClick(item)}
-              onAddProposal={() => onAddProposal?.(item.id)}
-              className="rounded-none border-0 border-b"
-            />
-          ))}
-          <div ref={sentinelRef} className="h-px w-full" />
-        </div>
+        {!isLoading && searchResults.length === 0 ? (
+          <MediaEmptyResults />
+        ) : (
+          <div className="flex flex-col">
+            {searchResults.map((item) => (
+              <MediaItem
+                key={item.id}
+                {...item}
+                selected={item.id === selectedId}
+                onClick={() => handleItemClick(item)}
+                onAddProposal={() => onAddProposal?.(item.id)}
+                className="rounded-none border-0 border-b"
+              />
+            ))}
+            <div ref={sentinelRef} className="h-px w-full" />
+          </div>
+        )}
       </div>
     </>
   );
