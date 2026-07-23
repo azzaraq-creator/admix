@@ -317,6 +317,7 @@ export function FixedMediaView({
               items={groupItems}
               onSelect={(item) => {
                 setSelectedMedia(item);
+                setFocusId(item.id);
                 setGroupPopup(null);
               }}
               onAddProposal={(item) => setAddProposalMediaId(item.id)}
@@ -362,7 +363,12 @@ export function FixedMediaView({
             onSelectMedia={setSelectedMedia}
             selectedId={selectedMedia?.id}
             onRecommendations={handleRecommendations}
-            onFocusMedia={setFocusId}
+            onFocusMedia={(id) => {
+              // 챗에서 선택 시 열려있던 지도 팝업/그룹리스트는 닫는다(잔존 방지).
+              setPopupId(null);
+              setGroupPopup(null);
+              setFocusId(id);
+            }}
             onOpenDetail={handleOpenDetail}
             onAddProposal={(id) => setAddProposalMediaId(id)}
             onMapData={handleMapData}

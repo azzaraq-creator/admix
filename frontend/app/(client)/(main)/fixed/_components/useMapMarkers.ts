@@ -127,10 +127,14 @@ export function useMapMarkers({
       el: HTMLDivElement;
       key: string;
       size: number;
+      memberIds: string[];
+      lat: number;
+      lng: number;
     }[]
   >([]);
   const imageCacheRef = useRef<Record<string, KakaoMarkerImage>>({});
   const shownFocusRef = useRef<string | undefined>(undefined);
+  const focusedGroupKeyRef = useRef<string | undefined>(undefined);
   const onMarkerClickRef = useRef(onMarkerClick);
   const onClusterClickRef = useRef(onClusterClick);
   const onGroupClickRef = useRef(onGroupClick);
@@ -159,6 +163,7 @@ export function useMapMarkers({
     groupOverlaysRef.current.forEach((o) => o.overlay.setMap(null));
     groupOverlaysRef.current = [];
     shownFocusRef.current = undefined;
+    focusedGroupKeyRef.current = undefined;
 
     const valid = markers.filter(
       (m) => typeof m.lat === "number" && typeof m.lng === "number",
@@ -216,7 +221,15 @@ export function useMapMarkers({
           clickable: true,
         });
         overlay.setMap(map);
-        groupOverlaysRef.current.push({ overlay, el, key, size });
+        groupOverlaysRef.current.push({
+          overlay,
+          el,
+          key,
+          size,
+          memberIds: members.map((mm) => mm.id),
+          lat: first.lat,
+          lng: first.lng,
+        });
       }
     });
 
@@ -272,13 +285,12 @@ export function useMapMarkers({
     });
   }, [clusters, mapReady, mapRef, programmaticMoveRef]);
 
-  // 겹침 그룹 배지 선택(팝업 열림) — 재생성 없이 흰링+확대만 토글.
+  // 겹침 그룹 배지 선택(팝업 열림 또는 포커스) — 재생성 없이 흰링+확대만 토글.
   useEffect(() => {
     for (const g of groupOverlaysRef.current) {
-      g.el.setAttribute(
-        "style",
-        numberPinCss(g.size, g.key === selectedGroupKey),
-      );
+      const sel =
+        g.key === selectedGroupKey || g.key === focusedGroupKeyRef.current;
+      g.el.setAttribute("style", numberPinCss(g.size, sel));
     }
   }, [selectedGroupKey]);
 
@@ -318,19 +330,40 @@ export function useMapMarkers({
       next.marker.setZIndex(10);
     }
 
-    if (next && focusCenter) {
-      const projection = map.getProjection();
-      const markerPoint = projection.containerPointFromCoords(
-        new maps.LatLng(next.data.lat, next.data.lng),
-      );
-      const center = projection.coordsFromContainerPoint(
-        new maps.Point(markerPoint.x - focusOffsetX, markerPoint.y),
-      );
-      map.setCenter(center);
+    // 개별 마커가 없으면(겹친 그룹 멤버) 그 그룹 배지를 하이라이트한다.
+    const nextGroup =
+      !next && focusId
+        ? groupOverlaysRef.current.find((g) => g.memberIds.includes(focusId))
+        : undefined;
+    const nextGroupKey = nextGroup?.key;
+    if (focusedGroupKeyRef.current !== nextGroupKey) {
+      focusedGroupKeyRef.current = nextGroupKey;
+      for (const g of groupOverlaysRef.current) {
+        const sel =
+          g.key === selectedGroupKeyRef.current || g.key === nextGroupKey;
+        g.el.setAttribute("style", numberPinCss(g.size, sel));
+      }
     }
 
-    // 마커를 찾았을 때만(또는 포커스 해제 시) 기록 → 이동·재조회로 마커가 늦게 생겨도 재포커스 가능.
-    if (next || focusId === undefined) {
+    // 재센터링 — 개별 마커 또는 그룹 위치 기준.
+    const center = next
+      ? { lat: next.data.lat, lng: next.data.lng }
+      : nextGroup
+        ? { lat: nextGroup.lat, lng: nextGroup.lng }
+        : null;
+    if (center && focusCenter) {
+      const projection = map.getProjection();
+      const markerPoint = projection.containerPointFromCoords(
+        new maps.LatLng(center.lat, center.lng),
+      );
+      const centered = projection.coordsFromContainerPoint(
+        new maps.Point(markerPoint.x - focusOffsetX, markerPoint.y),
+      );
+      map.setCenter(centered);
+    }
+
+    // 개별 마커·그룹을 찾았을 때(또는 포커스 해제 시) 기록 → 늦게 생겨도 재포커스 가능.
+    if (next || nextGroup || focusId === undefined) {
       shownFocusRef.current = focusId;
     }
   }, [focusId, focusOffsetX, focusCenter, markers, mapReady, mapRef, markerObjsRef]);
