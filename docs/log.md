@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-23 — 문의하기 제출 성공 토스트 + 토스트 배경 Figma 정렬 (QA #8)
+
+`InquiryModal` 제출 성공 시 "제출이 완료되었습니다." 토스트 추가. Figma 토스트 디자인(1036-26916)은 이미 `useSonner`로 구현된 프로젝트 표준이라, sonner 기본 `toast.success` 대신 `useSonner().success`로 교체. 배경 투명도만 Figma와 달라(`0.8`→`0.7`) `useSonner`에서 정렬(앱 전체 토스트 반영). warning/error색/챗봇 toast.error는 스코프 밖. tsc/eslint 통과. 정리: [qa-fixes #8](reviews/2026-07-22-qa-fixes.md).
+
 ## 2026-07-23 — 로그인 시 사이드바 도움말 중복 제거 (QA #7)
 
 로그인하면 도움말이 프로필 팝업 안으로 들어가는데, 사이드바 독립 도움말 행이 로그인 여부 무관하게 항상 렌더돼 중복 표시됐다. `Sidebar.tsx` 독립 도움말을 `{!me && ...}`로 감싸 비로그인일 때만 노출. tsc/eslint 통과. 정리: [qa-fixes #7](reviews/2026-07-22-qa-fixes.md).

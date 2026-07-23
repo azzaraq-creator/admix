@@ -6,6 +6,7 @@ import { Button } from "@/components/common/buttons";
 import { XIcon } from "@/components/icons";
 import { useMe, type MeResponse } from "@/hooks/auth";
 import { useCreateInquiry } from "@/hooks/inquiries";
+import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
 const CONTENT_PLACEHOLDER =
@@ -84,6 +85,7 @@ function InquiryForm({
   const [content, setContent] = useState("");
   const [attempted, setAttempted] = useState(false);
   const createInquiry = useCreateInquiry();
+  const { success } = useSonner();
 
   const validate = (): InquiryErrors => {
     const e: InquiryErrors = {};
@@ -113,7 +115,12 @@ function InquiryForm({
         phone: phone.trim(),
         company: company.trim() || undefined,
       },
-      { onSuccess: () => onClose() },
+      {
+        onSuccess: () => {
+          success("제출이 완료되었습니다.");
+          onClose();
+        },
+      },
     );
   };
 

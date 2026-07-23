@@ -10,7 +10,7 @@ export function useSonner() {
     toast.custom(
       (id) => (
         <div className="pb-[14px]">
-          <div className="flex w-[343px] items-center gap-[12px] rounded-[8px] bg-[rgba(0,0,0,0.8)] px-[24px] py-[16px]">
+          <div className="flex w-[343px] items-center gap-[12px] rounded-[8px] bg-[rgba(0,0,0,0.7)] px-[24px] py-[16px]">
             <div className="flex min-w-0 flex-1 items-center gap-[12px]">
               {icon}
               <p className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-white">
