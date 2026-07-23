@@ -7,7 +7,10 @@ export function mediaSrc(url: string): string {
   return url;
 }
 
-/** Next Image 최적화 대상 여부(로컬 /uploads 이미지). 외부 레거시 URL은 unoptimized 통과. */
+/** 우리 이미지 호스트(S3 퍼블릭 버킷) — next.config remotePatterns 와 일치. */
+const S3_IMAGE_HOST = "ooh-image-public.s3.ap-northeast-2.amazonaws.com";
+
+/** Next Image 최적화 대상 여부(우리 /uploads·S3 이미지). 그 외 외부 URL은 unoptimized 통과. */
 export function isOptimizable(url: string): boolean {
-  return url.includes("/uploads/");
+  return url.includes("/uploads/") || url.includes(S3_IMAGE_HOST);
 }

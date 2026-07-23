@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     aws_region: str = "ap-northeast-2"
     sqs_queue_url: str = ""  # admix-ai-jobs.fifo
 
+    # 매체 이미지 저장 S3 (퍼블릭 read 버킷)
+    s3_bucket: str = "ooh-image-public"
+
     # GA4 Data API (관리자 대시보드 홈 진입 수). 둘 중 하나라도 비면 GA4 집계 비활성(0 반환).
     ga4_property_id: str = ""  # 숫자 속성 ID (측정 ID G-XXXX 아님)
     ga4_credentials_path: str = ""  # 서비스 계정 JSON 경로 (비면 ADC/GOOGLE_APPLICATION_CREDENTIALS)

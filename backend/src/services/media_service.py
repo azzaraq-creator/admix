@@ -13,6 +13,7 @@ from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 
+import boto3
 from fastapi import HTTPException, UploadFile
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import (
@@ -39,6 +40,13 @@ from src.services.graph.settings import SANGWON_MAX_DISTANCE_M, SANGWON_QUARTER
 _MEDIA_AUTO_COLS = {"created_at", "updated_at"}
 _MEDIA_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 _MEDIA_IMAGE_MAX_BYTES = 10 * 1024 * 1024  # 10MB
+_MEDIA_IMAGE_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
 
 _SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
 _EXPOSURE_TYPE = {"INSIDE": "실내", "OUTSIDE": "실외"}
@@ -831,8 +839,31 @@ def delete_media(db: Session, media_id: str) -> None:
     db.commit()
 
 
+_s3_client_cache = None
+
+
+def _s3_client():
+    """S3 클라이언트(EC2 인스턴스 역할로 인증). 최초 1회 생성 후 재사용."""
+    global _s3_client_cache
+    if _s3_client_cache is None:
+        _s3_client_cache = boto3.client("s3", region_name=get_settings().aws_region)
+    return _s3_client_cache
+
+
+def _s3_public_url(bucket: str, region: str, key: str) -> str:
+    return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
+
+def _s3_key_from_url(url: str, bucket: str) -> str | None:
+    """S3 퍼블릭 URL 에서 object key 추출. 우리 버킷이 아니면(legacy /uploads 등) None."""
+    marker = f"https://{bucket}.s3."
+    if not url.startswith(marker) or ".amazonaws.com/" not in url:
+        return None
+    return url.split(".amazonaws.com/", 1)[1]
+
+
 def add_media_image(db: Session, media_id: str, file: UploadFile) -> dict:
-    """업로드 파일을 저장하고 media_image 행 추가. 첫 이미지는 대표(is_thumbnail)로.
+    """업로드 파일을 S3에 저장하고 media_image 행에 퍼블릭 URL 기록. 첫 이미지는 대표(is_thumbnail)로.
 
     thumbnail_url 컬럼은 건드리지 않는다(별도 텍스트 필드로 독립 관리).
     """
@@ -844,13 +875,15 @@ def add_media_image(db: Session, media_id: str, file: UploadFile) -> dict:
     if len(content) > _MEDIA_IMAGE_MAX_BYTES:
         raise HTTPException(status_code=400, detail="이미지 용량은 10MB 이하만 가능합니다.")
 
-    upload_dir = get_settings().upload_dir
-    rel_dir = os.path.join("media", media_id)
-    abs_dir = Path(upload_dir) / rel_dir
-    abs_dir.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid.uuid4().hex}{ext}"
-    (abs_dir / stored_name).write_bytes(content)
-    image_url = f"/uploads/{rel_dir}/{stored_name}"
+    settings = get_settings()
+    key = f"media/{media_id}/{uuid.uuid4().hex}{ext}"
+    _s3_client().put_object(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        Body=content,
+        ContentType=_MEDIA_IMAGE_CONTENT_TYPES.get(ext, "application/octet-stream"),
+    )
+    image_url = _s3_public_url(settings.s3_bucket, settings.aws_region, key)
 
     next_order = max((img.sort_order for img in m.images), default=-1) + 1
     is_first = len(m.images) == 0
@@ -877,6 +910,7 @@ def delete_media_image(db: Session, media_id: str, image_id: str) -> dict:
     if img is None:
         raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다.")
     was_thumb = img.is_thumbnail
+    image_url = img.image_url
     db.delete(img)
     db.flush()
     if was_thumb:
@@ -889,5 +923,15 @@ def delete_media_image(db: Session, media_id: str, image_id: str) -> dict:
         if remaining:
             remaining.is_thumbnail = True
     db.commit()
+
+    # DB 삭제 후 S3 객체 정리(legacy /uploads·외부 URL 은 스킵). 실패해도 요청은 성공 처리(고아 객체는 무해).
+    settings = get_settings()
+    key = _s3_key_from_url(image_url, settings.s3_bucket)
+    if key:
+        try:
+            _s3_client().delete_object(Bucket=settings.s3_bucket, Key=key)
+        except Exception:
+            pass
+
     db.refresh(m)
     return _serialize_media(m)
