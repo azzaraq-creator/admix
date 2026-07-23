@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-23 — 로그인 시 사이드바 도움말 중복 제거 (QA #7)
+
+로그인하면 도움말이 프로필 팝업 안으로 들어가는데, 사이드바 독립 도움말 행이 로그인 여부 무관하게 항상 렌더돼 중복 표시됐다. `Sidebar.tsx` 독립 도움말을 `{!me && ...}`로 감싸 비로그인일 때만 노출. tsc/eslint 통과. 정리: [qa-fixes #7](reviews/2026-07-22-qa-fixes.md).
+
 ## 2026-07-23 — 로그아웃 후 이전 사용자 세션·제안서 잔존 수정 (QA #6)
 
 로그아웃 핸들러(Sidebar·ProfileView 복붙 2곳)가 토큰+`me` 쿼리만 지우고, localStorage `SESSION_KEY`(채팅 복원+게스트 제안서 소유 공용)와 제안서 캐시를 안 지워 이전 사용자의 채팅/제안서가 복원됐다. `lib/session.ts`에 `clearSessionId()` 추가, `hooks/auth`에 `useLogout()` 훅 신설(토큰폐기→clearUserToken+clearSessionId+`queryClient.clear()`+홈이동)로 두 핸들러 통합. tsc/eslint 통과, 브라우저 미검증. 스코프 밖: 로그인 마이그레이션·`handleWithdraw` 동일 패턴은 미변경. 정리: [qa-fixes #6](reviews/2026-07-22-qa-fixes.md).

@@ -194,16 +194,18 @@ export function Sidebar() {
           </ul>
 
           <div className="flex w-full flex-col gap-[12px]">
-            <div className="group relative">
-              <SidebarNavRow
-                href="/help"
-                label="도움말"
-                Icon={CircleAlertIcon}
-                active={isHelp}
-                expanded={expanded}
-                onClick={handleNavClick}
-              />
-            </div>
+            {!me && (
+              <div className="group relative">
+                <SidebarNavRow
+                  href="/help"
+                  label="도움말"
+                  Icon={CircleAlertIcon}
+                  active={isHelp}
+                  expanded={expanded}
+                  onClick={handleNavClick}
+                />
+              </div>
+            )}
             {me ? (
               <div className="group relative">
                 {profileOpen && expanded && (
