@@ -6,7 +6,13 @@ export default function HomePage() {
   return (
     <main className="relative flex flex-1 overflow-hidden">
       {/* TODO: 메인이미지 반영필요  */}
-      {/* <Image src="" alt="" fill priority className="object-cover" /> */}
+      <Image
+        src="/images/home-hero.png"
+        alt=""
+        fill
+        priority
+        className="object-cover"
+      />
       <div className="absolute inset-0 bg-gradient-to-b from-[rgba(0,0,0,0.5)] to-[rgba(102,102,102,0.5)]" />
       <HomeContent />
     </main>
