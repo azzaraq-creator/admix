@@ -66,9 +66,16 @@ class CreateProposalArgs(BaseModel):
 
 
 class AddMediaArgs(BaseModel):
-    """직전 추천 매체를 현재 제안서에 담기."""
+    """직전 추천 매체를 제안서에 담기."""
 
     media_indices: list[int] = Field(default_factory=list, description="담을 1-based 번호")
+    proposal_name: Optional[str] = Field(
+        None,
+        description=(
+            "담을 대상 제안서 이름. 사용자가 특정 제안서를 지목했을 때만 채운다"
+            "(예: '여름캠페인에 담아줘'→'여름캠페인'). 지목 안 했으면 null."
+        ),
+    )
 
 
 class RenameProposalArgs(BaseModel):
@@ -142,15 +149,46 @@ def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[in
     return msg
 
 
-def _do_add_media(ctx: ReactContext, indices: list[int]) -> str:
+def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional[str] = None) -> str:
     member_id, owner_sid, _ = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
-    proposal = domain._get_active_or_latest(ctx.db, ctx.active_proposal_id, member_id, owner_sid)
-    if proposal is None:
-        return f"{NOT_FOUND_MARKER} 담을 제안서가 없습니다. 먼저 제안서를 만들어 주세요."
     media_ids = domain._media_ids_from_indices(ctx.last_items, indices)
     if not media_ids:
-        return f"{NOT_FOUND_MARKER} 담을 매체 번호가 명확하지 않습니다."
-    updated = domain._add_items_sync(ctx.db, proposal.id, member_id, owner_sid, media_ids) or proposal
+        # NOT_FOUND 마커를 쓰지 않는다(가드레일 fallback 오발동 방지) — LLM 이 되묻게 한다.
+        return "어떤 매체를 담을까요? 추천 목록에서 번호를 알려주세요 😊"
+
+    proposals = proposal_service.list_for_owner(ctx.db, member_id=member_id, session_id=owner_sid)
+
+    # 대상 제안서 결정: ① 없으면 생성 안내(담지 않음) → ② 지정 이름 → ③ 세션 active →
+    #                    ④ 유일 → ⑤ 여러 개인데 지정 없으면 되묻기(담지 않음)
+    if not proposals:
+        # 자동 생성하지 않고 사용자에게 제안서 생성을 안내한다(v2 동작). 마커 없음 → LLM 이 relay.
+        return (
+            "보유중인 제안서가 없어요. 먼저 제안서를 만들어야 담을 수 있어요. "
+            "어떤 이름으로 만들까요? (예: '여름캠페인으로 제안서 만들어줘')"
+        )
+    if proposal_name and proposal_name.strip():
+        name = proposal_name.strip()
+        matches = [p for p in proposals if name in (p.title or "") or (p.title or "") in name]
+        if len(matches) == 1:
+            target = matches[0]
+        elif not matches:
+            names_str = ", ".join(f"'{p.title}'" for p in proposals)
+            return f"'{name}' 제안서를 찾지 못했어요. 현재 제안서: {names_str}. 어디에 담을까요?"
+        else:
+            m = ", ".join(f"'{p.title}'" for p in matches)
+            return f"'{name}'와 비슷한 제안서가 여러 개예요: {m}. 정확한 이름을 알려주세요."
+    elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
+        target = next(p for p in proposals if str(p.id) == str(ctx.active_proposal_id))
+    elif len(proposals) == 1:
+        target = proposals[0]
+    else:
+        names_str = ", ".join(f"'{p.title}'" for p in proposals)
+        return (
+            f"제안서가 여러 개 있어요: {names_str}. 어느 제안서에 담을까요? "
+            "제안서 이름을 알려주세요 😊"
+        )
+
+    updated = domain._add_items_sync(ctx.db, target.id, member_id, owner_sid, media_ids) or target
     ctx.active_proposal_id = str(updated.id)
     msg = f"매체 {len(media_ids)}개를 '{updated.title}' 제안서에 담았어요."
     ctx.events.append(_proposal_event(updated, msg))
@@ -217,9 +255,9 @@ def build_tools(ctx: ReactContext) -> list:
         return _do_create_proposal(ctx, name, media_indices or [])
 
     @tool(args_schema=AddMediaArgs)
-    def AddMedia(media_indices=None):  # noqa: N802
-        """직전 매체를 현재 제안서에 담기."""
-        return _do_add_media(ctx, media_indices or [])
+    def AddMedia(media_indices=None, proposal_name=None):  # noqa: N802
+        """직전 매체를 제안서에 담기."""
+        return _do_add_media(ctx, media_indices or [], proposal_name)
 
     @tool(args_schema=RenameProposalArgs)
     def RenameProposal(new_name):  # noqa: N802

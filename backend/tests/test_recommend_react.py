@@ -125,6 +125,96 @@ def test_search_media_zero_results_not_found_no_event():
     assert ctx.events == []  # 0건이면 이벤트 없음 → fallback이 안내 담당
 
 
+# ===== AddMedia: 다중 제안서 애매성 처리 =====
+
+
+def _fake_proposal(pid, title, count=0):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(id=pid, title=title, media_count=count)
+
+
+def _add_ctx():
+    return ReactContext(
+        db=MagicMock(),
+        session_id="s",
+        top_k=20,
+        last_items=[{"id": "1", "media_id": "m1", "name": "강남빌보드"}],
+    )
+
+
+def test_add_media_multiple_proposals_asks(monkeypatch):
+    """제안서 여러 개 + active 없음 + 이름 없음 → 담지 않고 되묻는다."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [_fake_proposal("p1", "여름캠페인"), _fake_proposal("p2", "가을세일")])
+    ctx = _add_ctx()
+    out = tools._do_add_media(ctx, [1])
+    assert "여름캠페인" in out and "가을세일" in out
+    assert "어느 제안서" in out
+    assert ctx.events == []  # 담지 않음
+
+
+def test_add_media_no_proposal_prompts_create(monkeypatch):
+    """제안서가 하나도 없으면 자동 생성하지 않고 생성을 안내한다(담지 않음, 마커 없음)."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [])
+
+    def _should_not_create(*a, **k):
+        raise AssertionError("자동 생성하면 안 됨")
+
+    monkeypatch.setattr(tools.domain, "_create_proposal_sync", _should_not_create)
+    ctx = _add_ctx()
+    out = tools._do_add_media(ctx, [1])
+    assert "제안서" in out and "만들" in out  # 생성 안내
+    assert NOT_FOUND_MARKER not in out  # fallback 오발동 방지
+    assert ctx.events == []  # 담지 않음
+
+
+def test_add_media_by_name_targets_it(monkeypatch):
+    """이름 지정 시 해당 제안서에 담는다."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [_fake_proposal("p1", "여름캠페인"), _fake_proposal("p2", "가을세일")])
+    monkeypatch.setattr(tools.domain, "_add_items_sync", lambda db, pid, m, s, ids: _fake_proposal(pid, "가을세일", 1))
+    ctx = _add_ctx()
+    out = tools._do_add_media(ctx, [1], proposal_name="가을세일")
+    assert "가을세일" in out
+    assert ctx.events and ctx.events[-1]["type"] == "proposal"
+    assert ctx.events[-1]["proposal"]["id"] == "p2"
+
+
+def test_add_media_single_proposal_adds_directly(monkeypatch):
+    """제안서 1개면 되묻지 않고 담는다."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [_fake_proposal("only", "내제안서")])
+    monkeypatch.setattr(tools.domain, "_add_items_sync", lambda db, pid, m, s, ids: _fake_proposal(pid, "내제안서", 1))
+    ctx = _add_ctx()
+    out = tools._do_add_media(ctx, [1])
+    assert ctx.events[-1]["type"] == "proposal"
+    assert "내제안서" in out
+
+
+def test_add_media_active_proposal_used_without_asking(monkeypatch):
+    """세션 active 제안서가 있으면 여러 개여도 그걸로 담는다."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [_fake_proposal("p1", "여름캠페인"), _fake_proposal("p2", "가을세일")])
+    monkeypatch.setattr(tools.domain, "_add_items_sync", lambda db, pid, m, s, ids: _fake_proposal(pid, "여름캠페인", 1))
+    ctx = _add_ctx()
+    ctx.active_proposal_id = "p1"
+    out = tools._do_add_media(ctx, [1])
+    assert ctx.events[-1]["proposal"]["id"] == "p1"
+    assert "여름캠페인" in out
+
+
 # ===== Task 5: 라우팅 가드레일 =====
 
 
