@@ -84,6 +84,7 @@ export function MediaSearchPanel({
   const bounds = parseBounds(sp);
 
   const [location, setLocation] = useState("");
+  const [searchNotFound, setSearchNotFound] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -178,8 +179,17 @@ export function MediaSearchPanel({
   };
 
   const handleSearchSubmit = async () => {
+    if (!location.trim()) {
+      setSearchNotFound(false);
+      return;
+    }
     const center = await geocodeAddress(location);
-    if (center) onRequestMapMove?.(center);
+    if (center) {
+      setSearchNotFound(false);
+      onRequestMapMove?.(center);
+    } else {
+      setSearchNotFound(true);
+    }
   };
 
   useEffect(() => {
@@ -213,7 +223,7 @@ export function MediaSearchPanel({
         price={price}
       />
       <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
-        {!isLoading && searchResults.length === 0 ? (
+        {searchNotFound || (!isLoading && searchResults.length === 0) ? (
           <MediaEmptyResults />
         ) : (
           <div className="flex flex-col">
