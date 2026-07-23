@@ -31,9 +31,11 @@ export function ChatMediaList({
       </div>
       {items.map((it, idx) => {
         const id = it.media_id ?? it.id;
-        const images = [it.thumbnail_url, ...(it.detail_images ?? [])].filter(
-          (u): u is string => Boolean(u),
-        );
+        // thumbnail_url 은 detail_images[0] 과 동일하므로 중복 제거(이미지 이중 표시 방지)
+        const images: string[] = [];
+        for (const u of [it.thumbnail_url, ...(it.detail_images ?? [])]) {
+          if (u && !images.includes(u)) images.push(u);
+        }
         return (
           <MediaItem
             key={it.id}

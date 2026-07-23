@@ -121,6 +121,8 @@ export function AiChatPanel({
         lng: it.longitude as number,
         name: it.name,
         categoryLarge: it.category_large ?? null,
+        thumbnailUrl: it.thumbnail_url ?? null,
+        images: it.detail_images ?? [],
       }));
     onRecommendations(markers);
   }, [chat.messages, onRecommendations]);
