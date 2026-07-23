@@ -1,8 +1,7 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   useState,
   type ComponentType,
@@ -24,8 +23,7 @@ import {
   MapIcon,
   UserIcon,
 } from "@/components/icons";
-import { authApi, authKeys, useMe } from "@/hooks/auth";
-import { clearUserToken, getRefreshToken } from "@/lib/userToken";
+import { useLogout, useMe } from "@/hooks/auth";
 
 import { setLnbExpanded, useLnbExpanded } from "./useLnb";
 import { openLoginModal } from "./useLoginModal";
@@ -106,26 +104,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const isHelp = pathname?.startsWith("/help") ?? false;
 
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: me } = useMe();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const setOpen = setLnbExpanded;
 
+  const logout = useLogout();
   const handleLogout = async () => {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken); // 서버에서 refresh 토큰 폐기 (best-effort)
-      } catch {
-        // 폐기 실패해도 로컬 로그아웃은 진행
-      }
-    }
-    clearUserToken();
-    queryClient.removeQueries({ queryKey: authKeys.me });
     setProfileOpen(false);
-    router.push("/");
+    await logout();
   };
 
   const displayName = me?.name?.trim() ? me.name : "회원";

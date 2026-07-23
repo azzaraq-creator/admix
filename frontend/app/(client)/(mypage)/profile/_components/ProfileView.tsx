@@ -9,16 +9,16 @@ import { LicenseFileInfo } from "@/components/common/LicenseFileInfo";
 import { KakaoBrandIcon, NaverBrandIcon, UserIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
 import {
-  authApi,
   authKeys,
   useCancelBusinessRegistration,
+  useLogout,
   useMe,
   useUpdateProfile,
   useWithdraw,
 } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
 import { API_BASE_URL } from "@/lib/api";
-import { clearUserToken, getRefreshToken } from "@/lib/userToken";
+import { clearUserToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
 import { ContactEmailChangeModal } from "./ContactEmailChangeModal";
@@ -133,19 +133,8 @@ export function ProfileView() {
 
   const closeModal = () => setOpenModal(null);
 
-  const handleLogout = async () => {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken); // 서버에서 refresh 토큰 폐기 (best-effort)
-      } catch {
-        // 폐기 실패해도 로컬 로그아웃은 진행
-      }
-    }
-    clearUserToken();
-    queryClient.removeQueries({ queryKey: authKeys.me });
-    router.push("/");
-  };
+  const logout = useLogout();
+  const handleLogout = () => logout();
 
   const handleWithdraw = async () => {
     const ok = await confirm({

@@ -4,6 +4,18 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-23 — 로그아웃 후 이전 사용자 세션·제안서 잔존 수정 (QA #6)
+
+로그아웃 핸들러(Sidebar·ProfileView 복붙 2곳)가 토큰+`me` 쿼리만 지우고, localStorage `SESSION_KEY`(채팅 복원+게스트 제안서 소유 공용)와 제안서 캐시를 안 지워 이전 사용자의 채팅/제안서가 복원됐다. `lib/session.ts`에 `clearSessionId()` 추가, `hooks/auth`에 `useLogout()` 훅 신설(토큰폐기→clearUserToken+clearSessionId+`queryClient.clear()`+홈이동)로 두 핸들러 통합. tsc/eslint 통과, 브라우저 미검증. 스코프 밖: 로그인 마이그레이션·`handleWithdraw` 동일 패턴은 미변경. 정리: [qa-fixes #6](reviews/2026-07-22-qa-fixes.md).
+
+## 2026-07-23 — fixed 검색 지오코딩 실패 시 결과없음 표시 (QA #5)
+
+fixed 검색바는 매체를 검색하는 게 아니라 지도 위치를 옮기는 입력(리스트는 bbox로 조회)이라, 존재하지 않는 주소 검색 시 `geocodeAddress`가 `null`을 반환해도 지도가 안 움직여 직전 bbox 기본 리스트가 그대로 남았다. `MediaSearchPanel`에 `searchNotFound` 상태 추가 — 제출 시 지오코딩 실패면 `true`로 두고 `MediaEmptyResults` 표시(재입력·필터 변경으로는 리셋 안 함, 다음 제출 때만). 지도 마커는 이전 영역 유지(사용자 결정). 커밋 `fc32ae3`. 정리: [qa-fixes #5](reviews/2026-07-22-qa-fixes.md).
+
+## 2026-07-22 — 매체 이미지 저장: 외부 URL 삭제(Phase 2) + S3 전환
+
+Phase 1(media_image 단일소스 통합) 운영 검증 후 **Phase 2 실행**: 운영 DB의 타사(houseofooh/attachments) 외부 URL 전량 삭제(스냅샷 `pre-external-image-delete-20260722`+덤프 `phase2_dump.json` 1.2MB 보관 → 트랜잭션 삭제). media_image 1760행 DELETE, media/media_items thumbnail_url·all_image_urls 913 NULL, 잔여 0. media_id 백필 913/913 확인 후 실행. 이어 **업로드 저장소 S3 전환**: `add_media_image`가 로컬 디스크→S3(`ooh-image-public`, 퍼블릭 read) put_object 후 퍼블릭 URL을 `image_url`에 저장(ContentType 지정), `delete_media_image`는 S3 객체도 정리. EC2 역할 `admix-ec2-role`에 `admix-s3-image-write` 정책 추가, 프런트 next.config remotePatterns+isOptimizable에 S3 호스트 반영. 운영 배포·확인 완료. 정리: [media-image-storage](plans/2026-07-22-media-image-storage.md) · [database-design §2.4](policies/database-design.md).
+
 ## 2026-07-22 — recommend_react (ReAct 추천 챗봇) 신설
 
 `ai_agent_re_Act_Pattern` 레퍼런스 기반으로 정식 LangGraph ReAct 그래프(`chatbot ⇄ tools` 순환 + NOT_FOUND `route_after_tools` fallback)를 신규 패키지 `backend/src/services/recommend_react/`(domain/tools/graph/persist)로 구현. **recommend_v2는 무변경 폴백으로 유지**(검증 후 삭제 예정). 슬롯 머신(need_more/confirmation/충돌판정) 제거 — 조건 누적·교체는 LLM이 DB 대화이력 맥락으로 판단(langgraph checkpointer 미사용). 도구 5종(SearchMedia/ExplainMedia/CreateProposal/AddMedia/RenameProposal)이 기존 이벤트 계약(list/proposal/media_detail/chat)을 그대로 방출 → 매체카드/제안서카드 재사용. 비교·최저가·예산플랜은 전용 도구 없이 추론으로 커버(§5.1). 잡 경로에 `version` 분기 추가(`ai_job_service`·`lambda_handler`, v2 로직 무변경), 새 라우터 `/recommend/react/jobs`, Lambda 의존성에 `langgraph` 추가. 프런트 `hooks/adRecommendReact`(useV2Chat 최소 diff 복제, 엔드포인트만 react) + `AiChatPanel` 스위치. 백엔드 86 tests 통과(v2 회귀 없음)·프런트 tsc 통과. **라이브 E2E(OpenAI+DB)는 사용자 환경에서 미검증**. 설계·계획: [spec](superpowers/specs/2026-07-22-recommend-react-design.md) · [plan](superpowers/plans/2026-07-22-recommend-react.md)

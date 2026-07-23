@@ -1,7 +1,30 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+
+import { clearSessionId } from "@/lib/session";
+import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
 import { authApi, type RegisterPayload } from "./apis";
 import { authKeys } from "./keys";
+
+export const useLogout = () => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await authApi.logout(refreshToken);
+      } catch {
+        // 폐기 실패해도 로컬 로그아웃은 진행
+      }
+    }
+    clearUserToken();
+    clearSessionId();
+    queryClient.clear();
+    router.push("/");
+  };
+};
 
 export const useLogin = () =>
   useMutation({

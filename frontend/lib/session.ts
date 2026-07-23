@@ -9,3 +9,7 @@ export function getSessionId(): string | null {
 export function setSessionId(id: string): void {
   if (typeof window !== "undefined") localStorage.setItem(SESSION_KEY, id);
 }
+
+export function clearSessionId(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(SESSION_KEY);
+}
