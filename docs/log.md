@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-23 — 탈퇴 회원 hard delete + 제안서 제출자 스냅샷 보존 (QA #9)
+
+탈퇴 회원 로그인 시 제재 모달이 뜨던 버그(soft delete 잔존 → 403, 프런트가 403을 제재로 단정). "탈퇴 즉시 파기" 방침에 맞춰 hard delete로 전환. 제안서는 CASCADE 삭제 대신 제출 당시 신청자 스냅샷 5필드(회원유형·회사명·이름·이메일·전화) 보존 — proposal 스냅샷 컬럼 + member_id FK SET NULL + `User.proposals` passive_deletes(ORM delete-orphan 함정 회피) + Alembic 036 백필. `withdraw()` hard delete, oauth 재로그인 복구 제거, 기존 withdrawn 삭제 스크립트. 로그인 가드는 안전망으로 유지, 프런트 수정 불필요. backend 97 passed. **운영 미배포**(게이트: 백업→036→withdrawn삭제→코드), 컴플라이언스(영구보존 vs 즉시파기) 법무 확인 필요. 설계: [account-withdrawal-hard-delete](plans/2026-07-23-account-withdrawal-hard-delete.md) · [qa-fixes #9](reviews/2026-07-22-qa-fixes.md).
+
 ## 2026-07-23 — 문의하기 제출 성공 토스트 + 토스트 배경 Figma 정렬 (QA #8)
 
 `InquiryModal` 제출 성공 시 "제출이 완료되었습니다." 토스트 추가. Figma 토스트 디자인(1036-26916)은 이미 `useSonner`로 구현된 프로젝트 표준이라, sonner 기본 `toast.success` 대신 `useSonner().success`로 교체. 배경 투명도만 Figma와 달라(`0.8`→`0.7`) `useSonner`에서 정렬(앱 전체 토스트 반영). warning/error색/챗봇 toast.error는 스코프 밖. tsc/eslint 통과. 정리: [qa-fixes #8](reviews/2026-07-22-qa-fixes.md).

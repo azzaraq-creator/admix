@@ -67,13 +67,14 @@
 | 2026-07-14 | [auth-email-html-branding](plans/2026-07-14-auth-email-html-branding.md) | 이메일 인증코드·비밀번호 재설정 메일을 Figma 다크 브랜디드 HTML로 교체(로고·CTA 버튼) + 인증코드 TTL 10분(600), 재설정 TTL 1시간 유지(보안) |
 | 2026-07-22 | [proposal-name-duplicate-check](plans/2026-07-22-proposal-name-duplicate-check.md) | 제안서 이름 중복검사(생성·이름변경) — 소유자별·삭제제외·대소문자무시, 라우터 409 `duplicate_name`, 챗봇/승계 미적용. 한도경고·Figma는 보류 |
 | 2026-07-22 | [media-image-storage](plans/2026-07-22-media-image-storage.md) | 매체 이미지 저장 아키텍처 — `media_image` 단일소스 통합(media_id FK 035) + 타사 외부 URL 전량 삭제(Phase 2) + 업로드 S3 전환(`ooh-image-public`). 운영 배포 완료 |
+| 2026-07-23 | [account-withdrawal-hard-delete](plans/2026-07-23-account-withdrawal-hard-delete.md) | 회원 탈퇴 hard delete 전환 + 제안서 제출자 스냅샷 5필드 보존(member_id SET NULL, Alembic 036 백필). 배포 게이트·컴플라이언스(즉시파기 vs 영구보존) 정리 |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 
 | 날짜 | 문서 | 요약 |
 |------|------|------|
 | 2026-07-06 | [backend-db-code-review](reviews/2026-07-06-backend-db-code-review.md) | 백엔드/DB 전면 코드리뷰 — CRITICAL 6건(admin·FAQ 인증부재, 재설정토큰 노출, OAuth state 부재, ad_sessions 마이그레이션 누락, 추천엔진 스레드 세션공유) 외 심각도별 정리 + 백엔드 인가 개념 |
-| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE), #4 fixed 지도 패널 접기 시 relayout 누락, #5 fixed 검색 지오코딩 실패 시 결과없음 표시, #6 로그아웃 후 이전 사용자 세션·제안서 잔존(useLogout 훅+clearSessionId), #7 로그인 시 사이드바 도움말 중복 제거, #8 문의 제출 성공 토스트+토스트 배경 Figma 정렬(0.7) |
+| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE), #4 fixed 지도 패널 접기 시 relayout 누락, #5 fixed 검색 지오코딩 실패 시 결과없음 표시, #6 로그아웃 후 이전 사용자 세션·제안서 잔존(useLogout 훅+clearSessionId), #7 로그인 시 사이드바 도움말 중복 제거, #8 문의 제출 성공 토스트+토스트 배경 Figma 정렬(0.7), #9 탈퇴 회원 hard delete 전환+제안서 스냅샷 보존 |
 
 ## 스킬 (skills/)
 

@@ -108,15 +108,6 @@ def _ensure_not_sanctioned(user: User | None) -> None:
         raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
 
 
-def _reactivate_if_withdrawn(user: User) -> None:
-    """탈퇴한 계정으로 다시 소셜 로그인하면 재가입으로 간주해 계정을 되살린다.
-    재가입은 이메일 인증을 다시 거치도록 verified=False 로 초기화한다."""
-    if user.status == "withdrawn":
-        user.status = "active"
-        user.withdrawn_at = None
-        user.verified = False
-
-
 def login_with_provider(db: Session, provider: str, code: str, state: str) -> User:
     token_data = _exchange_code(provider, code, state)
     access_token = token_data.get("access_token")
@@ -135,8 +126,6 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     if account is not None:
         user = db.query(User).filter(User.id == account.user_id).first()
         _ensure_not_sanctioned(user)
-        if user is not None:
-            _reactivate_if_withdrawn(user)
         account.access_token = access_token
         account.refresh_token = token_data.get("refresh_token")
         db.commit()
@@ -149,8 +138,6 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
         # email 은 연락받을 이메일이라 다른 계정과 중복될 수 있어 매칭에 쓰면 안 된다.
         user = db.query(User).filter(User.login_id == profile["email"]).first()
     _ensure_not_sanctioned(user)
-    if user is not None:
-        _reactivate_if_withdrawn(user)
     if user is None:
         # 신규 소셜 가입: 수신 가능한 이메일 인증을 마치기 전까지 verified=False.
         # 프런트는 콜백 후 verified 를 확인해 미인증이면 이메일 인증 화면으로 보낸다.

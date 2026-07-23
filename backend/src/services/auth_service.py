@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.models.member_profile import MemberSanction
+from src.models.proposal import Proposal
 from src.models.user import EmailVerification, PasswordReset, RefreshToken, User
 from src.utils.security import (
     create_access_token,
@@ -129,11 +130,11 @@ def authenticate(db: Session, email: str, password: str) -> User:
 
 
 def withdraw(db: Session, user: User) -> None:
-    user.status = "withdrawn"
-    user.withdrawn_at = datetime.now(timezone.utc)
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id == user.id, RefreshToken.revoked == False  # noqa: E712
-    ).update({"revoked": True})
+    db.query(Proposal).filter(
+        Proposal.member_id == user.id, Proposal.status == "new"
+    ).delete(synchronize_session=False)
+    db.flush()
+    db.delete(user)
     db.commit()
 
 
