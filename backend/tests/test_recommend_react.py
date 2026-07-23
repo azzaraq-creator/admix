@@ -144,16 +144,18 @@ def _add_ctx():
 
 
 def test_add_media_multiple_proposals_asks(monkeypatch):
-    """제안서 여러 개 + active 없음 + 이름 없음 → 담지 않고 되묻는다."""
+    """제안서 여러 개 + active 없음 + 이름 없음 → 담지 않고 선택 목록(proposal_choices) 방출."""
     from src.services.recommend_react import tools
 
     monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
     monkeypatch.setattr(tools.proposal_service, "list_for_owner", lambda db, member_id, session_id: [_fake_proposal("p1", "여름캠페인"), _fake_proposal("p2", "가을세일")])
     ctx = _add_ctx()
-    out = tools._do_add_media(ctx, [1])
-    assert "여름캠페인" in out and "가을세일" in out
-    assert "어느 제안서" in out
-    assert ctx.events == []  # 담지 않음
+    tools._do_add_media(ctx, [1])
+    assert ctx.events and ctx.events[-1]["type"] == "proposal_choices"
+    ev = ctx.events[-1]
+    names = [p["name"] for p in ev["proposals"]]
+    assert "여름캠페인" in names and "가을세일" in names
+    assert ev["media_ids"] == ["m1"]  # last_items[0].media_id
 
 
 def test_add_media_no_proposal_prompts_create(monkeypatch):

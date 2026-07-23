@@ -2,7 +2,7 @@ import {
   CATEGORY_LABELS,
   mergeEnriched,
   type V2Message,
-} from "@/hooks/adRecommendV2";
+} from "@/hooks/adRecommendReact";
 
 export function MatchedChips({ message }: { message: V2Message }) {
   const merged = mergeEnriched(

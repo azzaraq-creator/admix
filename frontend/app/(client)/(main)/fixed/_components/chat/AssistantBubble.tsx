@@ -1,6 +1,8 @@
+import { useState } from "react";
+
 import type { MediaItemData } from "@/components/common/MediaItem";
 import { RotateCwIcon } from "@/components/icons";
-import type { V2Message } from "@/hooks/adRecommendV2";
+import type { V2Message } from "@/hooks/adRecommendReact";
 
 import { ChatMediaList } from "./ChatMediaList";
 import { ConditionChips, MatchedChips } from "./ConditionChips";
@@ -16,6 +18,7 @@ export function AssistantBubble({
   onTogglePhotos,
   onOpenDetail,
   onAddProposal,
+  onPickProposal,
 }: {
   message: V2Message;
   selectedId?: string;
@@ -25,7 +28,10 @@ export function AssistantBubble({
   onTogglePhotos: (next: boolean) => void;
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
+  onPickProposal?: (proposalId: string, mediaIds: string[]) => Promise<void> | void;
 }) {
+  const [pickedName, setPickedName] = useState<string | null>(null);
+
   if (message.isLoading) {
     return (
       <div className="flex items-center gap-[8px] text-base text-grey-500">
@@ -74,7 +80,9 @@ export function AssistantBubble({
             />
           </>
         )}
-      {message.message && message.response_type !== "list" && (
+      {message.message &&
+        message.response_type !== "list" &&
+        message.response_type !== "proposal_choices" && (
         <div className="flex items-start gap-[8px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -93,6 +101,49 @@ export function AssistantBubble({
           count={message.proposal.media_count}
         />
       )}
+      {message.response_type === "proposal_choices" &&
+        message.proposalChoices && (
+          <div className="flex flex-col gap-[8px]">
+            <div className="flex items-start gap-[8px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icons/ai-icon.png"
+                alt=""
+                className="size-[24px] shrink-0"
+              />
+              <p className="text-base leading-[24px] text-black">
+                {pickedName
+                  ? `'${pickedName}' 제안서에 담았어요 ✓`
+                  : message.message || "어느 제안서에 담을까요?"}
+              </p>
+            </div>
+            {!pickedName && (
+              <div className="flex flex-col gap-[8px]">
+                {message.proposalChoices.proposals.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={async () => {
+                      await onPickProposal?.(
+                        p.id,
+                        message.proposalChoices!.mediaIds,
+                      );
+                      setPickedName(p.name);
+                    }}
+                    className="flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-platinum-50 px-[16px] py-[14px] text-left transition-colors hover:bg-platinum-100"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-black">
+                      {p.name}
+                    </span>
+                    <span className="shrink-0 text-sm font-medium leading-[20px] text-grey-500">
+                      매체 {p.media_count}개
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       {message.response_type === "media_detail" && message.media?.media_id && (
         <button
           type="button"

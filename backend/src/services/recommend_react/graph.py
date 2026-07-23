@@ -242,7 +242,9 @@ def collect_events(
     # 구조화 이벤트(list/proposal/media_detail)가 있으면 그중 마지막을 단일 이벤트로 반환해
     # 매체카드/제안서카드/지도마커가 chat 텍스트에 덮이지 않게 한다. 없으면 chat/fallback.
     structured = [
-        e for e in ctx.events if e.get("type") in ("list", "proposal", "media_detail")
+        e
+        for e in ctx.events
+        if e.get("type") in ("list", "proposal", "media_detail", "proposal_choices")
     ]
     if structured:
         # 카드(list)와 함께 LLM 의 대화형 최종 답변도 보여주기 위해 message 에 실어 보낸다.

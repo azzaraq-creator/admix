@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
@@ -17,6 +18,7 @@ import {
   type V2Message,
 } from "@/hooks/adRecommendReact";
 import { useMe } from "@/hooks/auth";
+import { useAddProposalItems } from "@/hooks/proposals";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { openLoginModal } from "../../_components/useLoginModal";
 import { AssistantBubble } from "./chat/AssistantBubble";
@@ -53,6 +55,18 @@ export function AiChatPanel({
   const endRef = useRef<HTMLDivElement>(null);
 
   const chat = useReactChat();
+  const addProposalItems = useAddProposalItems();
+  const handlePickProposal = useCallback(
+    async (proposalId: string, mediaIds: string[]) => {
+      try {
+        await addProposalItems.mutateAsync({ id: proposalId, mediaIds });
+        toast.success("제안서에 담았어요.");
+      } catch {
+        toast.error("제안서에 담지 못했어요. 다시 시도해 주세요.");
+      }
+    },
+    [addProposalItems],
+  );
   const { data: me } = useMe();
   const isLoggedIn = !!me;
   const router = useRouter();
@@ -207,6 +221,7 @@ export function AiChatPanel({
                     onTogglePhotos={setShowPhotos}
                     onOpenDetail={onOpenDetail}
                     onAddProposal={onAddProposal}
+                    onPickProposal={handlePickProposal}
                   />
                 )}
               </div>

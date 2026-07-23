@@ -14,6 +14,7 @@ export type V2ResponseType =
   | "confirmation_required"
   | "media_detail"
   | "proposal"
+  | "proposal_choices"
   | "limit_reached";
 
 export type LimitAction = "login" | "business";
@@ -92,6 +93,7 @@ export interface V2Message {
   confirmation?: ConfirmationInfo;
   media?: V2MediaRef;
   proposal?: V2ProposalRef;
+  proposalChoices?: { proposals: V2ProposalRef[]; mediaIds: string[] };
   cta?: string;
   limitAction?: LimitAction;
 }
@@ -349,6 +351,14 @@ export function useReactChat() {
                   (data.matched_categories as number) || undefined,
                 media: (data.media as V2MediaRef) || undefined,
                 proposal: (data.proposal as V2ProposalRef) || undefined,
+                proposalChoices:
+                  msgType === "proposal_choices"
+                    ? {
+                        proposals:
+                          (data.proposals as V2ProposalRef[]) || [],
+                        mediaIds: (data.media_ids as string[]) || [],
+                      }
+                    : undefined,
                 cta: (data.cta as string) || undefined,
                 limitAction: (data.action as LimitAction) || undefined,
               }

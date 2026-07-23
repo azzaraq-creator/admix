@@ -129,6 +129,23 @@ def _proposal_event(proposal, message: str) -> dict:
     }
 
 
+def _emit_proposal_choices(ctx: ReactContext, proposals, media_ids: list[str], message: str) -> str:
+    """담을 제안서가 애매할 때 선택 목록(카드)을 프런트로 방출한다(담지는 않음).
+
+    프런트가 카드 클릭 시 media_ids 를 그 제안서에 직접 담는다.
+    """
+    ctx.events.append({
+        "type": "proposal_choices",
+        "message": message,
+        "proposals": [
+            {"id": str(p.id), "name": p.title, "media_count": p.media_count}
+            for p in proposals
+        ],
+        "media_ids": media_ids,
+    })
+    return "사용자에게 제안서 선택 목록을 보여줬습니다."
+
+
 def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[int]) -> str:
     member_id, owner_sid, owner_user = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
     title = (name or "").strip()[:300] or "새 제안서"
@@ -172,20 +189,23 @@ def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional
         if len(matches) == 1:
             target = matches[0]
         elif not matches:
-            names_str = ", ".join(f"'{p.title}'" for p in proposals)
-            return f"'{name}' 제안서를 찾지 못했어요. 현재 제안서: {names_str}. 어디에 담을까요?"
+            return _emit_proposal_choices(
+                ctx, proposals, media_ids,
+                f"'{name}' 제안서를 찾지 못했어요. 아래에서 담을 제안서를 선택해주세요 😊",
+            )
         else:
-            m = ", ".join(f"'{p.title}'" for p in matches)
-            return f"'{name}'와 비슷한 제안서가 여러 개예요: {m}. 정확한 이름을 알려주세요."
+            return _emit_proposal_choices(
+                ctx, matches, media_ids,
+                f"'{name}'와 비슷한 제안서가 여러 개예요. 아래에서 선택해주세요 😊",
+            )
     elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
         target = next(p for p in proposals if str(p.id) == str(ctx.active_proposal_id))
     elif len(proposals) == 1:
         target = proposals[0]
     else:
-        names_str = ", ".join(f"'{p.title}'" for p in proposals)
-        return (
-            f"제안서가 여러 개 있어요: {names_str}. 어느 제안서에 담을까요? "
-            "제안서 이름을 알려주세요 😊"
+        return _emit_proposal_choices(
+            ctx, proposals, media_ids,
+            "어느 제안서에 담을까요? 아래에서 선택해주세요 😊",
         )
 
     updated = domain._add_items_sync(ctx.db, target.id, member_id, owner_sid, media_ids) or target
