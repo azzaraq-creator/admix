@@ -68,6 +68,14 @@ def proposal_limit(user: Optional[User]) -> Optional[int]:
     return MEMBER_LIMIT
 
 
+def snapshot_submitter(proposal: Proposal, user: User) -> None:
+    proposal.submitter_membership_type = user.membership_type
+    proposal.submitter_company_name = user.company_name
+    proposal.submitter_name = user.name
+    proposal.submitter_email = user.email
+    proposal.submitter_phone = user.phone
+
+
 def _owner_count(
     db: Session, *, member_id: Optional[uuid.UUID], session_id: Optional[uuid.UUID]
 ) -> int:
@@ -166,7 +174,10 @@ def list_proposals(db: Session) -> list[dict]:
         dict(
             id=str(p.id),
             name=p.title,
-            member=(p.member.name if p.member and p.member.name else "-"),
+            member=(
+                p.submitter_name
+                or (p.member.name if p.member and p.member.name else "-")
+            ),
             mediaCount=str(p.media_count),
             totalAmount=f"{p.total_amount:,}원",
             status=_STATUS.get(p.status, p.status),
@@ -226,17 +237,24 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
     if p is None:
         return None
     m = p.member
-    member = (
-        dict(
+    if p.submitter_name or p.submitter_email or p.submitter_phone:
+        member = dict(
+            membership_type=p.submitter_membership_type,
+            company_name=p.submitter_company_name,
+            name=p.submitter_name,
+            email=p.submitter_email,
+            phone=p.submitter_phone,
+        )
+    elif m is not None:
+        member = dict(
             membership_type=m.membership_type,
             company_name=m.company_name,
             name=m.name,
             email=m.email,
             phone=m.phone,
         )
-        if m is not None
-        else None
-    )
+    else:
+        member = None
     return dict(
         id=str(p.id),
         title=p.title,

@@ -221,6 +221,7 @@ def submit_proposal(
     if p is None:
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
     p.status = "execution_requested"
+    proposal_service.snapshot_submitter(p, user)
     db.commit()
     db.refresh(p)
     return ProposalSummary(**proposal_service.to_summary(p))

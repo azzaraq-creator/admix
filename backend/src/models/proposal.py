@@ -27,7 +27,7 @@ class Proposal(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     member_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -38,6 +38,11 @@ class Proposal(Base):
         nullable=True,
         index=True,
     )
+    submitter_membership_type = Column(String(20), nullable=True)
+    submitter_company_name = Column(String(200), nullable=True)
+    submitter_name = Column(String(100), nullable=True)
+    submitter_email = Column(String(255), nullable=True)
+    submitter_phone = Column(String(30), nullable=True)
     title = Column(String(300), nullable=False)
     status = Column(String(30), nullable=False, default="new")
     media_count = Column(Integer, nullable=False, default=0)

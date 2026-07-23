@@ -68,7 +68,7 @@ class User(Base):
         "MemberSanction", back_populates="user", cascade="all, delete-orphan"
     )
     proposals = relationship(
-        "Proposal", back_populates="member", cascade="all, delete-orphan"
+        "Proposal", back_populates="member", passive_deletes=True
     )
     inquiries = relationship("Inquiry", back_populates="member")
 
