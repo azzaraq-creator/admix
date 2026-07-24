@@ -4,6 +4,13 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-24 — recommend_react 운영 배포 (신버전 챗봇 전환)
+
+슬롯머신 v2 → **ReAct 챗봇(recommend_react)으로 운영 전환**. 프론트 fixed 챗패널이 `/recommend/react/jobs`(비동기 잡→폴링) 사용.
+- **배포 순서(유저 대면 프론트를 마지막)**: ① Lambda `admix-ai-agent` 재빌드/ECR push/갱신(react 처리기) → ② EC2 `deploy/redeploy.sh`(enqueue 라우트) → ③ **prod react E2E 게이트**(EC2에서 enqueue→폴링 `done` 확인) → ④ `git push origin main`→Amplify 자동배포(빌드 SUCCEED). Amplify 앱 `d5zpc903rfz5q`는 **구 계정**(CLI `--profile default`), 백엔드는 신 계정 `ooh-new`.
+- **additive**: v2 라우터/경로는 그대로 유지. `ai_job_service`/`lambda_handler`가 job `version`("react"|"v2")로 분기. 롤백 레버 = 프론트만 v2 훅 되돌려 push(Lambda/EC2 무수정).
+- **배포 중 버그 수정(07c42f3)**: react job이 status 갱신 없이 pending 고착 → CloudWatch에서 `Runtime.ImportModuleError: openpyxl` 확인. `media_service.py`가 openpyxl을 **모듈 최상위** import(다른 서비스는 함수내부 lazy)해 Lambda 슬림 의존성(`requirements-lambda.txt`, openpyxl 제외) 환경에서 크래시. 사용 함수 내부 lazy import로 전환 + 이미지 import 스모크테스트 후 재배포. 설계: [spec](superpowers/specs/2026-07-22-recommend-react-design.md).
+
 ## 2026-07-24 — recommend_react 제안서 도구 UX 완성 + 버그 수정
 
 챗 제안서 도구(CreateProposal/AddMedia/RenameProposal)를 **member 토큰 E2E로 전부 검증**(DB 영속 확인)하고 UX·버그 다수 수정.
