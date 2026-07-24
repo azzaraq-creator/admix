@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { adSessionsApi } from "@/hooks/adSessions";
+import { useSonner } from "@/hooks/useSonner";
 import { API_BASE_URL } from "@/lib/api";
 import { SESSION_KEY } from "@/lib/session";
 
@@ -223,6 +223,7 @@ export function useReactChat() {
   const [running, setRunning] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const { error } = useSonner();
 
   // 언마운트 시 진행 중인 폴링 루프를 중단(setState 누수 방지).
   const mountedRef = useRef(true);
@@ -290,9 +291,9 @@ export function useReactChat() {
     } catch (err) {
       // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
       const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
-      toast.error(msg);
+      error(msg);
     }
-  }, [running]);
+  }, [running, error]);
 
   /**
    * 하나의 message 이벤트 data를 assistant 메시지에 반영.
@@ -404,7 +405,7 @@ export function useReactChat() {
         );
       } else if (eventName === "error") {
         const msg = (data.message as string) || "알 수 없는 오류";
-        toast.error(msg);
+        error(msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -414,7 +415,7 @@ export function useReactChat() {
         );
       }
     },
-    [applyEventData],
+    [applyEventData, error],
   );
 
   const consumeStream = useCallback(
@@ -522,7 +523,7 @@ export function useReactChat() {
 
           if (job.status === "failed") {
             const msg = job.error || "처리 실패";
-            toast.error(msg);
+            error(msg);
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -542,7 +543,7 @@ export function useReactChat() {
 
         if (!settled) {
           const msg = "응답 시간 초과";
-          toast.error(msg);
+          error(msg);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId
@@ -558,7 +559,7 @@ export function useReactChat() {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        toast.error(msg);
+        error(msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -575,7 +576,7 @@ export function useReactChat() {
         setRunning(false);
       }
     },
-    [running, ensureSession, applyEventData],
+    [running, ensureSession, applyEventData, error],
   );
 
   // 슬롯 제거는 EC2에서 동기 SSE 유지(LLM 없음) — job 폴링 불필요.
@@ -603,7 +604,7 @@ export function useReactChat() {
         await consumeStream(res, assistantId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        toast.error(msg);
+        error(msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -615,7 +616,7 @@ export function useReactChat() {
         setRunning(false);
       }
     },
-    [running, sessionId, consumeStream],
+    [running, sessionId, consumeStream, error],
   );
 
   /** 가장 최근 assistant 메시지 기준 누적 슬롯(현재 조건). */

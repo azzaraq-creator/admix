@@ -5,8 +5,9 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/common/buttons";
 import { Icon } from "@/components/common/Icon";
-import { CircleCheckIcon, SearchIcon } from "@/components/icons";
+import { SearchIcon } from "@/components/icons";
 import { useMe } from "@/hooks/auth";
+import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
 import { setLoginModalOpen } from "../../_components/useLoginModal";
@@ -73,7 +74,7 @@ function IconCircle({
 export function ContactView({ member = false }: { member?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [toast, setToast] = useState<string | null>(null);
+  const { success } = useSonner();
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const { data: me } = useMe();
@@ -98,19 +99,13 @@ export function ContactView({ member = false }: { member?: boolean }) {
     }
   }, [isMember, tabParam]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), 2000);
-    return () => clearTimeout(id);
-  }, [toast]);
-
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
     } catch (error) {
       void error;
     }
-    setToast("복사가 완료되었습니다.");
+    success("복사가 완료되었습니다.");
   };
 
   return (
@@ -387,22 +382,6 @@ export function ContactView({ member = false }: { member?: boolean }) {
       {activeTab === "faq" && <FaqPanel query={searchQuery} />}
 
       <InquiryModal open={modalOpen} onClose={() => setModalOpen(false)} />
-
-      {toast && (
-        <div className="fixed bottom-[36px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-[16px] rounded-[8px] bg-black px-[20px] py-[14px] shadow-lg">
-          <span className="flex items-center gap-[8px] text-sm font-medium text-white">
-            <CircleCheckIcon className="size-[20px] text-[#22c55e]" />
-            {toast}
-          </span>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            className="text-sm font-medium text-[#a9aab5]"
-          >
-            확인
-          </button>
-        </div>
-      )}
     </div>
   );
 }

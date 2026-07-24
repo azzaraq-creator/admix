@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
@@ -19,6 +18,7 @@ import {
 } from "@/hooks/adRecommendReact";
 import { useMe } from "@/hooks/auth";
 import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
+import { useSonner } from "@/hooks/useSonner";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { openLoginModal } from "../../_components/useLoginModal";
 import { AssistantBubble } from "./chat/AssistantBubble";
@@ -57,6 +57,7 @@ export function AiChatPanel({
   const chat = useReactChat();
   const addProposalItems = useAddProposalItems();
   const renameProposal = useRenameProposal();
+  const { success, error } = useSonner();
   const handlePickProposal = useCallback(
     async (
       proposalId: string,
@@ -72,21 +73,21 @@ export function AiChatPanel({
               : "");
           if (!title) return false;
           await renameProposal.mutateAsync({ id: proposalId, title });
-          toast.success("제안서 이름을 바꿨어요.");
+          success("제안서 이름을 바꿨어요.");
         } else {
           await addProposalItems.mutateAsync({
             id: proposalId,
             mediaIds: choices.mediaIds,
           });
-          toast.success("제안서에 담았어요.");
+          success("제안서에 담았어요.");
         }
         return true;
       } catch {
-        toast.error("처리하지 못했어요. 다시 시도해 주세요.");
+        error("처리하지 못했어요. 다시 시도해 주세요.");
         return false;
       }
     },
-    [addProposalItems, renameProposal],
+    [addProposalItems, renameProposal, success, error],
   );
   const { data: me } = useMe();
   const isLoggedIn = !!me;
