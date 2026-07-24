@@ -26,10 +26,25 @@ router = APIRouter(prefix="/admin/inquiries", tags=["inquiries"])
 
 @router.get("", response_model=InquiryListResponse)
 def list_inquiries(
-    db: Session = Depends(get_db), _: Admin = Depends(require_permission("business"))
+    page: int = 1,
+    page_size: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("business")),
 ) -> InquiryListResponse:
-    items = inquiry_service.list_inquiries(db)
-    return InquiryListResponse(total=len(items), items=items)
+    total, items = inquiry_service.list_inquiries(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+    return InquiryListResponse(total=total, items=items)
 
 
 @router.get("/export")

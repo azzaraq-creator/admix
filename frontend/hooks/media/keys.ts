@@ -1,8 +1,9 @@
-import type { MapBounds, MediaFilterParams } from "./apis";
+import type { MapBounds, MediaFilterParams, MediaListParams } from "./apis";
 
 export const mediaKeys = {
   all: ["media"] as const,
-  list: () => [...mediaKeys.all, "list"] as const,
+  list: (params?: MediaListParams) =>
+    [...mediaKeys.all, "list", params ?? {}] as const,
   movingList: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "moving", "list", filters ?? {}] as const,
   movingFilterOptions: () =>

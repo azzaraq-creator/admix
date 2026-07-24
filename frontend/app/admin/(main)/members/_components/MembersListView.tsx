@@ -34,7 +34,18 @@ function triggerDownload(blob: Blob, filename: string) {
 export function MembersListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useMembers();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useMembers({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    biz_status: search.bizStatus,
+    type: search.type,
+    status: search.status,
+  });
   const { error } = useSonner();
 
   const handleExport = async () => {
@@ -45,25 +56,11 @@ export function MembersListView() {
     }
   };
 
-  const filtered = useMemo<Member[]>(() => {
-    const keyword = search.keyword?.trim().toLowerCase();
-    const { bizStatus, type, status } = search;
-    return (data?.items ?? [])
-      .filter((r) => {
-        if (bizStatus && r.bizStatus !== bizStatus) return false;
-        if (type && r.type !== type) return false;
-        if (status && r.status !== status) return false;
-        if (
-          keyword &&
-          !r.email.toLowerCase().includes(keyword) &&
-          !r.name.toLowerCase().includes(keyword)
-        )
-          return false;
-        return true;
-      })
-      .map((r, i) => ({
+  const rows = useMemo<Member[]>(
+    () =>
+      (data?.items ?? []).map((r, i) => ({
         id: r.no,
-        no: String(i + 1),
+        no: String((page - 1) * pageSize + i + 1),
         type: r.type as MemberType,
         loginId: r.loginId,
         company: r.company,
@@ -74,8 +71,9 @@ export function MembersListView() {
         marketing: r.marketing as "동의" | "비동의",
         status: r.status as MemberStatus,
         joinedAt: r.joinedAt,
-      }));
-  }, [data, search]);
+      })),
+    [data, page, pageSize],
+  );
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -83,13 +81,23 @@ export function MembersListView() {
 
       <CommonTable<Member>
         columnList={memberColumnList}
-        data={filtered}
+        data={rows}
         idKey="id"
         searchOptionList={memberSearchOptionList}
-        onSearch={setSearch}
-        totalCount={filtered.length}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/members/${item.id}`)}
         topRightContent={<ExcelDownloadButton onClick={handleExport} />}
       />

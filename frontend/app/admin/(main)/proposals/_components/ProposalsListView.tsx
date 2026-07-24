@@ -32,7 +32,16 @@ function triggerDownload(blob: Blob, filename: string) {
 export function ProposalsListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useAdminProposals();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useAdminProposals({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    status: search.status,
+  });
   const { error } = useSonner();
 
   const handleExport = async () => {
@@ -43,23 +52,11 @@ export function ProposalsListView() {
     }
   };
 
-  const filtered = useMemo<Proposal[]>(() => {
-    const keyword = search.keyword?.trim().toLowerCase();
-    const status = search.status;
-    return (data?.items ?? [])
-      .filter((r) => {
-        if (status && r.status !== status) return false;
-        if (
-          keyword &&
-          !r.name.toLowerCase().includes(keyword) &&
-          !r.member.toLowerCase().includes(keyword)
-        )
-          return false;
-        return true;
-      })
-      .map((r, i) => ({
+  const rows = useMemo<Proposal[]>(
+    () =>
+      (data?.items ?? []).map((r, i) => ({
         id: r.id,
-        no: String(i + 1),
+        no: String((page - 1) * pageSize + i + 1),
         name: r.name,
         member: r.member,
         mediaCount: r.mediaCount,
@@ -67,8 +64,9 @@ export function ProposalsListView() {
         status: r.status as ProposalStatus,
         deleted: r.deleted,
         registeredAt: r.registeredAt,
-      }));
-  }, [data, search]);
+      })),
+    [data, page, pageSize],
+  );
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -76,13 +74,23 @@ export function ProposalsListView() {
 
       <CommonTable<Proposal>
         columnList={proposalColumnList}
-        data={filtered}
+        data={rows}
         idKey="id"
         searchOptionList={proposalSearchOptionList}
-        onSearch={setSearch}
-        totalCount={filtered.length}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/proposals/${item.id}`)}
         topRightContent={<ExcelDownloadButton onClick={handleExport} />}
       />

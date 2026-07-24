@@ -1,6 +1,12 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
 
 export type AdminStatus = "active" | "disabled";
+
+export interface AccountListParams extends AdminListParams {
+  type?: string;
+  status?: string;
+}
 
 export interface AdminAccountRow {
   no: string;
@@ -52,8 +58,10 @@ export interface AdminAccountUpdatePayload {
 }
 
 export const adminAccountsApi = {
-  list: () =>
-    api.get<AdminAccountListResponse>("/admin/accounts").then((r) => r.data),
+  list: (params?: AccountListParams) =>
+    api
+      .get<AdminAccountListResponse>("/admin/accounts", { params })
+      .then((r) => r.data),
   exportExcel: () =>
     api
       .get<Blob>("/admin/accounts/export", { responseType: "blob" })

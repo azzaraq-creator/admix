@@ -1,6 +1,9 @@
+import type { ProposalListParams } from "./apis";
+
 export const proposalsKeys = {
   all: ["proposals"] as const,
-  list: () => [...proposalsKeys.all, "list"] as const,
+  list: (params?: ProposalListParams) =>
+    [...proposalsKeys.all, "list", params ?? {}] as const,
   adminDetail: (id: string) =>
     [...proposalsKeys.all, "admin-detail", id] as const,
   // 클라이언트(장바구니) — admin list 와 키 분리

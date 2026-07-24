@@ -35,10 +35,25 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 
 @router.get("", response_model=ProposalListResponse)
 def list_proposals(
-    db: Session = Depends(get_db), _: Admin = Depends(require_permission("business"))
+    page: int = 1,
+    page_size: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("business")),
 ) -> ProposalListResponse:
-    items = proposal_service.list_proposals(db)
-    return ProposalListResponse(total=len(items), items=items)
+    total, items = proposal_service.list_proposals(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+    return ProposalListResponse(total=total, items=items)
 
 
 @router.get("/export")

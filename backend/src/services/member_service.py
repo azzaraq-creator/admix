@@ -14,6 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
+from src.utils.listing import in_date_range, paginate, parse_date
 from src.models.member_profile import BusinessRegistration, MemberSanction
 from src.models.user import User
 from src.schemas.member import (
@@ -44,32 +45,74 @@ def _fmt_date(dt) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
-def list_members(db: Session) -> list[dict]:
+def _map_member(u) -> dict:
+    biz = u.business_registration
+    return dict(
+        no=str(u.id),
+        type=_TYPE.get(u.membership_type, u.membership_type),
+        loginId=u.login_id,
+        company=u.company_name or "-",
+        name=u.name or "-",
+        email=u.email,
+        phone=u.phone or "-",
+        bizStatus=_BIZ.get(biz.status, biz.status) if biz else "미등록",
+        marketing="동의" if u.marketing_consent else "비동의",
+        status=_STATUS.get(u.status, u.status),
+        joinedAt=_fmt_date(u.created_at),
+    )
+
+
+def list_members(
+    db: Session,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    biz_status: str | None = None,
+    member_type: str | None = None,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[int, list[dict]]:
+    """가입일(joinedAt) 기간·상태·유형·키워드 필터 + 페이지네이션. (total, items) 반환."""
     users = (
         db.query(User)
         .options(joinedload(User.business_registration))
         .order_by(User.created_at.desc())
         .all()
     )
-    rows = []
-    for u in users:
-        biz = u.business_registration
-        rows.append(
-            dict(
-                no=str(u.id),
-                type=_TYPE.get(u.membership_type, u.membership_type),
-                loginId=u.login_id,
-                company=u.company_name or "-",
-                name=u.name or "-",
-                email=u.email,
-                phone=u.phone or "-",
-                bizStatus=_BIZ.get(biz.status, biz.status) if biz else "미등록",
-                marketing="동의" if u.marketing_consent else "비동의",
-                status=_STATUS.get(u.status, u.status),
-                joinedAt=_fmt_date(u.created_at),
-            )
-        )
-    return rows
+    rows = [_map_member(u) for u in users]
+
+    df = parse_date(date_from)
+    dt = parse_date(date_to)
+    kw = (keyword or "").strip().lower()
+
+    def keep(r: dict) -> bool:
+        if biz_status and r["bizStatus"] != biz_status:
+            return False
+        if member_type and r["type"] != member_type:
+            return False
+        if status and r["status"] != status:
+            return False
+        if kw and kw not in r["email"].lower() and kw not in r["name"].lower():
+            return False
+        if not in_date_range(r["joinedAt"], df, dt):
+            return False
+        return True
+
+    filtered = [r for r in rows if keep(r)]
+    return paginate(filtered, page, page_size)
+
+
+def list_members_all(db: Session) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
+    users = (
+        db.query(User)
+        .options(joinedload(User.business_registration))
+        .order_by(User.created_at.desc())
+        .all()
+    )
+    return [_map_member(u) for u in users]
 
 
 _EXPORT_COLUMNS = [
@@ -92,7 +135,7 @@ def export_members_xlsx(db: Session) -> bytes:
 
     from openpyxl import Workbook
 
-    rows = list_members(db)
+    rows = list_members_all(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "members"

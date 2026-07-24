@@ -14,6 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
+from src.utils.listing import in_date_range, paginate, parse_date
 from src.models.media_master import Media
 from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
@@ -161,7 +162,26 @@ def _fmt_date(dt) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
-def list_proposals(db: Session) -> list[dict]:
+def _map_proposal(p) -> dict:
+    return dict(
+        id=str(p.id),
+        name=p.title,
+        member=(
+            p.submitter_name
+            or (p.member.name if p.member and p.member.name else "-")
+        ),
+        mediaCount=str(p.media_count),
+        totalAmount=f"{p.total_amount:,}원",
+        status=_STATUS.get(p.status, p.status),
+        # "삭제됨" 배지는 계약완료 삭제 건 전용. 제출완료/맞춤제안 삭제는
+        # status=cancelled(취소)로만 표기(deleted_at 은 목록 숨김·한도 제외용이라 유지).
+        deleted=p.deleted_at is not None and p.status != "cancelled",
+        registeredAt=_fmt_date(p.created_at),
+    )
+
+
+def list_proposals_all(db: Session) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
     # 작성중(new)은 admin 목록에서 제외 — 유저가 제출(execution_requested)해야 노출.
     rows = (
         db.query(Proposal)
@@ -170,24 +190,37 @@ def list_proposals(db: Session) -> list[dict]:
         .order_by(Proposal.created_at.desc())
         .all()
     )
-    return [
-        dict(
-            id=str(p.id),
-            name=p.title,
-            member=(
-                p.submitter_name
-                or (p.member.name if p.member and p.member.name else "-")
-            ),
-            mediaCount=str(p.media_count),
-            totalAmount=f"{p.total_amount:,}원",
-            status=_STATUS.get(p.status, p.status),
-            # "삭제됨" 배지는 계약완료 삭제 건 전용. 제출완료/맞춤제안 삭제는
-            # status=cancelled(취소)로만 표기(deleted_at 은 목록 숨김·한도 제외용이라 유지).
-            deleted=p.deleted_at is not None and p.status != "cancelled",
-            registeredAt=_fmt_date(p.created_at),
-        )
-        for p in rows
-    ]
+    return [_map_proposal(p) for p in rows]
+
+
+def list_proposals(
+    db: Session,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[int, list[dict]]:
+    """등록일(registeredAt) 기간·상태·키워드 필터 + 페이지네이션. (total, items) 반환."""
+    rows = list_proposals_all(db)
+
+    df = parse_date(date_from)
+    dt = parse_date(date_to)
+    kw = (keyword or "").strip().lower()
+
+    def keep(r: dict) -> bool:
+        if status and r["status"] != status:
+            return False
+        if kw and kw not in r["name"].lower() and kw not in r["member"].lower():
+            return False
+        if not in_date_range(r["registeredAt"], df, dt):
+            return False
+        return True
+
+    filtered = [r for r in rows if keep(r)]
+    return paginate(filtered, page, page_size)
 
 
 _EXPORT_COLUMNS = [
@@ -206,7 +239,7 @@ def export_proposals_xlsx(db: Session) -> bytes:
 
     from openpyxl import Workbook
 
-    rows = list_proposals(db)
+    rows = list_proposals_all(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "proposals"

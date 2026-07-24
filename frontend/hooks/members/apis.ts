@@ -1,4 +1,11 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+
+export interface MemberListParams extends AdminListParams {
+  biz_status?: string;
+  type?: string;
+  status?: string;
+}
 
 export interface MemberRow {
   no: string;
@@ -111,8 +118,10 @@ export interface BizRegUpdatePayload {
 }
 
 export const membersApi = {
-  list: () =>
-    api.get<MemberListResponse>("/admin/members").then((r) => r.data),
+  list: (params?: MemberListParams) =>
+    api
+      .get<MemberListResponse>("/admin/members", { params })
+      .then((r) => r.data),
   exportExcel: () =>
     api
       .get<Blob>("/admin/members/export", { responseType: "blob" })

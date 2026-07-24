@@ -31,10 +31,29 @@ router = APIRouter(prefix="/admin/members", tags=["members"])
 
 @router.get("", response_model=MemberListResponse)
 def list_members(
-    db: Session = Depends(get_db), _: Admin = Depends(require_permission("member"))
+    page: int = 1,
+    page_size: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    biz_status: str | None = None,
+    type: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
 ) -> MemberListResponse:
-    items = member_service.list_members(db)
-    return MemberListResponse(total=len(items), items=items)
+    total, items = member_service.list_members(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        biz_status=biz_status,
+        member_type=type,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+    return MemberListResponse(total=total, items=items)
 
 
 @router.get("/export")

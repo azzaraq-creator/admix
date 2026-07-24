@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.models.admin import Admin
 from src.models.inquiry import Inquiry
 from src.schemas.inquiry import InquiryAnswerUpdate
+from src.utils.listing import in_date_range, paginate, parse_date
 
 _STATUS = {"pending": "답변 대기", "answered": "답변 완료"}
 
@@ -22,19 +23,50 @@ def _fmt_dt(dt) -> str | None:
     return dt.isoformat() if dt is not None else None
 
 
-def list_inquiries(db: Session) -> list[dict]:
+def _map_inquiry(q) -> dict:
+    return dict(
+        id=str(q.id),
+        name=q.name or "-",
+        title=q.subject,
+        content=q.content,
+        status=_STATUS.get(q.status, q.status),
+        submittedAt=_fmt_date(q.created_at),
+    )
+
+
+def list_inquiries_all(db: Session) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
     rows = db.query(Inquiry).order_by(Inquiry.created_at.desc()).all()
-    return [
-        dict(
-            id=str(q.id),
-            name=q.name or "-",
-            title=q.subject,
-            content=q.content,
-            status=_STATUS.get(q.status, q.status),
-            submittedAt=_fmt_date(q.created_at),
-        )
-        for q in rows
-    ]
+    return [_map_inquiry(q) for q in rows]
+
+
+def list_inquiries(
+    db: Session,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[int, list[dict]]:
+    """제출일(submittedAt) 기간·상태·키워드 필터 + 페이지네이션. (total, items) 반환."""
+    rows = list_inquiries_all(db)
+
+    df = parse_date(date_from)
+    dt = parse_date(date_to)
+    kw = (keyword or "").strip().lower()
+
+    def keep(r: dict) -> bool:
+        if status and r["status"] != status:
+            return False
+        if kw and kw not in r["title"].lower() and kw not in r["name"].lower():
+            return False
+        if not in_date_range(r["submittedAt"], df, dt):
+            return False
+        return True
+
+    return paginate([r for r in rows if keep(r)], page, page_size)
 
 
 _EXPORT_COLUMNS = [
@@ -52,7 +84,7 @@ def export_inquiries_xlsx(db: Session) -> bytes:
 
     from openpyxl import Workbook
 
-    rows = list_inquiries(db)
+    rows = list_inquiries_all(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "inquiries"

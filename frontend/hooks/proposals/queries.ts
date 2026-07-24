@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { proposalsApi, proposalsClientApi } from "./apis";
+import { proposalsApi, proposalsClientApi, type ProposalListParams } from "./apis";
 import { proposalsKeys } from "./keys";
 
-export const useAdminProposals = () =>
+export const useAdminProposals = (params?: ProposalListParams) =>
   useQuery({
-    queryKey: proposalsKeys.list(),
-    queryFn: proposalsApi.list,
+    queryKey: proposalsKeys.list(params),
+    queryFn: () => proposalsApi.list(params),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
 export const useAdminProposalDetail = (id: string | null) =>

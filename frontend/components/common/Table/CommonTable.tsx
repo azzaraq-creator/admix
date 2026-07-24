@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Calendar, RotateCw, Search } from "lucide-react";
 
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   Pagination as PaginationRoot,
   PaginationContent,
@@ -12,6 +13,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -86,6 +92,12 @@ type CommonTableProps<T> = {
   topRightContent?: React.ReactNode;
   usePageSizeSelect?: boolean;
   pageSizeOptions?: number[];
+  // 서버 사이드 페이지네이션: 켜면 data 를 그대로(현재 페이지) 렌더하고,
+  // 페이지/페이지크기는 외부 제어. totalCount 로 총 페이지 수 계산.
+  manualPagination?: boolean;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 };
 
 export function CommonTable<T>({
@@ -106,6 +118,10 @@ export function CommonTable<T>({
   topRightContent,
   usePageSizeSelect = false,
   pageSizeOptions = [10, 20, 30, 50],
+  manualPagination = false,
+  page: pageProp,
+  onPageChange,
+  onPageSizeChange,
 }: CommonTableProps<T>) {
   const [page, setPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
@@ -137,13 +153,30 @@ export function CommonTable<T>({
   const setField = (key: string, value: string) =>
     setTempSearch((prev) => ({ ...prev, [key]: value }));
 
-  const totalPages = Math.max(1, Math.ceil(data.length / currentPageSize));
-  const safePage = Math.min(page, totalPages);
+  const activePageSize = manualPagination ? pageSize : currentPageSize;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      (manualPagination ? (totalCount ?? 0) : data.length) / activePageSize,
+    ),
+  );
+  const activePage = manualPagination
+    ? Math.max(1, pageProp ?? 1)
+    : Math.min(page, totalPages);
   const pageData = useMemo(
     () =>
-      data.slice((safePage - 1) * currentPageSize, safePage * currentPageSize),
-    [data, safePage, currentPageSize],
+      manualPagination
+        ? data
+        : data.slice(
+            (activePage - 1) * currentPageSize,
+            activePage * currentPageSize,
+          ),
+    [manualPagination, data, activePage, currentPageSize],
   );
+  const handlePageChange = (p: number) => {
+    if (manualPagination) onPageChange?.(p);
+    else setPage(p);
+  };
 
   const isSelected = (item: T) =>
     idKey
@@ -223,12 +256,14 @@ export function CommonTable<T>({
           <DateField
             value={tempSearch[`${opt.name}__from`] ?? ""}
             placeholder={opt.placeholder ?? "날짜 입력"}
+            maxDate={tempSearch[`${opt.name}__to`]}
             onChange={(v) => setField(`${opt.name}__from`, v)}
           />
           <span className="text-sm text-disabled">-</span>
           <DateField
             value={tempSearch[`${opt.name}__to`] ?? ""}
             placeholder={opt.placeholder ?? "날짜 입력"}
+            minDate={tempSearch[`${opt.name}__from`]}
             onChange={(v) => setField(`${opt.name}__to`, v)}
           />
         </div>
@@ -399,11 +434,15 @@ export function CommonTable<T>({
         <div className="flex items-center justify-between">
           {usePageSizeSelect ? (
             <PageSizeSelect
-              value={currentPageSize}
+              value={activePageSize}
               options={pageSizeOptions}
               onChange={(n) => {
-                setCurrentPageSize(n);
-                setPage(1);
+                if (manualPagination) {
+                  onPageSizeChange?.(n);
+                } else {
+                  setCurrentPageSize(n);
+                  setPage(1);
+                }
               }}
             />
           ) : (
@@ -411,9 +450,9 @@ export function CommonTable<T>({
           )}
           {totalPages > 1 && (
             <Pagination
-              page={safePage}
+              page={activePage}
               totalPages={totalPages}
-              onChange={setPage}
+              onChange={handlePageChange}
             />
           )}
         </div>
@@ -422,26 +461,73 @@ export function CommonTable<T>({
   );
 }
 
+// "YYYY.MM.DD"(점) 또는 "YYYY-MM-DD"(대시) 모두 허용해 Date 로 파싱
+function parseDate(s?: string | null): Date | undefined {
+  if (!s) return undefined;
+  const d = new Date(`${s.replace(/\./g, "-")}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+// lib/date.formatDate 와 동일한 점 구분 형식으로 저장
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
+}
+
 function DateField({
   value,
   placeholder,
   onChange,
+  minDate,
+  maxDate,
 }: {
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
+  minDate?: string; // 이 날짜 이전 비활성(종료일 등)
+  maxDate?: string; // 이 날짜 이후 비활성(시작일 등)
 }) {
+  const [open, setOpen] = useState(false);
+  const selected = parseDate(value);
+  const min = parseDate(minDate);
+  const max = parseDate(maxDate);
+  const disabled = [
+    ...(min ? [{ before: min }] : []),
+    ...(max ? [{ after: max }] : []),
+  ];
+
   return (
-    <div className="relative w-[200px]">
-      <input
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-[40px] w-full rounded-[8px] border border-stroke bg-white pl-[12px] pr-[36px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
-      />
-      <Calendar className="pointer-events-none absolute right-[12px] top-1/2 size-[16px] -translate-y-1/2 text-disabled" />
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="relative flex h-[40px] w-[200px] items-center rounded-[8px] border border-stroke bg-white pl-[12px] pr-[36px] text-left outline-none focus:border-primary"
+        aria-label="날짜 선택"
+      >
+        <span
+          className={cn(
+            "text-sm font-medium leading-[20px]",
+            value ? "text-black" : "text-placeholder",
+          )}
+        >
+          {value || placeholder}
+        </span>
+        <Calendar className="pointer-events-none absolute right-[12px] top-1/2 size-[16px] -translate-y-1/2 text-disabled" />
+      </PopoverTrigger>
+      <PopoverContent>
+        <CalendarPicker
+          mode="single"
+          defaultMonth={selected ?? min ?? max}
+          selected={selected}
+          onSelect={(d) => {
+            if (!d) return;
+            onChange(toDateStr(d));
+            setOpen(false);
+          }}
+          disabled={disabled}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -1,6 +1,11 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { getUserToken } from "@/lib/userToken";
+
+export interface ProposalListParams extends AdminListParams {
+  status?: string;
+}
 
 export interface ProposalRow {
   id: string;
@@ -50,8 +55,10 @@ export interface AdminProposalDetail {
 }
 
 export const proposalsApi = {
-  list: () =>
-    api.get<ProposalListResponse>("/admin/proposals").then((r) => r.data),
+  list: (params?: ProposalListParams) =>
+    api
+      .get<ProposalListResponse>("/admin/proposals", { params })
+      .then((r) => r.data),
   exportExcel: () =>
     api
       .get<Blob>("/admin/proposals/export", { responseType: "blob" })

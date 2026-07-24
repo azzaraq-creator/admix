@@ -19,26 +19,29 @@ import {
 export function FaqListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useFaqs();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useFaqs({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    type: search.type,
+  });
 
-  const filtered = useMemo<Faq[]>(() => {
-    const keyword = search.keyword?.trim().toLowerCase();
-    const type = search.type;
-    return (data ?? [])
-      .filter((r) => {
-        if (type && r.faq_type !== type) return false;
-        if (keyword && !r.title.toLowerCase().includes(keyword)) return false;
-        return true;
-      })
-      .map((r, i) => ({
+  const rows = useMemo<Faq[]>(
+    () =>
+      (data?.items ?? []).map((r, i) => ({
         id: r.id,
-        no: String(i + 1),
+        no: String((page - 1) * pageSize + i + 1),
         type: (r.faq_type ?? "") as FaqType,
         title: r.title,
         author: r.author ?? "-",
         createdAt: r.created_at.slice(0, 10),
-      }));
-  }, [data, search]);
+      })),
+    [data, page, pageSize],
+  );
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -46,13 +49,23 @@ export function FaqListView() {
 
       <CommonTable<Faq>
         columnList={faqColumnList}
-        data={filtered}
+        data={rows}
         idKey="id"
         searchOptionList={faqSearchOptionList}
-        onSearch={setSearch}
-        totalCount={filtered.length}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/faq/${item.id}`)}
         topRightContent={
           <button

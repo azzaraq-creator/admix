@@ -1,4 +1,9 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+
+export interface InquiryListParams extends AdminListParams {
+  status?: string;
+}
 
 export interface InquiryRow {
   id: string;
@@ -30,8 +35,10 @@ export interface InquiryDetail {
 }
 
 export const inquiriesApi = {
-  list: () =>
-    api.get<InquiryListResponse>("/admin/inquiries").then((r) => r.data),
+  list: (params?: InquiryListParams) =>
+    api
+      .get<InquiryListResponse>("/admin/inquiries", { params })
+      .then((r) => r.data),
   exportExcel: () =>
     api
       .get<Blob>("/admin/inquiries/export", { responseType: "blob" })

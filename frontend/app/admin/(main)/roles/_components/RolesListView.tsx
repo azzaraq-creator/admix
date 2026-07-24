@@ -33,7 +33,17 @@ function triggerDownload(blob: Blob, filename: string) {
 export function RolesListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useAdminAccounts();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useAdminAccounts({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    type: search.type,
+    status: search.status,
+  });
   const { error } = useSonner();
 
   const handleExport = async () => {
@@ -44,33 +54,20 @@ export function RolesListView() {
     }
   };
 
-  const filtered = useMemo<Account[]>(() => {
-    const keyword = search.keyword?.trim().toLowerCase();
-    const { type, status } = search;
-    return (data?.items ?? [])
-      .filter((r) => {
-        const krStatus = r.status === "active" ? "활성" : "비활성";
-        if (type && r.type !== type) return false;
-        if (status && krStatus !== status) return false;
-        if (
-          keyword &&
-          !r.name.toLowerCase().includes(keyword) &&
-          !r.email.toLowerCase().includes(keyword)
-        )
-          return false;
-        return true;
-      })
-      .map((r, i) => ({
+  const rows = useMemo<Account[]>(
+    () =>
+      (data?.items ?? []).map((r, i) => ({
         id: r.no,
-        no: String(i + 1),
+        no: String((page - 1) * pageSize + i + 1),
         name: r.name,
         email: r.email,
         type: r.type as AccountType,
         role: r.role,
         status: (r.status === "active" ? "활성" : "비활성") as AccountStatus,
         createdAt: r.createdAt,
-      }));
-  }, [data, search]);
+      })),
+    [data, page, pageSize],
+  );
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -78,13 +75,23 @@ export function RolesListView() {
 
       <CommonTable<Account>
         columnList={accountColumnList}
-        data={filtered}
+        data={rows}
         idKey="id"
         searchOptionList={accountSearchOptionList}
-        onSearch={setSearch}
-        totalCount={filtered.length}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/roles/${item.id}`)}
         topRightContent={
           <>

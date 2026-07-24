@@ -34,6 +34,7 @@ from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.services.graph.settings import SANGWON_MAX_DISTANCE_M, SANGWON_QUARTER
+from src.utils.listing import in_date_range, paginate, parse_date
 
 # admin 매체 상세/등록 폼 — 자동 관리 컬럼(수정 대상 아님)
 _MEDIA_AUTO_COLS = {"created_at", "updated_at"}
@@ -551,7 +552,17 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
     )
 
 
-def list_media(db: Session) -> list[dict]:
+def list_media(
+    db: Session,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    media_type: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[int, list[dict]]:
+    """등록일(createdAt) 기간·유형·키워드(매체명) 필터 + 페이지네이션. (total, items) 반환."""
     rows = (
         db.query(Media, MediaPlan)
         .outerjoin(
@@ -581,7 +592,22 @@ def list_media(db: Session) -> list[dict]:
                 createdAt=_fmt_date(m.source_created_at),
             )
         )
-    return items
+
+    df = parse_date(date_from)
+    dt = parse_date(date_to)
+    kw = (keyword or "").strip().lower()
+
+    def keep(r: dict) -> bool:
+        if media_type and r["mediaType"] != media_type:
+            return False
+        if kw and kw not in r["name"].lower():
+            return False
+        if not in_date_range(r["createdAt"], df, dt):
+            return False
+        return True
+
+    filtered = [r for r in items if keep(r)]
+    return paginate(filtered, page, page_size)
 
 
 # ===== admin 매체 상세/등록/수정 (media 전 컬럼) =====

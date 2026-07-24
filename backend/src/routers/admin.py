@@ -25,11 +25,27 @@ router = APIRouter(prefix="/admin/accounts", tags=["admin"])
 
 @router.get("", response_model=AdminAccountListResponse)
 def list_accounts(
+    page: int = 1,
+    page_size: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    type: str | None = None,
+    status: str | None = None,
     db: Session = Depends(get_db),
     _: Admin = Depends(get_current_admin),
 ) -> AdminAccountListResponse:
-    items = admin_service.list_accounts(db)
-    return AdminAccountListResponse(total=len(items), items=items)
+    total, items = admin_service.list_accounts(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        account_type=type,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+    return AdminAccountListResponse(total=total, items=items)
 
 
 @router.post("", response_model=AdminAccountDetail, status_code=status.HTTP_201_CREATED)

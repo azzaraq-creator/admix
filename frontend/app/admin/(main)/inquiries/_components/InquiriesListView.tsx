@@ -32,7 +32,16 @@ function triggerDownload(blob: Blob, filename: string) {
 export function InquiriesListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useAdminInquiries();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useAdminInquiries({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    status: search.status,
+  });
   const { error } = useSonner();
 
   const handleExport = async () => {
@@ -43,30 +52,19 @@ export function InquiriesListView() {
     }
   };
 
-  const filtered = useMemo<Inquiry[]>(() => {
-    const keyword = search.keyword?.trim().toLowerCase();
-    const status = search.status;
-    return (data?.items ?? [])
-      .filter((r) => {
-        if (status && r.status !== status) return false;
-        if (
-          keyword &&
-          !r.title.toLowerCase().includes(keyword) &&
-          !r.name.toLowerCase().includes(keyword)
-        )
-          return false;
-        return true;
-      })
-      .map((r, i) => ({
+  const rows = useMemo<Inquiry[]>(
+    () =>
+      (data?.items ?? []).map((r, i) => ({
         id: r.id,
-        no: String(i + 1),
+        no: String((page - 1) * pageSize + i + 1),
         name: r.name,
         title: r.title,
         content: r.content,
         status: r.status as InquiryStatus,
         submittedAt: r.submittedAt,
-      }));
-  }, [data, search]);
+      })),
+    [data, page, pageSize],
+  );
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -74,13 +72,23 @@ export function InquiriesListView() {
 
       <CommonTable<Inquiry>
         columnList={inquiryColumnList}
-        data={filtered}
+        data={rows}
         idKey="id"
         searchOptionList={inquirySearchOptionList}
-        onSearch={setSearch}
-        totalCount={filtered.length}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/inquiries/${item.id}`)}
         topRightContent={<ExcelDownloadButton onClick={handleExport} />}
       />

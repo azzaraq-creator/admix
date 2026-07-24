@@ -1,4 +1,9 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+
+export interface FaqListParams extends AdminListParams {
+  type?: string;
+}
 
 export interface FaqRow {
   id: string;
@@ -30,9 +35,16 @@ export interface FaqUpdatePayload {
   is_published?: boolean;
 }
 
+export interface FaqListResponse {
+  total: number;
+  items: FaqRow[];
+}
+
 export const faqsApi = {
   list: (params?: { faq_type?: string; published_only?: boolean }) =>
     api.get<FaqRow[]>("/faqs", { params }).then((r) => r.data),
+  adminList: (params?: FaqListParams) =>
+    api.get<FaqListResponse>("/admin/faqs", { params }).then((r) => r.data),
   get: (id: string) => api.get<FaqRow>(`/faqs/${id}`).then((r) => r.data),
   create: (payload: FaqCreatePayload) =>
     api.post<FaqRow>("/faqs", payload).then((r) => r.data),

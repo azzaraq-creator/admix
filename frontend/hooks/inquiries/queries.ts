@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { inquiriesApi, inquiriesClientApi } from "./apis";
+import {
+  inquiriesApi,
+  inquiriesClientApi,
+  type InquiryListParams,
+} from "./apis";
 import { inquiriesKeys } from "./keys";
 
-export const useAdminInquiries = () =>
+export const useAdminInquiries = (params?: InquiryListParams) =>
   useQuery({
-    queryKey: inquiriesKeys.list(),
-    queryFn: inquiriesApi.list,
+    queryKey: inquiriesKeys.list(params),
+    queryFn: () => inquiriesApi.list(params),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
 export const useInquiry = (id: string | null) =>

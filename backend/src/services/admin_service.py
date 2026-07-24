@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.models.admin import Admin, MASTER_ACCOUNT_TYPE
 from src.models.admin_permission import AdminPermission
 from src.schemas.admin import AdminAccountCreate, AdminAccountUpdate
+from src.utils.listing import in_date_range, paginate, parse_date
 from src.utils.security import hash_password, verify_password
 
 VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account", "chat"}
@@ -39,20 +40,56 @@ def _fmt_date(dt) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
-def list_accounts(db: Session) -> list[dict]:
+def _map_account(a) -> dict:
+    return dict(
+        no=str(a.id),
+        name=a.name or "-",
+        email=a.email,
+        type=a.account_type or "-",
+        role=a.department or "-",
+        status=a.status,
+        createdAt=_fmt_date(a.created_at),
+    )
+
+
+def list_accounts_all(db: Session) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
     admins = db.query(Admin).order_by(Admin.created_at.desc()).all()
-    return [
-        dict(
-            no=str(a.id),
-            name=a.name or "-",
-            email=a.email,
-            type=a.account_type or "-",
-            role=a.department or "-",
-            status=a.status,
-            createdAt=_fmt_date(a.created_at),
-        )
-        for a in admins
-    ]
+    return [_map_account(a) for a in admins]
+
+
+def list_accounts(
+    db: Session,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    account_type: str | None = None,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[int, list[dict]]:
+    """생성일(createdAt) 기간·유형·상태·키워드 필터 + 페이지네이션. (total, items) 반환."""
+    rows = list_accounts_all(db)
+
+    df = parse_date(date_from)
+    dt = parse_date(date_to)
+    kw = (keyword or "").strip().lower()
+
+    def keep(r: dict) -> bool:
+        if account_type and r["type"] != account_type:
+            return False
+        if status:
+            kr = "활성" if r["status"] == "active" else "비활성"
+            if kr != status:
+                return False
+        if kw and kw not in r["name"].lower() and kw not in r["email"].lower():
+            return False
+        if not in_date_range(r["createdAt"], df, dt):
+            return False
+        return True
+
+    return paginate([r for r in rows if keep(r)], page, page_size)
 
 
 _ACCOUNT_EXPORT_COLUMNS = [
@@ -71,7 +108,7 @@ def export_accounts_xlsx(db: Session) -> bytes:
 
     from openpyxl import Workbook
 
-    rows = list_accounts(db)
+    rows = list_accounts_all(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "accounts"

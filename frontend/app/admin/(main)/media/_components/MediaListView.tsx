@@ -78,7 +78,16 @@ function ExcelDownloadMenu({ onSelect }: { onSelect: (action: string) => void })
 export function MediaListView() {
   const router = useRouter();
   const [search, setSearch] = useState<SearchParams>({});
-  const { data } = useMediaList();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data } = useMediaList({
+    page,
+    page_size: pageSize,
+    date_from: search.periodFrom,
+    date_to: search.periodTo,
+    keyword: search.keyword,
+    type: search.type,
+  });
   const { success, error } = useSonner();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkImport = useBulkImportMedia();
@@ -114,16 +123,7 @@ export function MediaListView() {
     }
   };
 
-  const filtered = useMemo<Media[]>(() => {
-    const list = data?.items ?? [];
-    const keyword = search.keyword?.trim().toLowerCase();
-    const type = search.type;
-    return list.filter((item) => {
-      if (type && item.mediaType !== type) return false;
-      if (keyword && !item.name.toLowerCase().includes(keyword)) return false;
-      return true;
-    });
-  }, [data, search]);
+  const rows = useMemo<Media[]>(() => data?.items ?? [], [data]);
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -133,14 +133,24 @@ export function MediaListView() {
 
       <CommonTable<Media>
         columnList={mediaColumnList}
-        data={filtered}
+        data={rows}
         idKey="no"
         searchOptionList={mediaSearchOptionList}
-        onSearch={setSearch}
+        onSearch={(params) => {
+          setSearch(params);
+          setPage(1);
+        }}
         onRowClick={(item) => router.push(`/admin/media/${item.no}`)}
-        totalCount={filtered.length}
+        totalCount={data?.total ?? 0}
         usePageSizeSelect
-        pageSize={10}
+        pageSize={pageSize}
+        manualPagination
+        page={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         topRightContent={
           <>
             <ExcelDownloadMenu onSelect={handleExcel} />

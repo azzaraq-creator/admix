@@ -37,3 +37,8 @@ class FaqResponse(BaseModel):
     author: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class FaqListResponse(BaseModel):
+    total: int
+    items: list[FaqResponse]

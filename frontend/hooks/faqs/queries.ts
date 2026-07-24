@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { faqsApi } from "./apis";
+import { faqsApi, type FaqListParams } from "./apis";
 import { faqsKeys } from "./keys";
 
-export const useFaqs = () =>
+export const useFaqs = (params?: FaqListParams) =>
   useQuery({
-    queryKey: faqsKeys.list(),
-    queryFn: () => faqsApi.list(),
+    queryKey: faqsKeys.adminList(params),
+    queryFn: () => faqsApi.adminList(params),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
 export const usePublishedFaqs = () =>

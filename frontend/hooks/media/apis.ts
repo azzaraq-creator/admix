@@ -1,4 +1,9 @@
+import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+
+export interface MediaListParams extends AdminListParams {
+  type?: string;
+}
 
 export interface MediaRow {
   no: string;
@@ -186,7 +191,8 @@ function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
 }
 
 export const mediaApi = {
-  list: () => api.get<MediaListResponse>("/admin/media").then((r) => r.data),
+  list: (params?: MediaListParams) =>
+    api.get<MediaListResponse>("/admin/media", { params }).then((r) => r.data),
   exportExcel: () =>
     api
       .get<Blob>("/admin/media/export", { responseType: "blob" })

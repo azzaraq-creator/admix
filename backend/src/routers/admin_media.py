@@ -32,11 +32,25 @@ router = APIRouter(prefix="/admin/media", tags=["admin-media"])
 
 @router.get("", response_model=MediaListResponse)
 def list_media(
+    page: int = 1,
+    page_size: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    type: str | None = None,
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("media")),
 ) -> MediaListResponse:
-    items = media_service.list_media(db)
-    return MediaListResponse(total=len(items), items=items)
+    total, items = media_service.list_media(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        media_type=type,
+        page=page,
+        page_size=page_size,
+    )
+    return MediaListResponse(total=total, items=items)
 
 
 @router.get("/export")

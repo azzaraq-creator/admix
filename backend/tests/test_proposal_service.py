@@ -227,7 +227,7 @@ def test_admin_list_excludes_new_and_flags_deleted(db, session, cleanup_proposal
     contracted_deleted = _make(db, session, "contracted", cleanup_proposals)
     ps.delete(db, contracted_deleted)
 
-    rows = {r["id"]: r for r in ps.list_proposals(db)}
+    rows = {r["id"]: r for r in ps.list_proposals_all(db)}
     # 작성중(new)은 admin 목록에서 제외
     assert str(draft.id) not in rows
     # 제출완료 → admin "신규", 삭제됨 아님

@@ -1,20 +1,26 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 
 import {
   adminMediaApi,
   mediaApi,
   type MapBounds,
   type MediaFilterParams,
+  type MediaListParams,
 } from "./apis";
 import { mediaKeys } from "./keys";
 
 const FIXED_PAGE_SIZE = 20;
 
-export const useMediaList = () =>
+export const useMediaList = (params?: MediaListParams) =>
   useQuery({
-    queryKey: mediaKeys.list(),
-    queryFn: mediaApi.list,
+    queryKey: mediaKeys.list(params),
+    queryFn: () => mediaApi.list(params),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
 export const useAdminMediaDetail = (id: string | null) =>

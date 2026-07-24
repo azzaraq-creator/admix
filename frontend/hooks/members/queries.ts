@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { membersApi } from "./apis";
+import { membersApi, type MemberListParams } from "./apis";
 import { membersKeys } from "./keys";
 
-export const useMembers = () =>
+export const useMembers = (params?: MemberListParams) =>
   useQuery({
-    queryKey: membersKeys.list(),
-    queryFn: membersApi.list,
+    queryKey: membersKeys.list(params),
+    queryFn: () => membersApi.list(params),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
 export const useMember = (id: string | null) =>
