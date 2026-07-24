@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { ChevronRightIcon, CircleCheckIcon, Logo } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -152,46 +153,38 @@ export function ServiceIntroView() {
             차별점을 직접 확인해 보세요
           </h2>
         </div>
-        <div className="flex w-full items-stretch gap-[8px] sm:gap-[24px]">
-          <div className="flex flex-1 flex-col gap-[8px]">
-            <div className="flex flex-col">
-              <div className="flex items-center justify-center bg-disabled px-[10px] py-[12px] sm:py-[20px]">
-                <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
-                  타사 서비스
-                </p>
-              </div>
-              <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:py-[20px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/service/compare-other.png"
-                  alt=""
-                  className="size-full object-contain sm:size-[180px]"
-                />
-              </div>
+        <div className="grid w-full grid-cols-2 gap-x-[8px] gap-y-[8px] sm:gap-x-[24px]">
+          <div className="flex flex-col">
+            <div className="flex items-center justify-center bg-disabled px-[10px] py-[12px] sm:py-[20px]">
+              <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
+                타사 서비스
+              </p>
             </div>
-            <div className="flex flex-col gap-[8px]">
-              {OTHER_ROWS.map((items) => (
-                <CompareRow key={items[0]} items={items} variant="other" />
-              ))}
+            <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/service/compare-other.png"
+                alt=""
+                className="size-full object-contain sm:h-full sm:w-auto"
+              />
             </div>
           </div>
-          <div className="flex flex-1 flex-col gap-[8px]">
-            <div className="flex flex-col">
-              <div className="flex items-center justify-center bg-primary px-[10px] py-[12px] sm:py-[20px]">
-                <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
-                  ADMIX
-                </p>
-              </div>
-              <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
-                <AdmixLogo dark />
-              </div>
+          <div className="flex flex-col">
+            <div className="flex items-center justify-center bg-primary px-[10px] py-[12px] sm:py-[20px]">
+              <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
+                ADMIX
+              </p>
             </div>
-            <div className="flex flex-col gap-[8px]">
-              {ADMIX_ROWS.map((items) => (
-                <CompareRow key={items[0]} items={items} variant="admix" />
-              ))}
+            <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
+              <AdmixLogo dark />
             </div>
           </div>
+          {OTHER_ROWS.map((items, i) => (
+            <Fragment key={items[0]}>
+              <CompareRow items={OTHER_ROWS[i]} variant="other" />
+              <CompareRow items={ADMIX_ROWS[i]} variant="admix" />
+            </Fragment>
+          ))}
         </div>
       </section>
 
