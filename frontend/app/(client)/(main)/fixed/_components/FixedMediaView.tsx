@@ -192,6 +192,7 @@ export function FixedMediaView({
       if (next === "search") {
         if (liveBoundsRef.current) commitBounds(liveBoundsRef.current);
       } else {
+        setMobileMap(false);
         setSearchMarkers([]);
         setSearchClusters([]);
       }
@@ -402,20 +403,22 @@ export function FixedMediaView({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setMobileMap((value) => !value)}
-        className="absolute bottom-[24px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-primary px-[16px] py-[8px] text-white drop-shadow-[0px_2px_8px_rgba(0,0,0,0.2)] sm:hidden"
-      >
-        {mobileMap ? (
-          <ListIcon className="size-[18px]" />
-        ) : (
-          <MapPinIcon className="size-[18px]" />
-        )}
-        <span className="text-sm font-medium whitespace-nowrap">
-          {mobileMap ? "목록보기" : "지도보기"}
-        </span>
-      </button>
+      {mode === "search" && (
+        <button
+          type="button"
+          onClick={() => setMobileMap((value) => !value)}
+          className="absolute bottom-[24px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-primary px-[16px] py-[8px] text-white drop-shadow-[0px_2px_8px_rgba(0,0,0,0.2)] sm:hidden"
+        >
+          {mobileMap ? (
+            <ListIcon className="size-[18px]" />
+          ) : (
+            <MapPinIcon className="size-[18px]" />
+          )}
+          <span className="text-sm font-medium whitespace-nowrap">
+            {mobileMap ? "목록보기" : "지도보기"}
+          </span>
+        </button>
+      )}
 
       {selectedMedia && (
         <div className="absolute inset-0 z-30 overflow-y-auto bg-white sm:hidden">
