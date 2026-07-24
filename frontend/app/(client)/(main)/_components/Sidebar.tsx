@@ -128,7 +128,7 @@ export function Sidebar() {
         <div
           aria-hidden
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-20 bg-black/30 sm:hidden"
+          className="fixed inset-0 z-40 bg-black/30 sm:hidden"
         />
       )}
       <aside
@@ -139,7 +139,7 @@ export function Sidebar() {
         <nav
           aria-label="사이드바"
           onClick={() => setOpen(!expanded)}
-          className={`absolute inset-y-0 left-0 z-30 flex h-screen cursor-pointer flex-col justify-between border-r border-stroke bg-white px-[8px] py-[24px] transition-[width,transform] duration-300 ease-in-out ${
+          className={`absolute inset-y-0 left-0 z-40 flex h-screen cursor-pointer flex-col justify-between border-r border-stroke bg-white px-[8px] py-[24px] transition-[width,transform] duration-300 ease-in-out ${
             expanded
               ? "w-[224px] translate-x-0"
               : "w-[64px] -translate-x-full sm:translate-x-0"
