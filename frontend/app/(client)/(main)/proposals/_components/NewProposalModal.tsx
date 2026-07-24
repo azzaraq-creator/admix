@@ -50,7 +50,7 @@ export function NewProposalModal({
         onOpenChange(value);
       }}
     >
-      <DialogContent className="flex w-[400px] flex-col">
+      <DialogContent className="flex min-w-[343px] flex-col">
         <div className="flex items-center justify-between px-[30px] py-[20px]">
           <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
             새 제안서
