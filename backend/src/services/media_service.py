@@ -15,7 +15,6 @@ from pathlib import Path
 
 import boto3
 from fastapi import HTTPException, UploadFile
-from openpyxl import Workbook, load_workbook
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -609,6 +608,8 @@ def _xlsx_cell(val):
 
 
 def _build_xlsx(headers: list[str], rows: list[list]) -> bytes:
+    from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.title = "media"
@@ -687,6 +688,8 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
     반환: {total, inserted, skipped, failed, errors}. best-effort — 행별 savepoint 로
     한 행이 실패해도 나머지는 계속 삽입한다.
     """
+    from openpyxl import load_workbook
+
     try:
         wb = load_workbook(BytesIO(content), read_only=True, data_only=True)
     except Exception:
