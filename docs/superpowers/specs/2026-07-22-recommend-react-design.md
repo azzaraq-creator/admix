@@ -153,3 +153,24 @@ ReAct 루프(chatbot⇄tools 왕복)에서 **모든 기능이 전용 도구를 �
 2. 그래프 종료 후 `chat` 이벤트 생성 규칙: 도구가 이미 list/proposal을 방출한 턴에서 최종 chatbot 텍스트를 별도 `chat`으로 낼지, 마지막 구조화 이벤트에 message로 합칠지.
 3. 제안서 "이름 없이 만들어줘"의 되묻기 UX(1턴 왕복) 문구.
 4. LLM 모델: `get_chat`(기본) vs `get_chat_strong`(뉘앙스) — 도구 라우팅 정확도 보고 결정.
+
+---
+
+## 11. 구현 반영 — 제안서 도구 UX (2026-07-24)
+
+member 토큰 E2E 검증(DB 영속 확인) 후 확정된 동작. 로그: [log.md](../../log.md) 2026-07-24.
+
+### 11.1 제안서 선택 인라인 카드 (`proposal_choices` 이벤트)
+담을/바꿀 대상 제안서가 애매(여러 개·이름 불일치)하면 텍스트로 되묻지 않고 **클릭 가능한 제안서 목록**을 방출한다.
+- 이벤트: `{type:"proposal_choices", action:"add"|"rename", proposals:[{id,name,media_count}], media_ids?, new_name?}`
+- 프런트: 각 제안서를 Figma [1058:31220] 폴더행 스타일 카드로 렌더(아이콘색 `platinum-300`). 클릭 시 action별로 `useAddProposalItems`(add) / `useRenameProposal`(rename, PATCH `/proposals/{id}`) 직접 호출. **성공 시에만** 완료(✓) 표시(실패는 toast + 재선택).
+
+### 11.2 도구별 대상 결정 우선순위 (공통 패턴)
+`AddMedia`·`RenameProposal` 모두: **① 지목 이름(proposal_name/target_name) → ② 세션 active → ③ 유일 → ④ 여러 개면 선택 카드**. 무단으로 "최근 제안서"에 적용하지 않는다.
+- `AddMedia`: 매체는 `media_indices`(번호) + `media_names`(이름, 목록에 없으면 추측 금지). 제안서 없으면 **자동 생성 안 하고** 생성 안내.
+- `RenameProposal`: 새 이름 없이도(여러 개면) 선택 목록 먼저 노출 → 카드 클릭 시 새 이름 입력(현재 `window.prompt`).
+
+### 11.3 미구현 / 안티패턴 방지
+- **DeleteProposal 도구 없음**(의도적). LLM은 "삭제 기능 없음"을 정직 안내.
+- **LLM staleness/fabrication 방지**: 담기/이름변경 요청은 프롬프트로 **매번 도구 호출 강제** — "제안서 없어요"/"목록 보여줄게요"를 도구 없이 지어내거나 이전 턴 답을 재사용하지 않는다.
+- **소유자 판정**: 잡 경로엔 토큰이 없어 `_proposal_owner_for_session`이 `AdSession.user_id`로 판정. 로그인 유저는 세션 생성 시 user_id 연결됨 → 회원 제안서 인식. (프런트 add/rename mutation은 토큰 기반 — 로그인 필수.)

@@ -93,7 +93,12 @@ export interface V2Message {
   confirmation?: ConfirmationInfo;
   media?: V2MediaRef;
   proposal?: V2ProposalRef;
-  proposalChoices?: { proposals: V2ProposalRef[]; mediaIds: string[] };
+  proposalChoices?: {
+    action: "add" | "rename";
+    proposals: V2ProposalRef[];
+    mediaIds: string[];
+    newName?: string;
+  };
   cta?: string;
   limitAction?: LimitAction;
 }
@@ -354,9 +359,12 @@ export function useReactChat() {
                 proposalChoices:
                   msgType === "proposal_choices"
                     ? {
+                        action:
+                          (data.action as "add" | "rename") || "add",
                         proposals:
                           (data.proposals as V2ProposalRef[]) || [],
                         mediaIds: (data.media_ids as string[]) || [],
+                        newName: (data.new_name as string) || undefined,
                       }
                     : undefined,
                 cta: (data.cta as string) || undefined,

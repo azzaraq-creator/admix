@@ -69,6 +69,13 @@ class AddMediaArgs(BaseModel):
     """직전 추천 매체를 제안서에 담기."""
 
     media_indices: list[int] = Field(default_factory=list, description="담을 1-based 번호")
+    media_names: list[str] = Field(
+        default_factory=list,
+        description=(
+            "번호 대신 매체명으로 지목 시 그 매체명(예: '스칼렛빌딩'). 반드시 현재 추천 목록에 "
+            "실제 있는 매체명만. 목록에 없으면 넣지 말고 비워둔다(추측 금지)."
+        ),
+    )
     proposal_name: Optional[str] = Field(
         None,
         description=(
@@ -79,9 +86,16 @@ class AddMediaArgs(BaseModel):
 
 
 class RenameProposalArgs(BaseModel):
-    """현재 제안서 이름 변경."""
+    """제안서 이름 변경."""
 
-    new_name: str = Field(description="새 이름")
+    new_name: str = Field(description="바꿀 새 이름")
+    target_name: Optional[str] = Field(
+        None,
+        description=(
+            "이름을 바꿀 대상 제안서의 현재 이름. 사용자가 어느 제안서인지 지목했을 때만 채운다"
+            "(예: '여름캠페인 이름을 가을세일로 바꿔줘'→target_name='여름캠페인'). 지목 안 했으면 null."
+        ),
+    )
 
 
 # ===== 실행기 헬퍼 =====
@@ -107,6 +121,22 @@ def _run_search(ctx: ReactContext, text: str) -> tuple[list[dict], int]:
     return items, total
 
 
+def _media_ids_from_names(last_items: list[dict], names: list[str]) -> list[str]:
+    """매체명으로 직전 목록에서 media_id 를 찾는다. 목록에 없으면 스킵(추측 안 함)."""
+    out: list[str] = []
+    for name in names or []:
+        n = (name or "").strip()
+        if not n:
+            continue
+        for it in last_items or []:
+            if n in (it.get("name") or ""):
+                mid = it.get("media_id")
+                if mid:
+                    out.append(str(mid))
+                break
+    return out
+
+
 def _resolve_item(last_items: list[dict], index: Optional[int], name: Optional[str]) -> Optional[dict]:
     if index is not None and 1 <= index <= len(last_items or []):
         return last_items[index - 1]
@@ -129,20 +159,34 @@ def _proposal_event(proposal, message: str) -> dict:
     }
 
 
-def _emit_proposal_choices(ctx: ReactContext, proposals, media_ids: list[str], message: str) -> str:
-    """담을 제안서가 애매할 때 선택 목록(카드)을 프런트로 방출한다(담지는 않음).
+def _emit_proposal_choices(
+    ctx: ReactContext,
+    proposals,
+    message: str,
+    *,
+    action: str = "add",
+    media_ids: Optional[list[str]] = None,
+    new_name: Optional[str] = None,
+) -> str:
+    """대상 제안서가 애매할 때 선택 목록(카드)을 프런트로 방출한다(작업은 클릭 시 수행).
 
-    프런트가 카드 클릭 시 media_ids 를 그 제안서에 직접 담는다.
+    action="add" → 카드 클릭 시 media_ids 를 그 제안서에 담는다.
+    action="rename" → 카드 클릭 시 그 제안서 이름을 new_name 으로 바꾼다.
     """
-    ctx.events.append({
+    ev: dict = {
         "type": "proposal_choices",
+        "action": action,
         "message": message,
         "proposals": [
             {"id": str(p.id), "name": p.title, "media_count": p.media_count}
             for p in proposals
         ],
-        "media_ids": media_ids,
-    })
+    }
+    if media_ids is not None:
+        ev["media_ids"] = media_ids
+    if new_name is not None:
+        ev["new_name"] = new_name
+    ctx.events.append(ev)
     return "사용자에게 제안서 선택 목록을 보여줬습니다."
 
 
@@ -166,12 +210,26 @@ def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[in
     return msg
 
 
-def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional[str] = None) -> str:
+def _do_add_media(
+    ctx: ReactContext,
+    indices: list[int],
+    proposal_name: Optional[str] = None,
+    names: Optional[list[str]] = None,
+) -> str:
     member_id, owner_sid, _ = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
-    media_ids = domain._media_ids_from_indices(ctx.last_items, indices)
+    # 번호 + 매체명 둘 다에서 media_id 해석(이름은 목록에 없으면 스킵 → 엉뚱한 매체 담기 방지)
+    media_ids = list(
+        dict.fromkeys(
+            domain._media_ids_from_indices(ctx.last_items, indices)
+            + _media_ids_from_names(ctx.last_items, names or [])
+        )
+    )
     if not media_ids:
         # NOT_FOUND 마커를 쓰지 않는다(가드레일 fallback 오발동 방지) — LLM 이 되묻게 한다.
-        return "어떤 매체를 담을까요? 추천 목록에서 번호를 알려주세요 😊"
+        return (
+            "담을 매체를 현재 추천 목록에서 찾지 못했어요. 목록의 번호로 알려주시거나, "
+            "원하는 매체를 먼저 검색해 주세요 😊"
+        )
 
     proposals = proposal_service.list_for_owner(ctx.db, member_id=member_id, session_id=owner_sid)
 
@@ -190,13 +248,15 @@ def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional
             target = matches[0]
         elif not matches:
             return _emit_proposal_choices(
-                ctx, proposals, media_ids,
+                ctx, proposals,
                 f"'{name}' 제안서를 찾지 못했어요. 아래에서 담을 제안서를 선택해주세요 😊",
+                media_ids=media_ids,
             )
         else:
             return _emit_proposal_choices(
-                ctx, matches, media_ids,
+                ctx, matches,
                 f"'{name}'와 비슷한 제안서가 여러 개예요. 아래에서 선택해주세요 😊",
+                media_ids=media_ids,
             )
     elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
         target = next(p for p in proposals if str(p.id) == str(ctx.active_proposal_id))
@@ -204,8 +264,9 @@ def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional
         target = proposals[0]
     else:
         return _emit_proposal_choices(
-            ctx, proposals, media_ids,
+            ctx, proposals,
             "어느 제안서에 담을까요? 아래에서 선택해주세요 😊",
+            media_ids=media_ids,
         )
 
     updated = domain._add_items_sync(ctx.db, target.id, member_id, owner_sid, media_ids) or target
@@ -215,12 +276,51 @@ def _do_add_media(ctx: ReactContext, indices: list[int], proposal_name: Optional
     return msg
 
 
-def _do_rename(ctx: ReactContext, new_name: str) -> str:
+def _do_rename(
+    ctx: ReactContext, new_name: str, target_name: Optional[str] = None
+) -> str:
     member_id, owner_sid, _ = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
-    proposal = domain._get_active_or_latest(ctx.db, ctx.active_proposal_id, member_id, owner_sid)
-    if proposal is None:
-        return f"{NOT_FOUND_MARKER} 이름을 바꿀 제안서가 없습니다."
-    updated = proposal_service.rename(ctx.db, proposal, new_name.strip()) if hasattr(proposal_service, "rename") else proposal
+    proposals = proposal_service.list_for_owner(ctx.db, member_id=member_id, session_id=owner_sid)
+    if not proposals:
+        return "이름을 바꿀 제안서가 없어요. 먼저 제안서를 만들어 주세요 😊"
+    nn = (new_name or "").strip()
+    nn_arg = nn or None  # 새 이름 미지정이면 선택 카드 클릭 시 프런트에서 입력받음
+
+    # 대상 결정: ① 지정 이름 → ② 세션 active → ③ 유일 → ④ 여러 개면 선택 리스트 먼저(이름 유무 무관)
+    if target_name and target_name.strip():
+        t = target_name.strip()
+        matches = [p for p in proposals if t in (p.title or "") or (p.title or "") in t]
+        if len(matches) == 1:
+            target = matches[0]
+        elif not matches:
+            return _emit_proposal_choices(
+                ctx, proposals,
+                f"'{t}' 제안서를 찾지 못했어요. 이름을 바꿀 제안서를 아래에서 선택해주세요 😊",
+                action="rename", new_name=nn_arg,
+            )
+        else:
+            return _emit_proposal_choices(
+                ctx, matches,
+                f"'{t}'와 비슷한 제안서가 여러 개예요. 이름을 바꿀 제안서를 선택해주세요 😊",
+                action="rename", new_name=nn_arg,
+            )
+    elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
+        target = next(p for p in proposals if str(p.id) == str(ctx.active_proposal_id))
+    elif len(proposals) == 1:
+        target = proposals[0]
+    else:
+        msg = (
+            f"어느 제안서를 '{nn}'(으)로 바꿀까요? 아래에서 선택해주세요 😊"
+            if nn
+            else "어느 제안서의 이름을 바꿀까요? 아래에서 선택하면 새 이름을 입력할 수 있어요 😊"
+        )
+        return _emit_proposal_choices(ctx, proposals, msg, action="rename", new_name=nn_arg)
+
+    # 대상은 정해졌는데 새 이름을 아직 안 준 경우 → 이름을 물어본다.
+    if not nn:
+        return f"'{target.title}' 제안서를 어떤 이름으로 바꿀까요? 새 이름을 알려주세요 😊"
+
+    updated = proposal_service.rename(ctx.db, target, nn)
     ctx.active_proposal_id = str(updated.id)
     msg = f"제안서 이름을 '{updated.title}'(으)로 바꿨어요."
     ctx.events.append(_proposal_event(updated, msg))
@@ -275,13 +375,13 @@ def build_tools(ctx: ReactContext) -> list:
         return _do_create_proposal(ctx, name, media_indices or [])
 
     @tool(args_schema=AddMediaArgs)
-    def AddMedia(media_indices=None, proposal_name=None):  # noqa: N802
+    def AddMedia(media_indices=None, media_names=None, proposal_name=None):  # noqa: N802
         """직전 매체를 제안서에 담기."""
-        return _do_add_media(ctx, media_indices or [], proposal_name)
+        return _do_add_media(ctx, media_indices or [], proposal_name, media_names or [])
 
     @tool(args_schema=RenameProposalArgs)
-    def RenameProposal(new_name):  # noqa: N802
-        """현재 제안서 이름 변경."""
-        return _do_rename(ctx, new_name)
+    def RenameProposal(new_name, target_name=None):  # noqa: N802
+        """제안서 이름 변경."""
+        return _do_rename(ctx, new_name, target_name)
 
     return [SearchMedia, ExplainMedia, CreateProposal, AddMedia, RenameProposal]

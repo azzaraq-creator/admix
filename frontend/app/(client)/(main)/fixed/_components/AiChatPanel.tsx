@@ -18,7 +18,7 @@ import {
   type V2Message,
 } from "@/hooks/adRecommendReact";
 import { useMe } from "@/hooks/auth";
-import { useAddProposalItems } from "@/hooks/proposals";
+import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { openLoginModal } from "../../_components/useLoginModal";
 import { AssistantBubble } from "./chat/AssistantBubble";
@@ -56,16 +56,37 @@ export function AiChatPanel({
 
   const chat = useReactChat();
   const addProposalItems = useAddProposalItems();
+  const renameProposal = useRenameProposal();
   const handlePickProposal = useCallback(
-    async (proposalId: string, mediaIds: string[]) => {
+    async (
+      proposalId: string,
+      choices: { action: "add" | "rename"; mediaIds: string[]; newName?: string },
+    ): Promise<boolean> => {
       try {
-        await addProposalItems.mutateAsync({ id: proposalId, mediaIds });
-        toast.success("제안서에 담았어요.");
+        if (choices.action === "rename") {
+          // 새 이름을 아직 안 준 경우(목록 먼저 보여준 케이스) 선택 시 입력받는다.
+          const title =
+            (choices.newName ?? "").trim() ||
+            (typeof window !== "undefined"
+              ? (window.prompt("새 제안서 이름을 입력하세요")?.trim() ?? "")
+              : "");
+          if (!title) return false;
+          await renameProposal.mutateAsync({ id: proposalId, title });
+          toast.success("제안서 이름을 바꿨어요.");
+        } else {
+          await addProposalItems.mutateAsync({
+            id: proposalId,
+            mediaIds: choices.mediaIds,
+          });
+          toast.success("제안서에 담았어요.");
+        }
+        return true;
       } catch {
-        toast.error("제안서에 담지 못했어요. 다시 시도해 주세요.");
+        toast.error("처리하지 못했어요. 다시 시도해 주세요.");
+        return false;
       }
     },
-    [addProposalItems],
+    [addProposalItems, renameProposal],
   );
   const { data: me } = useMe();
   const isLoggedIn = !!me;

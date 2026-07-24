@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { RotateCwIcon } from "@/components/icons";
+import { FolderIcon, RotateCwIcon } from "@/components/icons";
 import type { V2Message } from "@/hooks/adRecommendReact";
 
 import { ChatMediaList } from "./ChatMediaList";
@@ -28,7 +28,10 @@ export function AssistantBubble({
   onTogglePhotos: (next: boolean) => void;
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
-  onPickProposal?: (proposalId: string, mediaIds: string[]) => Promise<void> | void;
+  onPickProposal?: (
+    proposalId: string,
+    choices: { action: "add" | "rename"; mediaIds: string[]; newName?: string },
+  ) => Promise<boolean> | boolean;
 }) {
   const [pickedName, setPickedName] = useState<string | null>(null);
 
@@ -113,8 +116,10 @@ export function AssistantBubble({
               />
               <p className="text-base leading-[24px] text-black">
                 {pickedName
-                  ? `'${pickedName}' 제안서에 담았어요 ✓`
-                  : message.message || "어느 제안서에 담을까요?"}
+                  ? message.proposalChoices.action === "rename"
+                    ? `'${pickedName}' 제안서 이름을 바꿨어요 ✓`
+                    : `'${pickedName}' 제안서에 담았어요 ✓`
+                  : message.message || "어느 제안서를 선택할까요?"}
               </p>
             </div>
             {!pickedName && (
@@ -124,19 +129,21 @@ export function AssistantBubble({
                     key={p.id}
                     type="button"
                     onClick={async () => {
-                      await onPickProposal?.(
+                      const ok = await onPickProposal?.(
                         p.id,
-                        message.proposalChoices!.mediaIds,
+                        message.proposalChoices!,
                       );
-                      setPickedName(p.name);
+                      // 성공했을 때만 완료 표시(실패 시 다시 선택 가능)
+                      if (ok) setPickedName(p.name);
                     }}
                     className="flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-platinum-50 px-[16px] py-[14px] text-left transition-colors hover:bg-platinum-100"
                   >
+                    <FolderIcon className="size-[20px] shrink-0 text-platinum-300" />
                     <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-black">
                       {p.name}
                     </span>
-                    <span className="shrink-0 text-sm font-medium leading-[20px] text-grey-500">
-                      매체 {p.media_count}개
+                    <span className="w-[20px] shrink-0 text-center text-[16px] font-medium leading-[24px] text-black">
+                      {p.media_count}
                     </span>
                   </button>
                 ))}

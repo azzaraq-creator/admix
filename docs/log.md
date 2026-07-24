@@ -4,9 +4,19 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-24 — recommend_react 제안서 도구 UX 완성 + 버그 수정
+
+챗 제안서 도구(CreateProposal/AddMedia/RenameProposal)를 **member 토큰 E2E로 전부 검증**(DB 영속 확인)하고 UX·버그 다수 수정.
+- **제안서 선택 인라인 카드**(`proposal_choices` 이벤트 + `action` add/rename): 담을/바꿀 제안서가 여러 개면 "이름 대라"는 텍스트 대신 **클릭 가능한 제안서 목록**을 챗에 노출. Figma [1058:31220] 폴더행 스타일(아이콘색 `platinum-300` 신설). 클릭 시 `useAddProposalItems`/`useRenameProposal`로 직접 처리.
+- **AddMedia**: `proposal_name`(대상 지목) + 제안서 없을 때 자동생성 대신 생성 안내 + `media_names`(이름으로 매체 지목, 목록에 없으면 추측 금지 → 엉뚱한 매체 담기 방지). 티어 한도(비회원1/일반5/사업자무제한) 적용 확인.
+- **RenameProposal**: `target_name`(대상 지목) + 여러 개면 선택 목록(action=rename) + **새 이름 없이도 목록 먼저** 노출(클릭 시 이름 입력).
+- **버그 수정**: (1) 담기 실패(404 등)해도 "✓ 담았어요" 뜨던 swallowed error → **성공 시에만** 완료 표시. (2) LLM이 도구를 안 부르고 "제안서 없어요"/"목록 보여줄게요"를 **지어내던** 문제 → 프롬프트로 매번 도구 호출 강제(이전 stale 답 재사용 금지). (3) 소유자 판정 오진(잡 경로는 토큰 없이 `AdSession.user_id`로 판정, 로그인 유저는 세션 생성 시 연결)했던 소유권 코드는 되돌림.
+- **제안서 삭제**: 챗 도구 미구현(의도적) — LLM이 "삭제 기능 없음" 정직 안내.
+- 백엔드 20 react tests·프런트 tsc·eslint 통과. 설계: [spec](superpowers/specs/2026-07-22-recommend-react-design.md).
+
 ## 2026-07-23 — 탈퇴 회원 hard delete + 제안서 제출자 스냅샷 보존 (QA #9)
 
-탈퇴 회원 로그인 시 제재 모달이 뜨던 버그(soft delete 잔존 → 403, 프런트가 403을 제재로 단정). "탈퇴 즉시 파기" 방침에 맞춰 hard delete로 전환. 제안서는 CASCADE 삭제 대신 제출 당시 신청자 스냅샷 5필드(회원유형·회사명·이름·이메일·전화) 보존 — proposal 스냅샷 컬럼 + member_id FK SET NULL + `User.proposals` passive_deletes(ORM delete-orphan 함정 회피) + Alembic 036 백필. `withdraw()` hard delete, oauth 재로그인 복구 제거, 기존 withdrawn 삭제 스크립트. 로그인 가드는 안전망으로 유지, 프런트 수정 불필요. backend 97 passed. **운영 미배포**(게이트: 백업→036→withdrawn삭제→코드), 컴플라이언스(영구보존 vs 즉시파기) 법무 확인 필요. 설계: [account-withdrawal-hard-delete](plans/2026-07-23-account-withdrawal-hard-delete.md) · [qa-fixes #9](reviews/2026-07-22-qa-fixes.md).
+탈퇴 회원 로그인 시 제재 모달이 뜨던 버그(soft delete 잔존 → 403, 프런트가 403을 제재로 단정). "탈퇴 즉시 파기" 방침에 맞춰 hard delete로 전환. 제안서는 CASCADE 삭제 대신 제출 당시 신청자 스냅샷 5필드(회원유형·회사명·이름·이메일·전화) 보존 — proposal 스냅샷 컬럼 + member_id FK SET NULL + `User.proposals` passive_deletes(ORM delete-orphan 함정 회피) + Alembic 036 백필. `withdraw()` hard delete, oauth 재로그인 복구 제거, 기존 withdrawn 삭제 스크립트. 로그인 가드는 안전망으로 유지, 프런트 수정 불필요. backend 97 passed. **운영 배포 완료(2026-07-23)** — redeploy.sh로 코드+Alembic 036 + 기존 withdrawn 1건 삭제, 탈퇴 계정 로그인 401 정상화. 잔여: 컴플라이언스(영구보존 vs 즉시파기) 법무 확인. 설계: [account-withdrawal-hard-delete](plans/2026-07-23-account-withdrawal-hard-delete.md) · [qa-fixes #9](reviews/2026-07-22-qa-fixes.md).
 
 ## 2026-07-23 — 문의하기 제출 성공 토스트 + 토스트 배경 Figma 정렬 (QA #8)
 
