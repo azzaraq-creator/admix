@@ -10,6 +10,11 @@ import { z } from "zod";
 import { ChevronRightIcon, FileIcon, LogoFull } from "@/components/icons";
 import { authApi, authKeys, useRegister } from "@/hooks/auth";
 import { useClaimGuestProposals } from "@/hooks/proposals";
+import {
+  PHONE_ERROR_MESSAGE,
+  PHONE_MAX_LENGTH,
+  PHONE_PATTERN,
+} from "@/lib/phone";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
@@ -127,9 +132,7 @@ const baseSchema = z.object({
     ),
   passwordConfirm: z.string().min(1, "비밀번호를 한번 더 입력해 주세요."),
   name: z.string().min(1, "이름을 입력해 주세요."),
-  phone: z
-    .string()
-    .regex(/^\d{11}$/, "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요."),
+  phone: z.string().regex(PHONE_PATTERN, PHONE_ERROR_MESSAGE),
   company: z.string(),
 });
 
@@ -506,8 +509,8 @@ export function SignupForm({
             <input
               type="tel"
               inputMode="numeric"
-              maxLength={11}
-              placeholder="전화번호를 입력해 주세요. (- 없이 11자리)"
+              maxLength={PHONE_MAX_LENGTH}
+              placeholder="전화번호를 입력해 주세요. (- 없이 9~11자리)"
               className={cn(
                 inputClass,
                 errors.phone && "border-[#ff2c20] bg-[#fff2f1]",

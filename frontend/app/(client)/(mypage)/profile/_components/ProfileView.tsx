@@ -18,6 +18,12 @@ import {
 } from "@/hooks/auth";
 import { useConfirm } from "@/hooks/useConfirm";
 import { API_BASE_URL } from "@/lib/api";
+import {
+  formatPhone,
+  isValidPhone,
+  PHONE_ERROR_MESSAGE,
+  PHONE_MAX_LENGTH,
+} from "@/lib/phone";
 import { clearUserToken } from "@/lib/userToken";
 
 import { BusinessRegisterModal } from "./BusinessRegisterModal";
@@ -26,15 +32,6 @@ import { PasswordChangeModal } from "./PasswordChangeModal";
 import { TextFieldModal } from "./TextFieldModal";
 
 type ModalKey = "password" | "company" | "name" | "phone" | "business" | "email";
-
-function formatPhone(phone: string | null | undefined): string {
-  if (!phone) return "";
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-  return phone;
-}
 
 const ROW_CLASS =
   "flex items-center gap-[12px] border-b border-[#e8e8e8] py-[12px] sm:gap-[42px] sm:py-[28px]";
@@ -370,16 +367,12 @@ export function ProfileView() {
         open={openModal === "phone"}
         onOpenChange={(value) => !value && closeModal()}
         title="전화번호 변경"
-        placeholder="전화번호를 입력해 주세요 (- 없이 11자리)"
+        placeholder="전화번호를 입력해 주세요 (- 없이 9~11자리)"
         field="phone"
         defaultValue={rawPhone}
-        validate={(value) =>
-          /^\d{11}$/.test(value)
-            ? null
-            : "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요."
-        }
+        validate={(value) => (isValidPhone(value) ? null : PHONE_ERROR_MESSAGE)}
         inputMode="numeric"
-        maxLength={11}
+        maxLength={PHONE_MAX_LENGTH}
       />
       <BusinessRegisterModal
         open={openModal === "business"}
