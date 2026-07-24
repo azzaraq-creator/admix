@@ -5,10 +5,11 @@ import { useCallback, useRef, useState } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
 import { MarkerMediaPopup } from "@/components/common/MarkerMediaPopup";
+import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
 import {
-  MediaDetailDrawer,
-  type MediaDetail as DrawerDetail,
-} from "@/components/common/MediaDetailDrawer";
+  formatFee,
+  useMediaDetailViewModel,
+} from "@/components/common/media-detail/useMediaDetailViewModel";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
 import { ChevronLeftIcon, ListIcon, MapPinIcon } from "@/components/icons";
@@ -23,47 +24,6 @@ import {
   type MoveTarget,
 } from "./MapArea";
 import { SearchHereButton } from "./SearchHereButton";
-
-function toDrawerDetail(
-  detail: ReturnType<typeof useMediaDetail>["data"],
-): DrawerDetail | undefined {
-  if (!detail) return undefined;
-  const pop = detail.population;
-  // 썸네일 우선 + 상세 이미지, 중복 제거 (디테일패널 개수 기반 배치용).
-  const images: string[] = [];
-  for (const url of [detail.thumbnailUrl, ...detail.imageUrls]) {
-    if (url && !images.includes(url)) images.push(url);
-  }
-  return {
-    images,
-    description: detail.description ?? undefined,
-    address: detail.address ?? undefined,
-    monthlyTraffic: pop ? pop.monthlyFootTraffic.toLocaleString() : undefined,
-    mainAudience: pop
-      ? [
-          {
-            gender: pop.malePct >= pop.femalePct ? "남성" : "여성",
-            age: pop.ageRatios.reduce((top, cur) =>
-              cur.value > top.value ? cur : top,
-            ).label,
-          },
-        ]
-      : undefined,
-    genderRatio: pop ? { male: pop.malePct, female: pop.femalePct } : undefined,
-    ageRatio: pop
-      ? pop.ageRatios.map((a) => ({
-          label: a.label,
-          value: a.value,
-          bound: a.bound ?? undefined,
-        }))
-      : undefined,
-  };
-}
-
-function formatFee(krw: number | null): string {
-  if (krw == null) return "최소집행금액 협의";
-  return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
-}
 
 const DRAWER_HALF_WIDTH = 192;
 
@@ -208,26 +168,7 @@ export function FixedMediaView({
     [],
   );
 
-  const { data: detail } = useMediaDetail(selectedMedia?.id ?? null);
-  const features = detail?.features.map(
-    (f) => [f.label, f.value] as [string, string],
-  );
-  const planList = detail?.plans.map((p) => ({
-    title: p.title,
-    subtitle: p.subtitle ?? "",
-  }));
-  const detailImage = detail?.thumbnailUrl ?? detail?.imageUrls[0] ?? null;
-  const population = detail?.population
-    ? {
-        malePct: detail.population.malePct,
-        femalePct: detail.population.femalePct,
-        ageRatios: detail.population.ageRatios.map((a) => ({
-          label: a.label,
-          value: a.value,
-          bound: a.bound ?? undefined,
-        })),
-      }
-    : null;
+  const { vm } = useMediaDetailViewModel(selectedMedia?.id ?? null);
 
   const { data: popupDetail } = useMediaDetail(popupId);
   const popupItems: MediaItemData[] = popupId
@@ -380,7 +321,19 @@ export function FixedMediaView({
           <div className="hidden sm:block">
             <MediaDetailDrawer
               media={selectedMedia}
-              detail={toDrawerDetail(detail)}
+              detail={
+                vm
+                  ? {
+                      images: vm.images,
+                      description: vm.description,
+                      address: vm.address,
+                      monthlyTraffic: vm.population?.monthlyTrafficText,
+                      mainAudience: vm.population?.mainAudience,
+                      genderRatio: vm.population?.genderRatio,
+                      ageRatio: vm.population?.ageRatios,
+                    }
+                  : undefined
+              }
               onClose={closeDetail}
               onAddProposal={() => setAddProposalMediaId(selectedMedia.id)}
               onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
@@ -424,14 +377,24 @@ export function FixedMediaView({
         <div className="absolute inset-0 z-30 overflow-y-auto bg-white sm:hidden">
           <MobileMediaDetail
             name={selectedMedia.name}
-            price={formatFee(detail?.minAdvertisementFeeKrw ?? null)}
-            badge={detail?.badge ?? null}
-            description={detail?.description ?? undefined}
-            features={features}
-            mediaList={planList}
-            size={detail?.sizeText ?? null}
-            imageUrl={detailImage}
-            population={population}
+            price={vm?.price ?? formatFee(null)}
+            badge={vm?.badge ?? null}
+            description={vm?.description}
+            features={vm?.features}
+            mediaList={vm?.plans}
+            size={vm?.sizeText ?? null}
+            imageUrl={vm?.imageUrl ?? null}
+            population={
+              vm?.population
+                ? {
+                    monthlyFootTraffic: vm.population.monthlyFootTraffic,
+                    malePct: vm.population.malePct,
+                    femalePct: vm.population.femalePct,
+                    ageRatios: vm.population.ageRatios,
+                  }
+                : null
+            }
+            onAddProposal={() => setAddProposalMediaId(selectedMedia.id)}
             onBack={closeDetail}
           />
         </div>

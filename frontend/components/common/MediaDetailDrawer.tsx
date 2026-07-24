@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 
-import { ChevronDownIcon, MapPinIcon, XIcon } from "@/components/icons";
+import { MapPinIcon, XIcon } from "@/components/icons";
 
 import { AgeBarChart } from "./AgeBarChart";
 import { GenderDonut } from "./GenderDonut";
 import { ImageLightbox } from "./ImageLightbox";
+import { DescriptionToggle } from "./media-detail/DescriptionToggle";
+import { PopulationSummaryBar } from "./media-detail/PopulationSummaryBar";
 import { MediaDetailImages } from "./MediaDetailImages";
 import type { MediaItemData } from "./MediaItem";
 
@@ -80,30 +82,11 @@ export function MediaDetailDrawer({
           </div>
 
           {hasPopulation && (
-          <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 p-[12px]">
-            <div className="flex flex-1 flex-col items-center">
-              <p className="w-full text-center text-sm font-medium leading-[20px] text-grey-500">
-                월평균 유동인구수
-              </p>
-              <p className="w-full text-center text-base font-bold leading-[24px] text-black">
-                {data.monthlyTraffic}
-              </p>
-            </div>
-            <div className="h-[40px] w-px self-stretch bg-stroke" />
-            <div className="flex flex-1 flex-col items-center">
-              <p className="w-full text-center text-sm font-medium leading-[20px] text-grey-500">
-                주요 인구층
-              </p>
-              <div className="flex w-full items-center justify-center gap-[6px] whitespace-nowrap text-base font-bold leading-[24px] text-black">
-                {mainAudience.map((a, index) => (
-                  <span key={index} className="flex items-center gap-[2px]">
-                    <span>{a.gender}</span>
-                    <span>{a.age}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+            <PopulationSummaryBar
+              monthlyTraffic={data.monthlyTraffic ?? ""}
+              mainAudience={mainAudience}
+              size="sm"
+            />
           )}
 
           <div className="flex items-center gap-[8px]">
@@ -147,20 +130,11 @@ export function MediaDetailDrawer({
               {data.description}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setDescExpanded((v) => !v)}
-            className="flex items-center justify-center gap-[8px]"
-          >
-            <span className="h-px flex-1 bg-grey-50" />
-            <span className="flex items-center gap-[2px] rounded-full bg-grey-50 px-[16px] py-[6px] text-sm leading-[20px] text-black">
-              매체 설명 {descExpanded ? "접기" : "더보기"}
-              <ChevronDownIcon
-                className={`size-[18px] transition-transform ${descExpanded ? "rotate-180" : ""}`}
-              />
-            </span>
-            <span className="h-px flex-1 bg-grey-50" />
-          </button>
+          <DescriptionToggle
+            expanded={descExpanded}
+            onToggle={() => setDescExpanded((v) => !v)}
+            size="sm"
+          />
         </section>
         )}
 

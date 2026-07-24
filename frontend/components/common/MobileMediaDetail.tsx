@@ -5,18 +5,17 @@ import { type ReactNode, useState } from "react";
 
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
 import { GenderDonut } from "@/components/common/GenderDonut";
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  FolderIcon,
-  MaximizeIcon,
-} from "@/components/icons";
+import { DescriptionToggle } from "@/components/common/media-detail/DescriptionToggle";
+import { FeaturesSection } from "@/components/common/media-detail/FeaturesSection";
+import { MediaListSelect } from "@/components/common/media-detail/MediaListSelect";
+import { PopulationSummaryBar } from "@/components/common/media-detail/PopulationSummaryBar";
+import { SizeSection } from "@/components/common/media-detail/SizeSection";
+import { ChevronLeftIcon, FolderIcon } from "@/components/icons";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-export type MobileMediaStat = { label: string; value: ReactNode };
-
 export type MobilePopulation = {
+  monthlyFootTraffic: number;
   malePct: number;
   femalePct: number;
   ageRatios: AgeRatio[];
@@ -35,11 +34,6 @@ const DEFAULT_FEATURES: [string, string][] = [
   ["수동 송출 횟수", "-"],
   ["계약 단위", "1달"],
   ["운영 시간", "매일 00:00 - 24:00"],
-];
-
-const DEFAULT_STATS: MobileMediaStat[] = [
-  { label: "최소집행금액", value: "16만원" },
-  { label: "최소계약기간", value: "1달" },
 ];
 
 export type MobileMediaListItem = { title: string; subtitle: string };
@@ -71,11 +65,11 @@ export function MobileMediaDetail({
   mediaList = DEFAULT_MEDIA_LIST,
   size = "3 * 1 meter",
   imageUrl,
-  stats = DEFAULT_STATS,
   population = null,
   hidePopulation = false,
   hideMediaList = false,
   onBack,
+  onAddProposal,
   className,
 }: {
   name?: string;
@@ -86,14 +80,25 @@ export function MobileMediaDetail({
   mediaList?: MobileMediaListItem[];
   size?: string | null;
   imageUrl?: string | null;
-  stats?: MobileMediaStat[];
   population?: MobilePopulation | null;
   hidePopulation?: boolean;
   hideMediaList?: boolean;
   onBack?: () => void;
+  onAddProposal?: () => void;
   className?: string;
 }) {
   const [descExpanded, setDescExpanded] = useState(false);
+  const [selectedList, setSelectedList] = useState(0);
+  const primaryGender = population
+    ? population.malePct >= population.femalePct
+      ? "남성"
+      : "여성"
+    : "";
+  const primaryAge = population
+    ? population.ageRatios.reduce((top, cur) =>
+        cur.value > top.value ? cur : top,
+      ).label
+    : "";
 
   return (
     <div className={cn("flex w-full flex-col", className)}>
@@ -146,27 +151,20 @@ export function MobileMediaDetail({
             <button
               type="button"
               aria-label="매체 담기"
+              onClick={onAddProposal}
               className="flex size-[40px] shrink-0 items-center justify-center rounded-[8px] bg-primary text-white"
             >
               <FolderIcon className="size-[24px]" />
             </button>
           </div>
 
-          <div className="flex items-center rounded-[12px] bg-grey-50 py-[12px]">
-            {stats.map((stat, index) => (
-              <div key={stat.label} className="flex flex-1 items-center">
-                {index > 0 && <div className="h-[44px] w-px bg-stroke" />}
-                <div className="flex flex-1 flex-col items-center gap-[2px] px-[12px] text-center">
-                  <p className="text-sm font-medium leading-[20px] text-grey-500">
-                    {stat.label}
-                  </p>
-                  <p className="text-base font-bold leading-[24px] text-black">
-                    {stat.value}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {!hidePopulation && population && (
+            <PopulationSummaryBar
+              monthlyTraffic={population.monthlyFootTraffic.toLocaleString()}
+              mainAudience={[{ gender: primaryGender, age: primaryAge }]}
+              size="sm"
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-[12px]">
@@ -179,100 +177,36 @@ export function MobileMediaDetail({
           >
             {description}
           </p>
-          <button
-            type="button"
-            onClick={() => setDescExpanded((v) => !v)}
-            className="flex items-center justify-center gap-[8px]"
-          >
-            <span className="h-px flex-1 bg-grey-50" />
-            <span className="flex items-center gap-[4px] text-sm leading-[20px] text-black">
-              매체 설명 {descExpanded ? "접기" : "더보기"}
-              <ChevronDownIcon
-                className={cn(
-                  "size-[18px] transition-transform",
-                  descExpanded && "rotate-180",
-                )}
-              />
-            </span>
-            <span className="h-px flex-1 bg-grey-50" />
-          </button>
+          <DescriptionToggle
+            expanded={descExpanded}
+            onToggle={() => setDescExpanded((v) => !v)}
+            size="sm"
+          />
         </div>
 
         {!hideMediaList && mediaList.length > 0 && (
           <div className="flex flex-col gap-[12px]">
             <SectionTitle>매체 목록</SectionTitle>
-            <div className="flex flex-col gap-[8px]">
-              {mediaList.map((item, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className={cn(
-                    "flex items-center gap-[12px] rounded-[8px] p-[16px] text-left",
-                    index === 0
-                      ? "border-2 border-primary bg-secondary"
-                      : "border border-stroke",
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                    <p className="text-base font-semibold leading-[24px] text-black">
-                      {item.title}
-                    </p>
-                    {item.subtitle && (
-                      <p className="text-sm font-medium leading-[20px] text-grey-500">
-                        {item.subtitle}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "flex size-[24px] shrink-0 items-center justify-center rounded-full border-2",
-                      index === 0 ? "border-primary" : "border-[#d3d4d6]",
-                    )}
-                  >
-                    {index === 0 && (
-                      <span className="size-[12px] rounded-full bg-primary" />
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <MediaListSelect
+              items={mediaList}
+              value={selectedList}
+              onChange={setSelectedList}
+              size="sm"
+              layout="list"
+            />
           </div>
         )}
 
         {size && (
-        <div className="flex flex-col gap-[12px]">
-          <SectionTitle>규격</SectionTitle>
-          <div className="flex items-center gap-[16px] rounded-[8px] border border-stroke px-[16px] py-[12px]">
-            <MaximizeIcon className="size-[24px] shrink-0 text-black" />
-            <div className="flex flex-col gap-[2px]">
-              <p className="text-sm font-medium leading-[20px] text-grey-500">
-                사이즈 및 규격
-              </p>
-              <p className="text-base font-medium leading-[20px] text-black">
-                {size}
-              </p>
-            </div>
+          <div className="flex flex-col gap-[12px]">
+            <SectionTitle>규격</SectionTitle>
+            <SizeSection sizeText={size} size="sm" />
           </div>
-        </div>
         )}
 
         <div className="flex flex-col gap-[12px]">
           <SectionTitle>특징</SectionTitle>
-          <div className="rounded-[8px] border border-stroke px-[16px] py-[12px]">
-            {features.map(([label, value]) => (
-              <div
-                key={label}
-                className="flex flex-col gap-[2px] border-b border-stroke py-[12px] last:border-b-0"
-              >
-                <p className="text-sm font-medium leading-[20px] text-grey-500">
-                  {label}
-                </p>
-                <p className="text-base font-medium leading-[20px] text-black">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
+          <FeaturesSection features={features} size="sm" />
         </div>
 
         {!hidePopulation && population && (

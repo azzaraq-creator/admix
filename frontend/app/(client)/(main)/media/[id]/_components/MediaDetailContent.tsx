@@ -7,7 +7,12 @@ import { AddToProposalModal } from "@/components/common/AddToProposalModal";
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
 import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
-import { ChevronDownIcon, FolderIcon, MaximizeIcon } from "@/components/icons";
+import { DescriptionToggle } from "@/components/common/media-detail/DescriptionToggle";
+import { FeaturesSection } from "@/components/common/media-detail/FeaturesSection";
+import { MediaListSelect } from "@/components/common/media-detail/MediaListSelect";
+import { PopulationSummaryBar } from "@/components/common/media-detail/PopulationSummaryBar";
+import { SizeSection } from "@/components/common/media-detail/SizeSection";
+import { FolderIcon } from "@/components/icons";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -45,48 +50,6 @@ export type PopulationData = {
   femalePct: number;
   ageRatios: AgeRatio[];
 };
-
-function MediaOption({
-  title,
-  subtitle,
-  selected,
-  onClick,
-}: {
-  title: string;
-  subtitle: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center gap-[16px] rounded-[8px] p-[20px] text-left",
-        selected
-          ? "border-2 border-primary bg-secondary"
-          : "border border-stroke",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-        <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black">
-          {title}
-        </p>
-        <p className="text-base font-medium leading-[24px] text-grey-500">
-          {subtitle}
-        </p>
-      </div>
-      <span
-        className={cn(
-          "flex size-[24px] shrink-0 items-center justify-center rounded-full border-2",
-          selected ? "border-primary" : "border-[#d3d4d6]",
-        )}
-      >
-        {selected && <span className="size-[12px] rounded-full bg-primary" />}
-      </span>
-    </button>
-  );
-}
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -196,28 +159,11 @@ export function MediaDetailContent({
             </div>
 
             {showPopulation && population && (
-              <div className="flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50 py-[24px]">
-                <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                  <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                    월평균 유동인구 수
-                  </p>
-                  <p className="w-full text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                    {population.monthlyFootTraffic.toLocaleString()}
-                  </p>
-                </div>
-                <div className="h-[52px] w-px self-stretch bg-stroke" />
-                <div className="flex flex-1 flex-col items-center gap-[8px] text-center">
-                  <p className="w-full text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                    주요 인구층
-                  </p>
-                  <div className="flex w-full items-center justify-center gap-[12px] whitespace-nowrap text-[24px] font-bold leading-[32px] tracking-[-0.1px] text-black">
-                    <span className="flex items-center gap-[4px]">
-                      <span>{primaryGender}</span>
-                      <span>{primaryAge}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <PopulationSummaryBar
+                monthlyTraffic={population.monthlyFootTraffic.toLocaleString()}
+                mainAudience={[{ gender: primaryGender, age: primaryAge }]}
+                size="lg"
+              />
             )}
           </div>
 
@@ -231,78 +177,36 @@ export function MediaDetailContent({
             >
               {description}
             </p>
-            <button
-              type="button"
-              onClick={() => setDescExpanded((v) => !v)}
-              className="flex items-center justify-center gap-[8px]"
-            >
-              <span className="h-px flex-1 bg-grey-50" />
-              <span className="flex items-center gap-[4px] rounded-full bg-grey-50 px-[16px] py-[6px] text-[18px] leading-[28px] tracking-[-0.04px] text-black">
-                매체 설명 {descExpanded ? "접기" : "더보기"}
-                <ChevronDownIcon
-                  className={cn(
-                    "size-[20px] transition-transform",
-                    descExpanded && "rotate-180",
-                  )}
-                />
-              </span>
-              <span className="h-px flex-1 bg-grey-50" />
-            </button>
+            <DescriptionToggle
+              expanded={descExpanded}
+              onToggle={() => setDescExpanded((v) => !v)}
+              size="lg"
+            />
           </div>
 
           {mediaList.length > 0 && (
             <div className="flex flex-col gap-[24px]">
               <SectionTitle>매체 목록</SectionTitle>
-              <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(332px,1fr))]">
-                {mediaList.map((item, index) => (
-                  <MediaOption
-                    key={index}
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    selected={selectedList === index}
-                    onClick={() => setSelectedList(index)}
-                  />
-                ))}
-              </div>
+              <MediaListSelect
+                items={mediaList}
+                value={selectedList}
+                onChange={setSelectedList}
+                size="lg"
+                layout="grid"
+              />
             </div>
           )}
 
           {sizeText && (
             <div className="flex flex-col gap-[24px]">
               <SectionTitle>규격</SectionTitle>
-              <div className="flex items-center gap-[15px] rounded-[8px] border border-stroke p-[40px]">
-                <MaximizeIcon className="size-[58px] shrink-0 text-black" />
-                <div className="flex flex-col gap-[6px]">
-                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                    사이즈 및 규격
-                  </p>
-                  <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
-                    {sizeText}
-                  </p>
-                </div>
-              </div>
+              <SizeSection sizeText={sizeText} size="lg" />
             </div>
           )}
 
           <div className="flex flex-col gap-[24px]">
             <SectionTitle>특징</SectionTitle>
-            <div className="rounded-[8px] border border-stroke p-[40px]">
-              <div className="flex flex-wrap gap-[24px]">
-                {features.map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="flex min-w-[296px] flex-1 flex-col gap-[6px] border-b border-stroke py-[6px] pr-[16px]"
-                  >
-                    <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
-                      {label}
-                    </p>
-                    <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <FeaturesSection features={features} size="lg" />
           </div>
 
           {showPopulation && population && (
