@@ -52,7 +52,7 @@ export function MediaDetailDrawer({
   const hasPopulation = Boolean(genderRatio && ageRatio.length);
 
   return (
-    <div className="relative flex h-screen w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
+    <div className="relative flex h-dvh w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
       <div className="relative shrink-0">
         <MediaDetailImages images={images} onOpen={setLightboxIndex} />
         <button

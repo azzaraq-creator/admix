@@ -4,7 +4,7 @@ import { ProfileView } from "./_components/ProfileView";
 
 export default function ProfilePage() {
   return (
-    <div className="flex h-screen w-full bg-white">
+    <div className="flex h-dvh w-full bg-white">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopNav />

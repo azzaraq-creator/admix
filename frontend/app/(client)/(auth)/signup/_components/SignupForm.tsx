@@ -362,7 +362,7 @@ export function SignupForm({
   });
 
   return (
-    <main className="flex min-h-screen w-full justify-center bg-white sm:bg-[#ebf8f8] sm:py-[80px]">
+    <main className="flex min-h-dvh w-full justify-center bg-white sm:bg-[#ebf8f8] sm:py-[80px]">
       <form
         onSubmit={onSubmit}
         className="flex w-full flex-col items-center gap-[32px] bg-white px-[16px] py-[24px] sm:h-fit sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]"

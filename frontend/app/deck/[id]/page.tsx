@@ -26,7 +26,7 @@ export default async function DeckPage({
   }
 
   return (
-    <div className="h-screen w-screen">
+    <div className="h-dvh w-screen">
       <PptDeckViewer deckId={id} slides={meta.slides} title={meta.title} />
     </div>
   );

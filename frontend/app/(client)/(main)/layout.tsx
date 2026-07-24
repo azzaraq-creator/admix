@@ -6,7 +6,7 @@ import { Sidebar } from "./_components/Sidebar";
 
 export default function ClientMainLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen w-full bg-white">
+    <div className="flex h-dvh w-full bg-white">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopNav />

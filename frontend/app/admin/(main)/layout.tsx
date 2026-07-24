@@ -15,7 +15,7 @@ export default async function AdminMainLayout({
   if (!token) redirect("/admin/login");
 
   return (
-    <div className="flex min-h-screen bg-[#fafaf9]">
+    <div className="flex min-h-dvh bg-[#fafaf9]">
       <AdminSidebar />
       <main className="min-w-0 flex-1 p-[32px]">{children}</main>
     </div>

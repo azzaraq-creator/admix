@@ -70,7 +70,7 @@ export function AdminSidebar() {
     }`;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-[256px] shrink-0 flex-col bg-[#fafaf9]">
+    <aside className="sticky top-0 flex h-dvh w-[256px] shrink-0 flex-col bg-[#fafaf9]">
       <div className="flex items-center justify-center p-[32px]">
         <LogoFull />
       </div>

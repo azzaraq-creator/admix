@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-full items-stretch bg-white">
+    <div className="flex h-dvh w-full items-stretch bg-white">
       <div className="flex flex-1 flex-col gap-[16px] p-[40px]">
         <div className="flex w-full items-center py-[18px]">
           <LogoFull />

@@ -13,7 +13,7 @@ export default function ErdPage() {
     Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(value.toFixed(2))));
 
   return (
-    <div className="relative h-screen w-full bg-white">
+    <div className="relative h-dvh w-full bg-white">
       <div className="absolute right-[24px] top-[24px] z-10 flex items-center gap-[4px] rounded-[8px] border border-stroke bg-white/90 p-[4px] shadow-md backdrop-blur">
         <button
           type="button"

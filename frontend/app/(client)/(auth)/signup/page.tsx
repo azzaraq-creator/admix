@@ -66,8 +66,8 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
-      <div className="flex min-h-screen w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
+    <main className="flex min-h-dvh w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
         <div className="flex w-full items-center justify-center py-[24px]">
           <LogoFull />
         </div>
