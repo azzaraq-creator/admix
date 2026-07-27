@@ -45,6 +45,12 @@
 4. 코드 배포(hard delete withdraw + oauth 변경).
 - 2·3이 완료되기 전에 로그인 가드를 제거하면 잔존 withdrawn 계정이 로그인 가능해진다(가드는 이번 변경에서 제거하지 않음).
 
+### ✅ 운영 배포 실행 완료 (2026-07-23)
+
+- 코드 + Alembic 036: `deploy/redeploy.sh`로 EC2(43.201.172.34) 배포 — backend rebuild + `035→036` 적용(스냅샷 컬럼·FK SET NULL·제출 제안서 백필) + `/health` ok. redeploy.sh가 코드 배포(4)와 마이그레이션(2)을 함께 처리.
+- 기존 withdrawn 삭제(3): `scripts.delete_withdrawn_accounts` dry-run(1건: `ckdqhtmf6804@outlook.kr`) → `--apply` 삭제 완료.
+- 결과: 탈퇴 계정 로그인 시 제재 모달 → 401(일반 인증 실패)로 정상화.
+
 ## 컴플라이언스 게이트 (코드 밖 — 사용자/법무)
 
 - 스냅샷 개인정보(이름·이메일·전화) **영구 보존**은 "탈퇴 즉시 파기"와 충돌한다. 전자상거래법 등 거래기록 보존 예외는 통상 **분리 보관 + 유한 기간**이라 "영구 + 라이브 테이블 보존"과 결이 다르다.
@@ -55,6 +61,7 @@
 `backend/tests/test_account_withdrawal.py` (실제 postgres) 5 케이스:
 - `snapshot_submitter` 필드 복사, hard delete 시 제출 제안서 보존(member_id NULL + 스냅샷)·작성중 삭제, MemberSanction CASCADE, 삭제 계정 로그인 401, admin 상세 스냅샷 우선.
 - 전체 백엔드 97 passed(회귀 없음).
+- 운영: 배포 후 dry-run으로 대상 1건 확인 → 삭제 완료(위 "운영 배포 실행 완료" 참조). 브라우저 로그인 401 최종 확인은 사용자 몫.
 
 ## 스코프 밖
 
