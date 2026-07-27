@@ -267,12 +267,22 @@ export function ProposalDetailView() {
             <p className="text-xl font-semibold leading-[24px] text-[#2a2a2a]">
               맞춤제안 이력
             </p>
-            <Link
-              href={`/admin/proposals/${params.id}/write`}
-              className="flex h-[36px] items-center rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-            >
-              맞춤제안 작성
-            </Link>
+            {accepted ? (
+              <span
+                aria-disabled="true"
+                title="계약 완료된 제안서는 맞춤제안을 작성할 수 없습니다."
+                className="flex h-[36px] cursor-not-allowed items-center rounded-[6px] border border-[#ebebeb] bg-[#f5f5f5] px-[17px] text-sm font-medium leading-[20px] text-disabled"
+              >
+                맞춤제안 작성
+              </span>
+            ) : (
+              <Link
+                href={`/admin/proposals/${params.id}/write`}
+                className="flex h-[36px] items-center rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+              >
+                맞춤제안 작성
+              </Link>
+            )}
           </div>
           <div className="overflow-hidden">
             <div className="flex h-[44px] items-center">

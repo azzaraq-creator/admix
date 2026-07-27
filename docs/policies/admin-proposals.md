@@ -112,13 +112,14 @@
   - **작업 버튼 2개**:
     - "상세" → `/admin/proposals/{id}/write/{counterId}`(맞춤제안 상세).
     - 다운로드(아이콘) → `GET /admin/proposals/{id}/counter-proposal/{counterId}/download`, **업로드 당시 원본 파일명**으로 저장.
-  - 상단 우측 "맞춤제안 작성" 링크 → `/admin/proposals/{id}/write`.
+  - 상단 우측 "맞춤제안 작성" 링크 → `/admin/proposals/{id}/write`. **단 상태가 계약완료(`accepted`)면 링크 대신 비활성(회색·클릭 불가) 표시** — 계약 완료된 제안서에는 추가 맞춤제안 작성 불가(2026-07-27). ❓ 프런트 버튼만 차단이며 `/write` URL 직접 접근·백엔드 업로드는 아직 열려 있음(업로드 시 상태가 `custom`으로 역전되는 정합성 구멍 — 백엔드 가드 후속 필요).
 
 #### 3.B.5 하단 액션 (목록 / 집행 수락)
 - **기능**: 목록 복귀 + 집행 수락.
 - **규칙**:
   - "목록" → `/admin/proposals`.
   - **집행 수락**: 확인 모달("집행을 수락하시겠습니까?" / "수락하면 제안서 상태가 계약 완료로 변경됩니다.") → 확인 시 `POST /admin/proposals/{id}/accept` → 상태 `contracted`(계약 완료). 성공 토스트 "집행이 수락되었습니다.".
+  - **계약 완료 이메일 발송**(2026-07-27): 수락 성공 시 제안서 소유 회원의 이메일로 "[ADMIX] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`). 본문: 안녕하세요 → 계약 완료 안내 → 제안서명 → "내 제안서 확인하기" 버튼(→ `{email_link_base}/proposals/{id}`). 맞춤제안 도착 메일과 동일 다크 템플릿. 회원 이메일이 없으면(비회원 등) 발송 생략. Figma node 1283-31901.
   - 이미 계약 완료(`accepted`)면 버튼 라벨 "계약 완료" + 비활성. 진행 중에도 비활성.
   - `❓`(수락 취소/되돌리기 없음. `execution_requested`가 아니어도 수락 가능한지 상태 가드 미정 — 코드상 상태 무관하게 contracted로 덮어씀)
 
@@ -192,7 +193,7 @@
 | 제안 상세 | `GET /admin/proposals/{id}` | 진입 시. 회원+항목+맞춤제안 파일 |
 | 맞춤제안 업로드 | `POST /admin/proposals/{id}/counter-proposal` (multipart: `file` + `title`) | 전송 시. PPT→슬라이드 변환, `title` 저장, 상태 custom |
 | 맞춤제안 원본 다운로드 | `GET /admin/proposals/{id}/counter-proposal/{counterId}/download` | 다운로드/내보내기 |
-| 집행 수락 | `POST /admin/proposals/{id}/accept` | 상태 contracted |
+| 집행 수락 | `POST /admin/proposals/{id}/accept` | 상태 contracted. 회원 이메일로 계약완료 알림 발송(BackgroundTask `send_contract_completed_email`) |
 | 제안서 PPT 내보내기 | `GET /admin/proposals/{id}/export-ppt` | python-pptx 생성, 60초 타임아웃 |
 | 슬라이드 미리보기 이미지 | 정적 파일 `{slides_url}/meta.json` + 이미지 | 변환 결과 폴더 |
 | 매체 지도(PPT) | Geoapify staticmap | PPT 매체 슬라이드, API 키 없으면 placeholder |
@@ -216,4 +217,5 @@
 - 2026-07-16 — 고객 삭제 처리: 작성중=완전삭제 / 제출완료·맞춤제안=취소 전환 / 계약완료=상태유지+`deleted_at`(삭제됨 배지). `proposal.deleted_at` 컬럼 추가(마이그레이션 `034_proposal_deleted_at`).
 - 2026-07-27 — 목록 상태 컬럼에서 **"삭제됨" 보조 배지 표시 제거**(`8d665c0`). `deleted` 데이터 필드·삭제 처리 로직은 그대로 유지, UI 노출만 제거.
 - 2026-07-27 — **맞춤제안서 명 저장·표시 버그 수정**. write 페이지 입력이 비제어(`defaultValue`)라 전송되지 않고 서버가 파일명에서 제목을 뽑던 것을, controlled input + `title` 폼 필드 전송으로 변경. `ProposalCounterFile.title` 컬럼 신설(마이그레이션 `037_add_counter_file_title`, nullable). 이력 목록/맞춤제안 상세 "제목"은 `title ?? file_name` 폴백, **다운로드는 원본 파일명 유지**. 이력 목록 "제목" 셀은 `min-w-0` + `<span truncate>`로 넘칠 때 `…` 말줄임(flex 컨테이너 직접 `truncate` 미동작 대응). §3.B.4·3.C.1·3.C.3·3.D.1 참조.
-- 2026-07-27 — 제안 상세 미리보기 **확대 아이콘 오적용 수정 + 라이트박스 연결**. Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만) 아이콘이 적용돼 있던 것을 `FullscreenIcon`으로 교체(`MaximizeIcon`은 클라이언트 제안서·media-detail 등에서 계속 사용해 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(썸네일 스트립 포함). 이 화면 슬라이드는 코드 템플릿이라 이미지용 `ImageLightbox` 대신 별도 컴포넌트, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유. §3.B.3 참조.
+- 2026-07-27 — **계약 완료 처리 2건**: ① 계약완료(`accepted`) 상태에서 "맞춤제안 작성" 버튼 비활성화(추가 맞춤제안 차단; 프런트 버튼 한정, `/write` URL·백엔드 업로드는 후속 가드 필요) ② 집행 수락 성공 시 회원 이메일로 계약완료 알림 발송(`send_contract_completed_email`, BackgroundTask, Figma 1283-31901). §3.B.4·3.B.5·§5 참조.
+- 2026-07-27 — 제안 상세 미리보기 **확대 아이콘 오적용 수정 + 라이트박스 연결**. Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만) 아이콘이 적용돼 있던 것을 `FullscreenIcon`으로 교체(`MaximizeIcon`은 클라이언트 제안서·media-detail 등에서 계속 사용해 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(썸네일 스트립 포함). 이 화면 슬라이드는 코드 템플릿이라 이미지용 `ImageLightbox` 대신 별도 컴포넌트, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유. §3.B.3 참조. Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만) 아이콘이 적용돼 있던 것을 `FullscreenIcon`으로 교체(`MaximizeIcon`은 클라이언트 제안서·media-detail 등에서 계속 사용해 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(썸네일 스트립 포함). 이 화면 슬라이드는 코드 템플릿이라 이미지용 `ImageLightbox` 대신 별도 컴포넌트, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유. §3.B.3 참조.

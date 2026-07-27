@@ -462,6 +462,99 @@ def send_custom_proposal_email(
     send_email(email, subject, text, html)
 
 
+def send_contract_completed_email(
+    email: str, proposal_id: str, proposal_title: str
+) -> None:
+    """집행 수락(계약 완료) 시 회원의 연락받을 이메일로 알림 발송 (BackgroundTask 로 호출)."""
+    from html import escape
+
+    from src.utils.mailer import send_email
+
+    base = get_settings().email_link_base
+    my_url = f"{base}/proposals/{proposal_id}" if base else ""
+    logo_html = (
+        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        if base
+        else 'ADMIX<span style="color:#00AAA4">●</span>'
+    )
+    title = proposal_title or "제안서"
+
+    subject = "[ADMIX] 광고 계약이 완료되었습니다"
+    text_lines = [
+        "안녕하세요.",
+        "회원님이 요청하신 광고 계약이 완료되었습니다.",
+        "",
+        f"- 제안서명 : {title}",
+        "",
+        "아래 버튼을 통해 최종 제안서를 확인해 보세요.",
+        "제안서는 서비스 내 [내 제안서]에서 확인할 수 있습니다.",
+    ]
+    if my_url:
+        text_lines.append(my_url)
+    text_lines += ["", "감사합니다.", "", "ADMIX 드림"]
+    text = "\n".join(text_lines)
+
+    safe_title = escape(title)
+    my_proposal = (
+        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[내 제안서]</a>'
+        if my_url
+        else "[내 제안서]"
+    )
+    button_html = (
+        f"""
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0">
+                <tr>
+                  <td bgcolor="#00AAA4" style="border-radius:8px">
+                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">내 제안서 확인하기</a>
+                  </td>
+                </tr>
+              </table>"""
+        if my_url
+        else ""
+    )
+    html = f"""\
+<div style="margin:0;padding:0;background-color:#000000">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+    <tr>
+      <td align="center" style="padding:24px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+          <tr>
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+              {logo_html}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+              [ADMIX] 광고 계약이 완료되었습니다
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              안녕하세요.<br>
+              회원님이 요청하신 광고 계약이 완료되었습니다.
+              <ul style="margin:24px 0 0;padding-left:24px">
+                <li style="line-height:24px">제안서명 : {safe_title}</li>
+              </ul>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+              아래 버튼을 통해 최종 제안서를 확인해 보세요.<br><br>
+              제안서는 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
+              감사합니다.<br><br>
+              ADMIX 드림{button_html}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>"""
+
+    send_email(email, subject, text, html)
+
+
 # ===== 클라이언트 장바구니(플래닝) CRUD =====
 
 

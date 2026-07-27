@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 계약완료 시 맞춤제안 작성 차단 + 계약완료 이메일 발송
+
+제안 상세(`admin/proposals/[id]`) 2건. ① 상태가 계약완료(`accepted`)면 "맞춤제안 작성" 버튼을 비활성(회색·클릭 불가)으로 렌더 — 추가 맞춤제안 차단(프런트 버튼 한정, `/write` URL·백엔드 업로드는 후속 가드 필요). ② 집행 수락 성공 시 회원 이메일로 "[ADMIX] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`, 맞춤제안 도착 메일과 동일 다크 템플릿, Figma 1283-31901). 아울러 앞선 `title` 컬럼(037) 미적용으로 제안 상세 조회가 500(`column proposal_counter_file.title does not exist`)나던 것을 로컬 DB `alembic upgrade head`로 해소. 정책: [admin-proposals](policies/admin-proposals.md).
+
 ## 2026-07-27 — 계정 관리 `account` 권한 게이팅 전환 (+마스터 티어 봉인)
 
 `account`(계정 관리) 권한을 부여해도 사이드바 메뉴가 활성화 안 되던 문제. 원인은 `account`를 **아무 곳도 참조 안 하는** 설계 불일치 — 사이드바는 `account`를 무조건 숨기고(`return false`) 백엔드 쓰기는 마스터 전용(`get_current_master_admin`)이라 roles UI에서 권한을 줘도 무효. 사용자 결정에 따라 **권한 게이팅으로 전환**: ① 사이드바 특례 제거 → 권한 보유 시 노출 ② `/admin/accounts` 전 엔드포인트(조회 포함)를 `require_permission("account")`로 조임(이전 조회 `get_current_admin`은 정보노출 홀) ③ **마스터 티어 봉인 가드**(`_guard_master_tier`) — 비마스터+account가 마스터 생성/승격/수정/삭제 시 403(권한 상승 방지). 비마스터+account 토큰으로 권한통과·마스터봉인 403 비파괴 검증(도커 리빌드 반영). 정책: [admin-roles](policies/admin-roles.md)·[admin-auth-permissions](policies/admin-auth-permissions.md).

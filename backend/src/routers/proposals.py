@@ -156,6 +156,7 @@ async def upload_counter_proposal(
 @router.post("/{proposal_id}/accept", response_model=AdminProposalDetail)
 def accept_proposal(
     proposal_id: str,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("business")),
 ) -> AdminProposalDetail:
@@ -163,7 +164,17 @@ def accept_proposal(
     p = proposal_service.update_status(db, proposal_id, "contracted")
     if p is None:
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
-    return AdminProposalDetail(**proposal_service.get_admin_detail(db, proposal_id))
+    detail = proposal_service.get_admin_detail(db, proposal_id)
+    # 제안서 소유 회원의 연락받을 이메일로 계약 완료 알림 발송
+    recipient = (detail.get("member") or {}).get("email")
+    if recipient:
+        background.add_task(
+            proposal_service.send_contract_completed_email,
+            recipient,
+            proposal_id,
+            detail.get("title") or "",
+        )
+    return AdminProposalDetail(**detail)
 
 
 @router.get("/{proposal_id}/counter-proposal/{counter_id}/download")
