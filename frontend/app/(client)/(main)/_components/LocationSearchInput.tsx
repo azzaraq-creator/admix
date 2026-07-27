@@ -16,7 +16,7 @@ export function LocationSearchInput({
   value,
   onChange,
   onSubmit,
-  placeholder = "강남역 역삼로 10길 6",
+  placeholder = "“강남역”을 검색해보세요",
   className,
   autoFocus = false,
 }: LocationSearchInputProps) {

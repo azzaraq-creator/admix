@@ -27,7 +27,7 @@ export function LocationSearchArea() {
         className="flex w-full cursor-pointer items-center justify-between gap-[12px] rounded-full border border-primary bg-white px-[24px] py-[10px] sm:w-[560px] sm:max-w-none"
       >
         <p className="min-w-0 flex-1 truncate text-base font-medium text-grey-500">
-          강남역 역삼로 10길 6
+          “강남역”을 검색해보세요
         </p>
         <span className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white">
           <SearchIcon className="size-[18px]" />
