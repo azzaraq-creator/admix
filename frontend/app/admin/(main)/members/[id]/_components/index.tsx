@@ -1,25 +1,5 @@
 import type { TableColumn } from "@/components/common/Table/CommonTable";
 
-/* ---------- 제안 이력 ---------- */
-
-export type ProposalStatus = "취소" | "신규" | "맞춤제안" | "계약 완료";
-
-export type ProposalHistory = {
-  no: string;
-  proposalName: string;
-  name: string;
-  totalAmount: string;
-  status: ProposalStatus;
-  registeredAt: string;
-};
-
-const PROPOSAL_STATUS_CLASS: Record<ProposalStatus, string> = {
-  취소: "bg-[#fef2f2] text-[#ef4444]",
-  신규: "bg-[#eef2ff] text-[#4f6bed]",
-  맞춤제안: "bg-[#fdf6e3] text-[#c99a2e]",
-  "계약 완료": "bg-primary-50 text-primary-800",
-};
-
 function StatusBadge({ className, label }: { className: string; label: string }) {
   return (
     <span
@@ -29,24 +9,6 @@ function StatusBadge({ className, label }: { className: string; label: string })
     </span>
   );
 }
-
-export const proposalColumnList: TableColumn<ProposalHistory>[] = [
-  { name: "no", label: "No", className: "text-disabled" },
-  { name: "proposalName", label: "제안서 명" },
-  { name: "name", label: "이름" },
-  { name: "totalAmount", label: "전체 금액 합계" },
-  {
-    name: "status",
-    label: "상태",
-    renderer: (item) => (
-      <StatusBadge
-        className={PROPOSAL_STATUS_CLASS[item.status]}
-        label={item.status}
-      />
-    ),
-  },
-  { name: "registeredAt", label: "등록일", className: "text-disabled" },
-];
 
 /* ---------- 문의 이력 ---------- */
 

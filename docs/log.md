@@ -4,6 +4,26 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 회원 상세 제안 이력 탭을 admin/proposals 목록 재사용으로 개편
+
+회원 상세의 제안 이력 탭이 member 전용 매핑(상태 "집행요청"·"계약 완료"(공백), 자체 색상)을 쓰던 것을 폐기하고 **admin/proposals 목록을 그대로 재사용**. 백엔드 `GET /admin/proposals`에 `member_id` 필터 신설(`list_proposals`/`list_proposals_all`), 프론트는 `MemberProposalsTab`이 `useAdminProposals({ member_id })` + admin의 `proposalColumnList`·`ProposalStatusBadge`를 공유(컬럼에 "매체 수" 추가, 검색 숨김, 행 클릭 시 제안서 상세 이동). 결과로 상태 색·라벨이 admin/proposals와 완전 일치하고 "집행요청" 배지 색 미정의 문제 해소. 작성중(`new`)은 admin 규칙대로 탭에서 제외. 정책: [admin-members §3.8](policies/admin-members.md#38-상세--제안-이력-탭) · [admin-proposals §3.A.1](policies/admin-proposals.md).
+
+## 2026-07-27 — admin 배지 정리: 사업자 인증 상태 공통화 · 제안서 "삭제됨" 제거
+
+- **사업자 인증 상태 배지 lib 공통화**(`a664626`): 목록의 상태별 색상 배지를 `lib/bizStatus.tsx`(`BizStatusBadge`·`bizStatusLabel`·en코드→한글 라벨)로 분리. 회원 상세 헤더의 "사업자정보" 배지가 회색 고정이던 것을 목록과 동일한 상태별 색상 배지로 교체. 정책: [admin-members §3.4·§3.5](policies/admin-members.md).
+- **제안서 목록 "삭제됨" 보조 배지 제거**(`8d665c0`): 상태 컬럼에서 삭제됨 표시만 제거. `deleted` 데이터 필드·삭제 처리 로직은 유지. 정책: [admin-proposals §3.A.3](policies/admin-proposals.md).
+
+## 2026-07-24 — 모바일 뷰포트 대응 h-screen→h-dvh 통일 (`0cc8f0a`)
+
+iOS Safari 하단 URL 바가 떠 있을 때 `h-screen`(=100vh)이 콘텐츠·제출버튼을 툴바 뒤로 자르는 문제. 전체 높이 유틸 `h-screen`/`min-h-screen` 20곳(16개 파일)을 `h-dvh`/`min-h-dvh`로 통일. 규칙: [frontend-structure.md 반응형/뷰포트 규칙](frontend-structure.md#반응형--뷰포트-규칙).
+
+## 2026-07-24 — 프론트 QA 픽스 #10~#12 (service 정렬·토스트 통일·전화번호 lib)
+
+QA 지적 3건 수정. 상세: [qa-fixes #10~#12](reviews/2026-07-22-qa-fixes.md).
+- **#10 service 비교표 높이**(`05bfacb`): 타사/ADMIX 좌우 컬럼을 단일 `grid grid-cols-2`로 통합 → 대응 행이 한쪽만 개행돼도 높이 동일. 타사 이미지 박스도 `sm:h-[220px]`로 ADMIX와 통일.
+- **#11 토스트 모바일 개행 + useSonner 통일**(`4e9193a`): `useSonner`에 `max-[600px]:w-full`(Sonner 경계 600px 일치)로 넓은 폰 개행 해소. `ContactView` 로컬 토스트·`AiChatPanel`·`useReactChat`(react)를 useSonner로 통일(v2 챗훅은 제거 예정 미변경). useSonner 함수 `useCallback` 안정화.
+- **#12 전화번호 9~11자리(02) lib**(`f126dcc`): `lib/phone.ts` 신설(`PHONE_PATTERN`·`isValidPhone`·`formatPhone`), SignupForm·ProfileView 공통 적용. 백엔드는 제약 없어 수정 불필요.
+
 ## 2026-07-24 — recommend_react 운영 배포 (신버전 챗봇 전환)
 
 슬롯머신 v2 → **ReAct 챗봇(recommend_react)으로 운영 전환**. 프론트 fixed 챗패널이 `/recommend/react/jobs`(비동기 잡→폴링) 사용.

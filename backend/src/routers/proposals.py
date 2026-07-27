@@ -41,6 +41,7 @@ def list_proposals(
     date_to: str | None = None,
     keyword: str | None = None,
     status: str | None = None,
+    member_id: uuidlib.UUID | None = None,
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("business")),
 ) -> ProposalListResponse:
@@ -50,6 +51,7 @@ def list_proposals(
         date_to=date_to,
         keyword=keyword,
         status=status,
+        member_id=member_id,
         page=page,
         page_size=page_size,
     )

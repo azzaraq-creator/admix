@@ -5,6 +5,7 @@ import { getUserToken } from "@/lib/userToken";
 
 export interface ProposalListParams extends AdminListParams {
   status?: string;
+  member_id?: string;
 }
 
 export interface ProposalRow {

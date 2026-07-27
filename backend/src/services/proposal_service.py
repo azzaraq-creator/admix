@@ -180,16 +180,19 @@ def _map_proposal(p) -> dict:
     )
 
 
-def list_proposals_all(db: Session) -> list[dict]:
-    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
+def list_proposals_all(
+    db: Session, *, member_id: uuid.UUID | None = None
+) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음). member_id 지정 시 해당 회원 소유만."""
     # 작성중(new)은 admin 목록에서 제외 — 유저가 제출(execution_requested)해야 노출.
-    rows = (
+    q = (
         db.query(Proposal)
         .options(joinedload(Proposal.member))
         .filter(Proposal.status != "new")
-        .order_by(Proposal.created_at.desc())
-        .all()
     )
+    if member_id is not None:
+        q = q.filter(Proposal.member_id == member_id)
+    rows = q.order_by(Proposal.created_at.desc()).all()
     return [_map_proposal(p) for p in rows]
 
 
@@ -200,11 +203,12 @@ def list_proposals(
     date_to: str | None = None,
     keyword: str | None = None,
     status: str | None = None,
+    member_id: uuid.UUID | None = None,
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[int, list[dict]]:
     """등록일(registeredAt) 기간·상태·키워드 필터 + 페이지네이션. (total, items) 반환."""
-    rows = list_proposals_all(db)
+    rows = list_proposals_all(db, member_id=member_id)
 
     df = parse_date(date_from)
     dt = parse_date(date_to)

@@ -15,15 +15,13 @@ import { useMember, type SanctionOut } from "@/hooks/members";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 
 import { BasicInfoTab } from "./BasicInfoTab";
+import { MemberProposalsTab } from "./MemberProposalsTab";
 import { SanctionModal } from "./SanctionModal";
 import {
   inquiryColumnList,
-  proposalColumnList,
   sanctionColumnList,
   type InquiryHistory,
   type InquiryStatus,
-  type ProposalHistory,
-  type ProposalStatus,
   type Sanction,
 } from "./index";
 
@@ -93,15 +91,6 @@ export function MemberDetailView() {
     detail: s.detail ?? "",
     sanctionedAt: s.start_date,
     endAt: s.end_date ?? "-",
-  }));
-
-  const proposals: ProposalHistory[] = member.proposals.map((p, i) => ({
-    no: String(i + 1),
-    proposalName: p.proposalName,
-    name: p.name,
-    totalAmount: p.totalAmount,
-    status: p.status as ProposalStatus,
-    registeredAt: p.registeredAt,
   }));
 
   const inquiries: InquiryHistory[] = member.inquiries.map((q, i) => ({
@@ -175,14 +164,7 @@ export function MemberDetailView() {
         <BasicInfoTab member={member} onList={() => router.push("/admin/members")} />
       )}
 
-      {tab === "proposals" && (
-        <CommonTable
-          columnList={proposalColumnList}
-          data={proposals}
-          useSearch={false}
-          pageSize={10}
-        />
-      )}
+      {tab === "proposals" && <MemberProposalsTab memberId={member.id} />}
 
       {tab === "inquiries" && (
         <CommonTable
