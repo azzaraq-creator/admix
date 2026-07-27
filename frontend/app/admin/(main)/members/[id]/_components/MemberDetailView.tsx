@@ -11,6 +11,7 @@ import { useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { CommonTable } from "@/components/common/Table/CommonTable";
+import { useAdminMe } from "@/hooks/adminAuth";
 import { useMember, type SanctionOut } from "@/hooks/members";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 
@@ -22,10 +23,14 @@ import { sanctionColumnList, type Sanction } from "./index";
 
 type TabKey = "basic" | "proposals" | "inquiries" | "sanctions";
 
-const TABS: { key: TabKey; label: string }[] = [
+const MASTER_ACCOUNT_TYPE = "마스터 계정";
+
+// 제안/문의 이력 탭은 admin/proposals·admin/inquiries 목록(모두 "business" 권한)을
+// 재사용하므로, 회원관리(member) 권한만으로는 볼 수 없고 비즈니스 관리(business)가 필요.
+const TABS: { key: TabKey; label: string; permKey?: string }[] = [
   { key: "basic", label: "기본 정보" },
-  { key: "proposals", label: "제안 이력" },
-  { key: "inquiries", label: "문의 이력" },
+  { key: "proposals", label: "제안 이력", permKey: "business" },
+  { key: "inquiries", label: "문의 이력", permKey: "business" },
   { key: "sanctions", label: "제재 관리" },
 ];
 
@@ -55,8 +60,14 @@ export function MemberDetailView() {
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
   const { data: member } = useMember(params.id);
+  const { data: me } = useAdminMe();
+  const isMaster = me?.account_type === MASTER_ACCOUNT_TYPE;
+  const perms = me?.permissions ?? [];
+  const canSeeTab = (permKey?: string) =>
+    !permKey || isMaster || perms.includes(permKey);
+  const visibleTabs = TABS.filter((t) => canSeeTab(t.permKey));
   const tabParam = searchParams.get("tab");
-  const tab: TabKey = TABS.some((t) => t.key === tabParam)
+  const tab: TabKey = visibleTabs.some((t) => t.key === tabParam)
     ? (tabParam as TabKey)
     : "basic";
 
@@ -127,7 +138,7 @@ export function MemberDetailView() {
       </div>
 
       <div className="flex items-center border-b border-[#cdcdcd]">
-        {TABS.map((item) => {
+        {visibleTabs.map((item) => {
           const active = tab === item.key;
           return (
             <button

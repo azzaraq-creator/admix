@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 회원 상세 제안/문의 이력 탭 비즈니스 관리 권한 게이팅
+
+두 탭이 admin/proposals·admin/inquiries 목록(모두 `business` 권한)을 재사용하게 되면서, 회원 상세에서도 **제안 이력·문의 이력 탭을 비즈니스 관리(`business`) 권한으로 게이팅**. 회원 관리(`member`) 권한만으론 두 탭 비노출(기본 정보·제재 관리만), 마스터 계정은 전체, URL로 숨긴 탭 강제진입 시 기본 정보로 폴백. `MemberDetailView`가 `useAdminMe().permissions`/`account_type`로 판정(사이드바와 동일). 제안/문의는 시스템상 단일 `business` 권한이라 두 탭이 함께 열림/숨김(독립 권한 분리는 키 신설이 필요해 미채택). 정책: [admin-members §3.6](policies/admin-members.md#36-상세--탭-네비게이션).
+
 ## 2026-07-27 — 회원 상세 문의 이력 탭을 admin/inquiries 목록 재사용으로 개편
 
 제안 이력 탭과 동일 패턴을 문의 이력 탭에도 적용. 백엔드 `GET /admin/inquiries`에 `member_id` 필터 신설(`list_inquiries`/`list_inquiries_all`), 프론트는 `MemberInquiriesTab`이 `useAdminInquiries({ member_id })` + admin의 `inquiryColumnList`·`InquiryStatusBadge`를 공유(검색 숨김, 행 클릭 시 문의 상세 이동). member 상세 `_components/index.tsx`의 중복 문의 컬럼·`StatusBadge` 제거(이제 제재 컬럼만 남음). 정책: [admin-members §3.9](policies/admin-members.md#39-상세--문의-이력-탭) · [admin-inquiries §3.1](policies/admin-inquiries.md).
