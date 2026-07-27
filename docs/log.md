@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 제안 상세 미리보기 확대 아이콘 수정 + 슬라이드 라이트박스
+
+`admin/proposals/[id]` 미리보기 우상단 아이콘이 Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만)로 오적용돼 있던 것을 `FullscreenIcon`(코너+내부 사각형)으로 교체(`MaximizeIcon`은 타 화면 사용 중이라 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(오버레이·좌우 이동·인디케이터·하단 썸네일 스트립). 이 화면 슬라이드는 이미지가 아니라 코드 템플릿이라 공용 `ImageLightbox`(이미지 전용) 대신 별도 컴포넌트를 쓰고, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유(`SlideScaler` 스케일). 좌우 이동은 프리뷰 `selected`와 동기화. 정책: [admin-proposals §3.B.3](policies/admin-proposals.md).
+
 ## 2026-07-27 — 제재 삭제 confirm 오버레이 노출 수정 (중첩 Dialog backdrop)
 
 `SanctionModal`(제재 상세) 안에서 삭제 confirm Dialog가 중첩될 때 오버레이가 안 뜨던 문제. 원인은 Base UI 1.4.1 `DialogBackdrop`이 **중첩 다이얼로그의 backdrop을 렌더하지 않음**(`enabled: forceRender || !nested`) — z-index 문제가 아니었음. 공통 `ui/dialog`의 `DialogContent`에 `backdropForceRender`·`backdropClassName` prop을 추가하고, `useAdminConfirm`이 `backdropForceRender`+`z-[60]`를 지정해 제재 상세 모달 위로 오버레이가 덮이도록 수정. 정책: [admin-members 제재 관리 탭](policies/admin-members.md).

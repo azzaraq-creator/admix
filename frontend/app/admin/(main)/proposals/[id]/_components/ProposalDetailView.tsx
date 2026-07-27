@@ -5,11 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
-import { DownloadIcon, MaximizeIcon } from "@/components/icons";
-import { CoverThumb } from "@/components/proposals/CoverTemplate";
-import { MediaThumb } from "@/components/proposals/MediaTemplate";
-import { SummaryThumb } from "@/components/proposals/SummaryTemplate";
-import { ThanksThumb } from "@/components/proposals/ThanksTemplate";
+import { DownloadIcon, FullscreenIcon } from "@/components/icons";
 import {
   proposalsApi,
   useAcceptProposal,
@@ -22,6 +18,8 @@ import { useSonner } from "@/hooks/useSonner";
 import { formatDate } from "@/lib/date";
 
 import { ProposalStatusBadge, type ProposalStatus } from "../../_components";
+import { AdminSlideView, type AdminSlide } from "./AdminSlideView";
+import { ProposalSlideLightbox } from "./ProposalSlideLightbox";
 
 const HISTORY_HEADERS = ["제목", "작성자", "제안일", "적용 상태", "작업"];
 const SUMMARY_PAGE_SIZE = 5;
@@ -31,12 +29,6 @@ const MEMBERSHIP_TEXT: Record<string, string> = {
   individual: "개인",
   corporate: "기업",
 };
-
-type AdminSlide =
-  | { kind: "cover"; name: string }
-  | { kind: "summary"; name: string; rows: ProposalItem[]; startIndex: number }
-  | { kind: "media"; name: string; item: ProposalItem }
-  | { kind: "thanks"; name: string };
 
 function InfoRow({
   label,
@@ -61,6 +53,7 @@ export function ProposalDetailView() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [selected, setSelected] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const { data: proposal } = useAdminProposalDetail(params.id);
   const acceptMutation = useAcceptProposal();
@@ -247,21 +240,24 @@ export function ProposalDetailView() {
                 <span>/</span>
                 <span>{slides.length}</span>
               </p>
-              <MaximizeIcon className="size-[24px] text-[#2a2a2a]" />
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                disabled={slides.length === 0}
+                aria-label="슬라이드 확대 보기"
+                className="flex size-[24px] items-center justify-center text-[#2a2a2a] disabled:opacity-40"
+              >
+                <FullscreenIcon className="size-[24px]" />
+              </button>
             </div>
             <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px] border border-stroke">
-              {current?.kind === "cover" && (
-                <CoverThumb updatedAt={proposal?.updated_at ?? null} />
-              )}
-              {current?.kind === "summary" && summaryProposal && (
-                <SummaryThumb
-                  proposal={summaryProposal}
-                  rows={current.rows}
-                  startIndex={current.startIndex}
+              {current && (
+                <AdminSlideView
+                  slide={current}
+                  summaryProposal={summaryProposal}
+                  updatedAt={proposal?.updated_at ?? null}
                 />
               )}
-              {current?.kind === "media" && <MediaThumb item={current.item} />}
-              {current?.kind === "thanks" && <ThanksThumb />}
             </div>
           </div>
         </div>
@@ -351,6 +347,17 @@ export function ProposalDetailView() {
           </PrimaryButton>
         </div>
       </div>
+
+      {lightboxOpen && (
+        <ProposalSlideLightbox
+          slides={slides}
+          index={selected}
+          onIndexChange={setSelected}
+          summaryProposal={summaryProposal}
+          updatedAt={proposal?.updated_at ?? null}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
 
       {confirmDialog}
     </div>

@@ -6,6 +6,7 @@ export { ListIcon } from "./ListIcon";
 export { MapIcon } from "./MapIcon";
 export { MapPinIcon } from "./MapPinIcon";
 export { MaximizeIcon } from "./MaximizeIcon";
+export { FullscreenIcon } from "./FullscreenIcon";
 export { NetworkIcon } from "./NetworkIcon";
 export { PackageOpenIcon } from "./PackageOpenIcon";
 export { PlusIcon } from "./PlusIcon";
