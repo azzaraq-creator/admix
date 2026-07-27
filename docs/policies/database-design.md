@@ -122,9 +122,14 @@
 
 > 면적(㎡) 산출: 가로×세로 후 단위변환 (METER=㎡, CM ÷1e4, MM ÷1e6). 등급 산식의 규격 점수에 사용.
 
-### 2.4 `media_image` — 이미지 (1:N)
+### 2.4 `media_image` — 이미지 (1:N, **단일 이미지 소스**)
 
-`detail.mediaItemImages` / `all_image_urls` / `list.image`를 URL 단위로 분해. 컬럼: `image_url`, `sort_order`, `is_thumbnail`. `media.thumbnail_url`은 대표값 캐시.
+컬럼: `image_url`, `sort_order`, `is_thumbnail`. 매체 이미지의 **유일한 소스**다(2026-07-22 통합, [media-image-storage](../plans/2026-07-22-media-image-storage.md) 참조).
+
+- `image_url`: 신규 업로드는 **S3 퍼블릭 URL**(`https://ooh-image-public.s3.ap-northeast-2.amazonaws.com/media/{media_id}/{uuid}.ext`). 과거 타사(houseofooh) 외부 URL은 **Phase 2에서 전량 삭제**됨. 레거시 로컬 `/uploads` 소수 잔존.
+- 대표 이미지 = `is_thumbnail` 우선, 없으면 `sort_order` 최소.
+- `media.thumbnail_url` / `media_items.thumbnail_url` / `media_items.all_image_urls` 는 **이미지 소스에서 제외(deprecated)** — 값은 NULL(Phase 2), 컬럼만 유지.
+- `media_items`(V2 추천)는 `media_id` FK(마이그 `035`)로 `media`에 연결 → 이미지도 `media_image`에서 조회(과거 `thumbnail_url` 문자열 조인 폐기).
 
 ### 2.5 `audience_stat` — 유동인구 (1:1)
 

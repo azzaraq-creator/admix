@@ -91,6 +91,7 @@
   - **썸네일 삭제(X)**: 수정 모드는 `DELETE /admin/media/{id}/images/{imageId}`, 등록 모드는 대기 목록에서 제거.
   - 최대 개수 도달 시 업로드 박스 비활성화.
   - **이미지 형식 제약(백엔드)**: `.jpg/.jpeg/.png/.webp/.gif`만 허용, **개당 최대 10MB**. 위반 시 400.
+  - **저장(백엔드)**: 업로드 파일은 **S3 버킷 `ooh-image-public`**(ap-northeast-2, 퍼블릭 read)에 `media/{media_id}/{uuid}.ext`로 저장(ContentType 지정), 반환 퍼블릭 URL을 `media_image.image_url`에 기록. 삭제 시 S3 객체도 정리. 저장 아키텍처: [media-image-storage](../plans/2026-07-22-media-image-storage.md).
   - **대표(썸네일) 규칙(백엔드)**: 매체의 **첫 이미지**가 `is_thumbnail=true`. 대표 이미지를 삭제하면 남은 이미지 중 `sort_order` 최소 항목이 자동 대표가 된다. (이 `is_thumbnail`은 `thumbnail_url` 텍스트 컬럼과 별개로 관리 — 업로드가 `thumbnail_url`을 건드리지 않음.)
 
 #### 3.1.2 입력 필드 그리드 (2열)
