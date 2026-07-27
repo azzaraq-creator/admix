@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 소셜↔이메일 계정 완전 분리 + 회원가입 500 수정(마이그 039)
+
+소셜 로그인(카카오/네이버)이 같은 이메일의 이메일가입 계정에 병합되던 동작을 폐기 — `oauth_service.login_with_provider`에서 이메일 매칭 블록 제거 + 신규 소셜 유저 `login_id=f"{provider}_{provider_id}"` 고정(제공자 이메일 → provider 네임스페이스). 이메일/네이버/카카오 모두 별개 계정(신규부터, 기존 병합 계정은 `provider_id` 조회로 유지). 배포 직후 "네이버 먼저 가입 → 같은 이메일로 가입" 시 `POST /auth/register` 500(`IntegrityError ix_users_email`) 발견 — `users.email` UNIQUE **인덱스**가 마이그 031(제약만 드롭) 이후 잔존한 게, 분리로 email 중복 계정이 생기며 충돌. 마이그 **039**로 email single-col unique 인덱스를 non-unique로 교체(031 보완). 운영 조치: 이미 네이버 병합됐던 `wishmin82@naver.com` cascade 삭제, EC2 2회 재배포(oauth 분리 → 039), `alembic current=039`·`ix_users_email indisunique=false` 검증. 정책 [login](policies/login.md) §3.4·§7·§8, 상세 [social-account-separation](plans/2026-07-27-social-account-separation.md).
+
 ## 2026-07-27 — 관리자 refresh 토큰 + 자동로그인 30일(슬라이딩)
 
 관리자 토큰이 refresh 없는 24h 단일 토큰이라 만료 시 무조건 재로그인하던 것을, 회원(user) 인증의 refresh 패턴(회전·재사용 탐지·서버 폐기)을 그대로 미러링해 해소. access 24h→1h 단축 + `admin_refresh_tokens` 테이블(마이그 038, SHA-256 해시 저장) 신설. **자동로그인 체크=마지막 활동 기준 30일 슬라이딩**(refresh마다 갱신), 미체크=세션 쿠키(브라우저 종료 시 폐기). `/admin/auth/refresh`·`/admin/auth/logout` 추가, 프론트 인터셉터가 admin 401 시 즉시 로그아웃 대신 refresh 재시도. 검증: 마이그 upgrade↔downgrade 왕복 + throwaway 관리자로 발급/회전/재사용탐지(전체 폐기)/만료/remember 만료차 11개 체크 전부 PASS(실데이터 무영향), 프론트 tsc·백엔드 import 클린. 배포 시 `alembic upgrade head` + 백엔드 재시작 필요, access 1h 단축으로 배포 시점 로그인 중이던 관리자 1회 강제 재로그인. 정책: [admin-auth-permissions](policies/admin-auth-permissions.md).

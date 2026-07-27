@@ -1,6 +1,8 @@
 # SNS 로그인 이메일 인증 + 아이디/이메일 분리 (2026-07-09)
 
 > 카카오/네이버 소셜 로그인 시 **수신 가능한 이메일 인증**을 거치게 하고, 계정 식별자(**아이디 = login_id**)와 **연락받을 이메일(email)**을 개념적으로 분리한 작업. 관련: [social-login-deploy-ops](2026-07-04-social-login-deploy-ops.md), [password-reset-email-smtp](2026-07-08-password-reset-email-smtp.md), 화면은 Figma 기반.
+>
+> ⚠️ **[2026-07-27] 갱신**: 이 문서 §2·§9 의 "소셜을 제공자 이메일=login_id 로 **기존 계정에 매칭/병합**" 정책은 **폐기**됨. 소셜은 `SocialAccount(provider, provider_id)` 로만 식별하고, 이메일/네이버/카카오를 **별개 계정**으로 관리한다(신규부터). → [social-account-separation](2026-07-27-social-account-separation.md).
 
 커밋: `3fba341`(SNS 이메일 인증+가입완료 화면) · `01a2164`(아이디/이메일 분리+프로필 SNS) · `aa0de97`(연락받을 이메일 변경 모달) · `00cf370`(admin 목록/상세 구분). 브랜치 `feat/aws-migration-sqs-lambda`.
 

@@ -132,26 +132,19 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
         db.refresh(user)
         return user
 
-    user = None
-    if profile.get("email"):
-        # 계정 식별은 login_id(=제공자 이메일/가입 이메일) 기준.
-        # email 은 연락받을 이메일이라 다른 계정과 중복될 수 있어 매칭에 쓰면 안 된다.
-        user = db.query(User).filter(User.login_id == profile["email"]).first()
-    _ensure_not_sanctioned(user)
-    if user is None:
-        # 신규 소셜 가입: 수신 가능한 이메일 인증을 마치기 전까지 verified=False.
-        # 프런트는 콜백 후 verified 를 확인해 미인증이면 이메일 인증 화면으로 보낸다.
-        # 제공자가 이메일을 주면 화면에서 pre-fill 용으로 저장하고, 없으면 placeholder.
-        # 아이디 = 제공자(카카오/네이버) 이메일(필수). 이메일 미제공 시 provider_id 로 폴백.
-        user = User(
-            login_id=profile.get("email") or f"{provider}_{provider_id}",
-            email=profile.get("email") or f"{provider}_{provider_id}@social.local",
-            password=None,
-            name=profile.get("name"),
-            verified=False,
-        )
-        db.add(user)
-        db.flush()
+    # 소셜 계정은 provider_id 로만 식별한다. 같은 이메일의 이메일가입/타 소셜 계정과
+    # 병합하지 않고 별개 계정으로 관리(login_id = provider 네임스페이스).
+    # 신규 소셜 가입: 이메일 인증 전까지 verified=False (프런트가 인증 화면으로 유도).
+    # 제공자가 이메일을 주면 화면 pre-fill 용으로 email 에 저장, 없으면 placeholder.
+    user = User(
+        login_id=f"{provider}_{provider_id}",
+        email=profile.get("email") or f"{provider}_{provider_id}@social.local",
+        password=None,
+        name=profile.get("name"),
+        verified=False,
+    )
+    db.add(user)
+    db.flush()
 
     db.add(
         SocialAccount(

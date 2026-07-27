@@ -68,6 +68,7 @@
 | 2026-07-22 | [proposal-name-duplicate-check](plans/2026-07-22-proposal-name-duplicate-check.md) | 제안서 이름 중복검사(생성·이름변경) — 소유자별·삭제제외·대소문자무시, 라우터 409 `duplicate_name`, 챗봇/승계 미적용. 한도경고·Figma는 보류 |
 | 2026-07-22 | [media-image-storage](plans/2026-07-22-media-image-storage.md) | 매체 이미지 저장 아키텍처 — `media_image` 단일소스 통합(media_id FK 035) + 타사 외부 URL 전량 삭제(Phase 2) + 업로드 S3 전환(`ooh-image-public`). 운영 배포 완료 |
 | 2026-07-23 | [account-withdrawal-hard-delete](plans/2026-07-23-account-withdrawal-hard-delete.md) | 회원 탈퇴 hard delete 전환 + 제안서 제출자 스냅샷 5필드 보존(member_id SET NULL, Alembic 036 백필). 배포 게이트·컴플라이언스(즉시파기 vs 영구보존) 정리 |
+| 2026-07-27 | [social-account-separation](plans/2026-07-27-social-account-separation.md) | 소셜(카카오/네이버)↔이메일 계정 **완전 분리** — provider_id로만 식별·login_id 네임스페이스, 이메일 매칭 병합 폐기(신규부터). + 회원가입 500 수정(마이그 039: `ix_users_email` unique 인덱스 잔존 제거, 031 보완) |
 
 ## 리뷰 (reviews/) — 코드리뷰·감사 기록
 
