@@ -15,15 +15,10 @@ import { useMember, type SanctionOut } from "@/hooks/members";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 
 import { BasicInfoTab } from "./BasicInfoTab";
+import { MemberInquiriesTab } from "./MemberInquiriesTab";
 import { MemberProposalsTab } from "./MemberProposalsTab";
 import { SanctionModal } from "./SanctionModal";
-import {
-  inquiryColumnList,
-  sanctionColumnList,
-  type InquiryHistory,
-  type InquiryStatus,
-  type Sanction,
-} from "./index";
+import { sanctionColumnList, type Sanction } from "./index";
 
 type TabKey = "basic" | "proposals" | "inquiries" | "sanctions";
 
@@ -93,15 +88,6 @@ export function MemberDetailView() {
     endAt: s.end_date ?? "-",
   }));
 
-  const inquiries: InquiryHistory[] = member.inquiries.map((q, i) => ({
-    no: String(i + 1),
-    name: q.name,
-    title: q.title,
-    content: q.content,
-    status: q.status as InquiryStatus,
-    submittedAt: q.submittedAt,
-  }));
-
   return (
     <div className="flex flex-col gap-[24px]">
       <h1 className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">회원 상세</h1>
@@ -166,14 +152,7 @@ export function MemberDetailView() {
 
       {tab === "proposals" && <MemberProposalsTab memberId={member.id} />}
 
-      {tab === "inquiries" && (
-        <CommonTable
-          columnList={inquiryColumnList}
-          data={inquiries}
-          useSearch={false}
-          pageSize={10}
-        />
-      )}
+      {tab === "inquiries" && <MemberInquiriesTab memberId={member.id} />}
 
       {tab === "sanctions" && (
         <div className="flex flex-col gap-[16px]">

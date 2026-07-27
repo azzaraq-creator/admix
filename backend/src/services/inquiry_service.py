@@ -34,10 +34,15 @@ def _map_inquiry(q) -> dict:
     )
 
 
-def list_inquiries_all(db: Session) -> list[dict]:
-    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음)."""
-    rows = db.query(Inquiry).order_by(Inquiry.created_at.desc()).all()
-    return [_map_inquiry(q) for q in rows]
+def list_inquiries_all(
+    db: Session, *, member_id: uuid.UUID | None = None
+) -> list[dict]:
+    """엑셀 등 전건이 필요한 경우용(필터/페이지네이션 없음). member_id 지정 시 해당 회원 소유만."""
+    q = db.query(Inquiry)
+    if member_id is not None:
+        q = q.filter(Inquiry.member_id == member_id)
+    rows = q.order_by(Inquiry.created_at.desc()).all()
+    return [_map_inquiry(row) for row in rows]
 
 
 def list_inquiries(
@@ -47,11 +52,12 @@ def list_inquiries(
     date_to: str | None = None,
     keyword: str | None = None,
     status: str | None = None,
+    member_id: uuid.UUID | None = None,
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[int, list[dict]]:
     """제출일(submittedAt) 기간·상태·키워드 필터 + 페이지네이션. (total, items) 반환."""
-    rows = list_inquiries_all(db)
+    rows = list_inquiries_all(db, member_id=member_id)
 
     df = parse_date(date_from)
     dt = parse_date(date_to)

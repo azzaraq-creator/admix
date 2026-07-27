@@ -116,7 +116,7 @@
 ### 3.9 상세 — 문의 이력 탭
 
 - **기능**: 회원이 남긴 문의 목록.
-- **규칙**: 컬럼 No · 이름 · 제목 · 문의 내용 · 상태 · 제출일. 문의 내용은 최대 폭에서 말줄임. 검색 없음, 페이지 크기 10. 최신순. 상태: 답변 대기 / 답변 완료.
+- **규칙**(2026-07-27 개편): [admin/inquiries 목록](admin-inquiries.md) 테이블을 **그대로 재사용**한다 — `GET /admin/inquiries?member_id={회원UUID}`로 해당 회원 소유 문의만 조회하고, admin/inquiries의 컬럼·상태 배지(`InquiryStatusBadge`)를 공유(제안 이력 탭과 동일 패턴). 컬럼 No · 이름 · 제목 · 문의 내용 · 상태 · 제출일. 문의 내용은 최대 폭에서 말줄임. 검색 바 없음(`useSearch=false`), 페이지 크기 10, 최신순. 상태: 답변 대기 / 답변 완료. **행 클릭** 시 문의 상세(`/admin/inquiries/{id}`)로 이동.
 
 ### 3.10 상세 — 제재 관리 탭
 
@@ -176,6 +176,7 @@
 **결정됨**
 
 - 2026-07-27 — 제안 이력 탭을 admin/proposals 목록 재사용으로 개편. `GET /admin/proposals?member_id=` 필터 신설, 컬럼·상태 배지·백엔드 매핑 공유 → "집행요청" 배지 색 미정의 문제 해소. 행 클릭 시 제안서 상세 이동. §3.8 참조.
+- 2026-07-27 — 문의 이력 탭도 동일 패턴으로 admin/inquiries 목록 재사용. `GET /admin/inquiries?member_id=` 필터 신설, 컬럼·상태 배지 공유, 행 클릭 시 문의 상세 이동. §3.9 참조.
 - 제재 관리 탭에 제재 추가/상세(수정·삭제) 모달 구현(2026-07-15). `reason`+`detail` 분리(마이그레이션 033), 기간 오늘 이후·시작≤종료, `POST/PATCH/DELETE /admin/members/{id}/sanctions`.
 - 로그인 차단은 `status` 플래그가 아니라 **제재 기간(날짜) 기반** 판정(auth_service). 미래·종료 제재 미차단. status는 CRUD 시 `active↔sanctioned` 재계산(표시용).
 - 회원 상태(정상/탈퇴/제재/휴면) 수동 변경 UI는 여전히 없음 — 제재로 인한 sanctioned/active만 제재 CRUD가 자동 관리.

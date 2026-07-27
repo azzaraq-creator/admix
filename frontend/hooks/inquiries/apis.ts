@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 
 export interface InquiryListParams extends AdminListParams {
   status?: string;
+  member_id?: string;
 }
 
 export interface InquiryRow {

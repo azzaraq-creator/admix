@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 회원 상세 문의 이력 탭을 admin/inquiries 목록 재사용으로 개편
+
+제안 이력 탭과 동일 패턴을 문의 이력 탭에도 적용. 백엔드 `GET /admin/inquiries`에 `member_id` 필터 신설(`list_inquiries`/`list_inquiries_all`), 프론트는 `MemberInquiriesTab`이 `useAdminInquiries({ member_id })` + admin의 `inquiryColumnList`·`InquiryStatusBadge`를 공유(검색 숨김, 행 클릭 시 문의 상세 이동). member 상세 `_components/index.tsx`의 중복 문의 컬럼·`StatusBadge` 제거(이제 제재 컬럼만 남음). 정책: [admin-members §3.9](policies/admin-members.md#39-상세--문의-이력-탭) · [admin-inquiries §3.1](policies/admin-inquiries.md).
+
 ## 2026-07-27 — 회원 상세 제안 이력 탭을 admin/proposals 목록 재사용으로 개편
 
 회원 상세의 제안 이력 탭이 member 전용 매핑(상태 "집행요청"·"계약 완료"(공백), 자체 색상)을 쓰던 것을 폐기하고 **admin/proposals 목록을 그대로 재사용**. 백엔드 `GET /admin/proposals`에 `member_id` 필터 신설(`list_proposals`/`list_proposals_all`), 프론트는 `MemberProposalsTab`이 `useAdminProposals({ member_id })` + admin의 `proposalColumnList`·`ProposalStatusBadge`를 공유(컬럼에 "매체 수" 추가, 검색 숨김, 행 클릭 시 제안서 상세 이동). 결과로 상태 색·라벨이 admin/proposals와 완전 일치하고 "집행요청" 배지 색 미정의 문제 해소. 작성중(`new`)은 admin 규칙대로 탭에서 제외. 정책: [admin-members §3.8](policies/admin-members.md#38-상세--제안-이력-탭) · [admin-proposals §3.A.1](policies/admin-proposals.md).
