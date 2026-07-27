@@ -1,32 +1,45 @@
 """관리자 로그인 라우터 — admin 테이블 계정 인증."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
 from src.schemas.admin import (
     AdminAccountDetail,
     AdminLoginRequest,
     AdminLoginResponse,
+    AdminRefreshRequest,
+    AdminTokenResponse,
 )
 from src.services import admin_service
 from src.utils.deps import get_current_admin
-from src.utils.security import create_admin_token
 
 router = APIRouter(prefix="/admin/auth", tags=["admin-auth"])
-settings = get_settings()
 
 
 @router.post("/login", response_model=AdminLoginResponse)
 def login(body: AdminLoginRequest, db: Session = Depends(get_db)) -> AdminLoginResponse:
     admin = admin_service.authenticate_admin(db, body.email, body.password)
-    token = create_admin_token(
-        {"sub": str(admin.id)}, settings.jwt_access_secret, settings.admin_token_expires
+    access, refresh = admin_service.issue_admin_tokens(db, admin, body.remember)
+    return AdminLoginResponse(
+        access_token=access,
+        refresh_token=refresh,
+        admin=admin_service.get_account(db, admin.id),
     )
-    return AdminLoginResponse(access_token=token, admin=admin_service.get_account(db, admin.id))
+
+
+@router.post("/refresh", response_model=AdminTokenResponse)
+def refresh(body: AdminRefreshRequest, db: Session = Depends(get_db)) -> AdminTokenResponse:
+    access, refresh_token = admin_service.rotate_admin_refresh_token(db, body.refresh_token)
+    return AdminTokenResponse(access_token=access, refresh_token=refresh_token)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(body: AdminRefreshRequest, db: Session = Depends(get_db)) -> Response:
+    admin_service.revoke_admin_refresh_token(db, body.refresh_token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me", response_model=AdminAccountDetail)

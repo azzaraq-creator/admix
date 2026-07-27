@@ -3,7 +3,13 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-import { clearAdminToken, getAdminToken } from "./adminToken";
+import {
+  clearAdminToken,
+  getAdminPersist,
+  getAdminRefreshToken,
+  getAdminToken,
+  setAdminTokens,
+} from "./adminToken";
 import {
   clearUserToken,
   getPersist,
@@ -32,6 +38,18 @@ api.interceptors.request.use((config) => {
 });
 
 let refreshPromise: Promise<string> | null = null;
+let refreshAdminPromise: Promise<string> | null = null;
+
+async function refreshAdminAccessToken(): Promise<string> {
+  const refreshToken = getAdminRefreshToken();
+  if (!refreshToken) throw new Error("관리자 리프레시 토큰이 없습니다.");
+  const res = await axios.post<{
+    access_token: string;
+    refresh_token: string;
+  }>(`${API_BASE_URL}/admin/auth/refresh`, { refresh_token: refreshToken });
+  setAdminTokens(res.data.access_token, res.data.refresh_token, getAdminPersist());
+  return res.data.access_token;
+}
 
 async function refreshAccessToken(): Promise<string> {
   const refreshToken = getRefreshToken();
@@ -53,18 +71,38 @@ api.interceptors.response.use(
 
     const url = original?.url ?? "";
 
-    // 관리자 토큰 만료/무효(401): refresh 수단이 없으므로 토큰 정리 후 로그인으로.
-    // 로그인 엔드포인트는 제외(잘못된 자격증명 시 리다이렉트 루프 방지).
+    // 관리자 토큰 만료/무효(401): refresh 로 access 재발급 시도, 실패 시 로그인으로.
+    // /admin/auth/* 는 제외(로그인·refresh 자체 실패 시 리다이렉트 루프 방지).
     if (
       error.response?.status === 401 &&
       isAdminRequest(url) &&
       !url.includes("/admin/auth/")
     ) {
-      clearAdminToken();
-      if (typeof window !== "undefined") {
-        window.location.href = "/admin/login";
+      const endAdminSession = (cause: unknown) => {
+        clearAdminToken();
+        if (typeof window !== "undefined") {
+          window.location.href = "/admin/login";
+        }
+        return Promise.reject(cause);
+      };
+
+      if (!original || original._retry || !getAdminRefreshToken()) {
+        return endAdminSession(error);
       }
-      return Promise.reject(error);
+      original._retry = true;
+
+      let newToken: string;
+      try {
+        refreshAdminPromise = refreshAdminPromise ?? refreshAdminAccessToken();
+        newToken = await refreshAdminPromise;
+      } catch (refreshError) {
+        return endAdminSession(refreshError);
+      } finally {
+        refreshAdminPromise = null;
+      }
+
+      original.headers.Authorization = `Bearer ${newToken}`;
+      return api(original);
     }
 
     const isAuthEndpoint =

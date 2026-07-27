@@ -1,7 +1,7 @@
 # 관리자 인증·권한 정책
 
-> 구현 상태 기준 문서 (2026-07-06). 관련: [로그인 정책](login.md) · [백엔드/DB 코드리뷰](../reviews/2026-07-06-backend-db-code-review.md) · [CONTEXT.md](../../CONTEXT.md)
-> 커밋: `59ad3f1`(관리자 권한 체계), `cf48252`(로그아웃 폐기), `ac23a29`(로그인 토큰 보안)
+> 구현 상태 기준 문서 (2026-07-06, 자동로그인·refresh는 2026-07-27 갱신). 관련: [로그인 정책](login.md) · [백엔드/DB 코드리뷰](../reviews/2026-07-06-backend-db-code-review.md) · [CONTEXT.md](../../CONTEXT.md)
+> 커밋: `59ad3f1`(관리자 권한 체계), `cf48252`(로그아웃 폐기), `ac23a29`(로그인 토큰 보안), 자동로그인·admin refresh(§1, 마이그 038)
 
 관리자(admin)는 회원(user)과 **별도 테이블·별도 토큰**이다. 소셜 로그인 포함 회원 인증은 [login.md](login.md) 참조. 이 문서는 admin 쪽 인증·인가와, 연계된 로그인 토큰 보안을 다룬다.
 
@@ -9,9 +9,21 @@
 
 ## 1. 관리자 인증 (베이스)
 
-- admin 로그인(`POST /admin/auth/login`)은 `admin` 타입 JWT를 발급. 프론트는 쿠키 `admin_token`에 저장, axios 인터셉터가 `/admin/*` 요청에 자동 첨부.
+- admin 로그인(`POST /admin/auth/login`)은 `admin` 타입 access JWT + `admin_refresh` 타입 refresh 토큰을 발급. 프론트는 쿠키 `admin_token`/`admin_refresh_token`/`admin_persist`에 저장, axios 인터셉터가 `/admin/*` 요청에 access를 자동 첨부.
 - 백엔드 가드 `get_current_admin`(`utils/deps.py`): 토큰 서명·만료·`type=="admin"` 검증 → DB 존재 → `status=="active"` 확인.
-- admin 토큰은 refresh 없는 **stateless 단일 토큰**(만료 `admin_token_expires`, 기본 24h). 서버 측 폐기 수단 없음 → 로그아웃은 프론트 쿠키 삭제(`clearAdminToken`)로 처리.
+- **access 토큰**: 만료 `admin_token_expires`(2026-07-27부터 24h→**1h**). 만료 시 인터셉터(`lib/api.ts`)가 `/admin/auth/refresh`로 자동 재발급 후 원요청 재시도, 실패 시에만 `/admin/login`으로.
+
+### 자동로그인·refresh (2026-07-27 추가)
+
+회원(user) 인증과 동일 패턴을 admin에 미러링. **refresh 토큰은 `admin_refresh_tokens` 테이블에 SHA-256 해시로 저장**(마이그레이션 038), FK는 `admin.id` CASCADE.
+
+- **자동로그인 체크(remember=true)**: refresh 만료 `admin_refresh_expires_remember`(**30일**), 프론트는 access·refresh·persist 쿠키를 30일 `max-age`로 저장. refresh 때마다 30일이 갱신되는 **슬라이딩(마지막 활동 기준)** → 30일 내 재접속하면 계속 유지.
+- **미체크(remember=false)**: refresh 만료 `admin_refresh_expires`(1일), 프론트는 **세션 쿠키**(`max-age` 없음)로 저장 → 브라우저 종료 시 폐기.
+- **회전(rotation)**: `/admin/auth/refresh`(`rotate_admin_refresh_token`)는 기존 refresh를 revoke하고 새 access+refresh 쌍 발급.
+- **재사용 감지**: 이미 revoke된 refresh 재사용(탈취 정황) 시 해당 관리자 **전체 refresh 무효화**(RFC 6819).
+- **로그아웃**: 프론트(`AdminSidebar`)가 쿠키 삭제 전 `POST /admin/auth/logout`(`revoke_admin_refresh_token`) best-effort 호출로 서버 측 refresh revoke.
+- SSR 가드(`admin/(main)/layout.tsx`)는 `admin_token` 쿠키 **존재만** 확인 → 유효성은 클라이언트 인터셉터의 refresh로 처리(회원 측과 동일 방식).
+- 배포 유의: `admin_token_expires` 24h→1h 변경으로 **배포 시점에 이미 로그인 중이던 관리자**는 refresh 쿠키가 없어 기존 access 만료 시 1회 강제 재로그인(이후 정상).
 
 ## 2. 마스터 계정
 

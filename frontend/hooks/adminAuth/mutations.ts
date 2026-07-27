@@ -4,6 +4,13 @@ import { adminAuthApi } from "./apis";
 
 export const useAdminLogin = () =>
   useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      adminAuthApi.login(email, password),
+    mutationFn: ({
+      email,
+      password,
+      remember,
+    }: {
+      email: string;
+      password: string;
+      remember: boolean;
+    }) => adminAuthApi.login(email, password, remember),
   });

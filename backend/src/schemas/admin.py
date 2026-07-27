@@ -65,9 +65,21 @@ class AdminAccountDetail(BaseModel):
 class AdminLoginRequest(BaseModel):
     email: EmailStr
     password: str
+    remember: bool = False
 
 
 class AdminLoginResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     admin: AdminAccountDetail
+
+
+class AdminRefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class AdminTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"

@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     jwt_access_expires: int = 3600
     jwt_refresh_expires: int = 604800  # 7d (로그인 유지 미체크)
     jwt_refresh_expires_remember: int = 2592000  # 30d (로그인 유지 체크)
-    admin_token_expires: int = 86400
+    admin_token_expires: int = 3600  # access 1h (refresh 로 갱신)
+    admin_refresh_expires: int = 86400  # 1d (자동로그인 미체크 — 세션 쿠키)
+    admin_refresh_expires_remember: int = 2592000  # 30d (자동로그인 체크 — 마지막 활동 기준 슬라이딩)
 
     kakao_client_id: str = ""
     kakao_client_secret: str = ""

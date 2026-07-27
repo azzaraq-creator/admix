@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ChevronDownIcon, LogoFull, LogOutIcon } from "@/components/icons";
-import { useAdminMe } from "@/hooks/adminAuth";
-import { clearAdminToken } from "@/lib/adminToken";
+import { adminAuthApi, useAdminMe } from "@/hooks/adminAuth";
+import { clearAdminToken, getAdminRefreshToken } from "@/lib/adminToken";
 
 const MASTER_ACCOUNT_TYPE = "마스터 계정";
 
@@ -54,6 +54,10 @@ export function AdminSidebar() {
   const bottomLinks = BOTTOM_LINKS.filter((link) => canSee(link.permKey));
 
   const handleLogout = () => {
+    const refreshToken = getAdminRefreshToken();
+    if (refreshToken) {
+      void adminAuthApi.logout(refreshToken).catch(() => undefined);
+    }
     clearAdminToken();
     router.replace("/admin/login");
     router.refresh();

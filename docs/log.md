@@ -4,6 +4,14 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 관리자 refresh 토큰 + 자동로그인 30일(슬라이딩)
+
+관리자 토큰이 refresh 없는 24h 단일 토큰이라 만료 시 무조건 재로그인하던 것을, 회원(user) 인증의 refresh 패턴(회전·재사용 탐지·서버 폐기)을 그대로 미러링해 해소. access 24h→1h 단축 + `admin_refresh_tokens` 테이블(마이그 038, SHA-256 해시 저장) 신설. **자동로그인 체크=마지막 활동 기준 30일 슬라이딩**(refresh마다 갱신), 미체크=세션 쿠키(브라우저 종료 시 폐기). `/admin/auth/refresh`·`/admin/auth/logout` 추가, 프론트 인터셉터가 admin 401 시 즉시 로그아웃 대신 refresh 재시도. 검증: 마이그 upgrade↔downgrade 왕복 + throwaway 관리자로 발급/회전/재사용탐지(전체 폐기)/만료/remember 만료차 11개 체크 전부 PASS(실데이터 무영향), 프론트 tsc·백엔드 import 클린. 배포 시 `alembic upgrade head` + 백엔드 재시작 필요, access 1h 단축으로 배포 시점 로그인 중이던 관리자 1회 강제 재로그인. 정책: [admin-auth-permissions](policies/admin-auth-permissions.md).
+
+## 2026-07-27 — 대시보드 연도 셀렉트 드롭다운 + 로그인 자동로그인 체크박스 흰색 체크
+
+대시보드(`admin/(main)`) 연간 제안건수·방문자수의 `YearSelect`를 정적 버튼→클릭 드롭다운으로(2026 단일 연도여도 노출, 너비 버튼과 동일·간격 0). admin 로그인 자동로그인 체크박스는 native `accent-primary`(브라우저가 체크마크 색 결정) → `appearance-none` 커스텀으로 바꿔 체크마크 항상 흰색 보장.
+
 ## 2026-07-27 — 계약완료 시 맞춤제안 작성 차단 + 계약완료 이메일 발송
 
 제안 상세(`admin/proposals/[id]`) 2건. ① 상태가 계약완료(`accepted`)면 "맞춤제안 작성" 버튼을 비활성(회색·클릭 불가)으로 렌더 — 추가 맞춤제안 차단(프런트 버튼 한정, `/write` URL·백엔드 업로드는 후속 가드 필요). ② 집행 수락 성공 시 회원 이메일로 "[ADMIX] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`, 맞춤제안 도착 메일과 동일 다크 템플릿, Figma 1283-31901). 아울러 앞선 `title` 컬럼(037) 미적용으로 제안 상세 조회가 500(`column proposal_counter_file.title does not exist`)나던 것을 로컬 DB `alembic upgrade head`로 해소. 정책: [admin-proposals](policies/admin-proposals.md).

@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { LogoFull } from "@/components/icons";
 import { useAdminLogin } from "@/hooks/adminAuth";
-import { setAdminToken } from "@/lib/adminToken";
+import { setAdminTokens } from "@/lib/adminToken";
 import { extractApiError } from "@/lib/apiError";
 
 export default function AdminLoginPage() {
@@ -22,8 +22,12 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const res = await loginMutation.mutateAsync({ email, password });
-      setAdminToken(res.access_token, persist);
+      const res = await loginMutation.mutateAsync({
+        email,
+        password,
+        remember: persist,
+      });
+      setAdminTokens(res.access_token, res.refresh_token, persist);
       router.replace("/admin");
       router.refresh();
     } catch (err) {
@@ -88,7 +92,7 @@ export default function AdminLoginPage() {
                   type="checkbox"
                   checked={persist}
                   onChange={(e) => setPersist(e.target.checked)}
-                  className="size-[16px] rounded-[4px] border border-[#ebebeb] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] accent-primary"
+                  className="size-[16px] shrink-0 appearance-none rounded-[4px] border border-[#ebebeb] bg-white bg-center bg-no-repeat shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] checked:border-primary checked:bg-primary checked:bg-[url('data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2016%2016%22%3E%3Cpath%20d=%22M4%208l2.5%202.5L12%205%22%20fill=%22none%22%20stroke=%22white%22%20stroke-width=%222%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')]"
                 />
                 <span className="text-sm font-normal leading-[20px] text-[#6e6e6e]">
                   자동 로그인

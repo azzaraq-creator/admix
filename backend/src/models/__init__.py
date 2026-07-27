@@ -2,6 +2,7 @@
 from src.models.ad_session import AdMessage, AdSession, MessageRole
 from src.models.admin import Admin
 from src.models.admin_permission import AdminPermission
+from src.models.admin_refresh_token import AdminRefreshToken
 from src.models.faq import Faq
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_image import MediaImage
@@ -29,6 +30,7 @@ __all__ = [
     "Faq",
     "Admin",
     "AdminPermission",
+    "AdminRefreshToken",
     "User",
     "RefreshToken",
     "SocialAccount",

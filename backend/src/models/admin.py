@@ -40,3 +40,6 @@ class Admin(Base):
     permissions = relationship(
         "AdminPermission", back_populates="admin", cascade="all, delete-orphan"
     )
+    refresh_tokens = relationship(
+        "AdminRefreshToken", back_populates="admin", cascade="all, delete-orphan"
+    )
