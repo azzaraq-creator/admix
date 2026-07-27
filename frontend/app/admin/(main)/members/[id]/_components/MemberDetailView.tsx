@@ -12,6 +12,7 @@ import { useState } from "react";
 import { ListButton, PrimaryButton } from "@/components/common/buttons";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 import { useMember, type SanctionOut } from "@/hooks/members";
+import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 
 import { BasicInfoTab } from "./BasicInfoTab";
 import { SanctionModal } from "./SanctionModal";
@@ -36,12 +37,6 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const TYPE_LABEL: Record<string, string> = { corporate: "기업", individual: "일반" };
-const BIZ_LABEL: Record<string, string> = {
-  unregistered: "미등록",
-  reviewing: "검토 대기",
-  verified: "검토 완료",
-  rejected: "인증 반려",
-};
 
 function HeaderStat({ label, value }: { label: string; value: string }) {
   return (
@@ -89,9 +84,7 @@ export function MemberDetailView() {
     );
   }
 
-  const bizStatus = member.business_registration
-    ? BIZ_LABEL[member.business_registration.status] ?? member.business_registration.status
-    : "미등록";
+  const bizStatus = bizStatusLabel(member.business_registration?.status);
 
   const sanctions: Sanction[] = member.sanctions.map((s, i) => ({
     id: s.id,
@@ -143,9 +136,7 @@ export function MemberDetailView() {
                 <span className="text-sm font-medium leading-normal text-[#494a4a]">
                   사업자정보
                 </span>
-                <span className="inline-flex w-fit items-center rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] text-[#545454]">
-                  {bizStatus}
-                </span>
+                <BizStatusBadge status={bizStatus} />
               </div>
               <div className="h-[41px] w-px bg-[#e6e6e6]" />
               <HeaderInfo label="가입일" value={member.created_at.slice(0, 10)} />
