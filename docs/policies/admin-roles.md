@@ -6,7 +6,7 @@
 | | |
 |---|---|
 | **화면** | 관리자 계정/권한 관리 · 목록 `/admin/roles` · 상세 `/admin/roles/[id]` · 생성 `/admin/roles/create` |
-| **진입** | 관리자 LNB "계정 관리"(`account` 메뉴) 클릭 — **마스터 계정에게만 메뉴 노출** · 목록 행 클릭 → 상세 · 목록 "계정 생성" 버튼 → 생성 |
+| **진입** | 관리자 LNB "계정 관리"(`account` 메뉴) 클릭 — **마스터 + `account` 권한 보유 관리자에게 노출**(2026-07-27부터) · 목록 행 클릭 → 상세 · 목록 "계정 생성" 버튼 → 생성 |
 | **Figma** | ❓(미확인) |
 | **상태/작성자** | `draft` · (코드 기반 자동생성) · 2026-07-09 |
 | **관련 문서** | [관리자 인증·권한 정책](admin-auth-permissions.md) — 접근·권한 정책의 근거 문서 |
@@ -23,13 +23,17 @@
 
 접근·권한 정책의 상세 근거는 [관리자 인증·권한 정책](admin-auth-permissions.md) §2·§3에 있다. 이 화면 기준 요약:
 
+**전 엔드포인트(조회 포함)가 `account` 권한 관리자 전용**이다(2026-07-27 변경, 커밋 `ec89551` 다음). 마스터는 권한 무관 전체 허용.
+
 | 사용자 | 목록/상세 조회 | 생성/수정/삭제 | 계정 관리 메뉴 노출 |
 |---|---|---|---|
-| 마스터 계정(`account_type == "마스터 계정"`) | 가능 | 가능 | 노출 |
-| 일반 관리자(권한 보유) | API상 조회 가능(`get_current_admin`) | 403 차단(`get_current_master_admin`) | **미노출**(LNB `account`는 마스터 전용) |
+| 마스터 계정(`account_type == "마스터 계정"`) | 가능 | 가능(마스터 대상 포함) | 노출 |
+| `account` 권한 보유 관리자 | 가능(`require_permission("account")`) | 가능 — **단 마스터 티어는 봉인** | 노출 |
+| `account` 권한 없는 관리자 | **403** | **403** | 미노출 |
 
-- 프론트 LNB는 `account` 메뉴를 마스터에게만 노출하므로, 일반 관리자는 정상 경로로 이 화면에 진입하지 않는다. 백엔드는 생성/수정/삭제를 마스터 전용 가드로 이중 방어한다.
-- **마지막 마스터 보호**: 활성 마스터가 자기 하나뿐이면 그 계정의 삭제·강등(계정 유형 변경)·비활성화를 백엔드가 400으로 차단한다(§2 참조).
+- **마스터 티어 봉인**(`_guard_master_tier`, 권한 상승 방지): `account` 권한만 가진 비마스터는 ① 마스터 계정 **생성** ② 기존 계정을 마스터로 **승격**(자기 자신 포함) ③ 마스터 계정 **수정/삭제** 를 시도하면 403. 비마스터끼리의 권한 부여·비밀번호 변경은 "계정 관리" 범위로 허용된다.
+- **마지막 마스터 보호**: 활성 마스터가 자기 하나뿐이면 그 계정의 삭제·강등(계정 유형 변경)·비활성화를 백엔드가 400으로 차단한다(§5·서비스 `_other_active_masters`).
+- 이중 방어: 프론트 LNB 게이팅(UX) + 백엔드 `require_permission` + 마스터 봉인 가드. 실제 방어선은 백엔드.
 
 ---
 
@@ -92,7 +96,8 @@
   - 대시보드는 로그인 기본 페이지라 권한 대상에서 제외(체크박스 없음).
   - 각 라벨 → 백엔드 `menu_key` 매핑으로 전송. 서버는 허용 키 집합 밖이면 400.
   - 토글 시 해당 `menu_key`를 permissions 배열에 추가/제거.
-  - `계정 관리(account)` 권한을 일반 관리자에게 체크해도, LNB "계정 관리" 메뉴는 **마스터 전용**이라 노출되지 않는다(§2·[권한 정책](admin-auth-permissions.md) 참조) ❓.
+  - `계정 관리(account)` 권한을 부여하면 해당 관리자에게 LNB "계정 관리" 메뉴가 노출되고 계정 CRUD가 가능해진다(2026-07-27부터). 단 마스터 티어 작업은 백엔드가 봉인한다(§2).
+  - **선택 후속(비블로킹)**: 비마스터가 계정 유형 select에서 "마스터 계정"을 고를 수 있으나 저장 시 백엔드 403. UX상 옵션을 숨길지 미정 ❓.
 
 ### 3.8 하단 액션 버튼
 - **기능**: 저장/삭제/목록 이동.
@@ -124,12 +129,13 @@
 
 | 항목 | 출처 / 연동 | 트리거 · 비고 |
 |---|---|---|
-| 계정 목록 | `GET /admin/accounts` (`get_current_admin`) | 목록 진입 시. 생성일 내림차순, 필터는 클라이언트 |
-| 계정 상세 | `GET /admin/accounts/{id}` (`get_current_admin`) | 상세 진입 시 |
-| 계정 생성 | `POST /admin/accounts` (`get_current_master_admin`) | 생성 저장. 이메일 중복 409 |
-| 계정 수정 | `PATCH /admin/accounts/{id}` (`get_current_master_admin`) | 수정 저장. 부분 업데이트(`exclude_unset`) |
-| 계정 삭제 | `DELETE /admin/accounts/{id}` (`get_current_master_admin`) | 삭제. 성공 204 |
-| 권한(menu_key) | `admin_permission` 테이블 (1:N) | 생성/수정 시 permissions 배열 전량 교체 |
+| 계정 목록 | `GET /admin/accounts` (`require_permission("account")`) | 목록 진입 시. 생성일 내림차순, 필터는 클라이언트 |
+| 계정 상세 | `GET /admin/accounts/{id}` (`require_permission("account")`) | 상세 진입 시 |
+| 계정 엑셀 | `GET /admin/accounts/export` (`require_permission("account")`) | 핸들러 미연결 no-op ❓ |
+| 계정 생성 | `POST /admin/accounts` (`require_permission("account")` + 마스터 봉인 가드) | 생성 저장. 이메일 중복 409 |
+| 계정 수정 | `PATCH /admin/accounts/{id}` (`require_permission("account")` + 가드) | 수정 저장. 부분 업데이트(`exclude_unset`) |
+| 계정 삭제 | `DELETE /admin/accounts/{id}` (`require_permission("account")` + 가드) | 삭제. 성공 204 |
+| 권한(menu_key) | `admin_permission` 테이블 (1:N) | 생성/수정 시 permissions 배열 전량 교체. 유효 키: dashboard·media·member·business·faq·account·chat |
 
 - 인증: `admin_token` 쿠키 → axios 인터셉터가 `/admin/*`에 자동 첨부([권한 정책](admin-auth-permissions.md) §1).
 
@@ -141,9 +147,9 @@
 - [ ] Figma 노드 링크(목록·생성·상세 프레임) — 미확인.
 - [ ] `엑셀 다운로드` 버튼 동작(현재 핸들러 미연결 no-op) — 실제 내보내기 사양 필요.
 - [ ] 검색 필터의 `기간(dateRange)`·`검색어 대상(이름/이메일 select)`이 현재 필터 로직에 반영되지 않음 — 의도된 것인지, 서버측 검색으로 전환할지.
-- [ ] 일반 관리자에게 `계정 관리(account)` 권한 체크박스가 노출되지만 LNB 메뉴는 마스터 전용 — `account` 체크박스를 남길지/의미를 재정의할지.
+- [ ] 비마스터 계정 유형 select에서 "마스터 계정" 옵션 노출 — 백엔드가 403으로 막으나 UX상 옵션을 숨길지.
 - [ ] 목록 필터를 클라이언트 전량 로딩 방식으로 유지할지, 서버 페이지네이션/검색으로 전환할지(계정 수 증가 대비).
 - [ ] 성공 기준(KPI) — 미정.
 
 **결정됨**
-- (없음)
+- 2026-07-27 — **계정 관리를 `account` 권한 게이팅으로 전환**(기존 마스터 전용에서 변경). ① 사이드바 `account` 특례 제거 → 권한 보유 시 메뉴 노출 ② `/admin/accounts` 전 엔드포인트(조회 포함)를 `require_permission("account")`로 조임(이전엔 조회가 `get_current_admin`이라 아무 관리자나 전 계정·권한 열람 가능한 정보노출 홀) ③ **마스터 티어 봉인 가드**(`_guard_master_tier`) 추가 — 비마스터+account가 마스터 생성/승격/수정/삭제 불가(권한 상승 방지). 비마스터+account 토큰으로 권한통과·마스터봉인 403 검증 완료. §2·§3.7·§5 참조.

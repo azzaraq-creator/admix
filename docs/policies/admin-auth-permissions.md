@@ -17,9 +17,9 @@
 
 - **마스터 = `admin.account_type == "마스터 계정"`** (상수 `MASTER_ACCOUNT_TYPE`, 프론트 roles 폼과 동일 문자열). 별도 필드/마이그레이션 없음.
 - 가드 `get_current_master_admin`: `get_current_admin` + 마스터 여부 확인(아니면 403).
-- **관리자 계정 CRUD(`/admin/accounts`) 정책**:
-  - 목록/상세 조회 → 모든 관리자(`get_current_admin`)
-  - 생성/수정/삭제 → 마스터 전용(`get_current_master_admin`)
+- **관리자 계정 CRUD(`/admin/accounts`) 정책**(2026-07-27 변경 — 이전엔 조회 `get_current_admin`·쓰기 마스터 전용이었음):
+  - 조회/생성/수정/삭제 **전부 `require_permission("account")`** — 마스터는 권한 무관 허용.
+  - **마스터 티어 봉인**(`routers/admin._guard_master_tier`): `account` 권한만 가진 비마스터는 마스터 계정 생성·마스터 승격(자기 포함)·마스터 대상 수정/삭제 시 403(권한 상승 방지).
 - **마지막 마스터 보호**(`admin_service._other_active_masters`): 활성 마스터가 자기 하나뿐이면 삭제/강등(account_type 변경)/비활성화 시 400 차단.
 
 ## 3. 메뉴별 권한 (admin_permission)
@@ -38,8 +38,8 @@
 | `/admin/inquiries` | `business` | 전체 |
 | `/admin/media` | `media` | 관리자 매체 목록. 공개 `/media/*`(moving/fixed/상세)와 분리 |
 | `/admin/chat` | `chat` | 신규 키 |
-| `/faqs` (POST/PATCH/DELETE) | `faq` | GET은 공개 |
-| `/admin/accounts` | 마스터 전용 | §2 참조 |
+| `/admin/faqs` (GET목록/POST/PATCH/DELETE) | `faq` | 공개 GET은 `/faqs`·`/faqs/{id}`. 쓰기가 `/admin/faqs`에 있는 이유는 인터셉터 토큰 첨부(§ 아래) |
+| `/admin/accounts` (전체) | `account` | 조회 포함 전 엔드포인트. + 마스터 티어 봉인 가드. §2 참조 |
 | 대시보드(`/admin`) | 없음 | 로그인 기본 페이지, 상시 노출 |
 
 ### 매체 라우터 분리
@@ -48,7 +48,7 @@
 
 ## 4. 프론트 연동
 
-- **사이드바**(`AdminSidebar.tsx`): `useAdminMe()`로 현재 관리자 조회 → `canSee(permKey)`로 메뉴 노출. 대시보드 상시, 마스터 전체, `account`(계정 관리)는 마스터 전용, 나머지는 권한 보유 시.
+- **사이드바**(`AdminSidebar.tsx`): `useAdminMe()`로 현재 관리자 조회 → `canSee(permKey)`로 메뉴 노출. 대시보드 상시, 마스터 전체, 나머지는 권한 보유 시(`account`=계정 관리 포함, 2026-07-27부터 특례 제거 — 이전엔 마스터 전용).
 - **roles 폼**(`AccountFormView.tsx` / `roles/_components/index.tsx`): 권한 체크박스는 `PERMISSIONS`/`PERMISSION_KEYS` 기반. 대시보드는 목록에서 제외. **마스터 계정 선택 시 권한 설정 박스 숨김**(마스터는 전체 권한이라 무의미).
 - 프론트 게이팅은 UX일 뿐 실제 방어는 백엔드 `require_permission`. 권한 없는 관리자가 API 직접 호출 시 403.
 

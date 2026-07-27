@@ -43,11 +43,10 @@ export function AdminSidebar() {
   const isMaster = me?.account_type === MASTER_ACCOUNT_TYPE;
   const perms = me?.permissions ?? [];
   // 대시보드는 로그인 기본 페이지라 항상 노출. 마스터는 전체 노출.
-  // "account"(계정 관리)는 마스터 전용. 그 외는 권한 보유 시 노출.
+  // 그 외는 권한 보유 시 노출("account"=계정 관리 포함).
   const canSee = (permKey: string) => {
     if (permKey === "dashboard") return true;
     if (isMaster) return true;
-    if (permKey === "account") return false;
     return perms.includes(permKey);
   };
   const topLinks = TOP_LINKS.filter((link) => canSee(link.permKey));

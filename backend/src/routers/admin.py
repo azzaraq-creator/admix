@@ -1,16 +1,18 @@
 """관리자 계정(어드민) CRUD 라우터 — admin/roles 페이지 연동.
 
-조회(목록/상세)는 모든 관리자, 생성/수정/삭제는 마스터 계정 전용.
+전체(조회/생성/수정/삭제)가 `account` 권한 관리자 전용(마스터는 권한 무관 허용).
+단, 마스터 티어는 봉인: `account` 권한만 가진 비마스터는 마스터 계정을
+생성·수정·삭제하거나 마스터로 승격할 수 없다(권한 상승 방지).
 """
 from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.models.admin import Admin
+from src.models.admin import Admin, MASTER_ACCOUNT_TYPE
 from src.schemas.admin import (
     AdminAccountCreate,
     AdminAccountDetail,
@@ -18,9 +20,37 @@ from src.schemas.admin import (
     AdminAccountUpdate,
 )
 from src.services import admin_service
-from src.utils.deps import get_current_admin, get_current_master_admin
+from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/admin/accounts", tags=["admin"])
+
+
+def _guard_master_tier(
+    actor: Admin,
+    db: Session,
+    *,
+    target_id: uuid.UUID | None = None,
+    new_account_type: str | None = None,
+) -> None:
+    """비마스터(account 권한만 보유)의 마스터 티어 접근 차단.
+
+    마스터는 권한 무관 통과. 비마스터는 마스터 계정을 대상으로 하거나
+    마스터로 지정/승격하려 하면 403.
+    """
+    if actor.account_type == MASTER_ACCOUNT_TYPE:
+        return
+    if new_account_type == MASTER_ACCOUNT_TYPE:
+        raise HTTPException(
+            status_code=403,
+            detail="마스터 계정은 마스터 관리자만 생성/지정할 수 있습니다.",
+        )
+    if target_id is not None:
+        target = db.query(Admin).filter(Admin.id == target_id).first()
+        if target is not None and target.account_type == MASTER_ACCOUNT_TYPE:
+            raise HTTPException(
+                status_code=403,
+                detail="마스터 계정은 마스터 관리자만 수정/삭제할 수 있습니다.",
+            )
 
 
 @router.get("", response_model=AdminAccountListResponse)
@@ -33,7 +63,7 @@ def list_accounts(
     type: str | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("account")),
 ) -> AdminAccountListResponse:
     total, items = admin_service.list_accounts(
         db,
@@ -52,15 +82,16 @@ def list_accounts(
 def create_account(
     body: AdminAccountCreate,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_master_admin),
+    admin: Admin = Depends(require_permission("account")),
 ) -> AdminAccountDetail:
+    _guard_master_tier(admin, db, new_account_type=body.account_type)
     return admin_service.create_account(db, body)
 
 
 @router.get("/export")
 def export_accounts(
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("account")),
 ) -> Response:
     """관리자 계정 목록 xlsx 다운로드."""
     content = admin_service.export_accounts_xlsx(db)
@@ -80,7 +111,7 @@ def export_accounts(
 def get_account(
     admin_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
+    _: Admin = Depends(require_permission("account")),
 ) -> AdminAccountDetail:
     return admin_service.get_account(db, admin_id)
 
@@ -90,8 +121,11 @@ def update_account(
     admin_id: uuid.UUID,
     body: AdminAccountUpdate,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_master_admin),
+    admin: Admin = Depends(require_permission("account")),
 ) -> AdminAccountDetail:
+    _guard_master_tier(
+        admin, db, target_id=admin_id, new_account_type=body.account_type
+    )
     return admin_service.update_account(db, admin_id, body)
 
 
@@ -99,7 +133,8 @@ def update_account(
 def delete_account(
     admin_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_master_admin),
+    admin: Admin = Depends(require_permission("account")),
 ) -> Response:
+    _guard_master_tier(admin, db, target_id=admin_id)
     admin_service.delete_account(db, admin_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
