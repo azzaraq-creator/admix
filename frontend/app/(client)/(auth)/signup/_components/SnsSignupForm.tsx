@@ -25,7 +25,7 @@ const REQUIRED_AGREEMENTS: AgreementKey[] = [
 ];
 
 const LINKED_AGREEMENTS: { key: AgreementKey; label: string }[] = [
-  { key: "tos", label: "[필수] 아우라웍스 서비스 이용약관 동의" },
+  { key: "tos", label: "[필수] 서비스 이용약관 동의" },
   { key: "privacy", label: "[필수] 개인정보 처리방침 동의" },
   { key: "location", label: "[필수] 위치기반 서비스 이용약관 동의" },
 ];
