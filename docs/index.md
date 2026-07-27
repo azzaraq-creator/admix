@@ -74,7 +74,7 @@
 | 날짜 | 문서 | 요약 |
 |------|------|------|
 | 2026-07-06 | [backend-db-code-review](reviews/2026-07-06-backend-db-code-review.md) | 백엔드/DB 전면 코드리뷰 — CRITICAL 6건(admin·FAQ 인증부재, 재설정토큰 노출, OAuth state 부재, ad_sessions 마이그레이션 누락, 추천엔진 스레드 세션공유) 외 심각도별 정리 + 백엔드 인가 개념 |
-| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE), #4 fixed 지도 패널 접기 시 relayout 누락, #5 fixed 검색 지오코딩 실패 시 결과없음 표시, #6 로그아웃 후 이전 사용자 세션·제안서 잔존(useLogout 훅+clearSessionId), #7 로그인 시 사이드바 도움말 중복 제거, #8 문의 제출 성공 토스트+토스트 배경 Figma 정렬(0.7), #9 탈퇴 회원 hard delete 전환+제안서 스냅샷 보존 |
+| 2026-07-22 | [qa-fixes](reviews/2026-07-22-qa-fixes.md) | QA 지적사항 픽스 누적 로그 — #1 LNB 로그인 버튼 gap 6→8px, #2 프로필 버튼 hover primary→platinum 통일, #3 사이드바 버튼 공통화(SidebarNavRow/SIDEBAR_ROW_BASE), #4 fixed 지도 패널 접기 시 relayout 누락, #5 fixed 검색 지오코딩 실패 시 결과없음 표시, #6 로그아웃 후 이전 사용자 세션·제안서 잔존(useLogout 훅+clearSessionId), #7 로그인 시 사이드바 도움말 중복 제거, #8 문의 제출 성공 토스트+토스트 배경 Figma 정렬(0.7), #9 탈퇴 회원 hard delete 전환+제안서 스냅샷 보존, #10 service 비교표 타사/ADMIX 좌우 높이 grid 통합 정렬, #11 토스트 모바일 개행(max-[600px]:w-full)+ContactView·챗봇 useSonner 통일, #12 전화번호 9~11자리(02 포함) lib/phone.ts 공통화 |
 
 ## 스킬 (skills/)
 
