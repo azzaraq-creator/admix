@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 맞춤제안서 명 저장·표시 버그 수정 + 이력 제목 말줄임
+
+`admin/proposals/[id]/write`에서 맞춤제안서 명을 입력해도 제목이 첨부 파일명으로 저장되던 버그. 원인은 입력이 비제어(`defaultValue`)라 전송조차 안 됐고 서버가 파일명에서 제목을 뽑던 것. controlled input + 필수 검증 + `title` 폼 필드 전송으로 바꾸고, `ProposalCounterFile.title` 컬럼 신설(마이그레이션 `037_add_counter_file_title`, nullable). 표시(이력 목록/맞춤제안 상세 "제목")는 `title ?? file_name` 폴백, **다운로드는 원본 파일명 유지**. 더불어 이력 목록 "제목"이 칸을 넘칠 때 `…` 말줄임 안 되던 문제도 수정(flex 셀 `truncate` 직접 지정 미동작 → `min-w-0` + `<span truncate>`). 배포 시 `alembic upgrade head`(037) 필요. 정책: [admin-proposals §3.B.4·3.C](policies/admin-proposals.md).
+
 ## 2026-07-27 — 제안 상세 미리보기 확대 아이콘 수정 + 슬라이드 라이트박스
 
 `admin/proposals/[id]` 미리보기 우상단 아이콘이 Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만)로 오적용돼 있던 것을 `FullscreenIcon`(코너+내부 사각형)으로 교체(`MaximizeIcon`은 타 화면 사용 중이라 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(오버레이·좌우 이동·인디케이터·하단 썸네일 스트립). 이 화면 슬라이드는 이미지가 아니라 코드 템플릿이라 공용 `ImageLightbox`(이미지 전용) 대신 별도 컴포넌트를 쓰고, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유(`SlideScaler` 스케일). 좌우 이동은 프리뷰 `selected`와 동기화. 정책: [admin-proposals §3.B.3](policies/admin-proposals.md).

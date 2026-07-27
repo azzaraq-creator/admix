@@ -121,8 +121,8 @@ export const useSubmitProposal = () => {
 export const useUploadCounterProposal = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) =>
-      proposalsApi.uploadCounterProposal(id, file),
+    mutationFn: ({ id, file, title }: { id: string; file: File; title: string }) =>
+      proposalsApi.uploadCounterProposal(id, file, title),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: proposalsKeys.adminDetail(id) });
     },

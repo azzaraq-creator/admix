@@ -104,6 +104,7 @@
 - **기능**: 이 제안서에 업로드된 맞춤제안(PPT) 버전 목록.
 - **규칙**:
   - 헤더: `제목 · 작성자 · 제안일 · 적용 상태 · 작업`.
+  - **제목**: 작성 시 입력한 **맞춤제안서 명(`title`)**. 값이 없는 구(舊) 레코드는 업로드 파일명(`file_name`)으로 폴백(`title ?? file_name`). 칸 너비를 넘으면 `…`로 말줄임(셀 `min-w-0` + `<span className="truncate">`; flex 컨테이너에 `truncate`를 직접 주면 말줄임이 적용되지 않아 span으로 감쌈).
   - 데이터 없으면 "등록된 맞춤제안이 없습니다.".
   - 정렬: 최신 업로드가 위(서버 저장 순 기준). **첫 행(index 0) = "노출중", 나머지 = "이전 버전"**.
   - 작성자: 업로드한 관리자 이름(`author_name`), 없으면 `-`.
@@ -127,7 +128,7 @@
 
 #### 3.C.1 맞춤제안서 명 입력
 - **기능**: 맞춤제안 이름 입력 필드(필수 표시 `*`).
-- **규칙**: `defaultValue="[맞춤제안] 광고 제안서_2026"`. **입력값은 업로드 API로 전송되지 않음**(서버는 업로드 파일명만 사용). 즉 현재 이 입력은 저장에 영향 없음. `❓`(맞춤제안서 명 실제 저장 필요 여부)
+- **규칙**: controlled input, 초기값 `"[맞춤제안] 광고 제안서_2026"`. 입력값은 전송 시 `title` 폼 필드로 함께 업로드되어 **`ProposalCounterFile.title`에 저장**되고 이력 목록/맞춤제안 상세의 "제목"으로 표시된다(2026-07-27). 공백만 입력하면 전송 차단("맞춤제안서 명을 입력해주세요."). **다운로드 파일명은 이 값과 무관하게 업로드 원본 파일명을 유지**(표시용 제목 ≠ 다운로드 파일명).
 
 #### 3.C.2 PPT 파일 첨부(드래그앤드롭 / 선택)
 - **기능**: PPT 파일 1개 스테이징.
@@ -142,7 +143,8 @@
 - **규칙**:
   - "이전으로" → `/admin/proposals/{id}`.
   - **맞춤제안 전송**: 파일 없으면 비활성. 클릭 → 확인 모달("맞춤제안을 전송하시겠습니까?" / "작성한 맞춤제안이 고객에게 전달됩니다.\n전송 후에도 새로운 버전의 맞춤제안을 추가로 작성할 수 있습니다.") → 확인 시 `POST /admin/proposals/{id}/counter-proposal`(multipart).
-  - 서버 처리: 파일 저장 → **PPT → 슬라이드 이미지 변환**(deck_converter, 고객 화면 미리보기용) → `ProposalCounterFile` 레코드 추가 + 제안서의 최신 버전 포인터 갱신(`counter_proposal_file_url/name/slides_url`) + **상태 `custom`(맞춤제안)으로 변경**.
+  - 요청 필드: `file`(PPT) + `title`(맞춤제안서 명, `Form(...)`).
+  - 서버 처리: 파일 저장 → **PPT → 슬라이드 이미지 변환**(deck_converter, 고객 화면 미리보기용; 슬라이드 meta 제목도 `title` 사용) → `ProposalCounterFile` 레코드 추가(`title` 저장, `file_name`은 원본 파일명 유지) + 제안서의 최신 버전 포인터 갱신(`counter_proposal_file_url/name/slides_url`) + **상태 `custom`(맞춤제안)으로 변경**. `title`이 공백이면 파일명(확장자 제거)으로 폴백.
   - 변환 실패 시 파일/슬라이드 롤백 + 500 "PPT 변환 실패".
   - 성공 시 스테이징 초기화 + 토스트 "맞춤제안이 전송되었습니다." + 상세로 복귀.
   - 실패 시 "전송에 실패했습니다. 다시 시도해주세요.".
@@ -155,7 +157,7 @@
 #### 3.D.1 읽기 전용 정보
 - **기능**: 등록된 특정 맞춤제안 버전 확인.
 - **규칙**:
-  - 맞춤제안서 명: **파일명에서 확장자 제거**한 값, `readOnly`.
+  - 맞춤제안서 명: 저장된 `title`, `readOnly`. 값이 없는 구 레코드는 **파일명에서 확장자 제거**한 값으로 폴백(`title ?? file_name.replace(ext)`).
   - PPT 파일명 표시(없으면 `-`).
 
 #### 3.D.2 하단 액션 (이전으로 / PPT 미리보기 / 내보내기)
@@ -188,7 +190,7 @@
 |---|---|---|
 | 제안 목록 | `GET /admin/proposals` | 진입 시. 생성일 내림차순 |
 | 제안 상세 | `GET /admin/proposals/{id}` | 진입 시. 회원+항목+맞춤제안 파일 |
-| 맞춤제안 업로드 | `POST /admin/proposals/{id}/counter-proposal` (multipart) | 전송 시. PPT→슬라이드 변환, 상태 custom |
+| 맞춤제안 업로드 | `POST /admin/proposals/{id}/counter-proposal` (multipart: `file` + `title`) | 전송 시. PPT→슬라이드 변환, `title` 저장, 상태 custom |
 | 맞춤제안 원본 다운로드 | `GET /admin/proposals/{id}/counter-proposal/{counterId}/download` | 다운로드/내보내기 |
 | 집행 수락 | `POST /admin/proposals/{id}/accept` | 상태 contracted |
 | 제안서 PPT 내보내기 | `GET /admin/proposals/{id}/export-ppt` | python-pptx 생성, 60초 타임아웃 |
@@ -203,7 +205,6 @@
 **미결정**
 - [ ] 엑셀 다운로드 버튼 동작(핸들러 미연결) — 다운로드 포맷/범위 사양.
 - [ ] 목록 "기간(dateRange)" 필터 미구현 — 등록일 기준 필터링 반영 여부.
-- [ ] 맞춤제안서 명 입력값이 저장되지 않음 — 실제로 저장/표시가 필요한지.
 - [ ] 관리자 상태 변경 범위 — `취소`/수락 되돌리기, `execution_requested`가 아닌 상태에서도 집행 수락 허용하는지(현재 상태 가드 없음).
 - [ ] 비회원(세션 소유) 제안서의 상세 표시 정책(현재 회원정보 전부 `-`).
 - [ ] 명시적 로딩 UI / export 실패 토스트 등 상태 UX. (슬라이드 확대는 2026-07-27 라이트박스로 구현 — 아래 결정됨 참조.)
@@ -214,4 +215,5 @@
 - 2026-07-16 — 작성중(`new`)은 관리자 목록에서 제외(제출 전 초안 비노출).
 - 2026-07-16 — 고객 삭제 처리: 작성중=완전삭제 / 제출완료·맞춤제안=취소 전환 / 계약완료=상태유지+`deleted_at`(삭제됨 배지). `proposal.deleted_at` 컬럼 추가(마이그레이션 `034_proposal_deleted_at`).
 - 2026-07-27 — 목록 상태 컬럼에서 **"삭제됨" 보조 배지 표시 제거**(`8d665c0`). `deleted` 데이터 필드·삭제 처리 로직은 그대로 유지, UI 노출만 제거.
+- 2026-07-27 — **맞춤제안서 명 저장·표시 버그 수정**. write 페이지 입력이 비제어(`defaultValue`)라 전송되지 않고 서버가 파일명에서 제목을 뽑던 것을, controlled input + `title` 폼 필드 전송으로 변경. `ProposalCounterFile.title` 컬럼 신설(마이그레이션 `037_add_counter_file_title`, nullable). 이력 목록/맞춤제안 상세 "제목"은 `title ?? file_name` 폴백, **다운로드는 원본 파일명 유지**. 이력 목록 "제목" 셀은 `min-w-0` + `<span truncate>`로 넘칠 때 `…` 말줄임(flex 컨테이너 직접 `truncate` 미동작 대응). §3.B.4·3.C.1·3.C.3·3.D.1 참조.
 - 2026-07-27 — 제안 상세 미리보기 **확대 아이콘 오적용 수정 + 라이트박스 연결**. Figma(`lucide/fullscreen`)와 달리 `maximize`(코너만) 아이콘이 적용돼 있던 것을 `FullscreenIcon`으로 교체(`MaximizeIcon`은 클라이언트 제안서·media-detail 등에서 계속 사용해 유지). 클릭 시 `ProposalSlideLightbox` 오픈 — 맞춤제안 상세 이미지 라이트박스와 동일 UX(썸네일 스트립 포함). 이 화면 슬라이드는 코드 템플릿이라 이미지용 `ImageLightbox` 대신 별도 컴포넌트, 슬라이드 렌더는 `AdminSlideView`로 프리뷰와 공유. §3.B.3 참조.

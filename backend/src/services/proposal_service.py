@@ -306,6 +306,7 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
                 id=str(cf.id),
                 file_url=cf.file_url,
                 file_name=cf.file_name,
+                title=cf.title,
                 author_name=cf.author_name,
                 slides_url=cf.slides_url,
                 slides=_slides_from_url(cf.slides_url),
@@ -339,6 +340,7 @@ def save_counter_proposal_file(
     *,
     file_url: str,
     file_name: str,
+    title: Optional[str] = None,
     slides_url: Optional[str] = None,
     author_name: Optional[str] = None,
 ) -> Optional[Proposal]:
@@ -354,6 +356,7 @@ def save_counter_proposal_file(
         ProposalCounterFile(
             file_url=file_url,
             file_name=file_name,
+            title=title,
             author_name=author_name,
             slides_url=slides_url,
         )

@@ -295,8 +295,8 @@ export function ProposalDetailView() {
                   key={cf.id}
                   className="flex h-[56px] items-center border-b border-[#f0f0f3] text-sm font-medium leading-[20px] text-[#2a2a2a]"
                 >
-                  <div className="flex flex-1 items-center justify-center truncate px-[24px]">
-                    {cf.file_name}
+                  <div className="flex min-w-0 flex-1 items-center justify-center px-[24px]">
+                    <span className="truncate">{cf.title ?? cf.file_name}</span>
                   </div>
                   <div className="flex flex-1 items-center justify-center px-[24px] text-disabled">
                     {cf.author_name ?? "-"}

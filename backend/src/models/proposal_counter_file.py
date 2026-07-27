@@ -31,6 +31,7 @@ class ProposalCounterFile(Base):
     )
     file_url = Column(String(1000), nullable=False)
     file_name = Column(String(500), nullable=False)
+    title = Column(String(500), nullable=True)
     author_name = Column(String(100), nullable=True)
     slides_url = Column(String(1000), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)

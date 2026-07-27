@@ -93,6 +93,7 @@ class AdminProposalCounterFile(BaseModel):
     id: str
     file_url: str
     file_name: str
+    title: Optional[str] = None
     author_name: Optional[str] = None
     slides_url: Optional[str] = None
     slides: list[CounterSlide] = []

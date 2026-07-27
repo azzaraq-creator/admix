@@ -19,6 +19,7 @@ export function CustomProposalWriteView() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [staged, setStaged] = useState<File | null>(null);
+  const [title, setTitle] = useState("[맞춤제안] 광고 제안서_2026");
 
   const { confirm, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
@@ -45,6 +46,11 @@ export function CustomProposalWriteView() {
 
   const handleSend = async () => {
     if (!staged) return;
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("맞춤제안서 명을 입력해주세요.");
+      return;
+    }
     const ok = await confirm({
       title: "맞춤제안을 전송하시겠습니까?",
       description:
@@ -53,7 +59,11 @@ export function CustomProposalWriteView() {
     });
     if (!ok) return;
     try {
-      await uploadMutation.mutateAsync({ id: params.id, file: staged });
+      await uploadMutation.mutateAsync({
+        id: params.id,
+        file: staged,
+        title: trimmedTitle,
+      });
       setStaged(null);
       success("맞춤제안이 전송되었습니다.");
       router.push(`/admin/proposals/${params.id}`);
@@ -77,7 +87,8 @@ export function CustomProposalWriteView() {
         </span>
         <input
           type="text"
-          defaultValue="[맞춤제안] 광고 제안서_2026"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
           className="h-[44px] flex-1 rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none focus:border-primary"
         />
       </div>

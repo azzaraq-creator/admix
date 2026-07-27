@@ -7,7 +7,7 @@ import tempfile
 import uuid as uuidlib
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
@@ -91,6 +91,7 @@ async def upload_counter_proposal(
     proposal_id: str,
     background: BackgroundTasks,
     file: UploadFile = File(...),
+    title: str = Form(...),
     db: Session = Depends(get_db),
     admin: Admin = Depends(require_permission("business")),
 ) -> AdminProposalDetail:
@@ -116,7 +117,7 @@ async def upload_counter_proposal(
     # PPT → 슬라이드 이미지 변환 (고객 화면에서 미리보기로 표시)
     deck_id = uuidlib.uuid4().hex
     slides_dir = dest_dir / deck_id
-    title = os.path.splitext(file.filename or stored_name)[0]
+    title = title.strip() or os.path.splitext(file.filename or stored_name)[0]
     try:
         deck_converter.convert_ppt_to_slides(str(pptx_path), str(slides_dir), title)
     except Exception as exc:  # noqa: BLE001 — 변환 실패 사용자에게 전달
@@ -130,6 +131,7 @@ async def upload_counter_proposal(
         proposal_id,
         file_url=file_url,
         file_name=file.filename or stored_name,
+        title=title,
         slides_url=slides_url,
         author_name=admin.name,
     )

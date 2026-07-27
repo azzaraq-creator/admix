@@ -36,6 +36,7 @@ export interface AdminProposalCounterFile {
   id: string;
   file_url: string;
   file_name: string;
+  title: string | null;
   author_name: string | null;
   slides_url?: string | null;
   slides?: CounterSlide[];
@@ -68,9 +69,10 @@ export const proposalsApi = {
     api
       .get<AdminProposalDetail>(`/admin/proposals/${id}`)
       .then((r) => r.data),
-  uploadCounterProposal: (id: string, file: File) => {
+  uploadCounterProposal: (id: string, file: File, title: string) => {
     const form = new FormData();
     form.append("file", file);
+    form.append("title", title);
     return api
       .post<AdminProposalDetail>(
         `/admin/proposals/${id}/counter-proposal`,

@@ -22,7 +22,9 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
   const [lightbox, setLightbox] = useState(false);
 
   const file = proposal?.counter_files.find((cf) => cf.id === counterId);
-  const proposalName = file ? file.file_name.replace(/\.(pptx?|PPTX?)$/, "") : "";
+  const proposalName = file
+    ? (file.title ?? file.file_name.replace(/\.(pptx?|PPTX?)$/, ""))
+    : "";
   const slideImages =
     file?.slides_url && file.slides
       ? file.slides.map((s) => `${API_BASE}${file.slides_url}/${s.image}`)
