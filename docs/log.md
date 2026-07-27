@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — FAQ 쓰기 403·목록 미갱신·등록폼 정렬 수정
+
+FAQ 3건 수정. ① **생성/수정 403**: 쓰기 API가 공개 `/faqs`에 있어 프론트 인터셉터(`/admin`에만 관리자 토큰 첨부)가 토큰을 안 실어줘 마스터 포함 전원 `HTTPBearer` 403 → 쓰기를 `/admin/faqs`(admin_router)로 이동 + 프론트 호출 경로 변경(도커 백엔드 `--build` 재기동으로 반영, curl 검증). ② **등록/삭제 후 목록 미갱신**: 뮤테이션 invalidate가 `faqsKeys.list()`(`["faqs","list"]`)만 대상이라 관리자 목록 키(`["faqs","admin","list"]`)와 prefix 불일치 → `faqsKeys.all`로 변경. ③ **등록 폼 정렬**(Figma 1258-2849): 별표를 라벨 컬럼 우측 끝으로(`justify-between`), 라벨 `h-[44px]` 밴드 중앙 정렬로 `내용` 라벨이 textarea 첫 줄과 맞도록, 단일행 라벨 `items-center` 통일. 정책: [admin-faq](policies/admin-faq.md).
+
 ## 2026-07-27 — 맞춤제안서 명 저장·표시 버그 수정 + 이력 제목 말줄임
 
 `admin/proposals/[id]/write`에서 맞춤제안서 명을 입력해도 제목이 첨부 파일명으로 저장되던 버그. 원인은 입력이 비제어(`defaultValue`)라 전송조차 안 됐고 서버가 파일명에서 제목을 뽑던 것. controlled input + 필수 검증 + `title` 폼 필드 전송으로 바꾸고, `ProposalCounterFile.title` 컬럼 신설(마이그레이션 `037_add_counter_file_title`, nullable). 표시(이력 목록/맞춤제안 상세 "제목")는 `title ?? file_name` 폴백, **다운로드는 원본 파일명 유지**. 더불어 이력 목록 "제목"이 칸을 넘칠 때 `…` 말줄임 안 되던 문제도 수정(flex 셀 `truncate` 직접 지정 미동작 → `min-w-0` + `<span truncate>`). 배포 시 `alembic upgrade head`(037) 필요. 정책: [admin-proposals §3.B.4·3.C](policies/admin-proposals.md).

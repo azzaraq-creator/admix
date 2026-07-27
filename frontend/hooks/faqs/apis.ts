@@ -47,8 +47,8 @@ export const faqsApi = {
     api.get<FaqListResponse>("/admin/faqs", { params }).then((r) => r.data),
   get: (id: string) => api.get<FaqRow>(`/faqs/${id}`).then((r) => r.data),
   create: (payload: FaqCreatePayload) =>
-    api.post<FaqRow>("/faqs", payload).then((r) => r.data),
+    api.post<FaqRow>("/admin/faqs", payload).then((r) => r.data),
   update: (id: string, payload: FaqUpdatePayload) =>
-    api.patch<FaqRow>(`/faqs/${id}`, payload).then((r) => r.data),
-  remove: (id: string) => api.delete(`/faqs/${id}`).then(() => undefined),
+    api.patch<FaqRow>(`/admin/faqs/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => api.delete(`/admin/faqs/${id}`).then(() => undefined),
 };

@@ -43,7 +43,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 function FieldLabel({ label }: { label: string }) {
   return (
-    <span className="flex w-[80px] shrink-0 items-center gap-[4px] text-base font-medium leading-[24px] text-[#2a2a2a]">
+    <span className="flex h-[44px] w-[80px] shrink-0 items-center justify-between text-base font-medium leading-[24px] text-[#2a2a2a]">
       {label}
       <span className="text-[#d65856]">*</span>
     </span>
@@ -51,7 +51,7 @@ function FieldLabel({ label }: { label: string }) {
 }
 
 function FieldRow({ children }: { children: ReactNode }) {
-  return <div className="flex items-start gap-[12px]">{children}</div>;
+  return <div className="flex items-center gap-[12px]">{children}</div>;
 }
 
 export function FaqFormView({ mode }: { mode: "create" | "edit" }) {

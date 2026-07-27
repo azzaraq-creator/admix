@@ -11,7 +11,7 @@ export const useCreateFaq = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: FaqCreatePayload) => faqsApi.create(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: faqsKeys.list() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: faqsKeys.all }),
   });
 };
 
@@ -20,10 +20,7 @@ export const useUpdateFaq = () => {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: FaqUpdatePayload }) =>
       faqsApi.update(id, payload),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: faqsKeys.list() });
-      qc.invalidateQueries({ queryKey: faqsKeys.detail(vars.id) });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: faqsKeys.all }),
   });
 };
 
@@ -31,6 +28,6 @@ export const useDeleteFaq = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => faqsApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: faqsKeys.list() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: faqsKeys.all }),
   });
 };

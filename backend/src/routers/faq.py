@@ -1,6 +1,7 @@
 """FAQ CRUD 라우터.
 
-조회(GET)는 공개, 쓰기(POST/PATCH/DELETE)는 faq 권한 관리자 전용.
+조회(GET)는 공개(`/faqs`), 쓰기(POST/PATCH/DELETE)는 faq 권한 관리자 전용으로
+`/admin/faqs`에 둔다(프론트 axios 인터셉터가 `/admin` 경로에만 관리자 토큰을 실음).
 """
 from __future__ import annotations
 
@@ -44,7 +45,7 @@ def list_faqs_admin(
     return FaqListResponse(total=total, items=items)
 
 
-@router.post("", response_model=FaqResponse, status_code=status.HTTP_201_CREATED)
+@admin_router.post("", response_model=FaqResponse, status_code=status.HTTP_201_CREATED)
 def create_faq(
     body: FaqCreate,
     db: Session = Depends(get_db),
@@ -67,7 +68,7 @@ def get_faq(faq_id: uuid.UUID, db: Session = Depends(get_db)) -> FaqResponse:
     return faq_service.get_faq(db, faq_id)
 
 
-@router.patch("/{faq_id}", response_model=FaqResponse)
+@admin_router.patch("/{faq_id}", response_model=FaqResponse)
 def update_faq(
     faq_id: uuid.UUID,
     body: FaqUpdate,
@@ -77,7 +78,7 @@ def update_faq(
     return faq_service.update_faq(db, faq_id, body)
 
 
-@router.delete("/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+@admin_router.delete("/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_faq(
     faq_id: uuid.UUID,
     db: Session = Depends(get_db),
