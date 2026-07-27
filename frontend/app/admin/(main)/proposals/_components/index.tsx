@@ -43,16 +43,7 @@ export const proposalColumnList: TableColumn<Proposal>[] = [
   {
     name: "status",
     label: "상태",
-    renderer: (item) => (
-      <div className="flex items-center gap-[6px]">
-        <ProposalStatusBadge status={item.status} />
-        {item.deleted && (
-          <span className="inline-flex items-center rounded-[6px] bg-grey-50 px-[10px] py-[4px] text-xs font-medium leading-[16px] text-grey-500">
-            삭제됨
-          </span>
-        )}
-      </div>
-    ),
+    renderer: (item) => <ProposalStatusBadge status={item.status} />,
   },
   { name: "registeredAt", label: "등록일", className: "text-disabled" },
 ];
