@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-27 — 제재 삭제 confirm 오버레이 노출 수정 (중첩 Dialog backdrop)
+
+`SanctionModal`(제재 상세) 안에서 삭제 confirm Dialog가 중첩될 때 오버레이가 안 뜨던 문제. 원인은 Base UI 1.4.1 `DialogBackdrop`이 **중첩 다이얼로그의 backdrop을 렌더하지 않음**(`enabled: forceRender || !nested`) — z-index 문제가 아니었음. 공통 `ui/dialog`의 `DialogContent`에 `backdropForceRender`·`backdropClassName` prop을 추가하고, `useAdminConfirm`이 `backdropForceRender`+`z-[60]`를 지정해 제재 상세 모달 위로 오버레이가 덮이도록 수정. 정책: [admin-members 제재 관리 탭](policies/admin-members.md).
+
 ## 2026-07-27 — 회원 상세 제안/문의 이력 탭 비즈니스 관리 권한 게이팅
 
 두 탭이 admin/proposals·admin/inquiries 목록(모두 `business` 권한)을 재사용하게 되면서, 회원 상세에서도 **제안 이력·문의 이력 탭을 비즈니스 관리(`business`) 권한으로 게이팅**. 회원 관리(`member`) 권한만으론 두 탭 비노출(기본 정보·제재 관리만), 마스터 계정은 전체, URL로 숨긴 탭 강제진입 시 기본 정보로 폴백. `MemberDetailView`가 `useAdminMe().permissions`/`account_type`로 판정(사이드바와 동일). 제안/문의는 시스템상 단일 `business` 권한이라 두 탭이 함께 열림/숨김(독립 권한 분리는 키 신설이 필요해 미채택). 정책: [admin-members §3.6](policies/admin-members.md#36-상세--탭-네비게이션).

@@ -51,7 +51,11 @@ export function useAdminConfirm() {
         if (!value) settle(false);
       }}
     >
-      <DialogContent className="flex w-[460px] flex-col gap-[20px] p-[24px]">
+      <DialogContent
+        className="z-[60] flex w-[460px] flex-col gap-[20px] p-[24px]"
+        backdropClassName="z-[60]"
+        backdropForceRender
+      >
         <div className="flex flex-col gap-[8px]">
           <p className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-[#2f3442]">
             {state?.title}

@@ -180,5 +180,6 @@
 - 2026-07-27 — 문의 이력 탭도 동일 패턴으로 admin/inquiries 목록 재사용. `GET /admin/inquiries?member_id=` 필터 신설, 컬럼·상태 배지 공유, 행 클릭 시 문의 상세 이동. §3.9 참조.
 - 2026-07-27 — 제안 이력·문의 이력 탭을 **비즈니스 관리(`business`) 권한으로 게이팅**. 회원 관리(`member`)만으론 두 탭 비노출, 마스터=전체, URL 강제진입 시 기본 정보 폴백. 제안/문의는 단일 `business` 권한이라 두 탭 함께 열림/숨김(독립 분리는 권한 키 신설 필요 — 미채택). §3.6 참조.
 - 제재 관리 탭에 제재 추가/상세(수정·삭제) 모달 구현(2026-07-15). `reason`+`detail` 분리(마이그레이션 033), 기간 오늘 이후·시작≤종료, `POST/PATCH/DELETE /admin/members/{id}/sanctions`.
+- 2026-07-27 — 제재 삭제 confirm 오버레이 노출 수정. `SanctionModal`(제재 상세 Dialog) 안에 confirm Dialog가 **중첩**되면 Base UI(1.4.1)가 중첩 다이얼로그의 backdrop을 렌더 안 함(`forceRender || !nested`) → 오버레이가 안 뜸. 공통 `ui/dialog` `DialogContent`에 `backdropForceRender`·`backdropClassName` 옵션 추가, `useAdminConfirm`이 `backdropForceRender`+`z-[60]` 지정해 제재 상세 모달 위로 오버레이·박스가 덮이도록 함.
 - 로그인 차단은 `status` 플래그가 아니라 **제재 기간(날짜) 기반** 판정(auth_service). 미래·종료 제재 미차단. status는 CRUD 시 `active↔sanctioned` 재계산(표시용).
 - 회원 상태(정상/탈퇴/제재/휴면) 수동 변경 UI는 여전히 없음 — 제재로 인한 sanctioned/active만 제재 CRUD가 자동 관리.

@@ -19,12 +19,20 @@ function DialogClose(props: ComponentProps<typeof DialogPrimitive.Close>) {
 
 function DialogContent({
   className,
+  backdropClassName,
+  backdropForceRender,
   children,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Popup>) {
+}: ComponentProps<typeof DialogPrimitive.Popup> & {
+  backdropClassName?: string;
+  backdropForceRender?: boolean;
+}) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/70" />
+      <DialogPrimitive.Backdrop
+        forceRender={backdropForceRender}
+        className={cn("fixed inset-0 z-50 bg-black/70", backdropClassName)}
+      />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
