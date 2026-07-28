@@ -654,7 +654,10 @@ def delete(db: Session, proposal: Proposal) -> None:
 
 def _recount(proposal: Proposal) -> None:
     proposal.media_count = len(proposal.items)
-    proposal.total_amount = sum(it.price or 0 for it in proposal.items)
+    # 수량 기본값 1 — 광고비 합계에 수량을 곱해 총액 산출(제작비는 기존 정의대로 제외)
+    proposal.total_amount = sum(
+        (it.price or 0) * (it.quantity or 1) for it in proposal.items
+    )
 
 
 def _rep_image_url(media: Media) -> str | None:
@@ -691,6 +694,7 @@ def add_items(
                     price=media.min_advertisement_fee_krw,
                     thumbnail_url=_rep_image_url(media),
                     selected_plan_no=plans.get(mid) if plans else None,
+                    quantity=1,
                 )
             )
         _recount(proposal)
@@ -726,6 +730,7 @@ def reorder_items(
             item.end_date = dates[item.media_id].get("end_date")
         if quantities and item.media_id in quantities:
             item.quantity = quantities[item.media_id]
+    _recount(proposal)  # 수량 변경분을 total_amount 에 반영
     db.commit()
     db.refresh(proposal)
     return proposal

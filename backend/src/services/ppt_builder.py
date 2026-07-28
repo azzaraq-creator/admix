@@ -247,8 +247,10 @@ def build_summary_pages(prs, detail: dict) -> None:
     if not pages:
         pages = [[]]
 
-    ad_total = sum((it.get("price") or 0) for it in items)
-    prod_total = sum((it.get("production_fee") or 0) for it in items)
+    ad_total = sum((it.get("price") or 0) * (it.get("quantity") or 1) for it in items)
+    prod_total = sum(
+        (it.get("production_fee") or 0) * (it.get("quantity") or 1) for it in items
+    )
     regions = ", ".join(
         dict.fromkeys(it.get("region") for it in items if it.get("region"))
     ) or EMPTY
@@ -299,6 +301,7 @@ def build_summary_pages(prs, detail: dict) -> None:
         for ri in range(ROWS_PER_PAGE):
             it = rows[ri] if ri < len(rows) else None
             no = page_idx * ROWS_PER_PAGE + ri + 1 if it else ""
+            q = (it.get("quantity") or 1) if it else 1
             vals = (
                 [
                     no,
@@ -306,10 +309,10 @@ def build_summary_pages(prs, detail: dict) -> None:
                     it.get("region") or EMPTY,
                     it.get("name") or EMPTY,
                     it.get("product") or EMPTY,
-                    _num(it.get("quantity")),
-                    _num(it.get("price")),
-                    _num(it.get("production_fee")),
-                    _num((it.get("price") or 0) + (it.get("production_fee") or 0)),
+                    _num(q),
+                    _num((it.get("price") or 0) * q),
+                    _num((it.get("production_fee") or 0) * q),
+                    _num(((it.get("price") or 0) + (it.get("production_fee") or 0)) * q),
                     f"{it.get('start_date') or EMPTY}\n{it.get('end_date') or EMPTY}",
                 ]
                 if it

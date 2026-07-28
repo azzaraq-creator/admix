@@ -39,6 +39,11 @@ function formatWon(value: number): string {
   return `${value.toLocaleString("ko-KR")}원`;
 }
 
+// 수량 기본값 1 — 미입력(null)·0 은 1 로 간주해 금액 계산에 사용
+function effectiveQty(quantity: number | null | undefined): number {
+  return quantity && quantity > 0 ? quantity : 1;
+}
+
 function HeaderStat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex w-full items-start gap-[46px]">
@@ -110,7 +115,7 @@ function QuantityCell({
         <input
           type="text"
           inputMode="numeric"
-          placeholder="0"
+          placeholder="1"
           readOnly={!interactive}
           value={value == null ? "" : String(value)}
           aria-label="수량"
@@ -239,11 +244,16 @@ export function SummaryTemplate({
   onQuantityChange?: (mediaId: string, value: string) => void;
 }) {
   const items = proposal.items;
-  const adTotal = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-  const prodTotal = items.reduce(
-    (sum, item) => sum + (item.production_fee ?? 0),
+  const adTotal = items.reduce(
+    (sum, item) => sum + (item.price ?? 0) * effectiveQty(item.quantity),
     0,
   );
+  const prodTotal = items.reduce(
+    (sum, item) => sum + (item.production_fee ?? 0) * effectiveQty(item.quantity),
+    0,
+  );
+  // GROSS 는 기존 정의(광고비 합계, 제작비 제외)를 유지하되 수량을 반영해 실시간 계산
+  const grossTotal = adTotal;
   const regions = Array.from(
     new Set(
       items
@@ -294,7 +304,7 @@ export function SummaryTemplate({
                   전체 금액 합계(GROSS) *VAT 별도
                 </p>
                 <p className="text-[54px] font-bold leading-[1.4] tracking-[-1.35px]">
-                  {formatWon(proposal.total_amount)}
+                  {formatWon(grossTotal)}
                 </p>
               </div>
             </div>
@@ -311,7 +321,9 @@ export function SummaryTemplate({
           ))}
         </div>
 
-        {rows.map((item, index) => (
+        {rows.map((item, index) => {
+          const qty = effectiveQty(item.quantity);
+          return (
           <div
             key={item.media_id}
             className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-stroke py-[16px]"
@@ -324,15 +336,21 @@ export function SummaryTemplate({
             <QuantityCell
               width={COL.qty}
               interactive={interactive}
-              value={item.quantity}
+              value={interactive ? item.quantity : qty}
               onChange={(value) => onQuantityChange?.(item.media_id, value)}
             />
-            <BoxedCell width={COL.ad}>{formatNumber(item.price)}</BoxedCell>
+            <BoxedCell width={COL.ad}>
+              {formatNumber(item.price == null ? null : item.price * qty)}
+            </BoxedCell>
             <BoxedCell width={COL.prod}>
-              {formatNumber(item.production_fee)}
+              {formatNumber(
+                item.production_fee == null ? null : item.production_fee * qty,
+              )}
             </BoxedCell>
             <Cell width={COL.total} pad="py-[8px]">
-              {formatNumber((item.price ?? 0) + (item.production_fee ?? 0))}
+              {formatNumber(
+                ((item.price ?? 0) + (item.production_fee ?? 0)) * qty,
+              )}
             </Cell>
             <div
               style={{ width: COL.date }}
@@ -356,7 +374,8 @@ export function SummaryTemplate({
               />
             </div>
           </div>
-        ))}
+          );
+        })}
         {Array.from({ length: Math.max(0, ROWS_PER_PAGE - rows.length) }).map(
           (_, i) => (
             <div

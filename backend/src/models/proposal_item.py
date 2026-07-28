@@ -44,7 +44,7 @@ class ProposalItem(Base):
     selected_plan_no = Column(Integer, nullable=True)
     start_date = Column(String(20), nullable=True)
     end_date = Column(String(20), nullable=True)
-    quantity = Column(Integer, nullable=True)
+    quantity = Column(Integer, nullable=True, default=1)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     proposal = relationship("Proposal", back_populates="items")

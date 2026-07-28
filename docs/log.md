@@ -4,6 +4,10 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-28 — 제안서 서머리 수량×단가 계산 반영
+
+`proposal/[id]` 서머리에서 수량 조정 시 **광고비=광고단가×수량, 제작비=제작단가×수량, 행 합계·상단 광고비/제작비 합계·GROSS 모두 수량 반영**되도록 수정(표시+저장+PPT 전부). 수량 기본값 1(미입력·0→1). 저장 경로 `reorder_items` 가 `_recount` 를 호출 안 하던 버그도 수정(수량 저장 시 `total_amount` 미갱신). GROSS 제작비 제외·스냅샷 price 기반 plan 불일치는 기존 이슈로 유지·명시. 프론트 `SummaryTemplate`(client·admin 공유) + 백엔드 `_recount`/`reorder_items`/`add_items`/모델 default + `ppt_builder`. tsc/eslint/py_compile 클린. 정책 [proposal-detail](policies/proposal-detail.md) §3.3.
+
 ## 2026-07-28 — 매체검색 Enter(미선택) = 장소 검색으로 처리
 
 드롭다운에서 후보를 안 고르고 Enter 칠 때, 기존 "첫 후보 자동선택(장소우선, 없으면 매체)"은 디바운스 미로딩/무매칭 시 무반응이었음. **Enter = 입력 텍스트를 지오코딩(geocodeAddress: Places→Geocoder)해 그 지역으로 스코프+이동(장소 검색)**으로 통일. `selectPlace` 로직을 `scopeToPlace(lat,lng,label)`로 추출해 장소클릭·Enter 공용. 매체명 매칭은 드롭다운 클릭 전용. 프론트만, tsc/eslint 클린. 정책 [fixed](policies/fixed.md) §3.4.
