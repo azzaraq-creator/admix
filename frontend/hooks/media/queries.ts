@@ -7,7 +7,6 @@ import {
 import {
   adminMediaApi,
   mediaApi,
-  type MapBounds,
   type MediaFilterParams,
   type MediaListParams,
 } from "./apis";
@@ -57,14 +56,10 @@ export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>
     staleTime: 60 * 1000,
   });
 
-export const useFixedClusters = (
-  bounds: MapBounds | null,
-  filters?: MediaFilterParams,
-) =>
+export const useFixedClusters = (zoom: number, filters?: MediaFilterParams) =>
   useQuery({
-    queryKey: mediaKeys.fixedClusters(bounds ?? ({} as MapBounds), filters),
-    queryFn: () => mediaApi.fixedClusters(bounds as MapBounds, filters),
-    enabled: !!bounds,
+    queryKey: mediaKeys.fixedClusters(zoom, filters),
+    queryFn: () => mediaApi.fixedClusters(zoom, filters),
     staleTime: 60 * 1000,
   });
 

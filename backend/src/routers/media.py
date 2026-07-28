@@ -91,10 +91,10 @@ def list_fixed_media(
 
 @router.get("/fixed/clusters", response_model=MediaClusterResponse)
 def list_fixed_clusters(
-    north_east_latitude: float = Query(...),
-    south_west_latitude: float = Query(...),
-    north_east_longitude: float = Query(...),
-    south_west_longitude: float = Query(...),
+    north_east_latitude: float | None = Query(None),
+    south_west_latitude: float | None = Query(None),
+    north_east_longitude: float | None = Query(None),
+    south_west_longitude: float | None = Query(None),
     zoom_level: int = Query(..., ge=1, le=20),
     category: list[str] | None = Query(None),
     ooh_type: list[str] | None = Query(None),

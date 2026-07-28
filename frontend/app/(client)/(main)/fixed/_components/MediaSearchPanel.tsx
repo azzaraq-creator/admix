@@ -9,7 +9,6 @@ import {
   useFixedClusters,
   useFixedFilterOptions,
   useFixedMediaInfinite,
-  type MapBounds,
   type MediaFilterParams,
 } from "@/hooks/media";
 
@@ -40,20 +39,9 @@ function parseFilter(sp: URLSearchParams): MediaFilterState {
   };
 }
 
-function parseBounds(sp: URLSearchParams): MapBounds | null {
-  const num = (k: string) => {
-    const v = sp.get(k);
-    return v != null && v !== "" ? Number(v) : null;
-  };
-  const neLat = num("neLat");
-  const swLat = num("swLat");
-  const neLng = num("neLng");
-  const swLng = num("swLng");
-  const zoom = num("zoom");
-  if (neLat == null || swLat == null || neLng == null || swLng == null) {
-    return null;
-  }
-  return { neLat, swLat, neLng, swLng, zoom: zoom ?? 5 };
+function parseZoom(sp: URLSearchParams): number {
+  const v = sp.get("zoom");
+  return v != null && v !== "" ? Number(v) : 5;
 }
 
 export function MediaSearchPanel({
@@ -81,7 +69,7 @@ export function MediaSearchPanel({
   const searchParams = useSearchParams();
   const sp = new URLSearchParams(searchParams.toString());
   const filter = parseFilter(sp);
-  const bounds = parseBounds(sp);
+  const zoom = parseZoom(sp);
 
   const [location, setLocation] = useState("");
   const [searchNotFound, setSearchNotFound] = useState(false);
@@ -92,16 +80,9 @@ export function MediaSearchPanel({
   const { optionsByKey, price } = buildFilterUi(opts);
 
   const chipFilters: MediaFilterParams = toChipFilterParams(filter);
-  const listFilters: MediaFilterParams = {
-    ...chipFilters,
-    neLat: bounds?.neLat ?? null,
-    swLat: bounds?.swLat ?? null,
-    neLng: bounds?.neLng ?? null,
-    swLng: bounds?.swLng ?? null,
-  };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useFixedMediaInfinite(listFilters);
+    useFixedMediaInfinite(chipFilters);
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const searchResults: MediaItemData[] = rows.map((row) => ({
     id: row.id,
@@ -137,7 +118,7 @@ export function MediaSearchPanel({
       });
   };
 
-  const { data: clusterData } = useFixedClusters(bounds, chipFilters);
+  const { data: clusterData } = useFixedClusters(zoom, chipFilters);
   useEffect(() => {
     if (!clusterData) return;
     onMapData?.({
@@ -170,11 +151,8 @@ export function MediaSearchPanel({
     next.mediaShape.forEach((v) => q.append("mediaShape", v));
     if (next.priceMin != null) q.set("priceMin", String(next.priceMin));
     if (next.priceMax != null) q.set("priceMax", String(next.priceMax));
-    // 현재 지도 영역(bbox)은 필터 변경 시에도 유지.
-    for (const k of ["neLat", "swLat", "neLng", "swLng", "zoom"]) {
-      const v = sp.get(k);
-      if (v != null) q.set(k, v);
-    }
+    const z = sp.get("zoom");
+    if (z != null) q.set("zoom", z);
     router.replace(`${pathname}?${q.toString()}`, { scroll: false });
   };
 

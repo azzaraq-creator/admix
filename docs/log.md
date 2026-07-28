@@ -4,6 +4,18 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-28 — 클러스터링 완화(셀 base 0.0006→0.0003)
+
+지도 클러스터가 너무 많이 뭉친다는 피드백 — `media_service._CLUSTER_CELL_DEG_BASE`를 0.0006→0.0003으로 낮춰 한 줌 단계 더 일찍 풀리게 함(셀=base×2^(level-1)). 레벨5(강남역 기본) 실측: 합쳐진 738→683, 개별핀 157→212. 더 풀려면 0.0002/0.00015, 또는 `_CLUSTER_DECLUSTER_LEVEL` 상향. backend rebuild 반영. PRD §7 갱신.
+
+## 2026-07-28 — 매체검색 탭 토글 시 URL/반응 통일(?mode=search)
+
+`/fixed`에서 매체검색 탭을 인페이지 토글할 때 mode를 state로만 바꿔 URL이 안 변하고(새로고침 시 AI로 회귀) 강남역 스코프도 안 타, 홈 `/fixed?mode=search` 진입과 반응이 달랐다. `FixedMediaView.handleModeChange`가 검색 전환 시 `router.replace(?mode=search)` + 강남역 moveTarget + `pendingAutoCommitRef=true`로 홈 진입 경로를 그대로 재현하도록 수정(AI 전환은 `router.replace(/fixed)`로 복귀). 이 과정에서 read가 사라진 `liveBoundsRef`(write-only 데드) 제거. 검증: tsc exit 0·eslint 클린. 정책 [fixed](policies/fixed.md) §3.2.
+
+## 2026-07-28 — 매체검색 뷰포인트 필터 폐지(전체 매체 표시)
+
+`/fixed` 매체검색 모드가 지도 화면 영역(bbox=뷰포인트)으로 리스트·클러스터를 필터링하던 것을 폐지 — 리스트·지도 모두 **전체 고정매체**를 대상으로 전환. 백엔드는 `GET /media/fixed/clusters`의 bbox 4개 파라미터를 필수→선택(`Query(None)`)으로 완화(`_media_base_query`가 이미 bbox optional이라 리스트는 프론트가 bbox 미전달로 전체 반환). 프론트는 `useFixedClusters(bounds)→(zoom)`, `MediaSearchPanel`에서 bbox 필터/`parseBounds` 제거·`useFixedMediaInfinite(chipFilters)`, `FixedMediaView`에서 `commitBounds`/`handleSearchHere`/`mapMoved`/`SearchHereButton` 삭제 + `commitZoomOnly`의 neLat 가드 제거(프로그램 이동은 zoom만 커밋, 드래그 무동작). **유지**: zoom_level 서버 클러스터링, 강남역 초기 진입, 무한스크롤, 리스트 클릭 줌 포커싱. 검증: 프론트 tsc·eslint 클린, 백엔드 py_compile OK. 정책 [fixed](policies/fixed.md) §3.4·§3.6·결정됨, PRD [매체검색 지도](plans/2026-06-30-media-search-map-prd.md) 상단 갱신주석.
+
 ## 2026-07-27 — 소셜↔이메일 계정 완전 분리 + 회원가입 500 수정(마이그 039)
 
 소셜 로그인(카카오/네이버)이 같은 이메일의 이메일가입 계정에 병합되던 동작을 폐기 — `oauth_service.login_with_provider`에서 이메일 매칭 블록 제거 + 신규 소셜 유저 `login_id=f"{provider}_{provider_id}"` 고정(제공자 이메일 → provider 네임스페이스). 이메일/네이버/카카오 모두 별개 계정(신규부터, 기존 병합 계정은 `provider_id` 조회로 유지). 배포 직후 "네이버 먼저 가입 → 같은 이메일로 가입" 시 `POST /auth/register` 500(`IntegrityError ix_users_email`) 발견 — `users.email` UNIQUE **인덱스**가 마이그 031(제약만 드롭) 이후 잔존한 게, 분리로 email 중복 계정이 생기며 충돌. 마이그 **039**로 email single-col unique 인덱스를 non-unique로 교체(031 보완). 운영 조치: 이미 네이버 병합됐던 `wishmin82@naver.com` cascade 삭제, EC2 2회 재배포(oauth 분리 → 039), `alembic current=039`·`ix_users_email indisunique=false` 검증. 정책 [login](policies/login.md) §3.4·§7·§8, 상세 [social-account-separation](plans/2026-07-27-social-account-separation.md).

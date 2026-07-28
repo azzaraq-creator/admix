@@ -1,4 +1,4 @@
-import type { MapBounds, MediaFilterParams, MediaListParams } from "./apis";
+import type { MediaFilterParams, MediaListParams } from "./apis";
 
 export const mediaKeys = {
   all: ["media"] as const,
@@ -10,8 +10,8 @@ export const mediaKeys = {
     [...mediaKeys.all, "moving", "filter-options"] as const,
   fixedList: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "list", filters ?? {}] as const,
-  fixedClusters: (bounds: MapBounds, filters?: MediaFilterParams) =>
-    [...mediaKeys.all, "fixed", "clusters", bounds, filters ?? {}] as const,
+  fixedClusters: (zoom: number, filters?: MediaFilterParams) =>
+    [...mediaKeys.all, "fixed", "clusters", zoom, filters ?? {}] as const,
   fixedFilterOptions: () =>
     [...mediaKeys.all, "fixed", "filter-options"] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,

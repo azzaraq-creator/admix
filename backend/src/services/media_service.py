@@ -214,7 +214,7 @@ def list_fixed_media(
 
 # 지도 마커 클러스터링 — zoom_level 기반 그리드 셀 크기(도 단위).
 # kakao 지도 레벨은 1=최대확대 … 14=최대축소. 축소(level↑)일수록 셀이 커져 더 많이 묶인다.
-_CLUSTER_CELL_DEG_BASE = 0.0006
+_CLUSTER_CELL_DEG_BASE = 0.0003
 _CLUSTER_MIN_LEVEL = 1
 # 이 레벨 이하(= 더 확대)에선 클러스터를 만들지 않고 개별 마커(핀)만 표시.
 # 1 = 최대 확대(레벨1)일 때만 개별 핀. 레벨 2+에선 그리드 클러스터링이 줌에 따라 변한다.
@@ -275,10 +275,10 @@ def list_fixed_clusters(
     db: Session,
     *,
     zoom_level: int,
-    ne_lat: float,
-    sw_lat: float,
-    ne_lng: float,
-    sw_lng: float,
+    ne_lat: float | None = None,
+    sw_lat: float | None = None,
+    ne_lng: float | None = None,
+    sw_lng: float | None = None,
     categories: list[str] | None = None,
     ooh_types: list[str] | None = None,
     exposure_types: list[str] | None = None,
@@ -287,7 +287,10 @@ def list_fixed_clusters(
     price_min: int | None = None,
     price_max: int | None = None,
 ) -> dict:
-    """지도 화면(bbox) 안 FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환."""
+    """FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환.
+
+    bbox(ne/sw)가 주어지면 그 영역으로 한정, None이면 전체 매체 대상.
+    """
     base = _media_base_query(
         db,
         categories=categories,

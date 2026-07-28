@@ -23,8 +23,6 @@ import {
   type MapMarker,
   type MoveTarget,
 } from "./MapArea";
-import { SearchHereButton } from "./SearchHereButton";
-
 const DRAWER_HALF_WIDTH = 192;
 
 // 매체검색 모드 기본 진입 위치 — 강남역. URL에 bbox가 없을 때 이 영역으로 스코프.
@@ -48,7 +46,6 @@ export function FixedMediaView({
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [searchMarkers, setSearchMarkers] = useState<MapMarker[]>([]);
   const [searchClusters, setSearchClusters] = useState<MapCluster[]>([]);
-  const [mapMoved, setMapMoved] = useState(false);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(() =>
     scopeDefault ? { ...DEFAULT_SEARCH_CENTER } : null,
   );
@@ -58,29 +55,14 @@ export function FixedMediaView({
   const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
     null,
   );
-  const liveBoundsRef = useRef<MapBoundsPayload | null>(null);
   const pendingAutoCommitRef = useRef(scopeDefault);
 
   const activeMarkers = mode === "search" ? searchMarkers : markers;
 
-  const commitBounds = useCallback(
-    (b: MapBoundsPayload) => {
-      const q = new URLSearchParams(searchParams.toString());
-      q.set("neLat", String(b.neLat));
-      q.set("swLat", String(b.swLat));
-      q.set("neLng", String(b.neLng));
-      q.set("swLng", String(b.swLng));
-      q.set("zoom", String(b.zoom));
-      router.replace(`${pathname}?${q.toString()}`, { scroll: false });
-    },
-    [router, pathname, searchParams],
-  );
-
-  // 줌만 갱신 — 검색 영역(bbox)은 고정, zoom_level만 바꿔 클러스터를 다시 묶는다.
+  // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
   const commitZoomOnly = useCallback(
     (zoom: number) => {
       const q = new URLSearchParams(searchParams.toString());
-      if (!q.has("neLat")) return; // 검색 영역이 없으면 줌만으로는 조회하지 않음.
       q.set("zoom", String(zoom));
       router.replace(`${pathname}?${q.toString()}`, { scroll: false });
     },
@@ -89,26 +71,21 @@ export function FixedMediaView({
 
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
-      liveBoundsRef.current = b;
       if (b.moveType === "program") {
-        // 지오코딩/클러스터 클릭 등 프로그램 이동 → 예약된 경우에만 커밋.
+        // 지오코딩/클러스터 클릭 등 프로그램 이동 → 예약된 경우에만 줌 커밋.
         if (pendingAutoCommitRef.current) {
           pendingAutoCommitRef.current = false;
-          setMapMoved(false);
-          commitBounds(b);
+          commitZoomOnly(b.zoom);
         }
         return;
       }
       if (mode !== "search") return;
+      // 줌 변경 → zoom_level 갱신으로 클러스터 재조정. 드래그는 결과와 무관하므로 무동작.
       if (b.moveType === "zoom") {
-        // 줌은 검색 영역 고정, zoom_level만 갱신 → 클러스터만 재조정(결과 확장 X).
         commitZoomOnly(b.zoom);
-      } else if (b.moveType === "drag") {
-        // 이동(드래그)은 '현재 위치 검색' 버튼으로 영역 변경.
-        setMapMoved(true);
       }
     },
-    [commitBounds, commitZoomOnly, mode],
+    [commitZoomOnly, mode],
   );
 
   const handleRequestMapMove = useCallback(
@@ -134,13 +111,7 @@ export function FixedMediaView({
     [commitZoomOnly],
   );
 
-  const handleSearchHere = useCallback(() => {
-    if (!liveBoundsRef.current) return;
-    setMapMoved(false);
-    commitBounds(liveBoundsRef.current);
-  }, [commitBounds]);
-
-  // 클러스터 클릭 → 줌인 후 새 영역으로 자동 재조회(클러스터 분해).
+  // 클러스터 클릭 → 줌인 후 새 줌으로 자동 재클러스터링.
   const handleClusterClick = useCallback(() => {
     pendingAutoCommitRef.current = true;
   }, []);
@@ -148,16 +119,19 @@ export function FixedMediaView({
   const handleModeChange = useCallback(
     (next: Mode) => {
       setMode(next);
-      setMapMoved(false);
       if (next === "search") {
-        if (liveBoundsRef.current) commitBounds(liveBoundsRef.current);
+        // 홈 /fixed?mode=search 진입과 동일하게: URL 통일 + 강남역 스코프.
+        router.replace(`${pathname}?mode=search`, { scroll: false });
+        setMoveTarget({ ...DEFAULT_SEARCH_CENTER });
+        pendingAutoCommitRef.current = true;
       } else {
+        router.replace(pathname, { scroll: false });
         setMobileMap(false);
         setSearchMarkers([]);
         setSearchClusters([]);
       }
     },
-    [commitBounds],
+    [router, pathname],
   );
 
   const handleMapData = useCallback(
@@ -280,18 +254,6 @@ export function FixedMediaView({
           chatOpen ? "sm:left-[384px]" : "sm:left-0"
         } ${mobileMap ? "block" : "hidden"}`}
       />
-
-      {mode === "search" && mapMoved && (
-        <div
-          className={`pointer-events-none absolute top-[16px] right-0 left-0 z-20 flex justify-center transition-[left] duration-300 ease-in-out ${
-            chatOpen ? "sm:left-[384px]" : "sm:left-0"
-          } ${mobileMap ? "flex" : "hidden sm:flex"}`}
-        >
-          <div className="pointer-events-auto">
-            <SearchHereButton onClick={handleSearchHere} />
-          </div>
-        </div>
-      )}
 
       <div
         className={`absolute inset-y-0 left-0 right-0 z-10 sm:right-auto sm:flex ${

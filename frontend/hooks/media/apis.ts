@@ -179,13 +179,9 @@ function buildMovingQuery(f?: MediaFilterParams): string {
   return q.toString();
 }
 
-function buildClusterQuery(bounds: MapBounds, f?: MediaFilterParams): string {
+function buildClusterQuery(zoom: number, f?: MediaFilterParams): string {
   const q = new URLSearchParams();
-  q.set("north_east_latitude", String(bounds.neLat));
-  q.set("south_west_latitude", String(bounds.swLat));
-  q.set("north_east_longitude", String(bounds.neLng));
-  q.set("south_west_longitude", String(bounds.swLng));
-  q.set("zoom_level", String(bounds.zoom));
+  q.set("zoom_level", String(zoom));
   appendFilters(q, f);
   return q.toString();
 }
@@ -217,10 +213,10 @@ export const mediaApi = {
         `/media/fixed?${buildFixedQuery(limit, offset, filters)}`,
       )
       .then((r) => r.data),
-  fixedClusters: (bounds: MapBounds, filters?: MediaFilterParams) =>
+  fixedClusters: (zoom: number, filters?: MediaFilterParams) =>
     api
       .get<MediaClusterResponse>(
-        `/media/fixed/clusters?${buildClusterQuery(bounds, filters)}`,
+        `/media/fixed/clusters?${buildClusterQuery(zoom, filters)}`,
       )
       .then((r) => r.data),
   fixedFilterOptions: () =>
