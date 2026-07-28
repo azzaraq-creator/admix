@@ -16,7 +16,7 @@ import { useKakaoMap } from "./useKakaoMap";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMapPopup } from "./useMapPopup";
 
-export { geocodeAddress } from "@/lib/kakaoMap";
+export { geocodeAddress, searchPlaces, type KakaoPlace } from "@/lib/kakaoMap";
 export type {
   MapBoundsPayload,
   MapCluster,

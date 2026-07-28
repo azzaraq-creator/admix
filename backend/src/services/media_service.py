@@ -136,9 +136,31 @@ def _media_base_query(
     sw_lat: float | None = None,
     ne_lng: float | None = None,
     sw_lng: float | None = None,
+    keyword: str | None = None,
 ):
     """매체 공통 필터 쿼리. 리스트·지도클러스터가 동일 조건을 공유한다."""
     base = db.query(Media).filter(Media.media_source == media_source)
+    kw = (keyword or "").strip().lower()
+    if kw:
+        # 매체명(name+second_name) + 주소 필드를 합친 문자열에 토큰별 AND 부분일치.
+        # 주소는 여러 단어라 통짜 substring이 아니라 공백 토큰마다 매칭해야 견고하다.
+        searchable = func.lower(
+            func.concat(
+                func.coalesce(Media.name, ""),
+                " ",
+                func.coalesce(Media.second_name, ""),
+                " ",
+                func.coalesce(Media.accurate_address, ""),
+                " ",
+                func.coalesce(Media.address, ""),
+                " ",
+                func.coalesce(Media.full_address_jibun, ""),
+                " ",
+                func.coalesce(Media.loc_label, ""),
+            )
+        )
+        for token in kw.split():
+            base = base.filter(searchable.like(f"%{token}%"))
     if categories:
         base = base.filter(Media.category_large.in_(categories))
     if ooh_types:
@@ -186,6 +208,7 @@ def list_fixed_media(
     sw_lat: float | None = None,
     ne_lng: float | None = None,
     sw_lng: float | None = None,
+    keyword: str | None = None,
 ) -> tuple[int, list[dict]]:
     base = _media_base_query(
         db,
@@ -200,6 +223,7 @@ def list_fixed_media(
         sw_lat=sw_lat,
         ne_lng=ne_lng,
         sw_lng=sw_lng,
+        keyword=keyword,
     )
     total = base.count()
     rows = (
@@ -286,10 +310,12 @@ def list_fixed_clusters(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    keyword: str | None = None,
 ) -> dict:
     """FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환.
 
     bbox(ne/sw)가 주어지면 그 영역으로 한정, None이면 전체 매체 대상.
+    keyword가 주어지면 매체명 부분일치로 한정(지도=리스트 동일 조건).
     """
     base = _media_base_query(
         db,
@@ -304,6 +330,7 @@ def list_fixed_clusters(
         sw_lat=sw_lat,
         ne_lng=ne_lng,
         sw_lng=sw_lng,
+        keyword=keyword,
     )
     rows = base.with_entities(
         Media.media_id,

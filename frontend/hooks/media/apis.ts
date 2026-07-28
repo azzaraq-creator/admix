@@ -92,6 +92,7 @@ export interface MediaFilterParams {
   swLat?: number | null;
   neLng?: number | null;
   swLng?: number | null;
+  keyword?: string | null;
 }
 
 export interface MapBounds {
@@ -144,6 +145,7 @@ function appendFilters(q: URLSearchParams, f?: MediaFilterParams): void {
   f?.productMasterType?.forEach((v) => q.append("product_master_type", v));
   if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
   if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
+  if (f?.keyword) q.set("keyword", f.keyword);
 }
 
 function appendBounds(q: URLSearchParams, f?: MediaFilterParams): void {
@@ -183,6 +185,7 @@ function buildClusterQuery(zoom: number, f?: MediaFilterParams): string {
   const q = new URLSearchParams();
   q.set("zoom_level", String(zoom));
   appendFilters(q, f);
+  appendBounds(q, f);
   return q.toString();
 }
 

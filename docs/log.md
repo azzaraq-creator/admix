@@ -4,6 +4,22 @@
 > 형식: `## YYYY-MM-DD — 제목` + 한두 줄 요약 + 관련 문서 링크.
 > 관리 규칙은 루트 [CLAUDE.md](../CLAUDE.md) 참조.
 
+## 2026-07-28 — 매체검색 Enter(미선택) = 장소 검색으로 처리
+
+드롭다운에서 후보를 안 고르고 Enter 칠 때, 기존 "첫 후보 자동선택(장소우선, 없으면 매체)"은 디바운스 미로딩/무매칭 시 무반응이었음. **Enter = 입력 텍스트를 지오코딩(geocodeAddress: Places→Geocoder)해 그 지역으로 스코프+이동(장소 검색)**으로 통일. `selectPlace` 로직을 `scopeToPlace(lat,lng,label)`로 추출해 장소클릭·Enter 공용. 매체명 매칭은 드롭다운 클릭 전용. 프론트만, tsc/eslint 클린. 정책 [fixed](policies/fixed.md) §3.4.
+
+## 2026-07-28 — 매체검색 keyword에 주소 매칭 추가
+
+매체 자동완성이 이름만 매칭하던 것을 **이름+주소**로 확장. `_media_base_query`의 keyword 필터를 name+second_name+주소(accurate_address/address/full_address_jibun/loc_label) 합친 문자열에 **공백 토큰별 AND ilike**로 변경(주소는 여러 단어라 통짜 substring이면 "서울"↔"서울특별시" 등 어긋남 → 토큰 매칭). 프론트 변경 없음(드롭다운 매체 후보가 keyword 사용). 실측: "서울 강남구 강남대로 422" → 7건(그 주소 매체), "강남구 강남대로" 36, "Carousel" 2(이름 회귀 OK). backend rebuild 반영. 정책 [fixed](policies/fixed.md) §3.4, PRD §3.4.
+
+## 2026-07-28 — 매체검색 장소 클릭 시 지역 필터 + 초기화 전체복귀
+
+통합 자동완성에서 **장소 후보 클릭 시 지도 이동뿐 아니라 그 지역으로 리스트/지도 필터**되도록 보완. `selectPlace`가 place 좌표 ±0.02°(약 2km) bbox(neLat/swLat/neLng/swLng)를 URL에 커밋 + 지도 이동(rescope:true로 이동 후 zoom 커밋이 bbox 보존). list/clusters는 `scopedFilters={...chipFilters,...bounds}` 사용, `buildClusterQuery`에 `appendBounds` 복원(백엔드 clusters bbox는 이미 optional 지원). **초기화(필터바)** 시 `applyFilter`가 빈 필터면 bbox를 안 실어 **전체 리스트 복귀**(칩 남으면 bbox 유지). 뷰포인트(드래그)로는 스코프 안 바뀜 — 오직 장소 선택으로만. 실측: 강남역 ±0.02 → 리스트/클러스터 76건(전체 895 대비). tsc/eslint 클린. 정책 [fixed](policies/fixed.md) §3.4, PRD §3.4.
+
+## 2026-07-28 — 매체검색 통합 자동완성(장소+매체명)
+
+매체검색 검색바가 지오코딩(장소 이동)만 하던 것을 **장소+매체명 통합 자동완성**으로 확장. 백엔드 `_media_base_query`에 `keyword` 필터(표시명=name+second_name concat ilike) + `/media/fixed`·`/media/fixed/clusters`에 `keyword` 파라미터(자동완성 매체 후보 조회에 사용). `lib/kakaoMap.searchPlaces`(카카오 Places keywordSearch → 관련 장소 상위 N) 추가. 프론트 `MediaSearchPanel`: 입력 디바운스 250ms로 장소(searchPlaces)+매체(fixedList keyword limit5) 병렬 조회 → 2섹션 드롭다운. **장소 후보 클릭=지도 이동**, **매체 후보 클릭=그 매체 1개로 이동+핀포커스+상세선택**(리스트 클릭과 동일). 리스트/지도 결과는 자동완성과 무관(칩 필터만) — 즉 keyword 리스트필터/`?q=`는 도입했다 자동완성으로 대체(list·clusters는 chipFilters로 원복). 검증: keyword API 실측("인천공항" 27, "Carousel" 2, 무매칭 0), tsc/eslint·py_compile 클린. **주소→그 주소 매체 활성화는 후속.** 정책 [fixed](policies/fixed.md) §3.4, PRD §3.4·§10.
+
 ## 2026-07-28 — 클러스터링 완화(셀 base 0.0006→0.0003)
 
 지도 클러스터가 너무 많이 뭉친다는 피드백 — `media_service._CLUSTER_CELL_DEG_BASE`를 0.0006→0.0003으로 낮춰 한 줌 단계 더 일찍 풀리게 함(셀=base×2^(level-1)). 레벨5(강남역 기본) 실측: 합쳐진 738→683, 개별핀 157→212. 더 풀려면 0.0002/0.00015, 또는 `_CLUSTER_DECLUSTER_LEVEL` 상향. backend rebuild 반영. PRD §7 갱신.

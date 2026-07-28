@@ -55,6 +55,9 @@ export interface KakaoGeocoderResult {
 export interface KakaoPlacesResult {
   x: string;
   y: string;
+  place_name: string;
+  address_name?: string;
+  road_address_name?: string;
 }
 
 export interface KakaoServices {
@@ -186,6 +189,50 @@ export async function geocodeAddress(
             resolve(null);
           }
         });
+      });
+    });
+  });
+}
+
+export interface KakaoPlace {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+// 카카오 Places 키워드 검색 → 관련 장소 목록(자동완성용). 상위 limit개.
+export async function searchPlaces(
+  query: string,
+  limit = 5,
+): Promise<KakaoPlace[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  await loadKakaoSdk();
+  const maps = window.kakao?.maps;
+  if (!maps) return [];
+
+  return new Promise((resolve) => {
+    maps.load(() => {
+      const services = maps.services;
+      if (!services) {
+        resolve([]);
+        return;
+      }
+      const places = new services.Places();
+      places.keywordSearch(trimmed, (result, status) => {
+        if (status === services.Status.OK && result.length > 0) {
+          resolve(
+            result.slice(0, limit).map((r) => ({
+              name: r.place_name,
+              address: r.road_address_name || r.address_name || "",
+              lat: Number(r.y),
+              lng: Number(r.x),
+            })),
+          );
+        } else {
+          resolve([]);
+        }
       });
     });
   });

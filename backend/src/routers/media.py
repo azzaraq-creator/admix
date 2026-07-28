@@ -68,6 +68,7 @@ def list_fixed_media(
     south_west_latitude: float | None = Query(None),
     north_east_longitude: float | None = Query(None),
     south_west_longitude: float | None = Query(None),
+    keyword: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
     total, items = media_service.list_fixed_media(
@@ -85,6 +86,7 @@ def list_fixed_media(
         sw_lat=south_west_latitude,
         ne_lng=north_east_longitude,
         sw_lng=south_west_longitude,
+        keyword=keyword,
     )
     return MediaCardListResponse(total=total, items=items)
 
@@ -103,6 +105,7 @@ def list_fixed_clusters(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    keyword: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaClusterResponse:
     data = media_service.list_fixed_clusters(
@@ -119,6 +122,7 @@ def list_fixed_clusters(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        keyword=keyword,
     )
     return MediaClusterResponse(**data)
 
