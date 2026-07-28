@@ -248,7 +248,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
         "",
         f"- 문의 제목 : {title}",
         "",
-        "답변 내용은 서비스 내 [고객지원 > 문의내역]에서 확인할 수 있습니다.",
+        "답변 내용은 서비스 내 [문의하기 > 문의내역]에서 확인할 수 있습니다.",
     ]
     if my_url:
         text_lines.append(my_url)
@@ -257,9 +257,9 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
 
     safe_title = escape(title)
     my_inquiry = (
-        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[고객지원 &gt; 문의내역]</a>'
+        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[문의하기 &gt; 문의내역]</a>'
         if my_url
-        else "[고객지원 &gt; 문의내역]"
+        else "[문의하기 &gt; 문의내역]"
     )
     button_html = (
         f"""

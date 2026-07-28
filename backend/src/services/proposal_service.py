@@ -414,7 +414,7 @@ def send_custom_proposal_email(
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0">
                 <tr>
                   <td bgcolor="#00AAA4" style="border-radius:8px">
-                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">내 제안서 확인하기</a>
+                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">맞춤제안서 확인하기</a>
                   </td>
                 </tr>
               </table>"""
