@@ -105,6 +105,7 @@ def list_moving_media(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    keyword: str | None = None,
 ) -> list[dict]:
     base = _media_base_query(
         db,
@@ -116,6 +117,7 @@ def list_moving_media(
         product_master_types=product_master_types,
         price_min=price_min,
         price_max=price_max,
+        keyword=keyword,
     )
     rows = base.options(selectinload(Media.images)).order_by(Media.media_id).all()
     return [_media_card(m) for m in rows]

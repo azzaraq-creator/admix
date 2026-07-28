@@ -28,6 +28,7 @@ def list_moving_media(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    keyword: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
     items = media_service.list_moving_media(
@@ -39,6 +40,7 @@ def list_moving_media(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        keyword=keyword,
     )
     return MediaCardListResponse(total=len(items), items=items)
 

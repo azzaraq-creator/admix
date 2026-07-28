@@ -27,9 +27,13 @@ function formatFee(krw: number | null): string {
 
 export function MovingView() {
   const [filter, setFilter] = useState<MediaFilterState>(EMPTY_MEDIA_FILTER);
+  const [search, setSearch] = useState("");
   const { data: opts } = useMovingFilterOptions();
   const { optionsByKey, price } = buildFilterUi(opts);
-  const { data, isLoading } = useMovingMediaList(toChipFilterParams(filter));
+  const { data, isLoading } = useMovingMediaList({
+    ...toChipFilterParams(filter),
+    keyword: search || null,
+  });
   const mediaList: MovingMediaData[] = (data?.items ?? []).map((item) => ({
     id: item.id,
     name: item.name,
@@ -67,7 +71,8 @@ export function MovingView() {
           <LocationSearchInput
             value={location}
             onChange={setLocation}
-            placeholder="지역명 또는 키워드 검색"
+            onSubmit={() => setSearch(location.trim())}
+            placeholder="매체명 검색"
             className="w-full"
           />
         </div>
