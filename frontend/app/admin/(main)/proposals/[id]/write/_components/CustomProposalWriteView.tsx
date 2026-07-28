@@ -10,7 +10,7 @@ import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 
 const ALLOWED_EXTENSIONS = [".ppt", ".pptx"];
-const MAX_SIZE = 10 * 1024 * 1024;
+const MAX_SIZE = 100 * 1024 * 1024;
 
 export function CustomProposalWriteView() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export function CustomProposalWriteView() {
       return;
     }
     if (selected.size > MAX_SIZE) {
-      setError("파일 크기는 10MB 이하만 가능합니다.");
+      setError("파일 크기는 100MB 이하만 가능합니다.");
       return;
     }
     setError(null);
@@ -143,7 +143,7 @@ export function CustomProposalWriteView() {
             파일을 드래그해주시거나 PC에서 직접 선택해주세요
           </p>
           <p className="text-sm font-medium leading-[20px] text-disabled">
-            확장자 : PPT, PPTX (최대 10MB)
+            확장자 : PPT, PPTX (최대 100MB)
           </p>
           <button
             type="button"

@@ -33,6 +33,6 @@ server {
         chunked_transfer_encoding on;
 
         # 큰 payload 대비
-        client_max_body_size 10m;
+        client_max_body_size 100m;
     }
 }

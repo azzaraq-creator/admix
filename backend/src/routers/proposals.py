@@ -30,7 +30,7 @@ XLSX_MEDIA_TYPE = (
 router = APIRouter(prefix="/admin/proposals", tags=["proposals"])
 
 ALLOWED_EXTENSIONS = {".ppt", ".pptx"}
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
 
 
 @router.get("", response_model=ProposalListResponse)
@@ -103,7 +103,7 @@ async def upload_counter_proposal(
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(
-            status_code=400, detail="파일 크기는 10MB 이하만 가능합니다."
+            status_code=400, detail="파일 크기는 100MB 이하만 가능합니다."
         )
 
     settings = get_settings()
