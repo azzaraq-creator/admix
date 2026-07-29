@@ -1,10 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ChevronLeftIcon, XIcon } from "@/components/icons";
-import { mediaSrc } from "@/lib/media";
+import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type ImageLightboxProps = {
@@ -13,10 +14,21 @@ type ImageLightboxProps = {
   onClose: () => void;
 };
 
-function Placeholder({ src }: { src?: string | null }) {
+function Placeholder({ src, sizes }: { src?: string | null; sizes: string }) {
   if (!src) return <div className="size-full bg-[#d9d9d9]" />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={mediaSrc(src)} alt="" className="size-full object-contain" />;
+  const resolved = mediaSrc(src);
+  return (
+    <div className="relative size-full">
+      <Image
+        src={resolved}
+        alt=""
+        fill
+        sizes={sizes}
+        unoptimized={!isOptimizable(resolved)}
+        className="object-contain"
+      />
+    </div>
+  );
 }
 
 export function ImageLightbox({
@@ -62,7 +74,7 @@ export function ImageLightbox({
             <ChevronLeftIcon className="size-[48px]" />
           </button>
           <div className="flex h-full min-w-0 flex-1 items-center justify-center">
-            <Placeholder src={images[index]} />
+            <Placeholder src={images[index]} sizes="100vw" />
           </div>
           <button
             type="button"
@@ -95,7 +107,7 @@ export function ImageLightbox({
                 : "opacity-50 hover:opacity-80",
             )}
           >
-            <Placeholder src={src} />
+            <Placeholder src={src} sizes="120px" />
           </button>
         ))}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type ReactNode } from "react";
 
 import { DownloadIcon } from "@/components/icons";
@@ -16,6 +17,7 @@ import {
 import { useUpdateBizReg, useUpdateMember, type MemberDetail } from "@/hooks/members";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { API_BASE_URL, api } from "@/lib/api";
+import { isOptimizable } from "@/lib/media";
 
 const TYPE_LABEL: Record<string, string> = { corporate: "기업", individual: "일반" };
 const BIZ_OPTIONS = [
@@ -272,10 +274,12 @@ export function BasicInfoTab({
               {licenseUrl ? (
                 <>
                   {isLicenseImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={licenseUrl}
                       alt="사업자등록증 미리보기"
+                      width={323}
+                      height={447}
+                      unoptimized={!isOptimizable(licenseUrl)}
                       className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-[#ebebeb] object-cover"
                     />
                   ) : (

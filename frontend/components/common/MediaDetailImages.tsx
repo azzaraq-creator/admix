@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { PlusIcon } from "@/components/icons";
-import { mediaSrc } from "@/lib/media";
+import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type MediaDetailImagesProps = {
@@ -25,6 +26,7 @@ function ImageCell({
   children?: ReactNode;
 }) {
   const clickable = src != null && index != null && onOpen != null;
+  const resolved = src ? mediaSrc(src) : null;
   return (
     <button
       type="button"
@@ -37,9 +39,15 @@ function ImageCell({
         className,
       )}
     >
-      {src && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={mediaSrc(src)} alt="" className="size-full object-cover" />
+      {resolved && (
+        <Image
+          src={resolved}
+          alt=""
+          fill
+          sizes="(max-width: 640px) 100vw, 400px"
+          unoptimized={!isOptimizable(resolved)}
+          className="object-cover"
+        />
       )}
       {children}
     </button>
