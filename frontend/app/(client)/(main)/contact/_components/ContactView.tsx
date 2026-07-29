@@ -168,13 +168,13 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     <Icon name="kakao" className="size-[24px]" />
                     카카오톡 상담
                   </button>
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-[#00c300] px-[16px] py-[12px] text-base font-medium text-[#00c300]"
                   >
                     <Icon name="naver" className="size-[24px]" />
                     네이버톡 상담
-                  </button>
+                  </button> */}
                 </div>
               }
             >
@@ -188,7 +188,9 @@ export function ContactView({ member = false }: { member?: boolean }) {
                     실시간 상담
                   </p>
                   <p className="text-base font-medium leading-[24px] text-black">
-                    카카오톡 또는 네이버톡으로
+                    카카오톡
+                    {/* 또는 네이버톡 */}
+                    으로
                     <br />
                     실시간 상담을 받아보세요.
                   </p>
