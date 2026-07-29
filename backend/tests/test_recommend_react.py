@@ -286,6 +286,33 @@ def test_collect_events_no_dup_chat_when_last_is_chat(monkeypatch):
     assert [e["type"] for e in out["events"]] == ["chat"]
 
 
+def test_collect_events_invokes_tools_serially(monkeypatch):
+    """도구 직렬 실행 보장: 한 턴 여러 tool_call(예: '1번, 4번 담아줘')이 스레드풀로 동시
+    실행되면 ctx/DB 세션을 공유해 담기가 유실된다. invoke 에 max_concurrency=1 을 넘겨야 한다."""
+    from src.services.recommend_react import graph as react_graph
+
+    captured = {}
+
+    def fake_build_graph(ctx):
+        g = MagicMock()
+
+        def invoke(state, config=None):
+            captured["config"] = config
+            return {"messages": [AIMessage(content="ok")]}
+
+        g.invoke.side_effect = invoke
+        return g
+
+    monkeypatch.setattr(react_graph, "build_graph", fake_build_graph)
+    monkeypatch.setattr(react_graph, "_load_history", lambda sid: [])
+    monkeypatch.setattr(react_graph, "_persist_turn", lambda *a, **k: None)
+    monkeypatch.setattr(react_graph, "_save_context", lambda *a, **k: None)
+    monkeypatch.setattr(react_graph, "_load_context", lambda sid: (None, []))
+
+    react_graph.collect_events("1번, 4번 담아줘", db=MagicMock(), top_k=20, session_id=None)
+    assert captured["config"] == {"max_concurrency": 1}
+
+
 # ===== Task 7: 잡 디스패치 =====
 
 

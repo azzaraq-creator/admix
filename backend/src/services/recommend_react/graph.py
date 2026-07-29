@@ -245,7 +245,13 @@ def collect_events(
     try:
         graph_app = build_graph(ctx)
         history = _load_history(session_id)
-        result = graph_app.invoke({"messages": [*history, HumanMessage(content=message)]})
+        # 한 턴에서 도구를 여러 번 호출해도(예: '1번, 4번 담아줘' → AddMedia 2회) 직렬 실행한다.
+        # 도구는 가변 ctx 와 단일 DB 세션(ctx.db)을 공유하는데, ToolNode 는 기본적으로 tool_call 을
+        # 스레드풀로 동시 실행하므로 SQLAlchemy 세션의 스레드 비안전 동시 접근으로 담기가 유실된다.
+        result = graph_app.invoke(
+            {"messages": [*history, HumanMessage(content=message)]},
+            config={"max_concurrency": 1},
+        )
         final = result["messages"][-1]
         final_text = final.content if isinstance(final.content, str) else str(final.content)
     except Exception as exc:  # noqa: BLE001
