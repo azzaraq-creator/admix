@@ -20,6 +20,7 @@ export function ChatPanel({
   onAddProposal,
   onMapData,
   onRequestMapMove,
+  onNewSession,
 }: {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
@@ -29,6 +30,7 @@ export function ChatPanel({
   onFocusMedia?: (mediaId: string) => void;
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
+  onNewSession?: () => void;
   onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
   onRequestMapMove?: (center: {
     lat: number;
@@ -50,6 +52,7 @@ export function ChatPanel({
           onFocusMedia={onFocusMedia}
           onOpenDetail={onOpenDetail}
           onAddProposal={onAddProposal}
+          onNewSession={onNewSession}
         />
       ) : (
         <Suspense fallback={null}>

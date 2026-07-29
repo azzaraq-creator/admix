@@ -199,6 +199,15 @@ export function FixedMediaView({
     setPopupId(null);
   }, []);
 
+  // "새 대화" → AI 추천 마커/활성 핀/팝업/상세를 모두 초기화.
+  const handleNewSession = useCallback(() => {
+    setMarkers([]);
+    setFocusId(undefined);
+    setPopupId(null);
+    setGroupPopup(null);
+    setSelectedMedia(null);
+  }, []);
+
   const handleOpenDetail = (item: MediaItemData) => setSelectedMedia(item);
 
   const closeDetail = () => {
@@ -277,6 +286,7 @@ export function FixedMediaView({
             onAddProposal={(id) => setAddProposalMediaId(id)}
             onMapData={handleMapData}
             onRequestMapMove={handleRequestMapMove}
+            onNewSession={handleNewSession}
           />
         )}
         {chatOpen && selectedMedia && (

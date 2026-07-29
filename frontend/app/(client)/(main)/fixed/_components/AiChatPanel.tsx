@@ -41,6 +41,7 @@ export function AiChatPanel({
   onFocusMedia,
   onOpenDetail,
   onAddProposal,
+  onNewSession,
 }: {
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
@@ -48,6 +49,7 @@ export function AiChatPanel({
   onFocusMedia?: (mediaId: string) => void;
   onOpenDetail?: (item: MediaItemData) => void;
   onAddProposal?: (mediaId: string) => void;
+  onNewSession?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [showPhotos, setShowPhotos] = useState(true);
@@ -207,6 +209,7 @@ export function AiChatPanel({
             disabled={chat.running}
             onClick={() => {
               setText("");
+              onNewSession?.();
               void chat.newSession();
             }}
             className="flex items-center gap-[4px] rounded-[8px] text-black disabled:opacity-50"
