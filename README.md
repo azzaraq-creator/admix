@@ -2,6 +2,50 @@
 
 OOH(옥외광고) 매체 추천 플랫폼. 광고주 자연어 발화를 LangGraph 그래프로 분석해 매체 리스트·자연어 설명·맞춤 제안서를 만들고, 관리자 백오피스에서 매체·회원·문의·제안서를 운영한다.
 
+상세 문서: **[backend/README](backend/README.md)** · **[frontend/README](frontend/README.md)** · [deploy/](deploy/README.md) · [CONTEXT.md](CONTEXT.md)
+
+## 아키텍처
+
+### 시스템 · 배포 구성
+
+```mermaid
+flowchart LR
+    U["사용자 / 광고주"] -->|HTTPS| CF["CloudFront + Amplify<br/>www.admixai.co.kr<br/>(Next.js 16 프런트)"]
+    ADM["관리자"] -->|HTTPS| CF
+    CF -->|"REST<br/>NEXT_PUBLIC_API_URL"| NGINX["nginx + certbot<br/>(EC2)"]
+    NGINX --> BE["FastAPI (docker)<br/>EC2 admix-backend"]
+    BE --> RDS[("PostgreSQL 16<br/>+ pgvector (RDS)")]
+    BE --> OAI["OpenAI<br/>(LLM · 임베딩)"]
+    BE -->|비동기 추천| SQS["SQS"] --> LMB["Lambda<br/>(recommend 그래프)"]
+    LMB --> RDS
+    LMB --> OAI
+    BE --> S3["S3<br/>매체 이미지"]
+    BE --> SMTP["Gmail SMTP<br/>(인증·재설정·알림)"]
+    BE --> OAUTH["Kakao / Naver<br/>OAuth"]
+    CF -.->|GA4| GA["Google Analytics"]
+    DNS["가비아 DNS"] -.->|CNAME| CF
+
+    classDef ext fill:#eef,stroke:#88a;
+    class OAI,S3,SMTP,OAUTH,GA,DNS ext;
+```
+
+### 추천 요청 흐름
+
+```mermaid
+flowchart TD
+    IN["자연어 발화"] --> INTENT["의도 분류<br/>(recommend / explain / proposal / general)"]
+    INTENT --> SLOT["슬롯 추출<br/>(지역·예산·매체·제품·타겟·목적)"]
+    SLOT --> SCORE["완전성 점수"]
+    SCORE -->|부족| ASK["한 슬롯 재질문"]
+    SCORE -->|충분| COMPAT["호환성 검사(SQL)"]
+    COMPAT --> FILTER["매체 풀 SELECT"]
+    FILTER --> RERANK["rerank<br/>(임베딩 · 상권 인구분포)"]
+    RERANK --> EXPLAIN["자연어 설명 + Top-3 사유 + pivot"]
+    EXPLAIN --> OUT["결과 DB 기록 → 프런트 폴링"]
+```
+
+추천(`recommend_react`)은 비동기 잡 큐로 처리 — `POST /recommend/react/jobs` 발행 → SQS→Lambda가 그래프 실행 후 DB(`ai_recommend_jobs`)에 기록 → 프런트가 폴링. 로컬(SQS 미설정)은 동일 로직을 인라인 동기 실행. 그래프 상태는 langgraph-checkpoint-postgres로 thread별 영속. (자세히는 [backend/README](backend/README.md#추천-흐름-recommend_react))
+
 ## 스택
 
 - **Backend**: FastAPI + LangGraph + PostgreSQL/pgvector + OpenAI, JWT/OAuth 소셜 로그인, AWS SQS/Lambda 비동기 추천
@@ -22,7 +66,7 @@ admix/
 │   │   ├── schemas/               Pydantic in/out
 │   │   ├── routers/               API 엔드포인트
 │   │   │   ├── auth.py oauth.py            인증 · 소셜 로그인
-│   │   │   ├── chat_graph.py recommend_*   추천 챗봇 (SSE 스트림 · React 버전)
+│   │   │   ├── chat_graph.py recommend_*   추천 챗봇 (현행 recommend_react · 비동기 잡 + 폴링)
 │   │   │   ├── media.py members.py         매체 · 회원
 │   │   │   ├── proposals*.py inquiries*.py 제안서 · 문의 (client/admin)
 │   │   │   ├── faq.py dashboard.py         FAQ · 대시보드
