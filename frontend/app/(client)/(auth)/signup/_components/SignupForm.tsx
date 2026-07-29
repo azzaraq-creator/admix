@@ -147,10 +147,18 @@ const REQUIRED_AGREEMENTS: AgreementKey[] = [
   "location",
 ];
 
-const LINKED_AGREEMENTS: { key: AgreementKey; label: string }[] = [
-  { key: "tos", label: "[필수] 서비스 이용약관 동의" },
-  { key: "privacy", label: "[필수] 개인정보 처리방침 동의" },
-  { key: "location", label: "[필수] 위치기반 서비스 이용약관 동의" },
+const LINKED_AGREEMENTS: {
+  key: AgreementKey;
+  label: string;
+  tab: "terms" | "privacy" | "location";
+}[] = [
+  { key: "tos", label: "[필수] 서비스 이용약관 동의", tab: "terms" },
+  { key: "privacy", label: "[필수] 개인정보 처리방침 동의", tab: "privacy" },
+  {
+    key: "location",
+    label: "[필수] 위치기반 서비스 이용약관 동의",
+    tab: "location",
+  },
 ];
 
 export function SignupForm({
@@ -613,7 +621,7 @@ export function SignupForm({
                   [필수] 만 14세 이상입니다.
                 </p>
               </div>
-              {LINKED_AGREEMENTS.map(({ key, label }) => (
+              {LINKED_AGREEMENTS.map(({ key, label, tab }) => (
                 <div
                   key={key}
                   className="flex w-full items-center justify-between"
@@ -627,7 +635,20 @@ export function SignupForm({
                       {label}
                     </p>
                   </div>
-                  <ChevronRightIcon className="size-[20px] shrink-0 text-[#545454]" />
+                  <button
+                    type="button"
+                    aria-label={`${label} 전문 보기`}
+                    onClick={() =>
+                      window.open(
+                        `/help?tab=${tab}`,
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                    className="shrink-0 cursor-pointer text-[#545454]"
+                  >
+                    <ChevronRightIcon className="size-[20px]" />
+                  </button>
                 </div>
               ))}
               <div className="flex w-full items-start gap-[8px]">
