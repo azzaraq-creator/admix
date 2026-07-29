@@ -85,7 +85,6 @@ API: `http://localhost:8001` · Frontend: `http://localhost:3000`
 
 ## 문서
 
-- `docs/index.md` — 문서 카탈로그
 - `docs/api/` — API 명세
 - `docs/policies/` — 화면 정책서
 - `docs/frontend-structure.md` · `docs/design-tokens.md` — 프런트 구조 · 디자인 토큰
