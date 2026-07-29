@@ -39,3 +39,16 @@ backend/secrets/
 *.sql.gz
 seed/*.sql
 seed/*.bak
+
+# 로컬 작업 문서 (저장소 미포함, 로컬 전용)
+CLAUDE.md
+CONTEXT.md
+tasks/
+일반채팅답변.xlsx
+docs/plans/
+docs/reviews/
+docs/skills/
+docs/superpowers/
+docs/log.md
+docs/overview.html
+docs/v2-overview.html
