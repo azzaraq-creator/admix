@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +57,20 @@ class Settings(BaseSettings):
     naver_client_id: str = ""
     naver_client_secret: str = ""
     naver_redirect_uri: str = "http://localhost:3000/oauth/naver/callback"
+
+    @field_validator("jwt_access_secret", "jwt_refresh_secret")
+    @classmethod
+    def _reject_default_secret(cls, v: str, info) -> str:
+        """JWT 시크릿이 비었거나 기본값(change-me)이면 기동 실패시킨다.
+
+        공개 소스의 기본값이 운영에서 그대로 쓰이는 사고를 방지한다.
+        로컬/테스트는 .env 또는 conftest 로 실제/더미 값을 주입해야 한다.
+        """
+        if not v or v.startswith("change-me"):
+            raise ValueError(
+                f"{info.field_name} 를 강력한 랜덤 값으로 설정하세요 (기본값 사용 불가)."
+            )
+        return v
 
     @property
     def frontend_origins(self) -> list[str]:
