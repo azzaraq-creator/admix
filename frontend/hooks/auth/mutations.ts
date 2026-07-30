@@ -21,6 +21,7 @@ export const useLogout = () => {
     }
     clearUserToken();
     clearSessionId();
+    queryClient.setQueryData(authKeys.me, null);
     queryClient.clear();
     router.push("/");
   };
