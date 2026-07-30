@@ -70,7 +70,8 @@
 | `cancelled` | 취소 | 고객이 제출완료/맞춤제안 상태에서 삭제 |
 
 > - **계약완료 삭제 건**: 계약완료(`contracted`) 상태에서 고객이 삭제하면 상태는 유지되고 `deleted_at`이 기록된다(성사 계약 이력 보존). 제출완료/맞춤제안 삭제는 `cancelled`(취소)로 전환된다. **(2026-07-27부터 목록에 "삭제됨" 배지는 표시하지 않음 — `deleted` 플래그는 데이터에만 유지)**
-> - 관리자가 직접 바꿀 수 있는 상태는 **`custom`(맞춤제안 업로드 시 자동)**·**`contracted`(집행 수락)** 뿐. `execution_requested`(제출)·삭제(`cancelled`/`deleted_at`)는 고객 측에서 발생. `❓`(관리자용 취소/되돌리기 액션 유무 미정)
+> - 관리자가 직접 바꿀 수 있는 상태는 **`custom`(맞춤제안 업로드 시 자동)**·**`contracted`(집행 수락)** 뿐. `execution_requested`(제출)·삭제(`cancelled`/`deleted_at`)는 고객 측에서 발생. 관리자용 취소/되돌리기 액션은 없음.
+> - **종착 상태(2026-07-30 백엔드 가드)**: `contracted`(계약완료)·`cancelled`(취소)는 종착 상태로, 제출·집행수락·맞춤제안 업로드가 모두 400 거부됨(`proposal_service.assert_status_mutable`). 계약완료 건의 삭제는 soft-delete(상태 유지 + `deleted_at`)라 이 가드와 무관하게 그대로 동작.
 
 ---
 
@@ -112,7 +113,7 @@
   - **작업 버튼 2개**:
     - "상세" → `/admin/proposals/{id}/write/{counterId}`(맞춤제안 상세).
     - 다운로드(아이콘) → `GET /admin/proposals/{id}/counter-proposal/{counterId}/download`, **업로드 당시 원본 파일명**으로 저장.
-  - 상단 우측 "맞춤제안 작성" 링크 → `/admin/proposals/{id}/write`. **단 상태가 계약완료(`accepted`)면 링크 대신 비활성(회색·클릭 불가) 표시** — 계약 완료된 제안서에는 추가 맞춤제안 작성 불가(2026-07-27). ❓ 프런트 버튼만 차단이며 `/write` URL 직접 접근·백엔드 업로드는 아직 열려 있음(업로드 시 상태가 `custom`으로 역전되는 정합성 구멍 — 백엔드 가드 후속 필요).
+  - 상단 우측 "맞춤제안 작성" 링크 → `/admin/proposals/{id}/write`. **단 상태가 계약완료(`accepted`)면 링크 대신 비활성(회색·클릭 불가) 표시** — 계약 완료된 제안서에는 추가 맞춤제안 작성 불가(2026-07-27). **✅ 2026-07-30 백엔드 가드 추가** — `save_counter_proposal_file`에 `assert_status_mutable` 적용, 계약완료/취소 건은 `/write` URL 직접 접근·API 직접 호출로 업로드해도 400 거부(상태 `custom` 역전 구멍 해소).
 
 #### 3.B.5 하단 액션 (목록 / 집행 수락)
 - **기능**: 목록 복귀 + 집행 수락.
@@ -121,7 +122,7 @@
   - **집행 수락**: 확인 모달("집행을 수락하시겠습니까?" / "수락하면 제안서 상태가 계약 완료로 변경됩니다.") → 확인 시 `POST /admin/proposals/{id}/accept` → 상태 `contracted`(계약 완료). 성공 토스트 "집행이 수락되었습니다.".
   - **계약 완료 이메일 발송**(2026-07-27): 수락 성공 시 제안서 소유 회원의 이메일로 "[ADMIX] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`). 본문: 안녕하세요 → 계약 완료 안내 → 제안서명 → "내 제안서 확인하기" 버튼(→ `{email_link_base}/proposals/{id}`). 맞춤제안 도착 메일과 동일 다크 템플릿. 회원 이메일이 없으면(비회원 등) 발송 생략. Figma node 1283-31901.
   - 이미 계약 완료(`accepted`)면 버튼 라벨 "계약 완료" + 비활성. 진행 중에도 비활성.
-  - `❓`(수락 취소/되돌리기 없음. `execution_requested`가 아니어도 수락 가능한지 상태 가드 미정 — 코드상 상태 무관하게 contracted로 덮어씀)
+  - 수락 취소/되돌리기 없음(계약완료는 종착). **✅ 2026-07-30 상태 가드 추가** — `update_status`에 `assert_status_mutable` + 상태 화이트리스트 적용. 계약완료(`contracted`)·취소(`cancelled`) 건은 accept 재호출 시 400 거부(이전엔 상태 무관하게 contracted로 덮어씀). `new`·`execution_requested`·`custom`에서만 수락 가능.
 
 ---
 

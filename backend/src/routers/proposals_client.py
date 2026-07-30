@@ -220,6 +220,7 @@ def submit_proposal(
     p = proposal_service.get_owned(db, proposal_id, member_id=user.id, session_id=None)
     if p is None:
         raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+    proposal_service.assert_status_mutable(p.status)  # 계약완료/취소 건 재제출 방지
     p.status = "execution_requested"
     proposal_service.snapshot_submitter(p, user)
     db.commit()

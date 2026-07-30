@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -31,6 +32,21 @@ _STATUS = {
     "execution_requested": "신규",
     "contracted": "계약완료",
 }
+
+# 종착(terminal) 상태 — 여기서는 status 를 더 이상 바꿀 수 없다.
+# 계약완료(contracted)는 성사된 계약, 취소(cancelled)는 논리삭제된 건.
+# 프런트에서 각 액션 버튼을 막지만, URL 직접접근/API 직접호출 대비 백엔드 이중방어.
+# (삭제 soft-delete 는 status 를 안 바꾸고 deleted_at 만 기록하므로 이 가드와 무관.)
+_TERMINAL_STATUSES = {"contracted", "cancelled"}
+
+
+def assert_status_mutable(current: str) -> None:
+    """종착 상태면 상태 변경을 거부한다(제출/집행수락/맞춤제안 업로드 공통 가드)."""
+    if current in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{_STATUS.get(current, current)}' 상태의 제안서는 변경할 수 없습니다.",
+        )
 
 # 티어별 제안서(플래닝) 개수 제한. None = 무제한.
 GUEST_LIMIT = 1
@@ -328,6 +344,9 @@ def update_status(db: Session, proposal_id: str, status: str) -> Optional[Propos
     p = db.query(Proposal).filter(Proposal.id == pid).first()
     if p is None:
         return None
+    if status not in _STATUS:
+        raise HTTPException(status_code=400, detail="알 수 없는 제안서 상태입니다.")
+    assert_status_mutable(p.status)
     p.status = status
     db.commit()
     db.refresh(p)
@@ -352,6 +371,7 @@ def save_counter_proposal_file(
     p = db.query(Proposal).filter(Proposal.id == pid).first()
     if p is None:
         return None
+    assert_status_mutable(p.status)  # 계약완료/취소 건에 맞춤제안 업로드 시 status 역전 방지
     p.counter_files.append(
         ProposalCounterFile(
             file_url=file_url,
