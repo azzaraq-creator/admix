@@ -27,10 +27,14 @@ def list_summary_for_llm(items: list[dict], total: int) -> str:
     """LLM 이 후속 추론(비교·최저가 등)에 쓸 텍스트 요약."""
     if not items:
         return f"{NOT_FOUND_MARKER} 조건에 맞는 매체가 없습니다."
-    lines = [f"총 {total}건 중 상위 {len(items)}건(광고비 내림차순):"]
+    lines = [f"총 {total}건 중 상위 {len(items)}건:"]
     for i, it in enumerate(items, 1):
         price = it.get("price") or "가격미정"
-        lines.append(f"{i}. {it.get('name')} — {price}")
+        line = f"{i}. {it.get('name')} — {price}"
+        aud = it.get("audience_summary")
+        if aud:
+            line += f" · {aud}"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -108,13 +112,20 @@ def _run_search(ctx: ReactContext, text: str) -> tuple[list[dict], int]:
     LLM/DB 호출을 전부 우회할 수 있게 한다.
     """
     codes = domain.extract_keywords(text, ctx.db)
+    age_bands = domain.parse_age_bands(text)
     # 유효 필터가 하나도 없으면(예: 사전에 없는 지역) 전 매체 덤프 대신 NOT_FOUND 처리.
-    if not domain._has_any_filter(codes):
+    # 단, 연령 발화가 있으면(랭킹 신호) 진행한다.
+    if not domain._has_any_filter(codes) and not age_bands:
         return [], 0
     candidates, total = domain.filter_media_items(ctx.db, codes, domain.MAX_CANDIDATE_FETCH)
     if total == 0:
         return [], 0
-    selected = domain.sort_by_price_desc(candidates, top_k=ctx.top_k)
+    # 연령 발화면 유동인구·연령 중심으로 랭킹, 아니면 기존 광고비 내림차순.
+    if age_bands:
+        audience = domain._audience_by_media_id(ctx.db, candidates)
+        selected = domain.sort_by_relevance(candidates, age_bands, audience, top_k=ctx.top_k)
+    else:
+        selected = domain.sort_by_price_desc(candidates, top_k=ctx.top_k)
     meta = domain._media_meta_by_media_id(ctx.db, selected)
     images = domain._images_by_media_id(ctx.db, [it.media_id for it in selected])
     items = [domain._to_response_item(it, meta, images).model_dump() for it in selected]

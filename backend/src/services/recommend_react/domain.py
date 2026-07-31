@@ -74,6 +74,7 @@ class MediaItemResponse(BaseModel):
     longitude: Optional[float] = None
     category_large: Optional[str] = None  # parentCategory.displayValue (마커 아이콘 분류)
     category_small: Optional[str] = None  # mediaItemCategory.displayValue
+    audience_summary: Optional[str] = None  # 유동인구·연령 요약 (예: '일평균 45.8만 · 여성 47% · 20·40대 중심')
 
 
 def load_keyword_catalog(db: Session) -> dict[KeywordCategory, list[MediaKeyword]]:
@@ -201,11 +202,13 @@ def filter_media_items(
     리턴: (페치 후보 리스트, 전체 매치 카운트).
     """
     q = db.query(MediaItem)
+    # 연령대역 TGT 코드는 필터에서 제외(데이터에 거의 없어 AND 필터하면 0건). 연령은 랭킹으로 반영.
+    tgt_for_filter = [c for c in (codes.tgt or []) if c not in AGE_TGT_CODES]
     col_map = [
         (codes.ind, MediaItem.ind_codes),
         (codes.prd, MediaItem.prd_codes),
         (codes.obj, MediaItem.obj_codes),
-        (codes.tgt, MediaItem.tgt_codes),
+        (tgt_for_filter, MediaItem.tgt_codes),
         (codes.loc, MediaItem.loc_codes),
         (codes.cat, MediaItem.cat_codes),
     ]
@@ -249,6 +252,84 @@ def sort_by_price_desc(candidates: list[MediaItem], top_k: int = DEFAULT_TOP_K) 
     return sorted(candidates, key=_ad_fee_int, reverse=True)[:top_k]
 
 
+# 연령대역 TGT 코드 — 데이터에 거의 비어 있어 하드필터하면 결과가 죽는다.
+# 연령은 필터가 아니라 랭킹 신호(audience_summary)로 반영한다.
+AGE_TGT_CODES = frozenset({"TGT-01", "TGT-02", "TGT-03", "TGT-04", "TGT-05", "TGT-06"})
+
+_AGE_BAND_RE = re.compile(r"([1-7]0)\s*대")
+_AUDIENCE_AGE_RE = re.compile(r"((?:\d0·)*\d0)대")
+_AUDIENCE_VOL_RE = re.compile(r"일평균\s*([\d.]+)\s*만")
+
+
+def parse_age_bands(text: Optional[str]) -> set[int]:
+    """발화에서 연령대역 추출. 'N0대'/'MZ'·'2030'/'시니어·실버·노년' 지원. 없으면 빈 set."""
+    if not text:
+        return set()
+    bands = {int(m.group(1)) for m in _AGE_BAND_RE.finditer(text)}
+    if "MZ" in text or "2030" in text:
+        bands.update({20, 30})
+    if any(k in text for k in ("시니어", "실버", "노년")):
+        bands.update({50, 60, 70})
+    return bands
+
+
+def parse_audience_summary(summary: Optional[str]) -> tuple[set[int], float]:
+    """audience_summary → (연령 중심 set, 일평균 유동인구 만단위 float).
+
+    예: '일평균 45.8만 · 여성 47% · 20·40대 중심' → ({20, 40}, 45.8).
+    '시니어(60+)' 는 'N0대' 형태가 아니라 age center 로 세지 않는다.
+    """
+    if not summary:
+        return set(), 0.0
+    ages: set[int] = set()
+    for m in _AUDIENCE_AGE_RE.finditer(summary):
+        for tok in m.group(1).split("·"):
+            if tok.isdigit():
+                ages.add(int(tok))
+    vol = 0.0
+    mv = _AUDIENCE_VOL_RE.search(summary)
+    if mv:
+        try:
+            vol = float(mv.group(1))
+        except ValueError:
+            vol = 0.0
+    return ages, vol
+
+
+def _audience_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, str]:
+    """media_id → audience_summary(유동인구·연령 텍스트) 배치 매핑."""
+    ids = [it.media_id for it in items if it.media_id]
+    if not ids:
+        return {}
+    rows = (
+        db.query(Media.media_id, Media.audience_summary)
+        .filter(Media.media_id.in_(ids))
+        .all()
+    )
+    return {mid: (summ or "") for mid, summ in rows}
+
+
+def sort_by_relevance(
+    candidates: list[MediaItem],
+    age_bands: set[int],
+    audience_map: dict[str, str],
+    top_k: int = DEFAULT_TOP_K,
+) -> list[MediaItem]:
+    """연령 발화 시 랭킹: ① 연령매치 → ② 유동인구 규모 → ③ 광고비 (모두 내림차순).
+
+    age_bands 가 비어 있으면 기존 광고비 내림차순과 동일하게 동작한다.
+    """
+    if not age_bands:
+        return sort_by_price_desc(candidates, top_k)
+
+    def key(item: MediaItem) -> tuple[int, float, int]:
+        ages, vol = parse_audience_summary(audience_map.get(item.media_id or "", ""))
+        match = 1 if age_bands & ages else 0
+        return (match, vol, _ad_fee_int(item))
+
+    return sorted(candidates, key=key, reverse=True)[:top_k]
+
+
 def _split_image_urls(raw: Optional[str]) -> list[str]:
     if not raw:
         return []
@@ -267,6 +348,7 @@ def _media_meta_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, di
             Media.longitude,
             Media.category_large,
             Media.category_small,
+            Media.audience_summary,
         )
         .filter(Media.media_id.in_(ids))
         .all()
@@ -277,8 +359,9 @@ def _media_meta_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, di
             "longitude": float(lng) if lng is not None else None,
             "category_large": cl,
             "category_small": cs,
+            "audience_summary": aud or None,
         }
-        for mid, lat, lng, cl, cs in rows
+        for mid, lat, lng, cl, cs, aud in rows
     }
 
 
@@ -322,6 +405,7 @@ def _to_response_item(
         longitude=meta.get("longitude"),
         category_large=meta.get("category_large"),
         category_small=meta.get("category_small"),
+        audience_summary=meta.get("audience_summary"),
     )
 
 

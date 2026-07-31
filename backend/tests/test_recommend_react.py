@@ -366,3 +366,75 @@ def test_graph_search_then_answer(monkeypatch):
     # 구조화 이벤트 우선 — 단일 list 이벤트(매체카드)만 반환, 카드가 chat 에 덮이지 않음
     assert [e["type"] for e in out["events"]] == ["list"]
     assert len(out["events"][0]["items"]) == 1
+
+
+# ===== 연령 발화 → 유동인구·TGT 참고 랭킹 =====
+
+
+class _FakeMedia:
+    """sort_by_relevance 용 최소 MediaItem 대용 (media_id/advertisement_fee 만 필요)."""
+
+    def __init__(self, media_id, fee):
+        self.media_id = media_id
+        self.advertisement_fee = fee
+
+
+def test_parse_age_bands():
+    from src.services.recommend_react.domain import parse_age_bands
+
+    assert parse_age_bands("20대 여성") == {20}
+    assert parse_age_bands("30대·40대 타깃") == {30, 40}
+    assert parse_age_bands("MZ세대 겨냥") == {20, 30}
+    assert parse_age_bands("2030 직장인") == {20, 30}
+    assert parse_age_bands("시니어 대상") == {50, 60, 70}
+    assert parse_age_bands("강남 전광판") == set()
+    assert parse_age_bands("") == set()
+
+
+def test_parse_audience_summary():
+    from src.services.recommend_react.domain import parse_audience_summary
+
+    ages, vol = parse_audience_summary("일평균 45.8만 · 여성 47% · 20·40대 중심")
+    assert ages == {20, 40}
+    assert vol == 45.8
+    # 시니어(60+) 는 'N0대' 형태가 아니므로 age center 로 세지 않는다.
+    ages2, vol2 = parse_audience_summary("일평균 10.5만 · 여성 46% · 50·40대 중심 · 시니어(60+) 26%")
+    assert ages2 == {40, 50}
+    assert vol2 == 10.5
+    assert parse_audience_summary("") == (set(), 0.0)
+    assert parse_audience_summary(None) == (set(), 0.0)
+
+
+def test_sort_by_relevance_age_match_then_volume_then_price():
+    from src.services.recommend_react import domain
+
+    a = _FakeMedia("A", "1000000")  # 20대 매치, 유동 10
+    b = _FakeMedia("B", "9000000")  # 비매치(비쌈)
+    c = _FakeMedia("C", "2000000")  # 20대 매치, 유동 30
+    audience = {
+        "A": "일평균 10만 · 20대 중심",
+        "B": "일평균 50만 · 40대 중심",
+        "C": "일평균 30만 · 20·30대 중심",
+    }
+    out = domain.sort_by_relevance([a, b, c], {20}, audience, top_k=10)
+    # 매치(C,A) 먼저 — 그중 유동 큰 C 우선, 비매치 B 는 뒤
+    assert [x.media_id for x in out] == ["C", "A", "B"]
+
+
+def test_sort_by_relevance_match_tie_breaks_on_price():
+    from src.services.recommend_react import domain
+
+    a = _FakeMedia("A", "1000000")  # 매치, 유동 20
+    c = _FakeMedia("C", "5000000")  # 매치, 유동 20 (동일) → 광고비로 결정
+    audience = {"A": "일평균 20만 · 20대 중심", "C": "일평균 20만 · 20대 중심"}
+    out = domain.sort_by_relevance([a, c], {20}, audience, top_k=10)
+    assert [x.media_id for x in out] == ["C", "A"]
+
+
+def test_sort_by_relevance_no_age_equals_price_desc():
+    from src.services.recommend_react import domain
+
+    items = [_FakeMedia("A", "1000000"), _FakeMedia("B", "9000000"), _FakeMedia("C", "2000000")]
+    out = domain.sort_by_relevance(items, set(), {}, top_k=10)
+    assert [x.media_id for x in out] == [x.media_id for x in domain.sort_by_price_desc(items, top_k=10)]
+    assert [x.media_id for x in out] == ["B", "C", "A"]
