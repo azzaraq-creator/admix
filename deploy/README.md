@@ -211,6 +211,12 @@ ssh -i ~/.ssh/admix-key.pem ubuntu@43.201.172.34 '
 챗봇/AI 추천 로직(`recommend_v2.py` 의 `_event_stream`)은 프론트가 async(`/recommend/v2/jobs`→폴링)로
 호출하므로 **실제로는 Lambda 가 처리**한다. 이 로직을 바꾸면 EC2 재배포만으로는 유저에게 반영되지
 않고 **Lambda 이미지도 다시 빌드/푸시**해야 한다. (EC2 는 `/v2/stream` 및 enqueue/폴링만 담당.)
+> react 챗봇도 동일 경로다(`/recommend/react/jobs`→폴링, version=react). 추천 코드 수정 시 Lambda 갱신 필수.
+
+> ⚠️ **Lambda 환경변수에 `JWT_ACCESS_SECRET`·`JWT_REFRESH_SECRET` 필수.** `config.py` 가 import 시
+> JWT 시크릿(빈값/`change-me` 금지)을 검증하므로, 없으면 Lambda 가 **INIT 단계에서 크래시**(잡이 계속
+> `pending`)한다. Lambda 는 JWT 를 실제로 쓰진 않지만 검증 통과용 강력 랜덤 값이 있어야 한다.
+> 확인: `aws --profile ooh-new lambda get-function-configuration --function-name admix-ai-agent --query 'Environment.Variables' --region ap-northeast-2`
 
 ```bash
 cd backend
