@@ -32,11 +32,13 @@ function CountBadge({ count }: { count: number }) {
 export function MediaSearchFilter({
   value,
   onChange,
+  onReset,
   optionsByKey,
   price,
 }: {
   value: MediaFilterState;
   onChange: (next: MediaFilterState) => void;
+  onReset?: () => void;
   optionsByKey: Record<ChipDimKey, FilterOption[]>;
   price: PriceMeta;
 }) {
@@ -118,7 +120,8 @@ export function MediaSearchFilter({
     onChange({ ...value, [key]: next });
   };
 
-  const reset = () => onChange(EMPTY_MEDIA_FILTER);
+  // onReset 있으면 검색어까지 포함한 전체 초기화, 없으면 칩 필터만 비운다.
+  const reset = () => (onReset ? onReset() : onChange(EMPTY_MEDIA_FILTER));
 
   const openWith = (key: FilterPanelKey) => {
     setActiveKey(key);

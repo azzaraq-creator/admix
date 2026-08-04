@@ -24,7 +24,6 @@ import {
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { formatFee } from "./chat/format";
 import {
-  geocodeAddress,
   searchPlaces,
   type KakaoPlace,
   type MapCluster,
@@ -71,6 +70,12 @@ function parseBounds(
 // 장소 클릭 시 그 좌표 ±반경(도)으로 리스트/지도를 스코프.
 const PLACE_RADIUS_DEG = 0.02;
 
+// 매체 후보 클릭 포커스 — 그 좌표 ±반경(도, 장소보다 좁게)으로 스코프.
+const MEDIA_FOCUS_RADIUS_DEG = 0.005;
+// 백엔드는 zoom_level<=1에서만 클러스터를 분해(개별 핀). 매체 포커스는 이 레벨로
+// 고정해야 대상이 클러스터 버블에 흡수되지 않고 개별 핀으로 떠 하이라이트된다.
+const MEDIA_FOCUS_ZOOM_LEVEL = 1;
+
 function isFilterEmpty(f: MediaFilterState): boolean {
   return (
     f.category.length === 0 &&
@@ -101,6 +106,7 @@ export function MediaSearchPanel({
     lng: number;
     level?: number;
     rescope?: boolean;
+    focusId?: string;
   }) => void;
 }) {
   const router = useRouter();
@@ -110,6 +116,8 @@ export function MediaSearchPanel({
   const filter = parseFilter(sp);
   const zoom = parseZoom(sp);
   const bounds = parseBounds(sp);
+  // Enter 검색어(매체명/주소 부분일치). 설정되면 bbox와 상호배제(백엔드가 AND로 걸기 때문).
+  const keyword = sp.get("kw");
 
   const [location, setLocation] = useState("");
   const [placeSug, setPlaceSug] = useState<KakaoPlace[]>([]);
@@ -123,7 +131,7 @@ export function MediaSearchPanel({
   const { optionsByKey, price } = buildFilterUi(opts);
 
   const chipFilters: MediaFilterParams = toChipFilterParams(filter);
-  const scopedFilters: MediaFilterParams = { ...chipFilters, ...bounds };
+  const scopedFilters: MediaFilterParams = { ...chipFilters, ...bounds, keyword };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFixedMediaInfinite(scopedFilters);
@@ -198,6 +206,9 @@ export function MediaSearchPanel({
     if (next.priceMax != null) q.set("priceMax", String(next.priceMax));
     const z = sp.get("zoom");
     if (z != null) q.set("zoom", z);
+    // 키워드 검색은 칩 변경과 무관하게 유지(백엔드가 keyword AND 필터).
+    const kw = sp.get("kw");
+    if (kw) q.set("kw", kw);
     // 칩이 남아있으면 장소 스코프(bbox) 유지, 초기화(전부 빔)면 드롭 → 전체 리스트.
     if (!isFilterEmpty(next)) {
       for (const k of ["neLat", "swLat", "neLng", "swLng"]) {
@@ -205,6 +216,17 @@ export function MediaSearchPanel({
         if (v != null) q.set(k, v);
       }
     }
+    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  };
+
+  // 초기화 — 칩·키워드·장소 스코프 모두 비우고 검색 입력도 지운다(zoom만 유지).
+  const handleReset = () => {
+    setLocation("");
+    setShowSug(false);
+    const q = new URLSearchParams();
+    q.set("mode", "search");
+    const z = sp.get("zoom");
+    if (z != null) q.set("zoom", z);
     router.replace(`${pathname}?${q.toString()}`, { scroll: false });
   };
 
@@ -237,45 +259,62 @@ export function MediaSearchPanel({
     return () => document.removeEventListener("mousedown", onDown);
   }, [showSug]);
 
-  // 어떤 좌표 ±반경 bbox로 리스트/지도를 스코프 + 지도 이동(장소 클릭/Enter 공통).
-  const scopeToPlace = (lat: number, lng: number, label: string) => {
+  // 어떤 좌표 ±반경 bbox로 리스트/지도를 스코프 + 지도 이동.
+  // focusId 있으면(매체 후보 클릭) 그 매체를 로드 후 포커스, 없으면(장소) 지역 이동만.
+  const scopeToPlace = (
+    lat: number,
+    lng: number,
+    label: string,
+    focusId?: string,
+  ) => {
     setLocation(label);
     setShowSug(false);
+    const radius = focusId ? MEDIA_FOCUS_RADIUS_DEG : PLACE_RADIUS_DEG;
     const q = new URLSearchParams(searchParams.toString());
     q.set("mode", "search");
-    q.set("neLat", String(lat + PLACE_RADIUS_DEG));
-    q.set("swLat", String(lat - PLACE_RADIUS_DEG));
-    q.set("neLng", String(lng + PLACE_RADIUS_DEG));
-    q.set("swLng", String(lng - PLACE_RADIUS_DEG));
+    q.delete("kw"); // bbox 스코프는 키워드 검색과 상호배제
+    q.set("neLat", String(lat + radius));
+    q.set("swLat", String(lat - radius));
+    q.set("neLng", String(lng + radius));
+    q.set("swLng", String(lng - radius));
+    // 매체 포커스는 디클러스터 레벨을 URL에 즉시 반영 → 클러스터 쿼리가 바로 개별 핀 반환
+    // (비동기 auto-commit에 의존하면 기존 zoom으로 조회돼 클러스터에 묻힘).
+    if (focusId) q.set("zoom", String(MEDIA_FOCUS_ZOOM_LEVEL));
     router.replace(`${pathname}?${q.toString()}`, { scroll: false });
-    onRequestMapMove?.({ lat, lng, level: 5, rescope: true });
+    onRequestMapMove?.({
+      lat,
+      lng,
+      level: focusId ? MEDIA_FOCUS_ZOOM_LEVEL : 5,
+      rescope: true,
+      focusId,
+    });
   };
 
   // 장소 후보 → 그 지역으로 스코프 + 이동.
   const selectPlace = (p: KakaoPlace) => scopeToPlace(p.lat, p.lng, p.name);
 
-  // 매체 후보 → 그 매체 1개로 이동 + 선택(리스트 클릭과 동일 동작).
+  // 매체 후보 → 프리뷰 + 그 매체 위치로 스코프해 핀 로드 후 포커스 하이라이트.
   const selectMediaSug = (row: MediaCardRow) => {
-    setLocation(row.name);
-    setShowSug(false);
     onSelectMedia?.(toItem(row));
-    onFocusMedia?.(row.id);
     if (row.lat != null && row.lng != null) {
-      onRequestMapMove?.({
-        lat: row.lat,
-        lng: row.lng,
-        level: FOCUS_ZOOM_LEVEL,
-        rescope: false,
-      });
+      scopeToPlace(row.lat, row.lng, row.name, row.id);
+    } else {
+      setLocation(row.name);
+      setShowSug(false);
+      onFocusMedia?.(row.id);
     }
   };
 
-  // Enter → 입력 텍스트를 지오코딩(장소/주소)해 그 지역으로 스코프+이동. 매체는 드롭다운 클릭으로만.
-  const handleSubmit = async () => {
+  // Enter → 입력 텍스트가 포함된 매체(매체명/주소)를 리스트·지도에 표시. bbox는 해제.
+  const handleSubmit = () => {
     const q = location.trim();
-    if (!q) return;
-    const center = await geocodeAddress(q);
-    if (center) scopeToPlace(center.lat, center.lng, q);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("mode", "search");
+    if (q) params.set("kw", q);
+    else params.delete("kw");
+    for (const k of ["neLat", "swLat", "neLng", "swLng"]) params.delete(k);
+    setShowSug(false);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   useEffect(() => {
@@ -313,6 +352,23 @@ export function MediaSearchPanel({
         />
         {showSug && (placeSug.length > 0 || mediaSug.length > 0) && (
           <div className="absolute inset-x-[16px] top-[calc(100%-8px)] z-30 max-h-[320px] overflow-y-auto rounded-[8px] border border-stroke bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
+            {mediaSug.length > 0 && (
+              <div>
+                <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] font-medium text-grey-500">
+                  매체
+                </div>
+                {mediaSug.map((m) => (
+                  <button
+                    key={`media-${m.id}`}
+                    type="button"
+                    onClick={() => selectMediaSug(m)}
+                    className="flex w-full px-[16px] py-[8px] text-left text-[14px] text-black hover:bg-platinum-100"
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {placeSug.length > 0 && (
               <div>
                 <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] font-medium text-grey-500">
@@ -335,29 +391,13 @@ export function MediaSearchPanel({
                 ))}
               </div>
             )}
-            {mediaSug.length > 0 && (
-              <div>
-                <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] font-medium text-grey-500">
-                  매체
-                </div>
-                {mediaSug.map((m) => (
-                  <button
-                    key={`media-${m.id}`}
-                    type="button"
-                    onClick={() => selectMediaSug(m)}
-                    className="flex w-full px-[16px] py-[8px] text-left text-[14px] text-black hover:bg-platinum-100"
-                  >
-                    {m.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>
       <MediaSearchFilter
         value={filter}
         onChange={applyFilter}
+        onReset={handleReset}
         optionsByKey={optionsByKey}
         price={price}
       />

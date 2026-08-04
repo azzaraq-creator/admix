@@ -94,6 +94,7 @@ export function FixedMediaView({
       lng: number;
       level?: number;
       rescope?: boolean;
+      focusId?: string;
     }) => {
       const level = center.level ?? 5;
       setMoveTarget({ lat: center.lat, lng: center.lng, level });
@@ -101,10 +102,17 @@ export function FixedMediaView({
         // 리스트(검색 영역)는 고정, 줌만 갱신 → 클러스터만 재조정.
         commitZoomOnly(level);
       } else {
-        // 재검색(지오코딩): 기존 선택/포커스/팝업 해제 후 그 영역으로 재설정.
-        setSelectedMedia(null);
-        setFocusId(undefined);
+        // 재스코프: 열려있던 지도 팝업/그룹은 해제.
         setPopupId(null);
+        setGroupPopup(null);
+        if (center.focusId) {
+          // 매체 후보 클릭: 그 영역으로 리로드 후 해당 핀 포커스(프리뷰는 유지).
+          setFocusId(center.focusId);
+        } else {
+          // 장소 재검색: 기존 선택/포커스 해제.
+          setSelectedMedia(null);
+          setFocusId(undefined);
+        }
         pendingAutoCommitRef.current = true;
       }
     },
