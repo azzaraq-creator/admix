@@ -248,8 +248,16 @@ export function useMapMarkers({
     const map = mapRef.current;
     if (!mapReady || !maps || !map || !moveTarget) return;
     programmaticMoveRef.current = true;
-    map.setCenter(new maps.LatLng(moveTarget.lat, moveTarget.lng));
-    if (moveTarget.level != null) map.setLevel(moveTarget.level);
+    if (moveTarget.fitBounds) {
+      const fb = moveTarget.fitBounds;
+      const bounds = new maps.LatLngBounds();
+      bounds.extend(new maps.LatLng(fb.swLat, fb.swLng));
+      bounds.extend(new maps.LatLng(fb.neLat, fb.neLng));
+      map.setBounds(bounds);
+    } else {
+      map.setCenter(new maps.LatLng(moveTarget.lat, moveTarget.lng));
+      if (moveTarget.level != null) map.setLevel(moveTarget.level);
+    }
   }, [moveTarget, mapReady, mapRef, programmaticMoveRef]);
 
   // 클러스터 버블 — CustomOverlay. 클릭 시 줌인 → idle → 재조회로 분해.

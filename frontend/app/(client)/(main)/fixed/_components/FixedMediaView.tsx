@@ -95,9 +95,15 @@ export function FixedMediaView({
       level?: number;
       rescope?: boolean;
       focusId?: string;
+      fitBounds?: { neLat: number; swLat: number; neLng: number; swLng: number };
     }) => {
       const level = center.level ?? 5;
-      setMoveTarget({ lat: center.lat, lng: center.lng, level });
+      setMoveTarget({
+        lat: center.lat,
+        lng: center.lng,
+        level,
+        fitBounds: center.fitBounds,
+      });
       if (center.rescope === false) {
         // 리스트(검색 영역)는 고정, 줌만 갱신 → 클러스터만 재조정.
         commitZoomOnly(level);

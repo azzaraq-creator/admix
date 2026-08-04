@@ -107,6 +107,7 @@ export function MediaSearchPanel({
     level?: number;
     rescope?: boolean;
     focusId?: string;
+    fitBounds?: { neLat: number; swLat: number; neLng: number; swLng: number };
   }) => void;
 }) {
   const router = useRouter();
@@ -126,6 +127,8 @@ export function MediaSearchPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+  // Enter 키워드 검색 직후, 새 클러스터 결과가 도착하면 그 결과로 지도를 fit하도록 예약.
+  const pendingFitRef = useRef(false);
 
   const { data: opts } = useFixedFilterOptions();
   const { optionsByKey, price } = buildFilterUi(opts);
@@ -193,6 +196,38 @@ export function MediaSearchPanel({
       })),
     });
   }, [clusterData, onMapData]);
+
+  // 키워드 검색 결과가 도착하면 그 결과(마커+클러스터) 영역에 맞춰 지도를 이동/fit.
+  // useFixedClusters가 keepPreviousData를 쓰지 않아 키 전환 시 clusterData가 undefined가
+  // 되는 순서에 의존한다(그래서 stale 결과로 잘못 fit하지 않음). keepPreviousData 추가 금지.
+  useEffect(() => {
+    if (!pendingFitRef.current || !clusterData) return;
+    const pts = [
+      ...clusterData.markers.map((m) => ({ lat: m.lat, lng: m.lng })),
+      ...clusterData.clusters.map((c) => ({ lat: c.lat, lng: c.lng })),
+    ];
+    pendingFitRef.current = false; // 결과 유무와 무관하게 무장 해제(0건이어도)
+    if (pts.length === 0) return; // 결과 없음 → 이동하지 않음(빈 상태 유지)
+    const lats = pts.map((p) => p.lat);
+    const lngs = pts.map((p) => p.lng);
+    const neLat = Math.max(...lats);
+    const swLat = Math.min(...lats);
+    const neLng = Math.max(...lngs);
+    const swLng = Math.min(...lngs);
+    const cLat = (neLat + swLat) / 2;
+    const cLng = (neLng + swLng) / 2;
+    if (pts.length === 1) {
+      // 단일 결과 → 미세 bounds 과확대 방지, 중심+레벨로 이동.
+      onRequestMapMove?.({ lat: cLat, lng: cLng, level: 5, rescope: true });
+    } else {
+      onRequestMapMove?.({
+        lat: cLat,
+        lng: cLng,
+        rescope: true,
+        fitBounds: { neLat, swLat, neLng, swLng },
+      });
+    }
+  }, [clusterData, onRequestMapMove]);
 
   const applyFilter = (next: MediaFilterState) => {
     const q = new URLSearchParams();
@@ -308,11 +343,15 @@ export function MediaSearchPanel({
   // Enter → 입력 텍스트가 포함된 매체(매체명/주소)를 리스트·지도에 표시. bbox는 해제.
   const handleSubmit = () => {
     const q = location.trim();
+    const prev = sp.get("kw");
     const params = new URLSearchParams(searchParams.toString());
     params.set("mode", "search");
     if (q) params.set("kw", q);
     else params.delete("kw");
     for (const k of ["neLat", "swLat", "neLng", "swLng"]) params.delete(k);
+    // 키워드가 실제로 바뀔 때만(=refetch가 일어날 때만) fit 예약. 같은 키워드 재입력은
+    // URL 무변화 → 결과 무변화라 예약해두면 flag가 고아로 남아 엉뚱한 refit을 유발한다.
+    if (q && q !== prev) pendingFitRef.current = true;
     setShowSug(false);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
