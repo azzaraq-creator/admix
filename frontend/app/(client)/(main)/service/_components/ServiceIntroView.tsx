@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Fragment } from "react";
 
-import { ChevronRightIcon, CircleCheckIcon, Logo } from "@/components/icons";
+import { ChevronRightIcon, CircleCheckIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { LogoFullDark } from "@/components/icons/LogoFull";
 
 const OTHER_ROWS: [string, string][] = [
   ["대행사 선정에", "수주 소요"],
@@ -43,24 +44,6 @@ const CARDS = [
   },
 ];
 
-function AdmixLogo({ dark = false }: { dark?: boolean }) {
-  return (
-    <div className="flex h-[24px] items-center gap-[4px] sm:h-[48px]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={
-          dark
-            ? "/service/admix-wordmark-dark.svg"
-            : "/service/admix-wordmark-white.svg"
-        }
-        alt="ADMIX"
-        className="h-[16px] w-[68px] sm:h-[32px] sm:w-[137px]"
-      />
-      <Logo className="size-[24px] sm:size-[48px]" />
-    </div>
-  );
-}
-
 function CompareRow({
   items,
   variant,
@@ -94,171 +77,176 @@ function CompareRow({
 
 export function ServiceIntroView() {
   return (
-    <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[24px] sm:px-[20px] sm:py-[80px]">
-      <section className="flex flex-col gap-[16px] pb-[36px] sm:gap-[24px] sm:pb-[68px]">
-        <div className="flex flex-col gap-[4px]">
-          <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
-            서비스 소개
-          </p>
-          <p className="text-[14px] font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
-            회사 및 서비스 소개를 확인하세요
-          </p>
-        </div>
-        <div className="relative flex w-full flex-col justify-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:aspect-[1016/500] sm:rounded-[36px] sm:px-[60px] sm:py-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/service/hero-bg.png"
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-black/[0.08] to-black/80" />
-          <div className="relative flex flex-col gap-[8px] sm:gap-[24px]">
-            <AdmixLogo />
-            <div className="flex flex-col">
-              <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
-                광고 캠페인을, AI와 대화로.
-              </p>
-              <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
-                탐색부터 계약까지 전 과정을 하나의 대화로 완성합니다.
-              </p>
-            </div>
+      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[24px] sm:px-[20px] sm:py-[80px]">
+        <section className="flex flex-col gap-[16px] pb-[36px] sm:gap-[24px] sm:pb-[68px]">
+          <div className="flex flex-col gap-[4px]">
+            <p className="text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
+              서비스 소개
+            </p>
+            <p className="text-[14px] font-medium leading-[20px] text-disabled sm:text-base sm:leading-[24px]">
+              회사 및 서비스 소개를 확인하세요
+            </p>
           </div>
-        </div>
-      </section>
-
-      <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
-        <h2 className="text-center text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[40px] sm:leading-[48px] sm:tracking-[-0.4px]">
-          스타트업부터 중견기업까지
-          <br />
-          <span className="text-primary">전략적으로 함께 합니다</span>
-        </h2>
-        <div className="flex w-full justify-center px-[16px] sm:px-[120px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/service/intro.png"
-            alt=""
-            className="w-full object-contain sm:h-[480px] sm:w-[775px] sm:max-w-full"
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
-        <div className="flex flex-col items-center gap-[6px] sm:gap-[24px]">
-          <p className="text-[14px] font-bold leading-[20px] text-primary sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
-            국내 최초 대화형 광고 플래닝 전문 기업
-          </p>
-          <h2 className="text-center text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[40px] sm:leading-[48px] sm:tracking-[-0.4px]">
-            광고 캠페인 플래닝부터 계약까지
-            <br />
-            차별점을 직접 확인해 보세요
-          </h2>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-x-[8px] gap-y-[8px] sm:gap-x-[24px]">
-          <div className="flex flex-col">
-            <div className="flex items-center justify-center bg-disabled px-[10px] py-[12px] sm:py-[20px]">
-              <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
-                타사 서비스
-              </p>
-            </div>
-            <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/service/compare-other.png"
+          <div
+              className="relative flex w-full flex-col justify-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:aspect-[1016/500] sm:rounded-[36px] sm:px-[60px] sm:py-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/service/hero-bg.png"
                 alt=""
-                className="size-full object-contain sm:h-full sm:w-auto"
-              />
+                className="absolute inset-0 size-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-l from-black/[0.08] to-black/80"/>
+            <div className="relative flex flex-col gap-[8px] sm:gap-[24px]">
+              <LogoFullDark className="h-[50px]" />
+              <div className="flex flex-col">
+                <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
+                  광고 캠페인을, AI와 대화로.
+                </p>
+                <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
+                  탐색부터 계약까지 전 과정을 하나의 대화로 완성합니다.
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center justify-center bg-primary px-[10px] py-[12px] sm:py-[20px]">
-              <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
-                ADMIX
-              </p>
-            </div>
-            <div className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
-              <AdmixLogo dark />
-            </div>
-          </div>
-          {OTHER_ROWS.map((items, i) => (
-            <Fragment key={items[0]}>
-              <CompareRow items={OTHER_ROWS[i]} variant="other" />
-              <CompareRow items={ADMIX_ROWS[i]} variant="admix" />
-            </Fragment>
-          ))}
-        </div>
-      </section>
+        </section>
 
-      <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
-        <div className="flex flex-col items-center gap-[6px] sm:gap-[24px]">
-          <p className="text-[14px] font-bold leading-[20px] text-primary sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
-            AI Planning
-          </p>
+        <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
           <h2 className="text-center text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[40px] sm:leading-[48px] sm:tracking-[-0.4px]">
-            실제 매체 데이터와 AI가 만나
-            <br />
-            광고 기획의 정확도가 달라집니다.
+            스타트업부터 중견기업까지
+            <br/>
+            <span className="text-primary">전략적으로 함께 합니다</span>
           </h2>
-        </div>
-        <div className="flex w-full flex-col gap-[12px] sm:grid sm:grid-cols-3 sm:items-stretch sm:gap-[16px]">
-          {CARDS.map((card) => (
-            <div
-              key={card.badge}
-              className="flex flex-col gap-[10px] rounded-[6px] border border-stroke bg-[#f8f8f8] p-[12px] sm:px-[18px] sm:py-[36px]"
-            >
-              <span className="inline-flex w-fit items-center rounded-[4px] bg-primary px-[6px] py-[2px] text-xs font-medium leading-[16px] text-white sm:text-sm sm:font-semibold sm:leading-[20px]">
-                {card.badge}
-              </span>
-              <div className="flex w-full gap-[8px] sm:flex-col">
-                <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-                  <p className="whitespace-pre-line text-[16px] font-medium leading-[24px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
-                    {card.title}
-                  </p>
-                  <p className="whitespace-pre-line text-[12px] font-medium leading-[16px] text-grey-500 sm:text-sm sm:leading-[20px]">
-                    {card.desc}
-                  </p>
-                </div>
+          <div className="flex w-full justify-center px-[16px] sm:px-[120px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/service/intro.png"
+                alt=""
+                className="w-full object-contain sm:h-[480px] sm:w-[775px] sm:max-w-full"
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
+          <div className="flex flex-col items-center gap-[6px] sm:gap-[24px]">
+            <p className="text-[14px] font-bold leading-[20px] text-primary sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
+              국내 최초 대화형 광고 플래닝 전문 기업
+            </p>
+            <h2 className="text-center text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[40px] sm:leading-[48px] sm:tracking-[-0.4px]">
+              광고 캠페인 플래닝부터 계약까지
+              <br/>
+              차별점을 직접 확인해 보세요
+            </h2>
+          </div>
+          <div className="grid w-full grid-cols-2 gap-x-[8px] gap-y-[8px] sm:gap-x-[24px]">
+            <div className="flex flex-col">
+              <div className="flex items-center justify-center bg-disabled px-[10px] py-[12px] sm:py-[20px]">
+                <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
+                  타사 서비스
+                </p>
+              </div>
+              <div
+                  className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={card.image}
-                  alt=""
-                  className="size-[88px] shrink-0 self-center object-contain sm:aspect-square sm:size-auto sm:w-full sm:self-auto"
+                    src="/service/compare-other.png"
+                    alt=""
+                    className="size-full object-contain sm:h-full sm:w-auto"
                 />
               </div>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <div className="relative flex items-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:rounded-[36px] sm:px-[60px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/service/cta-bg.png"
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-black/[0.08] to-black/80 sm:hidden" />
-          <div className="relative flex flex-col gap-[8px] sm:gap-[24px]">
             <div className="flex flex-col">
-              <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
-                AI와의 대화 한 번으로
-                <br />
-                <span className="text-primary">첫 캠페인</span>이 완성됩니다.
-              </p>
-              <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
-                복잡한 기획 없이 지금 바로 시작해 보세요.
-              </p>
+              <div className="flex items-center justify-center bg-primary px-[10px] py-[12px] sm:py-[20px]">
+                <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
+                  ADMIX
+                </p>
+              </div>
+              <div
+                  className="flex aspect-square items-center justify-center p-[14px] sm:aspect-auto sm:h-[220px] sm:py-[20px]">
+                <LogoFullDark className="h-[60px]" />
+              </div>
             </div>
-            <Link
-              href="/fixed"
-              className="flex w-fit items-center gap-[4px] rounded-[8px] bg-platinum-100 px-[12px] py-[8px] text-sm font-medium text-black"
-            >
-              매체 둘러보기
-              <ChevronRightIcon className="size-[18px]" />
-            </Link>
+            {OTHER_ROWS.map((items, i) => (
+                <Fragment key={items[0]}>
+                  <CompareRow items={OTHER_ROWS[i]} variant="other"/>
+                  <CompareRow items={ADMIX_ROWS[i]} variant="admix"/>
+                </Fragment>
+            ))}
           </div>
-        </div>
-      </section>
-    </div>
+        </section>
+
+        <section className="flex flex-col items-center gap-[24px] py-[36px] sm:gap-[48px] sm:py-[68px]">
+          <div className="flex flex-col items-center gap-[6px] sm:gap-[24px]">
+            <p className="text-[14px] font-bold leading-[20px] text-primary sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
+              AI Planning
+            </p>
+            <h2 className="text-center text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-black sm:text-[40px] sm:leading-[48px] sm:tracking-[-0.4px]">
+              실제 매체 데이터와 AI가 만나
+              <br/>
+              광고 기획의 정확도가 달라집니다.
+            </h2>
+          </div>
+          <div className="flex w-full flex-col gap-[12px] sm:grid sm:grid-cols-3 sm:items-stretch sm:gap-[16px]">
+            {CARDS.map((card) => (
+                <div
+                    key={card.badge}
+                    className="flex flex-col gap-[10px] rounded-[6px] border border-stroke bg-[#f8f8f8] p-[12px] sm:px-[18px] sm:py-[36px]"
+                >
+              <span
+                  className="inline-flex w-fit items-center rounded-[4px] bg-primary px-[6px] py-[2px] text-xs font-medium leading-[16px] text-white sm:text-sm sm:font-semibold sm:leading-[20px]">
+                {card.badge}
+              </span>
+                  <div className="flex w-full gap-[8px] sm:flex-col">
+                    <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+                      <p className="whitespace-pre-line text-[16px] font-medium leading-[24px] text-black sm:text-[24px] sm:leading-[32px] sm:tracking-[-0.1px]">
+                        {card.title}
+                      </p>
+                      <p className="whitespace-pre-line text-[12px] font-medium leading-[16px] text-grey-500 sm:text-sm sm:leading-[20px]">
+                        {card.desc}
+                      </p>
+                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={card.image}
+                        alt=""
+                        className="size-[88px] shrink-0 self-center object-contain sm:aspect-square sm:size-auto sm:w-full sm:self-auto"
+                    />
+                  </div>
+                </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div
+              className="relative flex items-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:rounded-[36px] sm:px-[60px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/service/cta-bg.png"
+                alt=""
+                className="absolute inset-0 size-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-l from-black/[0.08] to-black/80 sm:hidden"/>
+            <div className="relative flex flex-col gap-[8px] sm:gap-[24px]">
+              <div className="flex flex-col">
+                <p className="text-[20px] font-medium leading-[28px] tracking-[-0.08px] text-white sm:text-[32px] sm:leading-[40px] sm:tracking-[-0.16px]">
+                  AI와의 대화 한 번으로
+                  <br/>
+                  <span className="text-primary">첫 캠페인</span>이 완성됩니다.
+                </p>
+                <p className="text-[14px] font-normal leading-[20px] text-grey-200 sm:text-base sm:leading-[24px]">
+                  복잡한 기획 없이 지금 바로 시작해 보세요.
+                </p>
+              </div>
+              <Link
+                  href="/fixed"
+                  className="flex w-fit items-center gap-[4px] rounded-[8px] bg-platinum-100 px-[12px] py-[8px] text-sm font-medium text-black"
+              >
+                매체 둘러보기
+                <ChevronRightIcon className="size-[18px]"/>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
   );
 }

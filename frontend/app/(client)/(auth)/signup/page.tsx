@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SVGProps } from "react";
 
-import { Logo, LogoFull } from "@/components/icons";
+import { Logo } from "@/components/icons";
 import { authApi } from "@/hooks/auth";
+import { LogoFullDark } from "@/components/icons/LogoFull";
 
 function KakaoMark(props: SVGProps<SVGSVGElement>) {
   return (
@@ -69,7 +70,7 @@ export default function SignupPage() {
     <main className="flex min-h-dvh w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
       <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
         <div className="flex w-full items-center justify-center py-[24px]">
-          <LogoFull />
+          <LogoFullDark />
         </div>
 
         <h1 className="w-full text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
@@ -120,9 +121,9 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/signup/email")}
-                  className={`${startButtonClass} cursor-pointer bg-primary text-white`}
+                  className={`${startButtonClass} cursor-pointer border-gray-200 border-2 bg-white text-black`}
                 >
-                  <Logo className="size-[24px] shrink-0" />
+                  <Logo className="size-[20px] shrink-0" />
                   이메일로 시작하기
                 </button>
               </div>

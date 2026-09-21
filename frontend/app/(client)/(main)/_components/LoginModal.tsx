@@ -4,13 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type SVGProps } from "react";
 
-import { LogoFull, XIcon } from "@/components/icons";
+import { XIcon } from "@/components/icons";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { authApi, authKeys, useLogin } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 import { setTokens } from "@/lib/userToken";
 
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
+import {LogoFullDark} from "@/components/icons/LogoFull";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -127,7 +128,7 @@ export function LoginModal() {
       <Dialog open={open} onOpenChange={closeLogin}>
         <DialogContent className="flex w-[452px] max-w-[calc(100vw-32px)] flex-col items-center gap-[32px] rounded-[12px] px-[16px] py-[24px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
           <div className="flex w-full items-center justify-between">
-            <LogoFull className="h-[24px]" />
+            <LogoFullDark />
             <DialogClose
               aria-label="닫기"
               className="flex size-[24px] cursor-pointer items-center justify-center text-black outline-none"

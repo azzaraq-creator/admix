@@ -1,10 +1,10 @@
-import { LogoFull } from "@/components/icons";
+import {LogoFullDark} from "@/components/icons/LogoFull";
 
 export function Footer() {
   return (
     <footer className="w-full border-t border-stroke px-[16px] py-[40px]">
       <div className="mx-auto flex w-full max-w-[1016px] flex-col items-start gap-[10px]">
-        <LogoFull />
+        <LogoFullDark />
         <p className="text-[14px] font-medium leading-[20px] text-black">
           광고 캠페인을, AI와 대화로.
         </p>

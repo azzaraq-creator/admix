@@ -4,7 +4,7 @@ import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { LogoFull } from "@/components/icons";
+import { LogoFullDark } from "@/components/icons/LogoFull";
 import { useRequestPasswordReset } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export default function FindAccountPage() {
     <main className="flex min-h-dvh w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
       <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
         <div className="flex w-full items-center justify-center py-[24px]">
-          <LogoFull className="h-[30px]" />
+          <LogoFullDark className="h-[30px]" />
         </div>
 
         {sent ? (

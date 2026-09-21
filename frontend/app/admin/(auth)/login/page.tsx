@@ -4,10 +4,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { LogoFull } from "@/components/icons";
 import { useAdminLogin } from "@/hooks/adminAuth";
 import { setAdminTokens } from "@/lib/adminToken";
 import { extractApiError } from "@/lib/apiError";
+import { LogoFullColor } from "@/components/icons/LogoFull";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function AdminLoginPage() {
     <div className="flex h-dvh w-full items-stretch bg-white">
       <div className="flex flex-1 flex-col gap-[16px] p-[40px]">
         <div className="flex w-full items-center py-[18px]">
-          <LogoFull />
+          <LogoFullColor />
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex w-full max-w-[448px] flex-col gap-[31px]">
