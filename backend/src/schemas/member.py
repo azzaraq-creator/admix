@@ -6,13 +6,18 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+# 회원 유형(가입 1단계) — 광고주 / 광고 대행사 / 매체사 / 일반.
+MemberCategory = Literal["advertiser", "agency", "media_owner", "general"]
 
 
 class MemberRow(BaseModel):
     no: str
-    type: str
+    # 회원 유형(광고주/광고 대행사/매체사/일반) 한글 표시값.
+    category: str
     loginId: str
     company: str
     name: str
@@ -79,7 +84,9 @@ class MemberDetail(BaseModel):
     email: str
     name: str | None = None
     phone: str | None = None
+    # 개인/기업 구분 — 기존 데이터 보존용(화면에서는 쓰지 않음).
     membership_type: str
+    member_category: MemberCategory
     company_name: str | None = None
     position: str | None = None
     industry: str | None = None
@@ -107,6 +114,8 @@ class MemberUpdate(BaseModel):
     name: str | None = None
     phone: str | None = None
     membership_type: str | None = None
+    # 가입 후 유형 변경 요청은 관리자가 반영한다(시안: "회원 정보에서 변경 요청").
+    member_category: MemberCategory | None = None
     company_name: str | None = None
     position: str | None = None
     industry: str | None = None

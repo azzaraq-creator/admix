@@ -44,5 +44,12 @@ def complete(
     db: Session = Depends(get_db),
 ) -> User:
     return oauth_service.complete_sns_signup(
-        db, current_user, body.email, body.marketing_consent
+        db,
+        current_user,
+        body.email,
+        body.marketing_consent,
+        member_category=body.member_category,
+        name=body.name,
+        phone=body.phone,
+        company_name=body.company_name,
     )

@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import type { MemberCategory } from "@/lib/memberCategory";
 import { getSessionId } from "@/lib/session";
 
 export interface LoginResponse {
@@ -12,9 +13,19 @@ export interface RegisterPayload {
   password: string;
   name: string;
   phone: string;
-  membership_type: "individual" | "corporate";
+  member_category: MemberCategory;
   company_name?: string;
   marketing_consent: boolean;
+}
+
+/** SNS 가입 마무리 — 제공자 이메일을 그대로 쓰면 이메일 인증 없이 완료된다. */
+export interface SnsCompletePayload {
+  email: string;
+  marketing_consent: boolean;
+  member_category: MemberCategory;
+  name: string;
+  phone: string;
+  company_name?: string;
 }
 
 export interface BusinessRegistration {
@@ -39,7 +50,7 @@ export interface MeResponse {
   phone: string | null;
   role: string;
   verified: boolean;
-  membership_type: "individual" | "corporate";
+  member_category: MemberCategory;
   company_name: string | null;
   marketing_consent: boolean;
   created_at: string;
@@ -77,6 +88,13 @@ export const authApi = {
         params: { email },
       })
       .then((r) => r.data.available),
+  /** 회원정보 단계 전화번호 중복 확인. SNS 가입(로그인 상태)은 본인 번호를 제외한다. */
+  checkPhoneAvailable: (phone: string) =>
+    api
+      .get<{ available: boolean }>("/auth/register/phone-available", {
+        params: { phone },
+      })
+      .then((r) => r.data.available),
   requestEmailVerification: (email: string) =>
     api.post("/auth/email/verify/request", { email }),
   confirmEmailVerification: (email: string, code: string) =>
@@ -85,13 +103,8 @@ export const authApi = {
     api
       .patch<MeResponse>("/auth/me/email", { email, code })
       .then((r) => r.data),
-  completeSnsSignup: (email: string, marketingConsent: boolean) =>
-    api
-      .post<MeResponse>("/auth/sns/complete", {
-        email,
-        marketing_consent: marketingConsent,
-      })
-      .then((r) => r.data),
+  completeSnsSignup: (payload: SnsCompletePayload) =>
+    api.post<MeResponse>("/auth/sns/complete", payload).then((r) => r.data),
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refresh_token: refreshToken }),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),

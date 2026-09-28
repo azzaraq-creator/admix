@@ -1,15 +1,17 @@
 import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+import type { MemberCategory } from "@/lib/memberCategory";
 
 export interface MemberListParams extends AdminListParams {
   biz_status?: string;
-  type?: string;
+  /** 회원 유형 한글값(광고주/광고 대행사/매체사/일반). */
+  category?: string;
   status?: string;
 }
 
 export interface MemberRow {
   no: string;
-  type: string;
+  category: string;
   loginId: string;
   company: string;
   name: string;
@@ -79,7 +81,9 @@ export interface MemberDetail {
   email: string;
   name: string | null;
   phone: string | null;
+  /** 개인/기업 구분 — 기존 데이터 보존용(화면에서는 쓰지 않음). */
   membership_type: string;
+  member_category: MemberCategory;
   company_name: string | null;
   position: string | null;
   industry: string | null;
@@ -99,7 +103,7 @@ export interface MemberDetail {
 export interface MemberUpdatePayload {
   name?: string;
   phone?: string;
-  membership_type?: string;
+  member_category?: MemberCategory;
   company_name?: string | null;
   position?: string | null;
   industry?: string | null;

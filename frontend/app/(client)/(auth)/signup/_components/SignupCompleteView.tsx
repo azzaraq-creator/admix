@@ -2,37 +2,63 @@
 
 import { useRouter } from "next/navigation";
 
-import { LogoFull } from "@/components/icons";
 import { useMe } from "@/hooks/auth";
+import { MEMBER_CATEGORY_LABEL } from "@/lib/memberCategory";
+import { cn } from "@/lib/utils";
 
+import { SignupShell } from "./SignupShell";
+import {
+  CardHeading,
+  CategoryBadge,
+  PrimaryAction,
+  RADIUS,
+  SignupCard,
+} from "./signupUi";
+
+/** 시안(00. 회원가입 - 완료). */
 export function SignupCompleteView() {
   const router = useRouter();
   const { data: me } = useMe();
-  const name = me?.name?.trim() || "회원";
+  const categoryLabel = me ? MEMBER_CATEGORY_LABEL[me.member_category] : null;
 
   return (
-    <main className="flex min-h-dvh w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
-      <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:gap-[120px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
-        <div className="flex w-full items-center justify-center py-[24px]">
-          <LogoFull />
-        </div>
+    <SignupShell step={5} hideLoginLink>
+      <SignupCard className="items-center">
+        <p aria-hidden className="text-[40px] leading-none">
+          🎉
+        </p>
+        <CardHeading
+          center
+          title="회원가입이 완료되었습니다."
+          description="ADMIX에서 원하는 옥외광고 매체를 찾아보세요."
+        />
 
-        <div className="flex w-full flex-col items-center text-center text-[24px] font-semibold leading-[32px] tracking-[-0.1px] text-black sm:gap-[12px] sm:text-[32px] sm:font-bold sm:leading-[40px] sm:tracking-[-0.16px]">
-          <p>
-            <span className="text-primary">{name}</span>님께
-          </p>
-          <p>딱 맞는 광고 매체를</p>
-          <p>추천해드릴게요!</p>
-        </div>
+        {me && (
+          // 요약 줄 높이 52px → 곡률 23px.
+          <div
+            className={cn(
+              "flex w-full flex-wrap items-center justify-between gap-[8px] bg-primary-50 p-[16px]",
+              RADIUS.h52,
+            )}
+          >
+            <div className="flex items-center gap-[10px]">
+              {categoryLabel && <CategoryBadge>{categoryLabel}</CategoryBadge>}
+              <span className="text-[13px] text-black-900">
+                {categoryLabel
+                  ? `${categoryLabel}로 가입하셨습니다.`
+                  : "가입하셨습니다."}
+              </span>
+            </div>
+            <span className="truncate text-[13px] text-black-500">
+              {me.email}
+            </span>
+          </div>
+        )}
 
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="flex w-full cursor-pointer items-center justify-center rounded-[8px] bg-primary px-[24px] py-[14px] text-[16px] font-bold leading-[24px] tracking-[-0.4px] text-white sm:py-[16px] sm:font-semibold sm:tracking-normal"
-        >
-          시작하기
-        </button>
-      </div>
-    </main>
+        {/* AI 믹시·ADMIX 시작하기가 같은 기능이라 버튼 하나로 합쳤다.
+            가입이 끝나면 이미 로그인된 상태라 로그인 창 대신 홈(대시보드)으로 보낸다. */}
+        <PrimaryAction label="ADMIX 시작하기" onPress={() => router.push("/")} />
+      </SignupCard>
+    </SignupShell>
   );
 }

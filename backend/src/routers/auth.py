@@ -34,7 +34,7 @@ from src.schemas.auth import (
     UserResponse,
 )
 from src.services import auth_service, member_service, proposal_service
-from src.utils.deps import get_current_user
+from src.utils.deps import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -51,6 +51,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         body.name,
         phone=body.phone,
         membership_type=body.membership_type,
+        member_category=body.member_category,
         company_name=body.company_name,
         marketing_consent=body.marketing_consent,
     )
@@ -189,6 +190,18 @@ def password_reset_confirm(body: PasswordResetConfirm, db: Session = Depends(get
 def register_email_available(email: str, db: Session = Depends(get_db)) -> dict:
     # 이메일 가입 시 login_id(=이메일) 중복 체크. 인증코드 전송 전 프론트에서 호출.
     return {"available": not auth_service.is_email_registered(db, email)}
+
+
+@router.get("/register/phone-available")
+def register_phone_available(
+    phone: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> dict:
+    # 회원정보 단계에서 "다음" 누를 때 호출 — 약관 단계까지 가서야 409가 나던 것을 앞당긴다.
+    # SNS 가입은 이미 로그인된 상태라 본인 번호는 중복으로 치지 않는다.
+    exclude = current_user.id if current_user else None
+    return {"available": not auth_service.is_phone_registered(db, phone, exclude)}
 
 
 @router.post("/email/verify/request")

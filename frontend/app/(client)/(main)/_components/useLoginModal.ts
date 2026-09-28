@@ -28,3 +28,6 @@ export function setLoginModalOpen(value: boolean) {
 export function openLoginModal() {
   setLoginModalOpen(true);
 }
+
+/** 다른 화면(회원가입·비밀번호 찾기 등)에서 "로그인"을 누르면 이 주소로 보낸다 — 대시보드에서 로그인 창이 열린다. */
+export const LOGIN_HREF = "/?login=1";

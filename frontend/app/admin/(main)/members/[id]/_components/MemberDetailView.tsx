@@ -14,6 +14,7 @@ import { CommonTable } from "@/components/common/Table/CommonTable";
 import { useAdminMe } from "@/hooks/adminAuth";
 import { useMember, type SanctionOut } from "@/hooks/members";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
+import { MEMBER_CATEGORY_LABEL } from "@/lib/memberCategory";
 
 import { BasicInfoTab } from "./BasicInfoTab";
 import { MemberInquiriesTab } from "./MemberInquiriesTab";
@@ -34,7 +35,6 @@ const TABS: { key: TabKey; label: string; permKey?: string }[] = [
   { key: "sanctions", label: "제재 관리" },
 ];
 
-const TYPE_LABEL: Record<string, string> = { corporate: "기업", individual: "일반" };
 
 function HeaderStat({ label, value }: { label: string; value: string }) {
   return (
@@ -115,7 +115,7 @@ export function MemberDetailView() {
             <div className="flex flex-wrap items-center gap-x-[22px] gap-y-[16px]">
               <HeaderInfo
                 label="회원 유형"
-                value={TYPE_LABEL[member.membership_type] ?? member.membership_type}
+                value={MEMBER_CATEGORY_LABEL[member.member_category] ?? "-"}
               />
               <div className="h-[41px] w-px bg-[#e6e6e6]" />
               <div className="flex w-[120px] flex-col gap-[12px]">

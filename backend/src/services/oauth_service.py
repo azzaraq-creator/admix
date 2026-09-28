@@ -30,6 +30,9 @@ _PROVIDERS = {
     },
 }
 
+# 소셜 제공자가 이메일을 주지 않았을 때 넣는 자리표시 이메일의 도메인.
+PLACEHOLDER_EMAIL_SUFFIX = "@social.local"
+
 
 def _conf(provider: str) -> dict:
     if provider not in _PROVIDERS:
@@ -138,7 +141,7 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
     # 제공자가 이메일을 주면 화면 pre-fill 용으로 email 에 저장, 없으면 placeholder.
     user = User(
         login_id=f"{provider}_{provider_id}",
-        email=profile.get("email") or f"{provider}_{provider_id}@social.local",
+        email=profile.get("email") or f"{provider}_{provider_id}{PLACEHOLDER_EMAIL_SUFFIX}",
         password=None,
         name=profile.get("name"),
         verified=False,
@@ -162,21 +165,47 @@ def login_with_provider(db: Session, provider: str, code: str, state: str) -> Us
 
 
 def complete_sns_signup(
-    db: Session, user: User, email: str, marketing_consent: bool
+    db: Session,
+    user: User,
+    email: str,
+    marketing_consent: bool,
+    member_category: str | None = None,
+    name: str | None = None,
+    phone: str | None = None,
+    company_name: str | None = None,
 ) -> User:
-    """SNS 가입 마무리 — 인증된 이메일 확정 + 약관(마케팅) 동의 저장.
+    """SNS 가입 마무리 — 이메일 확정 + 회원정보·약관(마케팅) 동의 저장.
 
-    이메일 인증코드 확인(confirm)이 선행되어야 하며, 여기서 최종 이메일이
-    실제로 인증되었는지 재확인한다.
+    시안(00. 회원가입)상 카카오·네이버 가입은 이메일 인증 단계를 건너뛴다.
+    그래서 소셜 제공자가 준 이메일(가입 시 user.email 에 저장)을 그대로 쓰면 인증을
+    생략하고, 제공자가 이메일을 안 줬거나(placeholder) 다른 이메일로 바꾸면
+    인증코드 확인(confirm)이 선행돼야 한다.
     """
     from src.services import auth_service
 
-    if not auth_service.is_email_verified(db, email):
+    provider_email = (
+        None if user.email.endswith(PLACEHOLDER_EMAIL_SUFFIX) else user.email
+    )
+    if email != provider_email and not auth_service.is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
     # 연락받을 이메일은 수신 가능 여부만 확인하므로 이미 가입된 이메일이어도 허용.
     user.email = email
     user.verified = True
     user.marketing_consent = marketing_consent
+    if phone:
+        taken = (
+            db.query(User).filter(User.phone == phone, User.id != user.id).first()
+        )
+        if taken:
+            raise HTTPException(status_code=409, detail="이미 가입된 전화번호입니다.")
+        user.phone = phone
+    # 보내지 않은 값은 건드리지 않는다(예전 클라이언트·소셜 프로필 이름 보존).
+    if member_category is not None:
+        user.member_category = member_category
+    if name:
+        user.name = name
+    if company_name is not None:
+        user.company_name = company_name or None
     db.commit()
     db.refresh(user)
     return user

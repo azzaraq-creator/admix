@@ -2,16 +2,26 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent, type SVGProps } from "react";
+import { useEffect, useState, type FormEvent, type SVGProps } from "react";
 
-import { XIcon } from "@/components/icons";
-import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import { authApi, authKeys, useLogin } from "@/hooks/auth";
-import { cn } from "@/lib/utils";
-import { setTokens } from "@/lib/userToken";
+import {
+  Button,
+  Checkbox,
+  FieldError,
+  Input,
+  InputGroup,
+  Label,
+  Modal,
+  Separator,
+  TextField,
+} from "@heroui/react";
+
+import { ChevronRightIcon, XIcon } from "@/components/icons";
+import { LogoFullDark } from "@/components/icons/LogoFull";
+import { authApi, authKeys, useLogin, useSnsLogin } from "@/hooks/auth";
+import { getUserToken, setTokens } from "@/lib/userToken";
 
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
-import {LogoFullDark} from "@/components/icons/LogoFull";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -34,22 +44,35 @@ function NaverIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function CheckIcon(props: SVGProps<SVGSVGElement>) {
+function EyeIcon({ off, ...props }: SVGProps<SVGSVGElement> & { off?: boolean }) {
   return (
-    <svg viewBox="0 0 8 6" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path
-        d="M1 3.2 2.9 5 7 1"
+        d="M2.5 12S5.9 5.5 12 5.5 21.5 12 21.5 12 18.1 18.5 12 18.5 2.5 12 2.5 12Z"
         stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
+        strokeWidth={1.8}
         strokeLinejoin="round"
       />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={1.8} />
+      {off && (
+        <path d="M4 4l16 16" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+      )}
     </svg>
   );
 }
 
-const inputClass =
-  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
+// 곡률 규칙: 높이/2 - 3px. 입력칸·버튼 모두 HeroUI 기본 높이 36px → 15px.
+const CONTROL_RADIUS = "rounded-[15px]";
+
+// 입력칸 — 매체 찾기 검색바와 같은 회색 필(black-100 바탕·black-200 테두리)로 두고,
+// 마우스를 올리거나 입력 중이면 흰 바탕이 된다(검색바처럼 포커스 링은 없다). 잘못된 입력이면 테두리만 빨갛게.
+const FIELD_CLASS =
+  `${CONTROL_RADIUS} border border-black-200 bg-black-100 text-[14px] text-black-900 [box-shadow:none]! transition-colors ` +
+  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white " +
+  "data-[focus-within=true]:bg-white focus-within:bg-white data-[invalid=true]:border-danger";
+
+// 간편 로그인 — 각 소셜 브랜드 색(카카오 노랑·네이버 초록). 크기는 HeroUI 기본 버튼(md) 그대로.
+const SNS_BUTTON_CLASS = `gap-[6px] text-[14px] font-semibold ${CONTROL_RADIUS}`;
 
 function getErrorStatus(error: unknown): number | undefined {
   return (error as { response?: { status?: number } })?.response?.status;
@@ -66,16 +89,20 @@ export function LoginModal() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [credentialError, setCredentialError] = useState(false);
   const [restrictedOpen, setRestrictedOpen] = useState(false);
-  const [snsPending, setSnsPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSnsLogin = async (provider: "kakao" | "naver") => {
-    setSnsPending(true);
-    try {
-      window.location.href = await authApi.snsAuthorizeUrl(provider);
-    } catch {
-      setSnsPending(false);
-    }
-  };
+  // 다른 화면에서 LOGIN_HREF(?login=1)로 들어오면 로그인 창을 연다. 새로고침 때 다시 열리지
+  // 않도록 주소에서 표시는 지운다. 이미 로그인한 상태면 열지 않는다.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("login") !== "1") return;
+    url.searchParams.delete("login");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!getUserToken()) setLoginModalOpen(true);
+  }, []);
+
+  // 소셜 페이지에서 뒤로가기로 돌아와도 버튼이 잠긴 채 남지 않게 useSnsLogin이 풀어 준다.
+  const { pending: snsPending, start: handleSnsLogin } = useSnsLogin();
 
   const closeLogin = (value: boolean) => {
     setLoginModalOpen(value);
@@ -123,160 +150,205 @@ export function LoginModal() {
     }
   };
 
+  const goTo = (path: string) => {
+    setLoginModalOpen(false);
+    router.push(path);
+  };
+
   return (
     <>
-      <Dialog open={open} onOpenChange={closeLogin}>
-        <DialogContent className="flex w-[452px] max-w-[calc(100vw-32px)] flex-col items-center gap-[32px] rounded-[12px] px-[16px] py-[24px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
-          <div className="flex w-full items-center justify-between">
-            <LogoFullDark />
-            <DialogClose
-              aria-label="닫기"
-              className="flex size-[24px] cursor-pointer items-center justify-center text-black outline-none"
+      <Modal isOpen={open} onOpenChange={closeLogin}>
+        <Modal.Backdrop>
+          <Modal.Container placement="center" className="px-[16px] sm:px-0">
+            <Modal.Dialog
+              aria-label="로그인"
+              className="w-full max-w-[420px] gap-0 rounded-[24px] bg-white px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
             >
-              <XIcon className="size-[24px]" />
-            </DialogClose>
-          </div>
+              <Modal.CloseTrigger
+                aria-label="닫기"
+                className="top-[16px] right-[16px] size-[32px] rounded-full bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
+              >
+                <XIcon className="size-[20px]" />
+              </Modal.CloseTrigger>
 
-          <div className="flex w-full flex-col gap-[24px]">
-            <form onSubmit={handleSubmit} className="flex w-full flex-col gap-[16px]">
-              <div className="flex w-full flex-col gap-[12px]">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => {
-                    setEmail(event.target.value);
-                    if (credentialError) setCredentialError(false);
-                  }}
-                  placeholder="이메일을 입력해 주세요."
-                  className={cn(
-                    inputClass,
-                    credentialError ? "border-[#ff2c20] bg-[#fff2f1]" : "border-stroke",
-                  )}
-                />
-                <div className="flex w-full flex-col gap-[6px]">
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value);
+              <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
+                <LogoFullDark className="h-[28px]" />
+                <p className="text-[13px] leading-[20px] text-black-500">
+                  로그인하고 AI 믹시 추천과 제안서를 이어서 관리하세요
+                </p>
+              </Modal.Header>
+
+              <Modal.Body className="m-0 mt-[24px] flex flex-col gap-[20px] overflow-visible p-0">
+                <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[14px]">
+                  <TextField
+                    type="email"
+                    value={email}
+                    onChange={(value) => {
+                      setEmail(value);
                       if (credentialError) setCredentialError(false);
                     }}
-                    placeholder="비밀번호를 입력해 주세요."
-                    className={cn(
-                      inputClass,
-                      credentialError
-                        ? "border-[#ff2c20] bg-[#fff2f1]"
-                        : "border-stroke",
-                    )}
-                  />
-                  {credentialError && (
-                    <p className="w-full text-[14px] font-medium leading-[20px] text-[#ff2c20]">
-                      아이디 또는 비밀번호를 확인해 주세요
-                    </p>
-                  )}
-                </div>
-                <div className="flex w-full items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setKeepLoggedIn((prev) => !prev)}
-                    className="flex items-center gap-[9px]"
+                    isInvalid={credentialError}
+                    autoComplete="email"
+                    aria-label="이메일"
+                    fullWidth
                   >
-                    <span
-                      className={`flex size-[16.667px] items-center justify-center rounded-[4px] border ${
-                        keepLoggedIn
-                          ? "border-primary bg-primary text-white"
-                          : "border-stroke bg-white text-transparent"
-                      }`}
-                    >
-                      <CheckIcon className="h-[5.5px] w-[7px]" />
-                    </span>
-                    <span className="text-[14px] font-medium leading-[20px] text-black">
-                      로그인 유지
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginModalOpen(false);
-                      router.push("/find-account");
+                    {/* 라벨 없이 placeholder로 안내한다. */}
+                    <Input placeholder="이메일" className={FIELD_CLASS} />
+                  </TextField>
+
+                  <TextField
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(value) => {
+                      setPassword(value);
+                      if (credentialError) setCredentialError(false);
                     }}
-                    className="cursor-pointer text-[14px] font-medium leading-[20px] text-black"
+                    isInvalid={credentialError}
+                    autoComplete="current-password"
+                    aria-label="비밀번호"
+                    fullWidth
                   >
-                    비밀번호 재설정
-                  </button>
+                    <InputGroup className={FIELD_CLASS}>
+                      <InputGroup.Input
+                        placeholder="비밀번호"
+                        className="bg-transparent text-[14px] text-black-900 placeholder:text-black-400"
+                      />
+                      <InputGroup.Suffix className="pr-[4px]">
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                          onPress={() => setShowPassword((prev) => !prev)}
+                          className="size-[28px] min-w-0 rounded-[11px] text-black-400 data-[hovered=true]:text-black"
+                        >
+                          <EyeIcon off={showPassword} className="size-[16px]" />
+                        </Button>
+                      </InputGroup.Suffix>
+                    </InputGroup>
+                    <FieldError>
+                      이메일 또는 비밀번호를 확인해 주세요
+                    </FieldError>
+                  </TextField>
+
+                  <div className="flex items-center justify-between">
+                    {/* HeroUI가 쓰는 accent·accent-foreground 색이 globals.css에서 shadcn 값(연보라 바탕·
+                        진보라 체크)으로 덮여 있어, 체크됐을 때 브랜드 보라 바탕 + 흰 체크로 되돌린다. */}
+                    <Checkbox
+                      isSelected={keepLoggedIn}
+                      onChange={setKeepLoggedIn}
+                      className="group"
+                    >
+                      <Checkbox.Content className="gap-[8px]">
+                        <Checkbox.Control className="size-[18px] rounded-[6px] group-data-[selected=true]:text-white! group-data-[selected=true]:before:bg-primary!">
+                          <Checkbox.Indicator className="[&_svg]:stroke-white!" />
+                        </Checkbox.Control>
+                        <Label className="text-[13px] font-medium text-black">
+                          로그인 유지
+                        </Label>
+                      </Checkbox.Content>
+                    </Checkbox>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onPress={() => goTo("/find-account")}
+                      className="h-auto min-w-0 p-0 text-[13px] font-medium text-black-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
+                    >
+                      비밀번호 재설정
+                    </Button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    fullWidth
+                    isPending={loginMutation.isPending}
+                    className={`mt-[4px] bg-primary font-semibold text-white ${CONTROL_RADIUS}`}
+                  >
+                    {loginMutation.isPending ? "로그인 중..." : "로그인"}
+                  </Button>
+                </form>
+
+                <div className="flex items-center gap-[12px]">
+                  <Separator className="flex-1 bg-stroke" />
+                  <span className="text-[12px] font-medium text-black-400">
+                    간편 로그인
+                  </span>
+                  <Separator className="flex-1 bg-stroke" />
                 </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loginMutation.isPending}
-                className="flex w-full items-center justify-center rounded-[8px] bg-primary px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-white disabled:opacity-60"
-              >
-                {loginMutation.isPending ? "로그인 중..." : "로그인"}
-              </button>
-            </form>
 
-            <div className="h-px w-full bg-stroke" />
+                <div className="grid grid-cols-2 gap-[8px]">
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    isDisabled={snsPending}
+                    onPress={() => handleSnsLogin("kakao")}
+                    className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
+                  >
+                    <KakaoIcon className="size-[18px] shrink-0" />
+                    카카오
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    isDisabled={snsPending}
+                    onPress={() => handleSnsLogin("naver")}
+                    className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
+                  >
+                    <NaverIcon className="size-[18px] shrink-0" />
+                    네이버
+                  </Button>
+                </div>
+              </Modal.Body>
 
-            <div className="flex w-full items-center justify-center gap-[8px]">
-              <button
-                type="button"
-                aria-label="카카오로 로그인"
-                onClick={() => handleSnsLogin("kakao")}
-                disabled={snsPending}
-                className="flex cursor-pointer items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
-              >
-                <KakaoIcon className="size-[24px] shrink-0" />
-              </button>
-              <button
-                type="button"
-                aria-label="네이버로 로그인"
-                onClick={() => handleSnsLogin("naver")}
-                disabled={snsPending}
-                className="flex cursor-pointer items-center gap-[8px] rounded-[8px] border border-stroke px-[20px] py-[16px] disabled:opacity-60"
-              >
-                <NaverIcon className="size-[24px] shrink-0" />
-              </button>
-            </div>
+              {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
+              <Modal.Footer className="mt-[24px] flex items-center justify-center gap-[6px] border-t border-stroke p-0 pt-[20px] text-[13px]">
+                <span className="text-black-500">아직 회원이 아니신가요?</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => goTo("/signup")}
+                  className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
+                >
+                  회원가입
+                  <ChevronRightIcon className="size-[14px]" />
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
 
-            <div className="flex w-full items-center justify-center gap-[8px] text-[16px] leading-[24px]">
-              <span className="font-normal text-black">
-                아직 회원이 아니신가요?
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginModalOpen(false);
-                  router.push("/signup");
-                }}
-                className="cursor-pointer font-bold text-primary"
-              >
-                회원가입
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={restrictedOpen} onOpenChange={setRestrictedOpen}>
-        <DialogContent className="flex w-[400px] max-w-[calc(100vw-32px)] flex-col items-center gap-[20px] px-[30px] py-[20px]">
-          <div className="flex w-full flex-col items-start gap-[12px] text-black">
-            <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px]">
-              서비스 이용이 제한되었습니다.
-            </p>
-            <div className="text-[16px] font-medium leading-[24px]">
-              <p>운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로 제한되었습니다.</p>
-              <p>문의가 필요한 경우 [문의하기]로 문의해 주세요.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setRestrictedOpen(false)}
-            className="flex h-[48px] w-full items-center justify-center rounded-[8px] bg-primary px-[16px] py-[12px] text-[16px] font-medium leading-[24px] text-white"
-          >
-            확인
-          </button>
-        </DialogContent>
-      </Dialog>
+      <Modal isOpen={restrictedOpen} onOpenChange={setRestrictedOpen}>
+        <Modal.Backdrop>
+          <Modal.Container placement="center" className="px-[16px] sm:px-0">
+            <Modal.Dialog
+              aria-label="서비스 이용 제한"
+              className="w-full max-w-[400px] gap-[20px] rounded-[24px] bg-white p-[28px]"
+            >
+              <Modal.Header className="p-0">
+                <Modal.Heading className="text-[18px] leading-[28px] font-bold text-black">
+                  서비스 이용이 제한되었습니다
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-black-700">
+                <p>운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로 제한되었습니다.</p>
+                <p>문의가 필요한 경우 [문의하기]로 문의해 주세요.</p>
+              </Modal.Body>
+              <Modal.Footer className="p-0">
+                <Button
+                  slot="close"
+                  variant="primary"
+                  fullWidth
+                  className="h-[48px] rounded-[14px] bg-primary text-[15px] font-semibold text-white"
+                >
+                  확인
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </>
   );
 }

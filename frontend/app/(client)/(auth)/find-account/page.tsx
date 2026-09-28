@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { LOGIN_HREF } from "@/app/(client)/(main)/_components/useLoginModal";
 import { LogoFullDark } from "@/components/icons/LogoFull";
 import { useRequestPasswordReset } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export default function FindAccountPage() {
               <p>재설정 안내 메일을 전송했습니다.</p>
             </div>
             <Link
-              href="/"
+              href={LOGIN_HREF}
               className="flex w-full items-center justify-center rounded-[8px] bg-primary px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-white"
             >
               로그인으로 돌아가기
@@ -112,7 +113,7 @@ export default function FindAccountPage() {
               <span className="font-normal text-black">
                 비밀번호가 기억나셨나요?
               </span>
-              <Link href="/" className="font-bold text-primary">
+              <Link href={LOGIN_HREF} className="font-bold text-primary">
                 로그인
               </Link>
             </div>

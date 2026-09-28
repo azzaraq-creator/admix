@@ -1,5 +1,5 @@
-import { SnsSignupForm } from "../_components/SnsSignupForm";
+import { SnsSignupWizard } from "../_components/SnsSignupWizard";
 
 export default function SnsSignupPage() {
-  return <SnsSignupForm />;
+  return <SnsSignupWizard />;
 }

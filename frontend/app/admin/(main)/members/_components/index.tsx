@@ -3,16 +3,17 @@ import type {
   TableColumn,
 } from "@/components/common/Table/CommonTable";
 import { BizStatusBadge, type BizStatus } from "@/lib/bizStatus";
+import { MEMBER_CATEGORIES } from "@/lib/memberCategory";
 
 export type { BizStatus };
 
-export type MemberType = "기업" | "일반";
 export type MemberStatus = "정상" | "탈퇴" | "제재" | "휴면";
 
 export type Member = {
   id: string;
   no: string;
-  type: MemberType;
+  /** 회원 유형 한글값(광고주/광고 대행사/매체사/일반). */
+  category: string;
   loginId: string;
   company: string;
   name: string;
@@ -26,7 +27,7 @@ export type Member = {
 
 export const memberColumnList: TableColumn<Member>[] = [
   { name: "no", label: "No", className: "text-disabled" },
-  { name: "type", label: "회원 유형" },
+  { name: "category", label: "회원 유형" },
   { name: "loginId", label: "가입 아이디" },
   { name: "name", label: "이름" },
   { name: "email", label: "연락받을 이메일" },
@@ -69,13 +70,10 @@ export const memberSearchOptionList: SearchOption[] = [
   },
   {
     type: "select",
-    name: "type",
-    label: "유형",
+    name: "category",
+    label: "회원 유형",
     row: 2,
-    optionList: [
-      { label: "일반", value: "일반" },
-      { label: "기업", value: "기업" },
-    ],
+    optionList: MEMBER_CATEGORIES.map(({ label }) => ({ label, value: label })),
   },
   {
     type: "text",

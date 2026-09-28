@@ -37,8 +37,8 @@ def list_members(
     date_to: str | None = None,
     keyword: str | None = None,
     biz_status: str | None = None,
-    type: str | None = None,
     status: str | None = None,
+    category: str | None = None,
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("member")),
 ) -> MemberListResponse:
@@ -48,8 +48,8 @@ def list_members(
         date_to=date_to,
         keyword=keyword,
         biz_status=biz_status,
-        member_type=type,
         status=status,
+        category=category,
         page=page,
         page_size=page_size,
     )

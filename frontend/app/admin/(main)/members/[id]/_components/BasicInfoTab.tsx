@@ -18,8 +18,13 @@ import { useUpdateBizReg, useUpdateMember, type MemberDetail } from "@/hooks/mem
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { API_BASE_URL, api } from "@/lib/api";
 import { isOptimizable } from "@/lib/media";
+import {
+  MEMBER_CATEGORIES,
+  isMemberCategory,
+  type MemberCategory,
+} from "@/lib/memberCategory";
 
-const TYPE_LABEL: Record<string, string> = { corporate: "기업", individual: "일반" };
+const CATEGORY_OPTIONS = MEMBER_CATEGORIES.map(({ value, label }) => ({ value, label }));
 const BIZ_OPTIONS = [
   { value: "unregistered", label: "미등록" },
   { value: "reviewing", label: "검토 대기" },
@@ -84,6 +89,8 @@ export function BasicInfoTab({
   const updateMember = useUpdateMember();
   const updateBiz = useUpdateBizReg();
 
+  // 회원 유형 — 회원이 변경을 요청하면 관리자가 여기서 바꾼다(가입 시안 안내 문구).
+  const [category, setCategory] = useState<MemberCategory>(member.member_category);
   const [position, setPosition] = useState(member.position ?? "");
   const [industry, setIndustry] = useState(member.industry ?? "");
   const [memo, setMemo] = useState(member.admin_memo ?? "");
@@ -136,6 +143,7 @@ export function BasicInfoTab({
       await updateMember.mutateAsync({
         id: member.id,
         payload: {
+          member_category: category,
           position: position.trim() || null,
           industry: industry.trim() || null,
           admin_memo: memo.trim() || null,
@@ -174,7 +182,24 @@ export function BasicInfoTab({
             <p className={CARD_TITLE}>기본 정보</p>
             <div className="flex flex-col gap-[16px]">
               <Row label="회원 유형">
-                <ReadValue value={TYPE_LABEL[member.membership_type] ?? member.membership_type} />
+                <Select
+                  items={CATEGORY_OPTIONS}
+                  value={category}
+                  onValueChange={(v) => {
+                    if (isMemberCategory(v)) setCategory(v);
+                  }}
+                >
+                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
+                    <SelectValue placeholder="회원 유형 선택" />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} className="min-w-0">
+                    {CATEGORY_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Row>
               <Row label="회사명">
                 <ReadValue value={member.company_name ?? "-"} />
@@ -238,7 +263,7 @@ export function BasicInfoTab({
             <div className="flex flex-col gap-[16px]">
               <Row label="상태" required>
                 <Select items={BIZ_OPTIONS} value={bizStatus} onValueChange={(v) => setBizStatus(v ?? "unregistered")}>
-                  <SelectTrigger className="h-[40px] flex-1 rounded-[6px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
+                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
                     <SelectValue placeholder="상태 선택" />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -297,7 +322,7 @@ export function BasicInfoTab({
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="flex h-[36px] w-[100px] shrink-0 cursor-pointer items-center justify-center gap-[8px] rounded-[6px] border border-[#ebebeb] bg-white text-sm font-medium text-[#0a0a0a] shadow-sm"
+                      className="flex h-[36px] w-[100px] shrink-0 cursor-pointer items-center justify-center gap-[8px] rounded-[15px] border border-[#ebebeb] bg-white text-sm font-medium text-[#0a0a0a] shadow-sm"
                     >
                       <DownloadIcon className="size-[16px]" />
                       다운로드

@@ -17,7 +17,6 @@ import {
   type BizStatus,
   type Member,
   type MemberStatus,
-  type MemberType,
 } from "./index";
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -43,7 +42,7 @@ export function MembersListView() {
     date_to: search.periodTo,
     keyword: search.keyword,
     biz_status: search.bizStatus,
-    type: search.type,
+    category: search.category,
     status: search.status,
   });
   const { error } = useSonner();
@@ -61,7 +60,7 @@ export function MembersListView() {
       (data?.items ?? []).map((r, i) => ({
         id: r.no,
         no: String((page - 1) * pageSize + i + 1),
-        type: r.type as MemberType,
+        category: r.category,
         loginId: r.loginId,
         company: r.company,
         name: r.name,

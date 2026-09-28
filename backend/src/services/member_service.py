@@ -23,7 +23,12 @@ from src.schemas.member import (
     SanctionCreate,
 )
 
-_TYPE = {"corporate": "기업", "individual": "일반"}
+_CATEGORY = {
+    "advertiser": "광고주",
+    "agency": "광고 대행사",
+    "media_owner": "매체사",
+    "general": "일반",
+}
 _PROPOSAL_STATUS = {
     "cancelled": "취소",
     "new": "신규",
@@ -49,7 +54,7 @@ def _map_member(u) -> dict:
     biz = u.business_registration
     return dict(
         no=str(u.id),
-        type=_TYPE.get(u.membership_type, u.membership_type),
+        category=_CATEGORY.get(u.member_category, u.member_category or "-"),
         loginId=u.login_id,
         company=u.company_name or "-",
         name=u.name or "-",
@@ -69,8 +74,8 @@ def list_members(
     date_to: str | None = None,
     keyword: str | None = None,
     biz_status: str | None = None,
-    member_type: str | None = None,
     status: str | None = None,
+    category: str | None = None,
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[int, list[dict]]:
@@ -90,7 +95,7 @@ def list_members(
     def keep(r: dict) -> bool:
         if biz_status and r["bizStatus"] != biz_status:
             return False
-        if member_type and r["type"] != member_type:
+        if category and r["category"] != category:
             return False
         if status and r["status"] != status:
             return False
@@ -116,7 +121,7 @@ def list_members_all(db: Session) -> list[dict]:
 
 
 _EXPORT_COLUMNS = [
-    ("type", "회원 유형"),
+    ("category", "회원 유형"),
     ("loginId", "가입 아이디"),
     ("name", "이름"),
     ("email", "연락받을 이메일"),
@@ -167,6 +172,7 @@ def get_member(db: Session, user_id: uuid.UUID) -> dict:
         name=user.name,
         phone=user.phone,
         membership_type=user.membership_type,
+        member_category=user.member_category,
         company_name=user.company_name,
         position=user.position,
         industry=user.industry,

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from src.schemas.member import BusinessRegistrationOut
+from src.schemas.member import BusinessRegistrationOut, MemberCategory
 
 
 class RegisterRequest(BaseModel):
@@ -15,6 +15,7 @@ class RegisterRequest(BaseModel):
     name: str | None = None
     phone: str | None = None
     membership_type: str = "individual"
+    member_category: MemberCategory | None = None
     company_name: str | None = None
     marketing_consent: bool = False
     session_id: str | None = None
@@ -70,6 +71,7 @@ class UserResponse(BaseModel):
     role: str
     verified: bool
     membership_type: str = "individual"
+    member_category: MemberCategory | None = None
     company_name: str | None = None
     marketing_consent: bool = False
     created_at: datetime
@@ -92,3 +94,8 @@ class EmailVerifyConfirm(BaseModel):
 class SnsCompleteRequest(BaseModel):
     email: EmailStr
     marketing_consent: bool = False
+    member_category: MemberCategory | None = None
+    # 시안상 SNS 가입도 "회원정보 입력" 단계를 거친다. 예전 클라이언트는 보내지 않으므로 선택값.
+    name: str | None = None
+    phone: str | None = None
+    company_name: str | None = None

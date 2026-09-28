@@ -55,6 +55,7 @@ def register(
     membership_type: str = "individual",
     company_name: str | None = None,
     marketing_consent: bool = False,
+    member_category: str | None = None,
 ) -> User:
     if not is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
@@ -69,6 +70,7 @@ def register(
         name=name,
         phone=phone or None,
         membership_type=membership_type,
+        member_category=member_category or "general",
         company_name=company_name or None,
         marketing_consent=marketing_consent,
     )
@@ -387,6 +389,18 @@ def is_email_verified(db: Session, email: str) -> bool:
         .first()
         is not None
     )
+
+
+def is_phone_registered(db: Session, phone: str, exclude_user_id=None) -> bool:
+    """전화번호가 다른 회원에게 이미 쓰이는지 — 회원정보 단계 중복 체크용.
+
+    register / update_profile 의 409 판정과 같은 조건(완전 일치)이다. SNS 가입은
+    소셜 로그인 때 회원이 먼저 생기므로 본인(exclude_user_id)은 빼고 본다.
+    """
+    query = db.query(User).filter(User.phone == phone)
+    if exclude_user_id is not None:
+        query = query.filter(User.id != exclude_user_id)
+    return query.first() is not None
 
 
 def is_email_registered(db: Session, email: str) -> bool:

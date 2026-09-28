@@ -38,7 +38,13 @@ class User(Base):
     verified = Column(Boolean, nullable=False, default=False)
     verify_token = Column(String(255), nullable=True)
     # 회원(member) 운영 필드 — 설계서 §3.1
+    # 개인/기업 구분 — 가입 시 더 이상 받지 않지만 기존 회원 데이터 보존용으로 남겨둔다.
     membership_type = Column(String(20), nullable=False, default="individual")  # individual/corporate
+    # 회원 유형(가입 1단계 "회원 유형 선택") — advertiser/agency/media_owner/general.
+    # 도입 전 가입자는 membership_type 으로 채웠다(개인→general, 기업→advertiser, 마이그레이션 041).
+    member_category = Column(
+        String(20), nullable=False, default="general", server_default="general"
+    )
     company_name = Column(String(200), nullable=True)
     position = Column(String(100), nullable=True)
     industry = Column(String(100), nullable=True)
