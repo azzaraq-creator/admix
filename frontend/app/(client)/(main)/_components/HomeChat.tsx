@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
@@ -79,7 +80,14 @@ function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
  * 믹시 대화 화면. 홈 본문("page")과 LNB에서 여는 사이드 패널("panel")이 함께 쓴다.
  * 패널은 폭이 좁고 자체 헤더(새 대화·닫기)가 있어 상단 줄을 빼고, 빈 대화엔 추천 질문을 보인다.
  */
-export function HomeChat({ variant = "page" }: { variant?: "page" | "panel" }) {
+export function HomeChat({
+  variant = "page",
+  modeToggle,
+}: {
+  variant?: "page" | "panel";
+  /** 홈 입력바의 전송 버튼 왼쪽에 둘 AI/검색 전환 탭(시안 "01. 대시보드"). 패널에서는 쓰지 않는다. */
+  modeToggle?: ReactNode;
+}) {
   const { chat, setPanelOpen } = useMixieChat();
   const isPanel = variant === "panel";
   const router = useRouter();
@@ -265,14 +273,22 @@ export function HomeChat({ variant = "page" }: { variant?: "page" | "panel" }) {
                 ? // 높이 44px → 모서리 19px. 매체 찾기 검색바와 같게 회색 칸 + black-200
                   // 테두리로 두고, 마우스를 올리거나 선택하면 테두리는 그대로 배경만 흰색이 된다.
                   "h-[44px] rounded-[19px] border border-black-200 bg-black-100 py-[10px] pr-[48px] pl-[16px] text-[14px] leading-[22px] transition-colors hover:bg-white focus:bg-white"
-                : // 홈 입력바도 패널과 같은 규칙(평소 회색, hover·선택 시 흰색). 크기만 크다.
-                  "h-[60px] rounded-[27px] border border-black-200 bg-black-100 py-[18px] pr-[72px] pl-[20px] text-[15px] leading-[24px] transition-colors hover:bg-white focus:bg-white"
+                : // 홈 입력바는 검색 탭 입력바(AiSearchBox 검색 모드)와 같은 흰 바탕 + 1px 회색(#d1d5db)
+                  // 테두리. 회색 바탕이면 같은 회색 계열인 모드 탭이 묻혀 보이지 않는다.
+                  // 오른쪽에 전송 버튼과 모드 탭이 있으면 글자가 그 밑으로 들어가지 않게 여백을 넓힌다.
+                  `h-[60px] rounded-[27px] border border-black-300 bg-white py-[18px] pl-[20px] text-[15px] leading-[24px] ${
+                    modeToggle ? "pr-[208px]" : "pr-[72px]"
+                  }`
             }`}
           />
           {/* 답변 작성 중엔 isPending — 누르기는 막되(비활성) 마우스는 받아서 툴팁을 띄운다.
               isDisabled면 hover도 끊겨 툴팁이 안 뜨므로, 작성 중일 땐 isDisabled를 풀어 둔다.
               HeroUI는 pending 버튼에 pointer-events:none을 걸어 hover까지 막으므로 되돌린다
               (누르기는 React Aria의 isPending이 따로 막는다). */}
+          {/* 모드 탭(높이 40px) — 전송 버튼(44px, 오른쪽 8px)과 세로 가운데를 맞추고 10px 띄운다. */}
+          {!isPanel && modeToggle && (
+            <div className="absolute top-[10px] right-[62px]">{modeToggle}</div>
+          )}
           <Tooltip delay={0} isDisabled={!chat.running}>
             <Button
               isIconOnly

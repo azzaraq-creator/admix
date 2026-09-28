@@ -65,7 +65,7 @@ export function HomeContent() {
   // 대화는 이 화면에서 이어진다(시안 "01-1. 믹시 대화"). 대화 상태는 레이아웃에
   // 한 벌만 있어(useMixieChat) 다른 메뉴에 다녀와도, LNB 패널에서 이어 말해도 그대로다.
   const { chat } = useMixieChat();
-  // 대화 중에도 우측 상단 탭으로 검색 화면에 갈 수 있고, AI로 돌아오면 대화가 다시 보인다.
+  // 대화 중에도 입력바의 전환 탭으로 검색 화면에 갈 수 있고, AI로 돌아오면 대화가 다시 보인다.
   const hasConversation = mode === "ai" && chat.messages.length > 0;
 
   return (
@@ -77,7 +77,7 @@ export function HomeContent() {
         hasConversation ? "h-full" : "min-h-full"
       }`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-[12px] pt-[30px] sm:pt-[52px]">
+      <div className="flex shrink-0 items-center gap-[12px] pt-[30px] sm:pt-[52px]">
         <Breadcrumbs
           aria-label="현재 위치"
           separator="/"
@@ -87,12 +87,13 @@ export function HomeContent() {
           <Breadcrumbs.Item isDisabled>대시보드</Breadcrumbs.Item>
           <Breadcrumbs.Item isDisabled>{MODE_LABEL[mode]}</Breadcrumbs.Item>
         </Breadcrumbs>
-        <ModeToggle value={mode} onChange={setMode} />
       </div>
 
       {hasConversation ? (
         <div className="flex min-h-0 w-full flex-1 flex-col py-[24px]">
-          <HomeChat />
+          <HomeChat
+            modeToggle={<ModeToggle value={mode} onChange={setMode} />}
+          />
         </div>
       ) : (
         <div className="flex w-full flex-1 flex-col items-center justify-center py-[40px]">
@@ -114,6 +115,7 @@ export function HomeContent() {
               value={query}
               onValueChange={setQuery}
               mode={mode}
+              onModeChange={setMode}
               onAiSubmit={(text) => chat.submit(text, { allowShort: true })}
             />
           </div>

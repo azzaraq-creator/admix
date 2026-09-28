@@ -7,7 +7,7 @@ import type { KeyboardEvent } from "react";
 
 import { ArrowUpIcon } from "@/components/icons";
 
-import type { Mode } from "./ModeToggle";
+import { ModeToggle, type Mode } from "./ModeToggle";
 
 const MAX_LENGTH = 500;
 // 22px(leading) × 5줄. 여기부터는 더 늘리지 않고 스크롤한다.
@@ -17,12 +17,14 @@ export function AiSearchBox({
   value,
   onValueChange,
   mode,
+  onModeChange,
   onAiSubmit,
 }: {
   value: string;
   onValueChange: (value: string) => void;
-  /** 전환 탭은 홈 우측 상단(ModeToggle)에 있고, 여기서는 현재 모드만 따른다. */
   mode: Mode;
+  /** AI/검색 전환 — 시안처럼 전송 버튼 왼쪽에 탭(ModeToggle)을 둔다. */
+  onModeChange: (mode: Mode) => void;
   /** AI 모드 전송 — 홈에서 그대로 대화를 이어간다(페이지 이동 없음). */
   onAiSubmit: (text: string) => void;
 }) {
@@ -97,7 +99,9 @@ export function AiSearchBox({
           className="max-h-[110px] w-full resize-none bg-transparent text-[15px] leading-[22px] text-black outline-none placeholder:text-[#a1a1aa] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
 
-        <div className="mt-[8px] flex items-center justify-end gap-[8px]">
+        {/* 시안: 전환 탭과 전송 버튼을 오른쪽 아래에 10px 간격으로 나란히 둔다. */}
+        <div className="mt-[8px] flex items-center justify-end gap-[10px]">
+          <ModeToggle value={mode} onChange={onModeChange} />
           <Button
             isIconOnly
             variant="primary"

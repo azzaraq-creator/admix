@@ -24,7 +24,7 @@ const TAB_CLASS =
 const TAB_LABEL_CLASS =
   "inline-block before:invisible before:block before:h-0 before:overflow-hidden before:font-semibold before:content-[attr(data-label)]";
 
-/** 홈 우측 상단의 AI / 검색 전환 탭. 대화 중에도 언제든 검색으로 넘어갈 수 있다. */
+/** 홈 입력바 전송 버튼 왼쪽의 AI / 검색 전환 탭. 대화 중에도 언제든 검색으로 넘어갈 수 있다. */
 export function ModeToggle({
   value,
   onChange,
