@@ -1,14 +1,8 @@
 import { HelpView } from "./_components/HelpView";
-import { HELP_TABS, type HelpTabKey } from "./content";
 
-export default async function HelpPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab } = await searchParams;
-  const initialTab: HelpTabKey = HELP_TABS.some((t) => t.key === tab)
-    ? (tab as HelpTabKey)
-    : "terms";
-  return <HelpView initialTab={initialTab} />;
+// 탭을 주소(?tab=)에서 읽으므로 요청마다 그린다(정적 생성 시 useSearchParams가 비어 첫 화면이 어긋난다).
+export const dynamic = "force-dynamic";
+
+export default function HelpPage() {
+  return <HelpView />;
 }
