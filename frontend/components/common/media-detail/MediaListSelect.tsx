@@ -37,7 +37,8 @@ export function MediaListSelect({
     <div
       className={cn(
         layout === "grid"
-          ? "grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(332px,1fr))]"
+          ? // min(332px,100%) — 컨테이너가 332px보다 좁으면(모바일·팝업) 가로로 넘치지 않고 1열이 된다.
+            "grid gap-[10px] [grid-template-columns:repeat(auto-fill,minmax(min(332px,100%),1fr))]"
           : "flex flex-col gap-[8px]",
       )}
     >

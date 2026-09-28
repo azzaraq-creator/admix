@@ -4,7 +4,10 @@ export interface MapMarker {
   lng: number;
   name: string;
   categoryLarge?: string | null;
+  categorySmall?: string | null;
+  address?: string | null;
   minAdvertisementFeeKrw?: number | null;
+  minProductionFeeKrw?: number | null;
   thumbnailUrl?: string | null;
   images?: string[];
   badge?: "popular" | "new" | null;

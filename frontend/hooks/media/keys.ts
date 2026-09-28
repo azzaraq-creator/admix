@@ -10,6 +10,8 @@ export const mediaKeys = {
     [...mediaKeys.all, "moving", "filter-options"] as const,
   fixedList: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "list", filters ?? {}] as const,
+  fixedCount: (filters?: MediaFilterParams) =>
+    [...mediaKeys.all, "fixed", "count", filters ?? {}] as const,
   fixedClusters: (zoom: number, filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "clusters", zoom, filters ?? {}] as const,
   fixedFilterOptions: () =>

@@ -27,6 +27,13 @@ export interface MediaCardRow {
   id: string;
   name: string;
   minAdvertisementFeeKrw: number | null;
+  /** 제작비 — 매체 찾기 카드의 "제작비 / 1회" 칸. null이면 "-". */
+  minProductionFeeKrw: number | null;
+  address: string | null;
+  categoryLarge: string | null;
+  categorySmall: string | null;
+  /** 판매 유형(개별/패키지 등) — 카드 우측 칩. */
+  salesType: string | null;
   thumbnailUrl: string | null;
   images: string[];
   badge: "popular" | "new" | null;
@@ -70,6 +77,13 @@ export interface MediaDetail {
   badge: "popular" | "new" | null;
   minAdvertisementFeeKrw: number | null;
   maxAdvertisementFeeKrw: number | null;
+  /** 제작비 — 상세 팝업의 "제작비 / 1회". */
+  minProductionFeeKrw: number | null;
+  categoryLarge: string | null;
+  categorySmall: string | null;
+  salesType: string | null;
+  /** 매체 유형 태그(예: "OOH (지면)"). */
+  oohType: string | null;
   description: string | null;
   address: string | null;
   thumbnailUrl: string | null;
@@ -109,7 +123,10 @@ export interface MediaMarkerDto {
   lng: number;
   name: string;
   categoryLarge: string | null;
+  categorySmall: string | null;
+  address: string | null;
   minAdvertisementFeeKrw: number | null;
+  minProductionFeeKrw: number | null;
   thumbnailUrl: string | null;
   images: string[];
   badge: "popular" | "new" | null;

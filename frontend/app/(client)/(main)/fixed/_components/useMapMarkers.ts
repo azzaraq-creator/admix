@@ -16,17 +16,17 @@ const MARKER_SIZE = { width: 40, height: 40 };
 const MARKER_ANCHOR = { x: 20, y: 16 };
 
 const MARKER_SRC: Record<string, string> = {
-  "전광판&빌보드": "/markers/전광판-빌보드.svg",
-  지하철: "/markers/지하철.svg",
-  공항: "/markers/공항.svg",
-  "기차&기차역": "/markers/기차-기차역.svg",
-  기차역: "/markers/기차역.svg",
-  정류장: "/markers/정류장.svg",
-  "주거&사무공간": "/markers/주거-사무공간.svg",
-  "쇼핑몰&마트": "/markers/쇼핑몰-마트.svg",
-  엔터테인먼트: "/markers/엔터테인먼트.svg",
-  "생활&편의시설": "/markers/생활-편의시설.svg",
-  기타: "/markers/기타.svg",
+  "전광판&빌보드": "/markers/billboard.svg",
+  지하철: "/markers/subway.svg",
+  공항: "/markers/airport.svg",
+  "기차&기차역": "/markers/train.svg",
+  기차역: "/markers/train-station.svg",
+  정류장: "/markers/bus-stop.svg",
+  "주거&사무공간": "/markers/residential-office.svg",
+  "쇼핑몰&마트": "/markers/mart.svg",
+  엔터테인먼트: "/markers/entertainment.svg",
+  "생활&편의시설": "/markers/amenities.svg",
+  기타: "/markers/etc.svg",
 };
 
 const CATEGORY_TO_ITEM: Record<string, string> = {
@@ -41,12 +41,10 @@ const CATEGORY_TO_ITEM: Record<string, string> = {
   "생활 편의시설": "생활&편의시설",
 };
 
-const FOCUS_SCALE = 1.4; // 포커스 시 마커 확대 배율
-
 function markerSrc(categoryLarge?: string | null, focused = false): string {
   const item = (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) || "기타";
   const file = MARKER_SRC[item] ?? MARKER_SRC["기타"];
-  // 포커스 변형: 바깥 링 흰색 (public/markers/focus/*.svg)
+  // 포커스 변형: 바깥 링 흰색 (public/markers/focus/*.svg). 크기는 기본과 같다.
   const path = focused ? file.replace("/markers/", "/markers/focus/") : file;
   return encodeURI(path);
 }
@@ -59,13 +57,10 @@ function markerImageFor(
 ): KakaoMarkerImage {
   const src = markerSrc(categoryLarge, focused);
   if (!cache[src]) {
-    const scale = focused ? FOCUS_SCALE : 1;
     cache[src] = new maps.MarkerImage(
       src,
-      new maps.Size(MARKER_SIZE.width * scale, MARKER_SIZE.height * scale),
-      {
-        offset: new maps.Point(MARKER_ANCHOR.x * scale, MARKER_ANCHOR.y * scale),
-      },
+      new maps.Size(MARKER_SIZE.width, MARKER_SIZE.height),
+      { offset: new maps.Point(MARKER_ANCHOR.x, MARKER_ANCHOR.y) },
     );
   }
   return cache[src];
@@ -79,12 +74,16 @@ function groupKeyOf(lat: number, lng: number): string {
   )}`;
 }
 
-// 숫자핀(클러스터·겹침 그룹) 공통 디자인. selected 면 흰 링 + 확대(단일 핀 포커스와 동일 규칙).
+// 숫자핀(클러스터·겹침 그룹) 공통 디자인 — public/markers/cluster.svg(기본)와
+// focus/cluster.svg(선택)를 그대로 옮긴 것. SVG엔 숫자가 박혀 있어 이미지로는 못 쓰고
+// 같은 색·테두리를 CSS로 그린다. 기본은 보라 원 + 흰 숫자(테두리·그림자 없음),
+// 선택은 흰 원 + 보라 테두리·숫자(단일 핀 포커스와 같이 크기는 그대로).
+// 숫자 크기·테두리 두께는 SVG(원 지름 약 29 : 숫자 12 : 선 1.6) 비율로 핀 크기에 맞춘다.
 function numberPinCss(size: number, selected: boolean): string {
-  const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:#00aaa4;border:2px solid #2a9591;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;transform-origin:center;transition:transform .12s ease;`;
+  const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.42)}px;font-weight:600;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;`;
   return selected
-    ? `${base}box-shadow:0 0 0 3px #ffffff,0 4px 2px rgba(0,0,0,0.25);transform:scale(1.4);`
-    : `${base}box-shadow:0 4px 2px rgba(0,0,0,0.25);`;
+    ? `${base}background:#ffffff;border:${(size * 0.05).toFixed(1)}px solid #a33bd1;color:#a33bd1;`
+    : `${base}background:#a33bd1;color:#ffffff;`;
 }
 
 export function useMapMarkers({
@@ -206,7 +205,8 @@ export function useMapMarkers({
         markerObjsRef.current.push({ marker, data: m });
       } else {
         // 겹친 마커 → 카운트 배지. 클릭 시 그 매체들을 리스트 팝업으로.
-        const size = members.length >= 100 ? 48 : members.length >= 10 ? 44 : 40;
+        const size =
+          members.length >= 100 ? 48 : members.length >= 10 ? 44 : 40;
         const selected = key === selectedGroupKeyRef.current;
         const el = document.createElement("div");
         el.style.cssText = numberPinCss(size, selected);
@@ -374,5 +374,13 @@ export function useMapMarkers({
     if (next || nextGroup || focusId === undefined) {
       shownFocusRef.current = focusId;
     }
-  }, [focusId, focusOffsetX, focusCenter, markers, mapReady, mapRef, markerObjsRef]);
+  }, [
+    focusId,
+    focusOffsetX,
+    focusCenter,
+    markers,
+    mapReady,
+    mapRef,
+    markerObjsRef,
+  ]);
 }

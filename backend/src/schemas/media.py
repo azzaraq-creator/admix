@@ -26,6 +26,13 @@ class MediaCardRow(BaseModel):
     id: str
     name: str
     minAdvertisementFeeKrw: int | None
+    # 제작비 — 매체 찾기 카드의 "제작비 / 1회" 칸. 값이 없으면 "-"로 표시된다.
+    minProductionFeeKrw: int | None = None
+    address: str | None = None
+    categoryLarge: str | None = None
+    categorySmall: str | None = None
+    # 판매 유형(개별/패키지 등) — 카드 우측 칩.
+    salesType: str | None = None
     thumbnailUrl: str | None
     images: list[str] = []
     badge: str | None
@@ -44,7 +51,11 @@ class MediaMarker(BaseModel):
     lng: float
     name: str
     categoryLarge: str | None
+    # 지도 팝업 요약(주소·분류·제작비)에 쓰는 필드.
+    categorySmall: str | None = None
+    address: str | None = None
     minAdvertisementFeeKrw: int | None
+    minProductionFeeKrw: int | None = None
     thumbnailUrl: str | None = None
     images: list[str] = []
     badge: str | None = None
@@ -104,6 +115,12 @@ class MediaDetail(BaseModel):
     badge: str | None
     minAdvertisementFeeKrw: int | None
     maxAdvertisementFeeKrw: int | None
+    # 매체 상세 팝업의 "제작비 / 1회"·카테고리 칩·판매 유형 칩·매체 유형 태그.
+    minProductionFeeKrw: int | None = None
+    categoryLarge: str | None = None
+    categorySmall: str | None = None
+    salesType: str | None = None
+    oohType: str | None = None
     description: str | None
     address: str | None
     thumbnailUrl: str | None

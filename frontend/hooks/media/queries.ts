@@ -43,9 +43,13 @@ export const useMovingFilterOptions = () =>
     staleTime: 5 * 60 * 1000,
   });
 
-export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>
+export const useFixedMediaInfinite = (
+  filters?: MediaFilterParams,
+  enabled = true,
+) =>
   useInfiniteQuery({
     queryKey: mediaKeys.fixedList(filters),
+    enabled,
     queryFn: ({ pageParam }) =>
       mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam, filters),
     initialPageParam: 0,
@@ -56,9 +60,29 @@ export const useFixedMediaInfinite = (filters?: MediaFilterParams) =>
     staleTime: 60 * 1000,
   });
 
-export const useFixedClusters = (zoom: number, filters?: MediaFilterParams) =>
+/**
+ * 조건에 맞는 고정 매체 수만 조회(목록 1건만 받아 total을 쓴다). 매체 찾기 필터 패널에서
+ * 아직 적용 전인 선택으로 "결과 보기 N개"를 미리 보여 주는 데 쓴다.
+ */
+export const useFixedMediaCount = (
+  filters: MediaFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: mediaKeys.fixedCount(filters),
+    queryFn: async () => (await mediaApi.fixedList(1, 0, filters)).total,
+    enabled,
+    staleTime: 60 * 1000,
+  });
+
+export const useFixedClusters = (
+  zoom: number,
+  filters?: MediaFilterParams,
+  enabled = true,
+) =>
   useQuery({
     queryKey: mediaKeys.fixedClusters(zoom, filters),
+    enabled,
     queryFn: () => mediaApi.fixedClusters(zoom, filters),
     staleTime: 60 * 1000,
   });

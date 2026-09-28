@@ -7,7 +7,14 @@ import { type KakaoCustomOverlay, type KakaoMap } from "@/lib/kakaoMap";
 import type { MapMarker } from "./mapTypes";
 import { SEOUL_CITY_HALL } from "./useKakaoMap";
 
-const POPUP_FLIP_MARGIN = 360;
+// 팝업이 원하는 최대 높이. 아래 공간이 이보다 모자라고 위가 더 넓으면 위로 띄운다.
+const POPUP_PREFERRED_HEIGHT = 420;
+// 팝업이 아무리 좁아져도 이만큼은 보여 준다(그 아래는 팝업 안에서 스크롤).
+const POPUP_MIN_HEIGHT = 160;
+// 핀 기준점에서 팝업 가장자리까지 거리(MapArea의 top/bottom과 맞춘다)와 지도 끝 여백.
+const POPUP_GAP_BELOW = 32;
+const POPUP_GAP_ABOVE = 24;
+const POPUP_EDGE_MARGIN = 12;
 
 export function useMapPopup({
   mapRef,
@@ -38,6 +45,7 @@ export function useMapPopup({
   });
   const [flipUp, setFlipUp] = useState(false);
   const [shiftX, setShiftX] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(POPUP_PREFERRED_HEIGHT);
 
   useEffect(() => {
     onPopupCloseRef.current = onPopupClose;
@@ -101,9 +109,20 @@ export function useMapPopup({
     const projection = map.getProjection();
     if (container && projection) {
       const point = projection.containerPointFromCoords(pos);
-      setFlipUp(point.y > container.clientHeight - POPUP_FLIP_MARGIN);
-      // 수평: 팝업이 지도 좌우를 벗어나지 않도록 시프트 계산.
-      const halfW = Math.min(191, Math.max(0, (container.clientWidth - 24) / 2));
+      // 위·아래 중 팝업이 다 들어가는 쪽, 안 되면 더 넓은 쪽으로 띄우고 그 공간에 높이를 맞춘다.
+      const spaceBelow =
+        container.clientHeight - point.y - POPUP_GAP_BELOW - POPUP_EDGE_MARGIN;
+      const spaceAbove = point.y - POPUP_GAP_ABOVE - POPUP_EDGE_MARGIN;
+      const up = spaceBelow < POPUP_PREFERRED_HEIGHT && spaceAbove > spaceBelow;
+      setFlipUp(up);
+      setMaxHeight(
+        Math.max(
+          POPUP_MIN_HEIGHT,
+          Math.min(POPUP_PREFERRED_HEIGHT, up ? spaceAbove : spaceBelow),
+        ),
+      );
+      // 수평: 팝업(폭 360px)이 지도 좌우를 벗어나지 않도록 시프트 계산.
+      const halfW = Math.min(180, Math.max(0, (container.clientWidth - 24) / 2));
       const margin = 12;
       let sx = 0;
       if (point.x - halfW < margin) sx = margin - (point.x - halfW);
@@ -113,5 +132,5 @@ export function useMapPopup({
     }
   }, [popupId, popupPosition, markers, mapReady, mapRef, containerRef]);
 
-  return { popupEl, flipUp, shiftX };
+  return { popupEl, flipUp, shiftX, maxHeight };
 }

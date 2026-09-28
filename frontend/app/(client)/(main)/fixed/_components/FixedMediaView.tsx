@@ -1,21 +1,13 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
-import { MarkerMediaPopup } from "@/components/common/MarkerMediaPopup";
-import { MediaDetailDrawer } from "@/components/common/MediaDetailDrawer";
-import {
-  formatFee,
-  useMediaDetailViewModel,
-} from "@/components/common/media-detail/useMediaDetailViewModel";
+import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { MobileMediaDetail } from "@/components/common/MobileMediaDetail";
-import { ChevronLeftIcon, ListIcon, MapPinIcon } from "@/components/icons";
-import { useMediaDetail } from "@/hooks/media";
-import type { Mode } from "../../_components/ModeToggle";
-import { ChatPanel } from "./ChatPanel";
+import { useMediaDetail, type MediaCardRow } from "@/hooks/media";
+
 import {
   MapArea,
   type MapBoundsPayload,
@@ -23,69 +15,167 @@ import {
   type MapMarker,
   type MoveTarget,
 } from "./MapArea";
-const DRAWER_HALF_WIDTH = 192;
+import { MarkerMediaPopup } from "./MarkerMediaPopup";
+import { MediaFindPanel } from "./MediaFindPanel";
+import { replaceQuery } from "./replaceQuery";
 
-// 매체검색 모드 기본 진입 위치 — 강남역. URL에 bbox가 없을 때 이 영역으로 스코프.
-const DEFAULT_SEARCH_CENTER = { lat: 37.497942, lng: 127.027621, level: 5 };
+/** 지도 마커 → 매체 찾기 카드 행. 팝업을 목록과 같은 카드로 그리기 위한 변환. */
+function markerToCardRow(m: MapMarker): MediaCardRow {
+  return {
+    id: m.id,
+    name: m.name,
+    minAdvertisementFeeKrw: m.minAdvertisementFeeKrw ?? null,
+    minProductionFeeKrw: m.minProductionFeeKrw ?? null,
+    address: m.address ?? null,
+    categoryLarge: m.categoryLarge ?? null,
+    categorySmall: m.categorySmall ?? null,
+    salesType: null,
+    thumbnailUrl: m.thumbnailUrl ?? null,
+    images: m.images ?? [],
+    badge: m.badge ?? null,
+    lat: m.lat,
+    lng: m.lng,
+  };
+}
 
-export function FixedMediaView({
-  initialMode = "ai",
-}: {
-  initialMode?: Mode;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  // /fixed?mode=search 진입(새로고침 포함) → 항상 기본 위치(강남역)로 스코프.
-  // (이전 세션의 URL bbox가 남아 있어도 강남역으로 초기화)
-  const scopeDefault = initialMode === "search";
-  const [mode, setMode] = useState<Mode>(initialMode);
-  const [chatOpen, setChatOpen] = useState(true);
-  const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(null);
-  const [mobileMap, setMobileMap] = useState(false);
-  const [markers, setMarkers] = useState<MapMarker[]>([]);
-  const [searchMarkers, setSearchMarkers] = useState<MapMarker[]>([]);
-  const [searchClusters, setSearchClusters] = useState<MapCluster[]>([]);
-  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(() =>
-    scopeDefault ? { ...DEFAULT_SEARCH_CENTER } : null,
+/** 카드 행 → 상세 팝업을 여는 데 쓰는 최소 정보. */
+function cardRowToItem(row: MediaCardRow): MediaItemData {
+  return {
+    id: row.id,
+    name: row.name,
+    price: "",
+    images: row.images,
+    popular: row.badge === "popular",
+  };
+}
+
+// 진입 시 지도 기본 위치 — 강남역. 리스트는 스코프하지 않고 지도 시야만 잡는다.
+const DEFAULT_CENTER = { lat: 37.497942, lng: 127.027621, level: 5 };
+
+// URL 조회 영역(bbox) — 네 값이 모두 있어야 유효하다.
+function parseUrlBounds(sp: URLSearchParams) {
+  const nums = (["neLat", "swLat", "neLng", "swLng"] as const).map((k) => {
+    const v = sp.get(k);
+    return v != null && v !== "" ? Number(v) : NaN;
+  });
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  const [neLat, swLat, neLng, swLng] = nums;
+  return { neLat, swLat, neLng, swLng };
+}
+
+// 두 영역이 사실상 같은지 — 각 변의 차이가 영역 폭·높이의 1% 이내면 같다고 본다.
+function isSameArea(
+  a: { neLat: number; swLat: number; neLng: number; swLng: number },
+  b: { neLat: number; swLat: number; neLng: number; swLng: number },
+): boolean {
+  const tolLat = Math.abs(a.neLat - a.swLat) * 0.01;
+  const tolLng = Math.abs(a.neLng - a.swLng) * 0.01;
+  return (
+    Math.abs(a.neLat - b.neLat) <= tolLat &&
+    Math.abs(a.swLat - b.swLat) <= tolLat &&
+    Math.abs(a.neLng - b.neLng) <= tolLng &&
+    Math.abs(a.swLng - b.swLng) <= tolLng
   );
+}
+
+// URL이 길어지지 않게 좌표는 소수 6자리(약 10cm)까지만 남긴다.
+function roundCoord(v: number): string {
+  return String(Math.round(v * 1e6) / 1e6);
+}
+
+export function FixedMediaView() {
+  const searchParams = useSearchParams();
+
+  const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(
+    null,
+  );
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [clusters, setClusters] = useState<MapCluster[]>([]);
+  // 진입 시 지도 위치 — URL에 조회 영역(bbox)이 남아 있으면(새로고침·공유 링크) 그 영역의
+  // 가운데와 URL 줌 레벨로 그대로 복원한다. 목록이 지도 영역을 따르므로 둘이 어긋나지 않게 한다.
+  // (fitBounds로 맞추면 영역이 다 담기는 레벨을 골라 새로고침할 때마다 한 단계씩 멀어진다.)
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(() => {
+    const b = parseUrlBounds(searchParams);
+    const zoom = Number(searchParams.get("zoom"));
+    return b
+      ? {
+          lat: (b.neLat + b.swLat) / 2,
+          lng: (b.neLng + b.swLng) / 2,
+          level:
+            Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_CENTER.level,
+        }
+      : { ...DEFAULT_CENTER };
+  });
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [groupPopup, setGroupPopup] = useState<MapMarker[] | null>(null);
-  const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
-    null,
+  // 지도 팝업 "간략히 보기" — 핀을 바꿔 눌러도 고른 보기를 유지한다.
+  const [popupSimple, setPopupSimple] = useState(false);
+  // 매체 담기 대상 — 상세 팝업의 "매체 목록"에서 고른 플랜(planNo)까지 함께 넘긴다.
+  const [addProposal, setAddProposal] = useState<{
+    mediaId: string;
+    planNo?: number;
+  } | null>(null);
+  // 프로그램 이동(코드가 지도를 옮긴 것) 중 목록에 반영할 것을 예약한다.
+  // initial=첫 진입, rescope=장소·매체 후보 검색, cluster=클러스터 클릭 줌인. null이면 반영 안 함
+  // (리스트 카드 클릭 줌인 등 — 목록은 그대로 두고 지도만 옮긴다).
+  const pendingCommitRef = useRef<"initial" | "rescope" | "cluster" | null>(
+    "initial",
   );
-  const pendingAutoCommitRef = useRef(scopeDefault);
-
-  const activeMarkers = mode === "search" ? searchMarkers : markers;
+  // 마지막으로 멈춘 지도 영역 — 초기화 때 "지금 보이는 영역" 조회를 유지하는 데 쓴다.
+  const lastViewportRef = useRef<MapBoundsPayload | null>(null);
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
-  const commitZoomOnly = useCallback(
-    (zoom: number) => {
-      const q = new URLSearchParams(searchParams.toString());
-      q.set("zoom", String(zoom));
-      router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  const commitZoomOnly = useCallback((zoom: number) => {
+    replaceQuery((q) => q.set("zoom", String(zoom)));
+  }, []);
+
+  // 지금 보이는 지도 영역을 URL 조회 영역(bbox)으로 반영 → 목록·지도 클러스터가 그 영역으로
+  // 다시 조회된다. 장소 칩("OO 주변")은 사용자가 지도를 옮기면 더 이상 맞지 않아 뗀다.
+  const commitViewport = useCallback(
+    (b: MapBoundsPayload, keepPlace: boolean) => {
+      replaceQuery((q) => {
+        q.set("zoom", String(b.zoom));
+        q.set("neLat", roundCoord(b.neLat));
+        q.set("swLat", roundCoord(b.swLat));
+        q.set("neLng", roundCoord(b.neLng));
+        q.set("swLng", roundCoord(b.swLng));
+        if (!keepPlace) q.delete("place");
+      });
     },
-    [router, pathname, searchParams],
+    [],
   );
 
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
+      lastViewportRef.current = b;
       if (b.moveType === "program") {
-        // 지오코딩/클러스터 클릭 등 프로그램 이동 → 예약된 경우에만 줌 커밋.
-        if (pendingAutoCommitRef.current) {
-          pendingAutoCommitRef.current = false;
+        const reason = pendingCommitRef.current;
+        if (!reason) return;
+        pendingCommitRef.current = null;
+        // 홈에서 키워드로 바로 들어온 경우는 전체 결과를 보여줘야 해서 영역을 걸지 않는다.
+        if (
+          reason === "initial" &&
+          searchParams.get("kw") &&
+          !parseUrlBounds(searchParams)
+        ) {
           commitZoomOnly(b.zoom);
+          return;
         }
+        // 새로고침·공유 링크로 URL에 영역이 이미 있으면 지도를 그 영역으로 복원한 것이라,
+        // 반올림 오차만큼(몇 m) 어긋난 영역을 다시 쓰면 같은 목록을 한 번 더 불러오며 깜빡인다.
+        // 차이가 미미하면 URL 영역을 그대로 둔다.
+        if (reason === "initial") {
+          const urlBounds = parseUrlBounds(searchParams);
+          if (urlBounds && isSameArea(urlBounds, b)) return;
+        }
+        commitViewport(b, reason !== "cluster");
         return;
       }
-      if (mode !== "search") return;
-      // 줌 변경 → zoom_level 갱신으로 클러스터 재조정. 드래그는 결과와 무관하므로 무동작.
-      if (b.moveType === "zoom") {
-        commitZoomOnly(b.zoom);
-      }
+      // 사용자 드래그·줌 → 지금 보이는 영역으로 목록을 다시 조회.
+      commitViewport(b, false);
     },
-    [commitZoomOnly, mode],
+    [commitZoomOnly, commitViewport, searchParams],
   );
 
   const handleRequestMapMove = useCallback(
@@ -95,7 +185,12 @@ export function FixedMediaView({
       level?: number;
       rescope?: boolean;
       focusId?: string;
-      fitBounds?: { neLat: number; swLat: number; neLng: number; swLng: number };
+      fitBounds?: {
+        neLat: number;
+        swLat: number;
+        neLng: number;
+        swLng: number;
+      };
     }) => {
       const level = center.level ?? 5;
       setMoveTarget({
@@ -119,73 +214,55 @@ export function FixedMediaView({
           setSelectedMedia(null);
           setFocusId(undefined);
         }
-        pendingAutoCommitRef.current = true;
+        pendingCommitRef.current = "rescope";
       }
     },
     [commitZoomOnly],
   );
 
-  // 클러스터 클릭 → 줌인 후 새 줌으로 자동 재클러스터링.
+  // 클러스터 클릭 → 줌인이 끝나면 그 영역으로 목록·클러스터를 다시 조회.
   const handleClusterClick = useCallback(() => {
-    pendingAutoCommitRef.current = true;
+    pendingCommitRef.current = "cluster";
   }, []);
-
-  const handleModeChange = useCallback(
-    (next: Mode) => {
-      setMode(next);
-      if (next === "search") {
-        // 홈 /fixed?mode=search 진입과 동일하게: URL 통일 + 강남역 스코프.
-        router.replace(`${pathname}?mode=search`, { scroll: false });
-        setMoveTarget({ ...DEFAULT_SEARCH_CENTER });
-        pendingAutoCommitRef.current = true;
-      } else {
-        router.replace(pathname, { scroll: false });
-        setMobileMap(false);
-        setSearchMarkers([]);
-        setSearchClusters([]);
-      }
-    },
-    [router, pathname],
-  );
 
   const handleMapData = useCallback(
     (data: { markers: MapMarker[]; clusters: MapCluster[] }) => {
-      setSearchMarkers(data.markers);
-      setSearchClusters(data.clusters);
+      setMarkers(data.markers);
+      setClusters(data.clusters);
     },
     [],
   );
 
-  const { vm } = useMediaDetailViewModel(selectedMedia?.id ?? null);
+  const { data: popupDetail } = useMediaDetail(
+    popupId && !markers.some((m) => m.id === popupId) ? popupId : null,
+  );
 
-  const { data: popupDetail } = useMediaDetail(popupId);
-  const popupItems: MediaItemData[] = popupId
-    ? [
-        {
-          id: popupId,
-          name:
-            activeMarkers.find((m) => m.id === popupId)?.name ??
-            popupDetail?.name ??
-            "",
-          price: formatFee(popupDetail?.minAdvertisementFeeKrw ?? null),
-          images: popupDetail?.imageUrls ?? [],
-          popular: popupDetail?.badge === "popular",
-        },
-      ]
-    : [];
+  // 핀 팝업은 마커 데이터로 그린다. 마커 목록이 새로 고쳐져 해당 핀이 빠진 경우만
+  // 상세 API 값으로 채운다.
+  const popupMarker = popupId ? markers.find((m) => m.id === popupId) : null;
+  const popupRows: MediaCardRow[] = popupMarker
+    ? [markerToCardRow(popupMarker)]
+    : popupId && popupDetail
+      ? [
+          {
+            id: popupDetail.id,
+            name: popupDetail.name,
+            minAdvertisementFeeKrw: popupDetail.minAdvertisementFeeKrw,
+            minProductionFeeKrw: popupDetail.minProductionFeeKrw,
+            address: popupDetail.address,
+            categoryLarge: popupDetail.categoryLarge,
+            categorySmall: popupDetail.categorySmall,
+            salesType: popupDetail.salesType,
+            thumbnailUrl: popupDetail.thumbnailUrl,
+            images: popupDetail.imageUrls,
+            badge: popupDetail.badge,
+            lat: null,
+            lng: null,
+          },
+        ]
+      : [];
 
-  const groupItems: MediaItemData[] = (groupPopup ?? []).map((m) => ({
-    id: m.id,
-    name: m.name,
-    price: formatFee(m.minAdvertisementFeeKrw ?? null),
-    images:
-      m.images && m.images.length > 0
-        ? m.images
-        : m.thumbnailUrl
-          ? [m.thumbnailUrl]
-          : [],
-    popular: m.badge === "popular",
-  }));
+  const groupRows: MediaCardRow[] = (groupPopup ?? []).map(markerToCardRow);
 
   const handleMarkerClick = (id: string) => {
     setGroupPopup(null);
@@ -201,28 +278,13 @@ export function FixedMediaView({
     setGroupPopup(mk);
   }, []);
 
+  // 지도 빈 곳 클릭(onPopupClose는 지도 클릭에서만 불린다) → 팝업을 닫고 핀 선택도 푼다.
+  // 핀·숫자핀·팝업은 clickable 오버레이라 눌러도 지도 클릭으로 번지지 않는다.
   const closePopup = () => {
     setPopupId(null);
     setGroupPopup(null);
+    setFocusId(undefined);
   };
-
-  // 새 추천 리스트 → 마커 갱신 + 포커스/팝업 해제(전체 범위로)
-  const handleRecommendations = useCallback((mk: MapMarker[]) => {
-    setMarkers(mk);
-    setFocusId(undefined);
-    setPopupId(null);
-  }, []);
-
-  // "새 대화" → AI 추천 마커/활성 핀/팝업/상세를 모두 초기화.
-  const handleNewSession = useCallback(() => {
-    setMarkers([]);
-    setFocusId(undefined);
-    setPopupId(null);
-    setGroupPopup(null);
-    setSelectedMedia(null);
-  }, []);
-
-  const handleOpenDetail = (item: MediaItemData) => setSelectedMedia(item);
 
   const closeDetail = () => {
     setSelectedMedia(null);
@@ -230,166 +292,88 @@ export function FixedMediaView({
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-white">
-      <MapArea
-        markers={activeMarkers}
-        clusters={mode === "search" ? searchClusters : []}
-        selectedGroup={groupPopup}
-        autoFit={mode !== "search"}
-        moveTarget={moveTarget}
-        onBoundsChange={handleBoundsChange}
-        onClusterClick={handleClusterClick}
-        onGroupClick={handleGroupClick}
-        onMarkerClick={handleMarkerClick}
-        focusId={focusId}
-        focusOffsetX={selectedMedia ? DRAWER_HALF_WIDTH : 0}
-        focusCenter={!popupId}
-        popupId={popupId}
-        popupPosition={
-          groupPopup && groupPopup.length > 0
-            ? { lat: groupPopup[0].lat, lng: groupPopup[0].lng }
-            : null
-        }
-        popupContent={
-          groupPopup ? (
-            <MarkerMediaPopup
-              items={groupItems}
-              onSelect={(item) => {
-                setSelectedMedia(item);
-                setFocusId(item.id);
-                setGroupPopup(null);
-              }}
-              onAddProposal={(item) => setAddProposalMediaId(item.id)}
-            />
-          ) : popupId ? (
-            <MarkerMediaPopup
-              items={popupItems}
-              onSelect={(item) => {
-                setSelectedMedia(item);
-                setPopupId(null);
-              }}
-              onAddProposal={(item) => setAddProposalMediaId(item.id)}
-            />
-          ) : null
-        }
-        onPopupClose={closePopup}
-        className={`absolute inset-y-0 right-0 left-0 z-0 transition-[left] duration-300 ease-in-out sm:block ${
-          chatOpen ? "sm:left-[384px]" : "sm:left-0"
-        } ${mobileMap ? "block" : "hidden"}`}
-      />
-
-      <div
-        className={`absolute inset-y-0 left-0 right-0 z-10 sm:right-auto sm:flex ${
-          mobileMap ? "hidden" : "flex"
-        }`}
-      >
-        {chatOpen && (
-          <ChatPanel
-            mode={mode}
-            onModeChange={handleModeChange}
-            onSelectMedia={setSelectedMedia}
-            selectedId={selectedMedia?.id}
-            onRecommendations={handleRecommendations}
-            onFocusMedia={(id) => {
-              // 챗에서 선택 시 열려있던 지도 팝업/그룹리스트는 닫는다(잔존 방지).
-              setPopupId(null);
-              setGroupPopup(null);
-              setFocusId(id);
-            }}
-            onOpenDetail={handleOpenDetail}
-            onAddProposal={(id) => setAddProposalMediaId(id)}
-            onMapData={handleMapData}
-            onRequestMapMove={handleRequestMapMove}
-            onNewSession={handleNewSession}
-          />
-        )}
-        {chatOpen && selectedMedia && (
-          <div className="hidden sm:block">
-            <MediaDetailDrawer
-              media={selectedMedia}
-              detail={
-                vm
-                  ? {
-                      images: vm.images,
-                      description: vm.description,
-                      address: vm.address,
-                      monthlyTraffic: vm.population?.monthlyTrafficText,
-                      mainAudience: vm.population?.mainAudience,
-                      genderRatio: vm.population?.genderRatio,
-                      ageRatio: vm.population?.ageRatios,
-                    }
-                  : undefined
-              }
-              onClose={closeDetail}
-              onAddProposal={() => setAddProposalMediaId(selectedMedia.id)}
-              onViewDetail={() => router.push(`/media/${selectedMedia.id}`)}
-            />
-          </div>
-        )}
-        <div className="hidden items-center sm:flex">
-          <button
-            type="button"
-            onClick={() => setChatOpen((open) => !open)}
-            aria-label={chatOpen ? "채팅 패널 접기" : "채팅 패널 펼치기"}
-            className="flex h-[44px] w-[22px] items-center justify-center rounded-r-[4px] border-y border-r border-stroke bg-white text-black"
-          >
-            <ChevronLeftIcon
-              className={`size-[16px] transition-transform duration-300 ${
-                chatOpen ? "" : "rotate-180"
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {mode === "search" && (
-        <button
-          type="button"
-          onClick={() => setMobileMap((value) => !value)}
-          className="absolute bottom-[24px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-primary px-[16px] py-[8px] text-white drop-shadow-[0px_2px_8px_rgba(0,0,0,0.2)] sm:hidden"
-        >
-          {mobileMap ? (
-            <ListIcon className="size-[18px]" />
-          ) : (
-            <MapPinIcon className="size-[18px]" />
-          )}
-          <span className="text-sm font-medium whitespace-nowrap">
-            {mobileMap ? "목록보기" : "지도보기"}
-          </span>
-        </button>
-      )}
-
-      {selectedMedia && (
-        <div className="absolute inset-0 z-30 overflow-y-auto bg-white sm:hidden">
-          <MobileMediaDetail
-            name={selectedMedia.name}
-            price={vm?.price ?? formatFee(null)}
-            badge={vm?.badge ?? null}
-            description={vm?.description}
-            features={vm?.features}
-            mediaList={vm?.plans}
-            size={vm?.sizeText ?? null}
-            imageUrl={vm?.imageUrl ?? null}
-            population={
-              vm?.population
-                ? {
-                    monthlyFootTraffic: vm.population.monthlyFootTraffic,
-                    malePct: vm.population.malePct,
-                    femalePct: vm.population.femalePct,
-                    ageRatios: vm.population.ageRatios,
-                  }
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black-50 px-[20px] pt-[20px] pb-[20px]">
+      <MediaFindPanel
+        selectedId={selectedMedia?.id}
+        onSelectMedia={setSelectedMedia}
+        onFocusMedia={(id) => {
+          // 리스트에서 선택 시 열려있던 지도 팝업/그룹리스트는 닫는다(잔존 방지).
+          setPopupId(null);
+          setGroupPopup(null);
+          setFocusId(id);
+        }}
+        onAddProposal={(id) => setAddProposal({ mediaId: id })}
+        onMapData={handleMapData}
+        onRequestMapMove={handleRequestMapMove}
+        getViewport={() => lastViewportRef.current}
+        mapSlot={
+          <MapArea
+            markers={markers}
+            clusters={clusters}
+            selectedGroup={groupPopup}
+            autoFit={false}
+            moveTarget={moveTarget}
+            onBoundsChange={handleBoundsChange}
+            onClusterClick={handleClusterClick}
+            onGroupClick={handleGroupClick}
+            onMarkerClick={handleMarkerClick}
+            focusId={focusId}
+            focusCenter={!popupId}
+            popupId={popupId}
+            popupPosition={
+              groupPopup && groupPopup.length > 0
+                ? { lat: groupPopup[0].lat, lng: groupPopup[0].lng }
                 : null
             }
-            onAddProposal={() => setAddProposalMediaId(selectedMedia.id)}
-            onBack={closeDetail}
+            popupContent={
+              groupPopup ? (
+                <MarkerMediaPopup
+                  simple={popupSimple}
+                  onSimpleChange={setPopupSimple}
+                  rows={groupRows}
+                  onSelect={(row) => {
+                    setSelectedMedia(cardRowToItem(row));
+                    setFocusId(row.id);
+                    setGroupPopup(null);
+                  }}
+                  onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
+                />
+              ) : popupId ? (
+                <MarkerMediaPopup
+                  simple={popupSimple}
+                  onSimpleChange={setPopupSimple}
+                  rows={popupRows}
+                  onSelect={(row) => {
+                    setSelectedMedia(cardRowToItem(row));
+                    setPopupId(null);
+                  }}
+                  onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
+                />
+              ) : null
+            }
+            onPopupClose={closePopup}
+            className="size-full"
           />
-        </div>
+        }
+      />
+
+      {selectedMedia && (
+        <MediaDetailModal
+          mediaId={selectedMedia.id}
+          onClose={closeDetail}
+          onAddProposal={(id, planNo) => {
+            // 담기 모달은 상세 팝업 위에 겹치지 않는다(포커스 트랩이 충돌) → 상세를 닫고 띄운다.
+            setSelectedMedia(null);
+            setAddProposal({ mediaId: id, planNo });
+          }}
+        />
       )}
 
-      {addProposalMediaId && (
+      {addProposal && (
         <AddToProposalModal
-          mediaId={addProposalMediaId}
-          onClose={() => setAddProposalMediaId(null)}
+          mediaId={addProposal.mediaId}
+          planNo={addProposal.planNo}
+          onClose={() => setAddProposal(null)}
         />
       )}
     </div>

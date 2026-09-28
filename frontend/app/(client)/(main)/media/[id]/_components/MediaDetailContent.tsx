@@ -1,11 +1,11 @@
 "use client";
 
+import { Button, Chip } from "@heroui/react";
 import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
-import { Button } from "@/components/common/buttons";
 import { GenderDonut } from "@/components/common/GenderDonut";
 import { DescriptionToggle } from "@/components/common/media-detail/DescriptionToggle";
 import { FeaturesSection } from "@/components/common/media-detail/FeaturesSection";
@@ -72,6 +72,7 @@ export function MediaDetailContent({
   className,
   hidePopulation = false,
   mediaId,
+  onAddProposal,
 }: {
   name?: string;
   price?: string;
@@ -85,10 +86,18 @@ export function MediaDetailContent({
   className?: string;
   hidePopulation?: boolean;
   mediaId?: string;
+  /** 담기 모달을 바깥에서 띄울 때 사용(팝업 안에서 쓸 때). 없으면 이 컴포넌트가 직접 띄운다. */
+  onAddProposal?: (planNo?: number) => void;
 } = {}) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedList, setSelectedList] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+
+  const handleAddProposal = () => {
+    const planNo = mediaList[selectedList]?.planNo;
+    if (onAddProposal) onAddProposal(planNo);
+    else setAddOpen(true);
+  };
 
   const showPopulation = !hidePopulation && !!population;
   const primaryGender = population
@@ -128,14 +137,14 @@ export function MediaDetailContent({
             <div className="flex items-start gap-[12px]">
               <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
                 {badge && (
-                  <span
+                  <Chip
                     className={cn(
-                      "inline-flex w-fit items-center justify-center rounded-full px-[12px] py-[6px] text-base font-medium leading-[24px]",
+                      "w-fit justify-center rounded-full px-[12px] py-[6px] text-base font-medium leading-[24px]",
                       BADGE[badge].className,
                     )}
                   >
                     {BADGE[badge].label}
-                  </span>
+                  </Chip>
                 )}
                 <div className="flex flex-col gap-[4px]">
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
@@ -146,14 +155,15 @@ export function MediaDetailContent({
                   </p>
                 </div>
               </div>
+              {/* HeroUI Button 기본 높이(h-11)·모서리(rounded-3xl)는 시안 값으로 덮어쓴다. */}
               <Button
                 variant="primary"
                 size="lg"
-                className="shrink-0"
-                leftIcon={<FolderIcon />}
-                disabled={!mediaId}
-                onClick={() => setAddOpen(true)}
+                className="h-auto shrink-0 gap-[8px] rounded-[8px] px-[24px] py-[16px] text-base font-semibold [&_svg]:size-[24px]"
+                isDisabled={!mediaId}
+                onPress={handleAddProposal}
               >
+                <FolderIcon />
                 매체 담기
               </Button>
             </div>
@@ -167,22 +177,24 @@ export function MediaDetailContent({
             )}
           </div>
 
-          <div className="flex flex-col gap-[24px]">
-            <SectionTitle>매체 설명</SectionTitle>
-            <p
-              className={cn(
-                "whitespace-pre-wrap text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black",
-                descExpanded ? "" : "line-clamp-3",
-              )}
-            >
-              {description}
-            </p>
-            <DescriptionToggle
-              expanded={descExpanded}
-              onToggle={() => setDescExpanded((v) => !v)}
-              size="lg"
-            />
-          </div>
+          {description && (
+            <div className="flex flex-col gap-[24px]">
+              <SectionTitle>매체 설명</SectionTitle>
+              <p
+                className={cn(
+                  "whitespace-pre-wrap text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black",
+                  descExpanded ? "" : "line-clamp-3",
+                )}
+              >
+                {description}
+              </p>
+              <DescriptionToggle
+                expanded={descExpanded}
+                onToggle={() => setDescExpanded((v) => !v)}
+                size="lg"
+              />
+            </div>
+          )}
 
           {mediaList.length > 0 && (
             <div className="flex flex-col gap-[24px]">

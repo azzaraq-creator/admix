@@ -28,6 +28,12 @@ export type MediaDetailViewModel = {
   id: string;
   name: string;
   price: string;
+  adFeeKrw: number | null;
+  productionFeeKrw: number | null;
+  categoryLarge: string | null;
+  categorySmall: string | null;
+  salesType: string | null;
+  oohType: string | null;
   badge: "popular" | "new" | null;
   description?: string;
   address?: string;
@@ -57,6 +63,12 @@ export function toMediaDetailViewModel(
     id: detail.id,
     name: detail.name,
     price: formatFee(detail.minAdvertisementFeeKrw),
+    adFeeKrw: detail.minAdvertisementFeeKrw,
+    productionFeeKrw: detail.minProductionFeeKrw ?? null,
+    categoryLarge: detail.categoryLarge ?? null,
+    categorySmall: detail.categorySmall ?? null,
+    salesType: detail.salesType ?? null,
+    oohType: detail.oohType ?? null,
     badge: detail.badge,
     description: detail.description ?? undefined,
     address: detail.address ?? undefined,

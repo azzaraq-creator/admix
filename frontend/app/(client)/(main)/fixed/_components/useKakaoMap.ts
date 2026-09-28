@@ -4,7 +4,12 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { type KakaoMap, type KakaoMarker, loadKakaoSdk } from "@/lib/kakaoMap";
 
-import type { MapBoundsPayload, MapMarker, MapMoveType, MoveTarget } from "./mapTypes";
+import type {
+  MapBoundsPayload,
+  MapMarker,
+  MapMoveType,
+  MoveTarget,
+} from "./mapTypes";
 
 export const SEOUL_CITY_HALL = { lat: 37.5665, lng: 126.978 };
 
@@ -23,7 +28,6 @@ export function useKakaoMap({
   const mapRef = useRef<KakaoMap | null>(null);
   const programmaticMoveRef = useRef(false);
   const zoomedRef = useRef(false);
-  const draggedRef = useRef(false);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveTargetRef = useRef(moveTarget);
@@ -54,12 +58,9 @@ export function useKakaoMap({
           // 초기 위치의 첫 idle은 사용자 이동이 아님(버튼 오노출 방지).
           programmaticMoveRef.current = true;
 
-          // idle/zoom/drag 리스너를 지도 생성과 동시에 부착 → 첫 idle(초기 커밋) 놓침 방지.
+          // idle/zoom 리스너를 지도 생성과 동시에 부착 → 첫 idle(초기 커밋) 놓침 방지.
           const markZoom = () => {
             zoomedRef.current = true;
-          };
-          const markDrag = () => {
-            draggedRef.current = true;
           };
           const emit = (moveType: MapMoveType) => {
             const bounds = map.getBounds();
@@ -71,7 +72,10 @@ export function useKakaoMap({
             let swLng = sw.getLng();
             // 모바일 진입 시 지도가 숨김(크기 0)이면 getBounds가 한 점을 반환한다.
             // degenerate(넓이 0) bbox면 중심 기준 기본 span으로 확장(빈 결과 방지).
-            if (Math.abs(neLat - swLat) < 1e-6 || Math.abs(neLng - swLng) < 1e-6) {
+            if (
+              Math.abs(neLat - swLat) < 1e-6 ||
+              Math.abs(neLng - swLng) < 1e-6
+            ) {
               const cLat = (neLat + swLat) / 2;
               const cLng = (neLng + swLng) / 2;
               const D_LAT = 0.03;
@@ -83,7 +87,6 @@ export function useKakaoMap({
             }
             programmaticMoveRef.current = false;
             zoomedRef.current = false;
-            draggedRef.current = false;
             onBoundsChangeRef.current?.({
               neLat,
               neLng,
@@ -101,22 +104,16 @@ export function useKakaoMap({
               idleTimerRef.current = setTimeout(() => emit("program"), 180);
               return;
             }
-            // 사용자 줌/드래그는 즉시 통지. (플래그 없으면 program 취급 → 버튼 오노출 방지)
-            emit(
-              zoomedRef.current
-                ? "zoom"
-                : draggedRef.current
-                  ? "drag"
-                  : "program",
-            );
+            // 코드가 옮긴 게 아니면 사용자 이동이다 — 줌이 아니면 모두 "drag"로 본다.
+            // dragend가 없는 이동(방향키로 지도 이동, 패널을 여닫아 지도 크기가 바뀜 등)도
+            // 목록을 지금 보이는 영역으로 다시 조회해야 하기 때문이다.
+            emit(zoomedRef.current ? "zoom" : "drag");
           };
           maps.event.addListener(map, "zoom_changed", markZoom);
-          maps.event.addListener(map, "dragend", markDrag);
           maps.event.addListener(map, "idle", handleIdle);
           listenerCleanupRef.current = () => {
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
             maps.event.removeListener(map, "zoom_changed", markZoom);
-            maps.event.removeListener(map, "dragend", markDrag);
             maps.event.removeListener(map, "idle", handleIdle);
           };
 

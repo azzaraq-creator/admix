@@ -152,7 +152,7 @@ export function MobileMediaDetail({
               type="button"
               aria-label="매체 담기"
               onClick={onAddProposal}
-              className="flex size-[40px] shrink-0 items-center justify-center rounded-[8px] bg-primary text-white"
+              className="flex size-[40px] shrink-0 items-center justify-center rounded-[17px] bg-primary text-white"
             >
               <FolderIcon className="size-[24px]" />
             </button>
