@@ -1,7 +1,14 @@
 "use client";
 
-import { Button, Chip, Modal, Skeleton, ToggleButton } from "@heroui/react";
-import { useState } from "react";
+import {
+  Button,
+  Chip,
+  Modal,
+  Popover,
+  Skeleton,
+  ToggleButton,
+} from "@heroui/react";
+import { useEffect, useRef, useState } from "react";
 
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
@@ -367,29 +374,92 @@ function PriceRow({
   );
 }
 
+// 펼친 설명 카드의 안쪽 여백. 카드를 설명 블록보다 이만큼 바깥으로 키워, 카드 안 글자가
+// 원래 설명 글자와 같은 자리에 오게 한다.
+const DESC_POP_PAD = 14;
+
+/**
+ * 매체 설명 — 4줄까지만 보여 주고, 실제로 넘칠 때만 "더보기"를 띄운다. 더보기를 누르면 모달을
+ * 늘이지 않고 설명 자리에 그대로 겹쳐 전문을 띄운다(HeroUI Popover — 바깥 클릭·Esc·접기로 닫힘).
+ */
 function Description({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [blockHeight, setBlockHeight] = useState(0);
+
+  // 4줄(line-clamp)에서 잘리는지 잰다. 모달 폭이 바뀌면 줄 수도 바뀌어 다시 잰다.
+  useEffect(() => {
+    const el = textRef.current;
+    const block = blockRef.current;
+    if (!el || !block) return;
+    const measure = () => {
+      setOverflowing(el.scrollHeight > el.clientHeight + 1);
+      setBlockHeight(block.offsetHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    observer.observe(block);
+    return () => observer.disconnect();
+  }, [text]);
+
   return (
-    <>
-      <div className="flex w-full flex-col gap-[4px] text-[12px]">
-        <p className="text-[#555]">매체 설명</p>
-        <p
-          className={cn(
-            "whitespace-pre-wrap leading-[18px] text-black",
-            !expanded && "line-clamp-4",
-          )}
-        >
-          {text}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="text-[12px] text-[#888] underline"
+    <div ref={blockRef} className="flex w-full flex-col items-start gap-[4px] text-[12px]">
+      {/* 펼친 카드의 제목과 줄 높이를 맞춰야 본문이 같은 자리에서 펼쳐진다. */}
+      <p className="leading-[18px] text-[#555]">매체 설명</p>
+      <p
+        ref={textRef}
+        className="line-clamp-4 w-full whitespace-pre-wrap leading-[18px] text-black"
       >
-        {expanded ? "접기" : "더보기"}
-      </button>
-    </>
+        {text}
+      </p>
+      {overflowing && (
+        <Popover isOpen={open} onOpenChange={setOpen}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto min-w-0 p-0 text-[12px] font-normal text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+          >
+            더보기
+          </Button>
+          {/* 설명 블록(triggerRef)의 윗변에 카드 윗변을 맞추고(아래 방향 기준 −블록 높이), 사방으로
+              DESC_POP_PAD만큼 키운다 → 카드 안 "매체 설명"·본문이 원래 자리에서 그대로 펼쳐진다.
+              뒤집히면 자리가 어긋나므로 뒤집지 않는다. */}
+          <Popover.Content
+            triggerRef={blockRef}
+            placement="bottom start"
+            offset={-Math.round(blockHeight + DESC_POP_PAD)}
+            crossOffset={-DESC_POP_PAD}
+            shouldFlip={false}
+            // 설명이 제자리에서 펼쳐지는 느낌이 나도록 HeroUI 기본 등장·퇴장(확대·페이드) 효과는 끈다.
+            className="max-w-[calc(100vw-32px)] rounded-[16px] animate-none! transition-none!"
+            style={{ width: `calc(var(--trigger-width) + ${DESC_POP_PAD * 2}px)` }}
+          >
+            <Popover.Dialog
+              className="flex max-h-[min(360px,60vh)] flex-col items-start gap-[4px] text-[12px]"
+              style={{ padding: DESC_POP_PAD }}
+            >
+              <Popover.Heading className="shrink-0 text-[12px] leading-[18px] font-normal text-[#555]">
+                매체 설명
+              </Popover.Heading>
+              <p className="min-h-0 w-full overflow-y-auto leading-[18px] whitespace-pre-wrap text-black">
+                {text}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => setOpen(false)}
+                className="h-auto min-w-0 shrink-0 p-0 text-[12px] font-normal text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+              >
+                접기
+              </Button>
+            </Popover.Dialog>
+          </Popover.Content>
+        </Popover>
+      )}
+    </div>
   );
 }
 

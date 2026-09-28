@@ -50,6 +50,9 @@ export const useFixedMediaInfinite = (
   useInfiniteQuery({
     queryKey: mediaKeys.fixedList(filters),
     enabled,
+    // 조회 범위(지도 영역)가 바뀌어 다시 불러오는 동안 이전 목록을 그대로 둔다.
+    // 목록이 스켈레톤으로 바뀌었다 다시 그려지면 같은 매체 카드의 사진도 새로 불러와 버벅인다.
+    placeholderData: keepPreviousData,
     queryFn: ({ pageParam }) =>
       mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam, filters),
     initialPageParam: 0,
