@@ -69,9 +69,12 @@ export function HomeContent() {
   const hasConversation = mode === "ai" && chat.messages.length > 0;
 
   return (
+    // 첫 화면은 화면 높이를 꽉 채우고, 그 아래로 대시보드 콘텐츠가 이어진다(스크롤해서 본다).
+    // 대화 중엔 높이를 화면에 고정해 대화 목록이 안에서 스크롤되고, 목록 끝에서 더 내리면
+    // 바깥(홈 화면)이 이어서 스크롤돼 아래 콘텐츠가 보인다.
     <div
-      className={`flex flex-col px-[20px] pb-[24px] sm:px-[50px] ${
-        hasConversation ? "h-full min-h-0" : "min-h-full"
+      className={`flex shrink-0 flex-col px-[20px] pb-[24px] sm:px-[50px] ${
+        hasConversation ? "h-full" : "min-h-full"
       }`}
     >
       <div className="flex shrink-0 items-center justify-between gap-[12px] pt-[30px] sm:pt-[52px]">
@@ -163,15 +166,16 @@ export function HomeContent() {
         </div>
       )}
 
-      {!hasConversation && (
-        <div
-          aria-hidden
-          className="flex shrink-0 flex-col items-center gap-[2px] text-[#888]"
-        >
-          <ScrollMouseIcon className="size-[24px]" />
-          <ChevronDownIcon className="size-[20px]" />
-        </div>
-      )}
+      {/* 아래에 콘텐츠가 더 있다는 표시 — 대화 중에도 유지한다. */}
+      <div
+        aria-hidden
+        className={`flex shrink-0 flex-col items-center gap-[2px] text-[#888] ${
+          hasConversation ? "mt-[12px]" : ""
+        }`}
+      >
+        <ScrollMouseIcon className="size-[24px]" />
+        <ChevronDownIcon className="size-[20px]" />
+      </div>
     </div>
   );
 }

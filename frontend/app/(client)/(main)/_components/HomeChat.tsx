@@ -11,12 +11,13 @@ import {
 } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
-import { ArrowUpIcon, RotateCwIcon } from "@/components/icons";
+import { ArrowUpIcon } from "@/components/icons";
 import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 
 import { AssistantBubble } from "../fixed/_components/chat/AssistantBubble";
 import { MixieMarkdown } from "../fixed/_components/chat/MixieMarkdown";
+import { NewChatButton } from "./NewChatButton";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
 
@@ -88,13 +89,18 @@ export function HomeChat({ variant = "page" }: { variant?: "page" | "panel" }) {
     null,
   );
   const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const addProposalItems = useAddProposalItems();
   const renameProposal = useRenameProposal();
   const { success, error } = useSonner();
 
+  // 새 메시지가 오면 대화 목록만 맨 아래로 내린다. scrollIntoView는 바깥 스크롤(홈 화면 전체)까지
+  // 움직여, 대시보드 아래 콘텐츠 쪽으로 화면이 밀려 내려가 버린다.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (!list) return;
+    list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [chat.messages]);
 
   const handlePickProposal = useCallback(
@@ -177,18 +183,12 @@ export function HomeChat({ variant = "page" }: { variant?: "page" | "panel" }) {
           패널은 헤더에 같은 버튼이 있다. */}
       {!isPanel && (
         <div className={`flex ${widthClass} shrink-0 justify-end`}>
-          <button
-            type="button"
-            disabled={chat.running}
-            onClick={() => void chat.newSession()}
-            className="flex items-center gap-[4px] text-[13px] font-medium text-black-500 transition-colors hover:text-primary disabled:opacity-50"
-          >
-            <RotateCwIcon className="size-[14px]" />새 대화
-          </button>
+          <NewChatButton />
         </div>
       )}
 
       <div
+        ref={listRef}
         className={`flex ${widthClass} min-h-0 flex-1 flex-col items-end overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isPanel ? "gap-[14px]" : "gap-[10px]"
         }`}
