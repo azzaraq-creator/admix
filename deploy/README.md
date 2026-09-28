@@ -185,6 +185,8 @@ bash deploy/redeploy.sh
 # 1) 로컬 → EC2 코드 동기화 (.git, node_modules, .env, macOS 메타파일 제외)
 #    ⚠️ 소스는 반드시 monorepo 루트의 **절대경로**. 상대경로 `./` 는 셸 작업디렉토리가
 #    하위폴더면 --delete 가 EC2 레포를 통째로 덮어쓴다(사고 이력). redeploy.sh 는 $ROOT 절대경로 사용.
+#    ⚠️ backend/secrets/(GA4 키)·backend/.env.bak*·seed/ 는 서버 전용이라 배포자 로컬에 없을 수 있다.
+#    exclude 를 빼면 --delete 가 운영 GA4 키를 지운다. 먼저 `-n`(dry-run)으로 삭제 목록을 확인할 것.
 rsync -az --delete \
   --exclude='.git/' --exclude='node_modules/' --exclude='.next/' \
   --exclude='*.tsbuildinfo' --exclude='__pycache__/' --exclude='.pytest_cache/' \
@@ -192,6 +194,7 @@ rsync -az --delete \
   --exclude='.DS_Store' --exclude='._*' \
   --exclude='.omc/' --exclude='.claude/' \
   --exclude='backend/.env' --exclude='.env' --exclude='.env.local' \
+  --exclude='backend/secrets/' --exclude='backend/.env.bak*' --exclude='seed/' \
   -e "ssh -i ~/.ssh/admix-key.pem" \
   /ABS/PATH/ooh-recommend/ ubuntu@43.201.172.34:/home/ubuntu/ooh-recommend/
 
