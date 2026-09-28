@@ -30,6 +30,8 @@ export function useKakaoMap({
   const zoomedRef = useRef(false);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 컨테이너 크기가 바뀌는 중(LNB 접기/펼치기 등) — 이때 나는 idle은 한 번으로 모은다. */
+  const resizingRef = useRef(false);
   const moveTargetRef = useRef(moveTarget);
   const onBoundsChangeRef = useRef(onBoundsChange);
   const autoFitRef = useRef(autoFit);
@@ -97,6 +99,16 @@ export function useKakaoMap({
             });
           };
           const handleIdle = () => {
+            // 크기 변화로 relayout할 때마다 idle이 나는데, 그때마다 목록을 다시 조회하면
+            // 애니메이션 동안 여러 번 조회돼 카드가 버벅인다. 크기가 멈춘 뒤 한 번만 알린다.
+            if (resizingRef.current) {
+              if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+              idleTimerRef.current = setTimeout(() => {
+                resizingRef.current = false;
+                emit("drag");
+              }, 200);
+              return;
+            }
             // 프로그램 이동(지오코딩/클러스터/moveTarget)은 setCenter+setLevel이
             // idle을 여러 번 발생시키므로, debounce로 최종 settled 상태만 통지.
             if (programmaticMoveRef.current) {
@@ -156,6 +168,17 @@ export function useKakaoMap({
 
     let prevWidth = container.clientWidth;
     let prevHeight = container.clientHeight;
+    // relayout(타일 재배치)은 무거워 크기가 연속으로 바뀔 때(LNB 접기/펼치기 애니메이션 등)
+    // 매 프레임 하면 버벅인다. 최대 100ms에 한 번만 하고, 마지막 크기도 100ms 안에 반영된다.
+    let relayoutTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleRelayout = () => {
+      resizingRef.current = true;
+      if (relayoutTimer) return;
+      relayoutTimer = setTimeout(() => {
+        relayoutTimer = undefined;
+        mapRef.current?.relayout();
+      }, 100);
+    };
     const observer = new ResizeObserver((entries) => {
       const map = mapRef.current;
       if (!map) return;
@@ -171,8 +194,9 @@ export function useKakaoMap({
       prevHeight = height;
       // 컨테이너 크기 변경(채팅 패널 접기/펼치기 등) 시 타일 재배치. relayout이 없으면
       // 새로 드러난 영역이 회색으로 남는다. relayout은 중심/줌을 보존해 지도가 튀지 않는다.
-      if (sizeChanged) map.relayout();
       if (becameVisible) {
+        // 보이게 되는 순간은 기다리지 않고 바로 맞춘다(아래 재센터링이 relayout 뒤여야 한다).
+        map.relayout();
         // 모바일: 지도가 숨김(크기 0)으로 생성돼 센터가 어긋나므로, 보이게 될 때 재센터링.
         const maps = window.kakao?.maps;
         const mt = moveTargetRef.current;
@@ -182,10 +206,15 @@ export function useKakaoMap({
           if (mt.level != null) map.setLevel(mt.level);
         }
         fitToMarkers();
+      } else if (sizeChanged) {
+        scheduleRelayout();
       }
     });
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (relayoutTimer) clearTimeout(relayoutTimer);
+    };
   }, [mapReady, markerObjsRef]);
 
   return { containerRef, mapRef, markerObjsRef, mapReady, programmaticMoveRef };
