@@ -223,6 +223,12 @@ export function useReactChat() {
   const [running, setRunning] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  // 마운트 복원 시도가 끝났는지(복원할 세션이 없던 경우 포함). 외부에서 첫 질의를
+  // 자동 전송할 때, 복원 결과가 낙관적 메시지를 덮어쓰지 않도록 기다리는 기준.
+  // 복원할 세션이 없으면 처음부터 완료 상태로 시작한다.
+  const [restored, setRestored] = useState(
+    () => typeof window === "undefined" || !localStorage.getItem(SESSION_KEY),
+  );
   const { error } = useSonner();
 
   // 언마운트 시 진행 중인 폴링 루프를 중단(setState 누수 방지).
@@ -258,7 +264,10 @@ export function useReactChat() {
           if (!cancelled) setSessionId(null);
         }
       } finally {
-        if (!cancelled) setRestoring(false);
+        if (!cancelled) {
+          setRestoring(false);
+          setRestored(true);
+        }
       }
     })();
     return () => {
@@ -654,6 +663,7 @@ export function useReactChat() {
     messages,
     running,
     restoring,
+    restored,
     sessionId,
     submit,
     removeSlot,

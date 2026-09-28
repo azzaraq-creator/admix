@@ -1,17 +1,11 @@
-import { MobileTopNav } from "../../(main)/_components/MobileTopNav";
-import { Sidebar } from "../../(main)/_components/Sidebar";
 import { ProfileView } from "./_components/ProfileView";
 
 export default function ProfilePage() {
   return (
-    <div className="flex h-dvh w-full bg-white">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileTopNav />
-        <main className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-          <ProfileView />
-        </main>
-      </div>
-    </div>
+    // 프로필 메뉴(드롭다운)에서 들어오면 포커스가 이 스크롤 영역에 놓여 테두리가 그려진다.
+    // 버튼·입력칸이 아닌 영역이라 포커스 테두리는 끈다.
+    <main className="min-h-0 flex-1 overflow-y-auto outline-none [scrollbar-gutter:stable]">
+      <ProfileView />
+    </main>
   );
 }

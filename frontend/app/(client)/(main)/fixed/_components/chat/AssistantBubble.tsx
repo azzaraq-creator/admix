@@ -1,12 +1,14 @@
+import { Spinner } from "@heroui/react";
 import { useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { FolderIcon, RotateCwIcon } from "@/components/icons";
+import { AiIcon, FolderIcon } from "@/components/icons";
 import type { V2Message } from "@/hooks/adRecommendReact";
 
 import { ChatMediaList } from "./ChatMediaList";
 import { ConditionChips, MatchedChips } from "./ConditionChips";
 import { ConfirmationView } from "./ConfirmationView";
+import { MixieMarkdown } from "./MixieMarkdown";
 import { ProposalCard } from "./ProposalCard";
 
 export function AssistantBubble({
@@ -19,6 +21,7 @@ export function AssistantBubble({
   onOpenDetail,
   onAddProposal,
   onPickProposal,
+  showAvatar = true,
 }: {
   message: V2Message;
   selectedId?: string;
@@ -32,13 +35,15 @@ export function AssistantBubble({
     proposalId: string,
     choices: { action: "add" | "rename"; mediaIds: string[]; newName?: string },
   ) => Promise<boolean> | boolean;
+  /** 답변 앞 믹시 아이콘. 이미 "AI 믹시" 헤더가 있는 좁은 패널에서는 끈다. */
+  showAvatar?: boolean;
 }) {
   const [pickedName, setPickedName] = useState<string | null>(null);
 
   if (message.isLoading) {
     return (
-      <div className="flex items-center gap-[8px] text-base text-grey-500">
-        <RotateCwIcon className="size-[16px] animate-spin text-primary" />
+      <div className="flex items-center gap-[10px] text-[14px] text-black-500">
+        <Spinner size="sm" />
         <span>{message.loadingLabel || "추천 중..."}</span>
       </div>
     );
@@ -60,16 +65,11 @@ export function AssistantBubble({
         message.items.length > 0 && (
           <>
             <div className="flex items-start gap-[8px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons/ai-icon.png"
-                alt=""
-                className="size-[24px] shrink-0"
-              />
-              <p className="whitespace-pre-line text-base leading-[24px] text-black">
+              {showAvatar && <AiIcon className="size-[24px] shrink-0" />}
+              <MixieMarkdown>
                 {message.message ||
                   `분석 완료! 가장 적합한 매체 ${message.items.length}개를 정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성 요청해보세요.`}
-              </p>
+              </MixieMarkdown>
             </div>
             <ConditionChips message={message} />
             <ChatMediaList
@@ -86,18 +86,11 @@ export function AssistantBubble({
       {message.message &&
         message.response_type !== "list" &&
         message.response_type !== "proposal_choices" && (
-        <div className="flex items-start gap-[8px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/icons/ai-icon.png"
-            alt=""
-            className="size-[24px] shrink-0"
-          />
-          <p className="whitespace-pre-line text-base leading-[24px] text-black">
-            {message.message}
-          </p>
-        </div>
-      )}
+          <div className="flex items-start gap-[8px]">
+            {showAvatar && <AiIcon className="size-[24px] shrink-0" />}
+            <MixieMarkdown>{message.message}</MixieMarkdown>
+          </div>
+        )}
       {message.response_type === "proposal" && message.proposal && (
         <ProposalCard
           name={message.proposal.name}
@@ -108,12 +101,7 @@ export function AssistantBubble({
         message.proposalChoices && (
           <div className="flex flex-col gap-[8px]">
             <div className="flex items-start gap-[8px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons/ai-icon.png"
-                alt=""
-                className="size-[24px] shrink-0"
-              />
+              {showAvatar && <AiIcon className="size-[24px] shrink-0" />}
               <p className="text-base leading-[24px] text-black">
                 {pickedName
                   ? message.proposalChoices.action === "rename"

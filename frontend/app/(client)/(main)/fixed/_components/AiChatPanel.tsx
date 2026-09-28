@@ -1,14 +1,17 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
+  // SlotBar와 함께 임시 비활성화(기획 변경 여지),
+  // XIcon,
+  AiIcon,
   ArrowUpIcon,
   RotateCwIcon,
   SparkleIcon,
-  // XIcon, // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 } from "@/components/icons";
 import {
   useReactChat,
@@ -35,6 +38,7 @@ const MAX_LENGTH = 500;
 const MAX_TEXTAREA_HEIGHT = 120;
 
 export function AiChatPanel({
+  initialQuery,
   selectedId,
   onSelectMedia,
   onRecommendations,
@@ -43,6 +47,8 @@ export function AiChatPanel({
   onAddProposal,
   onNewSession,
 }: {
+  /** 홈 AI 믹시 입력창에서 넘어온 첫 질의 — 세션 복원이 끝난 뒤 1회 자동 전송. */
+  initialQuery?: string;
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
   onRecommendations?: (markers: MapMarker[]) => void;
@@ -63,7 +69,11 @@ export function AiChatPanel({
   const handlePickProposal = useCallback(
     async (
       proposalId: string,
-      choices: { action: "add" | "rename"; mediaIds: string[]; newName?: string },
+      choices: {
+        action: "add" | "rename";
+        mediaIds: string[];
+        newName?: string;
+      },
     ): Promise<boolean> => {
       try {
         if (choices.action === "rename") {
@@ -103,6 +113,16 @@ export function AiChatPanel({
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages]);
+
+  // 홈에서 넘어온 첫 질의를 자동 전송. 복원이 끝난 뒤에 보내야 복원 결과가
+  // 낙관적으로 추가한 메시지를 덮어쓰지 않는다.
+  const autoSentRef = useRef(false);
+  useEffect(() => {
+    if (!initialQuery || autoSentRef.current) return;
+    if (!chat.restored || chat.running) return;
+    autoSentRef.current = true;
+    void chat.submit(initialQuery, { allowShort: true });
+  }, [initialQuery, chat]);
 
   // 복원 중엔 textarea가 disabled라 autoFocus가 실패 → 복원 완료 시 입력창 포커스.
   useEffect(() => {
@@ -193,12 +213,7 @@ export function AiChatPanel({
     <>
       <div className="flex items-center justify-between border-b border-stroke px-[24px] py-[12px]">
         <div className="flex items-center gap-[8px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/icons/ai-icon.png"
-            alt=""
-            className="size-[18px] shrink-0"
-          />
+          <AiIcon className="size-[18px] shrink-0" />
           <span className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-primary">
             믹시
           </span>
@@ -261,12 +276,7 @@ export function AiChatPanel({
                 <p>안녕하세요!</p>
                 <p>
                   AI 추천{" "}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/icons/ai-icon.png"
-                    alt=""
-                    className="inline-block size-[24px] align-text-bottom"
-                  />
+                  <AiIcon className="inline-block size-[24px] align-text-bottom" />
                   <span className="font-semibold text-primary">믹시</span>
                   에요.
                 </p>
@@ -337,7 +347,9 @@ export function AiChatPanel({
             className="flex w-full items-center justify-center rounded-[12px] bg-primary px-[16px] py-[12px] text-sm font-semibold text-white"
           >
             {chat.limitCta ??
-              (chat.limitAction === "login" ? "로그인하고 계속" : "사업자 등록하기")}
+              (chat.limitAction === "login"
+                ? "로그인하고 계속"
+                : "사업자 등록하기")}
           </button>
         )}
         <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-white px-[24px] py-[10px]">
@@ -368,20 +380,22 @@ export function AiChatPanel({
             disabled={chat.restoring || chat.limitReached}
             className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-grey-500 disabled:opacity-60"
           />
-          <button
-            type="button"
-            disabled={
+          <Button
+            isIconOnly
+            variant="primary"
+            size="sm"
+            isDisabled={
               value.trim().length === 0 ||
               chat.running ||
               chat.restoring ||
               chat.limitReached
             }
-            onClick={handleSend}
+            onPress={handleSend}
             aria-label="전송"
-            className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white disabled:opacity-50"
+            className="size-[34px] shrink-0 rounded-full"
           >
             <ArrowUpIcon className="size-[18px]" />
-          </button>
+          </Button>
         </div>
         <p className="w-full text-center text-xs font-medium leading-[16px] text-grey-500">
           AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.

@@ -1,0 +1,116 @@
+"use client";
+
+import { Button } from "@heroui/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import type { KeyboardEvent } from "react";
+
+import { ArrowUpIcon } from "@/components/icons";
+
+import type { Mode } from "./ModeToggle";
+
+const MAX_LENGTH = 500;
+// 22px(leading) × 5줄. 여기부터는 더 늘리지 않고 스크롤한다.
+const MAX_TEXTAREA_HEIGHT = 110;
+
+export function AiSearchBox({
+  value,
+  onValueChange,
+  mode,
+  onAiSubmit,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  /** 전환 탭은 홈 우측 상단(ModeToggle)에 있고, 여기서는 현재 모드만 따른다. */
+  mode: Mode;
+  /** AI 모드 전송 — 홈에서 그대로 대화를 이어간다(페이지 이동 없음). */
+  onAiSubmit: (text: string) => void;
+}) {
+  const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 높이가 한 줄로 고정돼 있으면 두 줄째부터 옆에 스크롤바가 생긴다.
+  // 내용만큼 늘려 주고(최대 5줄), 그 뒤로는 스크롤바 없이 스크롤만 되게 둔다.
+  // 제안 문구 클릭처럼 부모가 값을 바꾸는 경우도 있어 value 변화를 따라간다.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }, [value]);
+
+  const isEmpty = value.trim().length === 0;
+
+  // AI 모드는 이 화면에서 바로 대화를 시작하고,
+  // 검색 모드는 매체 찾기가 읽는 kw(매체명·주소 부분일치)로 넘긴다.
+  // 빈 입력은 전송 버튼과 동일하게 Enter로도 막는다.
+  const submit = () => {
+    const text = value.trim();
+    if (!text) return;
+    if (mode === "search") {
+      router.push(`/fixed?kw=${encodeURIComponent(text)}`);
+      return;
+    }
+    onValueChange("");
+    onAiSubmit(text);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    )
+      return;
+    event.preventDefault();
+    submit();
+  };
+
+  const isSearch = mode === "search";
+
+  return (
+    // 검색 모드는 테두리가 2px → 1px이라, 안쪽 모서리도 1px만큼 키워야 같은 두께로 둘린다.
+    <div
+      className="admix-ai-border w-full max-w-[860px]"
+      data-mode={isSearch ? "search" : undefined}
+    >
+      <div
+        className={`relative flex min-h-[94px] flex-col bg-white px-[20px] pt-[18px] pb-[10px] ${
+          isSearch ? "rounded-[26px]" : "rounded-[25px]"
+        }`}
+      >
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(event) =>
+            onValueChange(event.target.value.slice(0, MAX_LENGTH))
+          }
+          onKeyDown={handleKeyDown}
+          rows={1}
+          maxLength={MAX_LENGTH}
+          aria-label="AI 믹시에게 질문하기"
+          placeholder={
+            isSearch
+              ? "지역이나 매체명을 검색해 보세요"
+              : "지역, 예산, 타겟, 광고 목적을 입력해 보세요"
+          }
+          className="max-h-[110px] w-full resize-none bg-transparent text-[15px] leading-[22px] text-black outline-none placeholder:text-[#a1a1aa] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        />
+
+        <div className="mt-[8px] flex items-center justify-end gap-[8px]">
+          <Button
+            isIconOnly
+            variant="primary"
+            size="sm"
+            isDisabled={isEmpty}
+            onPress={submit}
+            aria-label={mode === "ai" ? "AI 믹시에게 보내기" : "매체 검색하기"}
+            className="size-[40px] shrink-0 rounded-[17px]"
+          >
+            <ArrowUpIcon className="size-[20px]" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
