@@ -78,7 +78,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
         <polyline
           points={points}
           fill="none"
-          stroke="#00aaa4"
+          stroke="#a33bd1"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -91,7 +91,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
             cy={yFor(value)}
             r={hover === index ? 5 : 4}
             fill="#ffffff"
-            stroke="#00aaa4"
+            stroke="#a33bd1"
             strokeWidth={2}
           />
         ))}

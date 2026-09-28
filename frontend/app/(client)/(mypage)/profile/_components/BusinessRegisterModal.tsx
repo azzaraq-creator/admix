@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 import { LicenseFileInfo } from "@/components/common/LicenseFileInfo";
-import { CircleAlertIcon, XIcon } from "@/components/icons";
+import { BusinessUploadIcon, CircleAlertIcon, XIcon } from "@/components/icons";
 import { useUploadBusinessRegistration } from "@/hooks/auth";
 import { extractApiError } from "@/lib/apiError";
 
@@ -122,12 +122,7 @@ export function BusinessRegisterModal({
                 dragging ? "border-primary bg-primary-50" : "border-stroke"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons/business-upload.svg"
-                alt=""
-                className="size-[80px]"
-              />
+              <BusinessUploadIcon className="size-[80px]" />
               <div className="flex flex-col items-center gap-[6px]">
                 <p className="text-sm font-medium leading-[20px] text-black">
                   파일을 드래그하거나 클릭하여 업로드

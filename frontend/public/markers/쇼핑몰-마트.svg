@@ -1,7 +1,7 @@
 <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g filter="url(#filter0_d_610_10632)">
-<rect x="4" width="32" height="32" rx="16" fill="#00AAA4" shape-rendering="crispEdges"/>
-<rect x="5" y="1" width="30" height="30" rx="15" stroke="#007571" stroke-width="2" shape-rendering="crispEdges"/>
+<rect x="4" width="32" height="32" rx="16" fill="#A33BD1" shape-rendering="crispEdges"/>
+<rect x="5" y="1" width="30" height="30" rx="15" stroke="#5B1E7A" stroke-width="2" shape-rendering="crispEdges"/>
 <g clip-path="url(#clip0_610_10632)">
 <path d="M11.709 7.70801H13.3757L15.5923 18.058C15.6736 18.4371 15.8845 18.7759 16.1887 19.0162C16.4929 19.2565 16.8714 19.3833 17.259 19.3747H25.409C25.7883 19.3741 26.1561 19.2441 26.4515 19.0062C26.747 18.7683 26.9524 18.4368 27.034 18.0663L28.409 11.8747H14.2673M17.5007 23.4997C17.5007 23.9599 17.1276 24.333 16.6673 24.333C16.2071 24.333 15.834 23.9599 15.834 23.4997C15.834 23.0394 16.2071 22.6663 16.6673 22.6663C17.1276 22.6663 17.5007 23.0394 17.5007 23.4997ZM26.6673 23.4997C26.6673 23.9599 26.2942 24.333 25.834 24.333C25.3737 24.333 25.0007 23.9599 25.0007 23.4997C25.0007 23.0394 25.3737 22.6663 25.834 22.6663C26.2942 22.6663 26.6673 23.0394 26.6673 23.4997Z" stroke="white" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
 </g>

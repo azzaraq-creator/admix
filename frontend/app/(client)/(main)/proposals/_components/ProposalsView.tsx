@@ -137,7 +137,7 @@ export function ProposalsView() {
             </button>
           ))}
         </div>
-        <div className="flex w-full items-center gap-[10px] rounded-[6px] border border-stroke px-[16px] py-[12px] sm:h-[44px] sm:w-[298px] sm:py-0">
+        <div className="flex w-full items-center gap-[10px] rounded-[19px] border border-stroke px-[16px] py-[12px] sm:h-[44px] sm:w-[298px] sm:py-0">
           <input
             type="text"
             value={query}

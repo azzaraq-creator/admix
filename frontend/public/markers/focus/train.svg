@@ -1,0 +1,20 @@
+<svg width="32" height="40" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<clipPath id="train-inv-clip"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z"/></clipPath>
+<filter id="train-shadow-inv" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1A1025" flood-opacity="0.28"/></filter>
+<mask id="train-mask2_2429_1313-inv" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="199" y="0" width="25" height="24">
+<path d="M223.75 0H199.75V24H223.75V0Z" fill="white" />
+<path d="M214 5H209.5C208.119 5 207 6.11929 207 7.5C207 8.88071 208.119 10 209.5 10H214C215.381 10 216.5 8.88071 216.5 7.5C216.5 6.11929 215.381 5 214 5Z" fill="black" />
+<path d="M208.5 15.5C209.19 15.5 209.75 14.9404 209.75 14.25C209.75 13.5596 209.19 13 208.5 13C207.81 13 207.25 13.5596 207.25 14.25C207.25 14.9404 207.81 15.5 208.5 15.5Z" fill="black" />
+<path d="M215 15.5C215.69 15.5 216.25 14.9404 216.25 14.25C216.25 13.5596 215.69 13 215 13C214.31 13 213.75 13.5596 213.75 14.25C213.75 14.9404 214.31 15.5 215 15.5Z" fill="black" />
+</mask>
+
+</defs>
+<g filter="url(#train-shadow-inv)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" fill="white"/></g>
+<g clip-path="url(#train-inv-clip)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" stroke="#A33BD1" stroke-width="4" stroke-linejoin="round"/></g>
+<g transform="translate(10.182 10.018) scale(0.8216)"><g transform="translate(-199.80 0)"><g mask="url(#train-mask2_2429_1313-inv)">
+<path d="M213.75 1.5H209.75C206.436 1.5 203.75 4.18629 203.75 7.5V12.5C203.75 15.8137 206.436 18.5 209.75 18.5H213.75C217.064 18.5 219.75 15.8137 219.75 12.5V7.5C219.75 4.18629 217.064 1.5 213.75 1.5Z" fill="#A33BD1" />
+<path d="M208 18L206.25 21.75" stroke="#A33BD1" stroke-width="2" stroke-linecap="round" />
+<path d="M215.5 18L217.25 21.75" stroke="#A33BD1" stroke-width="2" stroke-linecap="round" />
+</g></g></g>
+</svg>

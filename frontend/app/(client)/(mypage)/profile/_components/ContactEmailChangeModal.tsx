@@ -126,7 +126,7 @@ export function ContactEmailChangeModal({
             type="button"
             onClick={handleSend}
             disabled={sendPending}
-            className="flex h-[56px] shrink-0 items-center justify-center rounded-[8px] bg-platinum-100 px-[24px] text-base font-semibold text-black disabled:opacity-60"
+            className="flex h-[56px] shrink-0 items-center justify-center rounded-[25px] bg-platinum-100 px-[24px] text-base font-semibold text-black disabled:opacity-60"
           >
             {sendPending ? "전송 중" : codeSent ? "재전송" : "전송"}
           </button>

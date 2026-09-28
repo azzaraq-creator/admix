@@ -197,7 +197,7 @@ export function SanctionModal({
             value={reason || null}
             onValueChange={(v) => setReason(v ?? "")}
           >
-            <SelectTrigger className="h-[40px] w-full rounded-[6px] border-[#ebebeb] bg-white px-[12px] text-[14px] font-medium text-black data-[size=default]:h-[40px]">
+            <SelectTrigger className="h-[40px] w-full rounded-[17px] border-[#ebebeb] bg-white px-[12px] text-[14px] font-medium text-black data-[size=default]:h-[40px]">
               <SelectValue placeholder="정지 사유 선택" />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false} className="min-w-0">

@@ -69,7 +69,7 @@
 ### 3.4 사업자등록증 행 + 등록/변경 모달
 - **기능**: 사업자등록증 상태·파일 표시 + 상태별 액션(등록/변경/취소).
 - **규칙**:
-  - `me.business_registration`(`status`·`license_file_url`·`license_file_name`·`license_uploaded_at`) 기반 표시. 상태 뱃지: **미등록**(grey) / **검토중**(주황 `#fff3d3`/`#ff920a`) / **검토 완료**(민트 `#e5f6f6`/`#00aaa4`) / **인증 반려**(빨강 `#ffe1df`/`#ff2c20`). ※ 유저단은 reviewing을 "검토중"으로 표기 — admin은 동일 상태를 "검토 대기"로 표기(admin-members §3.7).
+  - `me.business_registration`(`status`·`license_file_url`·`license_file_name`·`license_uploaded_at`) 기반 표시. 상태 뱃지: **미등록**(grey) / **검토중**(주황 `#fff3d3`/`#ff920a`) / **검토 완료**(퍼플 `#f5f3ff`/`#a33bd1`) / **인증 반려**(빨강 `#ffe1df`/`#ff2c20`). ※ 유저단은 reviewing을 "검토중"으로 표기 — admin은 동일 상태를 "검토 대기"로 표기(admin-members §3.7).
   - **미등록**: "등록된 사업자등록증이 없습니다." + 우측 **"등록"** 버튼.
   - **검토중/검토완료/반려**(파일 존재): 파일 정보 블록 — 공용 컴포넌트 `LicenseFileInfo`(파일 아이콘 + **업로드한 원본 파일명** `license_file_name` + **업로드 시각** `license_uploaded_at`), 클릭 시 파일 새 탭 열림. 상태별 부가:
     - **검토중**: 안내 "변경시, 검토 후 3영업일 이내 담당자가 확인 후 반영이 됩니다." + 우측 **"취소"** → 확인 다이얼로그 후 `DELETE /auth/me/business-registration`(파일 삭제 + 미등록 복귀, Figma 1100:27796).

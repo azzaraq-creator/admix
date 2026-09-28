@@ -49,7 +49,7 @@ function ExcelDownloadMenu({ onSelect }: { onSelect: (action: string) => void })
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-[#4CA452] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#4CA452] transition-colors hover:bg-[#4CA452]/10"
+        className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-[#4CA452] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#4CA452] transition-colors hover:bg-[#4CA452]/10"
       >
         엑셀 다운로드
         <ChevronDownIcon className="size-[16px]" />
@@ -165,14 +165,14 @@ export function MediaListView() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={bulkImport.isPending}
-              className="flex h-[40px] items-center rounded-[8px] border border-primary px-[16px] text-sm font-medium leading-[20px] text-primary transition-colors hover:bg-primary-50 disabled:opacity-50"
+              className="flex h-[40px] items-center rounded-[17px] border border-primary px-[16px] text-sm font-medium leading-[20px] text-primary transition-colors hover:bg-primary-50 disabled:opacity-50"
             >
               {bulkImport.isPending ? "등록 중…" : "엑셀 일괄 등록"}
             </button>
             <button
               type="button"
               onClick={() => router.push("/admin/media/new")}
-              className="flex h-[40px] items-center gap-[6px] rounded-[8px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
+              className="flex h-[40px] items-center gap-[6px] rounded-[17px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
             >
               <PlusIcon className="size-[16px]" />
               매체 추가

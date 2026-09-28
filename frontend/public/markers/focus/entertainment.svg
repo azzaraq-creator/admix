@@ -1,0 +1,16 @@
+<svg width="32" height="40" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<clipPath id="entertainment-inv-clip"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z"/></clipPath>
+<filter id="entertainment-shadow-inv" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1A1025" flood-opacity="0.28"/></filter>
+<mask id="entertainment-mask1_2429_1313-inv" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="101" y="0" width="25" height="24">
+<path d="M125.75 0H101.75V24H125.75V0Z" fill="white" />
+<path d="M113.75 8.6499L114.87 10.7099L117.17 11.1399L115.56 12.8399L115.87 15.1599L113.75 14.1499L111.63 15.1599L111.94 12.8399L110.33 11.1399L112.63 10.7099L113.75 8.6499Z" fill="black" stroke="black" stroke-linejoin="round" />
+</mask>
+
+</defs>
+<g filter="url(#entertainment-shadow-inv)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" fill="white"/></g>
+<g clip-path="url(#entertainment-inv-clip)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" stroke="#A33BD1" stroke-width="4" stroke-linejoin="round"/></g>
+<g transform="translate(9.223 9.223) scale(0.8981)"><g transform="translate(-101.75 0)"><g mask="url(#entertainment-mask1_2429_1313-inv)">
+<path d="M107 4.5H120.5C122.43 4.5 124 6.07 124 8V9.25C123.271 9.25 122.571 9.53973 122.055 10.0555C121.54 10.5712 121.25 11.2707 121.25 12C121.25 12.7293 121.54 13.4288 122.055 13.9445C122.571 14.4603 123.271 14.75 124 14.75V16C124 17.93 122.43 19.5 120.5 19.5H107C105.07 19.5 103.5 17.93 103.5 16V14.75C104.229 14.75 104.929 14.4603 105.445 13.9445C105.96 13.4288 106.25 12.7293 106.25 12C106.25 11.2707 105.96 10.5712 105.445 10.0555C104.929 9.53973 104.229 9.25 103.5 9.25V8C103.5 6.07 105.07 4.5 107 4.5Z" fill="#A33BD1" />
+</g></g></g>
+</svg>

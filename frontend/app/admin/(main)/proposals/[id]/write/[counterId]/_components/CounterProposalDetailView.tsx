@@ -67,7 +67,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
           type="text"
           value={proposalName}
           readOnly
-          className="h-[44px] flex-1 rounded-[6px] border border-stroke bg-[#fafafa] px-[14px] text-sm font-medium leading-[20px] text-black outline-none"
+          className="h-[44px] flex-1 rounded-[19px] border border-stroke bg-[#fafafa] px-[14px] text-sm font-medium leading-[20px] text-black outline-none"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
             type="button"
             onClick={() => setLightbox(true)}
             disabled={slideImages.length === 0}
-            className="flex h-[36px] items-center justify-center rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+            className="flex h-[36px] items-center justify-center rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
           >
             PPT 미리보기
           </button>
@@ -98,7 +98,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
             <button
               type="button"
               onClick={handleExport}
-              className="flex h-[36px] items-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+              className="flex h-[36px] items-center gap-[6px] rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
             >
               <DownloadIcon className="size-[16px]" />
               내보내기

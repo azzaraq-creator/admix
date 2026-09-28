@@ -99,7 +99,7 @@ export function RolesListView() {
             <button
               type="button"
               onClick={() => router.push("/admin/roles/create")}
-              className="flex h-[40px] items-center rounded-[8px] bg-primary px-[20px] text-sm font-semibold leading-[20px] text-white transition-colors hover:bg-primary-800"
+              className="flex h-[40px] items-center rounded-[17px] bg-primary px-[20px] text-sm font-semibold leading-[20px] text-white transition-colors hover:bg-primary-800"
             >
               계정 생성
             </button>

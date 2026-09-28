@@ -200,7 +200,7 @@ export function ProposalDetailView() {
             type="button"
             onClick={handleExportPpt}
             disabled={exporting}
-            className="flex h-[36px] items-center gap-[10px] rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+            className="flex h-[36px] items-center gap-[10px] rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
           >
             <DownloadIcon className="size-[16px]" />
             {exporting ? "생성 중…" : "PPT 다운로드"}
@@ -271,14 +271,14 @@ export function ProposalDetailView() {
               <span
                 aria-disabled="true"
                 title="계약 완료된 제안서는 맞춤제안을 작성할 수 없습니다."
-                className="flex h-[36px] cursor-not-allowed items-center rounded-[6px] border border-[#ebebeb] bg-[#f5f5f5] px-[17px] text-sm font-medium leading-[20px] text-disabled"
+                className="flex h-[36px] cursor-not-allowed items-center rounded-[15px] border border-[#ebebeb] bg-[#f5f5f5] px-[17px] text-sm font-medium leading-[20px] text-disabled"
               >
                 맞춤제안 작성
               </span>
             ) : (
               <Link
                 href={`/admin/proposals/${params.id}/write`}
-                className="flex h-[36px] items-center rounded-[6px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                className="flex h-[36px] items-center rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
               >
                 맞춤제안 작성
               </Link>
@@ -325,7 +325,7 @@ export function ProposalDetailView() {
                           `/admin/proposals/${params.id}/write/${cf.id}`,
                         )
                       }
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[6px] border border-[#cdcdcd] px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-[#cdcdcd] px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
                     >
                       상세
                     </button>
@@ -333,7 +333,7 @@ export function ProposalDetailView() {
                       type="button"
                       onClick={() => handleDownloadCounter(cf.id, cf.file_name)}
                       aria-label="다운로드"
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[6px] border border-[#cdcdcd] px-[16px] py-[4px] text-[#0a0a0a]"
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-[#cdcdcd] px-[16px] py-[4px] text-[#0a0a0a]"
                     >
                       <DownloadIcon className="size-[16px]" />
                     </button>

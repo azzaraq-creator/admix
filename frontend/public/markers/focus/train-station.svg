@@ -1,0 +1,21 @@
+<svg width="32" height="40" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<clipPath id="train-station-inv-clip"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z"/></clipPath>
+<filter id="train-station-shadow-inv" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1A1025" flood-opacity="0.28"/></filter>
+<mask id="train-station-mask5_2429_1313-inv" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="304" y="0" width="25" height="24">
+<path d="M328.75 0H304.75V24H328.75V0Z" fill="white" />
+<path d="M317.75 9.25H315.75C314.093 9.25 312.75 10.5931 312.75 12.25V15.25C312.75 16.9069 314.093 18.25 315.75 18.25H317.75C319.407 18.25 320.75 16.9069 320.75 15.25V12.25C320.75 10.5931 319.407 9.25 317.75 9.25Z" fill="black" />
+<path d="M317.95 10.8999H315.55C314.887 10.8999 314.35 11.4372 314.35 12.0999C314.35 12.7626 314.887 13.2999 315.55 13.2999H317.95C318.613 13.2999 319.15 12.7626 319.15 12.0999C319.15 11.4372 318.613 10.8999 317.95 10.8999Z" fill="white" />
+<path d="M314.95 16.3998C315.392 16.3998 315.75 16.0416 315.75 15.5998C315.75 15.158 315.392 14.7998 314.95 14.7998C314.508 14.7998 314.15 15.158 314.15 15.5998C314.15 16.0416 314.508 16.3998 314.95 16.3998Z" fill="white" />
+<path d="M318.55 16.3998C318.992 16.3998 319.35 16.0416 319.35 15.5998C319.35 15.158 318.992 14.7998 318.55 14.7998C318.108 14.7998 317.75 15.158 317.75 15.5998C317.75 16.0416 318.108 16.3998 318.55 16.3998Z" fill="white" />
+<path d="M314.35 18L313.25 23" stroke="black" stroke-width="1.6" stroke-linecap="round" />
+<path d="M319.15 18L320.25 23" stroke="black" stroke-width="1.6" stroke-linecap="round" />
+</mask>
+
+</defs>
+<g filter="url(#train-station-shadow-inv)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" fill="white"/></g>
+<g clip-path="url(#train-station-inv-clip)"><path d="M20 2C29.94 2 38 10.06 38 20C38 27.2 33.6 33.4 27 40.6L22.1 46C20.97 47.25 19.03 47.25 17.9 46L13 40.6C6.4 33.4 2 27.2 2 20C2 10.06 10.06 2 20 2Z" stroke="#A33BD1" stroke-width="4" stroke-linejoin="round"/></g>
+<g transform="translate(10.318 10.116) scale(0.8102)"><g transform="translate(-304.80 0)"><g mask="url(#train-station-mask5_2429_1313-inv)">
+<path d="M316.75 2.25L326.25 8.6V20.25C326.25 21.35 325.35 22.25 324.25 22.25H309.25C308.15 22.25 307.25 21.35 307.25 20.25V8.6L316.75 2.25Z" fill="#A33BD1" stroke="#A33BD1" stroke-width="1.5" stroke-linejoin="round" />
+</g></g></g>
+</svg>

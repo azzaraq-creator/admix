@@ -19,7 +19,7 @@ export default function ErdPage() {
           type="button"
           aria-label="축소"
           onClick={() => setZoom((z) => clamp(z - STEP))}
-          className="flex size-[32px] items-center justify-center rounded-[6px] text-[20px] text-black hover:bg-platinum-100"
+          className="flex size-[32px] items-center justify-center rounded-[13px] text-[20px] text-black hover:bg-platinum-100"
         >
           −
         </button>
@@ -30,7 +30,7 @@ export default function ErdPage() {
           type="button"
           aria-label="확대"
           onClick={() => setZoom((z) => clamp(z + STEP))}
-          className="flex size-[32px] items-center justify-center rounded-[6px] text-[20px] text-black hover:bg-platinum-100"
+          className="flex size-[32px] items-center justify-center rounded-[13px] text-[20px] text-black hover:bg-platinum-100"
         >
           +
         </button>

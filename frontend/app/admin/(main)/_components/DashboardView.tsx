@@ -99,7 +99,7 @@ export function DashboardView() {
           </h2>
           <Link
             href="/admin/proposals"
-            className="flex h-[40px] items-center rounded-[8px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white"
+            className="flex h-[40px] items-center rounded-[17px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white"
           >
             더보기
           </Link>
@@ -145,7 +145,7 @@ function StatCardItem({ card }: { card: StatCard }) {
       {card.action && (
         <Link
           href={card.action.href}
-          className="flex h-[36px] w-full items-center justify-center rounded-[8px] bg-primary text-xs font-medium leading-[16px] text-white"
+          className="flex h-[36px] w-full items-center justify-center rounded-[15px] bg-primary text-xs font-medium leading-[16px] text-white"
         >
           {card.action.label}
         </Link>

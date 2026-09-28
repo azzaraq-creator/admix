@@ -27,7 +27,7 @@ export function YearSelect() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[40px] items-center gap-[6px] rounded-[8px] border border-stroke px-[12px] text-sm font-medium leading-[20px] text-[#364153]"
+        className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke px-[12px] text-sm font-medium leading-[20px] text-[#364153]"
       >
         {selected}
         <ChevronDownIcon

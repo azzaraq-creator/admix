@@ -5,23 +5,45 @@
 
 ## 컬러 (Figma 확정)
 
-Primary 스케일 + 베이직. `bg-primary-700`, `text-black`, `border-stroke` 등으로 사용.
+Primary 스케일 + 베이직. `bg-primary-500`, `text-black`, `border-stroke` 등으로 사용.
 
-| 토큰 | HEX | Figma 이름 |
+> **2026-09-21 — Primary 스케일을 민트(`#00AAA4` 기준)에서 퍼플(`#A33BD1` 기준)로 교체.**
+> 기존 스케일은 700이 기본값이었으나 신규 팔레트는 **500이 기본값**이다. 아래 Figma 이름 열은
+> 구 민트 스케일 기준이라 신규 팔레트에는 대응되지 않는다.
+
+| 토큰 | HEX | 비고 |
 |---|---|---|
-| `primary-900` | `#004240` | Primary/900 |
-| `primary-800` | `#007571` | Primary/800 |
-| `primary-700` | `#00AAA4` | Primary/700 (= **Primary 기본**) |
-| `primary-600` | `#00DBD4` | Primary/600 |
-| `primary-500` | `#0FFFF7` | Primary/500 |
-| `primary-400` | `#42FFF8` | Primary/400 |
-| `primary-300` | `#75FFFA` | Primary/300 |
-| `primary-200` | `#A8FFFC` | Primary/200 |
-| `primary-100` | `#DBFFFE` | Primary/100 |
-| `primary-50`  | `#E5F6F6` | Primary/Opacity |
+| `primary-900` | `#4A146B` | |
+| `primary-800` | `#5B1E7A` | 주요 버튼 배경(`bg-primary-800`)에서 사용 중 |
+| `primary-700` | `#6D2A9D` | |
+| `primary-600` | `#8A3AB7` | |
+| `primary-500` | `#A33BD1` | **Primary 기본 (Base)** |
+| `primary-400` | `#B27FD9` | |
+| `primary-300` | `#C7A8E3` | |
+| `primary-200` | `#D8BFEA` | |
+| `primary-100` | `#E9D7FA` | |
+| `primary-50`  | `#F5F3FF` | 옅은 배경(칩·뱃지)에서 사용 중 |
 | `black` | `#2F3442` | Black |
 | `white` | `#FFFFFF` | White |
 | `stroke` | `#E4E5EE` | Stroke |
+
+### black 스케일 (중립 그레이)
+
+> **2026-09-22 신설.** 단독 `black`(`#2F3442`)과 이름만 겹칠 뿐 별개 토큰이다.
+> `text-black-900`, `bg-black-50`, `border-black-200` 처럼 사용한다.
+
+| 토큰 | HEX | 비고 |
+|---|---|---|
+| `black-900` | `#111827` | LNB 메뉴 기본 텍스트·아이콘 |
+| `black-800` | `#1F2937` | |
+| `black-700` | `#374151` | |
+| `black-600` | `#4B5563` | |
+| `black-500` | `#6B7280` | |
+| `black-400` | `#9CA3AF` | |
+| `black-300` | `#D1D5DB` | |
+| `black-200` | `#E5E7EB` | LNB 경계선 |
+| `black-100` | `#F3F4F6` | |
+| `black-50`  | `#F9FAFB` | 홈(AI 믹시) 배경 |
 
 ## 타이포그래피 (Figma 확정)
 
@@ -47,12 +69,16 @@ weight: Light=300, Regular=400, Medium=500, Semi Bold=600, Bold=700 (`font-light
 |---|---|---|
 | `background` / `card` / `popover` | `#FFFFFF` | White |
 | `foreground` / `*-foreground` | `#2F3442` | Black |
-| `primary` | `#00AAA4` | Primary/700 |
+| `primary` | `#A33BD1` | Primary/500 (Base) |
 | `primary-foreground` | `#FFFFFF` | White |
-| `secondary` / `accent` | `#E5F6F6` | Primary/Opacity |
-| `secondary-foreground` / `accent-foreground` | `#004240` | Primary/900 |
+| `secondary` / `accent` | `#F5F3FF` | Primary/50 |
+| `secondary-foreground` / `accent-foreground` | `#4A146B` | Primary/900 |
 | `border` / `input` | `#E4E5EE` | Stroke |
-| `ring` | `#00AAA4` | Primary/700 |
+| `ring` | `#A33BD1` | Primary/500 (Base) |
+
+> HeroUI v3와 이름이 겹치는 `background` / `foreground` / `border` / `muted` / `accent` /
+> `accent-foreground` / `radius`는 `globals.css`에서 `--app-*` 로 분리돼 있다.
+> 접두사 없는 이름은 HeroUI 기본 테마가 소유한다(단 `--accent`는 브랜드 색으로 덮어씀).
 
 ## Figma에 없어 파생한 값 (확인/교체 필요)
 

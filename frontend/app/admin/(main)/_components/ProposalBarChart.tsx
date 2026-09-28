@@ -84,7 +84,7 @@ export function ProposalBarChart({ values }: { values: number[] }) {
               width={BAR_W}
               height={PT + PLOT_H - y}
               rx={2}
-              fill="#00aaa4"
+              fill="#a33bd1"
             />
           );
         })}
@@ -131,7 +131,7 @@ export function ProposalBarChart({ values }: { values: number[] }) {
       </svg>
 
       <div className="flex items-center justify-center gap-[6px]">
-        <span className="size-[8px] rounded-[2px] bg-primary" />
+        <span className="size-[8px] rounded-[1px] bg-primary" />
         <span className="text-xs font-medium leading-[16px] text-disabled">
           제안 건수
         </span>

@@ -46,7 +46,7 @@ const CHIP_CLASS =
 const BIZ_BADGE: Record<string, { label: string; className: string }> = {
   unregistered: { label: "미등록", className: "bg-grey-50 text-[#545454]" },
   reviewing: { label: "검토중", className: "bg-[#fff3d3] text-[#ff920a]" },
-  verified: { label: "검토 완료", className: "bg-[#e5f6f6] text-[#00aaa4]" },
+  verified: { label: "검토 완료", className: "bg-[#f5f3ff] text-[#a33bd1]" },
   rejected: { label: "인증 반려", className: "bg-[#ffe1df] text-[#ff2c20]" },
 };
 

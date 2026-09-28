@@ -89,7 +89,7 @@ export function CustomProposalWriteView() {
           type="text"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          className="h-[44px] flex-1 rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none focus:border-primary"
+          className="h-[44px] flex-1 rounded-[19px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none focus:border-primary"
         />
       </div>
 

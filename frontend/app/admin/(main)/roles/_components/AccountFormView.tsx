@@ -311,7 +311,7 @@ function AccountForm({
                     className="sr-only"
                   />
                   <span
-                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border ${
+                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-[6px] border ${
                       checked ? "border-primary bg-primary" : "border-stroke bg-white"
                     }`}
                   >

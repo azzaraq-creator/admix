@@ -2,6 +2,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@heroui/styles";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -39,20 +40,33 @@
   --text-5xl--line-height: 48px;
   --text-5xl--letter-spacing: -0.4px;
 
-  --color-primary-900: #004240;
-  --color-primary-800: #007571;
-  --color-primary-700: #00aaa4;
-  --color-primary-600: #00dbd4;
-  --color-primary-500: #0ffff7;
-  --color-primary-400: #42fff8;
-  --color-primary-300: #75fffa;
-  --color-primary-200: #a8fffc;
-  --color-primary-100: #dbfffe;
-  --color-primary-50: #e5f6f6;
+  /* purple — base 500 (#a33bd1) */
+  --color-primary-900: #4a146b;
+  --color-primary-800: #5b1e7a;
+  --color-primary-700: #6d2a9d;
+  --color-primary-600: #8a3ab7;
+  --color-primary-500: #a33bd1;
+  --color-primary-400: #b27fd9;
+  --color-primary-300: #c7a8e3;
+  --color-primary-200: #d8bfea;
+  --color-primary-100: #e9d7fa;
+  --color-primary-50: #f5f3ff;
 
   --color-black: #2f3442;
   --color-white: #ffffff;
   --color-stroke: #e4e5ee;
+
+  /* black — 중립 그레이 스케일. 단독 `black`(#2f3442)과는 별개 토큰이다. */
+  --color-black-50: #f9fafb;
+  --color-black-100: #f3f4f6;
+  --color-black-200: #e5e7eb;
+  --color-black-300: #d1d5db;
+  --color-black-400: #9ca3af;
+  --color-black-500: #6b7280;
+  --color-black-600: #4b5563;
+  --color-black-700: #374151;
+  --color-black-800: #1f2937;
+  --color-black-900: #111827;
 
   /* design system colors — grey / platinum / red (Figma) */
   --color-grey-50: #f6f6f6;
@@ -66,16 +80,23 @@
   --color-platinum-200: #e2e8f0;
   --color-platinum-300: #cbd5e1;
 
+  /* 기본 빨강. text-red / bg-red로도 쓸 수 있게 단독 토큰도 같이 둔다. */
+  --color-red: #ff4d4f;
   --color-red-400: #ff6c64;
-  --color-red-500: #ff2c20;
+  --color-red-500: #ff4d4f;
 
   --color-disabled: #737586;
   --color-placeholder: #c9cad3;
 }
 
+/* HeroUI v3와 이름이 겹치는 토큰(--background/--foreground/--border/--muted/
+   --accent/--accent-foreground/--radius)은 --app-* 로 분리한다.
+   접두사 없는 이름은 HeroUI 기본 테마(@heroui/styles)가 소유한다.
+   Tailwind 색 이름도 같다 — `muted` 는 HeroUI 의 글자색(text-muted)이라
+   프로젝트 배경용 연회색은 `app-muted`(bg-app-muted)로 쓴다. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--app-background);
+  --color-foreground: var(--app-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -86,12 +107,12 @@
   --color-sidebar: var(--sidebar);
   --color-ring: var(--ring);
   --color-input: var(--input);
-  --color-border: var(--border);
+  --color-border: var(--app-border);
   --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
+  --color-accent-foreground: var(--app-accent-foreground);
+  --color-accent: var(--app-accent);
   --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
+  --color-app-muted: var(--app-muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -100,42 +121,45 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-sm: calc(var(--app-radius) * 0.6);
+  --radius-md: calc(var(--app-radius) * 0.8);
+  --radius-lg: var(--app-radius);
+  --radius-xl: calc(var(--app-radius) * 1.4);
+  --radius-2xl: calc(var(--app-radius) * 1.8);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #2f3442;
+  --app-background: #ffffff;
+  --app-foreground: #2f3442;
   --card: #ffffff;
   --card-foreground: #2f3442;
   --popover: #ffffff;
   --popover-foreground: #2f3442;
-  --primary: #00aaa4;
+  --primary: #a33bd1;
   --primary-foreground: #ffffff;
-  --secondary: #e5f6f6;
-  --secondary-foreground: #004240;
-  --muted: #f4f5f7;
+  --secondary: #f5f3ff;
+  --secondary-foreground: #4a146b;
+  --app-muted: #f4f5f7;
   --muted-foreground: #6b7280;
-  --accent: #e5f6f6;
-  --accent-foreground: #004240;
+  --app-accent: #f5f3ff;
+  --app-accent-foreground: #4a146b;
   --destructive: #ef4444;
-  --border: #e4e5ee;
+  --app-border: #e4e5ee;
   --input: #e4e5ee;
-  --ring: #00aaa4;
-  --radius: 0.625rem;
+  --ring: #a33bd1;
+  --app-radius: 0.625rem;
+
+  /* HeroUI 액센트(Button variant="primary" 등)를 브랜드 색으로 맞춘다. */
+  --accent: #a33bd1;
 
   --sidebar: #ffffff;
   --sidebar-foreground: #2f3442;
-  --sidebar-primary: #00aaa4;
+  --sidebar-primary: #a33bd1;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5f6f6;
-  --sidebar-accent-foreground: #004240;
+  --sidebar-accent: #f5f3ff;
+  --sidebar-accent-foreground: #4a146b;
   --sidebar-border: #e4e5ee;
-  --sidebar-ring: #00aaa4;
+  --sidebar-ring: #a33bd1;
 }
 
 @layer base {
@@ -158,5 +182,109 @@
   button:disabled,
   [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
+  }
+}
+
+/* 관심 매체를 켤 때 하트가 한 번 튀는 효과(매체 정보 모달). */
+@keyframes admix-like-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* AI 입력창 테두리 그라데이션 — Figma "01. 대시보드 - 배경 없음 (AI 믹시)".
+   테두리 두께는 시안의 2px에 맞춘다.
+   이전에는 흰 빛 덩어리가 테두리를 도는 방식이었는데 "밝은 점 하나가 빠르게
+   지나가는" 인상이라, 색 띠 자체가 테두리를 따라 천천히 흐르도록 바꿨다.
+   가로로 미는 방식이라 860×94처럼 납작한 박스에서도 긴 변을 고르게 지나가고
+   모서리에서 멈칫하지 않는다(conic-gradient 회전은 모서리에서 멈칫해 보인다).
+   컨테이너 배경이 색 띠, 안쪽 흰 상자가 그 위를 덮어 2px 테두리만 남는다. */
+@keyframes admix-border-flow {
+  to {
+    /* 타일 폭(요소 너비의 2배)만큼 정확히 밀어 이음새 없이 반복된다. */
+    background-position-x: -200%;
+  }
+}
+
+@layer components {
+  .admix-ai-border {
+    --admix-bw: 2px;
+    position: relative;
+    padding: var(--admix-bw);
+    border-radius: 27px;
+    /* 로고(LogoFull)가 쓰는 하늘 → 파랑 → 보라 → 자홍 → 분홍.
+       양끝이 같은 색인 대칭 배열이라 타일이 반복돼도 색이 튀지 않는다. */
+    background-image: linear-gradient(
+      90deg,
+      #38bdf8,
+      #6d8bff,
+      #b95bec,
+      #f472d0,
+      #ff5fa2,
+      #f472d0,
+      #b95bec,
+      #6d8bff,
+      #38bdf8
+    );
+    background-size: 200% 100%;
+    animation: admix-border-flow 3s linear infinite;
+  }
+
+  /* 안쪽 내용이 색 띠보다 위에 깔려 테두리 2px만 보이게 한다. */
+  .admix-ai-border > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 매체 검색 모드 — AI가 아니라 일반 검색창이라 그라데이션·흐름을 끄고
+     1px 회색 테두리만 남긴다. */
+  .admix-ai-border[data-mode="search"] {
+    --admix-bw: 1px;
+    background-color: #d1d5db;
+    background-image: none;
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* 움직임만 멈추고 그라데이션은 그대로 둔다. */
+    .admix-ai-border {
+      animation: none;
+    }
+  }
+}
+
+/* 브레드크럼 — HeroUI Breadcrumbs의 기본 스킨(14px·링크색)을 대시보드 시안
+   (13px·현재 위치만 보라색 굵게)에 맞춰 덮어쓴다. 실제 이동은 하지 않는
+   현재 위치 표시라 hover 밑줄과 링크 커서도 없앤다. */
+@layer components {
+  .breadcrumbs.admix-breadcrumbs {
+    gap: 8px;
+  }
+  .breadcrumbs.admix-breadcrumbs .breadcrumbs__item {
+    gap: 8px;
+  }
+  /* 두 항목 모두 isDisabled(=이동 없음)라 HeroUI가 링크를 흐리게 만든다.
+     시안은 또렷한 색이므로 opacity를 되돌린다. */
+  .breadcrumbs.admix-breadcrumbs .breadcrumbs__link {
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 400;
+    color: #64748b;
+    opacity: 1;
+    cursor: default;
+  }
+  .breadcrumbs.admix-breadcrumbs .breadcrumbs__link:hover,
+  .breadcrumbs.admix-breadcrumbs .breadcrumbs__link[data-hovered="true"] {
+    text-decoration-line: none;
+  }
+  .breadcrumbs.admix-breadcrumbs .breadcrumbs__link[data-current="true"] {
+    font-weight: 600;
+    color: #8f39d6;
   }
 }

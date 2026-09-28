@@ -95,7 +95,7 @@ export function ChatDetailView() {
         <button
           type="button"
           onClick={() => router.push("/admin/chat")}
-          className="flex h-[36px] w-[100px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+          className="flex h-[36px] w-[100px] items-center justify-center gap-[6px] rounded-[15px] border border-[#ebebeb] bg-white text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
         >
           <List className="size-[16px]" />
           목록으로

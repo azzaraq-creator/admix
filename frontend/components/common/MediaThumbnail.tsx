@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@heroui/react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -49,10 +50,7 @@ export function MediaThumbnail({
             )}
           />
           {!loaded && (
-            <span
-              className="absolute inset-0 animate-pulse bg-[#eee]"
-              aria-hidden
-            />
+            <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
           )}
         </>
       ) : (

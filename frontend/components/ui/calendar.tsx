@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-// 선택/오늘 색을 서비스 primary(#00aaa4)로. 기본 스타일시트는 app/layout.tsx 에서 import.
+// 선택/오늘 색을 서비스 primary(#a33bd1)로. 기본 스타일시트는 app/layout.tsx 에서 import.
 const ACCENT_VARS = {
-  "--rdp-accent-color": "#00aaa4",
-  "--rdp-accent-background-color": "#e5f6f6",
-  "--rdp-today-color": "#00aaa4",
+  "--rdp-accent-color": "#a33bd1",
+  "--rdp-accent-background-color": "#f5f3ff",
+  "--rdp-today-color": "#a33bd1",
 } as CSSProperties;
 
 export function Calendar({ className, style, ...props }: CalendarProps) {
