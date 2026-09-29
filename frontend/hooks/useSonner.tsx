@@ -1,59 +1,27 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
+import { useCallback } from "react";
 
-import { CircleAlertIcon, CircleCheckIcon } from "@/components/icons";
+/**
+ * 짧은 알림(토스트) — HeroUI Toast. 화면 위 가운데에 뜨고 3초 뒤 저절로 사라진다
+ * (위치는 app/providers.tsx의 Toast.Provider).
+ * 이름은 예전 sonner 시절 그대로 두어 호출하는 쪽(`const { success, error } = useSonner()`)은 바뀌지 않는다.
+ */
+export const TOAST_TIMEOUT = 3000;
 
 export function useSonner() {
-  const notify = useCallback(
-    (message: string, icon: ReactNode) =>
-      toast.custom(
-        (id) => (
-          <div className="pb-[14px]">
-            <div className="flex w-[343px] items-center gap-[12px] rounded-[8px] bg-[rgba(0,0,0,0.7)] px-[24px] py-[16px] max-[600px]:w-full">
-              <div className="flex min-w-0 flex-1 items-center gap-[12px]">
-                {icon}
-                <p className="min-w-0 flex-1 text-sm font-medium leading-[20px] text-white">
-                  {message}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => toast.dismiss(id)}
-                className="shrink-0 text-sm font-bold leading-[20px] text-white"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        ),
-        {
-          position: "bottom-center",
-          unstyled: true,
-          className: "bg-transparent! border-none! shadow-none! p-0!",
-        },
-      ),
+  // detail이 있으면 둘째 줄에 작게 — 제목엔 "어디서 무엇을 했는지/실패했는지",
+  // detail엔 구체적인 내용(바뀐 항목, 원래 오류 예: Network Error).
+  const success = useCallback(
+    (message: string, detail?: string) =>
+      toast.success(message, { description: detail, timeout: TOAST_TIMEOUT }),
     [],
   );
-
-  const success = useCallback(
-    (message: string) =>
-      notify(
-        message,
-        <CircleCheckIcon className="size-[20px] shrink-0 text-primary" />,
-      ),
-    [notify],
-  );
-
   const error = useCallback(
-    (message: string) =>
-      notify(
-        message,
-        <CircleAlertIcon className="size-[20px] shrink-0 text-red-400" />,
-      ),
-    [notify],
+    (message: string, detail?: string) =>
+      toast.danger(message, { description: detail, timeout: TOAST_TIMEOUT }),
+    [],
   );
-
   return { success, error };
 }

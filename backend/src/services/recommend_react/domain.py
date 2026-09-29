@@ -75,6 +75,10 @@ class MediaItemResponse(BaseModel):
     category_large: Optional[str] = None  # parentCategory.displayValue (마커 아이콘 분류)
     category_small: Optional[str] = None  # mediaItemCategory.displayValue
     audience_summary: Optional[str] = None  # 유동인구·연령 요약 (예: '일평균 45.8만 · 여성 47% · 20·40대 중심')
+    # 매체 찾기 지도 팝업 카드와 같은 모양으로 그리기 위한 값
+    address: Optional[str] = None
+    min_advertisement_fee_krw: Optional[int] = None
+    min_production_fee_krw: Optional[int] = None
 
 
 def load_keyword_catalog(db: Session) -> dict[KeywordCategory, list[MediaKeyword]]:
@@ -349,6 +353,9 @@ def _media_meta_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, di
             Media.category_large,
             Media.category_small,
             Media.audience_summary,
+            Media.address,
+            Media.min_advertisement_fee_krw,
+            Media.min_production_fee_krw,
         )
         .filter(Media.media_id.in_(ids))
         .all()
@@ -360,8 +367,11 @@ def _media_meta_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, di
             "category_large": cl,
             "category_small": cs,
             "audience_summary": aud or None,
+            "address": addr or None,
+            "min_advertisement_fee_krw": ad_fee,
+            "min_production_fee_krw": prod_fee,
         }
-        for mid, lat, lng, cl, cs, aud in rows
+        for mid, lat, lng, cl, cs, aud, addr, ad_fee, prod_fee in rows
     }
 
 
@@ -406,6 +416,9 @@ def _to_response_item(
         category_large=meta.get("category_large"),
         category_small=meta.get("category_small"),
         audience_summary=meta.get("audience_summary"),
+        address=meta.get("address"),
+        min_advertisement_fee_krw=meta.get("min_advertisement_fee_krw"),
+        min_production_fee_krw=meta.get("min_production_fee_krw"),
     )
 
 

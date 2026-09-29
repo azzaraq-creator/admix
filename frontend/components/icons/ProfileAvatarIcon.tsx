@@ -1,6 +1,7 @@
 import type { IconProps } from "./types";
 
 // LNB 하단 프로필 아바타. 24px 컨테이너 기준 여백을 viewBox에 반영했다.
+// 배경 칸은 글자색(currentColor)을 40% 불투명도로 칠한다 — 색은 lib/avatarColor 참고.
 export function ProfileAvatarIcon(props: IconProps) {
   return (
     <svg
@@ -14,7 +15,7 @@ export function ProfileAvatarIcon(props: IconProps) {
           <path
             opacity="0.4"
             d="M4 0H16C18.2091 0 20 1.79086 20 4V16C20 18.2091 18.2091 20 16 20H4C1.79086 20 0 18.2091 0 16V4C0 1.79086 1.79086 0 4 0Z"
-            fill="#A33BD1"
+            fill="currentColor"
           />
           <path
             d="M15 8C15 8.55228 14.5523 9 14 9C13.4477 9 13 8.55228 13 8C13 7.44772 13.4477 7 14 7C14.5523 7 15 7.44772 15 8Z"

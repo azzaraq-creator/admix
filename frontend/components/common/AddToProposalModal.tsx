@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Button,
+  FieldError,
+  Input,
+  Modal,
+  TextField,
+  ToggleButton,
+} from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -9,7 +17,6 @@ import {
   PlusIcon,
   XIcon,
 } from "@/components/icons";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { adSessionsApi } from "@/hooks/adSessions";
 import {
   isMember,
@@ -22,6 +29,22 @@ import {
 } from "@/hooks/proposals";
 import { getSessionId, setSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
+
+/** 제안서 이름 최대 길이 — 새 제안서 만들기 창(NewProposalModal)과 같다. */
+const MAX_NAME_LENGTH = 50;
+
+// 입력칸 44px → 곡률 19px. 새 제안서 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
+const FIELD_CLASS =
+  "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
+  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white data-[invalid=true]:border-danger";
+
+// 하단 버튼 40px → 곡률 17px.
+const ACTION_CLASS =
+  "h-[40px] min-w-[76px] rounded-[17px] px-[18px] text-[14px] font-semibold";
+
+// 새 제안서 입력칸 아래 작은 버튼 32px → 곡률 13px.
+const SMALL_ACTION_CLASS =
+  "h-[32px] min-w-0 rounded-[13px] px-[12px] text-[13px] font-semibold";
 
 type AddToProposalModalProps = {
   mediaId: string;
@@ -134,155 +157,215 @@ export function AddToProposalModal({
     }
   };
 
+  const cancelCreate = () => {
+    setCreating(false);
+    setNewName("");
+    setNameError(null);
+  };
+
   return (
     <>
-    <Dialog
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DialogContent className="flex w-[512px] max-w-[calc(100vw-32px)] flex-col p-0">
-        <div className="flex items-center justify-between px-[30px] py-[20px]">
-          <DialogTitle className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
-            제안서에 매체 추가
-          </DialogTitle>
-          <button type="button" onClick={onClose} aria-label="닫기">
-            <XIcon className="size-[24px] text-black" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-[20px] px-[30px]">
-          <div className="flex flex-col gap-[12px]">
-            <p className="text-[16px] font-medium leading-[24px] text-black">
-              내 제안서
-            </p>
-
-            {creating ? (
-              <div className="flex flex-col gap-[12px] rounded-[12px] border border-primary p-[16px]">
-                <p className="text-sm font-medium leading-[20px] text-primary">
-                  제안서 이름
-                </p>
-                <input
-                  autoFocus
-                  value={newName}
-                  onChange={(e) => {
-                    setNewName(e.target.value);
-                    if (nameError) setNameError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                      handleCreate();
-                    }
-                  }}
-                  placeholder="제안서 이름을 입력해 주세요."
-                  className={cn(
-                    "w-full rounded-[8px] border border-stroke px-[16px] py-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#9ca3af] focus:border-primary",
-                    nameError && "border-red-500 focus:border-red-500",
-                  )}
-                />
-                {nameError && (
-                  <p className="text-sm font-medium leading-[20px] text-red-500">
-                    {nameError}
-                  </p>
-                )}
-                <div className="flex justify-end gap-[8px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreating(false);
-                      setNewName("");
-                      setNameError(null);
-                    }}
-                    className="rounded-[8px] bg-platinum-100 px-[16px] py-[8px] text-sm font-medium leading-[20px] text-black"
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCreate}
-                    disabled={!newName.trim() || createProposal.isPending}
-                    className="rounded-[8px] bg-primary px-[16px] py-[8px] text-sm font-medium leading-[20px] text-white disabled:opacity-50"
-                  >
-                    제안서 만들기
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-dashed border-primary bg-primary-50 px-[24px] py-[14px]"
+      {/* 로그인·새 제안서 만들기 창과 같은 흰 창(모서리 24px). 매체 상세 모달 위에 겹쳐 뜬다. */}
+      <Modal
+        isOpen
+        onOpenChange={(next) => {
+          if (!next) onClose();
+        }}
+      >
+        <Modal.Backdrop>
+          <Modal.Container placement="center" className="px-[16px] sm:px-0">
+            <Modal.Dialog
+              aria-label="제안서에 담기"
+              className="w-full max-w-[440px] gap-0 rounded-[24px] bg-white px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
+            >
+              {/* 닫기 32px → 곡률 13px. */}
+              <Modal.CloseTrigger
+                aria-label="닫기"
+                className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
               >
-                <PlusIcon className="size-[20px] text-primary" />
-                <span className="text-[16px] font-bold leading-[24px] text-primary">
-                  새 제안서 만들기
-                </span>
-              </button>
-            )}
-          </div>
+                <XIcon className="size-[20px]" />
+              </Modal.CloseTrigger>
 
-          {proposals.length === 0 ? (
-            <div className="flex flex-col items-center gap-[8px] py-[40px]">
-              <PackageOpenIcon className="size-[48px] text-[#d3d4d6]" />
-              <p className="text-[16px] font-bold leading-[24px] text-black">
-                보유한 제안서가 없습니다.
-              </p>
-              <p className="text-sm font-medium leading-[20px] text-grey-500">
-                새 제안서를 만들어 매체를 추가해 보세요.
-              </p>
-            </div>
-          ) : (
-            <div className="flex max-h-[280px] flex-col gap-[8px] overflow-y-auto">
-              {proposals.map((proposal) => {
-                const added = hasMedia(proposal);
-                const checked = selected.includes(proposal.id);
-                return (
-                  <button
-                    key={proposal.id}
-                    type="button"
-                    disabled={added}
-                    onClick={() => toggle(proposal.id)}
-                    className={cn(
-                      "flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-platinum-50 px-[16px] py-[14px] text-left",
-                      added && "cursor-not-allowed opacity-50",
-                    )}
+              <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
+                <Modal.Heading className="text-[18px] font-bold text-black-900">
+                  제안서에 담기
+                </Modal.Heading>
+                <p className="text-[13px] leading-[1.5] text-black-500">
+                  이 매체를 담을 제안서를 골라 주세요. 여러 개를 함께 고를 수
+                  있어요.
+                </p>
+              </Modal.Header>
+
+              <Modal.Body className="m-0 mt-[20px] flex flex-col gap-[12px] overflow-visible p-0">
+                {creating ? (
+                  <form
+                    noValidate
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      handleCreate();
+                    }}
+                    className="flex flex-col gap-[8px] rounded-[20px] border border-black-200 bg-black-50 p-[12px]"
                   >
-                    <FolderIcon className="size-[20px] shrink-0 text-black" />
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-black">
-                      {proposal.title}
-                    </span>
-                    {added ? (
-                      <span className="shrink-0 text-sm font-medium leading-[20px] text-grey-500">
-                        이미 추가됨
-                      </span>
-                    ) : (
-                      checked && (
-                        <CircleCheckIcon className="size-[24px] shrink-0 text-primary" />
-                      )
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    <TextField
+                      value={newName}
+                      onChange={(value) => {
+                        setNewName(value);
+                        if (nameError) setNameError(null);
+                      }}
+                      isInvalid={!!nameError}
+                      maxLength={MAX_NAME_LENGTH}
+                      aria-label="새 제안서 이름"
+                      autoFocus
+                      fullWidth
+                      className="gap-[6px]"
+                    >
+                      <Input
+                        placeholder="예) 2026 하반기 강남 옥외광고"
+                        className={FIELD_CLASS}
+                      />
+                      <div className="flex items-start justify-between gap-[8px] px-[4px]">
+                        <FieldError className="text-[12px] text-danger">
+                          {nameError}
+                        </FieldError>
+                        <span className="ml-auto shrink-0 text-[12px] text-black-400">
+                          {newName.length}/{MAX_NAME_LENGTH}
+                        </span>
+                      </div>
+                    </TextField>
+                    <div className="flex justify-end gap-[6px]">
+                      <Button
+                        type="button"
+                        variant="tertiary"
+                        onPress={cancelCreate}
+                        className={SMALL_ACTION_CLASS}
+                      >
+                        취소
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isDisabled={!newName.trim()}
+                        isPending={createProposal.isPending}
+                        className={cn(
+                          SMALL_ACTION_CLASS,
+                          "bg-primary text-white",
+                        )}
+                      >
+                        만들기
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  // 제안서 목록 줄과 같은 높이(48px → 곡률 20px), 점선 테두리로 "추가" 자리임을 보인다.
+                  <Button
+                    variant="ghost"
+                    onPress={() => setCreating(true)}
+                    className="h-[48px] w-full gap-[6px] rounded-[20px] border border-dashed border-primary-300 bg-primary-50 text-[14px] font-semibold text-primary data-[hovered=true]:bg-primary-100"
+                  >
+                    <PlusIcon className="size-[18px] shrink-0" />새 제안서
+                    만들기
+                  </Button>
+                )}
 
-        <div className="px-[30px] py-[20px]">
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={selected.length === 0 || submitting}
-            className={cn(
-              "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px] text-white",
-              selected.length === 0 ? "bg-[#cdcdcd]" : "bg-primary",
-            )}
-          >
-            선택한 제안서에 추가하기
-          </button>
-        </div>
-      </DialogContent>
-    </Dialog>
+                <div className="flex items-center justify-between px-[4px] pt-[4px]">
+                  <p className="text-[13px] font-semibold text-black-700">
+                    내 제안서
+                    {proposals.length > 0 && (
+                      <span className="ml-[4px] text-black-400">
+                        {proposals.length}
+                      </span>
+                    )}
+                  </p>
+                  {selected.length > 0 && (
+                    <p className="text-[12px] font-medium text-primary">
+                      {selected.length}개 선택
+                    </p>
+                  )}
+                </div>
+
+                {proposals.length === 0 ? (
+                  <div className="flex flex-col items-center gap-[6px] rounded-[20px] bg-black-50 py-[32px]">
+                    <PackageOpenIcon className="size-[40px] text-black-300" />
+                    <p className="text-[14px] font-semibold text-black-700">
+                      아직 만든 제안서가 없어요
+                    </p>
+                    <p className="text-[12px] text-black-500">
+                      새 제안서를 만들어 매체를 담아 보세요.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="-mx-[4px] flex max-h-[264px] flex-col gap-[6px] overflow-y-auto px-[4px] [scrollbar-width:thin]">
+                    {proposals.map((proposal) => {
+                      const added = hasMedia(proposal);
+                      const checked = selected.includes(proposal.id);
+                      return (
+                        // 줄 48px → 곡률 20px. 고르면 보라 테두리·옅은 보라 바탕 + 체크.
+                        <ToggleButton
+                          key={proposal.id}
+                          variant="ghost"
+                          isSelected={checked}
+                          isDisabled={added}
+                          onChange={() => toggle(proposal.id)}
+                          className={cn(
+                            "h-[48px] w-full shrink-0 justify-start gap-[10px] rounded-[20px] border px-[16px] text-left transition-colors",
+                            checked
+                              ? "border-primary bg-primary-50 data-[hovered=true]:bg-primary-50 data-[selected=true]:bg-primary-50"
+                              : "border-black-200 bg-white data-[hovered=true]:bg-black-50",
+                            added && "opacity-60",
+                          )}
+                        >
+                          <FolderIcon
+                            className={cn(
+                              "size-[18px] shrink-0",
+                              checked ? "text-primary" : "text-black-400",
+                            )}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-black-900">
+                            {proposal.title}
+                          </span>
+                          {added ? (
+                            <span className="shrink-0 rounded-[8px] bg-black-100 px-[8px] py-[2px] text-[11px] font-medium text-black-500">
+                              이미 담김
+                            </span>
+                          ) : checked ? (
+                            <CircleCheckIcon className="size-[20px] shrink-0 text-primary" />
+                          ) : (
+                            <span className="size-[18px] shrink-0 rounded-full border-[1.5px] border-black-300" />
+                          )}
+                        </ToggleButton>
+                      );
+                    })}
+                  </div>
+                )}
+              </Modal.Body>
+
+              <Modal.Footer className="mt-[20px] flex justify-end gap-[8px] p-0">
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  onPress={onClose}
+                  className={ACTION_CLASS}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={() => void handleAdd()}
+                  isDisabled={selected.length === 0}
+                  isPending={submitting}
+                  className={cn(ACTION_CLASS, "bg-primary text-white")}
+                >
+                  {submitting
+                    ? "담는 중..."
+                    : selected.length > 1
+                      ? `${selected.length}개 제안서에 담기`
+                      : "담기"}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
       {limitDialog}
     </>
   );

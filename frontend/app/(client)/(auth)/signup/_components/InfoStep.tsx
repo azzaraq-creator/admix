@@ -10,6 +10,10 @@ import {
 } from "@heroui/react";
 import { useRef, useState, type DragEvent } from "react";
 
+import {
+  PASSWORD_RULES,
+  RuleChip,
+} from "@/components/common/PasswordRuleChips";
 import { FileIcon } from "@/components/icons";
 import { authApi } from "@/hooks/auth";
 import {
@@ -19,12 +23,7 @@ import {
 } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import {
-  MatchCheckIcon,
-  SmallCheckIcon,
-  SmallXIcon,
-  UploadIcon,
-} from "./signupIcons";
+import { MatchCheckIcon, SmallCheckIcon, UploadIcon } from "./signupIcons";
 import {
   CardHeading,
   FieldLabel,
@@ -53,13 +52,6 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   file: null,
 };
 
-const PASSWORD_RULES = [
-  { label: "영문", test: (v: string) => /[A-Za-z]/.test(v) },
-  { label: "숫자", test: (v: string) => /\d/.test(v) },
-  { label: "특수문자", test: (v: string) => /[^A-Za-z0-9]/.test(v) },
-  { label: "8자 이상", test: (v: string) => v.length >= 8 },
-];
-
 /** 백엔드 LICENSE_ALLOWED_EXTENSIONS / LICENSE_MAX_UPLOAD_SIZE 와 같다. */
 const BIZ_FILE_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 const BIZ_FILE_MAX_BYTES = 10 * 1024 * 1024;
@@ -71,35 +63,6 @@ function bizFileError(file: File): string | null {
   if (file.size > BIZ_FILE_MAX_BYTES)
     return "10MB 이하 파일만 올릴 수 있습니다.";
   return null;
-}
-
-/** 비밀번호 조건 칩(24px → 곡률 9px) — 입력 전엔 회색, 맞으면 초록 체크, 틀리면 빨간 X. */
-/** 비밀번호 조건 칩(24px → 곡률 9px) — 입력 전엔 회색, 맞으면 초록 체크, 틀리면 빨간 X. */
-function RuleChip({
-  label,
-  state,
-}: {
-  label: string;
-  state: "idle" | "ok" | "fail";
-}) {
-  return (
-    <Chip
-      className={cn(
-        "h-[24px] gap-[4px] py-0 pr-[10px] pl-[8px] text-[11px] font-medium",
-        RADIUS.h24,
-        state === "ok" && "bg-[#f0fdf4] text-[#16a34a]",
-        state === "fail" && "bg-[#fef2f2] text-[#dc2626]",
-        state === "idle" && "bg-[#f4f4f5] text-[#a1a1aa]",
-      )}
-    >
-      {state === "fail" ? (
-        <SmallXIcon className="size-[10px]" />
-      ) : (
-        <SmallCheckIcon className="size-[10px]" />
-      )}
-      {label}
-    </Chip>
-  );
 }
 
 const FIELD_ERROR = "text-[11px] text-[#dc2626]";

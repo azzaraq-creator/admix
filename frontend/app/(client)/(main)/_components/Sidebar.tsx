@@ -21,6 +21,7 @@ import {
   ProfileFilledIcon,
 } from "@/components/icons";
 import { useLogout, useMe } from "@/hooks/auth";
+import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
 import {
@@ -115,13 +116,15 @@ export function Sidebar() {
 
   return (
     <>
-      {expanded && (
-        <div
-          aria-hidden
-          onClick={() => setLnbExpanded(false)}
-          className="fixed inset-0 z-40 bg-black/30 sm:hidden"
-        />
-      )}
+      {/* 드로어와 함께 서서히 나타나고 사라지도록 늘 그려 두고, 닫혀 있을 땐 클릭을 통과시킨다. */}
+      <div
+        aria-hidden
+        onClick={() => setLnbExpanded(false)}
+        className={cn(
+          "fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 ease-in-out sm:hidden",
+          expanded ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
       {/* 본문 자리(aside) 폭도 nav와 같이 움직여야 경계선이 먼저 튀어나오지 않는다.
           (지도처럼 크기 변화에 무거운 본문은 쪽에서 재배치를 묶어 처리한다 — useKakaoMap 참고.) */}
       <aside
@@ -133,7 +136,7 @@ export function Sidebar() {
         <nav
           aria-label="사이드바"
           className={cn(
-            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-black-200 bg-white p-[10px] transition-[transform,width] duration-300 ease-in-out sm:translate-x-0",
+            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-black-200 bg-white p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
             expanded ? "translate-x-0" : "-translate-x-full",
             collapsed && "sm:w-[78px]",
           )}
@@ -162,21 +165,22 @@ export function Sidebar() {
               aria-label="홈"
               onClick={handleNavClick}
               // 로고 심볼(약 26px)의 가운데를 아이콘 열(x=39px)에 맞춘다 → 왼쪽 여백 16px.
-              className="mt-[15px] flex h-[26px] items-center justify-start pl-[16px]"
+              // 모바일 드로어는 로고를 20px로 줄이므로 심볼 폭도 20px → 왼쪽 여백 19px.
+              className="mt-[15px] flex h-[26px] items-center justify-start pl-[16px] max-sm:h-[20px] max-sm:pl-[19px]"
             >
               {/* 접으면 심볼 폭(26px)만 남기고 글자 부분을 잘라 낸다. 폭이 함께 움직여
                   펼칠 때 글자가 먼저 튀어나오지 않는다. */}
               <span
                 className={cn(
                   "block overflow-hidden transition-[width] duration-300 ease-in-out",
-                  collapsed ? "w-[91px] sm:w-[26px]" : "w-[91px]",
+                  collapsed ? "w-[70px] sm:w-[26px]" : "w-[70px] sm:w-[91px]",
                 )}
               >
-                <LogoFullDark className="h-[26px]" />
+                <LogoFullDark className="h-[20px] sm:h-[26px]" />
               </span>
             </Link>
 
-            <ul className="mt-[30px] flex flex-col">
+            <ul className="mt-[16px] flex flex-col sm:mt-[30px]">
               <li>
                 {/* 페이지 이동 대신 대화 패널을 여닫는다 — 어느 화면에서든 같은 대화를
                     이어 볼 수 있다. 글자는 현재 위치와 무관하게 늘 그라데이션으로 둔다. */}
@@ -193,23 +197,24 @@ export function Sidebar() {
                   }}
                   // 열려 있을 땐 다른 메뉴의 활성 표시(연보라 배경)와 겹치지 않도록
                   // 보라 그라데이션으로 채우고 글자·아이콘을 흰색으로 뒤집어 눈에 띄게 한다.
+                  // 모바일은 누르면 드로어가 닫히고 패널이 화면 전체를 덮어 이 표시가 보이지 않으므로
+                  // (닫히는 동안 잠깐 번쩍일 뿐이라) sm: 에만 건다.
                   className={cn(
                     NAV_ROW,
                     panelOpen
-                      ? "bg-gradient-to-r from-primary-500 to-primary-700 shadow-[0_4px_12px_0_rgba(163,59,209,0.35)]"
+                      ? "max-sm:hover:bg-[#f7f3fe] sm:bg-gradient-to-r sm:from-primary-500 sm:to-primary-700 sm:shadow-[0_4px_12px_0_rgba(163,59,209,0.35)]"
                       : "hover:bg-[#f7f3fe]",
                   )}
                 >
                   {/* 아이콘의 그라데이션 fill은 속성값이라 CSS fill로 덮어 흰색으로 바꾼다. */}
                   <MixieIcon
-                    className={`size-[18px] shrink-0 ${panelOpen ? "[&_path]:fill-white" : ""}`}
+                    className={`size-[18px] shrink-0 ${panelOpen ? "sm:[&_path]:fill-white" : ""}`}
                   />
                   <span
                     className={cn(
                       "text-sm font-semibold whitespace-nowrap",
-                      panelOpen
-                        ? "text-white"
-                        : "bg-gradient-to-r from-primary-300 to-primary-800 bg-clip-text text-transparent",
+                      "bg-gradient-to-r from-primary-300 to-primary-800 bg-clip-text text-transparent",
+                      panelOpen && "sm:bg-none sm:text-white",
                       fadeLabel(collapsed),
                     )}
                   >
@@ -270,7 +275,12 @@ export function Sidebar() {
                     aria-label="프로필 메뉴"
                     className="flex w-full items-center gap-[10px] overflow-hidden rounded-[10px] outline-none data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-primary-200"
                   >
-                    <ProfileAvatarIcon className="size-[24px] shrink-0" />
+                    <ProfileAvatarIcon
+                      className={cn(
+                        "size-[24px] shrink-0",
+                        avatarColorClass(me?.sns_provider),
+                      )}
+                    />
                     <span
                       className={cn(
                         "min-w-0 flex-1 truncate text-left text-sm font-medium text-black",

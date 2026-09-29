@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { ChevronDownIcon, LogoFull, LogOutIcon } from "@/components/icons";
+import {
+  ChevronDownIcon,
+  LogoFull,
+  LogOutIcon,
+  MenuIcon,
+  XIcon,
+} from "@/components/icons";
 import { adminAuthApi, useAdminMe } from "@/hooks/adminAuth";
 import { clearAdminToken, getAdminRefreshToken } from "@/lib/adminToken";
 
@@ -37,6 +43,77 @@ function isActive(pathname: string | null, href: string) {
 }
 
 export function AdminSidebar() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // 모바일 드로어 — 열려 있는 동안 배경 스크롤 잠금 + ESC 닫기.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [drawerOpen]);
+
+  return (
+    <>
+      {/* 모바일(<lg): 상단 헤더 + 햄버거 드로어 */}
+      <header className="sticky top-0 z-30 flex h-[56px] shrink-0 items-center justify-between border-b border-stroke bg-[#fafaf9] px-[16px] lg:hidden">
+        <Link href="/admin" aria-label="대시보드">
+          <LogoFull />
+        </Link>
+        <button
+          type="button"
+          aria-label="메뉴 열기"
+          onClick={() => setDrawerOpen(true)}
+          className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-platinum-100"
+        >
+          <MenuIcon className="size-[24px]" />
+        </button>
+      </header>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="메뉴 닫기"
+            onClick={() => setDrawerOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col bg-[#fafaf9] shadow-xl">
+            <div className="flex items-center justify-between px-[20px] py-[16px]">
+              <LogoFull />
+              <button
+                type="button"
+                aria-label="메뉴 닫기"
+                onClick={() => setDrawerOpen(false)}
+                className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-platinum-100"
+              >
+                <XIcon className="size-[20px]" />
+              </button>
+            </div>
+            <AdminNav onNavigate={() => setDrawerOpen(false)} />
+          </aside>
+        </div>
+      )}
+
+      {/* 데스크톱(lg+): 고정 사이드바 */}
+      <aside className="sticky top-0 hidden h-dvh w-[256px] shrink-0 flex-col bg-[#fafaf9] lg:flex">
+        <div className="flex items-center justify-center p-[32px]">
+          <LogoFull />
+        </div>
+        <AdminNav />
+      </aside>
+    </>
+  );
+}
+
+function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: me } = useAdminMe();
@@ -73,16 +150,13 @@ export function AdminSidebar() {
     }`;
 
   return (
-    <aside className="sticky top-0 flex h-dvh w-[256px] shrink-0 flex-col bg-[#fafaf9]">
-      <div className="flex items-center justify-center p-[32px]">
-        <LogoFull />
-      </div>
-
+    <>
       <nav className="flex flex-1 flex-col gap-[16px] overflow-y-auto px-[20px] py-[16px]">
         {topLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
+            onClick={onNavigate}
             className={topClass(isActive(pathname, link.href))}
           >
             {link.label}
@@ -90,48 +164,50 @@ export function AdminSidebar() {
         ))}
 
         {businessLinks.length > 0 && (
-        <div className="flex flex-col gap-[6px]">
-          <button
-            type="button"
-            onClick={() => setBusinessOpen((value) => !value)}
-            className={`flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
-              businessActive ? "text-primary" : "text-[#364153]"
-            } hover:bg-platinum-100`}
-          >
-            <span className="flex-1 text-left">비즈니스 관리</span>
-            <ChevronDownIcon
-              className={`size-[24px] shrink-0 transition-transform ${
-                businessOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-          {businessOpen && (
-            <div className="flex flex-col gap-[6px]">
-              {businessLinks.map((link) => {
-                const active = isActive(pathname, link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`flex items-center rounded-[8px] py-[10px] pl-[36px] pr-[20px] text-sm leading-[20px] ${
-                      active
-                        ? "font-semibold text-primary"
-                        : "font-medium text-[#4a5565] hover:bg-platinum-100"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          <div className="flex flex-col gap-[6px]">
+            <button
+              type="button"
+              onClick={() => setBusinessOpen((value) => !value)}
+              className={`flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
+                businessActive ? "text-primary" : "text-[#364153]"
+              } hover:bg-platinum-100`}
+            >
+              <span className="flex-1 text-left">비즈니스 관리</span>
+              <ChevronDownIcon
+                className={`size-[24px] shrink-0 transition-transform ${
+                  businessOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {businessOpen && (
+              <div className="flex flex-col gap-[6px]">
+                {businessLinks.map((link) => {
+                  const active = isActive(pathname, link.href);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={onNavigate}
+                      className={`flex items-center rounded-[8px] py-[10px] pl-[36px] pr-[20px] text-sm leading-[20px] ${
+                        active
+                          ? "font-semibold text-primary"
+                          : "font-medium text-[#4a5565] hover:bg-platinum-100"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
         {bottomLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
+            onClick={onNavigate}
             className={topClass(isActive(pathname, link.href))}
           >
             {link.label}
@@ -149,6 +225,6 @@ export function AdminSidebar() {
           로그아웃
         </button>
       </div>
-    </aside>
+    </>
   );
 }

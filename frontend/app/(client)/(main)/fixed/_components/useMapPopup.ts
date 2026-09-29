@@ -41,10 +41,15 @@ export function useMapPopup({
     el.style.position = "relative";
     el.style.width = "0";
     el.style.height = "0";
+    // 카카오 CustomOverlay는 내용을 감싸는 요소에 white-space: nowrap을 건다. 그대로 두면
+    // 팝업 안 글자(긴 주소 등)가 줄바꿈되지 않고 카드 밖으로 넘치므로 여기서 되돌린다.
+    el.style.whiteSpace = "normal";
     return el;
   });
   const [flipUp, setFlipUp] = useState(false);
   const [shiftX, setShiftX] = useState(0);
+  // 팝업 폭 — 360px, 지도가 좁으면(모바일) 좌우 12px씩 남기고 지도 폭에 맞춘다.
+  const [width, setWidth] = useState(360);
   const [maxHeight, setMaxHeight] = useState(POPUP_PREFERRED_HEIGHT);
 
   useEffect(() => {
@@ -129,8 +134,9 @@ export function useMapPopup({
       else if (point.x + halfW > container.clientWidth - margin)
         sx = container.clientWidth - margin - (point.x + halfW);
       setShiftX(sx);
+      setWidth(halfW * 2);
     }
   }, [popupId, popupPosition, markers, mapReady, mapRef, containerRef]);
 
-  return { popupEl, flipUp, shiftX, maxHeight };
+  return { popupEl, flipUp, shiftX, maxHeight, width };
 }

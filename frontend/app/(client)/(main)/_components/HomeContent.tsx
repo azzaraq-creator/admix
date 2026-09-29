@@ -13,6 +13,7 @@ import {
 import { AiSearchBox } from "./AiSearchBox";
 import { HomeChat } from "./HomeChat";
 import { ModeToggle, type Mode } from "./ModeToggle";
+import { NewChatButton } from "./NewChatButton";
 import { useMixieChat } from "./useMixieChat";
 
 const SUGGESTIONS = [
@@ -23,13 +24,16 @@ const SUGGESTIONS = [
 ];
 
 // 검색 모드는 자연어 질문 대신, 검색어로 그대로 넣을 수 있는 지역·매체명을 권한다.
-const SEARCH_SUGGESTIONS: { title: string; items: string[] }[] = [
+// rows: 모바일에서 칩을 몇 줄로 나눠 좌우로 넘길지.
+const SEARCH_SUGGESTIONS: { title: string; items: string[]; rows: 1 | 2 }[] = [
   {
     title: "추천 지역",
+    rows: 1,
     items: ["강남", "홍대입구", "성수", "명동", "광화문"],
   },
   {
     title: "추천 매체",
+    rows: 2,
     items: [
       "H-LIVE 현대백화점 무역센터점 전광판",
       "명동 K파이낸스빌딩",
@@ -41,8 +45,26 @@ const SEARCH_SUGGESTIONS: { title: string; items: string[] }[] = [
 
 // 추천 칩. HeroUI sm 버튼은 높이 32px이고, 이 프로젝트의 곡률 규칙이
 // "높이/2 - 3px"(전송 버튼 40px→17px, 모드 탭 32px→13px)이라 13px이 된다.
+// 모바일에선 긴 문구가 화면 밖으로 넘치지 않게 칩 안에서 줄바꿈한다.
 const SUGGESTION_CHIP_CLASS =
-  "rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black";
+  "max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-full max-sm:min-h-[32px] max-sm:w-full max-sm:justify-start max-sm:py-[6px] max-sm:text-left max-sm:text-[13px] max-sm:leading-[18px] max-sm:break-keep max-sm:whitespace-normal";
+
+// 모바일은 칩 목록을 좌우로 넘기게 한다. 화면 끝까지 붙여(-mx) 다음 칩이
+// 살짝 걸쳐 보이게 해서 넘길 수 있다는 걸 알린다.
+const SUGGESTION_SCROLL_CLASS =
+  "mt-[10px] flex flex-wrap gap-x-[10px] gap-y-[8px] sm:justify-center max-sm:-mx-[20px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[20px] max-sm:overflow-x-auto max-sm:px-[20px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+// 긴 문구는 220px 칸에 두 줄로 쌓아 넘기고,
+const SUGGESTION_LIST_CLASS = `${SUGGESTION_SCROLL_CLASS} max-sm:grid max-sm:auto-cols-[220px] max-sm:grid-flow-col max-sm:grid-rows-2`;
+const SUGGESTION_ITEM_CLASS = "max-w-full max-sm:snap-start";
+// 검색 추천(지역·매체명)은 칩을 글자 폭 그대로 한 줄 문구로 두고, 모바일에선 줄마다
+// 따로 흐르게 해 윗줄·아랫줄 칩 너비가 서로 맞춰지지 않게 한다. 데스크톱에선 줄
+// 묶음(ul)을 contents로 풀어 기존처럼 한데 섞어 가운데로 감싼다.
+const SEARCH_SUGGESTION_ROWS_CLASS = `${SUGGESTION_SCROLL_CLASS} max-sm:flex-col max-sm:flex-nowrap`;
+const SEARCH_SUGGESTION_ROW_CLASS =
+  "flex gap-x-[10px] max-sm:w-max sm:contents";
+const SEARCH_SUGGESTION_ITEM_CLASS = "shrink-0 sm:max-w-full max-sm:snap-start";
+const SEARCH_SUGGESTION_CHIP_CLASS =
+  "sm:max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black";
 
 const MODE_LABEL: Record<Mode, string> = {
   ai: "AI 믹시",
@@ -73,11 +95,11 @@ export function HomeContent() {
     // 대화 중엔 높이를 화면에 고정해 대화 목록이 안에서 스크롤되고, 목록 끝에서 더 내리면
     // 바깥(홈 화면)이 이어서 스크롤돼 아래 콘텐츠가 보인다.
     <div
-      className={`flex shrink-0 flex-col px-[20px] pb-[24px] sm:px-[50px] ${
-        hasConversation ? "h-full" : "min-h-full"
+      className={`flex shrink-0 flex-col px-[20px] sm:px-[50px] ${
+        hasConversation ? "h-full pb-[12px] sm:pb-[16px]" : "min-h-full pb-[24px]"
       }`}
     >
-      <div className="flex shrink-0 items-center gap-[12px] pt-[30px] sm:pt-[52px]">
+      <div className="flex shrink-0 items-center justify-between gap-[12px] pt-[16px] sm:pt-[52px]">
         <Breadcrumbs
           aria-label="현재 위치"
           separator="/"
@@ -87,28 +109,39 @@ export function HomeContent() {
           <Breadcrumbs.Item isDisabled>대시보드</Breadcrumbs.Item>
           <Breadcrumbs.Item isDisabled>{MODE_LABEL[mode]}</Breadcrumbs.Item>
         </Breadcrumbs>
+        {/* 시안엔 없지만, 대화가 시작되면 처음 화면으로 돌아갈 길이 필요하다.
+            패널은 헤더에 같은 버튼이 있다. */}
+        {hasConversation && (
+          <div className="sm:hidden">
+            <NewChatButton />
+          </div>
+        )}
       </div>
 
       {hasConversation ? (
-        <div className="flex min-h-0 w-full flex-1 flex-col py-[24px]">
+        <div className="flex min-h-0 w-full flex-1 flex-col pt-[16px] sm:pt-[24px] sm:pb-[8px]">
           <HomeChat
             modeToggle={<ModeToggle value={mode} onChange={setMode} />}
           />
         </div>
       ) : (
-        <div className="flex w-full flex-1 flex-col items-center justify-center py-[40px]">
-          {mode === "search" ? (
-            <SearchDuotoneIcon className="size-[70px] shrink-0" />
-          ) : (
-            <MixieIcon className="size-[70px] shrink-0 drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
-          )}
-
-          <h1 className="mt-[16px] text-center text-[28px] font-bold text-black sm:text-[36px]">
-            {TITLE[mode]}
-          </h1>
-          <p className="mt-[12px] text-center text-base text-[#888]">
-            {SUBTITLE[mode]}
-          </p>
+        <div className="flex w-full flex-1 flex-col items-start justify-start py-[24px] sm:items-center sm:justify-center sm:py-[40px]">
+          {/* 모바일은 아이콘 옆에 제목·부제를 두고, 데스크톱은 세로로 가운데 쌓는다. */}
+          <div className="flex items-center gap-[10px] sm:flex-col sm:gap-0">
+            {mode === "search" ? (
+              <SearchDuotoneIcon className="size-[24px] shrink-0 sm:size-[70px]" />
+            ) : (
+              <MixieIcon className="size-[24px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
+            )}
+            <div className="flex flex-col sm:items-center">
+              <h1 className="text-left text-sm font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]">
+                {TITLE[mode]}
+              </h1>
+              <p className="text-left text-sm text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
+                {SUBTITLE[mode]}
+              </p>
+            </div>
+          </div>
 
           <div className="mt-[20px] flex w-full justify-center">
             <AiSearchBox
@@ -121,49 +154,82 @@ export function HomeContent() {
           </div>
 
           {mode === "ai" && (
-            <p className="mt-[20px] max-w-[860px] text-center text-xs text-[#64748b]">
-              AI 믹시 채팅은 좌측 패널 및 상세 매체 탐색 과정에서도 지속적으로
-              지원됩니다.
+            <p className="mt-[10px] max-w-[860px] text-left text-xs text-[#64748b] sm:mt-[20px] sm:text-center">
+              {/* 모바일은 좌측 패널이 없고 메뉴(드로어)로 들어간다. */}
+              <span className="sm:hidden">
+                메뉴의 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
+              </span>
+              <span className="hidden sm:inline">
+                AI 믹시 채팅은 좌측 패널 및 상세 매체 탐색 과정에서도 지속적으로
+                지원됩니다.
+              </span>
             </p>
           )}
 
           {mode === "search" ? (
-            <div className="mt-[28px] flex w-full max-w-[860px] flex-col gap-[20px]">
-              {SEARCH_SUGGESTIONS.map(({ title, items }) => (
-                <section key={title} className="w-full text-center">
-                  <h2 className="text-sm font-semibold text-black">{title}</h2>
-                  <ul className="mt-[10px] flex flex-wrap justify-center gap-x-[10px] gap-y-[8px]">
-                    {items.map((item) => (
-                      <li key={item}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={SUGGESTION_CHIP_CLASS}
-                          onPress={() => setQuery(item)}
+            <div className="mt-[20px] flex w-full max-w-[860px] flex-col gap-[20px] sm:mt-[28px]">
+              {SEARCH_SUGGESTIONS.map(({ title, items, rows }) => {
+                const half = Math.ceil(items.length / 2);
+                const itemRows =
+                  rows === 2
+                    ? [items.slice(0, half), items.slice(half)]
+                    : [items];
+                return (
+                  <section
+                    key={title}
+                    className="w-full text-left sm:text-center"
+                  >
+                    <h2 className="text-sm font-semibold text-black">
+                      {title}
+                    </h2>
+                    <div className={SEARCH_SUGGESTION_ROWS_CLASS}>
+                      {itemRows.map((row) => (
+                        <ul
+                          key={row[0]}
+                          className={SEARCH_SUGGESTION_ROW_CLASS}
                         >
-                          {item}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
+                          {row.map((item) => (
+                            <li
+                              key={item}
+                              className={SEARCH_SUGGESTION_ITEM_CLASS}
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={SEARCH_SUGGESTION_CHIP_CLASS}
+                                onPress={() => setQuery(item)}
+                              >
+                                {item}
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           ) : (
-            <ul className="mt-[28px] flex w-full max-w-[860px] flex-wrap justify-center gap-x-[10px] gap-y-[8px]">
-              {SUGGESTIONS.map((suggestion) => (
-                <li key={suggestion}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={SUGGESTION_CHIP_CLASS}
-                    onPress={() => setQuery(suggestion)}
-                  >
-                    {suggestion}
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <section className="mt-[20px] w-full max-w-[860px] text-left sm:mt-[28px] sm:text-center">
+              <h2 className="text-sm font-semibold text-black sm:hidden">
+                추천 질문
+              </h2>
+              <ul className={`${SUGGESTION_LIST_CLASS} sm:mt-0`}>
+                {SUGGESTIONS.map((suggestion) => (
+                  <li key={suggestion} className={SUGGESTION_ITEM_CLASS}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={SUGGESTION_CHIP_CLASS}
+                      onPress={() => setQuery(suggestion)}
+                    >
+                      {suggestion}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </div>
       )}
@@ -175,7 +241,7 @@ export function HomeContent() {
           hasConversation ? "mt-[12px]" : ""
         }`}
       >
-        <ScrollMouseIcon className="size-[24px]" />
+        <ScrollMouseIcon className="size-[18px] sm:size-[24px]" />
         <ChevronDownIcon className="size-[20px]" />
       </div>
     </div>

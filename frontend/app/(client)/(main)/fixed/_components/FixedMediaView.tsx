@@ -292,7 +292,7 @@ export function FixedMediaView() {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black-50 px-[20px] pt-[20px] pb-[20px]">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-[16px]">
       <MediaFindPanel
         selectedId={selectedMedia?.id}
         onSelectMedia={setSelectedMedia}
@@ -361,11 +361,10 @@ export function FixedMediaView() {
         <MediaDetailModal
           mediaId={selectedMedia.id}
           onClose={closeDetail}
-          onAddProposal={(id, planNo) => {
-            // 담기 모달은 상세 팝업 위에 겹치지 않는다(포커스 트랩이 충돌) → 상세를 닫고 띄운다.
-            setSelectedMedia(null);
-            setAddProposal({ mediaId: id, planNo });
-          }}
+          // 상세 팝업은 연 채로, 담기 모달을 그 위에 띄운다.
+          onAddProposal={(id, planNo) =>
+            setAddProposal({ mediaId: id, planNo })
+          }
         />
       )}
 

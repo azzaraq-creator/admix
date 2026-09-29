@@ -72,12 +72,14 @@ export function AiSearchBox({
 
   return (
     // 검색 모드는 테두리가 2px → 1px이라, 안쪽 모서리도 1px만큼 키워야 같은 두께로 둘린다.
+    // 여백은 대화 입력바(HomeChat)와 같게 — 모바일 상하좌우 12px, PC는 탭·전송 버튼이
+    // 테두리에서 8px, 글자는 왼쪽 16px·위 15px(오른쪽도 16px이 되게 textarea에 8px 더함).
     <div
       className="admix-ai-border w-full max-w-[860px]"
       data-mode={isSearch ? "search" : undefined}
     >
       <div
-        className={`relative flex min-h-[94px] flex-col bg-white px-[20px] pt-[18px] pb-[10px] ${
+        className={`relative flex min-h-[140px] flex-col bg-white px-[12px] pt-[12px] pb-[12px] sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px] ${
           isSearch ? "rounded-[26px]" : "rounded-[25px]"
         }`}
       >
@@ -96,11 +98,11 @@ export function AiSearchBox({
               ? "지역이나 매체명을 검색해 보세요"
               : "지역, 예산, 타겟, 광고 목적을 입력해 보세요"
           }
-          className="max-h-[110px] w-full resize-none bg-transparent text-[15px] leading-[22px] text-black outline-none placeholder:text-[#a1a1aa] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-[110px] w-full resize-none sm:pr-[8px] bg-transparent text-sm leading-[22px] sm:text-[15px] text-black outline-none placeholder:text-[#a1a1aa] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
 
         {/* 시안: 전환 탭과 전송 버튼을 오른쪽 아래에 10px 간격으로 나란히 둔다. */}
-        <div className="mt-[8px] flex items-center justify-end gap-[10px]">
+        <div className="mt-auto flex items-center justify-end gap-[8px] pt-[4px] sm:gap-[10px] sm:pt-[8px]">
           <ModeToggle value={mode} onChange={onModeChange} />
           <Button
             isIconOnly
@@ -109,9 +111,9 @@ export function AiSearchBox({
             isDisabled={isEmpty}
             onPress={submit}
             aria-label={mode === "ai" ? "AI 믹시에게 보내기" : "매체 검색하기"}
-            className="size-[40px] shrink-0 rounded-[17px]"
+            className="size-[32px] shrink-0 rounded-[14px] sm:size-[40px] sm:rounded-[17px]"
           >
-            <ArrowUpIcon className="size-[20px]" />
+            <ArrowUpIcon className="size-[16px] sm:size-[20px]" />
           </Button>
         </div>
       </div>

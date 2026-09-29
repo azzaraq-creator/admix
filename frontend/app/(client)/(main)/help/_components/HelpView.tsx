@@ -29,31 +29,84 @@ export function HelpView() {
     y: number;
     w: number;
     h: number;
+    /** 탭 스크롤 영역(Tabs 바깥 틀 기준) — 알약을 이 안으로 잘라 넘친 탭 밖으로 삐져나오지 않게 한다. */
+    clip: { x: number; y: number; w: number; h: number };
+    /** 스크롤 영역 가장자리의 흐림(ScrollShadow 마스크) — 탭 글자와 같이 알약도 흐려지게 따라 쓴다. */
+    mask: string;
+    /** 탭을 바꿀 때만 미끄러지고, 스크롤·크기 변화는 바로 따라간다(늦게 쫓아오지 않게). */
+    animate: boolean;
   } | null>(null);
+  const scrolledOnce = useRef(false);
 
   // 선택된 탭의 위치를 재서 알약을 옮긴다. 웹폰트가 늦게 적용되거나 창 폭이 바뀌어
   // 탭 크기가 달라져도 다시 잰다(값이 굳지 않는다).
+  // 좁은 화면(320px 등)에선 탭이 넘쳐 가로로 스크롤되므로(HeroUI ListContainer의 overflow —
+  // 가장자리 흐림 + 좌우 화살표), 탭 목록이 스크롤될 때도 다시 재서 알약이 탭을 따라가게 한다.
   useEffect(() => {
     const root = tabsRef.current;
-    if (!root) return;
-    const measure = () => {
+    // 알약 좌표의 기준은 알약이 들어 있는 Tabs 바깥 틀이다.
+    const container = root?.querySelector<HTMLElement>(".tabs");
+    const scroller = root?.querySelector<HTMLElement>(
+      ".tabs__list-container__scroller",
+    );
+    if (!root || !container || !scroller) return;
+    const measure = (animate: boolean) => {
       const el = root.querySelector<HTMLElement>(`[data-key="${tab}"]`);
-      // 알약 좌표의 기준은 알약이 들어 있는 Tabs 바깥 틀이다.
-      const container = root.querySelector<HTMLElement>(".tabs");
-      if (!el || !container) return;
-      const base = container.getBoundingClientRect();
+      if (!el) return;
+      const box = container.getBoundingClientRect();
+      const area = scroller.getBoundingClientRect();
       const rect = el.getBoundingClientRect();
       setPill({
-        x: rect.x - base.x,
-        y: rect.y - base.y,
+        x: rect.x - area.x,
+        y: rect.y - area.y,
         w: rect.width,
         h: rect.height,
+        clip: {
+          x: area.x - box.x,
+          y: area.y - box.y,
+          w: area.width,
+          h: area.height,
+        },
+        mask: getComputedStyle(scroller).maskImage,
+        animate,
       });
     };
-    measure();
-    const observer = new ResizeObserver(measure);
+
+    // 선택된 탭이 스크롤 영역 밖(또는 가장자리 흐림·화살표 밑)에 있으면 보이는 곳까지 민다.
+    // 처음 열 때(?tab=location로 들어온 경우 등)는 애니메이션 없이 바로 맞춘다.
+    const el = root.querySelector<HTMLElement>(`[data-key="${tab}"]`);
+    if (el && scroller.scrollWidth > scroller.clientWidth) {
+      const EDGE = 28;
+      const area = scroller.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      const delta =
+        rect.left < area.left + EDGE
+          ? rect.left - area.left - EDGE
+          : rect.right > area.right - EDGE
+            ? rect.right - area.right + EDGE
+            : 0;
+      if (delta)
+        scroller.scrollBy({
+          left: delta,
+          behavior: scrolledOnce.current ? "smooth" : "auto",
+        });
+    }
+    scrolledOnce.current = true;
+
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => measure(false));
+    };
+    measure(true);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(() => measure(false));
     observer.observe(root);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      scroller.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [tab]);
   const sections = useMemo(() => parseTerms(HELP_CONTENT[tab], tab), [tab]);
   const articles = sections.filter((s) => s.num);
@@ -106,12 +159,12 @@ export function HelpView() {
 
   return (
     <div className="min-w-0 flex-1 overflow-y-auto bg-black-50">
-      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] pt-[32px] pb-[40px] sm:px-[24px] sm:pt-[56px]">
+      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[40px]">
         <header className="flex flex-col gap-[6px]">
-          <h1 className="text-[26px] leading-[34px] font-bold text-black-900">
+          <h1 className="text-[18px] leading-[26px] font-bold text-black-900 sm:text-[26px] sm:leading-[34px]">
             약관 및 정책
           </h1>
-          <p className="text-[14px] text-black-500">
+          <p className="text-[12px] leading-[18px] text-black-500 max-sm:break-keep sm:text-[14px] sm:leading-[inherit]">
             ADMIXAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수 있어요.
           </p>
         </header>
@@ -120,7 +173,7 @@ export function HelpView() {
             미끄러지는 연출을 위해 잰 위치를 인라인 스타일로 들고 있는데, 새로고침 직후 잘못 잰 값
             (목록 전체 폭)이 굳어 다른 탭을 덮고 클릭까지 막는다. 여기서는 탭이 바뀔 때마다·크기가
             바뀔 때마다 선택된 탭의 실제 위치를 다시 재서 같은 모양(tabs__indicator)의 알약을 옮긴다. */}
-        <div ref={tabsRef} className="mt-[24px] w-full sm:w-[480px]">
+        <div ref={tabsRef} className="mt-[16px] w-full sm:mt-[24px] sm:w-[480px]">
           {/* 탭 목록은 스크롤 그림자(마스크) 층 안에 있어, 알약을 그 위에 겹치면 탭 글자까지 덮는다.
               그래서 목록 컨테이너의 회색 바탕(--default, 모서리 --radius×2.5 — HeroUI 값 그대로)을
               Tabs 바깥 틀로 옮기고, 알약은 그 바탕과 탭 목록 사이에 그린다. 겉모양은 기본과 같다. */}
@@ -130,22 +183,37 @@ export function HelpView() {
             className="relative w-full rounded-[calc(var(--radius)*2.5)] bg-(--default)"
           >
             {pill && (
+              // 탭 스크롤 영역과 같은 자리·같은 흐림으로 잘라, 탭이 넘쳐 스크롤돼도 알약이
+              // 회색 바탕 밖으로 삐져나오지 않고 탭 글자와 똑같이 가장자리에서 흐려진다.
               <span
                 aria-hidden
-                className="tabs__indicator pointer-events-none z-auto"
+                className="pointer-events-none absolute overflow-hidden"
                 style={{
-                  translate: `${pill.x}px ${pill.y}px`,
-                  width: pill.w,
-                  height: pill.h,
+                  left: pill.clip.x,
+                  top: pill.clip.y,
+                  width: pill.clip.w,
+                  height: pill.clip.h,
+                  maskImage: pill.mask,
+                  WebkitMaskImage: pill.mask,
                 }}
-              />
+              >
+                <span
+                  className="tabs__indicator z-auto"
+                  style={{
+                    translate: `${pill.x}px ${pill.y}px`,
+                    width: pill.w,
+                    height: pill.h,
+                    transitionDuration: pill.animate ? undefined : "0ms",
+                  }}
+                />
+              </span>
             )}
             <Tabs.ListContainer className="bg-transparent">
               <Tabs.List aria-label="약관 종류">
                 {HELP_TABS.map(({ key, label }) => (
                   // 모양은 기본 그대로, 좁은 화면에서 이름이 두 줄로 꺾이지만 않게 한다.
                   // 알약을 그리기 전(자바스크립트 실행 전)엔 선택 탭을 글자색만으로 구분한다.
-                  <Tabs.Tab key={key} id={key} className="whitespace-nowrap">
+                  <Tabs.Tab key={key} id={key} className="whitespace-nowrap max-sm:text-[12px]">
                     {label}
                   </Tabs.Tab>
                 ))}
@@ -155,7 +223,7 @@ export function HelpView() {
         </div>
 
         {/* 넓은 화면: 목차와 본문이 화면 높이 안에서 각자 스크롤한다. */}
-        <div className="mt-[20px] grid gap-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="mt-[16px] grid gap-[20px] sm:mt-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
           <nav
             aria-label="목차"
             className="hidden min-h-0 flex-col overflow-y-auto rounded-[16px] border border-black-200 bg-white p-[12px] [scrollbar-width:thin] lg:flex"
@@ -185,10 +253,10 @@ export function HelpView() {
 
           <article
             ref={articleRef}
-            className="relative flex min-h-0 flex-col rounded-[20px] border border-black-200 bg-white px-[20px] py-[24px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
+            className="relative flex min-h-0 flex-col rounded-[20px] border border-black-200 bg-white p-[20px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
           >
             {intro && (
-              <div className="mb-[24px] shrink-0 rounded-[14px] bg-black-50 px-[18px] py-[14px]">
+              <div className="mb-[20px] shrink-0 rounded-[14px] bg-black-50 p-[14px] sm:mb-[24px] sm:px-[18px]">
                 <TermsSectionBody section={intro} />
               </div>
             )}
@@ -198,10 +266,11 @@ export function HelpView() {
                 id={s.id}
                 className={cn(
                   "shrink-0",
-                  i > 0 && "mt-[24px] border-t border-black-100 pt-[24px]",
+                  i > 0 &&
+                    "mt-[20px] border-t border-black-100 pt-[20px] sm:mt-[24px] sm:pt-[24px]",
                 )}
               >
-                <h2 className="mb-[10px] flex flex-wrap items-baseline gap-x-[8px] text-[16px] leading-[24px] font-bold text-black-900">
+                <h2 className="mb-[8px] flex flex-wrap items-baseline gap-x-[8px] text-[14px] leading-[20px] font-bold text-black-900 sm:mb-[10px] sm:text-[16px] sm:leading-[24px]">
                   <span className="text-black-400">{s.num}</span>
                   {s.title && <span>{s.title}</span>}
                 </h2>

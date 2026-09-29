@@ -25,6 +25,18 @@ class ProposalListResponse(BaseModel):
 # ===== 클라이언트(장바구니) =====
 
 
+class ProposalPreviewItem(BaseModel):
+    """내 제안서 목록 — 제안서명에 마우스를 올리면 뜨는 "제안서 요약"의 매체 한 줄."""
+
+    media_id: str
+    name: str
+    address: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    # 선택한 상품(plan)의 광고비·제작비(1회분, 수량 미적용).
+    advertisement_fee: Optional[int] = None
+    production_fee: Optional[int] = None
+
+
 class ProposalSummary(BaseModel):
     id: str
     title: str
@@ -33,6 +45,11 @@ class ProposalSummary(BaseModel):
     total_amount: int
     updated_at: Optional[str] = None
     media_ids: list[str] = []
+    created_at: Optional[str] = None
+    # 아래는 내 제안서 목록(GET /proposals)에서만 채운다. 다른 응답에서는 기본값.
+    advertisement_amount: Optional[int] = None  # 광고비 × 수량 합계
+    production_amount: Optional[int] = None  # 제작비 × 수량 합계
+    preview_items: list[ProposalPreviewItem] = []
 
 
 class PlanOut(BaseModel):

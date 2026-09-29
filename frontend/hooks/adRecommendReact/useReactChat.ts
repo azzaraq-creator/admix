@@ -55,6 +55,9 @@ export interface V2MediaItem {
   longitude?: number | null;
   category_large?: string | null;
   category_small?: string | null;
+  address?: string | null;
+  min_advertisement_fee_krw?: number | null;
+  min_production_fee_krw?: number | null;
 }
 
 export interface ConfirmationInfo {
@@ -300,7 +303,7 @@ export function useReactChat() {
     } catch (err) {
       // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
       const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
-      error(msg);
+      error("믹시 새 대화를 시작하지 못했어요", msg);
     }
   }, [running, error]);
 
@@ -414,7 +417,7 @@ export function useReactChat() {
         );
       } else if (eventName === "error") {
         const msg = (data.message as string) || "알 수 없는 오류";
-        error(msg);
+        error("믹시 답변 중 오류가 났어요", msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -532,7 +535,7 @@ export function useReactChat() {
 
           if (job.status === "failed") {
             const msg = job.error || "처리 실패";
-            error(msg);
+            error("믹시가 답변을 만들지 못했어요", msg);
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -552,7 +555,7 @@ export function useReactChat() {
 
         if (!settled) {
           const msg = "응답 시간 초과";
-          error(msg);
+          error("믹시 답변이 너무 오래 걸려요", msg);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId
@@ -568,7 +571,7 @@ export function useReactChat() {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        error(msg);
+        error("믹시에게 메시지를 보내지 못했어요", msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -613,7 +616,7 @@ export function useReactChat() {
         await consumeStream(res, assistantId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        error(msg);
+        error("믹시 조건을 지우지 못했어요", msg);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId

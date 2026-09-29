@@ -287,4 +287,49 @@
     font-weight: 600;
     color: #8f39d6;
   }
+  /* 모바일은 한 단계 작게. */
+  @media (width < 40rem) {
+    .breadcrumbs.admix-breadcrumbs,
+    .breadcrumbs.admix-breadcrumbs .breadcrumbs__item {
+      gap: 6px;
+    }
+    .breadcrumbs.admix-breadcrumbs,
+    .breadcrumbs.admix-breadcrumbs .breadcrumbs__link {
+      font-size: 11px;
+      line-height: 16px;
+    }
+  }
+}
+
+/* 토스트 — HeroUI Toast의 흰 카드를 반투명 검정 + 흰 글씨로 덮어쓴다.
+   아이콘만 상태 색(성공 초록·오류 빨강)을 어두운 바탕에서 잘 보이는 밝은 톤으로 둔다.
+   변형별 제목 색(.toast--danger .toast__title 등)보다 우선하도록 .toast-region을 앞에 붙인다. */
+@layer components {
+  .toast-region .toast {
+    background-color: rgb(0 0 0 / 0.75);
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.35);
+    backdrop-filter: blur(8px);
+  }
+  .toast-region .toast .toast__title {
+    color: #fff;
+  }
+  .toast-region .toast .toast__description {
+    color: rgb(255 255 255 / 0.7);
+  }
+  .toast-region .toast--success .toast__indicator {
+    color: #4ade80;
+  }
+  .toast-region .toast--danger .toast__indicator {
+    color: #f87171;
+  }
+  .toast-region .toast--default .toast__indicator,
+  .toast-region .toast--accent .toast__indicator,
+  .toast-region .toast--warning .toast__indicator {
+    color: #fff;
+  }
+  .toast-region .toast .toast__close-button {
+    border-color: rgb(255 255 255 / 0.2);
+    background-color: #2f3442;
+    color: #fff;
+  }
 }

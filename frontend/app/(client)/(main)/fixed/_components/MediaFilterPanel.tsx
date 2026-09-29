@@ -34,7 +34,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 /** 패널 탭 모양 — 정렬 패널(MediaSortBar)의 Select 트리거도 같은 모양을 쓴다. */
 export const TAB_BASE =
-  "flex h-[38px] shrink-0 items-center gap-[8px] rounded-[16px] px-[20px] text-[14px] transition-colors";
+  "flex h-[38px] shrink-0 items-center gap-[8px] rounded-[16px] px-[20px] text-[14px] max-sm:text-[12px] transition-colors";
 // 선택된 탭의 테두리는 #9ca3af(= black-400).
 export const TAB_ACTIVE =
   "border border-black-400 bg-white font-bold text-black-900";
@@ -68,7 +68,9 @@ export function TabButton({
       {label}
       {count > 0 && (
         // 색은 지정하지 않고 탭 글자색(선택·hover 상태 포함)을 그대로 따른다.
-        <span className="text-[13px] font-semibold">{count}</span>
+        <span className="text-[13px] max-sm:text-[11px] font-semibold">
+          {count}
+        </span>
       )}
     </Button>
   );
@@ -98,7 +100,7 @@ function hasSelection(f: MediaFilterState): boolean {
 // 선택 시 테두리 #9ca3af(= black-400) + black-900 볼드. HeroUI Tag의 기본 배경·선택 색은
 // bg-white로 덮는다(유틸리티 레이어가 컴포넌트 레이어보다 뒤에 와서 그대로 이긴다).
 const OPTION_TAG = cn(
-  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-black-200 bg-white px-[14px] text-[13px] font-medium text-black-600 transition-colors",
+  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-black-200 bg-white px-[14px] text-[13px] max-sm:text-[11px] font-medium text-black-600 transition-colors",
   "hover:border-black-300",
   "data-[selected=true]:border-black-400 data-[selected=true]:font-bold data-[selected=true]:text-black-900",
 );
@@ -119,7 +121,10 @@ export function MediaFilterPanel({
   /** 이미 적용된 필터의 결과 수 — 패널 선택이 적용된 것과 같으면 다시 세지 않고 이 값을 쓴다. */
   totalCount: number;
   /** 필터 외 조회 조건(지도 영역·검색어). 패널 선택의 개수를 셀 때 함께 건다. */
-  scope: Pick<MediaFilterParams, "neLat" | "swLat" | "neLng" | "swLng" | "keyword">;
+  scope: Pick<
+    MediaFilterParams,
+    "neLat" | "swLat" | "neLng" | "swLng" | "keyword"
+  >;
   onApply: (next: MediaFilterState) => void;
   onReset: () => void;
   onClose: () => void;
@@ -152,7 +157,7 @@ export function MediaFilterPanel({
 
   return (
     <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
-      <div className="flex items-center gap-[4px] overflow-x-auto border-b border-black-200 px-[16px] py-[12px]">
+      <div className="flex items-center gap-[4px] overflow-x-auto border-b border-black-200 px-[16px] py-[12px] [scrollbar-width:none] max-sm:px-[12px] max-sm:py-[10px] [&::-webkit-scrollbar]:hidden">
         {TABS.map(({ key, label }) => (
           <TabButton
             key={key}
@@ -166,7 +171,7 @@ export function MediaFilterPanel({
         ))}
       </div>
 
-      <div className="min-h-[160px] px-[20px] py-[20px]">
+      <div className="min-h-[160px] px-[20px] py-[20px] max-sm:min-h-[120px] max-sm:px-[16px] max-sm:py-[16px]">
         {tab === "price" ? (
           price ? (
             <PriceRangeFilter
@@ -180,12 +185,12 @@ export function MediaFilterPanel({
               }
             />
           ) : (
-            <p className="text-[13px] text-black-500">
+            <p className="text-[13px] max-sm:text-[11px] text-black-500">
               가격 정보를 불러오지 못했어요.
             </p>
           )
         ) : tab === "region" ? (
-          <p className="text-[13px] text-black-500">
+          <p className="text-[13px] max-sm:text-[11px] text-black-500">
             준비 중인 필터입니다. 상단 검색창에 지역명을 입력해 보세요.
           </p>
         ) : (
@@ -216,7 +221,7 @@ export function MediaFilterPanel({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-black-200 px-[20px] py-[16px]">
+      <div className="flex items-center justify-between gap-[8px] border-t border-black-200 px-[20px] py-[16px] max-sm:px-[16px] max-sm:py-[12px]">
         <Button
           variant="ghost"
           isDisabled={resetDisabled}
@@ -224,10 +229,12 @@ export function MediaFilterPanel({
             setDraft(EMPTY_MEDIA_FILTER);
             onReset();
           }}
-          className="flex h-[40px] items-center gap-[8px] rounded-[16px] border border-black-200 bg-white px-[16px] text-[14px] font-medium text-black-700 hover:bg-black-50"
+          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-black-200 bg-white px-[16px] text-[14px] font-medium text-black-700 hover:bg-black-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
         >
-          <RotateLeftIcon className="m-0 size-[18px] shrink-0" />
-          필터 초기화
+          <RotateLeftIcon className="m-0 size-[18px] shrink-0 max-sm:size-[15px]" />
+          {/* 모바일은 폭이 좁아 버튼 글자를 줄인다. */}
+          <span className="max-sm:hidden">필터 초기화</span>
+          <span className="sm:hidden">초기화</span>
         </Button>
         {/* 모서리는 (높이/2)-3px — 버튼 40px → 17px, 개수 칩 24px → 9px.
             여백 기준은 상하 8px(40px 높이에 24px 칩). 오른쪽은 칩이 자체 여백을 가져
@@ -240,10 +247,11 @@ export function MediaFilterPanel({
             onApply(draft);
             onClose();
           }}
-          className="flex h-[40px] items-center gap-[10px] rounded-[17px] bg-primary pr-[8px] pl-[14px] text-[14px] font-bold text-white hover:bg-primary-600 data-[disabled=true]:opacity-70 data-[pressed=true]:bg-primary-600"
+          className="flex h-[40px] items-center gap-[10px] rounded-[17px] bg-primary pr-[8px] pl-[14px] text-[14px] font-bold text-white hover:bg-primary-600 data-[disabled=true]:opacity-70 data-[pressed=true]:bg-primary-600 max-sm:min-w-0 max-sm:flex-1 max-sm:justify-between max-sm:text-[11px]"
         >
-          선택한 필터로 결과 보기
-          <Chip className="h-[24px] min-w-[48px] justify-center rounded-[9px] bg-white/25 px-[10px] text-[12px] font-bold text-white">
+          <span className="max-sm:hidden">선택한 필터로 결과 보기</span>
+          <span className="sm:hidden">결과 보기</span>
+          <Chip className="h-[24px] min-w-[48px] justify-center rounded-[9px] bg-white/25 px-[10px] text-[12px] max-sm:text-[10px] font-bold text-white">
             {counting || count == null ? (
               <Spinner size="sm" color="current" className="size-[14px]" />
             ) : (

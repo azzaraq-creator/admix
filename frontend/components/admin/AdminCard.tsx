@@ -12,7 +12,7 @@ export function AdminCard({
   return (
     <div
       className={cn(
-        "rounded-[16px] border border-stroke bg-white p-[48px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.04)]",
+        "rounded-[16px] border border-stroke bg-white p-[20px] md:p-[48px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.04)]",
         className,
       )}
     >

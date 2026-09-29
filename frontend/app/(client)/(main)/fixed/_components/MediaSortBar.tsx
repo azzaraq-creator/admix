@@ -62,7 +62,7 @@ export function MediaSortBar({
 
   return (
     <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
-      <div className="flex items-center gap-[4px] overflow-x-auto px-[16px] py-[12px]">
+      <div className="flex items-center gap-[4px] overflow-x-auto px-[16px] py-[12px] [scrollbar-width:none] max-sm:px-[12px] max-sm:py-[10px] [&::-webkit-scrollbar]:hidden">
         {BASIC_SORTS.map((sort) => (
           <TabButton
             key={sort.key}
@@ -93,14 +93,14 @@ export function MediaSortBar({
                 : cn(TAB_IDLE, "border-transparent"),
             )}
           >
-            <Select.Value className="text-[14px] text-current data-[placeholder=true]:text-current">
+            <Select.Value className="text-[14px] max-sm:text-[12px] text-current data-[placeholder=true]:text-current">
               {({ selectedText, isPlaceholder }) =>
                 isPlaceholder
                   ? "비율이 높은 순"
                   : `${selectedText} 비율이 높은 순`
               }
             </Select.Value>
-            <Select.Indicator className="end-[12px] text-current" />
+            <Select.Indicator className="end-[12px] text-current max-sm:size-[14px]" />
           </Select.Trigger>
           <Select.Popover>
             <ListBox>

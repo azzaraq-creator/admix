@@ -3,6 +3,7 @@
 import { Button, Card, Chip, Skeleton, ToggleButton } from "@heroui/react";
 import { useState } from "react";
 
+import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
   ChevronRightBoldIcon,
   FolderAddIcon,
@@ -12,8 +13,6 @@ import {
 } from "@/components/icons";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
-
-import { MediaImageCarousel } from "./MediaImageCarousel";
 
 /** 카드 하단 금액 — 값이 없으면 시안대로 "-". */
 function formatKrw(value: number | null): string {
@@ -31,8 +30,10 @@ function PriceCell({
 }) {
   return (
     <div className={cn("flex flex-col items-end gap-[4px]", className)}>
-      <span className="text-[11px] font-medium text-black-400">{label}</span>
-      <span className="text-[16px] font-bold text-[#2d264b]">
+      <span className="text-[11px] max-sm:text-[10px] font-medium text-black-400">
+        {label}
+      </span>
+      <span className="text-[16px] max-sm:text-[14px] font-bold text-[#2d264b]">
         {formatKrw(value)}
       </span>
     </div>
@@ -80,7 +81,7 @@ export function MediaFindCard({
           className="absolute top-[11px] left-[11px] h-[30px] gap-[6px] rounded-[12px] bg-white px-[12px] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
         >
           <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
-          <span className="text-[12px] font-bold text-[#18181b]">
+          <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
             제안서 담기
           </span>
         </Button>
@@ -111,13 +112,13 @@ export function MediaFindCard({
       </MediaImageCarousel>
 
       <div className="flex flex-col px-[10px] pt-[11px]">
-        <p className="truncate pl-[2px] text-[16px] leading-[19px] font-bold text-black">
+        <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
           {row.name}
         </p>
 
         <div className="mt-[5px] flex items-center gap-[3px]">
           <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
-          <span className="truncate text-[12px] text-[#6c757d]">
+          <span className="truncate text-[12px] max-sm:text-[11px] text-[#6c757d]">
             {row.address ?? "-"}
           </span>
         </div>
@@ -125,7 +126,7 @@ export function MediaFindCard({
         <div className="mt-[8px] flex items-center justify-between gap-[8px]">
           {/* 정렬·shrink-0·가로 패딩(8px)은 HeroUI Chip 기본값이라 색·모서리·세로 여백만 준다. */}
           {row.categoryLarge ? (
-            <Chip className="gap-0 rounded-[8px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] text-[#71717a]">
+            <Chip className="gap-0 rounded-[8px] bg-[#ededef] py-[3px] text-[11px] max-sm:text-[10px] leading-[16.5px] text-[#71717a]">
               {row.categoryLarge}
               {row.categorySmall && (
                 <>
@@ -138,7 +139,7 @@ export function MediaFindCard({
             <span />
           )}
           {row.salesType && (
-            <Chip className="gap-[3px] rounded-[8px] bg-[#f0f5fe] py-[3px] leading-[18px] font-normal text-[#7ba7e8]">
+            <Chip className="gap-[3px] rounded-[8px] bg-[#f0f5fe] py-[3px] leading-[18px] font-normal text-[#7ba7e8] max-sm:text-[11px]">
               <LayerIcon className="size-[16px] shrink-0" />
               {row.salesType}
             </Chip>
@@ -152,7 +153,7 @@ export function MediaFindCard({
         <PriceCell
           label="광고비 / 1개월"
           value={row.minAdvertisementFeeKrw}
-          className="w-[270px]"
+          className="w-[270px] max-sm:w-auto max-sm:flex-1"
         />
         <PriceCell
           label="제작비 / 1회"

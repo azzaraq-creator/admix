@@ -21,22 +21,36 @@ function DialogContent({
   className,
   backdropClassName,
   backdropForceRender,
+  topLayer = false,
   children,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Popup> & {
   backdropClassName?: string;
   backdropForceRender?: boolean;
+  /**
+   * HeroUI(react-aria) 모달 위에 겹쳐 띄울 때 켠다. HeroUI 오버레이 층(z 100000)보다 위에 두고,
+   * data-react-aria-top-layer로 아래 모달의 포커스 가두기·바깥 클릭 닫기·inert에서 빠진다.
+   */
+  topLayer?: boolean;
 }) {
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal
+      {...(topLayer ? { "data-react-aria-top-layer": true } : {})}
+    >
       <DialogPrimitive.Backdrop
+        data-slot="dialog-backdrop"
         forceRender={backdropForceRender}
-        className={cn("fixed inset-0 z-50 bg-black/70", backdropClassName)}
+        className={cn(
+          "fixed inset-0 bg-black/70",
+          topLayer ? "z-[100001]" : "z-50",
+          backdropClassName,
+        )}
       />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-white outline-none",
+          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-white outline-none",
+          topLayer ? "z-[100001]" : "z-50",
           className,
         )}
         {...props}

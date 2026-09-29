@@ -41,8 +41,23 @@ const CATEGORY_TO_ITEM: Record<string, string> = {
   "생활 편의시설": "생활&편의시설",
 };
 
-function markerSrc(categoryLarge?: string | null, focused = false): string {
-  const item = (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) || "기타";
+/**
+ * 소분류로 아이콘이 갈리는 경우. 대분류 "공항/기차"는 공항·기차역을 함께 묶고 있어
+ * 대분류만 보면 기차역도 공항 핀으로 뜬다. 소분류가 여기 있으면 소분류를 먼저 쓴다.
+ */
+const SMALL_CATEGORY_TO_ITEM: Record<string, string> = {
+  공항: "공항",
+  기차역: "기차역",
+};
+
+type MarkerCategory = Pick<MapMarker, "categoryLarge" | "categorySmall">;
+
+function markerSrc(category: MarkerCategory, focused = false): string {
+  const { categoryLarge, categorySmall } = category;
+  const item =
+    (categorySmall && SMALL_CATEGORY_TO_ITEM[categorySmall]) ||
+    (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) ||
+    "기타";
   const file = MARKER_SRC[item] ?? MARKER_SRC["기타"];
   // 포커스 변형: 바깥 링 흰색 (public/markers/focus/*.svg). 크기는 기본과 같다.
   const path = focused ? file.replace("/markers/", "/markers/focus/") : file;
@@ -52,10 +67,10 @@ function markerSrc(categoryLarge?: string | null, focused = false): string {
 function markerImageFor(
   maps: KakaoMaps,
   cache: Record<string, KakaoMarkerImage>,
-  categoryLarge: string | null | undefined,
+  category: MarkerCategory,
   focused: boolean,
 ): KakaoMarkerImage {
-  const src = markerSrc(categoryLarge, focused);
+  const src = markerSrc(category, focused);
   if (!cache[src]) {
     cache[src] = new maps.MarkerImage(
       src,
@@ -192,7 +207,7 @@ export function useMapMarkers({
           image: markerImageFor(
             maps,
             imageCacheRef.current,
-            m.categoryLarge,
+            m,
             false,
           ),
           title: m.name,
@@ -318,7 +333,7 @@ export function useMapMarkers({
         markerImageFor(
           maps,
           imageCacheRef.current,
-          prev.data.categoryLarge,
+          prev.data,
           false,
         ),
       );
@@ -331,7 +346,7 @@ export function useMapMarkers({
         markerImageFor(
           maps,
           imageCacheRef.current,
-          next.data.categoryLarge,
+          next.data,
           true,
         ),
       );

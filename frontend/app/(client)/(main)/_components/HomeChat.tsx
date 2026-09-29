@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -12,7 +13,8 @@ import {
 } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
-import { ArrowUpIcon } from "@/components/icons";
+import { MediaDetailModal } from "@/components/common/MediaDetailModal";
+import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 
@@ -36,7 +38,10 @@ const PANEL_SUGGESTIONS = [
  */
 function UserBubble({ content }: { content: string }) {
   return (
-    <div className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-black-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-black-900">
+    <div
+      data-user-message
+      className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-black-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-black-900"
+    >
       {content}
     </div>
   );
@@ -48,11 +53,11 @@ function UserBubble({ content }: { content: string }) {
  */
 function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
   return (
-    <div className="flex w-full flex-1 flex-col justify-end gap-[14px] pb-[4px]">
+    <div className="flex w-full flex-1 flex-col justify-end gap-[14px] pb-[4px] max-sm:pb-0">
       <div>
         <MixieMarkdown>
           {
-            "안녕하세요, **AI 믹시**예요.\n지역·예산·타겟을 알려주시면 딱 맞는 옥외광고 매체를 찾아드리고, 마음에 드는 매체는 제안서에 바로 담아드릴게요."
+            "안녕하세요, **AI 믹시**예요.\n\n지역·예산·타겟을 알려주시면 딱 맞는 옥외광고 매체를 찾아드리고, 마음에 드는 매체는 제안서에 바로 담아드릴게요."
           }
         </MixieMarkdown>
       </div>
@@ -66,7 +71,7 @@ function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
             key={suggestion}
             type="button"
             onClick={() => onPick(suggestion)}
-            className="rounded-[13px] border border-black-200 bg-white px-[12px] py-[6px] text-left text-[13px] leading-[18px] text-black-600 transition-colors hover:border-black-300 hover:text-black-900"
+            className="rounded-[13px] border border-black-200 bg-white px-[12px] py-[6px] text-left text-[12px] leading-[17px] text-black-600 sm:text-[13px] sm:leading-[18px] transition-colors hover:border-black-300 hover:text-black-900"
           >
             {suggestion}
           </button>
@@ -88,28 +93,87 @@ export function HomeChat({
   /** 홈 입력바의 전송 버튼 왼쪽에 둘 AI/검색 전환 탭(시안 "01. 대시보드"). 패널에서는 쓰지 않는다. */
   modeToggle?: ReactNode;
 }) {
-  const { chat, setPanelOpen } = useMixieChat();
+  const { chat } = useMixieChat();
   const isPanel = variant === "panel";
   const router = useRouter();
   const [value, setValue] = useState("");
   const [showPhotos, setShowPhotos] = useState(true);
-  const [addProposalMediaId, setAddProposalMediaId] = useState<string | null>(
-    null,
-  );
-  const endRef = useRef<HTMLDivElement>(null);
+  const [addProposal, setAddProposal] = useState<{
+    mediaId: string;
+    planNo?: number;
+  } | null>(null);
+  // 추천 매체를 누르면 매체 찾기와 같은 상세 모달을 띄운다(페이지 이동 없이 대화 그대로).
+  const [detailMediaId, setDetailMediaId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const lastUserIdRef = useRef<string | null>(null);
+  const prevCountRef = useRef(0);
+  // 대화 끝이 화면 아래로 벗어나 있으면 입력바 위에 "맨 아래로" 버튼을 띄운다.
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const addProposalItems = useAddProposalItems();
   const renameProposal = useRenameProposal();
   const { success, error } = useSonner();
 
-  // 새 메시지가 오면 대화 목록만 맨 아래로 내린다. scrollIntoView는 바깥 스크롤(홈 화면 전체)까지
-  // 움직여, 대시보드 아래 콘텐츠 쪽으로 화면이 밀려 내려가 버린다.
+  // 마지막 내 질문을 목록 맨 위까지 올릴 수 있도록, 그 아래 내용이 목록 높이보다 짧으면
+  // 모자란 만큼 빈 칸(spacer)을 둔다. 답이 길어지면 빈 칸이 줄어 스크롤 위치는 그대로다.
+  const syncLayout = useCallback(() => {
+    const list = listRef.current;
+    const spacer = spacerRef.current;
+    if (!list || !spacer) return;
+    const users = list.querySelectorAll<HTMLElement>("[data-user-message]");
+    const lastUser = users[users.length - 1];
+    const below = lastUser ? spacer.offsetTop - lastUser.offsetTop : 0;
+    spacer.style.height = lastUser
+      ? `${Math.max(0, list.clientHeight - below)}px`
+      : "0px";
+    // 대화 끝(= spacer 위)이 보이는 칸 아래로 40px 넘게 가려져 있으면 버튼을 띄운다.
+    setShowScrollDown(
+      spacer.offsetTop - (list.scrollTop + list.clientHeight) > 40,
+    );
+  }, []);
+
   useEffect(() => {
     const list = listRef.current;
-    if (!list) return;
-    list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
-  }, [chat.messages]);
+    const content = contentRef.current;
+    if (!list || !content) return;
+    const observer = new ResizeObserver(syncLayout);
+    observer.observe(list);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [syncLayout]);
+
+  // 답이 와도 스크롤은 그대로 두어 위에서부터 읽게 하고, 내가 보낸 질문만 목록 맨 위로 올린다.
+  // 복원처럼 한꺼번에 들어오면 마지막 대화로 바로 간다. scrollIntoView는 바깥 스크롤(홈 화면
+  // 전체)까지 움직여 대시보드 아래로 화면이 밀려 내려가므로, 목록의 scrollTo만 쓴다.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const messages = chat.messages;
+    const added = messages.length - prevCountRef.current;
+    prevCountRef.current = messages.length;
+    const lastUser = [...messages].reverse().find((m) => m.type === "user");
+    const lastUserId = lastUser?.id ?? null;
+    const isNewQuestion = lastUserId !== lastUserIdRef.current;
+    lastUserIdRef.current = lastUserId;
+    syncLayout();
+    if (!list || !isNewQuestion || !lastUserId) return;
+    const users = list.querySelectorAll<HTMLElement>("[data-user-message]");
+    const el = users[users.length - 1];
+    if (!el) return;
+    const top = el.offsetTop - (isPanel ? 14 : 10);
+    list.scrollTo({ top, behavior: added > 2 ? "instant" : "smooth" });
+  }, [chat.messages, syncLayout, isPanel]);
+
+  const scrollToEnd = () => {
+    const list = listRef.current;
+    const spacer = spacerRef.current;
+    if (!list || !spacer) return;
+    list.scrollTo({
+      top: spacer.offsetTop - list.clientHeight,
+      behavior: "smooth",
+    });
+  };
 
   const handlePickProposal = useCallback(
     async (
@@ -172,11 +236,7 @@ export function HomeChat({
     else if (chat.limitAction === "business") router.push("/profile");
   };
 
-  // 모바일 패널은 화면 전체를 덮으므로, 매체 상세로 갈 땐 닫아 줘야 보인다.
-  const openMedia = (id: string) => {
-    if (isPanel && window.innerWidth < 640) setPanelOpen(false);
-    router.push(`/media/${id}`);
-  };
+  const openMedia = (id: string) => setDetailMediaId(id);
 
   const disabled = chat.restoring || chat.limitReached;
   const widthClass = isPanel ? "w-full" : "w-full max-w-[860px]";
@@ -184,71 +244,112 @@ export function HomeChat({
   return (
     <div
       className={`flex min-h-0 w-full flex-1 flex-col items-center justify-between ${
-        isPanel ? "gap-[12px] px-[16px]" : "gap-[16px]"
+        // 모바일 패널은 대화 목록 아래 여백을 위·좌우와 같은 16px로 맞춘다
+        // (목록 gap 14 + 끝 표시 0 + 2).
+        isPanel ? "gap-[12px] px-[16px] max-sm:gap-[2px]" : "gap-[16px]"
       }`}
     >
       {/* 시안엔 없지만, 대화가 시작되면 처음 화면으로 돌아갈 길이 필요하다.
-          패널은 헤더에 같은 버튼이 있다. */}
+          패널은 헤더에 같은 버튼이 있다. 모바일은 브레드크럼 줄 오른쪽에 둔다(HomeContent). */}
       {!isPanel && (
-        <div className={`flex ${widthClass} shrink-0 justify-end`}>
+        <div
+          className={`flex ${widthClass} shrink-0 justify-end max-sm:hidden`}
+        >
           <NewChatButton />
         </div>
       )}
 
       <div
         ref={listRef}
-        className={`flex ${widthClass} min-h-0 flex-1 flex-col items-end overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          isPanel ? "gap-[14px]" : "gap-[10px]"
-        }`}
+        onScroll={syncLayout}
+        className={`relative ${widthClass} min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
       >
-        {isPanel && chat.messages.length === 0 && !chat.restoring && (
-          <PanelWelcome
-            onPick={(text) => void chat.submit(text, { allowShort: true })}
-          />
-        )}
-        {chat.messages.map((message) =>
-          message.type === "user" ? (
-            <UserBubble key={message.id} content={message.content ?? ""} />
-          ) : (
-            // 내 질문과 믹시 답이 붙어 보이지 않도록, 답 위에만 간격을 더 준다(목록 gap 10px + 14px).
-            <div
-              key={message.id}
-              className={isPanel ? "w-full" : "mt-[14px] w-full"}
+        <div
+          ref={contentRef}
+          className={`flex min-h-full w-full flex-col items-end ${
+            isPanel ? "gap-[14px]" : "gap-[10px]"
+          }`}
+        >
+          {isPanel && chat.messages.length === 0 && !chat.restoring && (
+            <PanelWelcome
+              onPick={(text) => void chat.submit(text, { allowShort: true })}
+            />
+          )}
+          {chat.messages.map((message) =>
+            message.type === "user" ? (
+              <UserBubble key={message.id} content={message.content ?? ""} />
+            ) : (
+              // 내 질문과 믹시 답이 붙어 보이지 않도록, 답 위에만 간격을 더 준다(목록 gap 10px + 14px).
+              <div
+                key={message.id}
+                className={isPanel ? "w-full" : "mt-[14px] w-full"}
+              >
+                <AssistantBubble
+                  message={message}
+                  onSelectMedia={(item) => openMedia(item.id)}
+                  onOpenDetail={(item) => openMedia(item.id)}
+                  onAddProposal={(id) => setAddProposal({ mediaId: id })}
+                  onPickProposal={handlePickProposal}
+                  showPhotos={showPhotos}
+                  onTogglePhotos={setShowPhotos}
+                  showAvatar={!isPanel}
+                />
+              </div>
+            ),
+          )}
+          {chat.limitReached && chat.limitCta && (
+            <button
+              type="button"
+              onClick={handleLimitCta}
+              className="self-start rounded-[12px] bg-primary px-[16px] py-[10px] text-[14px] font-medium text-white"
             >
-              <AssistantBubble
-                message={message}
-                onSelectMedia={(item) => openMedia(item.id)}
-                onOpenDetail={(item) => openMedia(item.id)}
-                onAddProposal={(id) => setAddProposalMediaId(id)}
-                onPickProposal={handlePickProposal}
-                showPhotos={showPhotos}
-                onTogglePhotos={setShowPhotos}
-                showAvatar={!isPanel}
-              />
-            </div>
-          ),
-        )}
-        {chat.limitReached && chat.limitCta && (
-          <button
-            type="button"
-            onClick={handleLimitCta}
-            className="self-start rounded-[12px] bg-primary px-[16px] py-[10px] text-[14px] font-medium text-white"
-          >
-            {chat.limitCta}
-          </button>
-        )}
-        <div ref={endRef} className="h-px w-full shrink-0" />
+              {chat.limitCta}
+            </button>
+          )}
+          <div
+            ref={spacerRef}
+            aria-hidden
+            className={`w-full shrink-0 ${isPanel ? "-mt-[14px]" : "-mt-[10px]"}`}
+          />
+          <div
+            className={`h-px w-full shrink-0 ${isPanel ? "max-sm:h-0" : ""}`}
+          />
+        </div>
       </div>
 
       <div
         className={
           isPanel
             ? // 패널 좌우 패딩(16px)을 음수 마진으로 넘어 폭 전체를 채우는 하단 바.
-              "-mx-[16px] shrink-0 self-stretch border-t border-black-200 bg-white px-[16px] pt-[12px] pb-[10px]"
-            : `${widthClass} shrink-0`
+              "relative -mx-[16px] shrink-0 self-stretch border-t border-black-200 bg-white px-[16px] pt-[12px] pb-[10px]"
+            : `relative ${widthClass} shrink-0`
         }
       >
-        <div className="relative">
+        {/* 위로 올려 읽는 중일 때만, 입력바 바로 위 가운데에 뜬다. */}
+        <button
+          type="button"
+          aria-label="맨 아래로 스크롤"
+          tabIndex={showScrollDown ? 0 : -1}
+          onClick={scrollToEnd}
+          className={`absolute bottom-full left-1/2 z-10 mb-[12px] flex size-[36px] -translate-x-1/2 items-center justify-center rounded-full border border-black-200 bg-white/95 text-black-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)] backdrop-blur transition-all duration-200 hover:bg-white hover:text-black ${
+            showScrollDown
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-[6px] opacity-0"
+          }`}
+        >
+          <ArrowDownIcon strokeWidth={1.6} className="size-[18px]" />
+        </button>
+        {/* 모바일 홈 입력바는 테두리 상자를 이 wrapper가 맡는다. textarea 자체에 아래 여백을 주면
+            여러 줄 입력 시 글자가 그 여백(탭·전송 버튼 자리)까지 스크롤돼 버튼 밑에 깔리므로,
+            textarea는 글자 칸만 차지하고 버튼 줄은 wrapper 여백에 둔다.
+            여백은 테두리 1px을 더해 상하좌우 12px(11 + 1), 아래는 버튼 32 + 틈 10 + 11 = 53. */}
+        <div
+          className={
+            isPanel
+              ? "relative"
+              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-black-300 max-sm:bg-white max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[53px]"
+          }
+        >
           <textarea
             value={value}
             onChange={(event) =>
@@ -268,16 +369,21 @@ export function HomeChat({
                     ? "믹시에게 이어서 물어보세요"
                     : "믹시에게 물어보세요"
             }
-            className={`w-full resize-none text-black outline-none [scrollbar-width:none] placeholder:text-[#a1a1aa] disabled:opacity-60 [&::-webkit-scrollbar]:hidden ${
+            className={`w-full resize-none text-black max-sm:block outline-none [scrollbar-width:none] placeholder:text-[#a1a1aa] disabled:opacity-60 [&::-webkit-scrollbar]:hidden ${
               isPanel
                 ? // 높이 44px → 모서리 19px. 매체 찾기 검색바와 같게 회색 칸 + black-200
                   // 테두리로 두고, 마우스를 올리거나 선택하면 테두리는 그대로 배경만 흰색이 된다.
-                  "h-[44px] rounded-[19px] border border-black-200 bg-black-100 py-[10px] pr-[48px] pl-[16px] text-[14px] leading-[22px] transition-colors hover:bg-white focus:bg-white"
+                  "h-[44px] rounded-[19px] border border-black-200 bg-black-100 py-[10px] pr-[48px] pl-[16px] text-sm leading-[22px] transition-colors hover:bg-white focus:bg-white sm:text-[14px]"
                 : // 홈 입력바는 검색 탭 입력바(AiSearchBox 검색 모드)와 같은 흰 바탕 + 1px 회색(#d1d5db)
                   // 테두리. 회색 바탕이면 같은 회색 계열인 모드 탭이 묻혀 보이지 않는다.
                   // 오른쪽에 전송 버튼과 모드 탭이 있으면 글자가 그 밑으로 들어가지 않게 여백을 넓힌다.
-                  `h-[60px] rounded-[27px] border border-black-300 bg-white py-[18px] pl-[20px] text-[15px] leading-[24px] ${
-                    modeToggle ? "pr-[208px]" : "pr-[72px]"
+                  // 높이 56px(모서리 56/2-3 = 25px). 탭·전송 버튼(40px) 둘레 여백 8px에 맞췄다.
+                  // 오른쪽 여백 = 끝 8 + 전송 40 + 간격 10 + 탭 127 + 글자와 틈 11.
+                  // 모바일(<sm)은 그 여백을 빼면 글자 칸이 140px도 안 남아, 두 줄로 나눠
+                  // 위엔 입력(한 줄, 넘치면 안에서 스크롤), 아래 줄에 탭·전송 버튼(32px)을 둔다.
+                  // 테두리·여백은 위 wrapper가 맡는다.
+                  `h-[22px] bg-transparent p-0 text-sm leading-[22px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-black-300 sm:bg-white sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
+                    modeToggle ? "sm:pr-[196px]" : "sm:pr-[60px]"
                   }`
             }`}
           />
@@ -285,9 +391,11 @@ export function HomeChat({
               isDisabled면 hover도 끊겨 툴팁이 안 뜨므로, 작성 중일 땐 isDisabled를 풀어 둔다.
               HeroUI는 pending 버튼에 pointer-events:none을 걸어 hover까지 막으므로 되돌린다
               (누르기는 React Aria의 isPending이 따로 막는다). */}
-          {/* 모드 탭(높이 40px) — 전송 버튼(44px, 오른쪽 8px)과 세로 가운데를 맞추고 10px 띄운다. */}
+          {/* 모드 탭(높이 40px) — 전송 버튼(40px, 오른쪽 8px)과 높이·세로 위치를 맞추고 10px 띄운다. */}
           {!isPanel && modeToggle && (
-            <div className="absolute top-[10px] right-[62px]">{modeToggle}</div>
+            <div className="absolute right-[51px] bottom-[11px] sm:top-[8px] sm:right-[58px] sm:bottom-auto">
+              {modeToggle}
+            </div>
           )}
           <Tooltip delay={0} isDisabled={!chat.running}>
             <Button
@@ -303,14 +411,20 @@ export function HomeChat({
               className={`data-[pending=true]:pointer-events-auto ${
                 isPanel
                   ? "absolute top-[4px] right-[4px] size-[36px] rounded-[15px]"
-                  : "absolute top-[8px] right-[8px] size-[44px] rounded-[19px]"
+                  : // 모드 탭과 같은 높이 40px(모서리 40/2-3 = 17px). 56px 입력바 안에서 위아래 8px로
+                    // 가운데에 두고, 오른쪽 여백도 같은 8px로 맞춘다.
+                    // 모바일은 두 줄 입력바의 아래 줄에 모드 탭과 같은 32px(모서리 14px)로 두고,
+                    // 오른쪽·아래 여백은 글자 여백과 같은 12px, 탭과는 8px 띄운다.
+                    "absolute right-[11px] bottom-[11px] size-[32px] rounded-[14px] sm:top-[8px] sm:right-[8px] sm:bottom-auto sm:size-[40px] sm:rounded-[17px]"
               }`}
             >
               {chat.running ? (
                 <Spinner size="sm" color="current" />
               ) : (
                 <ArrowUpIcon
-                  className={isPanel ? "size-[18px]" : "size-[20px]"}
+                  className={
+                    isPanel ? "size-[18px]" : "size-[16px] sm:size-[20px]"
+                  }
                 />
               )}
             </Button>
@@ -324,10 +438,22 @@ export function HomeChat({
         )}
       </div>
 
-      {addProposalMediaId && (
+      {detailMediaId && (
+        <MediaDetailModal
+          mediaId={detailMediaId}
+          onClose={() => setDetailMediaId(null)}
+          // 상세 모달은 연 채로, 담기 모달을 그 위에 띄운다.
+          onAddProposal={(id, planNo) =>
+            setAddProposal({ mediaId: id, planNo })
+          }
+        />
+      )}
+
+      {addProposal && (
         <AddToProposalModal
-          mediaId={addProposalMediaId}
-          onClose={() => setAddProposalMediaId(null)}
+          mediaId={addProposal.mediaId}
+          planNo={addProposal.planNo}
+          onClose={() => setAddProposal(null)}
         />
       )}
     </div>

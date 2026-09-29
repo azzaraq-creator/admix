@@ -102,6 +102,17 @@ export function isMember(): boolean {
   return Boolean(getUserToken());
 }
 
+/** 내 제안서 목록 — 제안서명에 마우스를 올리면 뜨는 "제안서 요약"의 매체 한 줄. */
+export interface ProposalPreviewItem {
+  media_id: string;
+  name: string;
+  address: string | null;
+  thumbnail_url: string | null;
+  /** 선택한 상품의 광고비·제작비(1회분). */
+  advertisement_fee: number | null;
+  production_fee: number | null;
+}
+
 export interface ProposalSummary {
   id: string;
   title: string;
@@ -110,6 +121,13 @@ export interface ProposalSummary {
   total_amount: number;
   updated_at: string | null;
   media_ids: string[];
+  created_at?: string | null;
+  // 아래는 내 제안서 목록(GET /proposals)에서만 채워진다.
+  /** 광고비 × 수량 합계 */
+  advertisement_amount?: number | null;
+  /** 제작비 × 수량 합계 */
+  production_amount?: number | null;
+  preview_items?: ProposalPreviewItem[];
 }
 
 export interface PlanOption {

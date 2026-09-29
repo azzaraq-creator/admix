@@ -91,7 +91,7 @@ def list_proposals(
 ):
     member_id, sid = _owner(user, session_id)
     rows = proposal_service.list_for_owner(db, member_id=member_id, session_id=sid)
-    return [ProposalSummary(**proposal_service.to_summary(p)) for p in rows]
+    return [ProposalSummary(**s) for s in proposal_service.to_list_summaries(db, rows)]
 
 
 class ClaimProposalsRequest(BaseModel):

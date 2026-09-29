@@ -1,29 +1,37 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
-import { Logo, MenuIcon } from "@/components/icons";
 import { setLnbExpanded } from "./useLnb";
 
 export function MobileTopNav() {
   return (
-    <header className="flex h-[56px] shrink-0 items-center justify-between bg-white sm:hidden border-b border-gray-200">
+    <header className="flex h-[48px] shrink-0 items-center justify-between bg-white sm:hidden border-b border-gray-200">
       <button
         type="button"
         aria-label="메뉴 열기"
         onClick={() => setLnbExpanded(true)}
-        className="flex items-center p-[16px] text-black"
+        className="flex h-full w-[48px] shrink-0 items-center justify-center"
       >
-        <MenuIcon className="size-[24px]" />
+        <Image src="/icons/side-menu.svg" alt="" width={18} height={16} />
       </button>
       <Link
         href="/"
         aria-label="홈"
-        className="flex flex-1 items-center justify-center p-[16px]"
+        className="flex h-full flex-1 items-center justify-center"
       >
-        <Logo className="size-[24px]" />
+        {/* 원본 833×236 비율을 유지해 높이 16px로 맞춘다. */}
+        <Image
+          src="/service/admix-text-logo.svg"
+          alt=""
+          width={56}
+          height={16}
+          priority
+        />
       </Link>
-      <div className="size-[56px] shrink-0" />
+      {/* 로고를 가운데 두기 위해 왼쪽 메뉴 버튼과 같은 폭을 비워 둔다. */}
+      <div className="w-[48px] shrink-0" />
     </header>
   );
 }

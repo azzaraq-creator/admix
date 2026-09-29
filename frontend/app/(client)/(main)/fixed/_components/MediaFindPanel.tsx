@@ -12,7 +12,7 @@ import {
   type ChipDimKey,
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
-import { CloseSmallIcon } from "@/components/icons";
+import { CloseSmallIcon, ListIcon, MapOutlineIcon } from "@/components/icons";
 import {
   mediaApi,
   useFixedClusters,
@@ -114,7 +114,7 @@ function FilterChip({
   // 시안 비율 기준(칩 높이 31px): 글자 12px, X 12px, 간격 7px, 좌우 11px, 모서리 11px.
   // HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 여기서 덮어쓴다.
   return (
-    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-[#ececef] bg-white px-[11px] py-[6px] text-[12px] leading-[17px] font-normal text-[#71717a]">
+    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-[#ececef] bg-white px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-[#71717a]">
       {label}
       <button
         type="button"
@@ -489,7 +489,7 @@ export function MediaFindPanel({
               <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 max-h-[320px] overflow-y-auto rounded-[16px] border border-black-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
                 {mediaSug.length > 0 && (
                   <div>
-                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] font-medium text-black-500">
+                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
                       매체
                     </div>
                     {mediaSug.map((m) => (
@@ -497,7 +497,7 @@ export function MediaFindPanel({
                         key={`media-${m.id}`}
                         type="button"
                         onClick={() => selectMediaSug(m)}
-                        className="flex w-full px-[16px] py-[8px] text-left text-[14px] text-black hover:bg-black-100"
+                        className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-black-100"
                       >
                         {m.name}
                       </button>
@@ -506,7 +506,7 @@ export function MediaFindPanel({
                 )}
                 {placeSug.length > 0 && (
                   <div>
-                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] font-medium text-black-500">
+                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
                       장소
                     </div>
                     {placeSug.map((p, i) => (
@@ -516,9 +516,11 @@ export function MediaFindPanel({
                         onClick={() => selectPlace(p)}
                         className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-black-100"
                       >
-                        <span className="text-[14px] text-black">{p.name}</span>
+                        <span className="text-[14px] max-sm:text-[13px] text-black">
+                          {p.name}
+                        </span>
                         {p.address && (
-                          <span className="text-[12px] text-black-500">
+                          <span className="text-[12px] max-sm:text-[11px] text-black-500">
                             {p.address}
                           </span>
                         )}
@@ -585,7 +587,7 @@ export function MediaFindPanel({
           )}
         </div>
 
-        <p className="shrink-0 text-[12px] text-black-500">
+        <p className="shrink-0 text-[12px] max-sm:text-[11px] text-black-500">
           {searched ? "검색 결과" : "전체"}{" "}
           <span className="font-semibold text-[#18181b]">
             {isLoading ? "불러오는 중…" : `${total.toLocaleString()}개 매체`}
@@ -593,7 +595,7 @@ export function MediaFindPanel({
         </p>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-[20px]">
+      <div className="relative flex min-h-0 flex-1 gap-[20px]">
         {!mapExpanded && (
           <div
             ref={scrollRef}
@@ -601,7 +603,9 @@ export function MediaFindPanel({
             // 만들고 같은 크기의 음수 마진으로 되돌린다(카드 폭·지도와의 간격은 그대로).
             // 위아래는 같은 방법을 쓰면 그만큼 스크롤 영역이 넓어져 카드가 지도 위/아래로
             // 넘어오므로, 지도와 높이를 맞추기 위해 그림자가 잘리는 쪽을 택했다.
-            className="-mx-[20px] flex w-[calc(100%+40px)] shrink-0 flex-col gap-[10px] overflow-y-auto px-[20px] [scrollbar-width:none] sm:w-[460px] [&::-webkit-scrollbar]:hidden"
+            // 모바일은 화면 여백이 16px이라 같은 값으로 맞추고, 아래에 뜨는 지도 전환 버튼이
+            // 마지막 카드를 가리지 않게 아래 여백을 둔다.
+            className="-mx-[20px] flex w-[calc(100%+40px)] shrink-0 flex-col gap-[10px] overflow-y-auto px-[20px] [scrollbar-width:none] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[460px] [&::-webkit-scrollbar]:hidden"
           >
             {isLoading ? (
               // 첫 결과를 받기 전엔 카드 자리에 스켈레톤을 깔아 로딩 중임을 보여 준다.
@@ -640,6 +644,20 @@ export function MediaFindPanel({
         >
           {mapSlot}
         </div>
+
+        {/* 모바일은 목록과 지도를 한 화면씩 보여 주므로, 아래 가운데에 전환 버튼을 띄운다. */}
+        <button
+          type="button"
+          onClick={() => setMapExpanded((v) => !v)}
+          className="absolute bottom-[16px] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-black-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-black-900 sm:hidden"
+        >
+          {mapExpanded ? (
+            <ListIcon className="size-[18px] shrink-0" />
+          ) : (
+            <MapOutlineIcon className="size-[18px] shrink-0" />
+          )}
+          {mapExpanded ? "목록 보기" : "지도 보기"}
+        </button>
       </div>
     </div>
   );

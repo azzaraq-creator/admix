@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { adSessionsApi } from "@/hooks/adSessions";
+import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import { API_BASE_URL } from "@/lib/api";
 import { SESSION_KEY } from "@/lib/session";
 
@@ -54,6 +55,9 @@ export interface V2MediaItem {
   longitude?: number | null;
   category_large?: string | null;
   category_small?: string | null;
+  address?: string | null;
+  min_advertisement_fee_krw?: number | null;
+  min_production_fee_krw?: number | null;
 }
 
 export interface ConfirmationInfo {
@@ -283,7 +287,7 @@ export function useV2Chat() {
     } catch (err) {
       // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
       const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
-      toast.error(msg);
+      toast.danger(msg, { timeout: TOAST_TIMEOUT });
     }
   }, [running]);
 
@@ -386,7 +390,7 @@ export function useV2Chat() {
         );
       } else if (eventName === "error") {
         const msg = (data.message as string) || "알 수 없는 오류";
-        toast.error(msg);
+        toast.danger(msg, { timeout: TOAST_TIMEOUT });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -504,7 +508,7 @@ export function useV2Chat() {
 
           if (job.status === "failed") {
             const msg = job.error || "처리 실패";
-            toast.error(msg);
+            toast.danger(msg, { timeout: TOAST_TIMEOUT });
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -524,7 +528,7 @@ export function useV2Chat() {
 
         if (!settled) {
           const msg = "응답 시간 초과";
-          toast.error(msg);
+          toast.danger(msg, { timeout: TOAST_TIMEOUT });
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId
@@ -540,7 +544,7 @@ export function useV2Chat() {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        toast.error(msg);
+        toast.danger(msg, { timeout: TOAST_TIMEOUT });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -585,7 +589,7 @@ export function useV2Chat() {
         await consumeStream(res, assistantId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "요청 실패";
-        toast.error(msg);
+        toast.danger(msg, { timeout: TOAST_TIMEOUT });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId

@@ -413,8 +413,21 @@ def change_contact_email(db: Session, user: User, email: str, code: str) -> User
 
     email 은 수신 가능 여부만 검증하므로 이미 가입된 이메일이어도 허용(중복 가능).
     로그인 아이디(login_id)는 변경하지 않는다.
+
+    화면에서 먼저 /email/verify/confirm 으로 "확인"을 받은 뒤 변경하므로, 이미 인증 완료된
+    코드도 받는다. 단 가장 최근에 발급된 코드여야 하고(재전송 전 옛 코드는 무효) 만료 전이어야 한다.
     """
-    confirm_email_verification(db, email, code)
+    row = (
+        db.query(EmailVerification)
+        .filter(EmailVerification.email == email)
+        .order_by(EmailVerification.created_at.desc())
+        .first()
+    )
+    if row is None or row.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="인증번호가 만료되었습니다. 다시 요청해 주세요.")
+    if row.code != code:
+        raise HTTPException(status_code=400, detail="인증번호가 올바르지 않습니다.")
+    row.verified = True
     user.email = email
     db.commit()
     db.refresh(user)

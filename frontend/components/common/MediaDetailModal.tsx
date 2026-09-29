@@ -6,11 +6,13 @@ import {
   Modal,
   Popover,
   Skeleton,
+  Tabs,
   ToggleButton,
 } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
 import { ImageLightbox } from "@/components/common/ImageLightbox";
+import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
   ChevronRightBoldIcon,
@@ -60,12 +62,14 @@ export function MediaDetailModal({
   mediaId: string;
   onClose: () => void;
   /**
-   * 제안서 담기 — 담기 모달(base-ui Dialog)은 이 모달의 포커스 트랩 안에서 조작할 수 없어
-   * 부모가 상세 팝업을 닫고 띄운다.
+   * 제안서 담기 — 부모가 이 모달을 연 채로 담기 모달(AddToProposalModal)을 위에 띄운다.
+   * 담기 모달도 HeroUI Modal이라 react-aria가 모달 겹침(포커스·바깥 클릭)을 알아서 처리한다.
    */
   onAddProposal?: (mediaId: string, planNo?: number) => void;
 }) {
   const { vm } = useMediaDetailViewModel(mediaId);
+  // TODO: 관심 매체 API가 없어 아직 화면 안에서만 켜고 꺼진다(매체 찾기 카드와 동일).
+  const [liked, setLiked] = useState(false);
 
   return (
     <Modal
@@ -82,30 +86,38 @@ export function MediaDetailModal({
         >
           <Modal.Dialog
             aria-label="매체 상세"
-            className="w-full max-w-full gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
+            className="w-full max-w-full gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
           >
-            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a]">
+            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]">
               <CloseMediumIcon className="size-[24px]" />
             </Modal.CloseTrigger>
 
-            <div className="flex h-[39px] shrink-0 items-center gap-[8px] pr-[40px] pb-[10px]">
-              <p className="text-[16px] font-semibold text-black">매체 정보</p>
-              <p className="truncate text-[12px] text-[#888]">
+            {/* 제목은 줄바꿈되지 않게 고정 폭으로 둔다. 모바일은 설명 문구를 빼고 닫기 버튼(28px)과
+                같은 높이의 헤더 줄로 둔다. */}
+            <div className="flex h-[39px] shrink-0 items-center gap-[8px] pr-[40px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
+              <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
+                매체 정보
+              </p>
+              <p className="truncate text-[12px] text-[#888] max-sm:hidden">
                 매체 상세 정보를 확인하고 제안서에 담을 수 있습니다.
               </p>
             </div>
 
             <Modal.Body className="m-0 flex flex-col gap-[10px] p-0">
-              {vm ? (
-                <MediaDetailBody
-                  vm={vm}
+              {vm ? <MediaDetailBody vm={vm} /> : <MediaDetailSkeleton />}
+            </Modal.Body>
+
+            {/* 버튼 줄은 본문 스크롤 밖에 두어 헤더처럼 아래에 고정한다. */}
+            {vm && (
+              <Modal.Footer className="mt-0 gap-[8px]">
+                <DetailActions
+                  liked={liked}
+                  onLikedChange={setLiked}
                   onClose={onClose}
                   onAddProposal={() => onAddProposal?.(vm.id)}
                 />
-              ) : (
-                <MediaDetailSkeleton />
-              )}
-            </Modal.Body>
+              </Modal.Footer>
+            )}
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
@@ -144,18 +156,7 @@ function MediaDetailSkeleton() {
   );
 }
 
-function MediaDetailBody({
-  vm,
-  onClose,
-  onAddProposal,
-}: {
-  vm: MediaDetailViewModel;
-  onClose: () => void;
-  onAddProposal: () => void;
-}) {
-  // TODO: 관심 매체 API가 없어 아직 화면 안에서만 켜고 꺼진다(매체 찾기 카드와 동일).
-  const [liked, setLiked] = useState(false);
-
+function MediaDetailBody({ vm }: { vm: MediaDetailViewModel }) {
   const specs: [string, string][] = [
     ...vm.features.filter(([label]) => !SPEC_EXCLUDED_LABELS.has(label)),
     ...(vm.sizeText ? [["매체 크기", vm.sizeText] as [string, string]] : []),
@@ -163,11 +164,19 @@ function MediaDetailBody({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-[20px] md:flex-row">
+      <div className="flex flex-col items-center gap-[20px] max-sm:gap-[16px] md:flex-row">
         <ImageGallery images={vm.images} />
+        {/* 모바일은 크게 보기 대신 목록 카드처럼 끌어서 넘기고, 점으로 장 수를 보여 준다. */}
+        <MediaImageCarousel
+          slides={vm.images.length > 0 ? vm.images : [undefined]}
+          sizes="100vw"
+          className="h-[200px] w-full shrink-0 rounded-[10px] sm:hidden"
+        />
 
         <div className="flex w-full min-w-0 flex-1 flex-col items-start gap-[10px]">
-          <p className="text-[20px] font-bold text-black">{vm.name}</p>
+          <p className="text-[20px] font-bold text-black max-sm:text-[17px]">
+            {vm.name}
+          </p>
 
           <div className="flex items-center gap-[3px]">
             <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
@@ -205,87 +214,189 @@ function MediaDetailBody({
             <PriceRow label="제작비" unit="/ 1회" value={vm.productionFeeKrw} />
           </div>
 
-          {vm.description && <Description text={vm.description} />}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-[10px] pb-[10px] md:flex-row md:items-start">
-        {vm.population && <PopulationCard population={vm.population} />}
-
-        <div className="flex w-full min-w-0 flex-1 flex-col gap-[10px] md:pl-[10px]">
-          <div className="flex items-center justify-between">
-            <p className="text-[14px] font-bold text-black">매체 정보</p>
-            {/* HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 시안 값으로 덮는다. */}
-            {vm.oohType && (
-              <Chip className="rounded-full border border-[#ececef] bg-white px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-[#8c8c94]">
-                {/* 글자만 넣으면 Chip이 라벨(좌우 2px 여백)로 감싸 폭이 늘어나서 직접 0으로 둔다. */}
-                <Chip.Label className="px-0">{vm.oohType}</Chip.Label>
-              </Chip>
-            )}
-          </div>
-          <p className="text-[12px] text-[#888]">
-            매체 유형별로 항목이 달라집니다.
-          </p>
-          {specs.length > 0 && (
-            <div className="grid grid-cols-2 gap-[12px]">
-              {specs.map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-[#ececef] bg-[#f9fafb] p-[12px] font-semibold"
-                >
-                  <p className="text-[11px] tracking-[0.6px] text-[#a1a1aa]">
-                    {label}
-                  </p>
-                  <p className="text-[13px] text-[#18181b]">{value}</p>
-                </div>
-              ))}
+          {vm.description && (
+            <div className="w-full max-sm:hidden">
+              <Description text={vm.description} />
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-[8px]">
-        <Button
-          variant="ghost"
-          onPress={onClose}
-          className="h-auto w-[96px] rounded-[15px] bg-[#eee] px-[14px] py-[10px] text-[13px] font-medium text-[#18181b]"
-        >
-          닫기
-        </Button>
-        {/* 꺼짐: 흰 바탕 + 회색 하트(아직 안 담김), 마우스를 올리면 바탕만 살짝 어두워진다. 켜짐: 연분홍 바탕·붉은 테두리 + 빨간 하트·글자.
-            켜는 순간 하트가 살짝 튀어 눌렸다는 걸 알려 준다. 폭은 고정이라 상태가 바뀌어도 버튼이 흔들리지 않는다. */}
-        <ToggleButton
-          variant="ghost"
-          aria-label="관심 매체"
-          isSelected={liked}
-          onChange={setLiked}
-          className={cn(
-            "h-auto w-[120px] gap-[9px] rounded-[15px] border px-[14px] py-[10px] text-[13px] transition-colors",
-            liked
-              ? "border-[#ffccc7] bg-[#fff1f0] font-semibold text-[#ff4d4f] data-[hovered=true]:bg-[#ffe7e5] data-[selected=true]:bg-[#fff1f0] data-[selected=true]:data-[hovered=true]:bg-[#ffe7e5]"
-              : "border-[#ececef] bg-white font-medium text-[#18181b] data-[hovered=true]:bg-[#fafafa]",
-          )}
-        >
-          <LoveIcon
-            key={liked ? "on" : "off"}
-            className={cn(
-              "size-[14px] shrink-0 transition-colors",
-              liked
-                ? "animate-[admix-like-pop_280ms_ease-out] text-[#ff4d4f]"
-                : "text-[#c9cad3]",
-            )}
-          />
-          관심 매체
-        </ToggleButton>
-        <Button
-          variant="primary"
-          onPress={onAddProposal}
-          className="h-auto w-[150px] gap-[6px] rounded-[15px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white"
-        >
-          <FolderAddIcon className="size-[16px] shrink-0 text-[#fafafa]" />
-          제안서 담기
-        </Button>
+      <MobileDetailTabs vm={vm} specs={specs} />
+
+      <div className="flex flex-col gap-[10px] pb-[10px] max-sm:hidden md:flex-row md:items-start">
+        {vm.population && <PopulationCard population={vm.population} />}
+
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-[10px] md:pl-[10px]">
+          <SpecSection oohType={vm.oohType} specs={specs} showTitle />
+        </div>
       </div>
+    </>
+  );
+}
+
+/** 매체 정보(스펙) — 매체 유형 칩, 안내 문구, 항목 격자. */
+function SpecSection({
+  oohType,
+  specs,
+  showTitle,
+}: {
+  oohType: string | null;
+  specs: [string, string][];
+  /** 모바일 탭은 탭 이름이 제목을 대신해 뺀다. */
+  showTitle?: boolean;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        {showTitle && (
+          <p className="text-[14px] font-bold text-black">매체 정보</p>
+        )}
+        {/* HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 시안 값으로 덮는다. */}
+        {oohType && (
+          <Chip className="rounded-full border border-[#ececef] bg-white px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-[#8c8c94]">
+            {/* 글자만 넣으면 Chip이 라벨(좌우 2px 여백)로 감싸 폭이 늘어나서 직접 0으로 둔다. */}
+            <Chip.Label className="px-0">{oohType}</Chip.Label>
+          </Chip>
+        )}
+      </div>
+      <p className="text-[12px] text-[#888]">
+        매체 유형별로 항목이 달라집니다.
+      </p>
+      {specs.length > 0 && (
+        <div className="grid grid-cols-2 gap-[12px] max-sm:gap-[8px]">
+          {specs.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-[#ececef] bg-[#f9fafb] p-[12px] font-semibold max-sm:p-[10px]"
+            >
+              <p className="text-[11px] tracking-[0.6px] text-[#a1a1aa]">
+                {label}
+              </p>
+              <p className="text-[13px] break-keep text-[#18181b]">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// 모바일 상세 탭 — 선택 표시는 밑줄. HeroUI 탭의 알약 모양(배경·둥근 모서리)은 덮어쓴다.
+const MOBILE_TAB =
+  "-mb-px h-[40px] flex-1 rounded-none border-b-2 border-transparent bg-transparent px-[4px] text-[13px] font-medium whitespace-nowrap text-[#8c8c94] data-[selected=true]:border-black-900 data-[selected=true]:font-semibold data-[selected=true]:text-black-900";
+
+/** 모바일 전용 — 매체 설명·월평균 유동인구·매체 정보를 탭으로 나눠 본다. 내용이 없는 탭은 뺀다. */
+function MobileDetailTabs({
+  vm,
+  specs,
+}: {
+  vm: MediaDetailViewModel;
+  specs: [string, string][];
+}) {
+  const tabs = [
+    ...(vm.description ? [{ key: "description", label: "매체 설명" }] : []),
+    ...(vm.population ? [{ key: "population", label: "월평균 유동인구" }] : []),
+    { key: "specs", label: "매체 정보" },
+  ];
+  const [tab, setTab] = useState(tabs[0].key);
+
+  return (
+    <Tabs
+      selectedKey={tab}
+      onSelectionChange={(key) => setTab(String(key))}
+      className="w-full gap-0 sm:hidden"
+    >
+      <Tabs.List
+        aria-label="매체 상세 항목"
+        className="w-full rounded-none border-b border-[#ececef] bg-transparent p-0"
+      >
+        {tabs.map(({ key, label }) => (
+          <Tabs.Tab key={key} id={key} className={MOBILE_TAB}>
+            {label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+      {vm.description && (
+        <Tabs.Panel id="description" className="pt-[14px]">
+          <p className="text-[13px] leading-[20px] whitespace-pre-wrap text-black">
+            {vm.description}
+          </p>
+        </Tabs.Panel>
+      )}
+      {vm.population && (
+        <Tabs.Panel id="population" className="pt-[14px]">
+          <PopulationCard population={vm.population} />
+        </Tabs.Panel>
+      )}
+      <Tabs.Panel id="specs" className="flex flex-col gap-[10px] pt-[14px]">
+        <SpecSection oohType={vm.oohType} specs={specs} />
+      </Tabs.Panel>
+    </Tabs>
+  );
+}
+
+/** 닫기·관심 매체·제안서 담기. 모바일은 세 버튼이 폭을 나눠 채운다. */
+function DetailActions({
+  liked,
+  onLikedChange: setLiked,
+  onClose,
+  onAddProposal,
+}: {
+  liked: boolean;
+  onLikedChange: (liked: boolean) => void;
+  onClose: () => void;
+  onAddProposal: () => void;
+}) {
+  return (
+    <>
+      <Button
+        variant="ghost"
+        onPress={onClose}
+        className={cn(
+          "h-auto rounded-[15px] bg-[#eee] px-[14px] py-[10px] text-[13px] font-medium max-sm:text-[12px] text-[#18181b]",
+          "w-[96px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:px-[8px]",
+        )}
+      >
+        닫기
+      </Button>
+      {/* 꺼짐: 흰 바탕 + 회색 하트(아직 안 담김), 마우스를 올리면 바탕만 살짝 어두워진다. 켜짐: 연분홍 바탕·붉은 테두리 + 빨간 하트·글자.
+            켜는 순간 하트가 살짝 튀어 눌렸다는 걸 알려 준다. 폭은 고정이라 상태가 바뀌어도 버튼이 흔들리지 않는다. */}
+      <ToggleButton
+        variant="ghost"
+        aria-label="관심 매체"
+        isSelected={liked}
+        onChange={setLiked}
+        className={cn(
+          "h-auto gap-[9px] rounded-[15px] border px-[14px] py-[10px] text-[13px] transition-colors max-sm:text-[12px]",
+          "w-[120px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px]",
+          liked
+            ? "border-[#ffccc7] bg-[#fff1f0] font-semibold text-[#ff4d4f] data-[hovered=true]:bg-[#ffe7e5] data-[selected=true]:bg-[#fff1f0] data-[selected=true]:data-[hovered=true]:bg-[#ffe7e5]"
+            : "border-[#ececef] bg-white font-medium text-[#18181b] data-[hovered=true]:bg-[#fafafa]",
+        )}
+      >
+        <LoveIcon
+          key={liked ? "on" : "off"}
+          className={cn(
+            "size-[14px] shrink-0 transition-colors max-sm:size-[13px]",
+            liked
+              ? "animate-[admix-like-pop_280ms_ease-out] text-[#ff4d4f]"
+              : "text-[#c9cad3]",
+          )}
+        />
+        관심 매체
+      </ToggleButton>
+      <Button
+        variant="primary"
+        onPress={onAddProposal}
+        className={cn(
+          "h-auto gap-[6px] rounded-[15px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white max-sm:text-[12px]",
+          "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
+        )}
+      >
+        <FolderAddIcon className="size-[16px] shrink-0 text-[#fafafa] max-sm:size-[14px]" />
+        제안서 담기
+      </Button>
     </>
   );
 }
@@ -296,7 +407,7 @@ function ImageGallery({ images }: { images: string[] }) {
   const current = images[index];
 
   return (
-    <div className="flex w-full shrink-0 flex-col gap-[10px] md:w-[440px]">
+    <div className="flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden md:w-[440px]">
       {/* 누르면 크게 보기(지금 보고 있는 장부터). 이미지가 없으면 누를 게 없다. */}
       {current ? (
         <button
@@ -367,7 +478,7 @@ function PriceRow({
         <span className="font-semibold">{label}</span>
         <span>{unit}</span>
       </div>
-      <span className="text-[18px] font-bold text-[#18181b]">
+      <span className="text-[18px] font-bold text-[#18181b] max-sm:text-[15px]">
         {formatKrw(value)}
       </span>
     </div>
@@ -406,7 +517,10 @@ function Description({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <div ref={blockRef} className="flex w-full flex-col items-start gap-[4px] text-[12px]">
+    <div
+      ref={blockRef}
+      className="flex w-full flex-col items-start gap-[4px] text-[12px]"
+    >
       {/* 펼친 카드의 제목과 줄 높이를 맞춰야 본문이 같은 자리에서 펼쳐진다. */}
       <p className="leading-[18px] text-[#555]">매체 설명</p>
       <p
@@ -435,7 +549,9 @@ function Description({ text }: { text: string }) {
             shouldFlip={false}
             // 설명이 제자리에서 펼쳐지는 느낌이 나도록 HeroUI 기본 등장·퇴장(확대·페이드) 효과는 끈다.
             className="max-w-[calc(100vw-32px)] rounded-[16px] animate-none! transition-none!"
-            style={{ width: `calc(var(--trigger-width) + ${DESC_POP_PAD * 2}px)` }}
+            style={{
+              width: `calc(var(--trigger-width) + ${DESC_POP_PAD * 2}px)`,
+            }}
           >
             <Popover.Dialog
               className="flex max-h-[min(360px,60vh)] flex-col items-start gap-[4px] text-[12px]"
@@ -486,7 +602,7 @@ function PopulationCard({
           <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
             월평균 유동인구
           </p>
-          <p className="text-[22px] leading-[1.2] font-bold text-[#18181b]">
+          <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
             {population.monthlyTrafficText}명
           </p>
         </div>

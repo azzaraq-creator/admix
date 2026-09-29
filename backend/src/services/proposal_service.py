@@ -788,7 +788,69 @@ def to_summary(p: Proposal) -> dict:
         total_amount=p.total_amount,
         updated_at=p.updated_at.isoformat() if p.updated_at else None,
         media_ids=[it.media_id for it in p.items],
+        created_at=p.created_at.isoformat() if p.created_at else None,
     )
+
+
+def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
+    """내 제안서 목록 — 요약에 광고비·제작비 합계와 "제안서 요약"(매체 목록)을 더한다.
+
+    제작비는 항목에 저장되지 않고 매체의 선택 상품(plan)에 있어, 목록 전체 매체를 한 번에 읽는다.
+    금액 규칙은 상세(to_detail)·PPT 요약과 같다: 선택 plan(없으면 첫 plan)의 광고비(없으면 항목 가격),
+    제작비는 plan 값. 합계는 수량(기본 1)을 곱한다.
+    """
+    media_ids = {it.media_id for p in rows for it in p.items}
+    media_map: dict = {}
+    if media_ids:
+        media_rows = (
+            db.query(Media)
+            .options(joinedload(Media.plans))
+            .filter(Media.media_id.in_(media_ids))
+            .all()
+        )
+        media_map = {m.media_id: m for m in media_rows}
+
+    def _preview(it) -> dict:
+        m = media_map.get(it.media_id)
+        plans = list(m.plans) if m else []
+        plan = (
+            next((pl for pl in plans if pl.plan_no == it.selected_plan_no), plans[0])
+            if plans
+            else None
+        )
+        ad_fee = (
+            plan.advertisement_fee
+            if plan and plan.advertisement_fee is not None
+            else it.price
+        )
+        return dict(
+            media_id=it.media_id,
+            name=it.name or (m.name if m else None) or "-",
+            address=m.address if m else None,
+            thumbnail_url=it.thumbnail_url,
+            advertisement_fee=ad_fee,
+            production_fee=plan.production_fee if plan else None,
+            quantity=it.quantity or 1,
+        )
+
+    result = []
+    for p in rows:
+        previews = [_preview(it) for it in p.items]
+        result.append(
+            dict(
+                **to_summary(p),
+                advertisement_amount=sum(
+                    (x["advertisement_fee"] or 0) * x["quantity"] for x in previews
+                ),
+                production_amount=sum(
+                    (x["production_fee"] or 0) * x["quantity"] for x in previews
+                ),
+                preview_items=[
+                    {k: v for k, v in x.items() if k != "quantity"} for x in previews
+                ],
+            )
+        )
+    return result
 
 
 def to_detail(db: Session, p: Proposal) -> dict:

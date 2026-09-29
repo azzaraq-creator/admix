@@ -4,6 +4,7 @@ import { Button, Card, Chip, ToggleButton } from "@heroui/react";
 import { useState } from "react";
 
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
+import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
   ChevronRightBoldIcon,
   FolderAddIcon,
@@ -12,8 +13,6 @@ import {
 } from "@/components/icons";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
-
-import { MediaImageCarousel } from "./MediaImageCarousel";
 
 /** 팝업 바탕색 — MapArea의 꼬리(화살표)도 같은 색으로 칠한다. */
 export const POPUP_BG_CLASS = "bg-[#f1f1f3]";
@@ -25,8 +24,10 @@ function formatKrw(value: number | null): string {
 function PriceCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="flex flex-col gap-[2px]">
-      <span className="text-[11px] font-medium text-black-400">{label}</span>
-      <span className="text-[14px] leading-[18px] font-bold text-[#2d264b]">
+      <span className="text-[11px] max-sm:text-[10px] font-medium text-black-400">
+        {label}
+      </span>
+      <span className="text-[14px] max-sm:text-[13px] leading-[18px] font-bold text-[#2d264b]">
         {formatKrw(value)}
       </span>
     </div>
@@ -67,14 +68,21 @@ function LikeButton({
   );
 }
 
-function PopupCard({
+/** 지도 팝업의 매체 카드 한 장 — 믹시 채팅의 추천 목록(ChatMediaList)도 같은 카드를 쓴다. */
+export function MediaPopupCard({
   row,
   simple,
+  selected = false,
+  rank,
   onSelect,
   onAddProposal,
 }: {
   row: MediaCardRow;
   simple: boolean;
+  /** 지금 지도·상세에서 보고 있는 매체면 테두리를 강조한다. */
+  selected?: boolean;
+  /** 추천 순위 — 있으면 매체명 앞에 번호 배지를 붙인다(믹시 추천 목록). */
+  rank?: number;
   onSelect?: () => void;
   onAddProposal?: () => void;
 }) {
@@ -92,20 +100,31 @@ function PopupCard({
     <Button
       variant="ghost"
       onPress={() => onSelect?.()}
-      className="h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] leading-[20px] font-bold break-keep whitespace-normal text-black data-[hovered=true]:bg-transparent"
+      className="h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] max-sm:text-[14px] leading-[20px] font-bold break-keep wrap-anywhere whitespace-normal text-black data-[hovered=true]:bg-transparent"
     >
       {row.name}
     </Button>
   );
 
+  // 매체명 첫 줄(20px)에 맞춰 세로 가운데에 놓인다.
+  const rankBadge = rank != null && (
+    <span className="mt-[1px] inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[11px] leading-none font-bold text-white tabular-nums">
+      {rank}
+    </span>
+  );
+
   return (
     <Card
       onClick={onSelect}
-      className="cursor-pointer gap-0 rounded-[12px] border border-black-200 bg-white p-[10px] shadow-none transition-colors hover:border-black-300"
+      className={cn(
+        "cursor-pointer gap-0 rounded-[12px] border bg-white p-[10px] shadow-none transition-colors",
+        selected ? "border-primary" : "border-black-200 hover:border-black-300",
+      )}
     >
       {simple ? (
         <>
           <div className="flex items-start gap-[4px]">
+            {rankBadge && <span className="mr-[2px] flex">{rankBadge}</span>}
             {name}
             <LikeButton liked={liked} onToggle={toggleLiked} />
             <Button
@@ -136,20 +155,25 @@ function PopupCard({
               className="size-[96px] shrink-0 rounded-[10px]"
             />
             <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
-              <div className="flex items-start gap-[4px]">
+              <div className="flex items-center gap-[4px]">
+                {rankBadge && (
+                  <span className="mr-[2px] flex [&>span]:mt-0">{rankBadge}</span>
+                )}
                 {name}
                 <LikeButton liked={liked} onToggle={toggleLiked} />
               </div>
               {row.address && (
                 <div className="flex items-start gap-[3px]">
                   <LocationFilledIcon className="mt-[2px] size-[12px] shrink-0 text-[#6c757d]" />
-                  <span className="text-[12px] leading-[16px] break-keep text-[#6c757d]">
+                  {/* 긴 주소는 가로로 넘치지 않고 아래로 내려간다 — 남은 폭 안에서 줄어들고(min-w-0),
+                      단어 단위 줄바꿈(break-keep)은 지키되 폭보다 긴 단어는 그 안에서도 넘긴다. */}
+                  <span className="min-w-0 flex-1 text-[12px] max-sm:text-[11px] leading-[16px] break-keep wrap-anywhere text-[#6c757d]">
                     {row.address}
                   </span>
                 </div>
               )}
               {row.categoryLarge && (
-                <Chip className="min-w-0 self-start gap-0 rounded-[8px] bg-[#ededef] py-[2px] text-[11px] leading-[16px] text-[#71717a]">
+                <Chip className="min-w-0 self-start gap-0 rounded-[8px] bg-[#ededef] py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-[#71717a]">
                   {row.categoryLarge}
                   {row.categorySmall && (
                     <>
@@ -177,7 +201,7 @@ function PopupCard({
               className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-black-200 px-[10px]"
             >
               <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
-              <span className="text-[12px] font-bold text-[#18181b]">
+              <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
                 제안서 담기
               </span>
             </Button>
@@ -213,19 +237,19 @@ export function MarkerMediaPopup({
   return (
     <div
       className={cn(
-        "flex max-h-[var(--map-popup-max-h,420px)] w-[min(360px,calc(100vw-24px))] flex-col rounded-[16px] border border-black-200",
+        "flex max-h-[var(--map-popup-max-h,420px)] w-[var(--map-popup-w,min(360px,calc(100vw-24px)))] flex-col rounded-[16px] border border-black-200",
         POPUP_BG_CLASS,
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-[8px] px-[12px] pt-[10px] pb-[8px]">
-        <span className="text-[13px] font-medium text-black-500">
+        <span className="text-[13px] max-sm:text-[12px] font-medium text-black-500">
           {rows.length > 1 ? `매체 ${rows.length}개` : ""}
         </span>
         <SimpleViewToggle simple={simple} onChange={onSimpleChange} />
       </div>
       <div className="flex min-h-0 flex-col gap-[8px] overflow-y-auto px-[8px] pb-[8px]">
         {rows.map((row) => (
-          <PopupCard
+          <MediaPopupCard
             key={row.id}
             row={row}
             simple={simple}

@@ -40,7 +40,11 @@ export function useConfirm() {
         if (!value) settle(false);
       }}
     >
-      <DialogContent className="flex w-[calc(100vw-32px)] max-w-[400px] flex-col gap-[20px] px-[16px] py-[20px] sm:px-[30px]">
+      {/* 확인창은 어떤 창(HeroUI 모달·제안서 담기 등) 위에서 떠도 맨 위에 보이게 한다. */}
+      <DialogContent
+        topLayer
+        className="flex w-[calc(100vw-32px)] max-w-[400px] flex-col gap-[20px] px-[16px] py-[20px] sm:px-[30px]"
+      >
         <div className="flex flex-col gap-[12px]">
           <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
             {options?.title}

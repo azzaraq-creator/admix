@@ -102,7 +102,7 @@ export function AssistantBubble({
           <div className="flex flex-col gap-[8px]">
             <div className="flex items-start gap-[8px]">
               {showAvatar && <AiIcon className="size-[24px] shrink-0" />}
-              <p className="text-base leading-[24px] text-black">
+              <p className="text-sm leading-[22px] text-black sm:text-base sm:leading-[24px]">
                 {pickedName
                   ? message.proposalChoices.action === "rename"
                     ? `'${pickedName}' 제안서 이름을 바꿨어요 ✓`

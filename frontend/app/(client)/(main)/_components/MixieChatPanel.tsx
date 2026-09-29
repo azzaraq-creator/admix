@@ -18,7 +18,8 @@ import { useMixieChat } from "./useMixieChat";
  */
 /**
  * 바깥 클릭으로 보지 않을 요소 — LNB의 "AI 믹시" 버튼과, 패널에서 연 창들.
- * - dialog-*: shadcn/base-ui 다이얼로그(제안서 담기 등)
+ * - dialog-*: shadcn/base-ui 다이얼로그(제안서 담기 등). 배경(dialog-backdrop)을 눌러 창을
+ *   닫을 때도 패널은 그대로 둔다.
  * - modal-backdrop / alert-dialog-backdrop: HeroUI Modal(로그인)·AlertDialog("새 대화" 확인창).
  *   배경이 창 전체를 감싸서 창 안 버튼이든 배경이든 모두 걸러진다.
  */

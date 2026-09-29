@@ -3,6 +3,7 @@
 import { FieldError, Input, InputOTP, TextField } from "@heroui/react";
 import { useEffect, useState } from "react";
 
+import { OTP_SLOT_CLASS } from "@/components/common/otpSlotClass";
 import { authApi } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
@@ -26,20 +27,6 @@ const CODE_TTL_MS = 10 * 60 * 1000;
 /** 시안 주석: 재전송 후 30초 동안 비활성, 재전송은 5번까지. */
 const RESEND_COOLDOWN_MS = 30 * 1000;
 const MAX_RESENDS = 5;
-/**
- * 인증번호 칸 — 선택 전에도 칸이 또렷하게 보이도록 테두리를 진하게 준다.
- * 기본: 회색 테두리 / 입력 중: 보라 테두리 + 연보라 링 / 입력됨: 진한 회색 테두리 /
- * 전송 전(비활성): 회색 바탕.
- * 색 스타일은 모두 "오류가 아닐 때(not-data-invalid)"만 적용해, 틀렸을 때는 HeroUI 기본 오류 스타일을 쓴다.
- */
-const OTP_SLOT_CLASS = cn(
-  "h-[44px] border text-[16px] text-black-900 shadow-none",
-  "not-data-[invalid=true]:border-black-300 not-data-[invalid=true]:bg-white",
-  "not-data-[invalid=true]:hover:border-black-400 not-data-[invalid=true]:data-[hovered=true]:border-black-400",
-  "not-data-[invalid=true]:data-[filled=true]:border-black-400",
-  "not-data-[invalid=true]:data-[active=true]:border-primary-500 not-data-[invalid=true]:data-[active=true]:ring-2 not-data-[invalid=true]:data-[active=true]:ring-primary-100",
-  "data-[disabled=true]:opacity-100 not-data-[invalid=true]:data-[disabled=true]:border-black-200 not-data-[invalid=true]:data-[disabled=true]:bg-[#f4f4f5]",
-);
 
 /** 백엔드가 발급하는 인증번호 자릿수(6자리 숫자). */
 const CODE_LENGTH = 6;
@@ -214,7 +201,11 @@ export function EmailVerifyStep({
                 <InputOTP.Slot
                   key={index}
                   index={index}
-                  className={cn(OTP_SLOT_CLASS, RADIUS.h44)}
+                  className={cn(
+                    OTP_SLOT_CLASS,
+                    "h-[44px] text-[16px]",
+                    RADIUS.h44,
+                  )}
                 />
               ))}
             </InputOTP.Group>

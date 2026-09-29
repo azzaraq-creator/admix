@@ -21,7 +21,7 @@ export function MixieMarkdown({
   return (
     <div
       className={cn(
-        "min-w-0 text-base leading-[24px] break-words text-black",
+        "min-w-0 text-sm leading-[22px] break-words text-black sm:text-base sm:leading-[24px]",
         className,
       )}
     >

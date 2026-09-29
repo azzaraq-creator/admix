@@ -93,7 +93,7 @@ export function MapArea({
     onGroupClick,
   });
 
-  const { popupEl, flipUp, shiftX, maxHeight } = useMapPopup({
+  const { popupEl, flipUp, shiftX, maxHeight, width } = useMapPopup({
     mapRef,
     mapReady,
     containerRef,
@@ -117,10 +117,12 @@ export function MapArea({
                 flipUp ? "bottom-[24px]" : "top-[32px]",
               )}
               // --map-popup-max-h: 지도 안에 남은 공간. 팝업 내용이 최대 높이로 쓴다.
+              // --map-popup-w: 지도 폭에 맞춘 팝업 폭(좌우 시프트 계산과 같은 값).
               style={
                 {
                   transform: `translateX(calc(-50% + ${shiftX}px))`,
                   "--map-popup-max-h": `${maxHeight}px`,
+                  "--map-popup-w": `${width}px`,
                 } as CSSProperties
               }
             >

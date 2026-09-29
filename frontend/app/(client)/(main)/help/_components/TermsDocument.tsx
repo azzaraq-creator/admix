@@ -79,7 +79,7 @@ function TermsLine({ line }: { line: string }): ReactNode {
 
 export function TermsSectionBody({ section }: { section: TermsSection }) {
   return (
-    <div className="flex flex-col gap-[6px] text-[14px] leading-[24px] break-keep text-black-700">
+    <div className="flex flex-col gap-[6px] text-[12px] leading-[20px] break-keep text-black-700 sm:text-[14px] sm:leading-[24px]">
       {section.lines.map((line, i) => (
         <TermsLine key={i} line={line} />
       ))}
