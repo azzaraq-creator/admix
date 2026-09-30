@@ -2,7 +2,12 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-import { type KakaoMap, type KakaoMarker, loadKakaoSdk } from "@/lib/kakaoMap";
+import {
+  type KakaoLatLng,
+  type KakaoMap,
+  type KakaoMarker,
+  loadKakaoSdk,
+} from "@/lib/kakaoMap";
 
 import type {
   MapBoundsPayload,
@@ -36,6 +41,14 @@ export function useKakaoMap({
   const onBoundsChangeRef = useRef(onBoundsChange);
   const autoFitRef = useRef(autoFit);
   const [mapReady, setMapReady] = useState(false);
+  // 모바일 목록 ↔ 지도 전환으로 숨겨질 때의 위치. 다시 보일 때 처음 위치가 아니라 여기로 돌아온다.
+  // 숨겨진 동안 장소 검색 등으로 이동 목표(moveTarget)가 바뀌면 그쪽이 우선이라 비운다.
+  const hiddenViewRef = useRef<{ center: KakaoLatLng; level: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    hiddenViewRef.current = null;
+  }, [moveTarget]);
 
   useEffect(() => {
     onBoundsChangeRef.current = onBoundsChange;
@@ -184,6 +197,11 @@ export function useKakaoMap({
       if (!map) return;
       const { width, height } = entries[0].contentRect;
       if (width === 0 || height === 0) {
+        if (prevWidth > 0 && prevHeight > 0)
+          hiddenViewRef.current = {
+            center: map.getCenter(),
+            level: map.getLevel(),
+          };
         prevWidth = width;
         prevHeight = height;
         return;
@@ -195,13 +213,21 @@ export function useKakaoMap({
       // 컨테이너 크기 변경(채팅 패널 접기/펼치기 등) 시 타일 재배치. relayout이 없으면
       // 새로 드러난 영역이 회색으로 남는다. relayout은 중심/줌을 보존해 지도가 튀지 않는다.
       if (becameVisible) {
+        // relayout은 그 자리에서 idle을 일으키는데, 이때는 숨김(크기 0) 동안의 중심이 지도 왼쪽 위
+        // 모서리에 가 있어 영역이 실제 보이는 곳의 오른쪽 아래 1/4만 잡힌다(모바일에서 "지도 보기"를
+        // 누르면 매체가 몇 개만 뜨던 원인). 재센터링까지 끝난 뒤 한 번만 알리도록 크기 변경 중
+        // 표시를 켜 둔다 — handleIdle이 멈춘 뒤 200ms에 지금 보이는 영역으로 목록을 다시 조회한다.
+        resizingRef.current = true;
         // 보이게 되는 순간은 기다리지 않고 바로 맞춘다(아래 재센터링이 relayout 뒤여야 한다).
         map.relayout();
         // 모바일: 지도가 숨김(크기 0)으로 생성돼 센터가 어긋나므로, 보이게 될 때 재센터링.
         const maps = window.kakao?.maps;
         const mt = moveTargetRef.current;
-        if (maps && mt) {
-          programmaticMoveRef.current = true;
+        const hiddenView = hiddenViewRef.current;
+        if (hiddenView) {
+          map.setLevel(hiddenView.level);
+          map.setCenter(hiddenView.center);
+        } else if (maps && mt) {
           map.setCenter(new maps.LatLng(mt.lat, mt.lng));
           if (mt.level != null) map.setLevel(mt.level);
         }

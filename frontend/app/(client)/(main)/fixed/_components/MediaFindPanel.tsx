@@ -96,6 +96,8 @@ const MEDIA_FOCUS_RADIUS_DEG = 0.005;
 const MEDIA_FOCUS_ZOOM_LEVEL = 1;
 // 리스트 클릭 → 그 매체 위치로 줌인할 때 쓰는 레벨.
 const FOCUS_ZOOM_LEVEL = 3;
+// 첫 진입에서 목록 조회가 이만큼 멈춰 있으면 자리를 잡은 것으로 보고 스켈레톤을 걷는다.
+const ENTRY_SETTLE_MS = 300;
 
 function countFilters(f: MediaFilterState): number {
   return (
@@ -211,10 +213,23 @@ export function MediaFindPanel({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching: listFetching,
     isPending: listPending,
   } = useFixedMediaInfinite(scopedFilters, scopeReady);
+
+  // 첫 진입 — 지도가 자리를 잡으며 조회 영역이 한 번 더 바뀌면, 먼저 받은 목록이 보였다가 다른
+  // 목록으로 바뀌며 깜빡인다. 목록이 도착한 뒤에도 조회가 잠시(ENTRY_SETTLE_MS) 멈출 때까지는
+  // 스켈레톤을 유지하고, 그 뒤로는 기존대로 새 목록이 올 때까지 이전 목록을 그대로 둔다.
+  const [entrySettled, setEntrySettled] = useState(false);
+  const entryWaiting = !scopeReady || listPending || listFetching;
+  useEffect(() => {
+    if (entrySettled || entryWaiting) return;
+    const timer = setTimeout(() => setEntrySettled(true), ENTRY_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [entrySettled, entryWaiting]);
+
   // 범위를 기다리는 동안도, 첫 결과를 받는 동안도 "불러오는 중"으로 본다.
-  const isLoading = !scopeReady || listPending;
+  const isLoading = !scopeReady || listPending || !entrySettled;
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const total = data?.pages[0]?.total ?? 0;
   const coordsById = new Map(

@@ -40,6 +40,7 @@ export interface KakaoProjection {
 export interface KakaoMap {
   relayout: () => void;
   setCenter: (latlng: KakaoLatLng) => void;
+  getCenter: () => KakaoLatLng;
   setLevel: (level: number) => void;
   getLevel: () => number;
   setBounds: (bounds: KakaoLatLngBounds) => void;
@@ -107,11 +108,7 @@ export interface KakaoMaps {
   }) => KakaoCustomOverlay;
   event: {
     addListener: (target: object, type: string, handler: () => void) => void;
-    removeListener: (
-      target: object,
-      type: string,
-      handler: () => void,
-    ) => void;
+    removeListener: (target: object, type: string, handler: () => void) => void;
   };
   services?: KakaoServices;
 }
