@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Chip, Table, Tooltip } from "@heroui/react";
+import { Button, Chip, Popover, Table, Tooltip } from "@heroui/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SortDescriptor } from "react-aria-components";
 
@@ -286,7 +286,7 @@ export function ProposalTable({
                   <Table.Cell>
                     {/* 시안 "03. 제안서 - tooltip": 제안서명(밑줄)에 올리면 제안서 요약이 뜬다. */}
                     <Tooltip delay={200} closeDelay={100}>
-                      <Tooltip.Trigger className="max-w-full">
+                      <Tooltip.Trigger className="max-w-full max-sm:hidden">
                         <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
                           {proposal.title}
                         </span>
@@ -300,6 +300,26 @@ export function ProposalTable({
                         <SummaryTooltipBody proposal={proposal} />
                       </Tooltip.Content>
                     </Tooltip>
+                    {/* 모바일은 hover가 없어, 제안서명을 누르면 같은 요약을 팝오버로 띄운다.
+                        (행의 다른 곳을 누르면 기존대로 제안서가 열린다.) */}
+                    <Popover>
+                      <Button
+                        variant="ghost"
+                        className="h-auto max-w-full min-w-0 justify-start rounded-none bg-transparent p-0 data-[hovered=true]:bg-transparent sm:hidden"
+                      >
+                        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
+                          {proposal.title}
+                        </span>
+                      </Button>
+                      <Popover.Content
+                        placement="bottom start"
+                        className="w-[372px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
+                      >
+                        <Popover.Dialog className="p-[16px] break-normal text-black">
+                          <SummaryTooltipBody proposal={proposal} />
+                        </Popover.Dialog>
+                      </Popover.Content>
+                    </Popover>
                   </Table.Cell>
                   <Table.Cell>{proposal.mediaCount}</Table.Cell>
                   <Table.Cell>

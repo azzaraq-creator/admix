@@ -8,12 +8,15 @@ type SimpleViewToggleProps = {
   simple: boolean;
   onChange: (simple: boolean) => void;
   className?: string;
+  /** "간략히 보기" 글자 스타일을 덮어쓸 때(믹시 추천 목록은 답변 글자 크기에 맞춘다). */
+  labelClassName?: string;
 };
 
 export function SimpleViewToggle({
   simple,
   onChange,
   className,
+  labelClassName,
 }: SimpleViewToggleProps) {
   return (
     <Switch
@@ -29,7 +32,12 @@ export function SimpleViewToggle({
         <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
           <Switch.Thumb className="bg-white!" />
         </Switch.Control>
-        <Label className="text-sm leading-[20px] font-medium text-grey-500">
+        <Label
+          className={cn(
+            "text-sm leading-[20px] font-medium text-grey-500",
+            labelClassName,
+          )}
+        >
           간략히 보기
         </Label>
       </Switch.Content>

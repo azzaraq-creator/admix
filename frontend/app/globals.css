@@ -287,18 +287,6 @@
     font-weight: 600;
     color: #8f39d6;
   }
-  /* 모바일은 한 단계 작게. */
-  @media (width < 40rem) {
-    .breadcrumbs.admix-breadcrumbs,
-    .breadcrumbs.admix-breadcrumbs .breadcrumbs__item {
-      gap: 6px;
-    }
-    .breadcrumbs.admix-breadcrumbs,
-    .breadcrumbs.admix-breadcrumbs .breadcrumbs__link {
-      font-size: 11px;
-      line-height: 16px;
-    }
-  }
 }
 
 /* 토스트 — HeroUI Toast의 흰 카드를 반투명 검정 + 흰 글씨로 덮어쓴다.

@@ -81,3 +81,4 @@ export { SmallCheckIcon, SmallXIcon } from "./SmallRuleIcons";
 export { TrashOutlineIcon } from "./TrashOutlineIcon";
 export { DownloadLineIcon } from "./DownloadLineIcon";
 export { ArrowDownIcon } from "./ArrowDownIcon";
+export { InfoIcon } from "./InfoIcon";

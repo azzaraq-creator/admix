@@ -8,13 +8,13 @@ import { MixieIcon } from "@/components/icons";
 export type Mode = "ai" | "search";
 
 const PILL_CLASS =
-  "rounded-[11px] bg-white shadow-[1px_1px_4px_0px_rgba(0,0,0,0.1)] sm:rounded-[13px]";
+  "rounded-[12px] bg-white shadow-[1px_1px_4px_0px_rgba(0,0,0,0.1)] sm:rounded-[13px]";
 
 // 알약은 아래 useEffect가 위치를 잴 때까지만 탭 자체 배경으로 그려 둔다(자바스크립트
 // 실행 전에도 선택 상태가 보이도록). 측정이 끝나면(data-pill-ready) 같은 자리에서
 // 미끄러지는 알약이 이어받으므로 탭 배경은 지운다.
 const TAB_CLASS =
-  "h-[26px] w-auto rounded-[11px] py-[3px] text-[13px] font-normal sm:h-[32px] sm:rounded-[13px] sm:text-sm whitespace-nowrap text-[#8c8c94] " +
+  "h-[30px] w-auto rounded-[12px] py-[3px] text-sm font-normal sm:h-[32px] sm:rounded-[13px] whitespace-nowrap text-[#8c8c94] " +
   "data-[selected=true]:font-semibold data-[selected=true]:text-black-900 " +
   "data-[selected=true]:bg-white data-[selected=true]:shadow-[1px_1px_4px_0px_rgba(0,0,0,0.1)] " +
   "[[data-pill-ready]_&]:bg-transparent [[data-pill-ready]_&]:shadow-none";
@@ -95,15 +95,18 @@ export function ModeToggle({
       >
         <Tabs.List
           aria-label="검색 모드"
-          className="h-[32px] items-center rounded-[14px] bg-[#f1f1f3] p-[3px] sm:h-[40px] sm:rounded-[17px] sm:p-[4px]"
+          className="h-[36px] items-center rounded-[15px] bg-[#f1f1f3] p-[3px] sm:h-[40px] sm:rounded-[17px] sm:p-[4px]"
         >
-          <Tabs.Tab id="ai" className={`${TAB_CLASS} gap-[4px] px-[8px] sm:gap-[5px] sm:px-[10px]`}>
-            <MixieIcon className="size-[14px] shrink-0 sm:size-[16.5px]" />
+          <Tabs.Tab id="ai" className={`${TAB_CLASS} gap-[5px] px-[10px]`}>
+            <MixieIcon className="size-[16px] shrink-0 sm:size-[16.5px]" />
             <span data-label="AI" className={TAB_LABEL_CLASS}>
               AI
             </span>
           </Tabs.Tab>
-          <Tabs.Tab id="search" className={`${TAB_CLASS} px-[14px] sm:px-[20px]`}>
+          <Tabs.Tab
+            id="search"
+            className={`${TAB_CLASS} px-[16px] sm:px-[20px]`}
+          >
             <span data-label="검색" className={TAB_LABEL_CLASS}>
               검색
             </span>

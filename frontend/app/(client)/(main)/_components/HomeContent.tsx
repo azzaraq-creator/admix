@@ -1,10 +1,11 @@
 "use client";
 
-import { Breadcrumbs, Button } from "@heroui/react";
+import { Breadcrumbs, Button, ScrollShadow } from "@heroui/react";
 import { useState } from "react";
 
 import {
   ChevronDownIcon,
+  InfoIcon,
   MixieIcon,
   ScrollMouseIcon,
   SearchDuotoneIcon,
@@ -47,24 +48,26 @@ const SEARCH_SUGGESTIONS: { title: string; items: string[]; rows: 1 | 2 }[] = [
 // "높이/2 - 3px"(전송 버튼 40px→17px, 모드 탭 32px→13px)이라 13px이 된다.
 // 모바일에선 긴 문구가 화면 밖으로 넘치지 않게 칩 안에서 줄바꿈한다.
 const SUGGESTION_CHIP_CLASS =
-  "max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-full max-sm:min-h-[32px] max-sm:w-full max-sm:justify-start max-sm:py-[6px] max-sm:text-left max-sm:text-[13px] max-sm:leading-[18px] max-sm:break-keep max-sm:whitespace-normal";
+  "max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-full max-sm:min-h-[36px] max-sm:w-full max-sm:justify-start max-sm:py-[8px] max-sm:text-left max-sm:text-[14px] max-sm:leading-[20px] max-sm:break-keep max-sm:whitespace-normal";
 
 // 모바일은 칩 목록을 좌우로 넘기게 한다. 화면 끝까지 붙여(-mx) 다음 칩이
-// 살짝 걸쳐 보이게 해서 넘길 수 있다는 걸 알린다.
+// 살짝 걸쳐 보이게 하고, 넘길 게 남은 쪽 가장자리는 흐리게(HeroUI ScrollShadow) 한다.
+// 스크롤·그림자는 ScrollShadow가 맡고, 이 클래스는 여백·스냅만 준다.
 const SUGGESTION_SCROLL_CLASS =
-  "mt-[10px] flex flex-wrap gap-x-[10px] gap-y-[8px] sm:justify-center max-sm:-mx-[20px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[20px] max-sm:overflow-x-auto max-sm:px-[20px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
-// 긴 문구는 220px 칸에 두 줄로 쌓아 넘기고,
-const SUGGESTION_LIST_CLASS = `${SUGGESTION_SCROLL_CLASS} max-sm:grid max-sm:auto-cols-[220px] max-sm:grid-flow-col max-sm:grid-rows-2`;
+  "mt-[10px] max-sm:-mx-[20px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[20px] max-sm:px-[20px]";
+// 긴 문구는 240px 칸에 두 줄로 쌓아 넘기고,
+const SUGGESTION_LIST_CLASS =
+  "flex flex-wrap gap-x-[10px] gap-y-[8px] sm:justify-center max-sm:grid max-sm:auto-cols-[240px] max-sm:grid-flow-col max-sm:grid-rows-2";
 const SUGGESTION_ITEM_CLASS = "max-w-full max-sm:snap-start";
 // 검색 추천(지역·매체명)은 칩을 글자 폭 그대로 한 줄 문구로 두고, 모바일에선 줄마다
 // 따로 흐르게 해 윗줄·아랫줄 칩 너비가 서로 맞춰지지 않게 한다. 데스크톱에선 줄
 // 묶음(ul)을 contents로 풀어 기존처럼 한데 섞어 가운데로 감싼다.
-const SEARCH_SUGGESTION_ROWS_CLASS = `${SUGGESTION_SCROLL_CLASS} max-sm:flex-col max-sm:flex-nowrap`;
+const SEARCH_SUGGESTION_ROWS_CLASS = `${SUGGESTION_SCROLL_CLASS} flex flex-wrap gap-x-[10px] gap-y-[8px] sm:justify-center max-sm:flex-col max-sm:flex-nowrap`;
 const SEARCH_SUGGESTION_ROW_CLASS =
   "flex gap-x-[10px] max-sm:w-max sm:contents";
 const SEARCH_SUGGESTION_ITEM_CLASS = "shrink-0 sm:max-w-full max-sm:snap-start";
 const SEARCH_SUGGESTION_CHIP_CLASS =
-  "sm:max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black";
+  "sm:max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-[36px] max-sm:px-[14px] max-sm:text-[14px]";
 
 const MODE_LABEL: Record<Mode, string> = {
   ai: "AI 믹시",
@@ -96,10 +99,12 @@ export function HomeContent() {
     // 바깥(홈 화면)이 이어서 스크롤돼 아래 콘텐츠가 보인다.
     <div
       className={`flex shrink-0 flex-col px-[20px] sm:px-[50px] ${
-        hasConversation ? "h-full pb-[12px] sm:pb-[16px]" : "min-h-full pb-[24px]"
+        hasConversation
+          ? "h-full pb-[12px] sm:pb-[16px]"
+          : "min-h-full pb-[24px]"
       }`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-[12px] pt-[16px] sm:pt-[52px]">
+      <div className="relative flex shrink-0 items-center justify-between gap-[12px] pt-[16px] sm:pt-[52px]">
         <Breadcrumbs
           aria-label="현재 위치"
           separator="/"
@@ -110,10 +115,13 @@ export function HomeContent() {
           <Breadcrumbs.Item isDisabled>{MODE_LABEL[mode]}</Breadcrumbs.Item>
         </Breadcrumbs>
         {/* 시안엔 없지만, 대화가 시작되면 처음 화면으로 돌아갈 길이 필요하다.
-            패널은 헤더에 같은 버튼이 있다. */}
+            패널은 헤더에 같은 버튼이 있다. PC는 브레드크럼과 같은 줄에 두되, 가운데 놓인
+            채팅 영역(최대 860px)의 오른쪽 끝에 맞춘다. */}
         {hasConversation && (
-          <div className="sm:hidden">
-            <NewChatButton />
+          <div className="flex justify-end sm:pointer-events-none sm:absolute sm:inset-x-0 sm:top-[52px] sm:bottom-0 sm:mx-auto sm:max-w-[860px] sm:items-center">
+            <div className="sm:pointer-events-auto">
+              <NewChatButton />
+            </div>
           </div>
         )}
       </div>
@@ -127,23 +135,24 @@ export function HomeContent() {
       ) : (
         <div className="flex w-full flex-1 flex-col items-start justify-start py-[24px] sm:items-center sm:justify-center sm:py-[40px]">
           {/* 모바일은 아이콘 옆에 제목·부제를 두고, 데스크톱은 세로로 가운데 쌓는다. */}
-          <div className="flex items-center gap-[10px] sm:flex-col sm:gap-0">
+          <div className="flex items-center gap-[12px] sm:flex-col sm:gap-0">
             {mode === "search" ? (
-              <SearchDuotoneIcon className="size-[24px] shrink-0 sm:size-[70px]" />
+              <SearchDuotoneIcon className="size-[36px] shrink-0 sm:size-[70px]" />
             ) : (
-              <MixieIcon className="size-[24px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
+              <MixieIcon className="size-[36px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
             )}
             <div className="flex flex-col sm:items-center">
-              <h1 className="text-left text-sm font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]">
+              <h1 className="text-left text-[18px] leading-[26px] font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]">
                 {TITLE[mode]}
               </h1>
-              <p className="text-left text-sm text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
+              <p className="text-left text-[15px] leading-[22px] text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
                 {SUBTITLE[mode]}
               </p>
             </div>
           </div>
 
-          <div className="mt-[20px] flex w-full justify-center">
+          {/* 모바일은 입력바가 남는 세로 공간을 채운다(최소 180px). */}
+          <div className="mt-[20px] flex w-full justify-center max-sm:min-h-[180px] max-sm:flex-1">
             <AiSearchBox
               value={query}
               onValueChange={setQuery}
@@ -154,9 +163,14 @@ export function HomeContent() {
           </div>
 
           {mode === "ai" && (
-            <p className="mt-[10px] max-w-[860px] text-left text-xs text-[#64748b] sm:mt-[20px] sm:text-center">
+            <p className="mt-[10px] max-w-[860px] text-left text-xs text-[#64748b] max-sm:text-[13px] max-sm:leading-[18px] sm:mt-[20px] sm:text-center">
               {/* 모바일은 좌측 패널이 없고 메뉴(드로어)로 들어간다. */}
-              <span className="sm:hidden">
+              <span className="flex items-start gap-[4px] sm:hidden">
+                {/* 글자(13px/18px) 첫 줄 가운데에 맞춰 2px 내린다. */}
+                <InfoIcon
+                  aria-hidden
+                  className="mt-[2px] size-[14px] shrink-0"
+                />
                 메뉴의 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
               </span>
               <span className="hidden sm:inline">
@@ -179,10 +193,15 @@ export function HomeContent() {
                     key={title}
                     className="w-full text-left sm:text-center"
                   >
-                    <h2 className="text-sm font-semibold text-black">
+                    <h2 className="text-sm font-semibold text-black max-sm:text-[15px]">
                       {title}
                     </h2>
-                    <div className={SEARCH_SUGGESTION_ROWS_CLASS}>
+                    <ScrollShadow
+                      orientation="horizontal"
+                      hideScrollBar
+                      size={24}
+                      className={SEARCH_SUGGESTION_ROWS_CLASS}
+                    >
                       {itemRows.map((row) => (
                         <ul
                           key={row[0]}
@@ -205,30 +224,38 @@ export function HomeContent() {
                           ))}
                         </ul>
                       ))}
-                    </div>
+                    </ScrollShadow>
                   </section>
                 );
               })}
             </div>
           ) : (
             <section className="mt-[20px] w-full max-w-[860px] text-left sm:mt-[28px] sm:text-center">
-              <h2 className="text-sm font-semibold text-black sm:hidden">
+              <h2 className="text-[15px] font-semibold text-black sm:hidden">
                 추천 질문
               </h2>
-              <ul className={`${SUGGESTION_LIST_CLASS} sm:mt-0`}>
-                {SUGGESTIONS.map((suggestion) => (
-                  <li key={suggestion} className={SUGGESTION_ITEM_CLASS}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={SUGGESTION_CHIP_CLASS}
-                      onPress={() => setQuery(suggestion)}
-                    >
-                      {suggestion}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              {/* 스크롤 틀이 flex여야 오른쪽 여백까지 넘겨 볼 수 있다(모바일). */}
+              <ScrollShadow
+                orientation="horizontal"
+                hideScrollBar
+                size={24}
+                className={`${SUGGESTION_SCROLL_CLASS} max-sm:flex sm:mt-0`}
+              >
+                <ul className={SUGGESTION_LIST_CLASS}>
+                  {SUGGESTIONS.map((suggestion) => (
+                    <li key={suggestion} className={SUGGESTION_ITEM_CLASS}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={SUGGESTION_CHIP_CLASS}
+                        onPress={() => setQuery(suggestion)}
+                      >
+                        {suggestion}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollShadow>
             </section>
           )}
         </div>

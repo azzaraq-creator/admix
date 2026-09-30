@@ -7,7 +7,11 @@ import { MediaPopupCard } from "../MarkerMediaPopup";
 import { formatV2Price } from "./format";
 
 /** 채팅 추천 항목 → 지도 팝업 카드가 받는 모양. */
-function toCardRow(it: V2MediaItem, id: string, images: string[]): MediaCardRow {
+function toCardRow(
+  it: V2MediaItem,
+  id: string,
+  images: string[],
+): MediaCardRow {
   // 예전 세션(금액 필드 추가 전)은 price 문자열에서 숫자만 뽑아 광고비로 쓴다.
   const priceDigits = it.price?.replace(/[^0-9]/g, "");
   return {
@@ -50,11 +54,13 @@ export function ChatMediaList({
   return (
     <div className="flex flex-col gap-[8px]">
       <div className="flex items-center justify-between gap-[8px] px-[2px]">
-        <span className="text-[13px] max-sm:text-[12px] font-medium text-black-500">
+        <span className="text-[13px] font-medium text-black-500 max-sm:text-[14px]">
           추천 매체{" "}
           <span className="font-bold text-primary">{items.length}</span>개
         </span>
         <SimpleViewToggle
+          // 모바일은 12px로 줄인다. PC는 기본값 그대로.
+          labelClassName="max-sm:text-[12px]"
           simple={!showPhotos}
           onChange={(next) => onTogglePhotos(!next)}
         />

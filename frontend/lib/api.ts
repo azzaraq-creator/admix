@@ -18,8 +18,23 @@ import {
   setTokens,
 } from "./userToken";
 
-export const API_BASE_URL =
+const ENV_API_BASE_URL =
   (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001").trim();
+
+// 로컬 dev를 휴대폰 등에서 IP로 열면 "localhost"는 그 기기 자신을 가리키므로, API도
+// 지금 접속한 호스트(= 개발 PC)로 부른다. 운영처럼 localhost가 아닌 주소는 그대로 쓴다.
+function resolveApiBaseUrl(): string {
+  if (typeof window === "undefined") return ENV_API_BASE_URL;
+  const url = new URL(ENV_API_BASE_URL);
+  const isLocal = (host: string) => host === "localhost" || host === "127.0.0.1";
+  if (!isLocal(url.hostname) || isLocal(window.location.hostname)) {
+    return ENV_API_BASE_URL;
+  }
+  url.hostname = window.location.hostname;
+  return url.origin;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const api = axios.create({ baseURL: API_BASE_URL });
 

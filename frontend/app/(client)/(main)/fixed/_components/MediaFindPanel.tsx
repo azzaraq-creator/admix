@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@heroui/react";
+import { Chip, ScrollShadow } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -612,15 +612,18 @@ export function MediaFindPanel({
 
       <div className="relative flex min-h-0 flex-1 gap-[20px]">
         {!mapExpanded && (
-          <div
+          // 목록이 위아래로 더 있으면 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
+          <ScrollShadow
             ref={scrollRef}
+            hideScrollBar
+            size={32}
             // 카드 hover 그림자가 이 스크롤 컨테이너에 잘려서, 좌우는 패딩으로 자리를
             // 만들고 같은 크기의 음수 마진으로 되돌린다(카드 폭·지도와의 간격은 그대로).
             // 위아래는 같은 방법을 쓰면 그만큼 스크롤 영역이 넓어져 카드가 지도 위/아래로
             // 넘어오므로, 지도와 높이를 맞추기 위해 그림자가 잘리는 쪽을 택했다.
             // 모바일은 화면 여백이 16px이라 같은 값으로 맞추고, 아래에 뜨는 지도 전환 버튼이
             // 마지막 카드를 가리지 않게 아래 여백을 둔다.
-            className="-mx-[20px] flex w-[calc(100%+40px)] shrink-0 flex-col gap-[10px] overflow-y-auto px-[20px] [scrollbar-width:none] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[460px] [&::-webkit-scrollbar]:hidden"
+            className="-mx-[20px] flex w-[calc(100%+40px)] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[460px]"
           >
             {isLoading ? (
               // 첫 결과를 받기 전엔 카드 자리에 스켈레톤을 깔아 로딩 중임을 보여 준다.
@@ -649,7 +652,7 @@ export function MediaFindPanel({
                 />
               </>
             )}
-          </div>
+          </ScrollShadow>
         )}
 
         <div

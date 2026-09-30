@@ -21,7 +21,7 @@ export function MixieMarkdown({
   return (
     <div
       className={cn(
-        "min-w-0 text-sm leading-[22px] break-words text-black sm:text-base sm:leading-[24px]",
+        "min-w-0 text-[16px] leading-[22px] break-words text-black sm:text-base sm:leading-[24px]",
         className,
       )}
     >
@@ -35,12 +35,14 @@ export function MixieMarkdown({
             <strong className="font-semibold">{children}</strong>
           ),
           ul: ({ children }) => (
-            <ul className="mt-[6px] list-disc space-y-[2px] pl-[20px] first:mt-0">
+            <ul className="mt-[6px] list-disc space-y-[2px] pl-[20px] first:mt-0 max-sm:pl-[1.4em]">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="mt-[6px] list-decimal space-y-[2px] pl-[20px] first:mt-0">
+            // 번호("1.", "10.")는 목록 왼쪽 여백 안에 그려진다. 모바일은 글자(16px)가 커서 20px로는
+            // 번호 앞이 잘리므로 글자 크기에 비례한 여백(두 자리 번호까지)을 준다.
+            <ol className="mt-[6px] list-decimal space-y-[2px] pl-[20px] first:mt-0 max-sm:pl-[2em]">
               {children}
             </ol>
           ),

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Spinner, Tooltip } from "@heroui/react";
+import { Button, Popover, ScrollShadow, Spinner, Tooltip } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -17,10 +17,10 @@ import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
+import { cn } from "@/lib/utils";
 
 import { AssistantBubble } from "../fixed/_components/chat/AssistantBubble";
 import { MixieMarkdown } from "../fixed/_components/chat/MixieMarkdown";
-import { NewChatButton } from "./NewChatButton";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
 
@@ -40,7 +40,7 @@ function UserBubble({ content }: { content: string }) {
   return (
     <div
       data-user-message
-      className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-black-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-black-900"
+      className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-black-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-black-900 max-sm:text-[16px]"
     >
       {content}
     </div>
@@ -53,7 +53,7 @@ function UserBubble({ content }: { content: string }) {
  */
 function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
   return (
-    <div className="flex w-full flex-1 flex-col justify-end gap-[14px] pb-[4px] max-sm:pb-0">
+    <div className="flex w-full flex-1 flex-col justify-end gap-[14px]">
       <div>
         <MixieMarkdown>
           {
@@ -167,10 +167,12 @@ export function HomeChat({
 
   const scrollToEnd = () => {
     const list = listRef.current;
-    const spacer = spacerRef.current;
-    if (!list || !spacer) return;
+    if (!list) return;
+    // 목록 끝까지 내린다. 대화 끝(spacer 위)에서 멈추면 그 아래 여백(목록 gap·끝 1px 줄·빈 칸)만큼
+    // 덜 내려가 아래 흐림(ScrollShadow)이 마지막 글자 위에 남는다. 빈 칸이 있을 땐 끝까지 내려도
+    // 질문을 맨 위로 올렸을 때와 같은 자리다(빈 칸이 그 높이에 맞춰져 있다).
     list.scrollTo({
-      top: spacer.offsetTop - list.clientHeight,
+      top: list.scrollHeight - list.clientHeight,
       behavior: "smooth",
     });
   };
@@ -240,29 +242,32 @@ export function HomeChat({
 
   const disabled = chat.restoring || chat.limitReached;
   const widthClass = isPanel ? "w-full" : "w-full max-w-[860px]";
+  // 전송 버튼 모양 — 모바일 작성 중 안내용 버튼(팝오버)도 같은 자리·모양을 쓴다.
+  const sendButtonClass = `data-[pending=true]:pointer-events-auto ${
+    isPanel
+      ? "absolute top-[4px] right-[4px] size-[36px] rounded-[15px]"
+      : // 모드 탭과 같은 높이 40px(모서리 40/2-3 = 17px). 56px 입력바 안에서 위아래 8px로
+        // 가운데에 두고, 오른쪽 여백도 같은 8px로 맞춘다.
+        // 모바일은 두 줄 입력바의 아래 줄에 모드 탭과 같은 36px(모서리 15px)로 두고,
+        // 오른쪽·아래 여백은 글자 여백과 같은 12px, 탭과는 8px 띄운다.
+        "absolute right-[11px] bottom-[11px] size-[36px] rounded-[15px] sm:top-[8px] sm:right-[8px] sm:bottom-auto sm:size-[40px] sm:rounded-[17px]"
+  }`;
 
   return (
     <div
       className={`flex min-h-0 w-full flex-1 flex-col items-center justify-between ${
-        // 모바일 패널은 대화 목록 아래 여백을 위·좌우와 같은 16px로 맞춘다
+        // 패널은 대화 목록 아래 여백을 위·좌우와 같은 16px로 맞춘다
         // (목록 gap 14 + 끝 표시 0 + 2).
-        isPanel ? "gap-[12px] px-[16px] max-sm:gap-[2px]" : "gap-[16px]"
+        isPanel ? "gap-[2px] px-[16px]" : "gap-[16px]"
       }`}
     >
-      {/* 시안엔 없지만, 대화가 시작되면 처음 화면으로 돌아갈 길이 필요하다.
-          패널은 헤더에 같은 버튼이 있다. 모바일은 브레드크럼 줄 오른쪽에 둔다(HomeContent). */}
-      {!isPanel && (
-        <div
-          className={`flex ${widthClass} shrink-0 justify-end max-sm:hidden`}
-        >
-          <NewChatButton />
-        </div>
-      )}
-
-      <div
+      {/* 대화가 위아래로 더 있으면 가장자리를 흐리게(HeroUI ScrollShadow) 해서 스크롤할 게 있음을 알린다. */}
+      <ScrollShadow
         ref={listRef}
         onScroll={syncLayout}
-        className={`relative ${widthClass} min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+        hideScrollBar
+        size={32}
+        className={`relative ${widthClass} min-h-0 flex-1`}
       >
         <div
           ref={contentRef}
@@ -311,11 +316,9 @@ export function HomeChat({
             aria-hidden
             className={`w-full shrink-0 ${isPanel ? "-mt-[14px]" : "-mt-[10px]"}`}
           />
-          <div
-            className={`h-px w-full shrink-0 ${isPanel ? "max-sm:h-0" : ""}`}
-          />
+          <div className={`w-full shrink-0 ${isPanel ? "h-0" : "h-px"}`} />
         </div>
-      </div>
+      </ScrollShadow>
 
       <div
         className={
@@ -331,23 +334,23 @@ export function HomeChat({
           aria-label="맨 아래로 스크롤"
           tabIndex={showScrollDown ? 0 : -1}
           onClick={scrollToEnd}
-          className={`absolute bottom-full left-1/2 z-10 mb-[12px] flex size-[36px] -translate-x-1/2 items-center justify-center rounded-full border border-black-200 bg-white/95 text-black-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)] backdrop-blur transition-all duration-200 hover:bg-white hover:text-black ${
+          className={`absolute bottom-full left-1/2 z-10 mb-[10px] flex size-[30px] -translate-x-1/2 items-center justify-center rounded-full bg-black-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-black-900 ${
             showScrollDown
               ? "translate-y-0 opacity-100"
               : "pointer-events-none translate-y-[6px] opacity-0"
           }`}
         >
-          <ArrowDownIcon strokeWidth={1.6} className="size-[18px]" />
+          <ArrowDownIcon strokeWidth={1.8} className="size-[15px]" />
         </button>
         {/* 모바일 홈 입력바는 테두리 상자를 이 wrapper가 맡는다. textarea 자체에 아래 여백을 주면
             여러 줄 입력 시 글자가 그 여백(탭·전송 버튼 자리)까지 스크롤돼 버튼 밑에 깔리므로,
             textarea는 글자 칸만 차지하고 버튼 줄은 wrapper 여백에 둔다.
-            여백은 테두리 1px을 더해 상하좌우 12px(11 + 1), 아래는 버튼 32 + 틈 10 + 11 = 53. */}
+            여백은 테두리 1px을 더해 상하좌우 12px(11 + 1), 아래는 버튼 36 + 틈 10 + 11 = 57. */}
         <div
           className={
             isPanel
               ? "relative"
-              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-black-300 max-sm:bg-white max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[53px]"
+              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-black-300 max-sm:bg-white max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[57px]"
           }
         >
           <textarea
@@ -380,9 +383,9 @@ export function HomeChat({
                   // 높이 56px(모서리 56/2-3 = 25px). 탭·전송 버튼(40px) 둘레 여백 8px에 맞췄다.
                   // 오른쪽 여백 = 끝 8 + 전송 40 + 간격 10 + 탭 127 + 글자와 틈 11.
                   // 모바일(<sm)은 그 여백을 빼면 글자 칸이 140px도 안 남아, 두 줄로 나눠
-                  // 위엔 입력(한 줄, 넘치면 안에서 스크롤), 아래 줄에 탭·전송 버튼(32px)을 둔다.
+                  // 위엔 입력(한 줄, 넘치면 안에서 스크롤), 아래 줄에 탭·전송 버튼(36px)을 둔다.
                   // 테두리·여백은 위 wrapper가 맡는다.
-                  `h-[22px] bg-transparent p-0 text-sm leading-[22px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-black-300 sm:bg-white sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
+                  `h-[24px] bg-transparent p-0 text-base leading-[24px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-black-300 sm:bg-white sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
                     modeToggle ? "sm:pr-[196px]" : "sm:pr-[60px]"
                   }`
             }`}
@@ -393,7 +396,7 @@ export function HomeChat({
               (누르기는 React Aria의 isPending이 따로 막는다). */}
           {/* 모드 탭(높이 40px) — 전송 버튼(40px, 오른쪽 8px)과 높이·세로 위치를 맞추고 10px 띄운다. */}
           {!isPanel && modeToggle && (
-            <div className="absolute right-[51px] bottom-[11px] sm:top-[8px] sm:right-[58px] sm:bottom-auto">
+            <div className="absolute right-[55px] bottom-[11px] sm:top-[8px] sm:right-[58px] sm:bottom-auto">
               {modeToggle}
             </div>
           )}
@@ -408,31 +411,43 @@ export function HomeChat({
               }
               onPress={send}
               aria-label="전송"
-              className={`data-[pending=true]:pointer-events-auto ${
-                isPanel
-                  ? "absolute top-[4px] right-[4px] size-[36px] rounded-[15px]"
-                  : // 모드 탭과 같은 높이 40px(모서리 40/2-3 = 17px). 56px 입력바 안에서 위아래 8px로
-                    // 가운데에 두고, 오른쪽 여백도 같은 8px로 맞춘다.
-                    // 모바일은 두 줄 입력바의 아래 줄에 모드 탭과 같은 32px(모서리 14px)로 두고,
-                    // 오른쪽·아래 여백은 글자 여백과 같은 12px, 탭과는 8px 띄운다.
-                    "absolute right-[11px] bottom-[11px] size-[32px] rounded-[14px] sm:top-[8px] sm:right-[8px] sm:bottom-auto sm:size-[40px] sm:rounded-[17px]"
-              }`}
+              className={cn(sendButtonClass, chat.running && "max-sm:hidden")}
             >
               {chat.running ? (
                 <Spinner size="sm" color="current" />
               ) : (
                 <ArrowUpIcon
                   className={
-                    isPanel ? "size-[18px]" : "size-[16px] sm:size-[20px]"
+                    isPanel ? "size-[18px]" : "size-[18px] sm:size-[20px]"
                   }
                 />
               )}
             </Button>
             <Tooltip.Content>믹시가 답변을 준비 중이에요</Tooltip.Content>
           </Tooltip>
+          {/* 모바일은 hover가 없어 툴팁이 뜨지 않는다. 작성 중엔 같은 모양의 버튼을 대신 두고,
+              누르면 팝오버로 알린다(작성 중 버튼은 누르기가 막혀 팝오버를 열 수 없다). */}
+          {chat.running && (
+            <Popover>
+              <Button
+                isIconOnly
+                variant="primary"
+                size="sm"
+                aria-label="믹시가 답변을 준비 중이에요"
+                className={cn(sendButtonClass, "sm:hidden")}
+              >
+                <Spinner size="sm" color="current" />
+              </Button>
+              <Popover.Content placement="top end" className="rounded-[12px]">
+                <Popover.Dialog className="px-[12px] py-[8px] text-[12px] font-medium text-black-900">
+                  믹시가 답변을 준비 중이에요
+                </Popover.Dialog>
+              </Popover.Content>
+            </Popover>
+          )}
         </div>
         {isPanel && (
-          <p className="mt-[8px] text-center text-[11px] leading-[16px] text-black-400">
+          <p className="text-center text-[11px] leading-[16px] text-black-400">
             AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.
           </p>
         )}

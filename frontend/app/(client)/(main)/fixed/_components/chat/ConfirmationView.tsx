@@ -20,7 +20,8 @@ export function ConfirmationView({
       {changes && changes.length > 0 && (
         <ul className="space-y-[4px] text-xs text-grey-500">
           {changes.map((ch, i) => {
-            const label = CATEGORY_LABELS[ch.category as SlotKey] || ch.category;
+            const label =
+              CATEGORY_LABELS[ch.category as SlotKey] || ch.category;
             return (
               <li key={`${ch.category}-${i}`}>
                 <span className="text-grey-500">{label}</span>{" "}

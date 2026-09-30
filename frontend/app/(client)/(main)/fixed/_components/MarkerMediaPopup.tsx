@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Chip, ToggleButton } from "@heroui/react";
+import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 import { useState } from "react";
 
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
@@ -24,10 +24,11 @@ function formatKrw(value: number | null): string {
 function PriceCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="flex flex-col gap-[2px]">
-      <span className="text-[11px] max-sm:text-[10px] font-medium text-black-400">
+      <span className="text-[11px] font-medium text-black-400 max-sm:text-[12px]">
         {label}
       </span>
-      <span className="text-[14px] max-sm:text-[13px] leading-[18px] font-bold text-[#2d264b]">
+      {/* 모바일은 매체명과 같은 14px. */}
+      <span className="text-[14px] leading-[18px] font-bold text-[#2d264b]">
         {formatKrw(value)}
       </span>
     </div>
@@ -52,7 +53,10 @@ function LikeButton({
       onChange={onToggle}
       className={cn(
         "size-[28px] min-w-0 shrink-0 rounded-[10px] p-0",
-        liked && "bg-[#fff1f0] data-[selected=true]:bg-[#fff1f0]",
+        // 꺼짐도 밝은 회색 바탕을 깔아 하트만 떠 보이지 않게 한다.
+        liked
+          ? "bg-[#fff1f0] data-[selected=true]:bg-[#fff1f0]"
+          : "bg-black-100 data-[hovered=true]:bg-black-200",
       )}
     >
       <LoveIcon
@@ -61,7 +65,7 @@ function LikeButton({
           "size-[15px] transition-colors",
           liked
             ? "animate-[admix-like-pop_280ms_ease-out] text-red-500"
-            : "text-black-300",
+            : "text-black-400",
         )}
       />
     </ToggleButton>
@@ -132,7 +136,8 @@ export function MediaPopupCard({
               variant="ghost"
               aria-label="제안서 담기"
               onPress={() => onAddProposal?.()}
-              className="size-[28px] min-w-0 shrink-0 rounded-[10px] p-0"
+              // 옆 관심 버튼과 같은 밝은 회색 바탕.
+              className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-black-100 p-0 data-[hovered=true]:bg-black-200"
             >
               <FolderAddIcon className="size-[16px] text-primary" />
             </Button>
@@ -155,9 +160,12 @@ export function MediaPopupCard({
               className="size-[96px] shrink-0 rounded-[10px]"
             />
             <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
-              <div className="flex items-center gap-[4px]">
+              {/* 모바일은 매체명이 여러 줄로 내려가도 순위 번호를 첫 줄에 맞춘다(가운데 정렬 대신 위). */}
+              <div className="flex items-center gap-[4px] max-sm:items-start">
                 {rankBadge && (
-                  <span className="mr-[2px] flex [&>span]:mt-0">{rankBadge}</span>
+                  <span className="mr-[2px] flex [&>span]:mt-0 max-sm:[&>span]:mt-[1px]">
+                    {rankBadge}
+                  </span>
                 )}
                 {name}
                 <LikeButton liked={liked} onToggle={toggleLiked} />
@@ -247,7 +255,11 @@ export function MarkerMediaPopup({
         </span>
         <SimpleViewToggle simple={simple} onChange={onSimpleChange} />
       </div>
-      <div className="flex min-h-0 flex-col gap-[8px] overflow-y-auto px-[8px] pb-[8px]">
+      {/* 겹친 핀처럼 매체가 여러 개면 위아래 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
+      <ScrollShadow
+        size={24}
+        className="flex min-h-0 flex-col gap-[8px] px-[8px] pb-[8px]"
+      >
         {rows.map((row) => (
           <MediaPopupCard
             key={row.id}
@@ -257,7 +269,7 @@ export function MarkerMediaPopup({
             onAddProposal={() => onAddProposal?.(row)}
           />
         ))}
-      </div>
+      </ScrollShadow>
     </div>
   );
 }
