@@ -78,7 +78,7 @@ export function MediaFindTopBar({
             PILL,
             PILL_ACTIVE,
             // 모바일(안쪽 38px)은 (38 - 20) / 2 = 9px.
-            "w-full gap-[14px] pr-[20px] pl-[11.5px] focus-within:bg-white max-sm:gap-[10px] max-sm:pr-[16px] max-sm:pl-[9px]",
+            "w-full gap-[14px] pr-[20px] pl-[11.5px] focus-within:border-focus focus-within:bg-white max-sm:gap-[10px] max-sm:pr-[16px] max-sm:pl-[9px]",
           )}
         >
           <SearchOutlineIcon

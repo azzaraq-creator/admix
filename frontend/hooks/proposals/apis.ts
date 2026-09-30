@@ -111,6 +111,8 @@ export interface ProposalPreviewItem {
   /** 선택한 상품의 광고비·제작비(1회분). */
   advertisement_fee: number | null;
   production_fee: number | null;
+  /** 제안서에 담긴 시각. */
+  created_at?: string | null;
 }
 
 export interface ProposalSummary {

@@ -23,9 +23,9 @@ export const useCreateProposal = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (title: string) => proposalsClientApi.create(title),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
-    },
+    // 목록을 다시 받아 올 때까지 기다려(isPending 유지) 화면이 새 목록으로 바로 바뀌게 한다.
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() }),
   });
 };
 
@@ -101,9 +101,9 @@ export const useDeleteProposal = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => proposalsClientApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: proposalsKeys.myList() });
-    },
+    // 목록을 다시 받아 올 때까지 기다려(isPending 유지) 지운 제안서가 잠깐 남아 보이지 않게 한다.
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: proposalsKeys.myList() }),
   });
 };
 

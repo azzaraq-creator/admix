@@ -24,7 +24,7 @@ export type Proposal = {
   /** 정렬용 원본 시각(ms). 없으면 0. */
   updatedAtMs: number;
   createdAtMs: number;
-  /** 표시용 "YYYY-MM-DD HH:mm". */
+  /** 표시용 "YYYY-MM-DD HH:mm:ss". */
   updatedAt: string;
   createdAt: string;
   /** 표지에 쓰는 제작 연도. */
@@ -42,12 +42,12 @@ export function toStatus(raw: string): Status {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** 시안 표기 "2026-09-02 16:00". */
+/** 목록 표기 "2026-09-02 16:00:05" — 초까지. */
 function formatListDateTime(iso?: string | null): string {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 const toMs = (iso?: string | null) => {

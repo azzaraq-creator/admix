@@ -18,6 +18,17 @@ export const useCreateInquiry = () => {
   });
 };
 
+export const useDeleteMyInquiry = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => inquiriesClientApi.myDelete(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: inquiriesKeys.myList() });
+      qc.removeQueries({ queryKey: inquiriesKeys.myDetail(id) });
+    },
+  });
+};
+
 export const useAnswerInquiry = () => {
   const qc = useQueryClient();
   return useMutation({

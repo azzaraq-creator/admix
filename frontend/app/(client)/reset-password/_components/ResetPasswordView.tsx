@@ -9,7 +9,7 @@ import { useConfirmPasswordReset } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
 const inputClass =
-  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
+  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-focus";
 
 export function ResetPasswordView() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export function ResetPasswordView() {
                 placeholder="비밀번호를 입력해 주세요"
                 className={cn(
                   inputClass,
-                  error ? "border-[#ff2c20] bg-[#fff2f1]" : "border-stroke",
+                  error ? "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]" : "border-stroke",
                 )}
               />
               <input
@@ -96,7 +96,7 @@ export function ResetPasswordView() {
                 placeholder="비밀번호를 한번 더 입력해 주세요"
                 className={cn(
                   inputClass,
-                  error ? "border-[#ff2c20] bg-[#fff2f1]" : "border-stroke",
+                  error ? "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]" : "border-stroke",
                 )}
               />
               {error && (

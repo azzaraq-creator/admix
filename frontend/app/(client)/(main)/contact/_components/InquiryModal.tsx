@@ -1,25 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import {
+  Button,
+  FieldError,
+  Input,
+  Label,
+  Modal,
+  Separator,
+  TextArea,
+  TextField,
+} from "@heroui/react";
+import { useRef, useState } from "react";
 
-import { Button } from "@/components/common/buttons";
-import { XIcon } from "@/components/icons";
+import { CloseMediumIcon, InfoIcon } from "@/components/icons";
 import { useMe, type MeResponse } from "@/hooks/auth";
 import { useCreateInquiry } from "@/hooks/inquiries";
+import { useKeepFocusedInView } from "@/hooks/useKeepFocusedInView";
 import { useSonner } from "@/hooks/useSonner";
+import {
+  formatPhoneInput,
+  isValidPhone,
+  PHONE_INPUT_MAX_LENGTH,
+} from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 const CONTENT_PLACEHOLDER =
-  "화장품 신제품 홍보하려고 하는데 강남 성수 지역에 MZ 타켓으로 7-8월 캠페인 생각하고 있어요.\n\n중고차 앱 프로모션 생각합니다. 서울 중요 지역 3곳 2040 대상으로 1달간 영상광고 집행 하려고 합니다.";
+  "• 화장품 신제품 홍보하려고 하는데 강남 성수 지역에 MZ 타켓으로 7-8월 캠페인 생각하고 있어요.\n• 중고차 앱 프로모션 생각합니다.\n• 서울 중요 지역 3곳 2040 대상으로 1달간 영상광고 집행 하려고 합니다.";
 
-const INPUT_CLASS =
-  "rounded-[8px] border border-stroke px-[16px] py-[18px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
+// 입력칸 — 로그인·프로필 창과 같은 ADMIX 입력칸(회색 칸, 올리거나 입력 중이면 흰 바탕,
+// 입력 중엔 1px 보라 테두리, 잘못된 값이면 1px 빨간 테두리 — HeroUI가 바깥에 더 그리는 빨간 외곽선은 꺼
+// 굵어지거나 스크롤 영역 가장자리에서 잘리지 않게 한다). 40px → 곡률 17px.
+const FIELD_CLASS =
+  "w-full border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 transition-colors [box-shadow:none]! max-sm:px-[14px] max-sm:text-[13px] " +
+  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+const INPUT_CLASS = cn(FIELD_CLASS, "h-[40px] rounded-[17px]");
+// 내용 칸은 여러 줄이라 곡률은 카드 칸(12px)과 같게.
+const TEXTAREA_CLASS = cn(
+  FIELD_CLASS,
+  "min-h-[160px] resize-none rounded-[12px] py-[12px] leading-[1.6]",
+);
+const LABEL_CLASS = "text-[13px] font-medium text-black-700 max-sm:text-[12px]";
+const ERROR_CLASS = "text-[12px] text-danger max-sm:text-[11px]";
+
+// 하단 버튼 — 매체 정보·제안서에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
+const ACTION_CLASS =
+  "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\d{11}$/;
 
-type FieldError = string | undefined;
+/** 섹션 제목 — 왼쪽 제목, 오른쪽 작은 안내(있을 때만). */
+function SectionTitle({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-[8px]">
+      <h3 className="text-[14px] font-semibold text-[#18181b]">{title}</h3>
+      {note && <p className="text-[12px] text-[#a1a1aa]">{note}</p>}
+    </div>
+  );
+}
 
+/** 라벨 + 입력칸 + 오류 문구 — HeroUI TextField. */
 function Field({
   label,
   required,
@@ -28,35 +67,37 @@ function Field({
   placeholder,
   error,
   inputMode,
+  maxLength,
 }: {
   label: string;
   required?: boolean;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  error?: FieldError;
-  inputMode?: "text" | "email" | "tel";
+  error?: string;
+  inputMode?: "text" | "email" | "tel" | "numeric";
+  maxLength?: number;
 }) {
   return (
-    <label className="flex flex-col gap-[12px]">
-      <span className="text-base font-medium leading-[24px] text-black">
+    <TextField
+      value={value}
+      onChange={onChange}
+      maxLength={maxLength}
+      isInvalid={!!error}
+      fullWidth
+      className="flex flex-col gap-[6px]"
+    >
+      <Label className={LABEL_CLASS}>
         {label}
-        {required && <span className="text-[#ed2115]">*</span>}
-      </span>
-      <input
-        type="text"
+        {required && <span className="ml-[2px] text-danger">*</span>}
+      </Label>
+      <Input
         inputMode={inputMode}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className={cn(INPUT_CLASS, error && "border-[#ff2c20] bg-[#fff2f1]")}
+        className={INPUT_CLASS}
       />
-      {error && (
-        <p className="text-sm font-medium leading-[20px] text-[#ff2c20]">
-          {error}
-        </p>
-      )}
-    </label>
+      <FieldError className={ERROR_CLASS}>{error}</FieldError>
+    </TextField>
   );
 }
 
@@ -79,13 +120,19 @@ function InquiryForm({
 }) {
   const [name, setName] = useState(() => me?.name ?? "");
   const [email, setEmail] = useState(() => me?.email ?? "");
-  const [phone, setPhone] = useState(() => me?.phone ?? "");
+  // 값은 숫자만 두고, 화면에는 회원 정보·회원가입처럼 '-'를 자동으로 넣어 보여 준다.
+  const [phone, setPhone] = useState(() =>
+    (me?.phone ?? "").replace(/\D/g, ""),
+  );
   const [company, setCompany] = useState(() => me?.company_name ?? "");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [attempted, setAttempted] = useState(false);
   const createInquiry = useCreateInquiry();
   const { success } = useSonner();
+  // 모바일 — 키보드가 올라와 창이 줄어도 누른 칸(제목·내용 등)이 보이게 본문을 스크롤한다.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useKeepFocusedInView(bodyRef);
 
   const validate = (): InquiryErrors => {
     const e: InquiryErrors = {};
@@ -94,8 +141,8 @@ function InquiryForm({
     else if (!EMAIL_PATTERN.test(email.trim()))
       e.email = "이메일 형식이 올바르지 않습니다.";
     if (!phone.trim()) e.phone = "전화번호를 입력해 주세요.";
-    else if (!PHONE_PATTERN.test(phone.trim()))
-      e.phone = "전화번호는 '-' 없이 11자리 숫자로 입력해 주세요.";
+    else if (!isValidPhone(phone))
+      e.phone = "전화번호를 9~11자리 숫자로 입력해 주세요.";
     if (!title.trim()) e.title = "제목을 입력해 주세요.";
     if (!content.trim()) e.content = "내용을 입력해 주세요.";
     return e;
@@ -112,7 +159,7 @@ function InquiryForm({
         content: content.trim(),
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone,
         company: company.trim() || undefined,
       },
       {
@@ -125,22 +172,32 @@ function InquiryForm({
   };
 
   return (
-    <div
-      onClick={(event) => event.stopPropagation()}
-      className="flex max-h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-[12px] bg-white"
-    >
-      <div className="flex items-center justify-between p-[16px] sm:px-[30px] sm:py-[20px]">
-        <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-black">
-          문의하기
-        </p>
-        <button type="button" onClick={onClose} aria-label="닫기" className="text-black">
-          <XIcon className="size-[24px]" />
-        </button>
-      </div>
+    <>
+      <Modal.CloseTrigger
+        aria-label="닫기"
+        className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]"
+      >
+        <CloseMediumIcon className="size-[24px]" />
+      </Modal.CloseTrigger>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-[12px] overflow-y-auto px-[16px] sm:gap-[20px] sm:px-[30px]">
-        <div className="flex flex-col gap-[12px] sm:flex-row sm:items-start sm:gap-[24px]">
-          <div className="flex min-w-0 flex-col gap-[12px] sm:flex-1 sm:gap-[20px]">
+      <Modal.Header className="flex min-h-[28px] shrink-0 flex-col justify-center gap-[4px] p-0 pr-[40px]">
+        <Modal.Heading className="text-[16px] font-semibold text-black">
+          문의하기
+        </Modal.Heading>
+        <p className="text-[12px] leading-[1.5] break-keep text-[#888] max-sm:hidden">
+          광고 집행·매체 관련 궁금한 점을 남겨 주시면 확인 후 연락드릴게요
+        </p>
+      </Modal.Header>
+
+      {/* 모바일에서 키보드가 올라와 창이 줄면 본문만 스크롤되고 제목·하단 버튼은 제자리에 남는다. */}
+      <Modal.Body
+        ref={bodyRef}
+        className="m-0 mt-[20px] flex min-h-0 flex-col gap-[20px] overflow-y-auto p-0 [&>*]:shrink-0"
+      >
+        {/* 보내는 사람 — 로그인 정보로 미리 채워지는 칸들을 2×2로 둔다(모바일은 한 줄씩). */}
+        <section className="flex flex-col gap-[10px]">
+          <SectionTitle title="보내는 사람" />
+          <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2">
             <Field
               label="이름"
               required
@@ -161,11 +218,14 @@ function InquiryForm({
             <Field
               label="전화번호"
               required
-              value={phone}
-              onChange={setPhone}
-              placeholder="'-' 없이 숫자만 입력해 주세요"
+              value={formatPhoneInput(phone)}
+              onChange={(value) =>
+                setPhone(formatPhoneInput(value).replace(/\D/g, ""))
+              }
+              placeholder="010-1234-5678"
               error={errors.phone}
-              inputMode="tel"
+              inputMode="numeric"
+              maxLength={PHONE_INPUT_MAX_LENGTH}
             />
             <Field
               label="회사"
@@ -174,7 +234,15 @@ function InquiryForm({
               placeholder="회사명을 입력해 주세요"
             />
           </div>
-          <div className="flex min-w-0 flex-col gap-[12px] self-stretch sm:flex-1 sm:gap-[16px]">
+        </section>
+
+        {/* 두 섹션 사이 구분선. */}
+        <Separator className="bg-[#ececef]" />
+
+        {/* 문의 내용 — 제목·내용은 창 전체 폭으로. */}
+        <section className="flex flex-col gap-[10px]">
+          <SectionTitle title="문의 내용" />
+          <div className="flex flex-col gap-[12px]">
             <Field
               label="제목"
               required
@@ -183,43 +251,63 @@ function InquiryForm({
               placeholder="제목을 입력해 주세요"
               error={errors.title}
             />
-            <label className="flex min-h-0 flex-1 flex-col gap-[12px]">
-              <textarea
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
+            <TextField
+              value={content}
+              onChange={setContent}
+              isInvalid={!!errors.content}
+              fullWidth
+              className="flex flex-col gap-[6px]"
+            >
+              <Label className={LABEL_CLASS}>
+                내용<span className="ml-[2px] text-danger">*</span>
+              </Label>
+              <TextArea
                 placeholder={CONTENT_PLACEHOLDER}
-                className={cn(
-                  INPUT_CLASS,
-                  "min-h-[200px] flex-1 resize-none",
-                  errors.content && "border-[#ff2c20] bg-[#fff2f1]",
-                )}
+                className={TEXTAREA_CLASS}
               />
-              {errors.content && (
-                <p className="text-sm font-medium leading-[20px] text-[#ff2c20]">
-                  {errors.content}
-                </p>
-              )}
-            </label>
+              <FieldError className={ERROR_CLASS}>{errors.content}</FieldError>
+            </TextField>
           </div>
-        </div>
+        </section>
+      </Modal.Body>
 
-      </div>
-
-      <div className="p-[16px] sm:px-[30px] sm:py-[20px]">
+      <Modal.Footer className="mt-[20px] flex shrink-0 items-center gap-[8px] p-0">
+        {/* 안내(i) 아이콘은 public/icons/info.svg와 같은 도형 — 글자색(currentColor)을 따른다. */}
+        <p className="mr-auto flex items-center gap-[4px] text-[12px] text-[#a1a1aa] max-sm:hidden">
+          <InfoIcon className="size-[13px] shrink-0" />
+          영업일 기준 1~2일 내 답변드려요
+        </p>
+        <Button
+          variant="ghost"
+          onPress={onClose}
+          className={cn(
+            ACTION_CLASS,
+            "w-[96px] bg-[#eee] text-[#18181b] max-sm:flex-1",
+          )}
+        >
+          취소
+        </Button>
         <Button
           variant="primary"
-          size="lg"
-          fullWidth
-          onClick={handleSubmit}
-          disabled={createInquiry.isPending}
+          onPress={handleSubmit}
+          isPending={createInquiry.isPending}
+          className={cn(
+            ACTION_CLASS,
+            "min-w-[120px] bg-primary-500 text-white max-sm:min-w-0 max-sm:flex-[1.3]",
+          )}
         >
           {createInquiry.isPending ? "제출 중..." : "제출하기"}
         </Button>
-      </div>
-    </div>
+      </Modal.Footer>
+    </>
   );
 }
 
+/**
+ * 문의하기 — HeroUI Modal. 모양은 ADMIX 팝업(매체 정보·제안서에 담기)과 같다:
+ * 모서리 20px, 회색 원형 닫기, 16px 제목 + 12px 설명, 회색 입력칸, 오른쪽 아래 취소/제출.
+ * 본문은 "보내는 사람"(2×2)과 "문의 내용"(제목·내용 전체 폭) 두 섹션을 구분선으로 나눈다.
+ */
 export function InquiryModal({
   open,
   onClose,
@@ -229,18 +317,24 @@ export function InquiryModal({
 }) {
   const { data: me } = useMe();
 
-  if (!open) return null;
-
   return (
-    <div
-      role="dialog"
-      aria-modal
-      aria-label="문의하기"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-[20px]"
+    <Modal
+      isOpen={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      {/* me 도착 시 key 변경으로 remount → 프리필 초기값 재계산 */}
-      <InquiryForm key={me?.id ?? "anon"} me={me} onClose={onClose} />
-    </div>
+      <Modal.Backdrop>
+        <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          <Modal.Dialog
+            aria-label="문의하기"
+            className="w-full max-w-[640px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+          >
+            {/* me 도착 시 key 변경으로 remount → 프리필 초기값 재계산 */}
+            <InquiryForm key={me?.id ?? "anon"} me={me} onClose={onClose} />
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 }

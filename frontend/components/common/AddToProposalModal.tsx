@@ -2,21 +2,19 @@
 
 import {
   Button,
+  Checkbox,
+  CheckboxGroup,
+  Chip,
   FieldError,
   Input,
+  Label,
   Modal,
   TextField,
-  ToggleButton,
 } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  CircleCheckIcon,
-  FolderIcon,
-  PackageOpenIcon,
-  PlusIcon,
-  XIcon,
-} from "@/components/icons";
+import { showProposalAddedToast } from "@/components/common/ProposalAddedToast";
+import { CloseMediumIcon, FolderAddIcon } from "@/components/icons";
 import { adSessionsApi } from "@/hooks/adSessions";
 import {
   isMember,
@@ -34,17 +32,26 @@ import { cn } from "@/lib/utils";
 const MAX_NAME_LENGTH = 50;
 
 // 입력칸 44px → 곡률 19px. 새 제안서 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
+// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 제안서 검색창과 같은 방식.
 const FIELD_CLASS =
   "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white data-[invalid=true]:border-danger";
+  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
-// 하단 버튼 40px → 곡률 17px.
+// 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·제안서 담기)과 같은 모양.
 const ACTION_CLASS =
-  "h-[40px] min-w-[76px] rounded-[17px] px-[18px] text-[14px] font-semibold";
+  "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
+const CANCEL_CLASS = "bg-[#eee] text-[#18181b]";
 
 // 새 제안서 입력칸 아래 작은 버튼 32px → 곡률 13px.
 const SMALL_ACTION_CLASS =
-  "h-[32px] min-w-0 rounded-[13px] px-[12px] text-[13px] font-semibold";
+  "h-[32px] min-w-0 rounded-[13px] px-[12px] text-[12px] font-medium";
+
+/**
+ * HeroUI 체크박스를 기본 모습(브랜드 보라 바탕 + 흰 체크, 곡률 6px)으로 되돌리는 범위 변수.
+ * globals.css가 shadcn용으로 accent·radius를 바꿔 두어서다(회원가입 약관의 HEROUI_CHECKBOX_SCOPE와 같다).
+ */
+const HEROUI_CHECKBOX_SCOPE =
+  "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)] [--app-radius:0.46875rem]";
 
 type AddToProposalModalProps = {
   mediaId: string;
@@ -100,12 +107,6 @@ export function AddToProposalModal({
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
-    );
-  };
-
   // 이미 해당 매체를 담고 있는 제안서는 중복 추가 불가
   const hasMedia = (proposal: { media_ids: string[] }) =>
     proposal.media_ids.includes(mediaId);
@@ -146,10 +147,15 @@ export function AddToProposalModal({
     setSubmitting(true);
     try {
       const plans = planNo != null ? { [mediaId]: planNo } : undefined;
-      await Promise.all(
+      const added = await Promise.all(
         selected.map((id) =>
           addItems.mutateAsync({ id, mediaIds: [mediaId], plans }),
         ),
+      );
+      // 금액 합계·매체 이름은 목록 응답에만 있어 담은 뒤 목록을 다시 받아 토스트에 쓴다.
+      const { data: fresh } = await refetch();
+      showProposalAddedToast(
+        added.map((p) => fresh?.find((f) => f.id === p.id) ?? p),
       );
       onClose();
     } finally {
@@ -165,7 +171,7 @@ export function AddToProposalModal({
 
   return (
     <>
-      {/* 로그인·새 제안서 만들기 창과 같은 흰 창(모서리 24px). 매체 상세 모달 위에 겹쳐 뜬다. */}
+      {/* 매체 정보 팝업(시안 02. 매체 상세)과 같은 창 — 모서리 20px, 회색 원형 닫기, 16px 제목. 그 위에 겹쳐 뜬다. */}
       <Modal
         isOpen
         onOpenChange={(next) => {
@@ -176,27 +182,30 @@ export function AddToProposalModal({
           <Modal.Container placement="center" className="px-[16px] sm:px-0">
             <Modal.Dialog
               aria-label="제안서에 담기"
-              className="w-full max-w-[440px] gap-0 rounded-[24px] bg-white px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
+              className="w-full max-w-[440px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
             >
-              {/* 닫기 32px → 곡률 13px. */}
               <Modal.CloseTrigger
                 aria-label="닫기"
-                className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
+                className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]"
               >
-                <XIcon className="size-[20px]" />
+                <CloseMediumIcon className="size-[24px]" />
               </Modal.CloseTrigger>
 
-              <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
-                <Modal.Heading className="text-[18px] font-bold text-black-900">
+              <Modal.Header className="flex min-h-[28px] shrink-0 flex-col justify-center gap-[4px] p-0 pr-[40px]">
+                <Modal.Heading className="text-[16px] font-semibold text-black">
                   제안서에 담기
                 </Modal.Heading>
-                <p className="text-[13px] leading-[1.5] text-black-500">
-                  이 매체를 담을 제안서를 골라 주세요. 여러 개를 함께 고를 수
-                  있어요.
+                <p className="text-[12px] leading-[1.5] text-[#888]">
+                  {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
+                  이 매체를 담을 제안서를 골라 주세요
+                  <span className="hidden sm:inline">. </span>
+                  <br className="sm:hidden" />
+                  여러 개를 함께 고를 수 있어요
                 </p>
               </Modal.Header>
 
-              <Modal.Body className="m-0 mt-[20px] flex flex-col gap-[12px] overflow-visible p-0">
+              {/* 모바일에서 키보드가 올라와 창 높이가 줄면 본문만 스크롤되고 제목·하단 버튼은 제자리에 남는다. */}
+              <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col gap-[10px] overflow-x-hidden overflow-y-auto p-0 [&>*]:shrink-0">
                 {creating ? (
                   <form
                     noValidate
@@ -204,7 +213,7 @@ export function AddToProposalModal({
                       event.preventDefault();
                       handleCreate();
                     }}
-                    className="flex flex-col gap-[8px] rounded-[20px] border border-black-200 bg-black-50 p-[12px]"
+                    className="flex flex-col gap-[8px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]"
                   >
                     <TextField
                       value={newName}
@@ -235,9 +244,9 @@ export function AddToProposalModal({
                     <div className="flex justify-end gap-[6px]">
                       <Button
                         type="button"
-                        variant="tertiary"
+                        variant="ghost"
                         onPress={cancelCreate}
-                        className={SMALL_ACTION_CLASS}
+                        className={cn(SMALL_ACTION_CLASS, CANCEL_CLASS)}
                       >
                         취소
                       </Button>
@@ -248,7 +257,7 @@ export function AddToProposalModal({
                         isPending={createProposal.isPending}
                         className={cn(
                           SMALL_ACTION_CLASS,
-                          "bg-primary text-white",
+                          "bg-primary-500 text-white",
                         )}
                       >
                         만들기
@@ -256,95 +265,90 @@ export function AddToProposalModal({
                     </div>
                   </form>
                 ) : (
-                  // 제안서 목록 줄과 같은 높이(48px → 곡률 20px), 점선 테두리로 "추가" 자리임을 보인다.
+                  // 제안서 목록 줄과 같은 높이(44px), 점선 테두리로 "추가" 자리임을 보인다.
                   <Button
                     variant="ghost"
                     onPress={() => setCreating(true)}
-                    className="h-[48px] w-full gap-[6px] rounded-[20px] border border-dashed border-primary-300 bg-primary-50 text-[14px] font-semibold text-primary data-[hovered=true]:bg-primary-100"
+                    className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-[13px] font-medium text-[#52525b] data-[hovered=true]:bg-[#fafafa]"
                   >
-                    <PlusIcon className="size-[18px] shrink-0" />새 제안서
-                    만들기
+                    <FolderAddIcon className="size-[16px] shrink-0" />새
+                    제안서 만들기
                   </Button>
                 )}
 
-                <div className="flex items-center justify-between px-[4px] pt-[4px]">
-                  <p className="text-[13px] font-semibold text-black-700">
+                <div className="flex items-center justify-between px-[2px] pt-[4px]">
+                  <p className="text-[13px] font-semibold text-[#18181b]">
                     내 제안서
                     {proposals.length > 0 && (
-                      <span className="ml-[4px] text-black-400">
+                      <span className="ml-[4px] text-[#a1a1aa]">
                         {proposals.length}
                       </span>
                     )}
                   </p>
-                  {selected.length > 0 && (
-                    <p className="text-[12px] font-medium text-primary">
-                      {selected.length}개 선택
-                    </p>
-                  )}
                 </div>
 
                 {proposals.length === 0 ? (
-                  <div className="flex flex-col items-center gap-[6px] rounded-[20px] bg-black-50 py-[32px]">
-                    <PackageOpenIcon className="size-[40px] text-black-300" />
-                    <p className="text-[14px] font-semibold text-black-700">
+                  <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[28px]">
+                    <p className="text-[14px] font-semibold text-[#18181b]">
                       아직 만든 제안서가 없어요
                     </p>
-                    <p className="text-[12px] text-black-500">
+                    <p className="text-[12px] text-[#888]">
                       새 제안서를 만들어 매체를 담아 보세요.
                     </p>
                   </div>
                 ) : (
-                  <div className="-mx-[4px] flex max-h-[264px] flex-col gap-[6px] overflow-y-auto px-[4px] [scrollbar-width:thin]">
-                    {proposals.map((proposal) => {
-                      const added = hasMedia(proposal);
-                      const checked = selected.includes(proposal.id);
-                      return (
-                        // 줄 48px → 곡률 20px. 고르면 보라 테두리·옅은 보라 바탕 + 체크.
-                        <ToggleButton
-                          key={proposal.id}
-                          variant="ghost"
-                          isSelected={checked}
-                          isDisabled={added}
-                          onChange={() => toggle(proposal.id)}
-                          className={cn(
-                            "h-[48px] w-full shrink-0 justify-start gap-[10px] rounded-[20px] border px-[16px] text-left transition-colors",
-                            checked
-                              ? "border-primary bg-primary-50 data-[hovered=true]:bg-primary-50 data-[selected=true]:bg-primary-50"
-                              : "border-black-200 bg-white data-[hovered=true]:bg-black-50",
-                            added && "opacity-60",
-                          )}
-                        >
-                          <FolderIcon
-                            className={cn(
-                              "size-[18px] shrink-0",
-                              checked ? "text-primary" : "text-black-400",
-                            )}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-black-900">
+                  // HeroUI CheckboxGroup — 줄 전체가 체크박스라 어디를 눌러도 고르고, 키보드(Tab·Space)로도 고른다.
+                  // 이미 담긴 제안서는 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
+                  <CheckboxGroup
+                    aria-label="담을 제안서"
+                    value={selected}
+                    onChange={setSelected}
+                    className={cn(
+                      "flex max-h-[264px] shrink-0 flex-col gap-[6px] overflow-y-auto [scrollbar-width:thin]",
+                      HEROUI_CHECKBOX_SCOPE,
+                    )}
+                  >
+                    {proposals.map((proposal) => (
+                      <Checkbox
+                        key={proposal.id}
+                        value={proposal.id}
+                        isDisabled={hasMedia(proposal)}
+                        // 비활성일 때 HeroUI는 줄 전체를 흐리게 해 "이미 담김" 칩까지 흐려진다.
+                        // 줄은 그대로 두고 체크박스·제목만 흐리게 한다(아래 in-data-[disabled=true]).
+                        className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
+                      >
+                        {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
+                        <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[14px] transition-colors data-[hovered=true]:bg-[#fafafa] in-data-[selected=true]:bg-[#f7f7f8]">
+                          {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
+                          <Checkbox.Control className="border border-black-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                          <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b] in-data-[disabled=true]:text-[#a1a1aa]">
                             {proposal.title}
-                          </span>
-                          {added ? (
-                            <span className="shrink-0 rounded-[8px] bg-black-100 px-[8px] py-[2px] text-[11px] font-medium text-black-500">
+                          </Label>
+                          {hasMedia(proposal) && (
+                            // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
+                            <Chip className="shrink-0 rounded-[10px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] font-semibold text-[#3f3f46]">
                               이미 담김
-                            </span>
-                          ) : checked ? (
-                            <CircleCheckIcon className="size-[20px] shrink-0 text-primary" />
-                          ) : (
-                            <span className="size-[18px] shrink-0 rounded-full border-[1.5px] border-black-300" />
+                            </Chip>
                           )}
-                        </ToggleButton>
-                      );
-                    })}
-                  </div>
+                        </Checkbox.Content>
+                      </Checkbox>
+                    ))}
+                  </CheckboxGroup>
                 )}
               </Modal.Body>
 
-              <Modal.Footer className="mt-[20px] flex justify-end gap-[8px] p-0">
+              <Modal.Footer className="mt-[16px] flex shrink-0 justify-end gap-[8px] p-0">
                 <Button
                   type="button"
-                  variant="tertiary"
+                  variant="ghost"
                   onPress={onClose}
-                  className={ACTION_CLASS}
+                  className={cn(
+                    ACTION_CLASS,
+                    CANCEL_CLASS,
+                    "w-[96px] max-sm:flex-1",
+                  )}
                 >
                   취소
                 </Button>
@@ -353,13 +357,19 @@ export function AddToProposalModal({
                   onPress={() => void handleAdd()}
                   isDisabled={selected.length === 0}
                   isPending={submitting}
-                  className={cn(ACTION_CLASS, "bg-primary text-white")}
+                  className={cn(
+                    ACTION_CLASS,
+                    "min-w-[150px] gap-[6px] bg-primary-500 text-white max-sm:min-w-0 max-sm:flex-[1.3]",
+                  )}
                 >
+                  {!submitting && (
+                    <FolderAddIcon className="my-0 size-[16px] shrink-0 text-[#fafafa]" />
+                  )}
                   {submitting
                     ? "담는 중..."
                     : selected.length > 1
                       ? `${selected.length}개 제안서에 담기`
-                      : "담기"}
+                      : "제안서에 담기"}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>

@@ -97,4 +97,7 @@ export const inquiriesClientApi = {
     api.get<MyInquiryDetail>(`/inquiries/${id}`).then((r) => r.data),
   create: (payload: InquiryCreatePayload) =>
     api.post<MyInquiryDetail>("/inquiries", payload).then((r) => r.data),
+  /** 답변 대기 중인 본인 문의만 삭제된다(답변 완료는 409 already_answered). */
+  myDelete: (id: string) =>
+    api.delete(`/inquiries/${id}`).then(() => undefined),
 };

@@ -10,7 +10,7 @@ import { useRequestPasswordReset } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
 const inputClass =
-  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder";
+  "w-full rounded-[8px] border px-[16px] py-[18px] text-[14px] font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-focus";
 
 export default function FindAccountPage() {
   const requestMutation = useRequestPasswordReset();
@@ -90,7 +90,7 @@ export default function FindAccountPage() {
                   className={cn(
                     inputClass,
                     errorMsg
-                      ? "border-[#ff2c20] bg-[#fff2f1]"
+                      ? "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]"
                       : "border-stroke",
                   )}
                 />

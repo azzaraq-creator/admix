@@ -41,7 +41,10 @@ export function NewChatButton() {
           <AlertDialog.Container placement="center" size="sm">
             <AlertDialog.Dialog className="rounded-[24px]">
               <AlertDialog.Header>
-                <AlertDialog.Icon status="danger" />
+                {/* 기본 느낌표 대신 "새 대화" 버튼과 같은 초기화 아이콘. 빨간 칸(danger)은 그대로. */}
+                <AlertDialog.Icon status="danger">
+                  <RotateCwIcon className="size-[20px]" />
+                </AlertDialog.Icon>
                 <AlertDialog.Heading>새 대화를 시작할까요?</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>

@@ -9,9 +9,10 @@ import { XIcon } from "@/components/icons";
 const MAX_NAME_LENGTH = 50;
 
 // 입력칸 44px → 곡률 19px. 로그인 창처럼 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
+// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다.
 const FIELD_CLASS =
   "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white data-[invalid=true]:border-danger";
+  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 버튼 40px → 곡률 17px. 오른쪽 아래에 내용 폭만큼 나란히 둔다.
 const ACTION_CLASS =

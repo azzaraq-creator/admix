@@ -17,7 +17,8 @@ export default async function InquiryDetailRoute({
 
   return (
     <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[20px] pb-[40px] pt-[24px] sm:pt-[80px]">
+      {/* 문의하기 목록과 같은 여백. 글 읽기 좋은 폭(800px)까지, 화면 가운데에 둔다. */}
+      <div className="mx-auto flex w-full max-w-[800px] flex-col px-[16px] py-[20px] sm:px-[20px]">
         <InquiryDetailView id={id} />
       </div>
     </main>

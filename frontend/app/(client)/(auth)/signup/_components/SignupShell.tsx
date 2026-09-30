@@ -19,7 +19,11 @@ const STEPS = ["유형", "방식", "이메일", "정보", "약관동의"] as con
  */
 function Stepper({ current }: { current: number }) {
   return (
-    <ol aria-label="회원가입 단계" className="flex w-full items-center gap-[6px] overflow-x-auto">
+    <ol
+      aria-label="회원가입 단계"
+      // 막대가 남는 폭을 나눠 가져 부모 너비에 딱 맞춘다. 모바일은 라벨을 점 아래로 내려 폭을 줄인다.
+      className="flex w-full items-center gap-[6px] max-sm:items-start max-sm:gap-[4px]"
+    >
       {STEPS.map((label, index) => {
         const done = index < current;
         const active = index === current;
@@ -29,14 +33,15 @@ function Stepper({ current }: { current: number }) {
               <li
                 aria-hidden
                 className={cn(
-                  "h-[2px] w-[32px] shrink-0",
+                  // 모바일 막대는 점(24px)의 세로 가운데(11px)에 둔다.
+                  "h-[2px] min-w-[8px] flex-1 max-sm:mt-[11px]",
                   index <= current ? "bg-primary-500" : "bg-black-200",
                 )}
               />
             )}
             <li
               aria-current={active ? "step" : undefined}
-              className="flex shrink-0 items-center gap-[6px]"
+              className="flex shrink-0 items-center gap-[6px] max-sm:flex-col max-sm:gap-[4px]"
             >
               {/* 단계 점 24px → 곡률 9px. */}
               <span
@@ -53,7 +58,9 @@ function Stepper({ current }: { current: number }) {
               <span
                 className={cn(
                   "text-[11px] whitespace-nowrap",
-                  done || active ? "font-semibold text-black-900" : "text-black-400",
+                  done || active
+                    ? "font-semibold text-black-900"
+                    : "text-black-400",
                 )}
               >
                 {label}
@@ -81,22 +88,30 @@ export function SignupShell({
 }) {
   return (
     <div className="flex min-h-dvh w-full flex-col bg-black-50">
-      <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-black-200 bg-white px-[16px] sm:px-[32px]">
-        <Link href="/" aria-label="홈">
-          <LogoFullDark className="h-[30px]" />
+      {/* 모바일은 앱 상단 바(48px)와 같은 높이로 줄이고 로고도 작게 둔다. */}
+      <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-black-200 bg-white px-[16px] sm:px-[32px]">
+        {/* 링크가 글줄(inline)이면 아래 글자 여백만큼 로고가 위로 뜬다 → flex로 세로 가운데. */}
+        <Link href="/" aria-label="홈" className="max-sm:flex">
+          <LogoFullDark className="h-[30px] max-sm:h-[22px]" />
         </Link>
         {!hideLoginLink && (
           <p className="flex items-center gap-[12px] text-[13px] whitespace-nowrap">
-            <span className="hidden text-black-500 sm:inline">이미 계정이 있으신가요?</span>
-            <Link href={LOGIN_HREF} className="font-bold text-primary-500 underline">
+            <span className="hidden text-black-500 sm:inline">
+              이미 계정이 있으신가요?
+            </span>
+            <Link
+              href={LOGIN_HREF}
+              className="font-bold text-primary-500 underline"
+            >
               로그인
             </Link>
           </p>
         )}
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-[16px] py-[40px]">
-        <div className="flex w-full max-w-[480px] flex-col gap-[24px]">
+      {/* 모바일은 한 화면에 들어오도록 위아래 여백·간격을 줄이고 위에서부터 채운다. */}
+      <main className="flex flex-1 flex-col items-center justify-center px-[16px] py-[40px] max-sm:justify-start max-sm:py-[16px]">
+        <div className="flex w-full max-w-[480px] flex-col gap-[24px] max-sm:flex-1 max-sm:gap-[14px]">
           <Stepper current={step} />
           {onBack && (
             <Button

@@ -153,7 +153,7 @@ const FOOTER_BUTTON =
 const FIELD_INPUT =
   "h-[40px] w-full rounded-[17px] border px-[16px] text-[14px] text-black-900 transition-colors [box-shadow:none]! placeholder:text-black-400 max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px]";
 const FIELD_READONLY = "cursor-default border-transparent bg-black-100";
-const FIELD_EDITING = "border-primary-300 bg-white";
+const FIELD_EDITING = "border-primary-300 bg-white focus:border-focus";
 
 /** 작은 배지 — HeroUI Chip(soft). */
 function Badge({

@@ -24,7 +24,8 @@ function formatKrw(value: number | null): string {
 function PriceCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="flex flex-col gap-[2px]">
-      <span className="text-[11px] font-medium text-black-400 max-sm:text-[12px]">
+      {/* 이름표(광고비·제작비)는 모바일에서 13px로 조금 크게. */}
+      <span className="text-[11px] font-medium text-black-400 max-sm:text-[13px]">
         {label}
       </span>
       {/* 모바일은 매체명과 같은 14px. */}
@@ -253,7 +254,12 @@ export function MarkerMediaPopup({
         <span className="text-[13px] max-sm:text-[12px] font-medium text-black-500">
           {rows.length > 1 ? `매체 ${rows.length}개` : ""}
         </span>
-        <SimpleViewToggle simple={simple} onChange={onSimpleChange} />
+        {/* 모바일은 왼쪽 "매체 N개"와 같은 12px로 작게. */}
+        <SimpleViewToggle
+          simple={simple}
+          onChange={onSimpleChange}
+          labelClassName="max-sm:text-[12px] max-sm:leading-[16px]"
+        />
       </div>
       {/* 겹친 핀처럼 매체가 여러 개면 위아래 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
       <ScrollShadow

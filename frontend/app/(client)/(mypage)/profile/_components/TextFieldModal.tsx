@@ -97,7 +97,7 @@ export function TextFieldModal({
           placeholder={placeholder}
           className={cn(
             MODAL_INPUT_CLASS,
-            error && "border-[#ff2c20] bg-[#fff2f1]",
+            error && "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]",
           )}
         />
         {error && (

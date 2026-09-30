@@ -1,6 +1,7 @@
 """제안 관리(admin) 응답 스키마 + 클라이언트 장바구니(플래닝) 스키마."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -35,6 +36,8 @@ class ProposalPreviewItem(BaseModel):
     # 선택한 상품(plan)의 광고비·제작비(1회분, 수량 미적용).
     advertisement_fee: Optional[int] = None
     production_fee: Optional[int] = None
+    # 제안서에 담긴 시각 — "제안서 담기 완료" 토스트가 새로 담긴 순으로 보여 준다.
+    created_at: Optional[datetime] = None
 
 
 class ProposalSummary(BaseModel):

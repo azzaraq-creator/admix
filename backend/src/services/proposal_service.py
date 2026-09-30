@@ -830,6 +830,7 @@ def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
             thumbnail_url=it.thumbnail_url,
             advertisement_fee=ad_fee,
             production_fee=plan.production_fee if plan else None,
+            created_at=it.created_at,
             quantity=it.quantity or 1,
         )
 

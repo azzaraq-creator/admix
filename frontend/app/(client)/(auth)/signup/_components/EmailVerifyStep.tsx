@@ -39,6 +39,9 @@ function formatRemaining(ms: number) {
 }
 
 /** 3단계 — 시안(00. 회원가입 - 이메일 인증). */
+// 모바일은 전송·확인 버튼을 좁혀(106 → 64px) 인증번호 칸이 폭을 더 쓰게 한다.
+const SIDE_BUTTON_MOBILE = "max-sm:w-[64px] max-sm:text-[12px]";
+
 export function EmailVerifyStep({
   initialEmail = "",
   verifiedEmail,
@@ -125,13 +128,22 @@ export function EmailVerifyStep({
     }
   };
 
-  const sendLabel = sendPending
-    ? "전송 중…"
-    : !sent
-      ? "인증번호 전송"
-      : cooldownLeft > 0
-        ? `재전송 (${Math.ceil(cooldownLeft / 1000)}초)`
-        : "재전송";
+  // 모바일은 버튼이 좁아 문구를 줄인다("인증번호 전송" → "전송", "재전송 (30초)" → "30초").
+  const sendLabel = sendPending ? (
+    "전송 중…"
+  ) : !sent ? (
+    // 버튼 안 글자는 한 덩어리(span)로 둬야 버튼의 요소 간격(gap)이 글자 사이에 끼지 않는다.
+    <span>
+      <span className="max-sm:hidden">인증번호 </span>전송
+    </span>
+  ) : cooldownLeft > 0 ? (
+    <span>
+      <span className="max-sm:hidden">재전송 (</span>
+      {Math.ceil(cooldownLeft / 1000)}초<span className="max-sm:hidden">)</span>
+    </span>
+  ) : (
+    "재전송"
+  );
   const sendDisabled =
     sendPending || verified || (sent && (cooldownLeft > 0 || resendsLeft <= 0));
 
@@ -157,12 +169,16 @@ export function EmailVerifyStep({
         className="gap-[8px]"
       >
         <FieldLabel>이메일</FieldLabel>
-        <div className="flex w-full gap-[12px]">
+        <div className="flex w-full gap-[12px] max-sm:gap-[8px]">
           <Input
             placeholder="이메일을 입력해 주세요."
             className={INPUT_CLASS}
           />
-          <SideButton onPress={handleSend} isDisabled={sendDisabled}>
+          <SideButton
+            onPress={handleSend}
+            isDisabled={sendDisabled}
+            className={SIDE_BUTTON_MOBILE}
+          >
             {sendLabel}
           </SideButton>
         </div>
@@ -178,7 +194,7 @@ export function EmailVerifyStep({
 
       <div className="flex w-full flex-col gap-[8px]">
         <FieldLabel>인증번호</FieldLabel>
-        <div className="flex w-full gap-[12px]">
+        <div className="flex w-full gap-[12px] max-sm:gap-[8px]">
           {/* HeroUI InputOTP — 숫자 6칸. 칸 높이는 옆 버튼과 같은 44px(곡률 19px). */}
           <InputOTP
             aria-label="인증번호"
@@ -196,7 +212,7 @@ export function EmailVerifyStep({
             // 전송 전(비활성)에도 칸이 흐려지지 않게 HeroUI 기본 반투명을 끈다.
             className="min-w-0 flex-1 data-[disabled=true]:opacity-100"
           >
-            <InputOTP.Group className="w-full gap-[6px]">
+            <InputOTP.Group className="w-full gap-[6px] max-sm:gap-[4px]">
               {Array.from({ length: CODE_LENGTH }, (_, index) => (
                 <InputOTP.Slot
                   key={index}
@@ -205,6 +221,8 @@ export function EmailVerifyStep({
                     OTP_SLOT_CLASS,
                     "h-[44px] text-[16px]",
                     RADIUS.h44,
+                    // 모바일은 칸 폭이 좁아(27~36px) 44px 곡률이면 알약처럼 보여 곡률을 줄인다.
+                    "max-sm:rounded-[12px]",
                   )}
                 />
               ))}
@@ -212,13 +230,15 @@ export function EmailVerifyStep({
           </InputOTP>
           <SideButton
             tone={verified ? "success" : "soft"}
+            className={SIDE_BUTTON_MOBILE}
             onPress={handleConfirm}
             isDisabled={!sent || verified || expired || confirmPending}
           >
             {verified ? (
               <>
                 <MatchCheckIcon className="size-[14px]" />
-                인증 완료
+                {/* 모바일은 체크 아이콘만. */}
+                <span className="max-sm:hidden">인증 완료</span>
               </>
             ) : confirmPending ? (
               "확인 중…"
@@ -241,8 +261,9 @@ export function EmailVerifyStep({
           sent && (
             <div className="flex w-full items-center justify-between gap-[8px] text-[11px]">
               <FieldMessage>
-                인증번호가 발송되었습니다. 메일이 오지 않으면 스팸함을
-                확인해주세요.
+                인증번호가 발송되었습니다.
+                <br />
+                메일이 오지 않으면 스팸함을 확인해주세요.
               </FieldMessage>
               <span className="shrink-0 font-semibold text-[#333]">
                 {formatRemaining(remaining)}

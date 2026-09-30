@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -38,6 +39,7 @@ import {
   type ProposalItem,
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useModalConfirm } from "@/hooks/useModalConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -104,11 +106,15 @@ export function ProposalDetailView({ id }: { id: string }) {
 function ProposalEditorView({ id }: { id: string }) {
   const router = useRouter();
   const { confirm, confirmDialog } = useConfirm();
+  // 제안서 삭제 확인은 HeroUI Modal 확인창(ADMIX 팝업 모양).
+  const { confirm: confirmDelete, confirmDialog: deleteDialog } =
+    useModalConfirm();
   const { success, error } = useSonner();
 
   const { data: proposal } = useProposalDetail(id);
   const renameMutation = useRenameProposal();
   const deleteMutation = useDeleteProposal();
+  const [deleting, setDeleting] = useState(false);
   const submitMutation = useSubmitProposal();
   const cancelSubmitMutation = useCancelSubmitProposal();
   const reorderMutation = useReorderProposal();
@@ -509,25 +515,41 @@ function ProposalEditorView({ id }: { id: string }) {
   };
 
   const handleDelete = async () => {
-    const ok = await confirm({
+    const ok = await confirmDelete({
       title: "제안서를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-black">{title}</span>가 내
+          <span className="font-semibold text-[#18181b]">{title}</span>가 내
           제안서에서 영구히 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
       destructive: true,
     });
-    if (ok) {
+    if (!ok) return;
+    // 목록으로 넘어갈 때까지 화면을 덮는 스피너를 띄운다(이동 중 상세가 다시 보이지 않게, 실패하면 거둔다).
+    setDeleting(true);
+    try {
       await deleteMutation.mutateAsync(id);
+      // 알림은 화면 전체(Toast.Provider)에 떠서 목록으로 넘어가도 이어서 보인다.
+      success("제안서를 삭제했어요", title);
       router.push("/proposals");
+    } catch {
+      setDeleting(false);
+      error("제안서를 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
     }
   };
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="relative flex min-h-0 flex-1">
+      {deleting && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-white/80">
+          <Spinner />
+          <p className="text-[13px] text-[#8c8c94]">
+            제안서를 삭제하는 중이에요
+          </p>
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-[24px] border-b border-[#e8e8e8] bg-white px-[24px] py-[30px]">
           <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
@@ -750,6 +772,7 @@ function ProposalEditorView({ id }: { id: string }) {
         />
       )}
       {confirmDialog}
+      {deleteDialog}
 
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
         <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">

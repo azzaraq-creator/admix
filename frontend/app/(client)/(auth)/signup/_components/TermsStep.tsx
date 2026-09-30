@@ -63,7 +63,7 @@ const NO_GROUP_MARGIN = "mt-0";
  */
 const ALIGN_WITH_ALL = "px-[17px]";
 
-/** 체크 표시(Control)는 HeroUI 기본 스타일 그대로 쓰고, 옆 글자 배치만 잡는다. */
+/** 체크 표시(Control)는 HeroUI 기본 스타일에 테두리만 진하게 하고, 옆 글자 배치를 잡는다. */
 function TermCheckboxBody({
   align = "center",
   children,
@@ -78,7 +78,10 @@ function TermCheckboxBody({
         align === "start" ? "items-start" : "items-center",
       )}
     >
-      <Checkbox.Control>
+      {/* HeroUI 기본 체크박스 그대로 두고, 흰 바탕에서 잘 보이게 옅은 회색 테두리(1px)만 더한다.
+          (기본 테두리는 두께 0이라 그림자로만 구분된다.) 켜짐·부분 선택일 땐 테두리도 채움색으로, 켜짐은 바탕까지 채워
+          테두리 안쪽 모서리에 흰 틈이 보이지 않게 한다. */}
+      <Checkbox.Control className="border border-black-300 in-data-[indeterminate=true]:border-accent in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
         <Checkbox.Indicator />
       </Checkbox.Control>
       {children}
@@ -216,7 +219,7 @@ export function TermsStep({
                 </Label>
               </span>
               <span className="text-[12px] text-black-400">
-                신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있습니다.
+                신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있어요
               </span>
             </span>
           </TermCheckboxBody>
@@ -229,7 +232,7 @@ export function TermsStep({
 
       <PrimaryAction
         label="가입 완료"
-        note="필수 약관에 모두 동의해야 가입을 완료할 수 있습니다."
+        note="필수 약관에 모두 동의해야 가입을 완료할 수 있어요"
         disabled={!requiredDone}
         pending={pending}
         onPress={() => onSubmit(marketing)}

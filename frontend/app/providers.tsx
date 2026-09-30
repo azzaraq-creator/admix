@@ -5,6 +5,8 @@ import { Toast } from "@heroui/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 
+import { ProposalAddedToastProvider } from "@/components/common/ProposalAddedToast";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
@@ -29,6 +31,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {children}
       {/* 앱 알림(useSonner)은 HeroUI Toast — 위 가운데. */}
       <Toast.Provider placement="top" />
+      {/* 제안서 담기 완료 — 왼쪽 아래 흰 카드. */}
+      <ProposalAddedToastProvider />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

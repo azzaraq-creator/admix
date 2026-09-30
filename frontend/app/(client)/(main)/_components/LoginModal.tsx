@@ -65,11 +65,11 @@ function EyeIcon({ off, ...props }: SVGProps<SVGSVGElement> & { off?: boolean })
 const CONTROL_RADIUS = "rounded-[15px]";
 
 // 입력칸 — 매체 찾기 검색바와 같은 회색 필(black-100 바탕·black-200 테두리)로 두고,
-// 마우스를 올리거나 입력 중이면 흰 바탕이 된다(검색바처럼 포커스 링은 없다). 잘못된 입력이면 테두리만 빨갛게.
+// 마우스를 올리거나 입력 중이면 흰 바탕이 된다. 포커스 링 대신 1px 테두리가 보라색으로 바뀌고, 잘못된 입력이면 테두리만 빨갛게.
 const FIELD_CLASS =
   `${CONTROL_RADIUS} border border-black-200 bg-black-100 text-[14px] text-black-900 [box-shadow:none]! transition-colors ` +
   "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white " +
-  "data-[focus-within=true]:bg-white focus-within:bg-white data-[invalid=true]:border-danger";
+  "data-[focus-within=true]:bg-white focus-within:border-focus focus-within:bg-white focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 간편 로그인 — 각 소셜 브랜드 색(카카오 노랑·네이버 초록). 크기는 HeroUI 기본 버튼(md) 그대로.
 const SNS_BUTTON_CLASS = `gap-[6px] text-[14px] font-semibold ${CONTROL_RADIUS}`;

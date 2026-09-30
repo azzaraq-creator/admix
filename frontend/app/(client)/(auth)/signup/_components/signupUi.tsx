@@ -46,7 +46,9 @@ export function SignupCard({
   return (
     <Card
       className={cn(
-        "w-full gap-[16px] rounded-[20px] border border-black-200 bg-white p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] sm:p-[32px]",
+        "w-full gap-[16px] rounded-[20px] border border-black-200 bg-white p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] max-sm:gap-[12px] max-sm:p-[16px] sm:p-[32px]",
+        // 모바일은 카드가 남는 세로 공간을 채운다. 안쪽 폭(cqw)으로 크기를 잡는 항목을 위해 컨테이너로 둔다.
+        "max-sm:@container max-sm:flex-1",
         className,
       )}
     >
@@ -65,11 +67,16 @@ export function CardHeading({
   center?: boolean;
 }) {
   return (
-    <Card.Header className={cn("w-full gap-[8px]", center && "text-center")}>
-      <Card.Title className="text-[24px] leading-normal font-bold text-black-900 sm:text-[28px]">
+    <Card.Header
+      className={cn(
+        "w-full gap-[8px] max-sm:gap-[4px]",
+        center && "text-center",
+      )}
+    >
+      <Card.Title className="text-[24px] leading-normal font-bold text-black-900 max-sm:text-[19px] sm:text-[28px]">
         {title}
       </Card.Title>
-      <Card.Description className="text-[14px] leading-[1.5] text-black-500">
+      <Card.Description className="text-[14px] leading-[1.5] text-black-500 max-sm:text-[12px]">
         {description}
       </Card.Description>
     </Card.Header>
@@ -157,7 +164,8 @@ export function PrimaryAction({
   type?: "button" | "submit";
 }) {
   return (
-    <div className="flex w-full flex-col gap-[10px] pt-[4px]">
+    // 모바일은 카드가 화면 아래까지 늘어나므로 버튼을 카드 맨 아래에 붙인다.
+    <div className="flex w-full flex-col gap-[10px] pt-[4px] max-sm:mt-auto max-sm:gap-[8px] max-sm:pt-0">
       <Button
         type={type}
         variant="primary"
@@ -168,12 +176,14 @@ export function PrimaryAction({
         className={cn(
           "h-[52px] bg-primary-500 text-[15px] font-bold text-white shadow-[0px_12px_14px_rgba(163,59,209,0.2)] data-[disabled=true]:opacity-40 data-[disabled=true]:shadow-none",
           RADIUS.h52,
+          // 모바일은 44px(곡률 19px).
+          "max-sm:h-[44px] max-sm:rounded-[19px] max-sm:text-[14px]",
         )}
       >
         {pending ? "처리 중…" : label}
       </Button>
       {note && (
-        <Description className="text-center text-[11px] text-[#a1a1aa]">
+        <Description className="text-center text-[11px] text-[#a1a1aa] max-sm:break-keep">
           {note}
         </Description>
       )}

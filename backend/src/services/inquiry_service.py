@@ -202,6 +202,29 @@ def get_my_inquiry(
     )
 
 
+def delete_my_inquiry(
+    db: Session, member_id: uuid.UUID, inquiry_id: uuid.UUID
+) -> None:
+    """본인 소유 문의 삭제 — 답변 대기(pending)일 때만. 타인/미존재는 404, 이미 답변됐으면 409."""
+    q = (
+        db.query(Inquiry)
+        .filter(Inquiry.id == inquiry_id, Inquiry.member_id == member_id)
+        .first()
+    )
+    if q is None:
+        raise HTTPException(status_code=404, detail="문의를 찾을 수 없습니다.")
+    if q.status != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "already_answered",
+                "message": "답변이 등록된 문의는 삭제할 수 없습니다.",
+            },
+        )
+    db.delete(q)
+    db.commit()
+
+
 def answer_inquiry(
     db: Session,
     inquiry_id: uuid.UUID,

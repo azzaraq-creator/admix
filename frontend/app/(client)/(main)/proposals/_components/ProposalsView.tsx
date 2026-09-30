@@ -5,7 +5,6 @@ import {
   EmptyState,
   Pagination,
   SearchField,
-  Spinner,
   Tabs,
 } from "@heroui/react";
 import type { ReactNode } from "react";
@@ -29,10 +28,12 @@ import {
   useProposalLimitDialog,
 } from "@/hooks/proposals";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useModalConfirm } from "@/hooks/useModalConfirm";
+import { useSonner } from "@/hooks/useSonner";
 
 import { NewProposalModal } from "./NewProposalModal";
 import { ProposalTable, type ProposalSortKey } from "./ProposalTable";
-import { type Proposal, TABS, toView } from "./proposalTypes";
+import { type Proposal, type Status, TABS, toView } from "./proposalTypes";
 
 const PAGE_SIZE = 10;
 
@@ -40,6 +41,14 @@ const PAGE_SIZE = 10;
 const DEFAULT_SORT: SortDescriptor = {
   column: "createdAt",
   direction: "descending",
+};
+
+/** 상태 탭을 골랐는데 해당 제안서가 없을 때 문구. */
+const TAB_EMPTY_TITLE: Record<Status, string> = {
+  "작성 중": "작성 중인 제안서가 없어요",
+  "제출 완료": "제출 완료 된 제안서가 없어요",
+  "맞춤 제안": "맞춤 제안 중인 제안서가 없어요",
+  "계약 완료": "계약 완료 된 제안서가 없어요",
 };
 
 function compare(a: Proposal, b: Proposal, key: ProposalSortKey): number {
@@ -61,7 +70,11 @@ export function ProposalsView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
+  // 삭제 확인은 HeroUI Modal 확인창(ADMIX 팝업 모양).
+  const { confirm: confirmDelete, confirmDialog: deleteDialog } =
+    useModalConfirm();
   const { showLimitDialog, limitDialog } = useProposalLimitDialog();
+  const { success, error: toastError } = useSonner();
 
   const proposals = useMemo(() => (data ?? []).map(toView), [data]);
   const keyword = query.trim();
@@ -107,12 +120,20 @@ export function ProposalsView() {
 
   // 시안 주석: 삭제 전에 "{제안서명}을 삭제하시겠습니까?" 확인창.
   const handleDelete = async (proposal: Proposal) => {
-    const ok = await confirm({
+    const ok = await confirmDelete({
       title: `'${proposal.title}' 제안서를 삭제하시겠습니까?`,
       description: "삭제한 제안서는 내 제안서에서 사라집니다.",
       confirmText: "삭제",
+      destructive: true,
     });
-    if (ok) await deleteMutation.mutateAsync(proposal.id);
+    if (!ok) return;
+    // 회원 정보 저장처럼 결과를 화면 위 알림(HeroUI Toast)으로 알린다.
+    try {
+      await deleteMutation.mutateAsync(proposal.id);
+      success("제안서를 삭제했어요", proposal.title);
+    } catch {
+      toastError("제안서를 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
+    }
   };
 
   const handleDownload = async (proposal: Proposal) => {
@@ -150,11 +171,15 @@ export function ProposalsView() {
     setPage(1);
   };
 
-  const emptyState = isLoading ? (
-    <EmptyStateBox>
-      <Spinner />
-      <p className="text-[13px] text-[#8c8c94]">제안서를 불러오는 중이에요</p>
-    </EmptyStateBox>
+  // 처음 불러올 때와 만들기·삭제 뒤 목록을 다시 받는 동안은 표 본문에 스피너를 보인다.
+  const listLoading =
+    isLoading || createMutation.isPending || deleteMutation.isPending;
+
+  const emptyState = activeTab !== "전체" && !keyword ? (
+    <EmptyStateBox
+      icon={<CollectionIcon className="size-[24px]" />}
+      title={TAB_EMPTY_TITLE[activeTab]}
+    />
   ) : proposals.length === 0 ? (
     <EmptyStateBox
       icon={<CollectionIcon className="size-[24px]" />}
@@ -162,7 +187,7 @@ export function ProposalsView() {
       description={
         <>
           오른쪽 위 &apos;새 제안서&apos;를 눌러
-          <br />첫 제안서를 만들어 보세요.
+          <br />첫 제안서를 만들어 보세요
         </>
       }
     ></EmptyStateBox>
@@ -170,7 +195,7 @@ export function ProposalsView() {
     <EmptyStateBox
       icon={<SearchOutlineIcon className="size-[22px]" />}
       title="조건에 맞는 제안서가 없어요"
-      description="다른 검색어를 입력하거나 상태 탭을 바꿔 보세요."
+      description="다른 검색어를 입력하거나 상태 탭을 바꿔 보세요"
     >
       <Button
         variant="outline"
@@ -190,8 +215,12 @@ export function ProposalsView() {
             내 제안서
           </h1>
           <p className="text-[13px] font-light text-[#6b7280]">
-            제안서 {proposals.length}건 · 광고비와 제작비를 나란히 비교하고
-            PPT로 내려받을 수 있습니다.
+            제안서 {proposals.length}건
+            {/* 모바일(sm 미만)에서는 설명 문구를 숨긴다. */}
+            <span className="hidden sm:inline">
+              {" "}
+              · 광고비와 제작비를 나란히 비교하고 PPT로 내려받을 수 있습니다.
+            </span>
           </p>
         </div>
         {/* HeroUI 기본 primary 버튼(기본 크기 md) 그대로. 아이콘 크기도 HeroUI가 맞춘다.
@@ -234,7 +263,8 @@ export function ProposalsView() {
           </Tabs.ListContainer>
         </Tabs>
 
-        {/* 검색 40px → 곡률 17px. 매체 찾기 검색바와 같은 회색 칸. */}
+        {/* 검색 40px → 곡률 17px. 매체 찾기 검색바와 같은 회색 칸.
+            포커스 표시는 HeroUI 기본 2px 링 대신 테두리 색만 바꾼 1px. */}
         <SearchField
           aria-label="제안서 검색"
           value={query}
@@ -244,19 +274,21 @@ export function ProposalsView() {
           }}
           className="w-full sm:w-[350px]"
         >
-          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-black-200 bg-black-100 px-[12px] shadow-none data-[focus-within=true]:bg-white">
+          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-black-200 bg-black-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
             <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
             <SearchField.Input
               placeholder="제안서명으로 검색해 보세요"
-              className="text-[14px] placeholder:text-[#a1a1aa]"
+              className="px-0 text-[14px] placeholder:text-[#a1a1aa]"
             />
-            <SearchField.ClearButton />
+            {/* HeroUI 기본 me-2를 빼서 좌우 여백을 칸의 px-[12px]로 맞춘다. */}
+            <SearchField.ClearButton className="me-0" />
           </SearchField.Group>
         </SearchField>
       </div>
 
       <ProposalTable
         items={pageItems}
+        loading={listLoading}
         emptyState={emptyState}
         sortDescriptor={sort}
         onSortChange={(next) => {
@@ -316,6 +348,7 @@ export function ProposalsView() {
         onCreate={handleCreate}
       />
       {confirmDialog}
+      {deleteDialog}
       {limitDialog}
     </div>
   );
