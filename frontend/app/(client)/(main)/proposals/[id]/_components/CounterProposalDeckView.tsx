@@ -153,7 +153,9 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                 <div className="flex items-center gap-[20px] px-[14px] py-[10px]">
                   <button
                     type="button"
-                    onClick={() => setZoom((v) => Math.max(ZOOM_MIN, v - ZOOM_STEP))}
+                    onClick={() =>
+                      setZoom((v) => Math.max(ZOOM_MIN, v - ZOOM_STEP))
+                    }
                     aria-label="축소"
                     className="text-black"
                   >
@@ -164,7 +166,9 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setZoom((v) => Math.min(ZOOM_MAX, v + ZOOM_STEP))}
+                    onClick={() =>
+                      setZoom((v) => Math.min(ZOOM_MAX, v + ZOOM_STEP))
+                    }
                     aria-label="확대"
                     className="text-black"
                   >

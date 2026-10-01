@@ -59,7 +59,7 @@ export function ChatMediaList({
           <span className="font-bold text-primary">{items.length}</span>개
         </span>
         <SimpleViewToggle
-          // 모바일은 12px로 줄인다. PC는 기본값 그대로.
+          // 모바일은 12px로 줄인다. PC는 기본값(13px) 그대로.
           labelClassName="max-sm:text-[12px]"
           simple={!showPhotos}
           onChange={(next) => onTogglePhotos(!next)}

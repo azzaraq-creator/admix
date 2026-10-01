@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import type { SortDescriptor } from "react-aria-components";
 
 import {
+  CircleAlertIcon,
   CollectionIcon,
   PlusIcon,
   SearchOutlineIcon,
@@ -70,11 +71,11 @@ export function ProposalsView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  // 삭제 확인은 HeroUI Modal 확인창(ADMIX 팝업 모양).
+  // 삭제 확인·모바일 미지원 안내는 HeroUI Modal 확인창(ADMIX 팝업 모양).
   const { confirm: confirmDelete, confirmDialog: deleteDialog } =
     useModalConfirm();
   const { showLimitDialog, limitDialog } = useProposalLimitDialog();
-  const { success, error: toastError } = useSonner();
+  const { error: toastError, deleted } = useSonner();
 
   const proposals = useMemo(() => (data ?? []).map(toView), [data]);
   const keyword = query.trim();
@@ -130,7 +131,7 @@ export function ProposalsView() {
     // 회원 정보 저장처럼 결과를 화면 위 알림(HeroUI Toast)으로 알린다.
     try {
       await deleteMutation.mutateAsync(proposal.id);
-      success("제안서를 삭제했어요", proposal.title);
+      deleted("제안서를 삭제했어요", proposal.title);
     } catch {
       toastError("제안서를 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
     }
@@ -175,37 +176,38 @@ export function ProposalsView() {
   const listLoading =
     isLoading || createMutation.isPending || deleteMutation.isPending;
 
-  const emptyState = activeTab !== "전체" && !keyword ? (
-    <EmptyStateBox
-      icon={<CollectionIcon className="size-[24px]" />}
-      title={TAB_EMPTY_TITLE[activeTab]}
-    />
-  ) : proposals.length === 0 ? (
-    <EmptyStateBox
-      icon={<CollectionIcon className="size-[24px]" />}
-      title="아직 제안서가 없어요"
-      description={
-        <>
-          오른쪽 위 &apos;새 제안서&apos;를 눌러
-          <br />첫 제안서를 만들어 보세요
-        </>
-      }
-    ></EmptyStateBox>
-  ) : (
-    <EmptyStateBox
-      icon={<SearchOutlineIcon className="size-[22px]" />}
-      title="조건에 맞는 제안서가 없어요"
-      description="다른 검색어를 입력하거나 상태 탭을 바꿔 보세요"
-    >
-      <Button
-        variant="outline"
-        onPress={resetFilters}
-        className="mt-[8px] h-[36px] rounded-[15px] px-[16px] text-[13px] font-semibold"
+  const emptyState =
+    activeTab !== "전체" && !keyword ? (
+      <EmptyStateBox
+        icon={<CollectionIcon className="size-[24px]" />}
+        title={TAB_EMPTY_TITLE[activeTab]}
+      />
+    ) : proposals.length === 0 ? (
+      <EmptyStateBox
+        icon={<CollectionIcon className="size-[24px]" />}
+        title="아직 제안서가 없어요"
+        description={
+          <>
+            오른쪽 위 &apos;새 제안서&apos;를 눌러
+            <br />첫 제안서를 만들어 보세요
+          </>
+        }
+      ></EmptyStateBox>
+    ) : (
+      <EmptyStateBox
+        icon={<SearchOutlineIcon className="size-[22px]" />}
+        title="조건에 맞는 제안서가 없어요"
+        description="다른 검색어를 입력하거나 상태 탭을 바꿔 보세요"
       >
-        검색 조건 초기화
-      </Button>
-    </EmptyStateBox>
-  );
+        <Button
+          variant="outline"
+          onPress={resetFilters}
+          className="mt-[8px] h-[36px] rounded-[15px] px-[16px] text-[13px] font-semibold"
+        >
+          검색 조건 초기화
+        </Button>
+      </EmptyStateBox>
+    );
 
   return (
     <div className="flex min-h-full w-full flex-col gap-[20px] px-[16px] py-[20px] sm:px-[20px]">
@@ -295,7 +297,20 @@ export function ProposalsView() {
           setSort(next);
           setPage(1);
         }}
-        onOpen={(proposal) => router.push(`/proposals/${proposal.id}`)}
+        onOpen={(proposal) => {
+          // 제안서 상세(편집)는 모바일에서 지원하지 않는다 — 이동하지 않고 안내만 띄운다(639px 이하).
+          if (window.matchMedia("(max-width: 639px)").matches) {
+            void confirmDelete({
+              title: "해당 기능은 모바일에서 지원되지 않습니다.",
+              description: "데스크톱으로 이용해 주시기 바랍니다.",
+              icon: <CircleAlertIcon className="size-[22px]" />,
+              hideCancel: true,
+              neutral: true,
+            });
+            return;
+          }
+          router.push(`/proposals/${proposal.id}`);
+        }}
         onDownload={handleDownload}
         onDelete={handleDelete}
         downloadingId={downloadingId}

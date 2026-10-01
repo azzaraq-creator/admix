@@ -447,7 +447,8 @@ export function HomeChat({
           )}
         </div>
         {isPanel && (
-          <p className="text-center text-[11px] leading-[16px] text-black-400">
+          // 모바일은 위 여백을 아래(하단 바 여백 10px)와 같게 둔다.
+          <p className="text-center text-[11px] leading-[16px] text-black-400 max-sm:mt-[10px]">
             AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.
           </p>
         )}

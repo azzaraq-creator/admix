@@ -1,6 +1,14 @@
 "use client";
 
-import { Button, Chip, Popover, Spinner, Table, Tooltip } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  Drawer,
+  Popover,
+  Spinner,
+  Table,
+  Tooltip,
+} from "@heroui/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SortDescriptor } from "react-aria-components";
 
@@ -26,7 +34,7 @@ const STATUS_STYLE: Record<Status, { chip: string; dot: string }> = {
   "계약 완료": { chip: "bg-[#d1fae5] text-[#069464]", dot: "bg-[#069464]" },
 };
 
-function StatusBadge({ status }: { status: Status }) {
+export function StatusBadge({ status }: { status: Status }) {
   const style = STATUS_STYLE[status];
   return (
     <Chip
@@ -66,7 +74,7 @@ function Cover({ year }: { year: string }) {
   );
 }
 
-/** 제안서명에 마우스를 올리면 뜨는 "제안서 요약" — 담긴 매체와 광고비·제작비. */
+/** 제안서명에 마우스를 올리면(태블릿은 누르면) 뜨는 "제안서 요약" — 담긴 매체와 광고비·제작비. */
 function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
   return (
     <div className="flex w-full flex-col gap-[12px]">
@@ -114,6 +122,152 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/** 태블릿 제안서 요약 — 터치 화면(sm 이상)에서 제안서명을 누르면 툴팁과 같은 내용을 Popover로. */
+function SummaryPopover({ proposal }: { proposal: Proposal }) {
+  return (
+    <Popover>
+      <Button
+        variant="ghost"
+        className="hidden h-auto max-w-full min-w-0 justify-start rounded-none bg-transparent p-0 text-left data-[hovered=true]:bg-transparent data-[pressed=true]:scale-100 sm:pointer-coarse:flex"
+      >
+        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
+          {proposal.title}
+        </span>
+      </Button>
+      <Popover.Content
+        placement="bottom start"
+        offset={10}
+        className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
+      >
+        <Popover.Arrow />
+        <Popover.Dialog
+          aria-label={`${proposal.title} 요약`}
+          className="p-[16px] text-black outline-none"
+        >
+          <SummaryTooltipBody proposal={proposal} />
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
+  );
+}
+
+/**
+ * 모바일 제안서 요약 시트 — 제안서명 칸 전체가 여는 버튼(HeroUI Drawer, 아래에서 올라옴).
+ * 머리: 제안서명·매체 수·최근 수정 / 본문: 담긴 매체(썸네일·이름·주소·광고비·제작비, 많으면 스크롤)
+ * / 바닥: 광고비·제작비 합계 + 닫기. 모양은 관심 매체의 "선택한 매체" 시트와 같다.
+ */
+function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
+  return (
+    <Drawer>
+      <Drawer.Trigger className="flex w-full min-w-0 justify-start text-left outline-none sm:hidden">
+        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
+          {proposal.title}
+        </span>
+      </Drawer.Trigger>
+      <Drawer.Backdrop>
+        <Drawer.Content placement="bottom">
+          <Drawer.Dialog
+            aria-label={`${proposal.title} 요약`}
+            className="gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+          >
+            {({ close }) => (
+              <>
+                <Drawer.Handle />
+                <Drawer.Header className="mt-[6px] gap-[2px] p-0">
+                  <Drawer.Heading className="text-[17px] leading-[1.4] font-bold break-keep text-black">
+                    {proposal.title}
+                  </Drawer.Heading>
+                  <p className="text-[12px] text-[#8c8c94]">
+                    매체 {proposal.mediaCount}개 · 최근 수정{" "}
+                    {proposal.updatedAt}
+                  </p>
+                </Drawer.Header>
+                <Drawer.Body className="mt-[14px] p-0">
+                  {proposal.previews.length === 0 ? (
+                    <p className="rounded-[12px] bg-[#f7f7f8] py-[28px] text-center text-[13px] text-[#8c8c94]">
+                      아직 담긴 매체가 없어요.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-[8px]">
+                      {proposal.previews.map((item) => (
+                        <li
+                          key={item.media_id}
+                          className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
+                        >
+                          <MediaThumbnail
+                            src={item.thumbnail_url ?? undefined}
+                            sizes="56px"
+                            className="size-[56px] shrink-0 rounded-[12px]"
+                            fallback={
+                              <Logo className="size-[18px] opacity-30" />
+                            }
+                          />
+                          <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                            <p className="truncate text-[14px] font-semibold text-[#18181b]">
+                              {item.name}
+                            </p>
+                            <p className="truncate text-[12px] text-[#8c8c94]">
+                              {item.address ?? "-"}
+                            </p>
+                            <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
+                              <span>
+                                광고비{" "}
+                                <span className="font-semibold text-[#18181b]">
+                                  {won(item.advertisement_fee)}
+                                </span>
+                              </span>
+                              <span>
+                                제작비{" "}
+                                <span className="font-semibold text-[#18181b]">
+                                  {won(item.production_fee)}
+                                </span>
+                              </span>
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Drawer.Body>
+                <Drawer.Footer className="mt-[16px] flex flex-col gap-[12px] p-0">
+                  {/* 합계 — 관심 매체 시트와 같은 회색 상자. */}
+                  <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-[#71717a]">
+                        광고비 합계
+                      </span>
+                      <span className="text-[16px] font-bold text-[#18181b]">
+                        {won(proposal.advertisementAmount)}
+                      </span>
+                    </div>
+                    <div className="h-px bg-[#ececef]" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-[#71717a]">
+                        제작비 합계
+                      </span>
+                      <span className="text-[16px] font-bold text-[#18181b]">
+                        {won(proposal.productionAmount)}
+                      </span>
+                    </div>
+                  </div>
+                  {/* 버튼 44px → 곡률 19px. */}
+                  <Button
+                    variant="ghost"
+                    onPress={close}
+                    className="h-[44px] w-full rounded-[19px] bg-[#eee] text-[14px] font-semibold text-[#18181b]"
+                  >
+                    닫기
+                  </Button>
+                </Drawer.Footer>
+              </>
+            )}
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </Drawer>
   );
 }
 
@@ -229,7 +383,10 @@ export function ProposalTable({
           loading && "min-h-0 grid-rows-[auto_minmax(0,1fr)]",
         )}
       >
-        <Table.ScrollContainer>
+        {/* 모바일은 표를 옆으로 넘겨 보는데, 아래 둥근 모서리는 맨 끝 칸(또는 채움 칸의 양 끝)에만
+            걸려 있어 넘기면 화면 가장자리의 아래 모서리가 각져 보인다. 스크롤 틀 자체의 아래 모서리를
+            같은 곡률로 깎는다. */}
+        <Table.ScrollContainer className="max-sm:rounded-b-[min(32px,var(--radius-2xl))]">
           <Table.Content
             aria-label="내 제안서"
             sortDescriptor={sortDescriptor}
@@ -285,132 +442,140 @@ export function ProposalTable({
               <Table.Column className="w-[112px]">다운로드</Table.Column>
               <Table.Column className="w-[80px]">삭제</Table.Column>
             </Table.Header>
-            {loading ? (
-              // 행 없이 헤더만 두고, 본문 자리는 아래 스피너 칸이 채운다.
-              <Table.Body>{[]}</Table.Body>
-            ) : (
-              <Table.Body
-                items={items}
-                renderEmptyState={() => (
+            {/* 본문은 하나로 둔다 — 불러오는 중/끝을 서로 다른 Table.Body로 바꿔 끼우면 react-aria 내부
+                useMemo의 의존 배열 길이가 달라져 개발 화면에 오류("changed size between renders")가 뜬다.
+                불러오는 중엔 행 없이 헤더만 두고(빈 화면 문구도 숨김), 본문 자리는 아래 스피너 칸이 채운다. */}
+            <Table.Body
+              items={loading ? [] : items}
+              // react-aria는 items가 그대로면 행을 다시 그리지 않는다 — 받는 중인 제안서가 바뀌면
+              // PPT 버튼(스피너·비활성)이 반영되도록 다시 그리게 한다.
+              dependencies={[downloadingId, loading]}
+              renderEmptyState={() =>
+                loading ? null : (
                   <div className="flex" style={{ height: emptyHeight }}>
                     {emptyState}
                   </div>
-                )}
-              >
-                {(proposal) => (
-                  <Table.Row id={proposal.id}>
-                    <Table.Cell>
-                      <Cover year={proposal.year} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <StatusBadge status={proposal.status} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      {/* 시안 "03. 제안서 - tooltip": 제안서명(밑줄)에 올리면 제안서 요약이 뜬다. */}
-                      <Tooltip delay={200} closeDelay={100}>
-                        <Tooltip.Trigger className="max-w-full max-sm:hidden">
-                          <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
-                            {proposal.title}
-                          </span>
-                        </Tooltip.Trigger>
-                        <Tooltip.Content
-                          showArrow
-                          placement="bottom start"
-                          className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
-                        >
-                          <Tooltip.Arrow />
-                          <SummaryTooltipBody proposal={proposal} />
-                        </Tooltip.Content>
-                      </Tooltip>
-                      {/* 모바일은 hover가 없어, 제안서명을 누르면 같은 요약을 팝오버로 띄운다.
-                        (행의 다른 곳을 누르면 기존대로 제안서가 열린다.) */}
-                      <Popover>
-                        <Button
-                          variant="ghost"
-                          className="h-auto max-w-full min-w-0 justify-start rounded-none bg-transparent p-0 data-[hovered=true]:bg-transparent sm:hidden"
-                        >
-                          <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
-                            {proposal.title}
-                          </span>
-                        </Button>
-                        <Popover.Content
-                          placement="bottom start"
-                          className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
-                        >
-                          <Popover.Dialog className="p-[16px] break-normal text-black">
-                            <SummaryTooltipBody proposal={proposal} />
-                          </Popover.Dialog>
-                        </Popover.Content>
-                      </Popover>
-                    </Table.Cell>
-                    <Table.Cell>{proposal.mediaCount}</Table.Cell>
-                    <Table.Cell>
-                      <div className="flex w-full flex-col gap-[4px]">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[12px] text-[#8c8c94]">
-                            광고비
-                          </span>
-                          <span className="text-[14px] font-semibold text-black">
-                            {won(proposal.advertisementAmount)}
-                          </span>
-                        </div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[12px] text-[#8c8c94]">
-                            제작비
-                          </span>
-                          <span className="text-[12px] text-black">
-                            {won(proposal.productionAmount)}
-                          </span>
-                        </div>
+                )
+              }
+            >
+              {(proposal) => (
+                <Table.Row id={proposal.id}>
+                  <Table.Cell>
+                    <Cover year={proposal.year} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <StatusBadge status={proposal.status} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    {/* 시안 "03. 제안서 - tooltip": 제안서명(밑줄)에 올리면 제안서 요약이 뜬다.
+                        마우스로 쓰는 PC에서만 — 터치 화면(iPad 등)은 hover가 없어 아래 Popover로 연다. */}
+                    <Tooltip delay={200} closeDelay={100}>
+                      <Tooltip.Trigger className="max-w-full max-sm:hidden pointer-coarse:hidden">
+                        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
+                          {proposal.title}
+                        </span>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content
+                        showArrow
+                        placement="bottom start"
+                        className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
+                      >
+                        <Tooltip.Arrow />
+                        <SummaryTooltipBody proposal={proposal} />
+                      </Tooltip.Content>
+                    </Tooltip>
+                    {/* 태블릿(sm 이상 터치 화면)은 제안서명을 누르면 같은 요약을 Popover로 띄운다.
+                        버튼이라 눌러도 행 동작(제안서 열기)으로 번지지 않는다. */}
+                    <SummaryPopover proposal={proposal} />
+                    {/* 모바일은 hover가 없어, 제안서명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
+                        담긴 매체를 크게 보여 준다(제안서는 열지 않는다). 제안서명 칸 전체가 버튼이라
+                        짧은 제안서명 옆 빈 곳을 눌러도 시트만 뜬다. */}
+                    <MobileSummaryDrawer proposal={proposal} />
+                  </Table.Cell>
+                  <Table.Cell>{proposal.mediaCount}</Table.Cell>
+                  <Table.Cell>
+                    <div className="flex w-full flex-col gap-[4px]">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[12px] text-[#8c8c94]">
+                          광고비
+                        </span>
+                        <span className="text-[14px] font-semibold text-black">
+                          {won(proposal.advertisementAmount)}
+                        </span>
                       </div>
-                    </Table.Cell>
-                    {/* 시안: 날짜는 12px 회색으로 작게. 칸(td) 스타일은 HeroUI 그대로 두고 글자만 조정한다. */}
-                    <Table.Cell>
-                      <span className="text-[12px] whitespace-nowrap text-[#888]">
-                        {proposal.updatedAt}
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-[12px] whitespace-nowrap text-[#888]">
-                        {proposal.createdAt}
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {/* 버튼 32px → 곡률 13px. */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        isPending={downloadingId === proposal.id}
-                        isDisabled={
-                          downloadingId !== null &&
-                          downloadingId !== proposal.id
-                        }
-                        onPress={() => onDownload(proposal)}
-                        aria-label={`${proposal.title} PPT 다운로드`}
-                        className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-[#ececef] bg-white px-0 text-[12px] font-semibold text-black"
-                      >
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[12px] text-[#8c8c94]">
+                          제작비
+                        </span>
+                        <span className="text-[12px] text-black">
+                          {won(proposal.productionAmount)}
+                        </span>
+                      </div>
+                    </div>
+                  </Table.Cell>
+                  {/* 시안: 날짜는 12px 회색으로 작게. 칸(td) 스타일은 HeroUI 그대로 두고 글자만 조정한다. */}
+                  <Table.Cell>
+                    <span className="text-[12px] whitespace-nowrap text-[#888]">
+                      {proposal.updatedAt}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="text-[12px] whitespace-nowrap text-[#888]">
+                      {proposal.createdAt}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {/* 버튼 32px → 곡률 13px. */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      isPending={downloadingId === proposal.id}
+                      isDisabled={
+                        downloadingId !== null && downloadingId !== proposal.id
+                      }
+                      onPress={() => onDownload(proposal)}
+                      aria-label={`${proposal.title} PPT 다운로드`}
+                      className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-[#ececef] bg-white px-0 text-[12px] font-semibold text-black"
+                    >
+                      {/* HeroUI isPending은 누름만 막고 스피너는 그리지 않아, 받는 동안 아이콘 자리에 직접 돌린다. */}
+                      {downloadingId === proposal.id ? (
+                        <Spinner
+                          size="sm"
+                          color="current"
+                          className="size-[14px] shrink-0"
+                        />
+                      ) : (
                         <DownloadLineIcon className="size-[14px] shrink-0" />
-                        PPT
-                      </Button>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {/* 버튼 30px → 곡률 12px. */}
-                      <Button
-                        isIconOnly
-                        variant="outline"
-                        size="sm"
-                        onPress={() => onDelete(proposal)}
-                        aria-label={`${proposal.title} 삭제`}
-                        className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-[#ececef] bg-white p-0 text-[#dc2626]"
-                      >
-                        <TrashOutlineIcon className="size-[18px]" />
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                )}
-              </Table.Body>
-            )}
+                      )}
+                      PPT
+                    </Button>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {/* 버튼 30px → 곡률 12px. */}
+                    <Button
+                      isIconOnly
+                      variant="outline"
+                      size="sm"
+                      onPress={() => onDelete(proposal)}
+                      aria-label={`${proposal.title} 삭제`}
+                      className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-[#ececef] bg-white p-0 text-[#dc2626]"
+                    >
+                      <TrashOutlineIcon className="size-[18px]" />
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              )}
+            </Table.Body>
           </Table.Content>
+          {/* 마지막 행 아래를 흰색으로 이어 채우는 칸. 스크롤 틀 안에 표와 같은 폭으로 두어,
+              빈 곳을 끌어도 표와 함께 옆으로 넘어간다. */}
+          {filling && !loading && (
+            <div
+              aria-hidden
+              className="min-w-[1208px] rounded-b-[min(32px,var(--radius-2xl))] bg-surface"
+              style={{ height: fillHeight }}
+            />
+          )}
         </Table.ScrollContainer>
         {/* 행이 적을 때 마지막 행 아래를 본문과 같은 흰색으로 채운다(비어 있을 때의 흰 상자와 같은 모습).
             모서리는 HeroUI 본문 모서리 값 그대로. */}
@@ -422,13 +587,6 @@ export function ProposalTable({
               제안서를 불러오는 중이에요
             </p>
           </div>
-        )}
-        {filling && !loading && (
-          <div
-            aria-hidden
-            className="rounded-b-[min(32px,var(--radius-2xl))] bg-surface"
-            style={{ height: fillHeight }}
-          />
         )}
       </Table>
     </div>

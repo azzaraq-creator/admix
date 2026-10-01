@@ -19,6 +19,7 @@ from src.routers.inquiries_client import router as inquiries_client_router
 from src.routers.members import router as members_router
 from src.routers.proposals import router as proposals_router
 from src.routers.proposals_client import router as proposals_client_router
+from src.routers.favorites import router as favorites_router
 from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
 from src.routers.recommend_react import router as recommend_react_router
@@ -50,6 +51,7 @@ app.include_router(admin_media_router)
 app.include_router(members_router)
 app.include_router(proposals_router)
 app.include_router(proposals_client_router)
+app.include_router(favorites_router)
 app.include_router(inquiries_router)
 app.include_router(inquiries_client_router)
 app.include_router(admin_router)

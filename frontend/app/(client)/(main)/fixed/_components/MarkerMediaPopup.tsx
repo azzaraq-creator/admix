@@ -1,7 +1,6 @@
 "use client";
 
 import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
-import { useState } from "react";
 
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
@@ -11,6 +10,7 @@ import {
   LocationFilledIcon,
   LoveIcon,
 } from "@/components/icons";
+import { useFavorite } from "@/hooks/favorites";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,26 @@ function PriceCell({ label, value }: { label: string; value: number | null }) {
         {formatKrw(value)}
       </span>
     </div>
+  );
+}
+
+/** 간략히 보기의 금액 — 이름표와 금액을 한 줄에 나란히(카드를 납작하게). */
+function InlinePrice({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | null;
+}) {
+  return (
+    <span className="flex items-baseline gap-[4px] whitespace-nowrap">
+      <span className="text-[11px] font-medium text-black-400 max-sm:text-[12px]">
+        {label}
+      </span>
+      <span className="text-[13px] font-bold text-[#2d264b]">
+        {formatKrw(value)}
+      </span>
+    </span>
   );
 }
 
@@ -93,21 +113,34 @@ export function MediaPopupCard({
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
-  // TODO: 관심 매체 API가 없어 목록 카드와 마찬가지로 화면 안에서만 켜고 꺼진다.
-  // 간략히 보기를 오가도 유지되도록 카드 단위로 들고 있는다.
-  const [liked, setLiked] = useState(false);
-  const toggleLiked = () => setLiked((prev) => !prev);
+  // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
+  // 지도 팝업과 믹시 추천 목록(ChatMediaList)이 이 카드를 같이 쓴다.
+  const { liked, toggle: toggleLiked } = useFavorite(row.id, {
+    notifyName: row.name,
+  });
 
   // 매체명은 줄임(...) 없이 아래로 줄바꿈한다. 안에 버튼(찜·담기)이 있어 카드 자체는
   // 버튼이 될 수 없으므로, 키보드는 매체명 버튼으로 상세를 연다.
   // HeroUI Button의 기본 높이·패딩·가운데 정렬·줄바꿈 금지를 풀어 글자처럼 보이게 한다.
+  // 간략히 보기는 카드를 납작하게 두려고 한 줄로 줄인다(넘치면 말줄임, 전체 이름은 title로).
   const name = (
     <Button
       variant="ghost"
       onPress={() => onSelect?.()}
-      className="h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] max-sm:text-[14px] leading-[20px] font-bold break-keep wrap-anywhere whitespace-normal text-black data-[hovered=true]:bg-transparent"
+      className={cn(
+        "h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] max-sm:text-[14px] leading-[20px] font-bold text-black data-[hovered=true]:bg-transparent",
+        simple
+          ? "whitespace-nowrap"
+          : "break-keep wrap-anywhere whitespace-normal",
+      )}
     >
-      {row.name}
+      {simple ? (
+        <span className="min-w-0 truncate" title={row.name}>
+          {row.name}
+        </span>
+      ) : (
+        row.name
+      )}
     </Button>
   );
 
@@ -122,15 +155,21 @@ export function MediaPopupCard({
     <Card
       onClick={onSelect}
       className={cn(
-        "cursor-pointer gap-0 rounded-[12px] border bg-white p-[10px] shadow-none transition-colors",
+        "cursor-pointer gap-0 rounded-[12px] border bg-white shadow-none transition-colors",
+        simple ? "px-[10px] py-[8px]" : "p-[10px]",
         selected ? "border-primary" : "border-black-200 hover:border-black-300",
       )}
     >
       {simple ? (
-        <>
-          <div className="flex items-start gap-[4px]">
+        // 납작한 한 장 — 매체명 한 줄 + 금액 한 줄, 버튼 두 개.
+        // PC: 버튼을 오른쪽에 두 줄 높이로 세로 가운데. 모바일: 폭이 좁아 버튼은 매체명 줄 오른쪽에 두고
+        // 금액 줄이 카드 폭 전체를 쓰게 해 한 줄에 들어가게 한다.
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-[4px] gap-y-[2px]">
+          <div className="flex min-w-0 items-center gap-[4px]">
             {rankBadge && <span className="mr-[2px] flex">{rankBadge}</span>}
             {name}
+          </div>
+          <div className="col-start-2 row-start-1 flex gap-[4px] sm:row-span-2">
             <LikeButton liked={liked} onToggle={toggleLiked} />
             <Button
               isIconOnly
@@ -143,14 +182,12 @@ export function MediaPopupCard({
               <FolderAddIcon className="size-[16px] text-primary" />
             </Button>
           </div>
-          <div className="mt-[6px] flex gap-[16px]">
-            <PriceCell
-              label="광고비 / 1개월"
-              value={row.minAdvertisementFeeKrw}
-            />
-            <PriceCell label="제작비 / 1회" value={row.minProductionFeeKrw} />
+          {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
+          <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
+            <InlinePrice label="광고비" value={row.minAdvertisementFeeKrw} />
+            <InlinePrice label="제작비" value={row.minProductionFeeKrw} />
           </div>
-        </>
+        </div>
       ) : (
         <>
           <div className="flex gap-[12px]">

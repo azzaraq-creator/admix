@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { MixieIcon, XIcon } from "@/components/icons";
+import { ChevronLeftIcon, MixieIcon, XIcon } from "@/components/icons";
 
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,9 @@ import { useMixieChat } from "./useMixieChat";
  * - modal-backdrop / alert-dialog-backdrop: HeroUI Modal(로그인)·AlertDialog("새 대화" 확인창).
  *   배경이 창 전체를 감싸서 창 안 버튼이든 배경이든 모두 걸러진다.
  */
+/** 열고 닫는 애니메이션 길이(duration-300) — 다 닫힌 뒤에 display: none으로 숨긴다. */
+const TRANSITION_MS = 300;
+
 const PANEL_PART_SELECTOR = [
   "[data-mixie-toggle]",
   '[data-slot^="dialog"]',
@@ -35,6 +38,47 @@ export function MixieChatPanel() {
   const panelRef = useRef<HTMLElement>(null);
   // 데스크톱에서 LNB가 접히면(78px) 패널도 그 오른쪽에 붙는다.
   const lnbCollapsed = useLnbCollapsed();
+
+  // 닫혀 있을 땐 LNB 뒤에 가려진 채로 남지 않게 display: none으로 숨긴다. 애니메이션은 살린다:
+  // - 열 때: 먼저 보이게(shown) 한 뒤 다음 프레임에 열린 모양(entered)으로 바꿔 미끄러져 나오게.
+  // - 닫을 때: 닫힌 모양으로 바꾸고, 애니메이션이 끝나면 숨긴다.
+  const [shown, setShown] = useState(panelOpen);
+  const [entered, setEntered] = useState(panelOpen);
+  if (panelOpen && !shown) setShown(true);
+  if (!panelOpen && entered) setEntered(false);
+  // display: none이 되면 안쪽 스크롤 위치(대화 목록)가 사라져, 숨기기 전에 적어 두고 다시 보일 때 되돌린다.
+  const savedScrollRef = useRef<{ el: Element; top: number }[]>([]);
+
+  useEffect(() => {
+    if (panelOpen) {
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setEntered(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
+    }
+    const timer = setTimeout(() => {
+      const panel = panelRef.current;
+      savedScrollRef.current = panel
+        ? Array.from(panel.querySelectorAll("*"))
+            .filter((el) => el.scrollTop > 0)
+            .map((el) => ({ el, top: el.scrollTop }))
+        : [];
+      setShown(false);
+    }, TRANSITION_MS);
+    return () => clearTimeout(timer);
+  }, [panelOpen]);
+
+  useLayoutEffect(() => {
+    if (!shown) return;
+    savedScrollRef.current.forEach(({ el, top }) => {
+      el.scrollTop = top;
+    });
+    savedScrollRef.current = [];
+  }, [shown]);
 
   // 패널 바깥(다른 메뉴·본문·지도 등)을 누르면 닫는다. 캡처 단계에서 들어 지도처럼
   // 자체적으로 이벤트 전파를 막는 곳을 눌러도 닫히게 한다. 단, LNB의 "AI 믹시" 버튼은
@@ -65,9 +109,10 @@ export function MixieChatPanel() {
       className={cn(
         "fixed inset-0 z-50 flex flex-col bg-white transition-[opacity,translate,left] duration-300 ease-in-out sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-black-200 sm:opacity-100 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
         lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
-        panelOpen
+        entered
           ? "opacity-100 sm:translate-x-0"
           : "pointer-events-none opacity-0 sm:-translate-x-full sm:shadow-none",
+        !shown && "hidden",
       )}
     >
       <div className="flex h-full w-full min-h-0 flex-col">
@@ -80,16 +125,16 @@ export function MixieChatPanel() {
             </span>
           </div>
           <div className="flex items-center gap-[12px]">
-            {chat.messages.length > 0 && (
-              <NewChatButton />
-            )}
+            {chat.messages.length > 0 && <NewChatButton />}
             <button
               type="button"
               aria-label="AI 믹시 닫기"
               onClick={() => setPanelOpen(false)}
               className="flex size-[28px] items-center justify-center rounded-[8px] text-black-500 transition-colors hover:bg-black-50 hover:text-black"
             >
-              <XIcon className="size-[16px]" />
+              {/* PC는 패널이 LNB 쪽(왼쪽)으로 미끄러져 들어가므로 왼쪽 화살표, 모바일은 화면을 덮는 창이라 X. */}
+              <XIcon className="size-[16px] sm:hidden" />
+              <ChevronLeftIcon className="hidden size-[16px] sm:block" />
             </button>
           </div>
         </div>

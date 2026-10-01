@@ -71,7 +71,8 @@ export function AiSearchBox({
   const isSearch = mode === "search";
 
   return (
-    // 검색 모드는 테두리가 2px → 1px이라, 안쪽 모서리도 1px만큼 키워야 같은 두께로 둘린다.
+    // 테두리 두께(2px)는 두 모드가 같다 — 검색 모드의 1px 회색은 globals.css(.admix-ai-border)가
+    // 흰 상자를 1px 넓혀 만든다. 그래서 모드를 바꿔도 안쪽 상자가 움직이지 않는다.
     // 여백은 대화 입력바(HomeChat)와 같게 — 모바일 상하좌우 12px, PC는 탭·전송 버튼이
     // 테두리에서 8px, 글자는 왼쪽 16px·위 15px(오른쪽도 16px이 되게 textarea에 8px 더함).
     <div
@@ -85,9 +86,7 @@ export function AiSearchBox({
             return;
           textareaRef.current?.focus();
         }}
-        className={`relative flex min-h-[140px] flex-col max-sm:flex-1 bg-white px-[12px] pt-[12px] pb-[12px] sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px] ${
-          isSearch ? "rounded-[26px]" : "rounded-[25px]"
-        }`}
+        className="relative flex min-h-[140px] flex-col rounded-[25px] bg-white px-[12px] pt-[12px] pb-[12px] max-sm:flex-1 sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px]"
       >
         <textarea
           ref={textareaRef}

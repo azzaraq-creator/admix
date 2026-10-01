@@ -1,10 +1,15 @@
-// TODO: 관심 매체 기능 미구현 — 사이드바(Figma "01. 대시보드 - AI 믹시") 메뉴가
-// 가리킬 대상이 없어 임시로 둔 자리표시 페이지. 기능 확정 시 교체한다.
-export default function FavoritesPage() {
+import { cookies } from "next/headers";
+
+import { USER_TOKEN_COOKIE } from "@/lib/userToken";
+
+import { FavoritesView } from "./_components/FavoritesView";
+
+export default async function FavoritesPage() {
+  // 로그인 쿠키로 회원 여부를 미리 넘겨, 서버·브라우저 첫 화면이 같게(불러오는 중/비회원 안내) 그려지게 한다.
+  const token = (await cookies()).get(USER_TOKEN_COOKIE)?.value;
   return (
-    <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[8px] bg-black-50 px-[20px]">
-      <h1 className="text-2xl font-bold text-black">관심 매체</h1>
-      <p className="text-base text-[#888]">준비 중인 기능입니다.</p>
+    <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+      <FavoritesView member={!!token} />
     </main>
   );
 }

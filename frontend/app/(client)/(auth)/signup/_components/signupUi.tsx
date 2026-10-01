@@ -76,7 +76,7 @@ export function CardHeading({
       <Card.Title className="text-[24px] leading-normal font-bold text-black-900 max-sm:text-[19px] sm:text-[28px]">
         {title}
       </Card.Title>
-      <Card.Description className="text-[14px] leading-[1.5] text-black-500 max-sm:text-[12px]">
+      <Card.Description className="text-[14px] leading-[1.5] break-keep text-black-500 max-sm:text-[12px]">
         {description}
       </Card.Description>
     </Card.Header>

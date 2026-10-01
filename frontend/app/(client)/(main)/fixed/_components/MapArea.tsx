@@ -3,13 +3,13 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import type { KakaoMarker } from "@/lib/kakaoMap";
 import { cn } from "@/lib/utils";
 
 import type {
   MapBoundsPayload,
   MapCluster,
   MapMarker,
+  MarkerEntry,
   MoveTarget,
 } from "./mapTypes";
 import { POPUP_BG_CLASS } from "./MarkerMediaPopup";
@@ -66,7 +66,7 @@ export function MapArea({
   popupContent?: ReactNode;
   onPopupClose?: () => void;
 }) {
-  const markerObjsRef = useRef<{ marker: KakaoMarker; data: MapMarker }[]>([]);
+  const markerObjsRef = useRef<MarkerEntry[]>([]);
 
   const { containerRef, mapRef, mapReady, programmaticMoveRef } = useKakaoMap({
     markerObjsRef,
@@ -93,7 +93,7 @@ export function MapArea({
     onGroupClick,
   });
 
-  const { popupEl, flipUp, shiftX, maxHeight, width } = useMapPopup({
+  const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
     mapRef,
     mapReady,
     containerRef,
@@ -112,14 +112,15 @@ export function MapArea({
               className={cn(
                 // 그림자는 팝업과 꼬리를 한 덩어리로 감싸도록 여기서 준다(drop-shadow).
                 "absolute left-1/2 drop-shadow-[0px_3px_8px_rgba(0,0,0,0.22)]",
-                // 핀 그림은 기준점 위 약 10px·아래 약 17px까지 보인다. 꼬리 끝(가장자리에서 7px)과
-                // 핀 사이가 6px쯤 비도록 띄운다.
-                flipUp ? "bottom-[24px]" : "top-[32px]",
               )}
               // --map-popup-max-h: 지도 안에 남은 공간. 팝업 내용이 최대 높이로 쓴다.
               // --map-popup-w: 지도 폭에 맞춘 팝업 폭(좌우 시프트 계산과 같은 값).
               style={
                 {
+                  // 기준점에서 띄우는 거리 — 핀(마커)이냐 매체명 말풍선이냐에 따라 useMapPopup이 정한다.
+                  // 꼬리 끝(가장자리에서 7px)과 핀·말풍선 사이가 6px쯤 비게 한다.
+                  top: flipUp ? undefined : gap.below,
+                  bottom: flipUp ? gap.above : undefined,
                   transform: `translateX(calc(-50% + ${shiftX}px))`,
                   "--map-popup-max-h": `${maxHeight}px`,
                   "--map-popup-w": `${width}px`,

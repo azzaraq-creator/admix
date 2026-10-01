@@ -25,6 +25,7 @@ export interface KakaoMarker {
 export interface KakaoCustomOverlay {
   setMap: (map: KakaoMap | null) => void;
   setPosition: (latlng: KakaoLatLng) => void;
+  setZIndex: (zIndex: number) => void;
 }
 
 export interface KakaoPoint {

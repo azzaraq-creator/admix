@@ -6,6 +6,7 @@ from src.models.admin_refresh_token import AdminRefreshToken
 from src.models.faq import Faq
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_image import MediaImage
+from src.models.media_favorite import MediaFavorite
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.models.inquiry import Inquiry
@@ -25,6 +26,7 @@ __all__ = [
     "MediaItem",
     "MediaKeyword",
     "Media",
+    "MediaFavorite",
     "MediaImage",
     "MediaPlan",
     "Faq",

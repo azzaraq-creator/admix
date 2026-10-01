@@ -38,6 +38,7 @@ export function MediaFindTopBar({
   onToggleSort,
   mapExpanded,
   onToggleMapExpanded,
+  showMapToggle = true,
 }: {
   keyword: string;
   onKeywordChange: (value: string) => void;
@@ -56,6 +57,8 @@ export function MediaFindTopBar({
   onToggleSort: () => void;
   mapExpanded: boolean;
   onToggleMapExpanded: () => void;
+  /** 지도 크게 보기 버튼 — 지도가 없는 화면(관심 매체)에선 뺀다. */
+  showMapToggle?: boolean;
 }) {
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") return;
@@ -162,17 +165,19 @@ export function MediaFindTopBar({
         </Button>
 
         {/* 모바일은 목록/지도 아래쪽에 뜨는 전환 버튼(MediaFindPanel)을 대신 쓴다. */}
-        <Button
-          variant="ghost"
-          onPress={onToggleMapExpanded}
-          aria-pressed={mapExpanded}
-          className="flex h-[40px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[17px] bg-black-800 px-[20px] text-white transition-colors hover:bg-black-900 active:bg-black-900 data-[pressed=true]:bg-black-900"
-        >
-          <MapOutlineIcon className="m-0 size-[24px] shrink-0" />
-          <span className="text-[12px] whitespace-nowrap">
-            {mapExpanded ? "목록 보기" : "지도 크게 보기"}
-          </span>
-        </Button>
+        {showMapToggle && (
+          <Button
+            variant="ghost"
+            onPress={onToggleMapExpanded}
+            aria-pressed={mapExpanded}
+            className="flex h-[40px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[17px] bg-black-800 px-[20px] text-white transition-colors hover:bg-black-900 active:bg-black-900 data-[pressed=true]:bg-black-900"
+          >
+            <MapOutlineIcon className="m-0 size-[24px] shrink-0" />
+            <span className="text-[12px] whitespace-nowrap">
+              {mapExpanded ? "목록 보기" : "지도 크게 보기"}
+            </span>
+          </Button>
+        )}
       </div>
     </div>
   );

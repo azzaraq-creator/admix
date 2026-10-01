@@ -39,7 +39,8 @@ import {
   type MapMarker,
 } from "./MapArea";
 
-const CHIP_DIMS: ChipDimKey[] = [
+/** 필터 칩으로 보여 주는 차원 — 관심 매체 페이지도 같은 칩 줄을 쓴다. */
+export const CHIP_DIMS: ChipDimKey[] = [
   "category",
   "saleType",
   "oohType",
@@ -99,14 +100,14 @@ const FOCUS_ZOOM_LEVEL = 3;
 // 첫 진입에서 목록 조회가 이만큼 멈춰 있으면 자리를 잡은 것으로 보고 스켈레톤을 걷는다.
 const ENTRY_SETTLE_MS = 300;
 
-function countFilters(f: MediaFilterState): number {
+export function countFilters(f: MediaFilterState): number {
   return (
     CHIP_DIMS.reduce((sum, key) => sum + f[key].length, 0) +
     (f.priceMin != null || f.priceMax != null ? 1 : 0)
   );
 }
 
-function FilterChip({
+export function FilterChip({
   label,
   onRemove,
 }: {

@@ -16,9 +16,6 @@ import { cn } from "@/lib/utils";
 /** 제안서 담기 완료 토스트가 떠 있는 시간. */
 const PROPOSAL_ADDED_TOAST_TIMEOUT = 5000;
 
-/** 카드에 이름을 보여 줄 매체 수 — 넘치면 "외 N개"로 줄인다. */
-const MAX_MEDIA_NAMES = 3;
-
 type ProposalAddedToastContent = { proposals: ProposalSummary[] };
 
 // 앱 알림(useSonner, 위 가운데 검정 토스트)과 모양·위치가 달라 큐를 따로 둔다.
@@ -35,13 +32,12 @@ export function showProposalAddedToast(proposals: ProposalSummary[]) {
   );
 }
 
-/** 모바일에서 토스트 높이의 이 비율 이상 끌어내리면 닫는다. 덜 끌면 제자리로 돌아간다. */
+/** 터치로 토스트 높이의 이 비율 이상 끌어내리면 닫는다. 덜 끌면 제자리로 돌아간다. */
 const SWIPE_CLOSE_RATIO = 0.5;
 
-const isMobile = () => window.matchMedia("(max-width: 639px)").matches;
 
 /**
- * 모바일 — 토스트를 아래로 쓸어내려 닫는다(바텀시트처럼). 손가락을 따라 내려가고,
+ * 터치 기기(폰·아이패드 등 화면 크기와 무관) — 토스트를 아래로 쓸어내려 닫는다(바텀시트처럼). 손가락을 따라 내려가고,
  * 토스트 높이의 절반 이상 끌어내렸으면 닫고, 아니면 제자리로 돌아간다.
  * HeroUI 토스트는 위치를 transform으로 움직이므로, 끄는 거리는 따로 노는 CSS translate에 준다
  * (등장·퇴장 애니메이션과 부딪히지 않고, 닫힐 때는 끌린 자리에서 이어서 사라진다).
@@ -54,7 +50,8 @@ function useSwipeDownToClose(onClose: () => void) {
   } | null>(null);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
-    if (e.pointerType !== "touch" || !isMobile()) return;
+    // 손가락 터치만 받는다 — 마우스(PC)는 기존대로 닫기 버튼을 쓴다.
+    if (e.pointerType !== "touch") return;
     // 스크롤되는 카드 목록 안에서 시작한 터치는 목록 스크롤에 맡긴다(토스트가 같이 끌려 들썩이지 않게).
     const scroller = (e.target as HTMLElement).closest<HTMLElement>(
       "[data-swipe-scroll]",
@@ -139,7 +136,6 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
         (a.created_at ? Date.parse(a.created_at) : 0),
     )
     .map((item) => item.name);
-  const hiddenCount = names.length - MAX_MEDIA_NAMES;
   // 예전 응답(금액 분리 전)은 total_amount가 광고비 합계다 — 제안서 목록(toView)과 같은 기준.
   const adAmount = proposal.advertisement_amount ?? proposal.total_amount;
   const productionAmount = proposal.production_amount ?? 0;
@@ -157,7 +153,8 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
       </div>
       {names.length > 0 && (
         <ul className="flex flex-col gap-[8px]">
-          {names.slice(0, MAX_MEDIA_NAMES).map((name, i) => (
+          {/* 담긴 매체를 모두 보여 준다 — 많으면 토스트 안 카드 목록이 스크롤된다. */}
+          {names.map((name, i) => (
             <li key={i} className="flex items-center gap-[8px]">
               <span
                 aria-hidden
@@ -168,11 +165,6 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
               </span>
             </li>
           ))}
-          {hiddenCount > 0 && (
-            <li className="pl-[14px] text-[12px] text-[#71717a]">
-              외 {hiddenCount}개 매체
-            </li>
-          )}
         </ul>
       )}
       <div className="flex flex-col gap-[8px] rounded-[16px] border border-[#ececef] bg-white px-[14px] py-[12px] whitespace-nowrap">
@@ -237,10 +229,10 @@ function ProposalAddedToastItem({
       {/* 토스트 안에 포커스가 있으면 HeroUI가 타이머를 멈춘다(키보드 사용자용).
               마우스로 누르기만 해도 포커스가 들어가 안 사라지므로, 손을 떼면 포커스를 놓는다.
               글자 드래그 선택은 그대로 남는다. */}
-      {/* 모바일은 아래로 쓸어내려 닫는다 — 브라우저가 세로 끌기를 스크롤로 가져가지 않게 touch-none.
+      {/* 터치 기기는 아래로 쓸어내려 닫는다 — 브라우저가 세로 끌기를 스크롤로 가져가지 않게 touch-none.
               카드 목록이 넘칠 때만 목록 안은 스크롤(touch-pan-y)에 양보한다. */}
       <div
-        className="flex w-full flex-col p-[10px] max-sm:touch-none"
+        className="flex w-full touch-none flex-col p-[10px]"
         onPointerDown={swipe.onPointerDown}
         onPointerMove={swipe.onPointerMove}
         onPointerCancel={swipe.onPointerCancel}
@@ -255,10 +247,10 @@ function ProposalAddedToastItem({
           }
         }}
       >
-        {/* 모바일 — 쓸어내릴 수 있음을 알리는 손잡이. */}
+        {/* 터치 기기(폰·태블릿) — 쓸어내릴 수 있음을 알리는 손잡이. 마우스만 쓰는 PC에선 숨긴다. */}
         <span
           aria-hidden
-          className="mx-auto h-[4px] w-[36px] shrink-0 rounded-full bg-[#d4d4d8] sm:hidden"
+          className="mx-auto hidden h-[4px] w-[36px] shrink-0 rounded-full bg-[#d4d4d8] pointer-coarse:block"
         />
         <div className="flex items-center gap-[10px] p-[10px]">
           <CheckCircleFilledIcon className="shrink-0 text-[#16a34a]" />
@@ -276,7 +268,7 @@ function ProposalAddedToastItem({
             // overscroll-contain: 목록 끝에서 더 밀어도 뒤 화면이 따라 스크롤되지 않게 한다.
             className={cn(
               "flex max-h-[min(60vh,480px)] flex-col gap-[8px] overflow-y-auto overscroll-contain",
-              listOverflowing && "max-sm:touch-pan-y",
+              listOverflowing && "touch-pan-y",
             )}
           >
             {toast.content.proposals.map((proposal) => (

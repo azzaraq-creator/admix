@@ -192,11 +192,14 @@ function buildFixedQuery(
   return q.toString();
 }
 
-function buildMovingQuery(f?: MediaFilterParams): string {
+/** 검색어·필터만 담은 쿼리(지도 영역·페이지 없음) — 이동 매체·관심 매체 목록이 쓴다. */
+export function buildMediaFilterQuery(f?: MediaFilterParams): string {
   const q = new URLSearchParams();
   appendFilters(q, f);
   return q.toString();
 }
+
+const buildMovingQuery = buildMediaFilterQuery;
 
 function buildClusterQuery(zoom: number, f?: MediaFilterParams): string {
   const q = new URLSearchParams();
@@ -285,7 +288,9 @@ export const adminMediaApi = {
   create: (payload: AdminMediaPayload) =>
     api.post<AdminMediaDetail>("/admin/media", payload).then((r) => r.data),
   update: (id: string, payload: AdminMediaPayload) =>
-    api.patch<AdminMediaDetail>(`/admin/media/${id}`, payload).then((r) => r.data),
+    api
+      .patch<AdminMediaDetail>(`/admin/media/${id}`, payload)
+      .then((r) => r.data),
   remove: (id: string) =>
     api.delete(`/admin/media/${id}`).then(() => undefined),
   uploadImage: (id: string, file: File) => {

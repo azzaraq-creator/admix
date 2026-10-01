@@ -57,7 +57,7 @@ export function CategoryStep({
             className="group w-full max-sm:mt-0 max-sm:flex"
           >
             {/* 카드(148px)는 컨테이너라 시안 곡률 16px을 그대로 둔다. */}
-            <Radio.Content className="grid h-[148px] w-full cursor-pointer grid-cols-[1fr_auto] content-start gap-x-[8px] gap-y-[10px] rounded-[16px] border border-black-200 bg-white p-[16px] shadow-[0px_10px_12px_rgba(0,0,0,0.05)] transition-colors group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50 group-data-[selected=true]:shadow-[0px_10px_10px_rgba(163,59,209,0.1)] data-[hovered=true]:border-black-300 max-sm:h-auto max-sm:flex-1 max-sm:gap-y-[6px] max-sm:p-[12px] sm:p-[20px]">
+            <Radio.Content className="grid h-[148px] w-full sm:[@media(max-height:820px)]:h-[120px] cursor-pointer grid-cols-[1fr_auto] content-start gap-x-[8px] gap-y-[10px] rounded-[16px] border border-black-200 bg-white p-[16px] shadow-[0px_10px_12px_rgba(0,0,0,0.05)] transition-colors group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50 group-data-[selected=true]:shadow-[0px_10px_10px_rgba(163,59,209,0.1)] data-[hovered=true]:border-black-300 max-sm:h-auto max-sm:flex-1 max-sm:gap-y-[6px] max-sm:p-[12px] sm:p-[20px]">
               <Label className="cursor-pointer text-[16px] font-bold whitespace-nowrap text-black-900 max-sm:text-[17px]">
                 {category.label}
               </Label>

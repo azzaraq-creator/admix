@@ -88,11 +88,11 @@ function ProcessCard() {
     <Card className="relative mt-[14px] gap-[20px] rounded-[20px] border border-[#e4e4e7] bg-[#f7f7f8] px-[20px] py-[24px] shadow-none md:px-[80px]">
       {/* 말풍선 꼬리 — 바탕과 같은 색 24px 네모를 45° 돌려 윗변에 반만 내민다(위로 약 17px, 밑변 약 34px).
           바깥쪽 두 변(돌리기 전 위·왼쪽)에만 윤곽선을 그리고, 아래 절반이 몸통 윗선을 덮어 하나의 윤곽으로 잇는다.
-          넓은 화면(xl 이상, 카드 3칸·칸 사이 16px): 셋째 칸 가운데 = (전체 - 32px) × 5/6 + 32px.
+          카드가 3칸일 때(ContactChannels 폭 880px 이상, 칸 사이 16px): 셋째 칸 가운데 = (전체 - 32px) × 5/6 + 32px.
           그보다 좁으면 카드가 세로로 쌓여 바로 위가 문의 접수라 가운데. */}
       <span
         aria-hidden
-        className="absolute -top-[12px] left-1/2 size-[24px] -translate-x-1/2 rotate-45 rounded-tl-[4px] border-t border-l border-[#e4e4e7] bg-[#f7f7f8] xl:left-[calc((100%-32px)*5/6+32px)]"
+        className="absolute -top-[12px] left-1/2 size-[24px] -translate-x-1/2 rotate-45 rounded-tl-[4px] border-t border-l border-[#e4e4e7] bg-[#f7f7f8] @[880px]:left-[calc((100%-32px)*5/6+32px)]"
       />
       <Card.Header className="items-center">
         <Card.Title className="text-[15px] font-bold text-[#18181b]">
@@ -158,7 +158,8 @@ function ChannelCard({
 }) {
   return (
     // 카드 곡률 20px — 매체 정보 팝업·제안서 담기 창과 같다.
-    <Card className="gap-[20px] rounded-[20px] border border-[#ececef] p-[24px] shadow-[0_6px_20px_-8px_rgba(24,24,27,0.10)]">
+    // 3칸일 때(카드 폭 280px 안팎)는 안쪽 여백을 20px로 줄여 머리 줄(아이콘·제목·배지)이 한 줄에 들어가게 한다.
+    <Card className="gap-[20px] rounded-[20px] border border-[#ececef] p-[24px] shadow-[0_6px_20px_-8px_rgba(24,24,27,0.10)] @[880px]:p-[20px]">
       {/* 아이콘 옆에 제목·설명, 배지는 머리 줄 오른쪽 끝(위쪽 맞춤). */}
       <Card.Header className="flex-row items-center gap-[12px]">
         {/* 아이콘 칸 48px → 곡률 21px. */}
@@ -199,9 +200,10 @@ export function ContactChannels({
   onCopy: (text: string, what: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-[16px]">
-      {/* 카드 3장을 나란히 두면 한 장에 340px 안팎이 필요해, 사이드바를 뺀 폭이 넉넉한 xl(1280px) 이상에서만 3칸. */}
-      <div className="grid gap-[16px] xl:grid-cols-3">
+    // 화면 폭이 아니라 이 영역의 실제 폭(사이드바 접힘·펼침에 따라 달라짐)으로 3칸 여부를 정한다(@container).
+    <div className="@container flex flex-col gap-[16px]">
+      {/* 이 영역이 880px 이상(카드 한 장 약 280px)이면 3장을 나란히 — 아이패드 가로(1180px)도 3칸. */}
+      <div className="grid gap-[16px] @[880px]:grid-cols-3">
         <ChannelCard
           icon={<ChatIcon className="size-[24px]" />}
           title="실시간 상담"

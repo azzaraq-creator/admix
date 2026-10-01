@@ -1,21 +1,28 @@
 "use client";
 
 import { Breadcrumbs, Button, ScrollShadow } from "@heroui/react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
-  ChevronDownIcon,
+  ChevronDoubleDownIcon,
   InfoIcon,
   MixieIcon,
   ScrollMouseIcon,
   SearchDuotoneIcon,
 } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 import { AiSearchBox } from "./AiSearchBox";
 import { HomeChat } from "./HomeChat";
 import { ModeToggle, type Mode } from "./ModeToggle";
 import { NewChatButton } from "./NewChatButton";
 import { useMixieChat } from "./useMixieChat";
+
+/**
+ * 홈 아래 "더 있어요" 스크롤 안내(마우스·겹화살표) — 대시보드 아래 콘텐츠가 아직 없어 잠시 숨긴다.
+ * 콘텐츠가 생기면 true로 바꾸면 다시 보인다.
+ */
+const SHOW_SCROLL_HINT = false;
 
 const SUGGESTIONS = [
   "강남에서 빌보드 광고 1억 예산으로 화장품 브랜딩하고 싶어요",
@@ -84,6 +91,48 @@ const SUBTITLE: Record<Mode, string> = {
   search: "원하는 옥외광고 매체를 검색해 보세요",
 };
 
+const TITLE_CLASS =
+  "text-left text-[18px] leading-[26px] font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]";
+
+/**
+ * AI·검색 화면의 한 겹 — 두 모드를 같은 칸([grid-area:1/1])에 겹쳐 두고, 탭 순서(왼쪽 AI ·
+ * 오른쪽 검색)대로 옆으로 밀어 바꾼다. 숨은 겹은 자기 쪽(AI는 왼쪽, 검색은 오른쪽)에 비켜 있어서
+ * - AI → 검색: AI는 왼쪽으로 빠지고, 검색은 오른쪽에서 들어온다.
+ * - 검색 → AI: 검색은 오른쪽으로 빠지고, AI는 왼쪽에서 들어온다.
+ * 숨은 쪽은 inert로 누르거나 포커스되지 않는다. 칸 크기는 늘 두 겹 중 큰 쪽이라 입력바가 움직이지 않는다.
+ */
+function ModeLayer({
+  active,
+  side,
+  className,
+  children,
+}: {
+  active: boolean;
+  /** 숨었을 때 비켜 있는 쪽 — 탭에서의 자리(AI 왼쪽, 검색 오른쪽). */
+  side: "left" | "right";
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      aria-hidden={!active}
+      inert={!active}
+      className={cn(
+        "[grid-area:1/1] transition-[opacity,translate] duration-300 ease-out motion-reduce:transition-none",
+        active
+          ? "translate-x-0 opacity-100"
+          : cn(
+              "pointer-events-none opacity-0",
+              side === "left" ? "-translate-x-[48px]" : "translate-x-[48px]",
+            ),
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function HomeContent() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("ai");
@@ -134,21 +183,36 @@ export function HomeContent() {
         </div>
       ) : (
         <div className="flex w-full flex-1 flex-col items-start justify-start py-[24px] sm:items-center sm:justify-center sm:py-[40px]">
-          {/* 모바일은 아이콘 옆에 제목·부제를 두고, 데스크톱은 세로로 가운데 쌓는다. */}
-          <div className="flex items-center gap-[12px] sm:flex-col sm:gap-0">
-            {mode === "search" ? (
-              <SearchDuotoneIcon className="size-[36px] shrink-0 sm:size-[70px]" />
-            ) : (
-              <MixieIcon className="size-[36px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
-            )}
-            <div className="flex flex-col sm:items-center">
-              <h1 className="text-left text-[18px] leading-[26px] font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]">
-                {TITLE[mode]}
-              </h1>
-              <p className="text-left text-[15px] leading-[22px] text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
-                {SUBTITLE[mode]}
-              </p>
-            </div>
+          {/* 아이콘·제목·부제 — 두 모드를 같은 칸에 겹쳐 두고 옆으로 밀어 바꾼다(ModeLayer).
+              밀리는 부분은 잘라 가로 스크롤을 막되, 아이콘 그림자가 잘리지 않게 양옆을 16px 넓혀 자른다. */}
+          <div className="-mx-[16px] grid overflow-x-clip px-[16px] sm:justify-items-center">
+            {(["ai", "search"] as const).map((m) => (
+              <ModeLayer
+                key={m}
+                active={mode === m}
+                side={m === "ai" ? "left" : "right"}
+              >
+                {/* 모바일은 아이콘 옆에 제목·부제를 두고, 데스크톱은 세로로 가운데 쌓는다. */}
+                <div className="flex items-center gap-[12px] sm:flex-col sm:gap-0">
+                  {m === "search" ? (
+                    // 돋보기는 옆 부제(#888)와 어울리는 연한 회색.
+                    <SearchDuotoneIcon className="size-[36px] shrink-0 text-[#8c8c94] sm:size-[70px]" />
+                  ) : (
+                    <MixieIcon className="size-[36px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
+                  )}
+                  <div className="flex flex-col sm:items-center">
+                    {m === mode ? (
+                      <h1 className={TITLE_CLASS}>{TITLE[m]}</h1>
+                    ) : (
+                      <p className={TITLE_CLASS}>{TITLE[m]}</p>
+                    )}
+                    <p className="text-left text-[15px] leading-[22px] text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
+                      {SUBTITLE[m]}
+                    </p>
+                  </div>
+                </div>
+              </ModeLayer>
+            ))}
           </div>
 
           {/* 모바일은 입력바가 남는 세로 공간을 채운다(최소 180px). */}
@@ -162,115 +226,133 @@ export function HomeContent() {
             />
           </div>
 
-          {mode === "ai" && (
-            <p className="mt-[10px] max-w-[860px] text-left text-xs text-[#64748b] max-sm:text-[13px] max-sm:leading-[18px] sm:mt-[20px] sm:text-center">
-              {/* 모바일은 좌측 패널이 없고 메뉴(드로어)로 들어간다. */}
-              <span className="flex items-start gap-[4px] sm:hidden">
-                {/* 글자(13px/18px) 첫 줄 가운데에 맞춰 2px 내린다. */}
-                <InfoIcon
-                  aria-hidden
-                  className="mt-[2px] size-[14px] shrink-0"
-                />
-                메뉴의 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
-              </span>
-              <span className="hidden sm:inline">
-                AI 믹시 채팅은 좌측 패널 및 상세 매체 탐색 과정에서도 지속적으로
-                지원됩니다.
-              </span>
-            </p>
-          )}
-
-          {mode === "search" ? (
-            <div className="mt-[20px] flex w-full max-w-[860px] flex-col gap-[20px] sm:mt-[28px]">
-              {SEARCH_SUGGESTIONS.map(({ title, items, rows }) => {
-                const half = Math.ceil(items.length / 2);
-                const itemRows =
-                  rows === 2
-                    ? [items.slice(0, half), items.slice(half)]
-                    : [items];
-                return (
-                  <section
-                    key={title}
-                    className="w-full text-left sm:text-center"
-                  >
-                    <h2 className="text-sm font-semibold text-black max-sm:text-[15px]">
-                      {title}
-                    </h2>
-                    <ScrollShadow
-                      orientation="horizontal"
-                      hideScrollBar
-                      size={24}
-                      className={SEARCH_SUGGESTION_ROWS_CLASS}
-                    >
-                      {itemRows.map((row) => (
-                        <ul
-                          key={row[0]}
-                          className={SEARCH_SUGGESTION_ROW_CLASS}
+          {/* 입력바 아래 — AI(안내 + 추천 질문)와 검색(추천 지역·매체)을 같은 칸에 겹쳐 둔다.
+              칸 높이가 늘 둘 중 큰 쪽이라 모드를 바꿔도 입력바가 움직이지 않는다. */}
+          <div className="mt-[10px] grid w-full max-w-[860px] overflow-x-clip sm:mt-[20px] sm:justify-items-center">
+            <ModeLayer
+              active={mode === "ai"}
+              side="left"
+              className="flex w-full flex-col sm:items-center"
+            >
+              <p className="max-w-[860px] text-left text-xs text-[#64748b] max-sm:text-[13px] max-sm:leading-[18px] sm:text-center">
+                {/* 모바일은 좌측 패널이 없고 메뉴(드로어)로 들어간다. */}
+                <span className="flex items-start gap-[4px] sm:hidden">
+                  {/* 글자(13px/18px) 첫 줄 가운데에 맞춰 2px 내린다. */}
+                  <InfoIcon
+                    aria-hidden
+                    className="mt-[2px] size-[14px] shrink-0"
+                  />
+                  메뉴의 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
+                </span>
+                <span className="hidden items-start gap-[4px] sm:inline-flex">
+                  {/* 글자(12px/16px) 첫 줄 가운데에 맞춰 1px 내린다. */}
+                  <InfoIcon
+                    aria-hidden
+                    className="mt-[1px] size-[14px] shrink-0"
+                  />
+                  AI 믹시 채팅은 좌측 패널 및 상세 매체 탐색 과정에서도
+                  지속적으로 지원됩니다.
+                </span>
+              </p>
+              <section className="mt-[20px] w-full max-w-[860px] text-left sm:mt-[28px] sm:text-center">
+                <h2 className="text-[15px] font-semibold text-black sm:hidden">
+                  추천 질문
+                </h2>
+                {/* 스크롤 틀이 flex여야 오른쪽 여백까지 넘겨 볼 수 있다(모바일). */}
+                <ScrollShadow
+                  orientation="horizontal"
+                  hideScrollBar
+                  size={24}
+                  className={`${SUGGESTION_SCROLL_CLASS} max-sm:flex sm:mt-0`}
+                >
+                  <ul className={SUGGESTION_LIST_CLASS}>
+                    {SUGGESTIONS.map((suggestion) => (
+                      <li key={suggestion} className={SUGGESTION_ITEM_CLASS}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={SUGGESTION_CHIP_CLASS}
+                          onPress={() => setQuery(suggestion)}
                         >
-                          {row.map((item) => (
-                            <li
-                              key={item}
-                              className={SEARCH_SUGGESTION_ITEM_CLASS}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={SEARCH_SUGGESTION_CHIP_CLASS}
-                                onPress={() => setQuery(item)}
-                              >
-                                {item}
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      ))}
-                    </ScrollShadow>
-                  </section>
-                );
-              })}
-            </div>
-          ) : (
-            <section className="mt-[20px] w-full max-w-[860px] text-left sm:mt-[28px] sm:text-center">
-              <h2 className="text-[15px] font-semibold text-black sm:hidden">
-                추천 질문
-              </h2>
-              {/* 스크롤 틀이 flex여야 오른쪽 여백까지 넘겨 볼 수 있다(모바일). */}
-              <ScrollShadow
-                orientation="horizontal"
-                hideScrollBar
-                size={24}
-                className={`${SUGGESTION_SCROLL_CLASS} max-sm:flex sm:mt-0`}
-              >
-                <ul className={SUGGESTION_LIST_CLASS}>
-                  {SUGGESTIONS.map((suggestion) => (
-                    <li key={suggestion} className={SUGGESTION_ITEM_CLASS}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={SUGGESTION_CHIP_CLASS}
-                        onPress={() => setQuery(suggestion)}
+                          {suggestion}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollShadow>
+              </section>
+            </ModeLayer>
+            <ModeLayer
+              active={mode === "search"}
+              side="right"
+              className="flex w-full flex-col sm:items-center"
+            >
+              <div className="flex w-full max-w-[860px] flex-col gap-[20px]">
+                {SEARCH_SUGGESTIONS.map(({ title, items, rows }) => {
+                  const half = Math.ceil(items.length / 2);
+                  const itemRows =
+                    rows === 2
+                      ? [items.slice(0, half), items.slice(half)]
+                      : [items];
+                  return (
+                    <section
+                      key={title}
+                      className="w-full text-left sm:text-center"
+                    >
+                      <h2 className="text-sm font-semibold text-black max-sm:text-[15px]">
+                        {title}
+                      </h2>
+                      <ScrollShadow
+                        orientation="horizontal"
+                        hideScrollBar
+                        size={24}
+                        className={SEARCH_SUGGESTION_ROWS_CLASS}
                       >
-                        {suggestion}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </ScrollShadow>
-            </section>
-          )}
+                        {itemRows.map((row) => (
+                          <ul
+                            key={row[0]}
+                            className={SEARCH_SUGGESTION_ROW_CLASS}
+                          >
+                            {row.map((item) => (
+                              <li
+                                key={item}
+                                className={SEARCH_SUGGESTION_ITEM_CLASS}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={SEARCH_SUGGESTION_CHIP_CLASS}
+                                  onPress={() => setQuery(item)}
+                                >
+                                  {item}
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        ))}
+                      </ScrollShadow>
+                    </section>
+                  );
+                })}
+              </div>
+            </ModeLayer>
+          </div>
         </div>
       )}
 
-      {/* 아래에 콘텐츠가 더 있다는 표시 — 대화 중에도 유지한다. */}
-      <div
-        aria-hidden
-        className={`flex shrink-0 flex-col items-center gap-[2px] text-[#888] ${
-          hasConversation ? "mt-[12px]" : ""
-        }`}
-      >
-        <ScrollMouseIcon className="size-[18px] sm:size-[24px]" />
-        <ChevronDownIcon className="size-[20px]" />
-      </div>
+      {/* 아래에 콘텐츠가 더 있다는 표시 — 대화 중에도 유지한다. 지금은 숨김(SHOW_SCROLL_HINT). */}
+      {SHOW_SCROLL_HINT && (
+        <div
+          aria-hidden
+          className={`flex shrink-0 flex-col items-center gap-[2px] text-[#888] ${
+            hasConversation ? "mt-[12px]" : ""
+          }`}
+        >
+          <ScrollMouseIcon className="size-[18px] sm:size-[24px]" />
+          {/* 지금까지 보이던 그대로 8×9px(아이콘이 크기 지정을 무시해 원본 크기로 보였다). 색은 위 #888. */}
+          <ChevronDoubleDownIcon className="h-[9px] w-[8px]" />
+        </div>
+      )}
     </div>
   );
 }

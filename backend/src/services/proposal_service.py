@@ -703,12 +703,16 @@ def add_items(
             m.media_id: m
             for m in db.query(Media).filter(Media.media_id.in_(wanted)).all()
         }
+        # 새로 담는 매체는 기존 순서 맨 뒤에 담은 차례대로 붙인다(모두 0으로 두면 순서를 바꾼
+        # 매체들 사이에 섞이고, 한 번에 담은 것끼리는 생성 시각이 같아 순서가 뒤죽박죽이 된다).
+        next_position = max((it.position for it in proposal.items), default=-1) + 1
         for mid in wanted:
             media = rows.get(mid)
             if media is None:
                 continue
             proposal.items.append(
                 ProposalItem(
+                    position=next_position,
                     media_id=mid,
                     name=media.name,
                     price=media.min_advertisement_fee_krw,
@@ -717,6 +721,7 @@ def add_items(
                     quantity=1,
                 )
             )
+            next_position += 1
         _recount(proposal)
         db.commit()
         db.refresh(proposal)

@@ -23,12 +23,15 @@ export function MediaImageCarousel({
   sizes,
   className,
   logoClassName = "size-[40px]",
+  imageClassName,
   children,
 }: {
   slides: (string | undefined)[];
   sizes: string;
   className?: string;
   logoClassName?: string;
+  /** 각 사진(img)에 줄 클래스 — 매체 찾기 카드의 hover 확대 등. */
+  imageClassName?: string;
   children?: ReactNode;
 }) {
   // 이미지 도트 — 시안엔 도트만 있지만 눌러서 바꿀 수 있게 한다.
@@ -106,6 +109,7 @@ export function MediaImageCarousel({
             src={src}
             sizes={sizes}
             className="size-full shrink-0"
+            imageClassName={imageClassName}
             fallback={<Logo className={cn(logoClassName, "opacity-30")} />}
           />
         ))}

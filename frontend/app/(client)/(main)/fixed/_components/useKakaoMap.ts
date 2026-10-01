@@ -2,17 +2,12 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-import {
-  type KakaoLatLng,
-  type KakaoMap,
-  type KakaoMarker,
-  loadKakaoSdk,
-} from "@/lib/kakaoMap";
+import { type KakaoLatLng, type KakaoMap, loadKakaoSdk } from "@/lib/kakaoMap";
 
 import type {
   MapBoundsPayload,
-  MapMarker,
   MapMoveType,
+  MarkerEntry,
   MoveTarget,
 } from "./mapTypes";
 
@@ -24,7 +19,7 @@ export function useKakaoMap({
   moveTarget,
   onBoundsChange,
 }: {
-  markerObjsRef: RefObject<{ marker: KakaoMarker; data: MapMarker }[]>;
+  markerObjsRef: RefObject<MarkerEntry[]>;
   autoFit: boolean;
   moveTarget?: MoveTarget | null;
   onBoundsChange?: (bounds: MapBoundsPayload) => void;

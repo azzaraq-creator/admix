@@ -1,16 +1,61 @@
 "use client";
 
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 import {
   type KakaoCustomOverlay,
   type KakaoMap,
-  type KakaoMarker,
   type KakaoMarkerImage,
   type KakaoMaps,
 } from "@/lib/kakaoMap";
 
-import type { MapCluster, MapMarker, MoveTarget } from "./mapTypes";
+import {
+  BUBBLE_MAX_LEVEL,
+  type MapCluster,
+  type MapMarker,
+  type MarkerEntry,
+  type MoveTarget,
+} from "./mapTypes";
+
+/**
+ * 매체명 말풍선 — 마커와 같은 모양새: 보라(#A33BD1) 바탕에 흰 글자, 아래 뾰족한 꼬리, 마커와 같은 그림자.
+ * 선택(포커스)되면 포커스 마커처럼 흰 바탕·보라 테두리·보라 글자. 이름이 길면 말줄임(전체 이름은 title).
+ * 바깥 상자(아래 여백 = 꼬리 길이)의 아래 가운데가 매체 위치다(yAnchor 1).
+ */
+const PIN_COLOR = "#A33BD1";
+
+function bubbleCss(selected: boolean) {
+  const bg = selected ? "#ffffff" : PIN_COLOR;
+  const fg = selected ? PIN_COLOR : "#ffffff";
+  // 테두리는 늘 보라 — 기본은 바탕과 같은 색이라 안 보이고, 선택(흰 바탕)에선 보라 테두리가 된다.
+  const border = `1.5px solid ${PIN_COLOR}`;
+  return {
+    wrap: "position:relative;padding-bottom:7px;filter:drop-shadow(0 1.5px 1.5px rgba(26,16,37,0.26));cursor:pointer;",
+    box: `position:relative;display:block;max-width:190px;padding:4px 10px;border-radius:14px;background:${bg};border:${border};color:${fg};font-size:12px;line-height:16px;font-weight:600;letter-spacing:-0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`,
+    // 꼬리는 몸통 위에 그려(z-index) 몸통 아래 테두리가 꼬리를 가로지르지 않게 한다 — 꼬리 윗부분(몸통 안쪽)이
+    // 같은 바탕색으로 그 테두리를 덮고, 바깥 두 변(오른쪽·아래)에만 테두리를 그어 몸통 테두리와 이어진다.
+    tail: `position:absolute;z-index:1;left:50%;bottom:2px;width:9px;height:9px;transform:translateX(-50%) rotate(45deg);background:${bg};border-right:${border};border-bottom:${border};border-bottom-right-radius:2px;`,
+  };
+}
+
+function createBubble(m: MapMarker) {
+  const el = document.createElement("div");
+  const box = document.createElement("div");
+  const tail = document.createElement("div");
+  box.textContent = m.name;
+  box.title = m.name;
+  el.append(box, tail);
+  styleBubble(el, false);
+  return el;
+}
+
+function styleBubble(el: HTMLDivElement, selected: boolean) {
+  const [box, tail] = Array.from(el.children) as HTMLDivElement[];
+  const css = bubbleCss(selected);
+  el.style.cssText = css.wrap;
+  box.style.cssText = css.box;
+  tail.style.cssText = css.tail;
+}
 
 const MARKER_SIZE = { width: 40, height: 40 };
 const MARKER_ANCHOR = { x: 20, y: 16 };
@@ -121,7 +166,7 @@ export function useMapMarkers({
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   programmaticMoveRef: RefObject<boolean>;
-  markerObjsRef: RefObject<{ marker: KakaoMarker; data: MapMarker }[]>;
+  markerObjsRef: RefObject<MarkerEntry[]>;
   markers: MapMarker[];
   clusters: MapCluster[];
   selectedGroup?: MapMarker[] | null;
@@ -158,6 +203,22 @@ export function useMapMarkers({
       ? groupKeyOf(selectedGroup[0].lat, selectedGroup[0].lng)
       : undefined;
   const selectedGroupKeyRef = useRef(selectedGroupKey);
+  // 가까이(BUBBLE_MAX_LEVEL 이하) 확대했는지 — 넘나들 때만 핀을 다시 그린다.
+  const [bubbleMode, setBubbleMode] = useState(false);
+  // 지도 범위 맞춤은 매체 목록이 바뀌었을 때만 — 말풍선 전환으로 다시 그릴 때는 지도를 건드리지 않는다.
+  const fittedMarkersRef = useRef<MapMarker[] | null>(null);
+  // 마지막으로 가운데 맞춘 포커스 — 말풍선 전환으로 다시 그릴 때 같은 매체로 지도를 또 옮기지 않게.
+  const centeredFocusRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+    const sync = () => setBubbleMode(map.getLevel() <= BUBBLE_MAX_LEVEL);
+    sync();
+    maps.event.addListener(map, "zoom_changed", sync);
+    return () => maps.event.removeListener(map, "zoom_changed", sync);
+  }, [mapReady, mapRef]);
 
   useEffect(() => {
     onMarkerClickRef.current = onMarkerClick;
@@ -172,12 +233,19 @@ export function useMapMarkers({
     const map = mapRef.current;
     if (!mapReady || !maps || !map) return;
 
-    markerObjsRef.current.forEach(({ marker }) => marker.setMap(null));
+    markerObjsRef.current.forEach(({ marker, bubble }) => {
+      marker?.setMap(null);
+      bubble?.overlay.setMap(null);
+    });
     markerObjsRef.current = [];
     groupOverlaysRef.current.forEach((o) => o.overlay.setMap(null));
     groupOverlaysRef.current = [];
     shownFocusRef.current = undefined;
     focusedGroupKeyRef.current = undefined;
+    // 말풍선 전환으로만 다시 그린 경우(목록은 그대로)엔 범위 맞춤·포커스 재센터링을 하지 않는다.
+    const markersChanged = fittedMarkersRef.current !== markers;
+    fittedMarkersRef.current = markers;
+    if (markersChanged) centeredFocusRef.current = undefined;
 
     const valid = markers.filter(
       (m) => typeof m.lat === "number" && typeof m.lng === "number",
@@ -200,16 +268,30 @@ export function useMapMarkers({
       const first = members[0];
       const pos = new maps.LatLng(first.lat, first.lng);
       bounds.extend(pos);
-      if (members.length === 1) {
+      if (members.length === 1 && bubbleMode) {
+        // 가까이 확대 — 마커 대신 매체명 말풍선.
+        const m = first;
+        const el = createBubble(m);
+        el.addEventListener("click", () => onMarkerClickRef.current?.(m.id));
+        const overlay = new maps.CustomOverlay({
+          position: pos,
+          content: el,
+          xAnchor: 0.5,
+          yAnchor: 1,
+          zIndex: 2,
+          clickable: true,
+        });
+        overlay.setMap(map);
+        markerObjsRef.current.push({
+          data: m,
+          marker: null,
+          bubble: { overlay, el },
+        });
+      } else if (members.length === 1) {
         const m = first;
         const marker = new maps.Marker({
           position: pos,
-          image: markerImageFor(
-            maps,
-            imageCacheRef.current,
-            m,
-            false,
-          ),
+          image: markerImageFor(maps, imageCacheRef.current, m, false),
           title: m.name,
           zIndex: 1,
         });
@@ -217,7 +299,7 @@ export function useMapMarkers({
         maps.event.addListener(marker, "click", () =>
           onMarkerClickRef.current?.(m.id),
         );
-        markerObjsRef.current.push({ marker, data: m });
+        markerObjsRef.current.push({ data: m, marker, bubble: null });
       } else {
         // 겹친 마커 → 카운트 배지. 클릭 시 그 매체들을 리스트 팝업으로.
         const size =
@@ -248,14 +330,14 @@ export function useMapMarkers({
       }
     });
 
-    if (!autoFit) return;
+    if (!autoFit || !markersChanged) return;
     if (valid.length === 1) {
       map.setCenter(new maps.LatLng(valid[0].lat, valid[0].lng));
       map.setLevel(5);
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, mapReady, autoFit, mapRef, markerObjsRef]);
+  }, [markers, mapReady, autoFit, mapRef, markerObjsRef, bubbleMode]);
 
   // 검색어 지오코딩 결과로 지도 이동(프로그램 이동 → 사용자 이동 아님으로 표시).
   useEffect(() => {
@@ -327,31 +409,25 @@ export function useMapMarkers({
     const shown = shownFocusRef.current;
     if (shown === focusId) return;
 
+    // 단일 핀 강조 — 마커는 흰 링 이미지, 말풍선은 보라 바탕으로 바꾸고 맨 위로 올린다.
+    const setFocused = (entry: MarkerEntry, focused: boolean) => {
+      if (entry.marker) {
+        entry.marker.setImage(
+          markerImageFor(maps, imageCacheRef.current, entry.data, focused),
+        );
+        entry.marker.setZIndex(focused ? 10 : 1);
+      }
+      if (entry.bubble) {
+        styleBubble(entry.bubble.el, focused);
+        entry.bubble.overlay.setZIndex(focused ? 10 : 2);
+      }
+    };
+
     const prev = entries.find((e) => e.data.id === shown);
-    if (prev) {
-      prev.marker.setImage(
-        markerImageFor(
-          maps,
-          imageCacheRef.current,
-          prev.data,
-          false,
-        ),
-      );
-      prev.marker.setZIndex(1);
-    }
+    if (prev) setFocused(prev, false);
 
     const next = entries.find((e) => e.data.id === focusId);
-    if (next) {
-      next.marker.setImage(
-        markerImageFor(
-          maps,
-          imageCacheRef.current,
-          next.data,
-          true,
-        ),
-      );
-      next.marker.setZIndex(10);
-    }
+    if (next) setFocused(next, true);
 
     // 개별 마커가 없으면(겹친 그룹 멤버) 그 그룹 배지를 하이라이트한다.
     const nextGroup =
@@ -368,13 +444,17 @@ export function useMapMarkers({
       }
     }
 
+    // 포커스가 풀리면 다음에 같은 매체를 다시 골라도 가운데로 옮긴다.
+    if (focusId === undefined) centeredFocusRef.current = undefined;
+
     // 재센터링 — 개별 마커 또는 그룹 위치 기준.
     const center = next
       ? { lat: next.data.lat, lng: next.data.lng }
       : nextGroup
         ? { lat: nextGroup.lat, lng: nextGroup.lng }
         : null;
-    if (center && focusCenter) {
+    if (center && focusCenter && centeredFocusRef.current !== focusId) {
+      centeredFocusRef.current = focusId;
       const projection = map.getProjection();
       const markerPoint = projection.containerPointFromCoords(
         new maps.LatLng(center.lat, center.lng),
@@ -394,6 +474,7 @@ export function useMapMarkers({
     focusOffsetX,
     focusCenter,
     markers,
+    bubbleMode,
     mapReady,
     mapRef,
     markerObjsRef,

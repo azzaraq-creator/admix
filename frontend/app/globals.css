@@ -204,7 +204,7 @@
    지나가는" 인상이라, 색 띠 자체가 테두리를 따라 천천히 흐르도록 바꿨다.
    가로로 미는 방식이라 860×94처럼 납작한 박스에서도 긴 변을 고르게 지나가고
    모서리에서 멈칫하지 않는다(conic-gradient 회전은 모서리에서 멈칫해 보인다).
-   컨테이너 배경이 색 띠, 안쪽 흰 상자가 그 위를 덮어 2px 테두리만 남는다. */
+   색 띠(::before) 위를 안쪽 흰 상자가 덮어 2px 테두리만 남는다. */
 @keyframes admix-border-flow {
   to {
     /* 타일 폭(요소 너비의 2배)만큼 정확히 밀어 이음새 없이 반복된다. */
@@ -213,11 +213,23 @@
 }
 
 @layer components {
+  /* AI ↔ 검색 전환이 툭 바뀌지 않도록 두 테두리를 겹쳐 두고 페이드한다.
+     - 상자 자체: 검색 1px 회색 테두리(inset 그림자) — AI일 땐 ::before가 덮는다.
+     - ::before : AI 그라데이션 띠(흐름 애니메이션)
+     두께(padding 2px)는 두 모드가 같아 안쪽 흰 상자가 움직이지 않는다. 검색은 흰 상자를
+     1px 넓혀(box-shadow) 2px 중 바깥 1px만 회색으로 보이게 한다. */
   .admix-ai-border {
-    --admix-bw: 2px;
     position: relative;
-    padding: var(--admix-bw);
+    padding: 2px;
     border-radius: 27px;
+    box-shadow: inset 0 0 0 1px #d1d5db;
+  }
+  .admix-ai-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
     /* 로고(LogoFull)가 쓰는 하늘 → 파랑 → 보라 → 자홍 → 분홍.
        양끝이 같은 색인 대칭 배열이라 타일이 반복돼도 색이 튀지 않는다. */
     background-image: linear-gradient(
@@ -234,27 +246,31 @@
     );
     background-size: 200% 100%;
     animation: admix-border-flow 3s linear infinite;
+    transition: opacity 300ms ease-out;
   }
-
-  /* 안쪽 내용이 색 띠보다 위에 깔려 테두리 2px만 보이게 한다. */
+  /* 안쪽 내용이 색 띠보다 위에 깔려 테두리만 보이게 한다. */
   .admix-ai-border > * {
     position: relative;
     z-index: 1;
+    transition: box-shadow 300ms ease-out;
   }
 
-  /* 매체 검색 모드 — AI가 아니라 일반 검색창이라 그라데이션·흐름을 끄고
-     1px 회색 테두리만 남긴다. */
-  .admix-ai-border[data-mode="search"] {
-    --admix-bw: 1px;
-    background-color: #d1d5db;
-    background-image: none;
-    animation: none;
+  /* 매체 검색 모드 — AI가 아니라 일반 검색창이라 그라데이션 띠를 감추고 1px 회색 테두리만 남긴다. */
+  .admix-ai-border[data-mode="search"]::before {
+    opacity: 0;
+  }
+  .admix-ai-border[data-mode="search"] > * {
+    box-shadow: 0 0 0 1px #fff;
   }
 
   @media (prefers-reduced-motion: reduce) {
     /* 움직임만 멈추고 그라데이션은 그대로 둔다. */
-    .admix-ai-border {
+    .admix-ai-border::before {
       animation: none;
+    }
+    .admix-ai-border::before,
+    .admix-ai-border > * {
+      transition: none;
     }
   }
 }

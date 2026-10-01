@@ -1,13 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { Fragment, type ReactNode, useRef } from "react";
+import { Button } from "@heroui/react";
+import Image from "next/image";
+import { Fragment, type ReactNode, useState } from "react";
 
-import { GripVerticalIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { TrashOutlineIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import type { Slide } from "./SlideLightbox";
 
+/**
+ * 제안서 슬라이드 목록 — 시안 "03. 제안서 - 상세 (제출 전)" 왼쪽 열(197px).
+ * 번호 + 150×95 썸네일 카드(안쪽 140×67 미리보기, 아래 이름). 고정 슬라이드(표지·서머리 / THANK YOU)와
+ * 매체 슬라이드 사이엔 구분선. 매체 슬라이드는 ::: 손잡이를 누른 채 끌어 순서를 바꾸고(놓으면 바로 저장되고
+ * 서머리 순서에도 반영), 썸네일 오른쪽 위 휴지통으로 뺀다.
+ * 맨 아래 "관심 매체에서 추가하기".
+ */
 export function SlideSidebar({
   slides,
   firstMediaIndex,
@@ -17,6 +25,7 @@ export function SlideSidebar({
   onReorder,
   onDeleteSlide,
   renderThumb,
+  onAddFromFavorites,
 }: {
   slides: Slide[];
   firstMediaIndex: number;
@@ -26,107 +35,182 @@ export function SlideSidebar({
   onReorder: (from: number, to: number) => void;
   onDeleteSlide: (slideNumber: number, mediaId: string, name: string) => void;
   renderThumb: (slide: Slide) => ReactNode;
+  onAddFromFavorites: () => void;
 }) {
-  const dragIndex = useRef<number | null>(null);
+  const lastIndex = slides.length - 1;
+  // 끌기는 ::: 손잡이를 누른 줄에서만 시작한다(armed). 끄는 중인 줄(from)과 놓일 자리(over)로 표시를 그린다.
+  const [armed, setArmed] = useState<number | null>(null);
+  const [from, setFrom] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const resetDrag = () => {
+    setArmed(null);
+    setFrom(null);
+    setOver(null);
+  };
 
   return (
-    <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
-      <div className="flex h-[48px] items-center px-[24px]">
-        <p className="text-sm leading-[20px] text-black font-semibold">
-          슬라이드 {slides.length}
-        </p>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
+    <aside className="flex w-[197px] shrink-0 flex-col border-r border-[#e5e7eb]">
+      {/* 세로 스크롤바가 자리를 차지하는 환경(스크롤 막대 항상 보기·마우스 연결)에서도 가로 스크롤이
+          생기지 않게 가로 넘침은 숨기고, 썸네일 카드는 남는 폭에 맞춰 줄어든다(최대 150px). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-x-hidden overflow-y-auto p-[10px] [scrollbar-width:thin]">
         {slides.map((slide, index) => {
-          const lastIndex = slides.length - 1;
           const isFixed = index < firstMediaIndex || index === lastIndex;
           const canEdit = !isFixed && !locked;
+          const selected = selectedId === slide.id;
           const showDivider =
             index === firstMediaIndex ||
             (index === lastIndex && lastIndex > firstMediaIndex);
           return (
             <Fragment key={slide.id}>
               {showDivider && (
-                <div className="h-px w-full shrink-0 bg-[#e8e8e8]" />
+                <div className="h-px w-full shrink-0 bg-[#e5e7eb]" />
               )}
               <div
-                draggable={canEdit}
-                onDragStart={() => {
-                  if (canEdit) dragIndex.current = index;
+                draggable={canEdit && armed === index}
+                onDragStart={(event) => {
+                  if (!canEdit || armed !== index) {
+                    event.preventDefault();
+                    return;
+                  }
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", slide.id);
+                  setFrom(index);
                 }}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => {
-                  const from = dragIndex.current;
-                  dragIndex.current = null;
-                  if (from !== null) onReorder(from, index);
+                onDragOver={(event) => {
+                  // 매체 슬라이드끼리만 자리를 바꾼다(표지·서머리·THANK YOU 자리는 고정).
+                  if (from === null || !canEdit) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (over !== index) setOver(index);
                 }}
-                onDragEnd={() => {
-                  dragIndex.current = null;
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (from !== null && canEdit) onReorder(from, index);
+                  resetDrag();
                 }}
+                onDragEnd={resetDrag}
                 className={cn(
-                  "flex items-center border-l-2 border-transparent",
-                  canEdit && "hover:border-primary",
+                  "relative flex min-w-0 shrink-0 gap-[10px] transition-opacity",
+                  from === index && "opacity-40",
                 )}
               >
-                {canEdit ? (
-                  <GripVerticalIcon className="size-[16px] shrink-0 cursor-grab text-gray-500 active:cursor-grabbing" />
-                ) : (
-                  <span className="size-[16px] shrink-0" />
+                {/* 놓일 자리 표시 — 위로 옮기면 그 줄 위, 아래로 옮기면 그 줄 아래에 보라 선. */}
+                {from !== null && over === index && over !== from && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute right-0 left-[26px] h-[3px] rounded-full bg-primary-500",
+                      over < from ? "-top-[7px]" : "-bottom-[7px]",
+                    )}
+                  />
                 )}
-                <div className="flex min-w-0 flex-1 items-start">
-                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-grey-500">
+                {/* 번호(16px 칸) — 매체 슬라이드는 아래에 끌기 손잡이. */}
+                <div className="flex w-[16px] shrink-0 flex-col items-center gap-[11px] pt-[10px]">
+                  <span className="text-center text-[12px] leading-[14px] text-[#6b7280]">
                     {index + 1}
-                  </p>
-                  <div className="flex min-w-0 flex-1 flex-col gap-[8px] pl-[6px]">
-                    <button
-                      type="button"
-                      onClick={() => onSelect(slide.id)}
-                      className="group relative aspect-[1920/1080] w-full overflow-hidden rounded-[8px]"
+                  </span>
+                  {canEdit && (
+                    // ::: 손잡이 — 누른 채로 끌면 순서를 바꾼다(누르는 자리를 넓게 16×24px).
+                    <span
+                      aria-label={`${slide.name} 순서 바꾸기`}
+                      title="끌어서 순서 바꾸기"
+                      onPointerDown={() => setArmed(index)}
+                      onPointerUp={() => {
+                        if (from === null) setArmed(null);
+                      }}
+                      className="-my-[7px] flex h-[24px] w-[16px] cursor-grab items-center justify-center rounded-[4px] hover:bg-[#e5e7eb] active:cursor-grabbing"
                     >
-                      {renderThumb(slide)}
-                      {canEdit && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          aria-label="슬라이드 삭제"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDeleteSlide(index + 1, slide.id, slide.name);
-                          }}
-                          className="absolute right-[7px] top-[7px] flex items-center rounded-full bg-black/70 p-[4px] text-white"
-                        >
-                          <TrashIcon className="size-[14px]" />
-                        </span>
-                      )}
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "pointer-events-none absolute inset-0 rounded-[8px] border-solid",
-                          selectedId === slide.id
-                            ? "border-[3px] border-primary"
-                            : "border-[1px] border-stroke",
-                        )}
+                      <Image
+                        src="/icons/proposal-detail/grip.svg"
+                        alt=""
+                        width={5.5}
+                        height={9.375}
+                        draggable={false}
+                        className="pointer-events-none"
                       />
-                    </button>
-                    <p className="text-center text-sm font-medium leading-[20px] text-black">
-                      {slide.name}
-                    </p>
-                  </div>
+                    </span>
+                  )}
                 </div>
+
+                {/* 썸네일 카드 150×95(곡률 10px) — 고르면 보라 2px 테두리. */}
+                <button
+                  type="button"
+                  onClick={() => onSelect(slide.id)}
+                  aria-label={`${index + 1}번 슬라이드 ${slide.name}`}
+                  aria-current={selected || undefined}
+                  className={cn(
+                    "relative flex h-[95px] max-w-[150px] min-w-0 flex-1 flex-col items-center rounded-[10px] bg-white p-[4px] text-left transition-colors",
+                    selected
+                      ? "border-2 border-[#a33bd1] p-[3px]"
+                      : "border border-[#e5e7eb] hover:border-[#d4d4d8]",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "relative h-[67px] w-full shrink-0 overflow-hidden rounded-[5px]",
+                      selected ? "bg-[#e2e8f0]" : "bg-[#f1f5f9]",
+                    )}
+                  >
+                    {renderThumb(slide)}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-[5px] w-full truncate text-center text-[11px] leading-[13px] text-[#1f2937]",
+                      selected ? "font-bold" : "font-medium",
+                    )}
+                  >
+                    {slide.name}
+                  </span>
+                  {canEdit && (
+                    // 슬라이드 빼기 — 20px 회색 칸(곡률 7px)에 흰 휴지통.
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="슬라이드 삭제"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteSlide(index + 1, slide.id, slide.name);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onDeleteSlide(index + 1, slide.id, slide.name);
+                        }
+                      }}
+                      className={cn(
+                        "absolute flex size-[20px] items-center justify-center rounded-[7px] bg-[#6b7280] text-white transition-colors hover:bg-[#4b5563]",
+                        selected
+                          ? "top-[8px] right-[8px]"
+                          : "top-[9px] right-[9px]",
+                      )}
+                    >
+                      <TrashOutlineIcon className="size-[14px]" />
+                    </span>
+                  )}
+                </button>
               </div>
             </Fragment>
           );
         })}
       </div>
+
       {!locked && (
-        <div className="border-t border-stroke px-[24px] py-[12px]">
-          <Link
-            href="/fixed"
-            className="flex w-full items-center justify-center gap-[8px] rounded-[8px] border border-primary bg-white px-[16px] py-[12px] text-base font-medium text-primary"
+        <div className="shrink-0 p-[10px]">
+          {/* 관심 매체에서 추가하기 — 40px → 곡률 17px. */}
+          <Button
+            variant="ghost"
+            onPress={onAddFromFavorites}
+            className="h-[40px] w-full gap-[10px] rounded-[17px] border border-[#e5e7eb] bg-white px-[10px] text-[12px] font-semibold text-[#111827] shadow-[0px_2px_8px_0px_rgba(229,231,235,0.5)] data-[hovered=true]:bg-[#fafafa]"
           >
-            <PlusIcon className="size-[24px]" />
-            매체추가
-          </Link>
+            <Image
+              src="/icons/proposal-detail/add-favorites.svg"
+              alt=""
+              width={12}
+              height={12}
+            />
+            관심 매체에서 추가하기
+          </Button>
         </div>
       )}
     </aside>

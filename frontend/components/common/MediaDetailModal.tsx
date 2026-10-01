@@ -25,6 +25,7 @@ import {
   ProfileFilledIcon,
   TrendingUpIcon,
 } from "@/components/icons";
+import { useFavorite } from "@/hooks/favorites";
 import { cn } from "@/lib/utils";
 
 import {
@@ -68,8 +69,10 @@ export function MediaDetailModal({
   onAddProposal?: (mediaId: string, planNo?: number) => void;
 }) {
   const { vm } = useMediaDetailViewModel(mediaId);
-  // TODO: 관심 매체 API가 없어 아직 화면 안에서만 켜고 꺼진다(매체 찾기 카드와 동일).
-  const [liked, setLiked] = useState(false);
+  // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
+  const { liked, setLiked } = useFavorite(mediaId, {
+    notifyName: vm?.name ?? "",
+  });
 
   return (
     <Modal
@@ -123,6 +126,15 @@ export function MediaDetailModal({
       </Modal.Backdrop>
     </Modal>
   );
+}
+
+/**
+ * 매체 정보 본문만 — 팝업 틀 없이 다른 화면(제안서 상세의 매체 슬라이드 자리 등)에 끼워 쓴다.
+ * 사진·이름·주소·칩·가격·설명·유동인구·스펙(모바일은 탭)을 팝업과 똑같이 보여 준다.
+ */
+export function MediaDetailInfo({ mediaId }: { mediaId: string }) {
+  const { vm } = useMediaDetailViewModel(mediaId);
+  return vm ? <MediaDetailBody vm={vm} /> : <MediaDetailSkeleton />;
 }
 
 /** 상세를 불러오는 동안 본문 자리를 채우는 뼈대 — 이미지·이름·주소·칩·가격 칸 배치를 따른다. */

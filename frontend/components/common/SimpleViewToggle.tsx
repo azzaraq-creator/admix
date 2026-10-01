@@ -34,7 +34,8 @@ export function SimpleViewToggle({
         </Switch.Control>
         <Label
           className={cn(
-            "text-sm leading-[20px] font-medium text-grey-500",
+            // PC 13px(지도 팝업의 "매체 N개"와 같은 크기). 모바일은 쓰는 쪽에서 12px로 줄인다.
+            "text-[13px] leading-[18px] font-medium text-grey-500",
             labelClassName,
           )}
         >

@@ -16,6 +16,7 @@ import {
 } from "@/components/common/mediaFilter/filterConfig";
 import { PriceRangeFilter } from "@/components/common/mediaFilter/PriceRangeFilter";
 import { RotateLeftIcon } from "@/components/icons";
+import { useFavoriteList } from "@/hooks/favorites";
 import { useFixedMediaCount, type MediaFilterParams } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,7 @@ export function MediaFilterPanel({
   price,
   totalCount,
   scope,
+  countSource = "fixed",
   onApply,
   onReset,
   onClose,
@@ -125,6 +127,8 @@ export function MediaFilterPanel({
     MediaFilterParams,
     "neLat" | "swLat" | "neLng" | "swLng" | "keyword"
   >;
+  /** 결과 수를 셀 대상 — 매체 찾기(전체 고정 매체) 또는 관심 매체(내가 하트한 매체). */
+  countSource?: "fixed" | "favorites";
   onApply: (next: MediaFilterState) => void;
   onReset: () => void;
   onClose: () => void;
@@ -140,10 +144,19 @@ export function MediaFilterPanel({
     return () => clearTimeout(timer);
   }, [draft]);
   const sameAsApplied = sameFilter(settledDraft, value);
-  const countQuery = useFixedMediaCount(
-    { ...toChipFilterParams(settledDraft), ...scope },
-    !sameAsApplied,
+  const countParams = { ...toChipFilterParams(settledDraft), ...scope };
+  const fixedCount = useFixedMediaCount(
+    countParams,
+    !sameAsApplied && countSource === "fixed",
   );
+  const favoriteCount = useFavoriteList(
+    countParams,
+    !sameAsApplied && countSource === "favorites",
+  );
+  const countQuery =
+    countSource === "favorites"
+      ? { ...favoriteCount, data: favoriteCount.data?.total }
+      : fixedCount;
   const counting =
     !sameFilter(draft, settledDraft) ||
     (!sameAsApplied && (countQuery.isFetching || countQuery.data == null));

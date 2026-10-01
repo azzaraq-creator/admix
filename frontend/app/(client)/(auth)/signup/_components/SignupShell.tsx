@@ -73,17 +73,23 @@ function Stepper({ current }: { current: number }) {
   );
 }
 
-/** 시안(00. 회원가입) 공통 틀 — 상단 바 + 단계 표시 + (이전) + 카드. */
+/**
+ * 시안(00. 회원가입) 공통 틀 — 상단 바 + 단계 표시 + (이전) + 카드.
+ * 비밀번호 찾기처럼 단계가 없는 인증 화면도 같은 틀을 쓴다(step 생략).
+ */
 export function SignupShell({
   step,
   onBack,
   hideLoginLink,
+  loginPrompt = "이미 계정이 있으신가요?",
   children,
 }: {
-  /** 0~4: 진행 중인 단계, 5: 모두 완료. */
-  step: number;
+  /** 0~4: 진행 중인 단계, 5: 모두 완료. 없으면 단계 표시를 뺀다. */
+  step?: number;
   onBack?: () => void;
   hideLoginLink?: boolean;
+  /** 상단 바 오른쪽 "로그인" 앞 문구. */
+  loginPrompt?: string;
   children: ReactNode;
 }) {
   return (
@@ -97,7 +103,7 @@ export function SignupShell({
         {!hideLoginLink && (
           <p className="flex items-center gap-[12px] text-[13px] whitespace-nowrap">
             <span className="hidden text-black-500 sm:inline">
-              이미 계정이 있으신가요?
+              {loginPrompt}
             </span>
             <Link
               href={LOGIN_HREF}
@@ -110,9 +116,10 @@ export function SignupShell({
       </header>
 
       {/* 모바일은 한 화면에 들어오도록 위아래 여백·간격을 줄이고 위에서부터 채운다. */}
-      <main className="flex flex-1 flex-col items-center justify-center px-[16px] py-[40px] max-sm:justify-start max-sm:py-[16px]">
+      {/* 화면 높이가 낮은 태블릿·PC(아이패드 가로 등, 820px 이하)는 위아래 여백을 줄여 스크롤이 생기지 않게 한다. */}
+      <main className="flex flex-1 flex-col items-center justify-center px-[16px] py-[40px] max-sm:justify-start max-sm:py-[16px] sm:[@media(max-height:820px)]:py-[24px]">
         <div className="flex w-full max-w-[480px] flex-col gap-[24px] max-sm:flex-1 max-sm:gap-[14px]">
-          <Stepper current={step} />
+          {step != null && <Stepper current={step} />}
           {onBack && (
             <Button
               variant="ghost"

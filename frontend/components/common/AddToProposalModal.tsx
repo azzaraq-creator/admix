@@ -55,6 +55,8 @@ const HEROUI_CHECKBOX_SCOPE =
 
 type AddToProposalModalProps = {
   mediaId: string;
+  /** 여러 매체를 한 번에 담을 때(관심 매체에서 고른 매체들). 주면 mediaId 대신 이 목록을 담는다. */
+  mediaIds?: string[];
   // 담을 때 지정할 플랜(plan_no). 디테일 패널 "매체 목록"에서 선택한 값.
   planNo?: number;
   onClose: () => void;
@@ -72,9 +74,11 @@ function isDraftProposal(status: string): boolean {
 
 export function AddToProposalModal({
   mediaId,
+  mediaIds,
   planNo,
   onClose,
 }: AddToProposalModalProps) {
+  const targetIds = mediaIds && mediaIds.length > 0 ? mediaIds : [mediaId];
   const { data, refetch } = useMyProposals();
   const proposals = (data ?? []).filter((p) => isDraftProposal(p.status));
   const createProposal = useCreateProposal();
@@ -107,9 +111,9 @@ export function AddToProposalModal({
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // 이미 해당 매체를 담고 있는 제안서는 중복 추가 불가
+  // 담을 매체를 모두 이미 담고 있는 제안서는 고를 수 없다(일부만 담겨 있으면 나머지만 담긴다).
   const hasMedia = (proposal: { media_ids: string[] }) =>
-    proposal.media_ids.includes(mediaId);
+    targetIds.every((id) => proposal.media_ids.includes(id));
 
   const creatingRef = useRef(false);
 
@@ -146,10 +150,14 @@ export function AddToProposalModal({
     if (selected.length === 0 || submitting) return;
     setSubmitting(true);
     try {
-      const plans = planNo != null ? { [mediaId]: planNo } : undefined;
+      // 플랜은 매체 한 개를 담을 때만(상세 팝업에서 고른 값).
+      const plans =
+        planNo != null && targetIds.length === 1
+          ? { [targetIds[0]]: planNo }
+          : undefined;
       const added = await Promise.all(
         selected.map((id) =>
-          addItems.mutateAsync({ id, mediaIds: [mediaId], plans }),
+          addItems.mutateAsync({ id, mediaIds: targetIds, plans }),
         ),
       );
       // 금액 합계·매체 이름은 목록 응답에만 있어 담은 뒤 목록을 다시 받아 토스트에 쓴다.
@@ -197,7 +205,9 @@ export function AddToProposalModal({
                 </Modal.Heading>
                 <p className="text-[12px] leading-[1.5] text-[#888]">
                   {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
-                  이 매체를 담을 제안서를 골라 주세요
+                  {targetIds.length > 1
+                    ? `매체 ${targetIds.length}개를 담을 제안서를 골라 주세요`
+                    : "이 매체를 담을 제안서를 골라 주세요"}
                   <span className="hidden sm:inline">. </span>
                   <br className="sm:hidden" />
                   여러 개를 함께 고를 수 있어요
@@ -271,8 +281,8 @@ export function AddToProposalModal({
                     onPress={() => setCreating(true)}
                     className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-[13px] font-medium text-[#52525b] data-[hovered=true]:bg-[#fafafa]"
                   >
-                    <FolderAddIcon className="size-[16px] shrink-0" />새
-                    제안서 만들기
+                    <FolderAddIcon className="size-[16px] shrink-0" />새 제안서
+                    만들기
                   </Button>
                 )}
 
