@@ -34,7 +34,7 @@ from src.schemas.auth import (
     UserResponse,
 )
 from src.services import auth_service, member_service, proposal_service
-from src.utils.deps import get_current_user, get_current_user_optional
+from src.utils.deps import get_current_user, get_current_user_optional_lenient
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -196,7 +196,7 @@ def register_email_available(email: str, db: Session = Depends(get_db)) -> dict:
 def register_phone_available(
     phone: str,
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User | None = Depends(get_current_user_optional_lenient),
 ) -> dict:
     # 회원정보 단계에서 "다음" 누를 때 호출 — 약관 단계까지 가서야 409가 나던 것을 앞당긴다.
     # SNS 가입은 이미 로그인된 상태라 본인 번호는 중복으로 치지 않는다.

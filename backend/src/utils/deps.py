@@ -50,6 +50,31 @@ def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
     db: Session = Depends(get_db),
 ) -> User | None:
+    """로그인 선택 — 토큰이 없으면 비회원(None).
+
+    토큰을 보냈는데 만료·무효(401)면 비회원으로 넘기지 않고 401을 그대로 돌려준다. 프런트가 토큰을
+    재발급해 다시 요청하게 하려는 것 — 비회원으로 처리하면 액세스 토큰이 만료된 회원이 새로고침했을 때
+    제안서 목록이 비어 보이고(비회원 세션 기준 조회), 그 상태로 만들기·담기를 하면 비회원 세션에 저장됐다.
+    정지·탈퇴(403) 계정은 예전처럼 비회원으로 본다.
+    """
+    if credentials is None:
+        return None
+    try:
+        return _user_from_token(credentials.credentials, db)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            raise
+        return None
+
+
+def get_current_user_optional_lenient(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """로그인 선택(관대) — 토큰이 만료·무효여도 비회원으로 본다.
+
+    회원가입 중 확인처럼 남은 옛 토큰 때문에 흐름이 끊기면 안 되는 곳에만 쓴다.
+    """
     if credentials is None:
         return None
     try:
