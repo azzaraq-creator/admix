@@ -128,10 +128,10 @@ def test_search_media_zero_results_not_found_no_event():
 # ===== AddMedia: 다중 제안서 애매성 처리 =====
 
 
-def _fake_proposal(pid, title, count=0):
+def _fake_proposal(pid, title, count=0, status="new"):
     from types import SimpleNamespace
 
-    return SimpleNamespace(id=pid, title=title, media_count=count)
+    return SimpleNamespace(id=pid, title=title, media_count=count, status=status, items=[])
 
 
 def _add_ctx():
@@ -174,6 +174,43 @@ def test_add_media_no_proposal_prompts_create(monkeypatch):
     assert "제안서" in out and "만들" in out  # 생성 안내
     assert NOT_FOUND_MARKER not in out  # fallback 오발동 방지
     assert ctx.events == []  # 담지 않음
+
+
+def test_add_media_excludes_submitted_proposals(monkeypatch):
+    """제출 완료·맞춤 제안·계약 완료 제안서는 담을 대상·고르기 목록에서 뺀다(작성중만)."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(
+        tools.proposal_service,
+        "list_for_owner",
+        lambda db, member_id, session_id: [
+            _fake_proposal("p1", "여름캠페인"),
+            _fake_proposal("p2", "가을세일"),
+            _fake_proposal("p3", "제출한 제안서", status="execution_requested"),
+            _fake_proposal("p4", "계약한 제안서", status="contracted"),
+        ],
+    )
+    ctx = _add_ctx()
+    tools._do_add_media(ctx, [1])
+    names = [p["name"] for p in ctx.events[-1]["proposals"]]
+    assert names == ["여름캠페인", "가을세일"]
+
+
+def test_add_media_only_submitted_prompts_create(monkeypatch):
+    """작성중 제안서가 없고 제출한 것만 있으면 담지 않고 새로 만들라고 안내한다."""
+    from src.services.recommend_react import tools
+
+    monkeypatch.setattr(tools.domain, "_proposal_owner_for_session", lambda db, sid: (None, "sid", None))
+    monkeypatch.setattr(
+        tools.proposal_service,
+        "list_for_owner",
+        lambda db, member_id, session_id: [_fake_proposal("p3", "제출한 제안서", status="execution_requested")],
+    )
+    ctx = _add_ctx()
+    out = tools._do_add_media(ctx, [1])
+    assert "작성 중인 제안서가 없어요" in out
+    assert ctx.events == []
 
 
 def test_add_media_by_name_targets_it(monkeypatch):

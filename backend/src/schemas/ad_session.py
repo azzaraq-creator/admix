@@ -17,6 +17,15 @@ class AdSessionUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
 
 
+class ProposalChoicePicked(BaseModel):
+    """믹시 "어느 제안서에 담을까요?" 목록에서 사용자가 고른 제안서."""
+
+    proposal_id: str
+    proposal_name: str = Field(max_length=300)
+    # 어떤 목록이었는지 찾는 데 쓴다(같은 대화에 고르기 목록이 여러 번 나올 수 있다).
+    media_ids: List[str] = []
+
+
 class AdSessionSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

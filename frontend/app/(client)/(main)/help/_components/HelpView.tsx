@@ -1,6 +1,6 @@
 "use client";
 
-import { Tabs } from "@heroui/react";
+import { ScrollShadow, Tabs } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -165,7 +165,8 @@ export function HelpView() {
             약관 및 정책
           </h1>
           <p className="text-[12px] leading-[18px] text-black-500 max-sm:break-keep sm:text-[14px] sm:leading-[inherit]">
-            ADMIXAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수 있어요.
+            ADMIXAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수
+            있어요.
           </p>
         </header>
 
@@ -173,7 +174,10 @@ export function HelpView() {
             미끄러지는 연출을 위해 잰 위치를 인라인 스타일로 들고 있는데, 새로고침 직후 잘못 잰 값
             (목록 전체 폭)이 굳어 다른 탭을 덮고 클릭까지 막는다. 여기서는 탭이 바뀔 때마다·크기가
             바뀔 때마다 선택된 탭의 실제 위치를 다시 재서 같은 모양(tabs__indicator)의 알약을 옮긴다. */}
-        <div ref={tabsRef} className="mt-[16px] w-full sm:mt-[24px] sm:w-[480px]">
+        <div
+          ref={tabsRef}
+          className="mt-[16px] w-full sm:mt-[24px] sm:w-[480px]"
+        >
           {/* 탭 목록은 스크롤 그림자(마스크) 층 안에 있어, 알약을 그 위에 겹치면 탭 글자까지 덮는다.
               그래서 목록 컨테이너의 회색 바탕(--default, 모서리 --radius×2.5 — HeroUI 값 그대로)을
               Tabs 바깥 틀로 옮기고, 알약은 그 바탕과 탭 목록 사이에 그린다. 겉모양은 기본과 같다. */}
@@ -213,7 +217,11 @@ export function HelpView() {
                 {HELP_TABS.map(({ key, label }) => (
                   // 모양은 기본 그대로, 좁은 화면에서 이름이 두 줄로 꺾이지만 않게 한다.
                   // 알약을 그리기 전(자바스크립트 실행 전)엔 선택 탭을 글자색만으로 구분한다.
-                  <Tabs.Tab key={key} id={key} className="whitespace-nowrap max-sm:text-[12px]">
+                  <Tabs.Tab
+                    key={key}
+                    id={key}
+                    className="whitespace-nowrap max-sm:text-[12px]"
+                  >
                     {label}
                   </Tabs.Tab>
                 ))}
@@ -226,29 +234,37 @@ export function HelpView() {
         <div className="mt-[16px] grid gap-[20px] sm:mt-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
           <nav
             aria-label="목차"
-            className="hidden min-h-0 flex-col overflow-y-auto rounded-[16px] border border-black-200 bg-white p-[12px] [scrollbar-width:thin] lg:flex"
+            className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-black-200 bg-white lg:flex"
           >
-            <p className="px-[8px] pb-[8px] text-[12px] font-semibold text-black-400">
+            <p className="shrink-0 px-[20px] pt-[12px] pb-[8px] text-[12px] font-semibold text-black-400">
               목차
             </p>
-            {articles.map((s) => {
-              const active = s.id === activeId;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  aria-current={active ? "location" : undefined}
-                  onClick={() => jumpTo(s.id)}
-                  className={cn(
-                    "flex shrink-0 gap-[6px] rounded-[10px] px-[8px] py-[6px] text-left text-[13px] leading-[18px] transition-colors hover:bg-black-50 hover:text-black-900",
-                    active ? "bg-black-50 font-semibold text-black-900" : "text-black-600",
-                  )}
-                >
-                  <span className="shrink-0 text-black-400">{s.num}</span>
-                  <span className="min-w-0 break-keep">{s.title}</span>
-                </button>
-              );
-            })}
+            {/* 목차가 길어 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) — 테두리는 바깥 nav에 둔다. */}
+            <ScrollShadow
+              size={24}
+              className="flex min-h-0 flex-1 flex-col px-[12px] pb-[12px] [scrollbar-width:thin]"
+            >
+              {articles.map((s) => {
+                const active = s.id === activeId;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    aria-current={active ? "location" : undefined}
+                    onClick={() => jumpTo(s.id)}
+                    className={cn(
+                      "flex shrink-0 gap-[6px] rounded-[10px] px-[8px] py-[6px] text-left text-[13px] leading-[18px] transition-colors hover:bg-black-50 hover:text-black-900",
+                      active
+                        ? "bg-black-50 font-semibold text-black-900"
+                        : "text-black-600",
+                    )}
+                  >
+                    <span className="shrink-0 text-black-400">{s.num}</span>
+                    <span className="min-w-0 break-keep">{s.title}</span>
+                  </button>
+                );
+              })}
+            </ScrollShadow>
           </nav>
 
           <article

@@ -12,10 +12,17 @@ import {
   type ReactNode,
 } from "react";
 
-import { AddToProposalModal } from "@/components/common/AddToProposalModal";
+import {
+  type AddProposalOptions,
+  AddToProposalModal,
+} from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
-import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
+import {
+  notifyProposalsAdded,
+  useAddProposalItems,
+  useRenameProposal,
+} from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +108,7 @@ export function HomeChat({
   const [addProposal, setAddProposal] = useState<{
     mediaId: string;
     planNo?: number;
+    options?: AddProposalOptions;
   } | null>(null);
   // 추천 매체를 누르면 매체 찾기와 같은 상세 모달을 띄운다(페이지 이동 없이 대화 그대로).
   const [detailMediaId, setDetailMediaId] = useState<string | null>(null);
@@ -198,11 +206,18 @@ export function HomeChat({
           await renameProposal.mutateAsync({ id: proposalId, title });
           success("제안서 이름을 바꿨어요.");
         } else {
-          await addProposalItems.mutateAsync({
+          const detail = await addProposalItems.mutateAsync({
             id: proposalId,
             mediaIds: choices.mediaIds,
           });
-          success("제안서에 담았어요.");
+          // 담기 창으로 담았을 때와 같이 말풍선·담는 제안서 전환·"N" 표시.
+          notifyProposalsAdded(
+            [{ id: detail.id, title: detail.title }],
+            choices.mediaIds.map((mid) => {
+              const it = detail.items.find((x) => x.media_id === mid);
+              return it?.media_name ?? it?.name ?? mid;
+            }),
+          );
         }
         return true;
       } catch {
@@ -459,8 +474,8 @@ export function HomeChat({
           mediaId={detailMediaId}
           onClose={() => setDetailMediaId(null)}
           // 상세 모달은 연 채로, 담기 모달을 그 위에 띄운다.
-          onAddProposal={(id, planNo) =>
-            setAddProposal({ mediaId: id, planNo })
+          onAddProposal={(id, planNo, options) =>
+            setAddProposal({ mediaId: id, planNo, options })
           }
         />
       )}
@@ -469,6 +484,7 @@ export function HomeChat({
         <AddToProposalModal
           mediaId={addProposal.mediaId}
           planNo={addProposal.planNo}
+          options={addProposal.options}
           onClose={() => setAddProposal(null)}
         />
       )}

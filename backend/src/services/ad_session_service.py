@@ -297,3 +297,41 @@ def add_message(
     db.commit()
     db.refresh(msg)
     return msg
+
+
+def mark_proposal_choice_picked(
+    db: Session,
+    session_id: str,
+    *,
+    proposal_id: str,
+    proposal_name: str,
+    media_ids: list[str],
+) -> bool:
+    """믹시의 제안서 고르기 목록에서 고른 결과를 그 메시지에 남긴다.
+
+    고른 결과는 화면 상태로만 있어 새로고침(대화 복원) 때 목록이 다시 떴다. 대상은 이 세션에서
+    아직 고르지 않은 가장 최근 고르기 목록 중, 고른 제안서가 들어 있고 담을 매체가 같은 것.
+    """
+    try:
+        sid = uuid.UUID(str(session_id))
+    except (ValueError, AttributeError):
+        return False
+    rows = (
+        db.query(AdMessage)
+        .filter(AdMessage.session_id == sid, AdMessage.role == MessageRole.assistant)
+        .order_by(AdMessage.created_at.desc())
+        .all()
+    )
+    for m in rows:
+        p = m.payload or {}
+        if p.get("type") != "proposal_choices" or p.get("picked"):
+            continue
+        if not any(str(x.get("id")) == proposal_id for x in p.get("proposals") or []):
+            continue
+        if media_ids and sorted(p.get("media_ids") or []) != sorted(media_ids):
+            continue
+        # JSONB 는 새 dict 로 바꿔 넣어야 변경이 감지된다.
+        m.payload = {**p, "picked": {"id": proposal_id, "name": proposal_name}}
+        db.commit()
+        return True
+    return False

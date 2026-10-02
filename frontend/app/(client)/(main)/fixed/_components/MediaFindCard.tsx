@@ -101,12 +101,15 @@ export function SelectToggle({
 export function MediaFindCard({
   row,
   selected,
+  highlighted,
   onClick,
   onAddProposal,
   selection,
 }: {
   row: MediaCardRow;
   selected?: boolean;
+  /** 매체 찾기 자동완성으로 고른 매체 — 목록 맨 위에 보라 테두리와 "검색한 매체" 표시로 띄운다. */
+  highlighted?: boolean;
   onClick?: () => void;
   onAddProposal?: () => void;
   /**
@@ -131,9 +134,10 @@ export function MediaFindCard({
         selected
           ? "z-10"
           : "border-black-200 shadow-none hover:border-[#18181b]",
-        // 고른 카드 — 테두리 1px + 바깥 1px 그림자로 2px 보라 테두리(안쪽 내용이 밀리지 않게).
-        selection?.checked &&
-          "z-10 border-primary-500 shadow-[0_0_0_1px_var(--color-primary-500)] hover:border-primary-500 hover:shadow-[0_0_0_1px_var(--color-primary-500)]",
+        // 고른 카드 — 2px 보라 테두리를 카드 안쪽에 그린다: 테두리 1px + 안쪽 1px 선(after, 사진 위에 얹힘).
+        // 바깥 그림자로 그리면 목록 스크롤 칸 맨 위·아래에서 잘린다. 안쪽 내용은 밀리지 않는다.
+        (selection?.checked || highlighted) &&
+          "z-10 border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:z-20 after:rounded-[15px] after:border after:border-primary-500 after:content-['']",
       )}
     >
       <MediaImageCarousel
@@ -190,9 +194,16 @@ export function MediaFindCard({
       </MediaImageCarousel>
 
       <div className="flex flex-col px-[10px] pt-[11px]">
-        <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
-          {row.name}
-        </p>
+        <div className="flex min-w-0 items-center gap-[6px]">
+          {highlighted && (
+            <Chip className="shrink-0 rounded-[8px] bg-primary-500 px-[6px] py-[2px] text-[11px] max-sm:text-[10px] leading-[15px] font-bold text-white">
+              검색한 매체
+            </Chip>
+          )}
+          <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
+            {row.name}
+          </p>
+        </div>
 
         <div className="mt-[5px] flex items-center gap-[3px]">
           <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
@@ -235,11 +246,14 @@ export function MediaFindCard({
           // 들어갈 자리가 모자라 깨진다. 제작비는 자기 폭만큼, 광고비가 남는 폭을 쓴다(둘 다 오른쪽 정렬).
           className="min-w-0 flex-1"
         />
-        <PriceCell
-          label="제작비 / 1회"
-          value={row.minProductionFeeKrw}
-          className="min-w-[89px] shrink-0"
-        />
+        {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
+        {row.minProductionFeeKrw != null && (
+          <PriceCell
+            label="제작비 / 1회"
+            value={row.minProductionFeeKrw}
+            className="min-w-[89px] shrink-0"
+          />
+        )}
       </div>
     </Card>
   );

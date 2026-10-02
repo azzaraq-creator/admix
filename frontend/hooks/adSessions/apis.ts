@@ -21,6 +21,15 @@ export interface AdSessionDetail extends AdSessionSummary {
 }
 
 export const adSessionsApi = {
+  /** 믹시 "어느 제안서에 담을까요?" 목록에서 고른 결과를 대화 기록에 남긴다(새로고침해도 완료 문구로 보이게). */
+  markProposalChoice: (
+    sessionId: string,
+    body: { proposal_id: string; proposal_name: string; media_ids: string[] },
+  ) =>
+    api
+      .post(`/chat/graph/sessions/${sessionId}/proposal-choice`, body)
+      .then(() => undefined),
+
   create: (title?: string | null) =>
     api
       .post<AdSessionSummary>("/chat/graph/sessions", { title })
@@ -30,9 +39,7 @@ export const adSessionsApi = {
     api.get<AdSessionSummary[]>("/chat/graph/sessions").then((r) => r.data),
 
   get: (id: string) =>
-    api
-      .get<AdSessionDetail>(`/chat/graph/sessions/${id}`)
-      .then((r) => r.data),
+    api.get<AdSessionDetail>(`/chat/graph/sessions/${id}`).then((r) => r.data),
 
   patch: (id: string, title: string) =>
     api

@@ -44,6 +44,21 @@ function effectiveQty(quantity: number | null | undefined): number {
   return quantity && quantity > 0 ? quantity : 1;
 }
 
+// 금액 규칙(백엔드 제안서 합계·PPT와 같다): 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
+function adAmount(item: ProposalItem): number | null {
+  if (item.price == null) return null;
+  return item.price * effectiveQty(item.quantity) * effectiveQty(item.months);
+}
+
+function productionAmount(item: ProposalItem): number | null {
+  if (item.production_fee == null) return null;
+  return (
+    item.production_fee *
+    effectiveQty(item.quantity) *
+    effectiveQty(item.production_count)
+  );
+}
+
 function HeaderStat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex w-full items-start gap-[46px]">
@@ -77,16 +92,30 @@ function Cell({
   );
 }
 
-function BoxedCell({ width, children }: { width: number; children: ReactNode }) {
+function BoxedCell({
+  width,
+  children,
+  note,
+}: {
+  width: number;
+  children: ReactNode;
+  /** 금액 아래 작은 글씨 — 개월 수·제작 수가 1보다 크면 곱한 값을 알린다(예: "3개월"). */
+  note?: string;
+}) {
   return (
     <div
       style={{ width }}
       className="flex items-center justify-center px-[24px] py-[8px]"
     >
-      <div className="flex w-full items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
+      <div className="flex w-full flex-col items-center justify-center rounded-[8px] border border-stroke px-[16px] py-[8px]">
         <p className="whitespace-nowrap text-center text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-[#545454]">
           {children}
         </p>
+        {note && (
+          <p className="whitespace-nowrap text-center text-[14px] font-medium leading-[1.4] text-primary">
+            {note}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -166,7 +195,9 @@ function DateInput({
 
   const label = (
     <>
-      <span className={cn(DATE_TEXT, value ? "text-[#545454]" : "text-placeholder")}>
+      <span
+        className={cn(DATE_TEXT, value ? "text-[#545454]" : "text-placeholder")}
+      >
         {value || "YYYY.MM.DD"}
       </span>
       <CalendarIcon className="size-[20px] shrink-0 text-[#545454]" />
@@ -184,14 +215,14 @@ function DateInput({
   // 하한 = 오늘과 minDate 중 더 늦은 날(항상 오늘 이후만 선택 가능).
   const floor = min && min > today ? min : today;
   const max = parseDate(maxDate);
-  const disabled = [
-    { before: floor },
-    ...(max ? [{ after: max }] : []),
-  ];
+  const disabled = [{ before: floor }, ...(max ? [{ after: max }] : [])];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className={cn(DATE_BOX, "outline-none")} aria-label="날짜 선택">
+      <PopoverTrigger
+        className={cn(DATE_BOX, "outline-none")}
+        aria-label="날짜 선택"
+      >
         {label}
       </PopoverTrigger>
       <PopoverContent>
@@ -244,12 +275,9 @@ export function SummaryTemplate({
   onQuantityChange?: (mediaId: string, value: string) => void;
 }) {
   const items = proposal.items;
-  const adTotal = items.reduce(
-    (sum, item) => sum + (item.price ?? 0) * effectiveQty(item.quantity),
-    0,
-  );
+  const adTotal = items.reduce((sum, item) => sum + (adAmount(item) ?? 0), 0);
   const prodTotal = items.reduce(
-    (sum, item) => sum + (item.production_fee ?? 0) * effectiveQty(item.quantity),
+    (sum, item) => sum + (productionAmount(item) ?? 0),
     0,
   );
   // GROSS 는 기존 정의(광고비 합계, 제작비 제외)를 유지하되 수량을 반영해 실시간 계산
@@ -324,56 +352,68 @@ export function SummaryTemplate({
         {rows.map((item, index) => {
           const qty = effectiveQty(item.quantity);
           return (
-          <div
-            key={item.media_id}
-            className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-stroke py-[16px]"
-          >
-            <Cell width={COL.no}>{startIndex + index + 1}</Cell>
-            <Cell width={COL.type}>{item.category ?? EMPTY}</Cell>
-            <Cell width={COL.region}>{item.region ?? EMPTY}</Cell>
-            <Cell width={COL.media}>{item.name ?? EMPTY}</Cell>
-            <Cell width={COL.product}>{item.product ?? EMPTY}</Cell>
-            <QuantityCell
-              width={COL.qty}
-              interactive={interactive}
-              value={interactive ? item.quantity : qty}
-              onChange={(value) => onQuantityChange?.(item.media_id, value)}
-            />
-            <BoxedCell width={COL.ad}>
-              {formatNumber(item.price == null ? null : item.price * qty)}
-            </BoxedCell>
-            <BoxedCell width={COL.prod}>
-              {formatNumber(
-                item.production_fee == null ? null : item.production_fee * qty,
-              )}
-            </BoxedCell>
-            <Cell width={COL.total} pad="py-[8px]">
-              {formatNumber(
-                ((item.price ?? 0) + (item.production_fee ?? 0)) * qty,
-              )}
-            </Cell>
             <div
-              style={{ width: COL.date }}
-              className="flex flex-col items-center justify-center gap-[10px] px-[24px] py-[8px]"
+              key={item.media_id}
+              className="flex w-full min-h-0 flex-1 items-center overflow-hidden border-b border-stroke py-[16px]"
             >
-              <DateInput
+              <Cell width={COL.no}>{startIndex + index + 1}</Cell>
+              <Cell width={COL.type}>{item.category ?? EMPTY}</Cell>
+              <Cell width={COL.region}>{item.region ?? EMPTY}</Cell>
+              <Cell width={COL.media}>{item.name ?? EMPTY}</Cell>
+              <Cell width={COL.product}>{item.product ?? EMPTY}</Cell>
+              <QuantityCell
+                width={COL.qty}
                 interactive={interactive}
-                value={item.start_date}
-                maxDate={item.end_date}
-                onChange={(value) =>
-                  onDateChange?.(item.media_id, "start_date", value)
-                }
+                value={interactive ? item.quantity : qty}
+                onChange={(value) => onQuantityChange?.(item.media_id, value)}
               />
-              <DateInput
-                interactive={interactive}
-                value={item.end_date}
-                minDate={item.start_date}
-                onChange={(value) =>
-                  onDateChange?.(item.media_id, "end_date", value)
+              <BoxedCell
+                width={COL.ad}
+                note={
+                  effectiveQty(item.months) > 1
+                    ? `${effectiveQty(item.months)}개월`
+                    : undefined
                 }
-              />
+              >
+                {formatNumber(adAmount(item))}
+              </BoxedCell>
+              <BoxedCell
+                width={COL.prod}
+                note={
+                  effectiveQty(item.production_count) > 1
+                    ? `제작 ${effectiveQty(item.production_count)}회`
+                    : undefined
+                }
+              >
+                {formatNumber(productionAmount(item))}
+              </BoxedCell>
+              <Cell width={COL.total} pad="py-[8px]">
+                {formatNumber(
+                  (adAmount(item) ?? 0) + (productionAmount(item) ?? 0),
+                )}
+              </Cell>
+              <div
+                style={{ width: COL.date }}
+                className="flex flex-col items-center justify-center gap-[10px] px-[24px] py-[8px]"
+              >
+                <DateInput
+                  interactive={interactive}
+                  value={item.start_date}
+                  maxDate={item.end_date}
+                  onChange={(value) =>
+                    onDateChange?.(item.media_id, "start_date", value)
+                  }
+                />
+                <DateInput
+                  interactive={interactive}
+                  value={item.end_date}
+                  minDate={item.start_date}
+                  onChange={(value) =>
+                    onDateChange?.(item.media_id, "end_date", value)
+                  }
+                />
+              </div>
             </div>
-          </div>
           );
         })}
         {Array.from({ length: Math.max(0, ROWS_PER_PAGE - rows.length) }).map(
@@ -437,8 +477,15 @@ export function SummaryThumb({
   startIndex: number;
 }) {
   return (
-    <SlideScaler className="absolute inset-0" contentClassName="pointer-events-none">
-      <SummaryTemplate proposal={proposal} rows={rows} startIndex={startIndex} />
+    <SlideScaler
+      className="absolute inset-0"
+      contentClassName="pointer-events-none"
+    >
+      <SummaryTemplate
+        proposal={proposal}
+        rows={rows}
+        startIndex={startIndex}
+      />
     </SlideScaler>
   );
 }

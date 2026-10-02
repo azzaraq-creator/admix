@@ -90,6 +90,20 @@ export const useFixedClusters = (
     staleTime: 60 * 1000,
   });
 
+/** 가격 필터 그래프 막대 — 목록과 같은 조건(지도 영역·검색어·가격 외 필터)의 매체로 센다. */
+export const useFixedPriceHistogram = (
+  filters: MediaFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: mediaKeys.fixedPriceHistogram(filters),
+    queryFn: () => mediaApi.fixedPriceHistogram(filters),
+    enabled,
+    staleTime: 60 * 1000,
+    // 조건이 바뀌어 다시 세는 동안 이전 막대를 두어 그래프가 깜빡이지 않게 한다.
+    placeholderData: keepPreviousData,
+  });
+
 export const useFixedFilterOptions = () =>
   useQuery({
     queryKey: mediaKeys.fixedFilterOptions(),

@@ -141,12 +141,9 @@ export function MediaFindTopBar({
       </Button>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px]">
-        {/* 정렬 줄(MediaSortBar)은 상단 바 아래로 펼쳐진다 — 필터와 같은 "열리면 배경만 흰색" 규칙.
-            TODO: 백엔드에 정렬 파라미터가 없어 골라도 목록 순서가 안 바뀐다(MediaSortBar 참고).
-            API가 생길 때까지 버튼을 잠가 둔다 — 생기면 isDisabled만 지우면 된다. */}
+        {/* 정렬 줄(MediaSortBar)은 상단 바 아래로 펼쳐진다 — 필터와 같은 "열리면 배경만 흰색" 규칙. */}
         <Button
           variant="ghost"
-          isDisabled
           onPress={onToggleSort}
           aria-expanded={sortOpen}
           className={cn(

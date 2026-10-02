@@ -76,7 +76,9 @@ export function FavoriteRow({
         </div>
         <div className="mt-[4px] flex flex-col gap-[1px]">
           <PriceLine label="광고비" value={row.minAdvertisementFeeKrw} />
-          <PriceLine label="제작비" value={row.minProductionFeeKrw} />
+          {row.minProductionFeeKrw != null && (
+            <PriceLine label="제작비" value={row.minProductionFeeKrw} />
+          )}
         </div>
       </div>
     </Card>

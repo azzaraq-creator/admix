@@ -8,6 +8,7 @@
 - GET    /chat/graph/sessions/{id}     세션 상세 (메시지 포함)
 - PATCH  /chat/graph/sessions/{id}     title 변경
 - DELETE /chat/graph/sessions/{id}     삭제
+- POST   /chat/graph/sessions/{id}/proposal-choice  믹시 제안서 고르기 목록에서 고른 결과 기록
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from src.schemas.ad_session import (
     AdSessionDetail,
     AdSessionSummary,
     AdSessionUpdate,
+    ProposalChoicePicked,
 )
 from src.services import ad_session_service as svc
 from src.utils.deps import get_current_user, get_current_user_optional
@@ -80,3 +82,21 @@ def patch_session(session_id: str, payload: AdSessionUpdate, db: Session = Depen
 def delete_session(session_id: str, db: Session = Depends(get_db)):
     if not svc.delete_session(db, session_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+
+
+@router.post(
+    "/sessions/{session_id}/proposal-choice",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def mark_proposal_choice(
+    session_id: str, payload: ProposalChoicePicked, db: Session = Depends(get_db)
+):
+    """고르기 목록에서 고른 제안서를 기록 — 대화를 다시 불러와도 목록 대신 완료 문구가 보인다."""
+    if not svc.mark_proposal_choice_picked(
+        db,
+        session_id,
+        proposal_id=payload.proposal_id,
+        proposal_name=payload.proposal_name,
+        media_ids=payload.media_ids,
+    ):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Proposal choice not found")

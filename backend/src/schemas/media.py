@@ -84,6 +84,12 @@ class MediaFilterOptions(BaseModel):
     price_histogram: list[int]
 
 
+class PriceHistogramResponse(BaseModel):
+    """가격 필터 그래프 — 가로축(price_min~max)은 MediaFilterOptions 와 같고, 막대만 지금 목록 기준."""
+
+    histogram: list[int]
+
+
 class MediaFeature(BaseModel):
     label: str
     value: str
@@ -93,6 +99,19 @@ class MediaPlanRow(BaseModel):
     planNo: int
     title: str
     subtitle: str | None
+
+
+class MediaPlanOption(BaseModel):
+    """매체 정보 팝업의 "안건" 한 줄 — 플랜별 광고비·제작비·노출 조건."""
+
+    planNo: int
+    title: str
+    adFeeKrw: int | None = None
+    productionFeeKrw: int | None = None
+    exposureSeconds: int | None = None
+    exposureCount: int | None = None
+    dailyBroadcasts: int | None = None
+    durationText: str | None = None
 
 
 class MediaAgeRatio(BaseModel):
@@ -128,4 +147,5 @@ class MediaDetail(BaseModel):
     sizeText: str | None
     features: list[MediaFeature]
     plans: list[MediaPlanRow]
+    planOptions: list[MediaPlanOption] = []
     population: MediaPopulation | None

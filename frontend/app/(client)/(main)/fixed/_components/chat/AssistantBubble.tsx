@@ -2,14 +2,17 @@ import { Spinner } from "@heroui/react";
 import { useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { AiIcon, FolderIcon } from "@/components/icons";
+import { AiIcon } from "@/components/icons";
 import type { V2Message } from "@/hooks/adRecommendReact";
+import { adSessionsApi } from "@/hooks/adSessions/apis";
+import { getSessionId } from "@/lib/session";
 
 import { ChatMediaList } from "./ChatMediaList";
 import { ConditionChips, MatchedChips } from "./ConditionChips";
 import { ConfirmationView } from "./ConfirmationView";
 import { MixieMarkdown } from "./MixieMarkdown";
 import { ProposalCard } from "./ProposalCard";
+import { ProposalChoiceList } from "./ProposalChoiceList";
 
 export function AssistantBubble({
   message,
@@ -38,7 +41,10 @@ export function AssistantBubble({
   /** 답변 앞 믹시 아이콘. 이미 "AI 믹시" 헤더가 있는 좁은 패널에서는 끈다. */
   showAvatar?: boolean;
 }) {
-  const [pickedName, setPickedName] = useState<string | null>(null);
+  // 고른 제안서 — 지난 대화를 다시 불러온 경우엔 기록된 값으로 시작한다(목록 대신 완료 문구).
+  const [pickedName, setPickedName] = useState<string | null>(
+    message.proposalChoices?.picked?.name ?? null,
+  );
 
   if (message.isLoading) {
     return (
@@ -92,10 +98,7 @@ export function AssistantBubble({
           </div>
         )}
       {message.response_type === "proposal" && message.proposal && (
-        <ProposalCard
-          name={message.proposal.name}
-          count={message.proposal.media_count}
-        />
+        <ProposalCard proposal={message.proposal} />
       )}
       {message.response_type === "proposal_choices" &&
         message.proposalChoices && (
@@ -111,31 +114,29 @@ export function AssistantBubble({
               </p>
             </div>
             {!pickedName && (
-              <div className="flex flex-col gap-[8px]">
-                {message.proposalChoices.proposals.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={async () => {
-                      const ok = await onPickProposal?.(
-                        p.id,
-                        message.proposalChoices!,
-                      );
-                      // 성공했을 때만 완료 표시(실패 시 다시 선택 가능)
-                      if (ok) setPickedName(p.name);
-                    }}
-                    className="flex w-full items-center gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-platinum-50 px-[16px] py-[14px] text-left transition-colors hover:bg-platinum-100"
-                  >
-                    <FolderIcon className="size-[20px] shrink-0 text-platinum-300" />
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-[24px] text-black">
-                      {p.name}
-                    </span>
-                    <span className="w-[20px] shrink-0 text-center text-[16px] font-medium leading-[24px] text-black">
-                      {p.media_count}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <ProposalChoiceList
+                proposals={message.proposalChoices.proposals}
+                onPick={async (p) => {
+                  const ok = await onPickProposal?.(
+                    p.id,
+                    message.proposalChoices!,
+                  );
+                  // 성공했을 때만 완료 표시(실패 시 다시 선택 가능)
+                  if (!ok) return;
+                  setPickedName(p.name);
+                  // 대화 기록에도 남겨 새로고침해도 목록이 다시 뜨지 않게 한다(실패해도 화면은 그대로).
+                  const sessionId = getSessionId();
+                  if (sessionId) {
+                    void adSessionsApi
+                      .markProposalChoice(sessionId, {
+                        proposal_id: p.id,
+                        proposal_name: p.name,
+                        media_ids: message.proposalChoices!.mediaIds,
+                      })
+                      .catch(() => undefined);
+                  }
+                }}
+              />
             )}
           </div>
         )}

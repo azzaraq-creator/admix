@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, ScrollShadow } from "@heroui/react";
 import Image from "next/image";
 import { Fragment, type ReactNode, useState } from "react";
 
@@ -51,8 +51,12 @@ export function SlideSidebar({
   return (
     <aside className="flex w-[197px] shrink-0 flex-col border-r border-[#e5e7eb]">
       {/* 세로 스크롤바가 자리를 차지하는 환경(스크롤 막대 항상 보기·마우스 연결)에서도 가로 스크롤이
-          생기지 않게 가로 넘침은 숨기고, 썸네일 카드는 남는 폭에 맞춰 줄어든다(최대 150px). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-x-hidden overflow-y-auto p-[10px] [scrollbar-width:thin]">
+          생기지 않게 가로 넘침은 숨기고, 썸네일 카드는 남는 폭에 맞춰 줄어든다(최대 150px).
+          슬라이드가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
+      <ScrollShadow
+        size={24}
+        className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-x-hidden p-[10px] [scrollbar-width:thin]"
+      >
         {slides.map((slide, index) => {
           const isFixed = index < firstMediaIndex || index === lastIndex;
           const canEdit = !isFixed && !locked;
@@ -193,7 +197,7 @@ export function SlideSidebar({
             </Fragment>
           );
         })}
-      </div>
+      </ScrollShadow>
 
       {!locked && (
         <div className="shrink-0 p-[10px]">

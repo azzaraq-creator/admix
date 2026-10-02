@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { adSessionsApi } from "@/hooks/adSessions";
+import { notifyProposalsAdded, proposalsKeys } from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 import { API_BASE_URL } from "@/lib/api";
-import { SESSION_KEY } from "@/lib/session";
+import { SESSION_KEY, setChatActiveCookie } from "@/lib/session";
 
 export type V2ResponseType =
   | "chat"
@@ -101,6 +104,8 @@ export interface V2Message {
     proposals: V2ProposalRef[];
     mediaIds: string[];
     newName?: string;
+    /** 이미 고른 제안서 — 지난 대화를 다시 불러올 때 목록 대신 완료 문구를 보여 준다. */
+    picked?: { id: string; name: string };
   };
   cta?: string;
   limitAction?: LimitAction;
@@ -185,11 +190,9 @@ function restoreMessage(saved: SavedMsg): V2Message {
         message: (p.message as string) || saved.content,
         changes: p.changes as ChangeEntry[] | undefined,
         enriched_extracted: p.enriched_extracted as
-          | Record<string, EnrichedCode[]>
-          | undefined,
+          Record<string, EnrichedCode[]> | undefined,
         previous_context_detail: p.previous_context_detail as
-          | Record<string, EnrichedCode[]>
-          | undefined,
+          Record<string, EnrichedCode[]> | undefined,
       },
     };
   }
@@ -208,14 +211,28 @@ function restoreMessage(saved: SavedMsg): V2Message {
       items: (p.items as V2MediaItem[]) ?? [],
       match_count: p.match_count as number | undefined,
       enriched_extracted: p.enriched_extracted as
-        | Record<string, EnrichedCode[]>
-        | undefined,
+        Record<string, EnrichedCode[]> | undefined,
       previous_context_detail: p.previous_context_detail as
-        | Record<string, EnrichedCode[]>
-        | undefined,
+        Record<string, EnrichedCode[]> | undefined,
       matched_categories: p.matched_categories as number | undefined,
       media: p.media as V2MediaRef | undefined,
       proposal: p.proposal as V2ProposalRef | undefined,
+    };
+  }
+  // 제안서 고르기 목록 — 지난 대화를 다시 불러와도(새로고침·화면 이동·믹시 패널 다시 열기) 목록이 남게 한다.
+  if (ptype === "proposal_choices") {
+    return {
+      id: saved.id,
+      type: "assistant",
+      response_type: "proposal_choices",
+      message: (p.message as string) || saved.content,
+      proposalChoices: {
+        action: (p.action as "add" | "rename") || "add",
+        proposals: (p.proposals as V2ProposalRef[]) || [],
+        mediaIds: (p.media_ids as string[]) || [],
+        newName: (p.new_name as string) || undefined,
+        picked: (p.picked as { id: string; name: string }) || undefined,
+      },
     };
   }
   return { id: saved.id, type: "assistant", message: saved.content };
@@ -233,6 +250,7 @@ export function useReactChat() {
     () => typeof window === "undefined" || !localStorage.getItem(SESSION_KEY),
   );
   const { error } = useSonner();
+  const queryClient = useQueryClient();
 
   // 언마운트 시 진행 중인 폴링 루프를 중단(setState 누수 방지).
   const mountedRef = useRef(true);
@@ -278,6 +296,13 @@ export function useReactChat() {
     };
   }, []);
 
+  // 대화가 있는지 쿠키에 적어 둔다 — 새로고침 때 서버가 첫 화면 대신 불러오는 중 화면을 그린다.
+  // 복원이 끝난 뒤의 값만 쓴다(복원 전 빈 목록으로 지우지 않게).
+  const hasMessages = messages.length > 0;
+  useEffect(() => {
+    if (restored) setChatActiveCookie(hasMessages);
+  }, [restored, hasMessages]);
+
   const ensureSession = useCallback(async (): Promise<string> => {
     if (sessionId) return sessionId;
     const s = await adSessionsApi.create(null);
@@ -299,7 +324,8 @@ export function useReactChat() {
     try {
       const s = await adSessionsApi.create(null);
       setSessionId(s.id);
-      if (typeof window !== "undefined") localStorage.setItem(SESSION_KEY, s.id);
+      if (typeof window !== "undefined")
+        localStorage.setItem(SESSION_KEY, s.id);
     } catch (err) {
       // 생성 실패 시 다음 submit 의 ensureSession 이 다시 시도(지연 생성 폴백)
       const msg = err instanceof Error ? err.message : "새 세션 생성 실패";
@@ -314,6 +340,18 @@ export function useReactChat() {
   const applyEventData = useCallback(
     (data: Record<string, unknown>, assistantId: string) => {
       const msgType = (data.type as V2ResponseType) || "chat";
+
+      // 믹시가 제안서에 매체를 담았다 — 담기 창으로 담았을 때와 같이 말풍선·담는 제안서 전환·"N".
+      // 서버가 담았으므로 제안서 목록·상세(배지·패널)를 다시 받는다. (지난 대화 불러오기는 이 경로가 아니라 다시 뜨지 않는다.)
+      const addedNames = data.added_media_names as string[] | undefined;
+      const addedProposal = data.proposal as V2ProposalRef | undefined;
+      if (msgType === "proposal" && addedProposal && addedNames?.length) {
+        void queryClient.invalidateQueries({ queryKey: proposalsKeys.all });
+        notifyProposalsAdded(
+          [{ id: addedProposal.id, title: addedProposal.name }],
+          addedNames,
+        );
+      }
 
       if (msgType === "confirmation_required") {
         setMessages((prev) =>
@@ -356,10 +394,8 @@ export function useReactChat() {
                 items: (data.items as V2MediaItem[]) || [],
                 match_count: (data.match_count as number) || 0,
                 enriched_extracted:
-                  (data.enriched_extracted as Record<
-                    string,
-                    EnrichedCode[]
-                  >) || undefined,
+                  (data.enriched_extracted as Record<string, EnrichedCode[]>) ||
+                  undefined,
                 previous_context_detail:
                   (data.previous_context_detail as Record<
                     string,
@@ -372,10 +408,8 @@ export function useReactChat() {
                 proposalChoices:
                   msgType === "proposal_choices"
                     ? {
-                        action:
-                          (data.action as "add" | "rename") || "add",
-                        proposals:
-                          (data.proposals as V2ProposalRef[]) || [],
+                        action: (data.action as "add" | "rename") || "add",
+                        proposals: (data.proposals as V2ProposalRef[]) || [],
                         mediaIds: (data.media_ids as string[]) || [],
                         newName: (data.new_name as string) || undefined,
                       }
@@ -387,7 +421,7 @@ export function useReactChat() {
         ),
       );
     },
-    [],
+    [queryClient],
   );
 
   const handleEventBlock = useCallback(
@@ -595,8 +629,7 @@ export function useReactChat() {
   const removeSlot = useCallback(
     async (category: string, code: string, label: string) => {
       if (running || !sessionId) return;
-      const catLabel =
-        CATEGORY_LABELS[category as SlotKey] || category;
+      const catLabel = CATEGORY_LABELS[category as SlotKey] || category;
       const noteText = `"${catLabel}: ${label}" 조건 제거`;
       const userId = randomId();
       const assistantId = randomId();

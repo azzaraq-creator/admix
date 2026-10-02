@@ -73,6 +73,16 @@ export function useKakaoMap({
             zoomedRef.current = true;
           };
           const emit = (moveType: MapMoveType) => {
+            // 숨김(크기 0)인 지도는 사용자가 옮길 수 없다. 그런데 iOS 사파리에서 목록을 당기면
+            // (바운스) 숨은 지도에 idle이 나서 엉뚱한 영역으로 목록이 다시 조회돼 0개가 됐다.
+            // 숨은 동안의 사용자 이동은 버린다 — 코드가 옮긴 것(첫 진입·장소 검색)은 그대로 알린다.
+            if (
+              moveType !== "program" &&
+              (container.clientWidth === 0 || container.clientHeight === 0)
+            ) {
+              zoomedRef.current = false;
+              return;
+            }
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest();
             const ne = bounds.getNorthEast();
@@ -81,19 +91,44 @@ export function useKakaoMap({
             let neLng = ne.getLng();
             let swLng = sw.getLng();
             // 모바일 진입 시 지도가 숨김(크기 0)이면 getBounds가 한 점을 반환한다.
-            // degenerate(넓이 0) bbox면 중심 기준 기본 span으로 확장(빈 결과 방지).
+            // 그 자리를 넓이 0 대신 "지도를 펼치면 보일 영역"으로 넓힌다. 모바일 지도는 목록과
+            // 같은 칸을 차지하므로, 크기가 있는 가장 가까운 조상 칸의 크기를 지금 줌으로 환산한다.
+            // (예전엔 중심 ±0.03°로 넓혀서, 첫 목록이 실제 지도보다 훨씬 넓은 영역의 매체를 보여 줬다.)
             if (
               Math.abs(neLat - swLat) < 1e-6 ||
               Math.abs(neLng - swLng) < 1e-6
             ) {
+              let area: HTMLElement | null = container.parentElement;
+              while (
+                area &&
+                (area.clientWidth === 0 || area.clientHeight === 0)
+              )
+                area = area.parentElement;
               const cLat = (neLat + swLat) / 2;
               const cLng = (neLng + swLng) / 2;
-              const D_LAT = 0.03;
-              const D_LNG = 0.03;
-              neLat = cLat + D_LAT;
-              swLat = cLat - D_LAT;
-              neLng = cLng + D_LNG;
-              swLng = cLng - D_LNG;
+              if (area) {
+                const proj = map.getProjection();
+                const c = proj.containerPointFromCoords(
+                  new maps.LatLng(cLat, cLng),
+                );
+                const halfW = area.clientWidth / 2;
+                const halfH = area.clientHeight / 2;
+                const neP = proj.coordsFromContainerPoint(
+                  new maps.Point(c.x + halfW, c.y - halfH),
+                );
+                const swP = proj.coordsFromContainerPoint(
+                  new maps.Point(c.x - halfW, c.y + halfH),
+                );
+                neLat = neP.getLat();
+                neLng = neP.getLng();
+                swLat = swP.getLat();
+                swLng = swP.getLng();
+              } else {
+                neLat = cLat + 0.03;
+                swLat = cLat - 0.03;
+                neLng = cLng + 0.03;
+                swLng = cLng - 0.03;
+              }
             }
             programmaticMoveRef.current = false;
             zoomedRef.current = false;

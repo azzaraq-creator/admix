@@ -5,4 +5,6 @@ export const favoritesKeys = {
   ids: () => [...favoritesKeys.all, "ids"] as const,
   list: (filters?: MediaFilterParams) =>
     [...favoritesKeys.all, "list", filters ?? {}] as const,
+  priceHistogram: (filters?: MediaFilterParams) =>
+    [...favoritesKeys.all, "price-histogram", filters ?? {}] as const,
 };

@@ -20,7 +20,11 @@ import {
   type V2Message,
 } from "@/hooks/adRecommendReact";
 import { useMe } from "@/hooks/auth";
-import { useAddProposalItems, useRenameProposal } from "@/hooks/proposals";
+import {
+  notifyProposalsAdded,
+  useAddProposalItems,
+  useRenameProposal,
+} from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 // import { cn } from "@/lib/utils"; // SlotBar와 함께 임시 비활성화(기획 변경 여지)
 import { openLoginModal } from "../../_components/useLoginModal";
@@ -87,11 +91,18 @@ export function AiChatPanel({
           await renameProposal.mutateAsync({ id: proposalId, title });
           success("제안서 이름을 바꿨어요.");
         } else {
-          await addProposalItems.mutateAsync({
+          const detail = await addProposalItems.mutateAsync({
             id: proposalId,
             mediaIds: choices.mediaIds,
           });
-          success("제안서에 담았어요.");
+          // 담기 창으로 담았을 때와 같이 말풍선·담는 제안서 전환·"N" 표시.
+          notifyProposalsAdded(
+            [{ id: detail.id, title: detail.title }],
+            choices.mediaIds.map((mid) => {
+              const it = detail.items.find((x) => x.media_id === mid);
+              return it?.media_name ?? it?.name ?? mid;
+            }),
+          );
         }
         return true;
       } catch {

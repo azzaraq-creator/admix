@@ -13,6 +13,7 @@ from src.schemas.media import (
     MediaClusterResponse,
     MediaDetail,
     MediaFilterOptions,
+    PriceHistogramResponse,
 )
 from src.services import media_service
 
@@ -55,6 +56,37 @@ def get_fixed_filter_options(db: Session = Depends(get_db)) -> MediaFilterOption
     return MediaFilterOptions(**media_service.get_media_filter_options(db, "FIXED"))
 
 
+@router.get("/fixed/price-histogram", response_model=PriceHistogramResponse)
+def get_fixed_price_histogram(
+    category: list[str] | None = Query(None),
+    ooh_type: list[str] | None = Query(None),
+    exposure_type: list[str] | None = Query(None),
+    media_shape: list[str] | None = Query(None),
+    product_master_type: list[str] | None = Query(None),
+    north_east_latitude: float | None = Query(None),
+    south_west_latitude: float | None = Query(None),
+    north_east_longitude: float | None = Query(None),
+    south_west_longitude: float | None = Query(None),
+    keyword: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> PriceHistogramResponse:
+    """가격 필터 그래프 — 목록과 같은 조건(지도 영역·검색어·가격 외 필터)의 매체로 센 막대."""
+    histogram = media_service.fixed_price_histogram_for_list(
+        db,
+        categories=category,
+        ooh_types=ooh_type,
+        exposure_types=exposure_type,
+        media_shapes=media_shape,
+        product_master_types=product_master_type,
+        ne_lat=north_east_latitude,
+        sw_lat=south_west_latitude,
+        ne_lng=north_east_longitude,
+        sw_lng=south_west_longitude,
+        keyword=keyword,
+    )
+    return PriceHistogramResponse(histogram=histogram)
+
+
 @router.get("/fixed", response_model=MediaCardListResponse)
 def list_fixed_media(
     limit: int = Query(20, ge=1, le=100),
@@ -71,6 +103,7 @@ def list_fixed_media(
     north_east_longitude: float | None = Query(None),
     south_west_longitude: float | None = Query(None),
     keyword: str | None = Query(None),
+    sort: str = Query("latest", pattern=media_service.MEDIA_SORT_PATTERN),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
     total, items = media_service.list_fixed_media(
@@ -89,6 +122,7 @@ def list_fixed_media(
         ne_lng=north_east_longitude,
         sw_lng=south_west_longitude,
         keyword=keyword,
+        sort=sort,
     )
     return MediaCardListResponse(total=total, items=items)
 

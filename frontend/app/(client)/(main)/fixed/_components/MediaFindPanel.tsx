@@ -173,10 +173,15 @@ export function MediaFindPanel({
   const keyword = sp.get("kw");
   // 장소 스코프 칩에 보여줄 이름. bbox와 함께 세팅된다.
   const placeLabel = sp.get("place");
+  // 자동완성에서 고른 매체 — 목록 맨 위에 하이라이트해 고정한다. 장소 칩과 함께 세팅되고,
+  // 지도를 직접 옮기거나 다른 검색을 하면 함께 풀린다.
+  const pinId = sp.get("pin");
 
   const [location, setLocation] = useState(() => keyword ?? "");
   const [placeSug, setPlaceSug] = useState<KakaoPlace[]>([]);
   const [mediaSug, setMediaSug] = useState<MediaCardRow[]>([]);
+  // 고른 매체의 카드 정보 — 고정 영역이 넓어 목록 첫 페이지에 없을 수도 있어 따로 들고 있는다.
+  const [pinnedRow, setPinnedRow] = useState<MediaCardRow | null>(null);
   const [showSug, setShowSug] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -216,7 +221,7 @@ export function MediaFindPanel({
     isFetchingNextPage,
     isFetching: listFetching,
     isPending: listPending,
-  } = useFixedMediaInfinite(scopedFilters, scopeReady);
+  } = useFixedMediaInfinite({ ...scopedFilters, sort }, scopeReady);
 
   // 첫 진입 — 지도가 자리를 잡으며 조회 영역이 한 번 더 바뀌면, 먼저 받은 목록이 보였다가 다른
   // 목록으로 바뀌며 깜빡인다. 목록이 도착한 뒤에도 조회가 잠시(ENTRY_SETTLE_MS) 멈출 때까지는
@@ -233,6 +238,13 @@ export function MediaFindPanel({
   const isLoading = !scopeReady || listPending || !entrySettled;
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const total = data?.pages[0]?.total ?? 0;
+  // 새로고침으로 들고 있던 카드 정보가 없으면 목록에서 찾는다(고른 매체 주변이라 대개 첫 페이지에 있다).
+  const pinned = pinId
+    ? pinnedRow?.id === pinId
+      ? pinnedRow
+      : (rows.find((r) => r.id === pinId) ?? null)
+    : null;
+  const listRows = pinned ? rows.filter((r) => r.id !== pinned.id) : rows;
   const coordsById = new Map(
     rows
       .filter((r) => r.lat != null && r.lng != null)
@@ -338,11 +350,10 @@ export function MediaFindPanel({
     });
 
   // 초기화 — 칩·키워드·장소 칩을 비우고 검색 입력도 지운다. 목록은 지도 영역을 따르므로
-  // 줌과 지금 보이는 지도 영역(bbox)은 유지한다.
-  const handleReset = () => {
+  // 줌과 지금 보이는 지도 영역(bbox)은 유지한다. 필터 패널 안의 초기화는 패널을 열어 둔다.
+  const resetSearch = () => {
     setLocation("");
     setShowSug(false);
-    setFilterOpen(false);
     const view = getViewport?.();
     replaceQuery((q) => {
       // 줌과 지금 보이는 영역만 남기고 모두 비운다.
@@ -354,6 +365,10 @@ export function MediaFindPanel({
           q.set(k, String(Math.round(view[k] * 1e6) / 1e6));
       }
     });
+  };
+  const handleReset = () => {
+    setFilterOpen(false);
+    resetSearch();
   };
 
   // 통합 자동완성 — 입력 디바운스로 장소(카카오)와 매체명(백엔드)을 병렬 조회.
@@ -402,6 +417,8 @@ export function MediaFindPanel({
     commit((q) => {
       q.delete("kw"); // bbox 스코프는 키워드 검색과 상호배제
       q.set("place", label);
+      if (focusId) q.set("pin", focusId);
+      else q.delete("pin");
       q.set("neLat", String(lat + radius));
       q.set("swLat", String(lat - radius));
       q.set("neLng", String(lng + radius));
@@ -421,19 +438,19 @@ export function MediaFindPanel({
 
   const selectPlace = (p: KakaoPlace) => scopeToPlace(p.lat, p.lng, p.name);
 
+  // 매체 후보 → 상세를 바로 열지 않고, 그 매체를 목록 맨 위에 고정한 채 주변 매체를 보여 준다.
   const selectMediaSug = (row: MediaCardRow) => {
-    onSelectMedia?.({
-      id: row.id,
-      name: row.name,
-      price: "",
-      images: row.images,
-      popular: row.badge === "popular",
-    });
+    setPinnedRow(row);
+    // 모바일은 지도만 보고 있을 수 있어 목록으로 돌리고, 고른 매체가 보이게 맨 위로 올린다.
+    setMapExpanded(false);
+    scrollRef.current?.scrollTo({ top: 0 });
     if (row.lat != null && row.lng != null) {
       scopeToPlace(row.lat, row.lng, row.name, row.id);
     } else {
+      // 좌표가 없으면 지도 영역은 그대로 두고 고정만 한다.
       setLocation(row.name);
       setShowSug(false);
+      commit((q) => q.set("pin", row.id));
       onFocusMedia?.(row.id);
     }
   };
@@ -450,6 +467,7 @@ export function MediaFindPanel({
       if (q) params.set("kw", q);
       else params.delete("kw");
       params.delete("place");
+      params.delete("pin");
       for (const k of BBOX_KEYS) params.delete(k);
     });
   };
@@ -502,48 +520,51 @@ export function MediaFindPanel({
           onToggleMapExpanded={() => setMapExpanded((v) => !v)}
           suggestionSlot={
             showSug && (placeSug.length > 0 || mediaSug.length > 0) ? (
-              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 max-h-[320px] overflow-y-auto rounded-[16px] border border-black-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
-                {mediaSug.length > 0 && (
-                  <div>
-                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
-                      매체
+              // 검색 추천 — 테두리·그림자는 바깥 칸에 두고, 안쪽 ScrollShadow가 스크롤하며 넘치는 쪽을 흐리게 한다.
+              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[16px] border border-black-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
+                <ScrollShadow size={24} className="max-h-[318px]">
+                  {mediaSug.length > 0 && (
+                    <div>
+                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
+                        매체
+                      </div>
+                      {mediaSug.map((m) => (
+                        <button
+                          key={`media-${m.id}`}
+                          type="button"
+                          onClick={() => selectMediaSug(m)}
+                          className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-black-100"
+                        >
+                          {m.name}
+                        </button>
+                      ))}
                     </div>
-                    {mediaSug.map((m) => (
-                      <button
-                        key={`media-${m.id}`}
-                        type="button"
-                        onClick={() => selectMediaSug(m)}
-                        className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-black-100"
-                      >
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {placeSug.length > 0 && (
-                  <div>
-                    <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
-                      장소
-                    </div>
-                    {placeSug.map((p, i) => (
-                      <button
-                        key={`place-${i}`}
-                        type="button"
-                        onClick={() => selectPlace(p)}
-                        className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-black-100"
-                      >
-                        <span className="text-[14px] max-sm:text-[13px] text-black">
-                          {p.name}
-                        </span>
-                        {p.address && (
-                          <span className="text-[12px] max-sm:text-[11px] text-black-500">
-                            {p.address}
+                  )}
+                  {placeSug.length > 0 && (
+                    <div>
+                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
+                        장소
+                      </div>
+                      {placeSug.map((p, i) => (
+                        <button
+                          key={`place-${i}`}
+                          type="button"
+                          onClick={() => selectPlace(p)}
+                          className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-black-100"
+                        >
+                          <span className="text-[14px] max-sm:text-[13px] text-black">
+                            {p.name}
                           </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                          {p.address && (
+                            <span className="text-[12px] max-sm:text-[11px] text-black-500">
+                              {p.address}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollShadow>
               </div>
             ) : null
           }
@@ -556,6 +577,8 @@ export function MediaFindPanel({
               onChange={(next) => {
                 setSort(next);
                 setSortOpen(false);
+                // 순서가 바뀌면 처음부터 보이게 목록을 맨 위로 올린다.
+                scrollRef.current?.scrollTo({ top: 0 });
               }}
             />
           </div>
@@ -570,7 +593,7 @@ export function MediaFindPanel({
               totalCount={total}
               scope={{ ...bounds, keyword }}
               onApply={applyFilter}
-              onReset={handleReset}
+              onReset={resetSearch}
               onClose={() => setFilterOpen(false)}
             />
           </div>
@@ -629,16 +652,37 @@ export function MediaFindPanel({
             // data-top-scroll·data-bottom-scroll이 둘 다 false(넘칠 게 없음)면 흐림을 끈다.
             className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[460px]"
           >
+            {pinned && (
+              <MediaFindCard
+                key={`pin-${pinned.id}`}
+                row={pinned}
+                highlighted
+                selected={pinned.id === selectedId}
+                onClick={() => handleItemClick(pinned)}
+                onAddProposal={() => onAddProposal?.(pinned.id)}
+              />
+            )}
             {isLoading ? (
               // 첫 결과를 받기 전엔 카드 자리에 스켈레톤을 깔아 로딩 중임을 보여 준다.
               Array.from({ length: 3 }, (_, i) => (
                 <MediaFindCardSkeleton key={i} />
               ))
-            ) : rows.length === 0 ? (
-              <MediaEmptyResults />
+            ) : listRows.length === 0 ? (
+              // 고른 매체만 있고 주변 매체가 없으면 빈 안내는 띄우지 않는다.
+              pinned ? null : (
+                // 목록은 지도 영역을 따르므로, 걸린 조건이 없으면 지도를 옮겨 보라고 안내한다.
+                <MediaEmptyResults
+                  description={
+                    searched
+                      ? "검색어나 필터를 바꾸거나, 지도를 옮겨 다시 찾아보세요."
+                      : "지도를 옮기거나 축소해 다른 지역을 찾아보세요."
+                  }
+                  onReset={searched ? handleReset : undefined}
+                />
+              )
             ) : (
               <>
-                {rows.map((row) => (
+                {listRows.map((row) => (
                   <MediaFindCard
                     key={row.id}
                     row={row}

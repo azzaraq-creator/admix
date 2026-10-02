@@ -1,7 +1,7 @@
 "use client";
 
-import { Breadcrumbs, Button, ScrollShadow } from "@heroui/react";
-import { useState, type ReactNode } from "react";
+import { Breadcrumbs, Button, ScrollShadow, Spinner } from "@heroui/react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 
 import {
   ChevronDoubleDownIcon,
@@ -118,7 +118,9 @@ function ModeLayer({
       aria-hidden={!active}
       inert={!active}
       className={cn(
-        "[grid-area:1/1] transition-[opacity,translate] duration-300 ease-out motion-reduce:transition-none",
+        // min-w-0 — 격자 칸은 기본 최소 폭이 내용 폭이라, 없으면 추천 질문 줄(모바일 2열 240px 칸)만큼
+        // 화면보다 넓어져 줄 안에서 넘길 게 없어진다(넘친 부분은 바깥에서 잘려 좌우로 안 움직였다).
+        "min-w-0 [grid-area:1/1] transition-[opacity,translate] duration-300 ease-out motion-reduce:transition-none",
         active
           ? "translate-x-0 opacity-100"
           : cn(
@@ -133,7 +135,13 @@ function ModeLayer({
   );
 }
 
-export function HomeContent() {
+const noopSubscribe = () => () => {};
+
+/**
+ * chatActive — 믹시와 나눈 대화가 있다는 쿠키(서버가 읽어 넘긴다). 있으면 대화를 불러올 때까지
+ * 검색 첫 화면 대신 불러오는 중 화면을 보여 준다(새로고침 때 첫 화면이 잠깐 보였다가 바뀌지 않게).
+ */
+export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("ai");
   // 대화는 이 화면에서 이어진다(시안 "01-1. 믹시 대화"). 대화 상태는 레이아웃에
@@ -141,6 +149,17 @@ export function HomeContent() {
   const { chat } = useMixieChat();
   // 대화 중에도 입력바의 전환 탭으로 검색 화면에 갈 수 있고, AI로 돌아오면 대화가 다시 보인다.
   const hasConversation = mode === "ai" && chat.messages.length > 0;
+  // 서버·첫 하이드레이션에선 쿠키만 보고(둘이 같아야 화면이 어긋나지 않는다), 그 뒤엔 복원이 끝날 때까지.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const restoringChat =
+    mode === "ai" &&
+    chatActive &&
+    chat.messages.length === 0 &&
+    (!hydrated || !chat.restored);
 
   return (
     // 첫 화면은 화면 높이를 꽉 채우고, 그 아래로 대시보드 콘텐츠가 이어진다(스크롤해서 본다).
@@ -175,7 +194,16 @@ export function HomeContent() {
         )}
       </div>
 
-      {hasConversation ? (
+      {restoringChat ? (
+        // 대화를 불러오는 중 — 대화 화면이 들어설 자리 가운데에 스피너.
+        <div
+          role="status"
+          className="flex min-h-[60vh] w-full flex-1 flex-col items-center justify-center gap-[12px]"
+        >
+          <Spinner size="lg" />
+          <p className="text-[14px] text-[#71717a]">대화를 불러오는 중…</p>
+        </div>
+      ) : hasConversation ? (
         <div className="flex min-h-0 w-full flex-1 flex-col pt-[16px] sm:pt-[24px] sm:pb-[8px]">
           <HomeChat
             modeToggle={<ModeToggle value={mode} onChange={setMode} />}

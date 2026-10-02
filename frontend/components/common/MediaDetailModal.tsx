@@ -5,6 +5,7 @@ import {
   Chip,
   Modal,
   Popover,
+  ScrollShadow,
   Skeleton,
   Tabs,
   ToggleButton,
@@ -28,6 +29,13 @@ import {
 import { useFavorite } from "@/hooks/favorites";
 import { cn } from "@/lib/utils";
 
+import {
+  DEFAULT_MEDIA_OPTIONS,
+  isOohMedia,
+  MediaOptionsPriceBox,
+  type MediaOptionsValue,
+  mediaOptionTotals,
+} from "./media-detail/MediaOptions";
 import {
   type MediaDetailAgeRatio,
   type MediaDetailPopulationVM,
@@ -66,9 +74,17 @@ export function MediaDetailModal({
    * 제안서 담기 — 부모가 이 모달을 연 채로 담기 모달(AddToProposalModal)을 위에 띄운다.
    * 담기 모달도 HeroUI Modal이라 react-aria가 모달 겹침(포커스·바깥 클릭)을 알아서 처리한다.
    */
-  onAddProposal?: (mediaId: string, planNo?: number) => void;
+  onAddProposal?: (
+    mediaId: string,
+    planNo?: number,
+    options?: { months: number; productionCount: number },
+  ) => void;
 }) {
   const { vm } = useMediaDetailViewModel(mediaId);
+  // 상품·개월 수·제작 수 — 가격 칸 금액과 "제안서 담기"에 같이 쓴다.
+  const [options, setOptions] = useState<MediaOptionsValue>(
+    DEFAULT_MEDIA_OPTIONS,
+  );
   // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
   const { liked, setLiked } = useFavorite(mediaId, {
     notifyName: vm?.name ?? "",
@@ -107,7 +123,14 @@ export function MediaDetailModal({
             </div>
 
             <Modal.Body className="m-0 flex flex-col gap-[10px] p-0">
-              {vm ? <MediaDetailBody vm={vm} /> : <MediaDetailSkeleton />}
+              {vm ? (
+                <MediaDetailBody
+                  vm={vm}
+                  options={{ value: options, onChange: setOptions }}
+                />
+              ) : (
+                <MediaDetailSkeleton />
+              )}
             </Modal.Body>
 
             {/* 버튼 줄은 본문 스크롤 밖에 두어 헤더처럼 아래에 고정한다. */}
@@ -117,7 +140,13 @@ export function MediaDetailModal({
                   liked={liked}
                   onLikedChange={setLiked}
                   onClose={onClose}
-                  onAddProposal={() => onAddProposal?.(vm.id)}
+                  onAddProposal={() => {
+                    const totals = mediaOptionTotals(vm, options);
+                    onAddProposal?.(vm.id, totals.plan?.planNo, {
+                      months: totals.months,
+                      productionCount: totals.productionCount,
+                    });
+                  }}
                 />
               </Modal.Footer>
             )}
@@ -168,7 +197,22 @@ function MediaDetailSkeleton() {
   );
 }
 
-function MediaDetailBody({ vm }: { vm: MediaDetailViewModel }) {
+type OptionsControl = {
+  value: MediaOptionsValue;
+  onChange: (next: MediaOptionsValue) => void;
+};
+
+/**
+ * options가 있으면(매체 정보 팝업) 상품·개월 수·제작 수를 고르고 가격 칸이 그 금액으로 바뀐다.
+ * 없으면(제안서 슬라이드 자리 등) 기존처럼 단가만 보여 준다.
+ */
+function MediaDetailBody({
+  vm,
+  options,
+}: {
+  vm: MediaDetailViewModel;
+  options?: OptionsControl;
+}) {
   const specs: [string, string][] = [
     ...vm.features.filter(([label]) => !SPEC_EXCLUDED_LABELS.has(label)),
     ...(vm.sizeText ? [["매체 크기", vm.sizeText] as [string, string]] : []),
@@ -176,7 +220,8 @@ function MediaDetailBody({ vm }: { vm: MediaDetailViewModel }) {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-[20px] max-sm:gap-[16px] md:flex-row">
+      {/* PC(가로 배치)는 이미지 칸을 오른쪽 정보 칸 높이에 맞춰 늘린다 — 위·아래 끝이 나란하다. */}
+      <div className="flex flex-col items-center gap-[20px] max-sm:gap-[16px] md:flex-row md:items-stretch">
         <ImageGallery images={vm.images} />
         {/* 모바일은 크게 보기 대신 목록 카드처럼 끌어서 넘기고, 점으로 장 수를 보여 준다. */}
         <MediaImageCarousel
@@ -220,11 +265,16 @@ function MediaDetailBody({ vm }: { vm: MediaDetailViewModel }) {
             </div>
           )}
 
-          <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]">
-            <PriceRow label="광고비" unit="/ 1개월" value={vm.adFeeKrw} />
-            <div className="h-px w-full bg-[#ececef]" />
-            <PriceRow label="제작비" unit="/ 1회" value={vm.productionFeeKrw} />
-          </div>
+          {/* 팝업은 가격 칸 안에서 상품·개월 수·제작 수를 고른다(PC·모바일 같음). */}
+          {options ? (
+            <MediaOptionsPriceBox
+              vm={vm}
+              value={options.value}
+              onChange={options.onChange}
+            />
+          ) : (
+            <PriceBox vm={vm} />
+          )}
 
           {vm.description && (
             <div className="w-full max-sm:hidden">
@@ -420,13 +470,14 @@ function ImageGallery({ images }: { images: string[] }) {
 
   return (
     <div className="flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden md:w-[440px]">
+      {/* 큰 이미지는 최소 240px, PC에선 남는 높이만큼 늘어난다(썸네일 줄은 그대로). */}
       {/* 누르면 크게 보기(지금 보고 있는 장부터). 이미지가 없으면 누를 게 없다. */}
       {current ? (
         <button
           type="button"
           aria-label="이미지 크게 보기"
           onClick={() => setLightboxOpen(true)}
-          className="group relative h-[240px] w-full cursor-zoom-in overflow-hidden rounded-[10px]"
+          className="group relative h-[240px] w-full shrink-0 cursor-zoom-in overflow-hidden rounded-[10px] md:h-auto md:min-h-[240px] md:flex-1"
         >
           <MediaThumbnail
             src={current}
@@ -436,12 +487,17 @@ function ImageGallery({ images }: { images: string[] }) {
         </button>
       ) : (
         <MediaThumbnail
-          className="h-[240px] w-full rounded-[10px]"
+          className="h-[240px] w-full shrink-0 rounded-[10px] md:h-auto md:min-h-[240px] md:flex-1"
           fallback={<Logo className="size-[40px] opacity-30" />}
         />
       )}
       {images.length > 1 && (
-        <div className="flex h-[60px] items-center gap-[8px] overflow-x-auto">
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          size={24}
+          className="flex h-[60px] items-center gap-[8px]"
+        >
           {images.map((src, i) => {
             const selected = i === index;
             return (
@@ -461,7 +517,7 @@ function ImageGallery({ images }: { images: string[] }) {
               </button>
             );
           })}
-        </div>
+        </ScrollShadow>
       )}
 
       {lightboxOpen && (
@@ -470,6 +526,22 @@ function ImageGallery({ images }: { images: string[] }) {
           initialIndex={index}
           onClose={() => setLightboxOpen(false)}
         />
+      )}
+    </div>
+  );
+}
+
+/** 가격 칸(단가) — 옵션 없이 끼워 쓰는 곳(제안서 슬라이드 자리 등). */
+function PriceBox({ vm }: { vm: MediaDetailViewModel }) {
+  return (
+    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]">
+      <PriceRow label="광고비" unit="/ 1개월" value={vm.adFeeKrw} />
+      {/* 제작비는 OOH이고 금액이 있을 때만. */}
+      {isOohMedia(vm.oohType) && vm.productionFeeKrw != null && (
+        <>
+          <div className="h-px w-full bg-[#ececef]" />
+          <PriceRow label="제작비" unit="/ 1회" value={vm.productionFeeKrw} />
+        </>
       )}
     </div>
   );
@@ -502,7 +574,7 @@ function PriceRow({
 const DESC_POP_PAD = 14;
 
 /**
- * 매체 설명 — 4줄까지만 보여 주고, 실제로 넘칠 때만 "더보기"를 띄운다. 더보기를 누르면 모달을
+ * 매체 설명 — 2줄까지만 보여 주고, 실제로 넘칠 때만 "더보기"를 띄운다. 더보기를 누르면 모달을
  * 늘이지 않고 설명 자리에 그대로 겹쳐 전문을 띄운다(HeroUI Popover — 바깥 클릭·Esc·접기로 닫힘).
  */
 function Description({ text }: { text: string }) {
@@ -512,7 +584,7 @@ function Description({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const [blockHeight, setBlockHeight] = useState(0);
 
-  // 4줄(line-clamp)에서 잘리는지 잰다. 모달 폭이 바뀌면 줄 수도 바뀌어 다시 잰다.
+  // 2줄(line-clamp)에서 잘리는지 잰다. 모달 폭이 바뀌면 줄 수도 바뀌어 다시 잰다.
   useEffect(() => {
     const el = textRef.current;
     const block = blockRef.current;
@@ -537,7 +609,7 @@ function Description({ text }: { text: string }) {
       <p className="leading-[18px] text-[#555]">매체 설명</p>
       <p
         ref={textRef}
-        className="line-clamp-4 w-full whitespace-pre-wrap leading-[18px] text-black"
+        className="line-clamp-2 w-full whitespace-pre-wrap leading-[18px] text-black"
       >
         {text}
       </p>
@@ -572,9 +644,12 @@ function Description({ text }: { text: string }) {
               <Popover.Heading className="shrink-0 text-[12px] leading-[18px] font-normal text-[#555]">
                 매체 설명
               </Popover.Heading>
-              <p className="min-h-0 w-full overflow-y-auto leading-[18px] whitespace-pre-wrap text-black">
+              <ScrollShadow
+                size={18}
+                className="min-h-0 w-full leading-[18px] whitespace-pre-wrap text-black"
+              >
                 {text}
-              </p>
+              </ScrollShadow>
               <Button
                 variant="ghost"
                 size="sm"
@@ -602,10 +677,11 @@ function PopulationCard({
     cur.value > top.value ? cur : top,
   );
   const topGender = population.femalePct > population.malePct ? "여성" : "남성";
+  // 비율이 더 높은 쪽만 보라색으로 강조한다(위 칩의 성별과 같은 기준).
   const genders = [
-    { label: "여성", pct: population.femalePct, female: true },
-    { label: "남성", pct: population.malePct, female: false },
-  ];
+    { label: "여성", pct: population.femalePct },
+    { label: "남성", pct: population.malePct },
+  ].map((g) => ({ ...g, top: g.label === topGender }));
 
   return (
     <div className="flex h-[315px] w-full shrink-0 flex-col justify-between rounded-[16px] border border-[#f1f1f4] bg-white px-[20px] py-[16px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
@@ -635,7 +711,7 @@ function PopulationCard({
                 <ProfileFilledIcon
                   className={cn(
                     "size-[14px] shrink-0",
-                    g.female ? "text-primary-500" : "text-[#71717a]",
+                    g.top ? "text-primary-500" : "text-[#71717a]",
                   )}
                 />
                 <span className="text-[12px] leading-[1.4] font-medium whitespace-nowrap text-[#18181b]">
@@ -646,7 +722,7 @@ function PopulationCard({
                 <div
                   className={cn(
                     "absolute inset-y-0 left-0 rounded-[4px]",
-                    g.female ? "bg-primary-500" : "bg-[#71717a]",
+                    g.top ? "bg-primary-500" : "bg-[#71717a]",
                   )}
                   style={{ width: `${g.pct}%` }}
                 />

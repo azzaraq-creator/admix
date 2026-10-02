@@ -11,4 +11,5 @@ export type {
   V2MediaItem,
   ConfirmationInfo,
   V2Message,
+  V2ProposalRef,
 } from "./useReactChat";

@@ -1,6 +1,10 @@
 "use client";
 
-import { type MediaDetail, useMediaDetail } from "@/hooks/media";
+import {
+  type MediaDetail,
+  type MediaPlanOption,
+  useMediaDetail,
+} from "@/hooks/media";
 
 export type MediaDetailAgeRatio = {
   label: string;
@@ -42,6 +46,8 @@ export type MediaDetailViewModel = {
   sizeText: string | null;
   features: [string, string][];
   plans: MediaDetailPlan[];
+  /** 매체 정보 팝업의 "안건" 옵션(플랜별 광고비·제작비·노출 조건). */
+  planOptions: MediaPlanOption[];
   population: MediaDetailPopulationVM | null;
 };
 
@@ -83,6 +89,7 @@ export function toMediaDetailViewModel(
       subtitle: p.subtitle ?? "",
       planNo: p.planNo,
     })),
+    planOptions: detail.planOptions ?? [],
     population: pop
       ? {
           monthlyFootTraffic: pop.monthlyFootTraffic,

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { CurrentProposalButton } from "./CurrentProposalButton";
 import { setLnbExpanded } from "./useLnb";
 
 export function MobileTopNav() {
@@ -30,8 +31,8 @@ export function MobileTopNav() {
           priority
         />
       </Link>
-      {/* 로고를 가운데 두기 위해 왼쪽 메뉴 버튼과 같은 폭을 비워 둔다. */}
-      <div className="w-[48px] shrink-0" />
+      {/* 담는 제안서 — 왼쪽 메뉴 버튼과 같은 폭이라 로고가 가운데에 남는다. */}
+      <CurrentProposalButton variant="header" />
     </header>
   );
 }

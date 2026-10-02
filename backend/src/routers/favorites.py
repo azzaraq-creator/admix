@@ -2,6 +2,7 @@
 
 - GET    /favorites/ids          담은 매체 id 목록(하트 켜짐 표시용)
 - GET    /favorites              관심 매체 페이지 카드 목록(매체 찾기와 같은 검색어·필터)
+- GET    /favorites/price-histogram  가격 필터 그래프(내가 담은 매체 기준)
 - PUT    /favorites/{media_id}   담기(멱등)
 - DELETE /favorites/{media_id}   해제(멱등)
 """
@@ -13,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from src.database import get_db
 from src.models.user import User
-from src.schemas.media import MediaCardListResponse
-from src.services import favorite_service
+from src.schemas.media import MediaCardListResponse, PriceHistogramResponse
+from src.services import favorite_service, media_service
 from src.utils.deps import get_current_user
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
@@ -42,6 +43,7 @@ def list_favorites(
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
     keyword: str | None = Query(None),
+    sort: str = Query("latest", pattern=media_service.MEDIA_SORT_PATTERN),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
@@ -57,8 +59,34 @@ def list_favorites(
         price_min=price_min,
         price_max=price_max,
         keyword=keyword,
+        sort=sort,
     )
     return MediaCardListResponse(total=len(items), items=items)
+
+
+@router.get("/price-histogram", response_model=PriceHistogramResponse)
+def get_favorite_price_histogram(
+    category: list[str] | None = Query(None),
+    ooh_type: list[str] | None = Query(None),
+    exposure_type: list[str] | None = Query(None),
+    media_shape: list[str] | None = Query(None),
+    product_master_type: list[str] | None = Query(None),
+    keyword: str | None = Query(None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PriceHistogramResponse:
+    """관심 매체 가격 필터 그래프 — 내가 담은 매체 중 검색어·가격 외 필터에 맞는 것으로 센 막대."""
+    histogram = favorite_service.favorite_price_histogram(
+        db,
+        user.id,
+        categories=category,
+        ooh_types=ooh_type,
+        exposure_types=exposure_type,
+        media_shapes=media_shape,
+        product_master_types=product_master_type,
+        keyword=keyword,
+    )
+    return PriceHistogramResponse(histogram=histogram)
 
 
 @router.put("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)

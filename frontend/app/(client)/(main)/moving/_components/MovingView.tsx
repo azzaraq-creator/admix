@@ -16,6 +16,7 @@ import {
   useMovingFilterOptions,
   useMovingMediaList,
 } from "@/hooks/media";
+import { countFilters } from "@/app/(client)/(main)/fixed/_components/MediaFindPanel";
 import { MediaDetailContent } from "../../media/[id]/_components/MediaDetailContent";
 import { LocationSearchInput } from "../../_components/LocationSearchInput";
 import { MovingMediaCard, type MovingMediaData } from "./MovingMediaCard";
@@ -84,7 +85,17 @@ export function MovingView() {
         />
         <div className="flex-1 overflow-y-auto">
           {!isLoading && mediaList.length === 0 ? (
-            <MediaEmptyResults />
+            <MediaEmptyResults
+              onReset={
+                search || countFilters(filter) > 0
+                  ? () => {
+                      setFilter(EMPTY_MEDIA_FILTER);
+                      setSearch("");
+                      setLocation("");
+                    }
+                  : undefined
+              }
+            />
           ) : (
             <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(228px,1fr))]">
               {mediaList.map((media) => (

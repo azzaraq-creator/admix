@@ -19,11 +19,16 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Float,
     Integer,
     Numeric,
     and_,
+    cast,
+    column,
     func,
     inspect as sa_inspect,
+    select,
+    table,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -57,6 +62,15 @@ _DURATION_TYPE = {
     "DAYS": "일",
     "HOURS": "시간",
 }
+
+
+def _duration_text(p: MediaPlan) -> str | None:
+    """계약 기간 — "1개월". 단위는 복수형(MONTHS)·단수형(MONTH) 둘 다 들어온다."""
+    if not (p.contractual_duration and p.contractual_duration_type):
+        return None
+    t = p.contractual_duration_type
+    unit = _DURATION_TYPE.get(t) or _DURATION_TYPE.get(f"{t}S") or t
+    return f"{p.contractual_duration}{unit}"
 
 
 def _media_badge(m: Media) -> str | None:
@@ -199,6 +213,132 @@ def _media_base_query(
     return base
 
 
+# 매체 찾기·관심 매체 정렬 — 프론트 MediaSortKey 와 같은 값.
+# 비율 정렬(ratio-*)은 상세 팝업의 "월평균 유동인구"와 같은 상권 데이터(분기·거리 기준)로 매긴다.
+MEDIA_SORT_KEYS = (
+    "latest",
+    "popular",
+    "priceDesc",
+    "priceAsc",
+    "ratio-female",
+    "ratio-male",
+    "ratio-age10",
+    "ratio-age20",
+    "ratio-age30",
+    "ratio-age40",
+    "ratio-age50",
+    "ratio-age60",
+)
+MEDIA_SORT_PATTERN = "^(" + "|".join(MEDIA_SORT_KEYS) + ")$"
+
+_ad_media = table(
+    "ad_media",
+    column("media_id"),
+    column("sangwon_code"),
+    column("sangwon_distance_m"),
+)
+_sangwon_population = table(
+    "sangwon_population",
+    column("sangwon_code"),
+    column("quarter_code"),
+    column("total_foot_traffic"),
+    column("male_foot"),
+    column("female_foot"),
+    column("age_10_foot"),
+    column("age_20_foot"),
+    column("age_30_foot"),
+    column("age_40_foot"),
+    column("age_50_foot"),
+    column("age_60_foot"),
+)
+
+
+def _population_ratio(target: str):
+    """상권 유동인구에서 target(female/male/ageNN)이 차지하는 비율 식. 성별은 남+여 합 기준."""
+    sp = _sangwon_population.c
+    if target in ("female", "male"):
+        num = sp.female_foot if target == "female" else sp.male_foot
+        den = func.coalesce(sp.male_foot, 0) + func.coalesce(sp.female_foot, 0)
+    else:
+        num = getattr(sp, f"age_{target.removeprefix('age')}_foot")
+        den = sp.total_foot_traffic
+    return cast(num, Float) / func.nullif(cast(den, Float), 0)
+
+
+def _apply_media_sort(base, sort: str | None, *, latest=None):
+    """정렬을 건다. 같은 값끼리는 media_id 로 순서를 고정해 페이지가 겹치거나 빠지지 않게 한다.
+
+    latest: "최신순"의 기준 열(기본은 매체 등록일). 관심 매체는 담은 시각을 넘긴다.
+    """
+    latest_col = latest if latest is not None else Media.created_at
+    if sort == "popular":
+        return base.order_by(
+            Media.is_popular_yn.desc().nullslast(), latest_col.desc(), Media.media_id
+        )
+    if sort in ("priceDesc", "priceAsc"):
+        fee = Media.min_advertisement_fee_krw
+        return base.order_by(
+            (fee.desc() if sort == "priceDesc" else fee.asc()).nullslast(), Media.media_id
+        )
+    if sort and sort.startswith("ratio-"):
+        am, sp = _ad_media.c, _sangwon_population.c
+        ratio = (
+            select(
+                am.media_id.label("sid"),
+                func.max(_population_ratio(sort.removeprefix("ratio-"))).label("ratio"),
+            )
+            .select_from(
+                _ad_media.join(
+                    _sangwon_population,
+                    and_(
+                        sp.sangwon_code == am.sangwon_code,
+                        sp.quarter_code == SANGWON_QUARTER,
+                    ),
+                )
+            )
+            .where(am.sangwon_distance_m <= SANGWON_MAX_DISTANCE_M)
+            .group_by(am.media_id)
+            .subquery()
+        )
+        return base.outerjoin(ratio, ratio.c.sid == Media.source_detail_id).order_by(
+            ratio.c.ratio.desc().nullslast(), Media.media_id
+        )
+    return base.order_by(latest_col.desc(), Media.media_id)
+
+
+def fixed_price_histogram_for_list(
+    db: Session,
+    *,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    ne_lat: float | None = None,
+    sw_lat: float | None = None,
+    ne_lng: float | None = None,
+    sw_lng: float | None = None,
+    keyword: str | None = None,
+) -> list[int]:
+    """매체 찾기 가격 그래프 — 목록과 같은 조건(지도 영역·검색어·가격 외 필터)의 매체로 센다."""
+    base = _media_base_query(
+        db,
+        categories=categories,
+        ooh_types=ooh_types,
+        exposure_types=exposure_types,
+        media_shapes=media_shapes,
+        product_master_types=product_master_types,
+        price_min=None,
+        price_max=None,
+        ne_lat=ne_lat,
+        sw_lat=sw_lat,
+        ne_lng=ne_lng,
+        sw_lng=sw_lng,
+        keyword=keyword,
+    )
+    return fixed_price_histogram(db, base)
+
+
 def list_fixed_media(
     db: Session,
     *,
@@ -216,6 +356,7 @@ def list_fixed_media(
     ne_lng: float | None = None,
     sw_lng: float | None = None,
     keyword: str | None = None,
+    sort: str | None = None,
 ) -> tuple[int, list[dict]]:
     base = _media_base_query(
         db,
@@ -234,8 +375,8 @@ def list_fixed_media(
     )
     total = base.count()
     rows = (
-        base.options(selectinload(Media.images))
-        .order_by(Media.media_id)
+        _apply_media_sort(base, sort)
+        .options(selectinload(Media.images))
         .limit(limit)
         .offset(offset)
         .all()
@@ -420,16 +561,7 @@ def get_media_filter_options(db: Session, media_source: str = "FIXED") -> dict:
         .order_by(MediaPlan.product_master_type)
         .all()
     )
-    price = (
-        db.query(
-            func.min(Media.min_advertisement_fee_krw),
-            func.max(Media.min_advertisement_fee_krw),
-        )
-        .filter(Media.media_source == media_source)
-        .first()
-    )
-    price_min = price[0] if price else None
-    price_max = price[1] if price else None
+    price_min, price_max = _price_axis(db, media_source)
     return dict(
         categories=_distinct(Media.category_large),
         ooh_types=_distinct(Media.ooh_type),
@@ -445,21 +577,37 @@ def get_media_filter_options(db: Session, media_source: str = "FIXED") -> dict:
 _PRICE_HISTOGRAM_BUCKETS = 24
 
 
+def _price_axis(db: Session, media_source: str = "FIXED") -> tuple[int | None, int | None]:
+    """가격 슬라이더 가로축 — 전체 매체의 최소광고비 최솟값·최댓값(목록 범위와 무관하게 고정)."""
+    price = (
+        db.query(
+            func.min(Media.min_advertisement_fee_krw),
+            func.max(Media.min_advertisement_fee_krw),
+        )
+        .filter(Media.media_source == media_source)
+        .first()
+    )
+    return (price[0], price[1]) if price else (None, None)
+
+
 def _price_histogram(
     db: Session,
     price_min: int | None,
     price_max: int | None,
     media_source: str = "FIXED",
+    base=None,
 ) -> list[int]:
-    """min~max 가격 구간을 균등 버킷으로 나눠 버킷별 매체 수를 센다."""
+    """min~max 가격 구간을 균등 버킷으로 나눠 버킷별 매체 수를 센다.
+
+    base: 셀 대상 매체 쿼리(지도 영역·검색어·필터를 건 목록). 없으면 전체 매체.
+    """
     if price_min is None or price_max is None or price_max <= price_min:
         return []
+    if base is None:
+        base = db.query(Media).filter(Media.media_source == media_source)
     fees = (
-        db.query(Media.min_advertisement_fee_krw)
-        .filter(
-            Media.media_source == media_source,
-            Media.min_advertisement_fee_krw.isnot(None),
-        )
+        base.filter(Media.min_advertisement_fee_krw.isnot(None))
+        .with_entities(Media.min_advertisement_fee_krw)
         .all()
     )
     n = _PRICE_HISTOGRAM_BUCKETS
@@ -475,6 +623,15 @@ def _price_histogram(
     return counts
 
 
+def fixed_price_histogram(db: Session, base) -> list[int]:
+    """가격 필터 그래프 — 가로축은 전체 매체 기준, 막대는 base(지금 목록) 기준으로 센다.
+
+    가로축까지 목록마다 바뀌면 이미 고른 가격 범위가 슬라이더 밖으로 밀려나므로 축은 고정한다.
+    """
+    price_min, price_max = _price_axis(db)
+    return _price_histogram(db, price_min, price_max, base=base)
+
+
 def _plan_subtitle(p: MediaPlan) -> str | None:
     parts: list[str] = []
     device_qty = p.active_device_quantity or p.default_device_quantity
@@ -483,9 +640,9 @@ def _plan_subtitle(p: MediaPlan) -> str | None:
         parts.append(f"{device_qty}기 {surface_qty}면")
     if p.exposure_duration_seconds:
         parts.append(f"{p.exposure_duration_seconds}초")
-    if p.contractual_duration and p.contractual_duration_type:
-        unit = _DURATION_TYPE.get(p.contractual_duration_type, p.contractual_duration_type)
-        parts.append(f"{p.contractual_duration}{unit}")
+    duration = _duration_text(p)
+    if duration:
+        parts.append(duration)
     return " / ".join(parts) or None
 
 
@@ -577,6 +734,26 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         for p in m.plans
         if p.product_master_type == "PM_INDIVIDUAL"
     ]
+    # 매체 정보 팝업의 "안건" 옵션 — 제안서가 고르는 플랜과 같은 범위(전체 플랜, plan_no 순).
+    # 프론트가 "[1안] 영상 20초, 100회, 1개월 10,000,000원"처럼 이어 붙인다.
+    plan_options = [
+        dict(
+            planNo=p.plan_no,
+            title=p.product_display_name or p.product_name or "-",
+            adFeeKrw=p.advertisement_fee,
+            productionFeeKrw=p.production_fee,
+            exposureSeconds=p.exposure_duration_seconds,
+            exposureCount=p.exposure_count,
+            # 일 송출 수 — 직접 입력값 우선, 없으면 자동 계산값, 그것도 없으면 노출 횟수.
+            dailyBroadcasts=(
+                p.broadcasts_count_manual
+                or p.broadcasts_count_auto
+                or p.exposure_count
+            ),
+            durationText=_duration_text(p),
+        )
+        for p in sorted(m.plans, key=lambda p: p.plan_no)
+    ]
 
     return dict(
         id=m.media_id,
@@ -596,6 +773,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         sizeText=(m.media_shape_summary or None),
         features=features,
         plans=plans,
+        planOptions=plan_options,
         population=_media_population(db, m.source_detail_id),
     )
 

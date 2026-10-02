@@ -5,6 +5,7 @@ import {
   Chip,
   Drawer,
   Popover,
+  ScrollShadow,
   Spinner,
   Table,
   Tooltip,
@@ -76,50 +77,62 @@ function Cover({ year }: { year: string }) {
 
 /** 제안서명에 마우스를 올리면(태블릿은 누르면) 뜨는 "제안서 요약" — 담긴 매체와 광고비·제작비. */
 function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
+  // min-h-0 사슬 — Popover가 화면 남은 높이에 맞춰 줄어들면(아이패드 가로 등) 목록도 같이 줄어
+  // 그 안에서 스크롤된다. 없으면 목록이 360px을 고집해 Popover 밖으로 넘친다.
   return (
-    <div className="flex w-full flex-col gap-[12px]">
+    <div className="flex min-h-0 w-full flex-col gap-[12px]">
       <p className="text-[14px] font-bold text-[#111827]">제안서 요약</p>
       {proposal.previews.length === 0 ? (
         <p className="text-[12px] text-[#6b7280]">아직 담긴 매체가 없어요.</p>
       ) : (
-        <ul className="flex max-h-[360px] flex-col gap-[8px] overflow-y-auto">
-          {proposal.previews.map((item) => (
-            <li
-              key={item.media_id}
-              className="flex h-[64px] shrink-0 items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[8px] py-[6px]"
-            >
-              <MediaThumbnail
-                src={item.thumbnail_url ?? undefined}
-                sizes="40px"
-                className="size-[40px] shrink-0 rounded-[8px]"
-                fallback={<Logo className="size-[16px] opacity-30" />}
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-                <p className="truncate text-[14px] font-semibold text-[#111827]">
-                  {item.name}
-                </p>
-                <p className="truncate text-[12px] text-[#6b7280]">
-                  {item.address ?? "-"}
-                </p>
-              </div>
-              {/* 금액 칸 — 광고비 14px·제작비 12px(이름표 11px). 억 단위 금액도 들어가게 160px. */}
-              <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-[#e5e7eb] bg-[#f8fafc] px-[8px] py-[5px] whitespace-nowrap">
-                <div className="flex items-center justify-between gap-[8px]">
-                  <span className="text-[11px] text-[#6b7280]">광고비</span>
-                  <span className="text-[14px] leading-[20px] font-bold text-[#111827]">
-                    {won(item.advertisement_fee)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-[8px]">
-                  <span className="text-[11px] text-[#6b7280]">제작비</span>
-                  <span className="text-[12px] leading-[16px] font-bold text-[#111827]">
-                    {won(item.production_fee)}
-                  </span>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+        // 아이패드 사파리는 흐림(mask)이 걸린 목록을 손가락으로 스크롤하는 동안 목록을 따로 그리면서
+        // 바깥을 잘라 내지 못해, 카드가 Popover 밖으로 넘쳐 보였다. 감싸는 칸에서 clip-path로 확실히 자른다.
+        <div className="flex min-h-0 flex-col overflow-hidden [clip-path:inset(0)]">
+          <ScrollShadow size={24} className="max-h-[360px] min-h-0">
+            <ul className="flex flex-col gap-[8px]">
+              {proposal.previews.map((item) => (
+                <li
+                  key={item.media_id}
+                  className="flex h-[64px] shrink-0 items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[8px] py-[6px]"
+                >
+                  <MediaThumbnail
+                    src={item.thumbnail_url ?? undefined}
+                    sizes="40px"
+                    className="size-[40px] shrink-0 rounded-[8px]"
+                    fallback={<Logo className="size-[16px] opacity-30" />}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+                    <p className="truncate text-[14px] font-semibold text-[#111827]">
+                      {item.name}
+                    </p>
+                    <p className="truncate text-[12px] text-[#6b7280]">
+                      {item.address ?? "-"}
+                    </p>
+                  </div>
+                  {/* 금액 칸 — 광고비 14px·제작비 12px(이름표 11px). 억 단위 금액도 들어가게 160px. */}
+                  <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-[#e5e7eb] bg-[#f8fafc] px-[8px] py-[5px] whitespace-nowrap">
+                    <div className="flex items-center justify-between gap-[8px]">
+                      <span className="text-[11px] text-[#6b7280]">광고비</span>
+                      <span className="text-[14px] leading-[20px] font-bold text-[#111827]">
+                        {won(item.advertisement_fee)}
+                      </span>
+                    </div>
+                    {item.production_fee != null && (
+                      <div className="flex items-center justify-between gap-[8px]">
+                        <span className="text-[11px] text-[#6b7280]">
+                          제작비
+                        </span>
+                        <span className="text-[12px] leading-[16px] font-bold text-[#111827]">
+                          {won(item.production_fee)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </ScrollShadow>
+        </div>
       )}
     </div>
   );
@@ -140,12 +153,12 @@ function SummaryPopover({ proposal }: { proposal: Proposal }) {
       <Popover.Content
         placement="bottom start"
         offset={10}
-        className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
+        className="flex w-[480px] max-w-[calc(100vw-24px)] flex-col rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
       >
         <Popover.Arrow />
         <Popover.Dialog
           aria-label={`${proposal.title} 요약`}
-          className="p-[16px] text-black outline-none"
+          className="flex min-h-0 flex-col p-[16px] text-black outline-none"
         >
           <SummaryTooltipBody proposal={proposal} />
         </Popover.Dialog>
@@ -171,7 +184,9 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
         <Drawer.Content placement="bottom">
           <Drawer.Dialog
             aria-label={`${proposal.title} 요약`}
-            className="gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+            // 최대 높이 — HeroUI 기본 85vh는 모바일 브라우저(웨일·사파리 등)에서 주소창·아래 바를 뺀
+            // 실제 보이는 높이보다 커서 시트 위가 화면 밖으로 잘린다. 보이는 높이(dvh)의 85%로 줄인다.
+            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
           >
             {({ close }) => (
               <>
@@ -185,51 +200,61 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
                     {proposal.updatedAt}
                   </p>
                 </Drawer.Header>
-                <Drawer.Body className="mt-[14px] p-0">
+                {/* 본문은 넘침을 막고 안쪽 ScrollShadow가 스크롤한다 — 매체가 많으면 위아래 가장자리를
+                    흐리게 해 더 있음을 알린다. Drawer.Body 안에 두어야 목록을 끌 때 시트가 같이 끌려 내려가지 않는다. */}
+                <Drawer.Body className="mt-[14px] flex flex-col overflow-hidden p-0">
                   {proposal.previews.length === 0 ? (
                     <p className="rounded-[12px] bg-[#f7f7f8] py-[28px] text-center text-[13px] text-[#8c8c94]">
                       아직 담긴 매체가 없어요.
                     </p>
                   ) : (
-                    <ul className="flex flex-col gap-[8px]">
-                      {proposal.previews.map((item) => (
-                        <li
-                          key={item.media_id}
-                          className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
-                        >
-                          <MediaThumbnail
-                            src={item.thumbnail_url ?? undefined}
-                            sizes="56px"
-                            className="size-[56px] shrink-0 rounded-[12px]"
-                            fallback={
-                              <Logo className="size-[18px] opacity-30" />
-                            }
-                          />
-                          <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                            <p className="truncate text-[14px] font-semibold text-[#18181b]">
-                              {item.name}
-                            </p>
-                            <p className="truncate text-[12px] text-[#8c8c94]">
-                              {item.address ?? "-"}
-                            </p>
-                            <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
-                              <span>
-                                광고비{" "}
-                                <span className="font-semibold text-[#18181b]">
-                                  {won(item.advertisement_fee)}
+                    <ScrollShadow
+                      size={32}
+                      hideScrollBar
+                      className="min-h-0 flex-1 overscroll-contain"
+                    >
+                      <ul className="flex flex-col gap-[8px]">
+                        {proposal.previews.map((item) => (
+                          <li
+                            key={item.media_id}
+                            className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
+                          >
+                            <MediaThumbnail
+                              src={item.thumbnail_url ?? undefined}
+                              sizes="56px"
+                              className="size-[56px] shrink-0 rounded-[12px]"
+                              fallback={
+                                <Logo className="size-[18px] opacity-30" />
+                              }
+                            />
+                            <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                              <p className="truncate text-[14px] font-semibold text-[#18181b]">
+                                {item.name}
+                              </p>
+                              <p className="truncate text-[12px] text-[#8c8c94]">
+                                {item.address ?? "-"}
+                              </p>
+                              <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
+                                <span>
+                                  광고비{" "}
+                                  <span className="font-semibold text-[#18181b]">
+                                    {won(item.advertisement_fee)}
+                                  </span>
                                 </span>
-                              </span>
-                              <span>
-                                제작비{" "}
-                                <span className="font-semibold text-[#18181b]">
-                                  {won(item.production_fee)}
-                                </span>
-                              </span>
-                            </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                                {item.production_fee != null && (
+                                  <span>
+                                    제작비{" "}
+                                    <span className="font-semibold text-[#18181b]">
+                                      {won(item.production_fee)}
+                                    </span>
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </ScrollShadow>
                   )}
                 </Drawer.Body>
                 <Drawer.Footer className="mt-[16px] flex flex-col gap-[12px] p-0">
@@ -383,10 +408,10 @@ export function ProposalTable({
           loading && "min-h-0 grid-rows-[auto_minmax(0,1fr)]",
         )}
       >
-        {/* 모바일은 표를 옆으로 넘겨 보는데, 아래 둥근 모서리는 맨 끝 칸(또는 채움 칸의 양 끝)에만
-            걸려 있어 넘기면 화면 가장자리의 아래 모서리가 각져 보인다. 스크롤 틀 자체의 아래 모서리를
-            같은 곡률로 깎는다. */}
-        <Table.ScrollContainer className="max-sm:rounded-b-[min(32px,var(--radius-2xl))]">
+        {/* 표가 화면보다 넓으면(모바일·태블릿, 사이드바를 펼친 좁은 PC) 옆으로 넘겨 보는데, 아래 둥근 모서리는
+            맨 끝 칸(또는 채움 칸의 양 끝)에만 걸려 있어 넘기면 화면 가장자리의 아래 모서리가 각져 보인다.
+            모든 화면에서 스크롤 틀 자체의 아래 모서리를 같은 곡률로 깎는다. */}
+        <Table.ScrollContainer className="rounded-b-[min(32px,var(--radius-2xl))]">
           <Table.Content
             aria-label="내 제안서"
             sortDescriptor={sortDescriptor}

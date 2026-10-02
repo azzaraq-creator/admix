@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Chip, Spinner, Tag, TagGroup } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  ScrollShadow,
+  Spinner,
+  Tag,
+  TagGroup,
+} from "@heroui/react";
 import { useEffect, useState } from "react";
 
 import {
@@ -16,8 +23,12 @@ import {
 } from "@/components/common/mediaFilter/filterConfig";
 import { PriceRangeFilter } from "@/components/common/mediaFilter/PriceRangeFilter";
 import { RotateLeftIcon } from "@/components/icons";
-import { useFavoriteList } from "@/hooks/favorites";
-import { useFixedMediaCount, type MediaFilterParams } from "@/hooks/media";
+import { useFavoriteList, useFavoritePriceHistogram } from "@/hooks/favorites";
+import {
+  useFixedMediaCount,
+  useFixedPriceHistogram,
+  type MediaFilterParams,
+} from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
 /** 시안(02. 매체 찾기 - 필터)의 탭 순서. `region`은 아직 백엔드 필터가 없다. */
@@ -162,6 +173,27 @@ export function MediaFilterPanel({
     (!sameAsApplied && (countQuery.isFetching || countQuery.data == null));
   const count = sameAsApplied ? totalCount : countQuery.data;
 
+  // 가격 그래프 막대 — 전체 매체가 아니라 지금 목록(지도 영역·검색어)과 패널에서 고른 다른 필터 기준.
+  // 가격 자체는 빼고 센다(고른 가격 밖의 분포도 보여야 범위를 옮길 수 있다). 가로축은 전체 기준 그대로.
+  const histogramParams = {
+    ...toChipFilterParams(settledDraft),
+    priceMin: null,
+    priceMax: null,
+    ...scope,
+  };
+  const fixedHistogram = useFixedPriceHistogram(
+    histogramParams,
+    !!price && countSource === "fixed",
+  );
+  const favoriteHistogram = useFavoritePriceHistogram(
+    histogramParams,
+    !!price && countSource === "favorites",
+  );
+  const histogram =
+    (countSource === "favorites" ? favoriteHistogram : fixedHistogram).data ??
+    price?.histogram ??
+    [];
+
   const tabCount = (key: TabKey) =>
     key === "region" ? 0 : dimSelectionCount(key, draft);
 
@@ -170,18 +202,27 @@ export function MediaFilterPanel({
 
   return (
     <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
-      <div className="flex items-center gap-[4px] overflow-x-auto border-b border-black-200 px-[16px] py-[12px] [scrollbar-width:none] max-sm:px-[12px] max-sm:py-[10px] [&::-webkit-scrollbar]:hidden">
-        {TABS.map(({ key, label }) => (
-          <TabButton
-            key={key}
-            label={label}
-            count={tabCount(key)}
-            active={tab === key}
-            // TODO: 지역 필터는 백엔드 파라미터가 없어 아직 열 수 없다.
-            disabled={key === "region"}
-            onClick={() => setTab(key)}
-          />
-        ))}
+      {/* 탭 줄 — 모바일처럼 좁아 옆으로 넘치면 넘길 게 남은 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
+          아래 구분선은 바깥 칸에 두어 흐림(마스크)에 같이 지워지지 않게 한다. */}
+      <div className="border-b border-black-200">
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          size={24}
+          className="flex items-center gap-[4px] px-[16px] py-[12px] max-sm:px-[12px] max-sm:py-[10px]"
+        >
+          {TABS.map(({ key, label }) => (
+            <TabButton
+              key={key}
+              label={label}
+              count={tabCount(key)}
+              active={tab === key}
+              // TODO: 지역 필터는 백엔드 파라미터가 없어 아직 열 수 없다.
+              disabled={key === "region"}
+              onClick={() => setTab(key)}
+            />
+          ))}
+        </ScrollShadow>
       </div>
 
       <div className="min-h-[160px] px-[20px] py-[20px] max-sm:min-h-[120px] max-sm:px-[16px] max-sm:py-[16px]">
@@ -190,7 +231,7 @@ export function MediaFilterPanel({
             <PriceRangeFilter
               min={price.min}
               max={price.max}
-              histogram={price.histogram}
+              histogram={histogram}
               valueMin={draft.priceMin}
               valueMax={draft.priceMax}
               onChange={(lo, hi) =>

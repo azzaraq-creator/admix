@@ -18,9 +18,15 @@ import {
 import { MediaFindTopBar } from "@/app/(client)/(main)/fixed/_components/MediaFindTopBar";
 import {
   DEFAULT_MEDIA_SORT,
+  FAVORITE_LATEST_LABEL,
+  MediaSortBar,
   mediaSortLabel,
+  type MediaSortKey,
 } from "@/app/(client)/(main)/fixed/_components/MediaSortBar";
-import { AddToProposalModal } from "@/components/common/AddToProposalModal";
+import {
+  type AddProposalOptions,
+  AddToProposalModal,
+} from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import {
   buildFilterUi,
@@ -64,13 +70,16 @@ export function FavoritesView({ member }: { member: boolean }) {
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<MediaFilterState>(EMPTY_MEDIA_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
+  // 정렬 — 매체 찾기와 같은 패널. 첫 탭은 최근에 담은 순이라 "최근순"으로 부른다.
+  const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
+  const [sortOpen, setSortOpen] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
   const filterCount = countFilters(filter);
   const searched = !!keyword || filterCount > 0;
   const params = { ...toChipFilterParams(filter), keyword: keyword || null };
 
-  const { data, isLoading } = useFavoriteList(params);
+  const { data, isLoading } = useFavoriteList({ ...params, sort });
   // 하트를 끄거나 위시 취소하는 즉시(서버 응답 전) 카드를 빼려고, 하트 상태(id 목록)로 한 번 더 거른다.
   const { data: ids } = useFavoriteIds();
   const rows = (data?.items ?? []).filter(
@@ -116,15 +125,20 @@ export function FavoritesView({ member }: { member: boolean }) {
   const [addProposal, setAddProposal] = useState<{
     mediaIds: string[];
     planNo?: number;
+    options?: AddProposalOptions;
   } | null>(null);
 
   const labelOf = (key: ChipDimKey, value: string) =>
     optionsByKey[key].find((o) => o.value === value)?.label ?? value;
-  const handleReset = () => {
+  // 필터 패널 안의 초기화는 패널을 열어 둔다(resetSearch), 그 밖의 초기화는 패널도 닫는다.
+  const resetSearch = () => {
     setQuery("");
     setKeyword("");
     setFilter(EMPTY_MEDIA_FILTER);
+  };
+  const handleReset = () => {
     setFilterOpen(false);
+    resetSearch();
   };
 
   // 로그인 쿠키가 있으면 회원 정보를 받는 동안도 "불러오는 중"으로 본다(비회원 안내가 잠깐 비치지 않게).
@@ -145,16 +159,34 @@ export function FavoritesView({ member }: { member: boolean }) {
           searchBoxRef={searchBoxRef}
           filterCount={filterCount}
           filterOpen={filterOpen}
-          onToggleFilter={() => setFilterOpen((v) => !v)}
+          onToggleFilter={() => {
+            setSortOpen(false);
+            setFilterOpen((v) => !v);
+          }}
           onReset={handleReset}
           resetDisabled={!searched && !query}
-          sortLabel={mediaSortLabel(DEFAULT_MEDIA_SORT)}
-          sortOpen={false}
-          onToggleSort={() => {}}
+          sortLabel={mediaSortLabel(sort, FAVORITE_LATEST_LABEL)}
+          sortOpen={sortOpen}
+          onToggleSort={() => {
+            setFilterOpen(false);
+            setSortOpen((v) => !v);
+          }}
           mapExpanded={false}
           onToggleMapExpanded={() => {}}
           showMapToggle={false}
         />
+        {sortOpen && (
+          <div className="absolute inset-x-0 top-[calc(100%+10px)]">
+            <MediaSortBar
+              value={sort}
+              latestLabel={FAVORITE_LATEST_LABEL}
+              onChange={(next) => {
+                setSort(next);
+                setSortOpen(false);
+              }}
+            />
+          </div>
+        )}
         {filterOpen && (
           <div className="absolute inset-x-0 top-[calc(100%+10px)]">
             <MediaFilterPanel
@@ -168,7 +200,7 @@ export function FavoritesView({ member }: { member: boolean }) {
                 setFilter(next);
                 setFilterOpen(false);
               }}
-              onReset={handleReset}
+              onReset={resetSearch}
               onClose={() => setFilterOpen(false)}
             />
           </div>
@@ -316,8 +348,8 @@ export function FavoritesView({ member }: { member: boolean }) {
           mediaId={detailId}
           onClose={() => setDetailId(null)}
           // 상세 팝업은 연 채로, 담기 팝업을 그 위에 띄운다.
-          onAddProposal={(id, planNo) =>
-            setAddProposal({ mediaIds: [id], planNo })
+          onAddProposal={(id, planNo, options) =>
+            setAddProposal({ mediaIds: [id], planNo, options })
           }
         />
       )}
@@ -326,6 +358,7 @@ export function FavoritesView({ member }: { member: boolean }) {
           mediaId={addProposal.mediaIds[0]}
           mediaIds={addProposal.mediaIds}
           planNo={addProposal.planNo}
+          options={addProposal.options}
           onClose={() => setAddProposal(null)}
         />
       )}
@@ -499,7 +532,9 @@ function MobileSelectionSheet({
             aria-label="선택한 매체"
             // 간격은 HeroUI 기본(사이 16px + 머리·본문·바닥에 따로 붙는 8~20px)이 겹쳐 넓어져,
             // 여기서 한 번에 정한다: 손잡이 → 제목 6px, 제목 → 합계 12px, 합계 → 버튼 16px.
-            className="gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+            // 최대 높이 — HeroUI 기본 85vh는 모바일 브라우저(웨일·사파리 등)에서 주소창·아래 바를 뺀
+            // 실제 보이는 높이보다 커서 시트 위가 화면 밖으로 잘린다. 보이는 높이(dvh)의 85%로 줄인다.
+            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
           >
             {/* 끌어내려 닫는 손잡이(HeroUI 기본). */}
             <Drawer.Handle />

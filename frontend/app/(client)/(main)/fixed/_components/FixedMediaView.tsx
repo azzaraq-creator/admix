@@ -3,7 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
-import { AddToProposalModal } from "@/components/common/AddToProposalModal";
+import {
+  type AddProposalOptions,
+  AddToProposalModal,
+} from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import { useMediaDetail, type MediaCardRow } from "@/hooks/media";
@@ -115,6 +118,7 @@ export function FixedMediaView() {
   const [addProposal, setAddProposal] = useState<{
     mediaId: string;
     planNo?: number;
+    options?: AddProposalOptions;
   } | null>(null);
   // 프로그램 이동(코드가 지도를 옮긴 것) 중 목록에 반영할 것을 예약한다.
   // initial=첫 진입, rescope=장소·매체 후보 검색, cluster=클러스터 클릭 줌인. null이면 반영 안 함
@@ -140,7 +144,10 @@ export function FixedMediaView() {
         q.set("swLat", roundCoord(b.swLat));
         q.set("neLng", roundCoord(b.neLng));
         q.set("swLng", roundCoord(b.swLng));
-        if (!keepPlace) q.delete("place");
+        if (!keepPlace) {
+          q.delete("place");
+          q.delete("pin");
+        }
       });
     },
     [],
@@ -263,6 +270,9 @@ export function FixedMediaView() {
       : [];
 
   const groupRows: MediaCardRow[] = (groupPopup ?? []).map(markerToCardRow);
+  // 검색해서 고른 매체(URL pin) — 지도 팝업(같은 주소 묶음 포함)에서 하이라이트한다.
+  // 지도를 직접 옮기면 pin이 지워져 하이라이트도 사라진다.
+  const searchedId = searchParams.get("pin");
 
   const handleMarkerClick = (id: string) => {
     setGroupPopup(null);
@@ -331,6 +341,7 @@ export function FixedMediaView() {
                   simple={popupSimple}
                   onSimpleChange={setPopupSimple}
                   rows={groupRows}
+                  highlightId={searchedId}
                   onSelect={(row) => {
                     setSelectedMedia(cardRowToItem(row));
                     setFocusId(row.id);
@@ -343,6 +354,7 @@ export function FixedMediaView() {
                   simple={popupSimple}
                   onSimpleChange={setPopupSimple}
                   rows={popupRows}
+                  highlightId={searchedId}
                   onSelect={(row) => {
                     setSelectedMedia(cardRowToItem(row));
                     setPopupId(null);
@@ -362,8 +374,8 @@ export function FixedMediaView() {
           mediaId={selectedMedia.id}
           onClose={closeDetail}
           // 상세 팝업은 연 채로, 담기 모달을 그 위에 띄운다.
-          onAddProposal={(id, planNo) =>
-            setAddProposal({ mediaId: id, planNo })
+          onAddProposal={(id, planNo, options) =>
+            setAddProposal({ mediaId: id, planNo, options })
           }
         />
       )}
@@ -372,6 +384,7 @@ export function FixedMediaView() {
         <AddToProposalModal
           mediaId={addProposal.mediaId}
           planNo={addProposal.planNo}
+          options={addProposal.options}
           onClose={() => setAddProposal(null)}
         />
       )}

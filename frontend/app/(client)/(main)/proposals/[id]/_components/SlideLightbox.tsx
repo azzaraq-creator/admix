@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollShadow } from "@heroui/react";
 import { type ReactNode, useEffect, useRef } from "react";
 
 import { ChevronLeftIcon, XIcon } from "@/components/icons";
@@ -102,7 +103,13 @@ export function SlideLightbox({
         </div>
       </div>
 
-      <div className="flex justify-center gap-[8px] overflow-x-auto">
+      {/* 썸네일 줄 — 넘치면 넘치는 쪽을 흐리게(HeroUI ScrollShadow). 가운데 정렬은 safe로 해 넘칠 때 앞쪽이 잘리지 않게. */}
+      <ScrollShadow
+        orientation="horizontal"
+        hideScrollBar
+        size={24}
+        className="flex [justify-content:safe_center] gap-[8px]"
+      >
         {slides.map((slide, idx) => (
           <button
             key={slide.id}
@@ -119,7 +126,7 @@ export function SlideLightbox({
             {renderSlide(slide, false)}
           </button>
         ))}
-      </div>
+      </ScrollShadow>
     </div>
   );
 }

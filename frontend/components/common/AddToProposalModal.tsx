@@ -9,17 +9,20 @@ import {
   Input,
   Label,
   Modal,
+  ScrollShadow,
+  Spinner,
   TextField,
 } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
-import { showProposalAddedToast } from "@/components/common/ProposalAddedToast";
 import { CloseMediumIcon, FolderAddIcon } from "@/components/icons";
 import { adSessionsApi } from "@/hooks/adSessions";
 import {
+  isDraftProposal,
   isMember,
   proposalErrorReason,
   proposalLimitTier,
+  notifyProposalsAdded,
   useAddProposalItems,
   useCreateProposal,
   useMyProposals,
@@ -53,33 +56,29 @@ const SMALL_ACTION_CLASS =
 const HEROUI_CHECKBOX_SCOPE =
   "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)] [--app-radius:0.46875rem]";
 
+/** 매체 정보 팝업에서 고른 개월 수·제작 수 — 담을 때 제안서 항목에 같이 저장한다. */
+export type AddProposalOptions = { months: number; productionCount: number };
+
 type AddToProposalModalProps = {
   mediaId: string;
   /** 여러 매체를 한 번에 담을 때(관심 매체에서 고른 매체들). 주면 mediaId 대신 이 목록을 담는다. */
   mediaIds?: string[];
   // 담을 때 지정할 플랜(plan_no). 디테일 패널 "매체 목록"에서 선택한 값.
   planNo?: number;
+  /** 매체 정보 팝업에서 고른 개월 수·제작 수(매체 한 개를 담을 때만). */
+  options?: AddProposalOptions;
   onClose: () => void;
 };
-
-// 담기는 "작성중"(편집 가능) 제안서에만 가능 — 맞춤제안/집행요청/계약완료 제외.
-// ProposalsView.toStatus 의 "작성중" 분류와 동일 기준.
-function isDraftProposal(status: string): boolean {
-  return (
-    status !== "contracted" &&
-    status !== "custom" &&
-    status !== "execution_requested"
-  );
-}
 
 export function AddToProposalModal({
   mediaId,
   mediaIds,
   planNo,
+  options,
   onClose,
 }: AddToProposalModalProps) {
   const targetIds = mediaIds && mediaIds.length > 0 ? mediaIds : [mediaId];
-  const { data, refetch } = useMyProposals();
+  const { data, isLoading, refetch } = useMyProposals();
   const proposals = (data ?? []).filter((p) => isDraftProposal(p.status));
   const createProposal = useCreateProposal();
   const addItems = useAddProposalItems();
@@ -150,20 +149,33 @@ export function AddToProposalModal({
     if (selected.length === 0 || submitting) return;
     setSubmitting(true);
     try {
-      // 플랜은 매체 한 개를 담을 때만(상세 팝업에서 고른 값).
-      const plans =
-        planNo != null && targetIds.length === 1
-          ? { [targetIds[0]]: planNo }
-          : undefined;
+      // 플랜·개월 수·제작 수는 매체 한 개를 담을 때만(상세 팝업에서 고른 값).
+      const single = targetIds.length === 1 ? targetIds[0] : null;
+      const plans = planNo != null && single ? { [single]: planNo } : undefined;
+      const months =
+        options && single ? { [single]: options.months } : undefined;
+      const productionCounts =
+        options && single ? { [single]: options.productionCount } : undefined;
       const added = await Promise.all(
         selected.map((id) =>
-          addItems.mutateAsync({ id, mediaIds: targetIds, plans }),
+          addItems.mutateAsync({
+            id,
+            mediaIds: targetIds,
+            plans,
+            months,
+            productionCounts,
+          }),
         ),
       );
-      // 금액 합계·매체 이름은 목록 응답에만 있어 담은 뒤 목록을 다시 받아 토스트에 쓴다.
-      const { data: fresh } = await refetch();
-      showProposalAddedToast(
-        added.map((p) => fresh?.find((f) => f.id === p.id) ?? p),
+      // 말풍선 아래 줄에 쓸 담은 매체명(담기 응답의 항목 이름).
+      const names = targetIds.map((mid) => {
+        const it = added[0]?.items.find((x) => x.media_id === mid);
+        return it?.media_name ?? it?.name ?? mid;
+      });
+      // 말풍선 + 담는 제안서 전환 + "N" 표시(notifyProposalsAdded).
+      notifyProposalsAdded(
+        added.map((p) => ({ id: p.id, title: p.title })),
+        names,
       );
       onClose();
     } finally {
@@ -297,7 +309,16 @@ export function AddToProposalModal({
                   </p>
                 </div>
 
-                {proposals.length === 0 ? (
+                {isLoading ? (
+                  // 내 제안서 불러오는 중 — "아직 만든 제안서가 없어요"가 잠깐 보이지 않게.
+                  <div
+                    role="status"
+                    aria-label="불러오는 중"
+                    className="flex justify-center py-[28px]"
+                  >
+                    <Spinner />
+                  </div>
+                ) : proposals.length === 0 ? (
                   <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[28px]">
                     <p className="text-[14px] font-semibold text-[#18181b]">
                       아직 만든 제안서가 없어요
@@ -309,43 +330,49 @@ export function AddToProposalModal({
                 ) : (
                   // HeroUI CheckboxGroup — 줄 전체가 체크박스라 어디를 눌러도 고르고, 키보드(Tab·Space)로도 고른다.
                   // 이미 담긴 제안서는 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
-                  <CheckboxGroup
-                    aria-label="담을 제안서"
-                    value={selected}
-                    onChange={setSelected}
-                    className={cn(
-                      "flex max-h-[264px] shrink-0 flex-col gap-[6px] overflow-y-auto [scrollbar-width:thin]",
-                      HEROUI_CHECKBOX_SCOPE,
-                    )}
+                  // 제안서가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
+                  <ScrollShadow
+                    size={24}
+                    className="max-h-[264px] shrink-0 [scrollbar-width:thin]"
                   >
-                    {proposals.map((proposal) => (
-                      <Checkbox
-                        key={proposal.id}
-                        value={proposal.id}
-                        isDisabled={hasMedia(proposal)}
-                        // 비활성일 때 HeroUI는 줄 전체를 흐리게 해 "이미 담김" 칩까지 흐려진다.
-                        // 줄은 그대로 두고 체크박스·제목만 흐리게 한다(아래 in-data-[disabled=true]).
-                        className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
-                      >
-                        {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
-                        <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[14px] transition-colors data-[hovered=true]:bg-[#fafafa] in-data-[selected=true]:bg-[#f7f7f8]">
-                          {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
-                          <Checkbox.Control className="border border-black-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
-                            <Checkbox.Indicator />
-                          </Checkbox.Control>
-                          <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b] in-data-[disabled=true]:text-[#a1a1aa]">
-                            {proposal.title}
-                          </Label>
-                          {hasMedia(proposal) && (
-                            // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
-                            <Chip className="shrink-0 rounded-[10px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] font-semibold text-[#3f3f46]">
-                              이미 담김
-                            </Chip>
-                          )}
-                        </Checkbox.Content>
-                      </Checkbox>
-                    ))}
-                  </CheckboxGroup>
+                    <CheckboxGroup
+                      aria-label="담을 제안서"
+                      value={selected}
+                      onChange={setSelected}
+                      className={cn(
+                        "flex flex-col gap-[6px]",
+                        HEROUI_CHECKBOX_SCOPE,
+                      )}
+                    >
+                      {proposals.map((proposal) => (
+                        <Checkbox
+                          key={proposal.id}
+                          value={proposal.id}
+                          isDisabled={hasMedia(proposal)}
+                          // 비활성일 때 HeroUI는 줄 전체를 흐리게 해 "이미 담김" 칩까지 흐려진다.
+                          // 줄은 그대로 두고 체크박스·제목만 흐리게 한다(아래 in-data-[disabled=true]).
+                          className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
+                        >
+                          {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
+                          <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[14px] transition-colors data-[hovered=true]:bg-[#fafafa] in-data-[selected=true]:bg-[#f7f7f8]">
+                            {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
+                            <Checkbox.Control className="border border-black-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                              <Checkbox.Indicator />
+                            </Checkbox.Control>
+                            <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b] in-data-[disabled=true]:text-[#a1a1aa]">
+                              {proposal.title}
+                            </Label>
+                            {hasMedia(proposal) && (
+                              // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
+                              <Chip className="shrink-0 rounded-[10px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] font-semibold text-[#3f3f46]">
+                                이미 담김
+                              </Chip>
+                            )}
+                          </Checkbox.Content>
+                        </Checkbox>
+                      ))}
+                    </CheckboxGroup>
+                  </ScrollShadow>
                 )}
               </Modal.Body>
 

@@ -25,7 +25,12 @@ import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <rect x="0" y="0" width="24" height="24" rx="6" fill="#FEE500" />
       <path
         d="M12 5.8c-3.98 0-7.2 2.55-7.2 5.69 0 2.03 1.35 3.81 3.38 4.82-.15.51-.54 1.97-.62 2.28-.1.38.14.38.29.27.12-.08 1.92-1.31 2.7-1.83.46.07.94.1 1.45.1 3.98 0 7.2-2.55 7.2-5.69S15.98 5.8 12 5.8Z"
@@ -37,16 +42,29 @@ function KakaoIcon(props: SVGProps<SVGSVGElement>) {
 
 function NaverIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <rect x="1.5" y="1.5" width="21" height="21" rx="4.5" fill="#00C300" />
       <path d="M7 7h3l4 5.8V7h3v10h-3l-4-5.8V17H7V7Z" fill="#fff" />
     </svg>
   );
 }
 
-function EyeIcon({ off, ...props }: SVGProps<SVGSVGElement> & { off?: boolean }) {
+function EyeIcon({
+  off,
+  ...props
+}: SVGProps<SVGSVGElement> & { off?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path
         d="M2.5 12S5.9 5.5 12 5.5 21.5 12 21.5 12 18.1 18.5 12 18.5 2.5 12 2.5 12Z"
         stroke="currentColor"
@@ -55,7 +73,12 @@ function EyeIcon({ off, ...props }: SVGProps<SVGSVGElement> & { off?: boolean })
       />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={1.8} />
       {off && (
-        <path d="M4 4l16 16" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+        <path
+          d="M4 4l16 16"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+        />
       )}
     </svg>
   );
@@ -97,7 +120,11 @@ export function LoginModal() {
     const url = new URL(window.location.href);
     if (url.searchParams.get("login") !== "1") return;
     url.searchParams.delete("login");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
     if (!getUserToken()) setLoginModalOpen(true);
   }, []);
 
@@ -159,7 +186,14 @@ export function LoginModal() {
     <>
       <Modal isOpen={open} onOpenChange={closeLogin}>
         <Modal.Backdrop>
-          <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          {/* 바깥 스크롤 — 기본(안쪽 스크롤)은 창 높이를 보이는 화면 높이에 맞춰 줄이는데, 아이폰 Safari에서
+              키보드가 올라오면 본문이 줄어 입력칸·로그인 버튼이 밖으로 넘치고 아래 회원가입 줄이 그 위에 겹쳤다.
+              창은 원래 높이 그대로 두고, 화면이 낮으면 창 전체를 스크롤한다. */}
+          <Modal.Container
+            placement="center"
+            scroll="outside"
+            className="px-[16px] sm:px-0"
+          >
             <Modal.Dialog
               aria-label="로그인"
               className="w-full max-w-[420px] gap-0 rounded-[24px] bg-white px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
@@ -179,7 +213,11 @@ export function LoginModal() {
               </Modal.Header>
 
               <Modal.Body className="m-0 mt-[24px] flex flex-col gap-[20px] overflow-visible p-0">
-                <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[14px]">
+                <form
+                  onSubmit={handleSubmit}
+                  noValidate
+                  className="flex flex-col gap-[14px]"
+                >
                   <TextField
                     type="email"
                     value={email}
@@ -218,7 +256,9 @@ export function LoginModal() {
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                          aria-label={
+                            showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
+                          }
                           onPress={() => setShowPassword((prev) => !prev)}
                           className="size-[28px] min-w-0 rounded-[11px] text-black-400 data-[hovered=true]:text-black"
                         >
@@ -332,7 +372,10 @@ export function LoginModal() {
                 </Modal.Heading>
               </Modal.Header>
               <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-black-700">
-                <p>운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로 제한되었습니다.</p>
+                <p>
+                  운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로
+                  제한되었습니다.
+                </p>
                 <p>문의가 필요한 경우 [문의하기]로 문의해 주세요.</p>
               </Modal.Body>
               <Modal.Footer className="p-0">

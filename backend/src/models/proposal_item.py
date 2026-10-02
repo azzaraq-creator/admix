@@ -45,6 +45,9 @@ class ProposalItem(Base):
     start_date = Column(String(20), nullable=True)
     end_date = Column(String(20), nullable=True)
     quantity = Column(Integer, nullable=True, default=1)
+    # 매체 정보 팝업에서 고른 집행 옵션 — 광고비 × 개월 수, 제작비 × 제작 수(OOH만 고를 수 있음).
+    months = Column(Integer, nullable=False, default=1, server_default="1")
+    production_count = Column(Integer, nullable=False, default=1, server_default="1")
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     proposal = relationship("Proposal", back_populates="items")

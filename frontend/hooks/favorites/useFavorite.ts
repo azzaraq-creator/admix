@@ -22,7 +22,7 @@ export function useFavorite(
   const qc = useQueryClient();
   const { data: me } = useMe();
   const { data: ids } = useFavoriteIds();
-  const { success, removed, blocked, error } = useSonner();
+  const { added, removed, blocked, error } = useSonner();
   const liked = !!ids?.includes(mediaId);
 
   const mutation = useMutation({
@@ -40,8 +40,8 @@ export function useFavorite(
     },
     onSuccess: (_data, next) => {
       if (notifyName == null) return;
-      // 담으면 초록 체크, 빼면 빨간 동그라미 "-".
-      if (next) success("관심 매체에 담았어요", notifyName);
+      // 담으면 초록 동그라미 "+", 빼면 빨간 동그라미 "-".
+      if (next) added("관심 매체에 담았어요", notifyName);
       else removed("관심 매체에서 뺐어요", notifyName);
     },
     onError: (_err, next, ctx) => {

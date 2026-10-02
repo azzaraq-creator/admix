@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Dropdown, Separator } from "@heroui/react";
+import { Button, Dropdown, Separator, Spinner } from "@heroui/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ComponentType, type SVGProps } from "react";
@@ -24,6 +24,7 @@ import { useLogout, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
+import { CurrentProposalButton } from "./CurrentProposalButton";
 import {
   setLnbCollapsed,
   setLnbExpanded,
@@ -92,7 +93,11 @@ const fadeLabel = (collapsed: boolean) =>
     ? "sm:opacity-0 sm:transition-none"
     : "opacity-100 transition-opacity duration-300";
 
-export function Sidebar() {
+/**
+ * member — 로그인 쿠키가 있는지(서버가 넘긴다). 있으면 회원 정보를 받는 동안 로그인 버튼 대신
+ * 불러오는 중 표시를 둔다(새로고침 때 "로그인 / 회원가입"이 잠깐 보였다 바뀌지 않게).
+ */
+export function Sidebar({ member = false }: { member?: boolean }) {
   const expanded = useLnbExpanded();
   // 데스크톱 접힘(180px → 78px). 모바일 드로어에는 적용하지 않도록 모든 변화는 sm: 에만 건다.
   const collapsed = useLnbCollapsed();
@@ -101,7 +106,8 @@ export function Sidebar() {
 
   const { panelOpen, setPanelOpen } = useMixieChat();
 
-  const { data: me } = useMe();
+  const { data: me, isError: meError } = useMe();
+  const meLoading = member && !me && !meError;
 
   const logout = useLogout();
   const handleLogout = async () => {
@@ -265,7 +271,20 @@ export function Sidebar() {
           </div>
 
           <div className="pb-[10px]">
-            {me ? (
+            {/* 담는 제안서 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
+            <div className="mb-[12px] max-sm:hidden">
+              <CurrentProposalButton variant="sidebar" collapsed={collapsed} />
+            </div>
+            {meLoading ? (
+              // 회원 정보 불러오는 중 — 프로필 줄과 같은 높이(24px)에 아바타 자리 스피너.
+              <div
+                role="status"
+                aria-label="회원 정보를 불러오는 중"
+                className="flex h-[24px] items-center pl-[17px]"
+              >
+                <Spinner size="sm" />
+              </div>
+            ) : me ? (
               // 아바타(24px)의 가운데를 아이콘 열(x=39px)에 맞춘다 → 왼쪽 여백 17px.
               <div className="pr-[10px] pl-[17px]">
                 {/* 프로필 메뉴 — HeroUI Dropdown(react-aria Menu). 바깥 클릭·Esc 닫기, 방향키 이동을

@@ -79,6 +79,19 @@ export function ProposalDetailView({ id }: { id: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isError, proposal, me]);
 
+  // 제안서 불러오는 중 — 제목·슬라이드가 빈 채로 잠깐 보이지 않게 가운데 스피너만.
+  if (isLoading && !proposal) {
+    return (
+      <div
+        role="status"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f9fafb]"
+      >
+        <Spinner />
+        <p className="text-[13px] text-[#8c8c94]">제안서를 불러오는 중이에요</p>
+      </div>
+    );
+  }
+
   if (
     proposal?.status === "custom" &&
     (proposal.counter_proposal_slides?.length ?? 0) > 0

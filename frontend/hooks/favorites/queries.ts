@@ -33,3 +33,18 @@ export const useFavoriteList = (
     placeholderData: keepPreviousData,
   });
 };
+
+/** 관심 매체 가격 필터 그래프 막대 — 담은 매체를 담거나 빼면(favoritesKeys.all 무효화) 다시 센다. */
+export const useFavoritePriceHistogram = (
+  filters: MediaFilterParams,
+  enabled = true,
+) => {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: favoritesKeys.priceHistogram(filters),
+    queryFn: () => favoritesApi.priceHistogram(filters),
+    enabled: !!me && enabled,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+};

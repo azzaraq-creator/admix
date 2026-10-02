@@ -241,16 +241,28 @@ def build_thanks(prs) -> None:
           anchor=MSO_ANCHOR.MIDDLE)
 
 
+def _pos(value) -> int:
+    return value if isinstance(value, int) and value > 0 else 1
+
+
+def _ad_mult(it: dict) -> int:
+    """광고비에 곱하는 값 — 수량 × 개월 수(제안서 금액 규칙과 같다)."""
+    return _pos(it.get("quantity")) * _pos(it.get("months"))
+
+
+def _prod_mult(it: dict) -> int:
+    """제작비에 곱하는 값 — 수량 × 제작 수."""
+    return _pos(it.get("quantity")) * _pos(it.get("production_count"))
+
+
 def build_summary_pages(prs, detail: dict) -> None:
     items = detail.get("items", [])
     pages = [items[i:i + ROWS_PER_PAGE] for i in range(0, len(items), ROWS_PER_PAGE)]
     if not pages:
         pages = [[]]
 
-    ad_total = sum((it.get("price") or 0) * (it.get("quantity") or 1) for it in items)
-    prod_total = sum(
-        (it.get("production_fee") or 0) * (it.get("quantity") or 1) for it in items
-    )
+    ad_total = sum((it.get("price") or 0) * _ad_mult(it) for it in items)
+    prod_total = sum((it.get("production_fee") or 0) * _prod_mult(it) for it in items)
     regions = ", ".join(
         dict.fromkeys(it.get("region") for it in items if it.get("region"))
     ) or EMPTY
@@ -302,6 +314,8 @@ def build_summary_pages(prs, detail: dict) -> None:
             it = rows[ri] if ri < len(rows) else None
             no = page_idx * ROWS_PER_PAGE + ri + 1 if it else ""
             q = (it.get("quantity") or 1) if it else 1
+            ad_m = _ad_mult(it) if it else 1
+            prod_m = _prod_mult(it) if it else 1
             vals = (
                 [
                     no,
@@ -310,9 +324,12 @@ def build_summary_pages(prs, detail: dict) -> None:
                     it.get("name") or EMPTY,
                     it.get("product") or EMPTY,
                     _num(q),
-                    _num((it.get("price") or 0) * q),
-                    _num((it.get("production_fee") or 0) * q),
-                    _num(((it.get("price") or 0) + (it.get("production_fee") or 0)) * q),
+                    _num((it.get("price") or 0) * ad_m),
+                    _num((it.get("production_fee") or 0) * prod_m),
+                    _num(
+                        (it.get("price") or 0) * ad_m
+                        + (it.get("production_fee") or 0) * prod_m
+                    ),
                     f"{it.get('start_date') or EMPTY}\n{it.get('end_date') or EMPTY}",
                 ]
                 if it

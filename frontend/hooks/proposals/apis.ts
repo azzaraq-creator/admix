@@ -66,9 +66,7 @@ export const proposalsApi = {
       .get<Blob>("/admin/proposals/export", { responseType: "blob" })
       .then((r) => r.data),
   get: (id: string) =>
-    api
-      .get<AdminProposalDetail>(`/admin/proposals/${id}`)
-      .then((r) => r.data),
+    api.get<AdminProposalDetail>(`/admin/proposals/${id}`).then((r) => r.data),
   uploadCounterProposal: (id: string, file: File, title: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -140,11 +138,19 @@ export interface PlanOption {
   production_fee: number | null;
   operation_start_time: string | null;
   operation_end_time: string | null;
+  /** 영상 길이(초) */
+  exposure_seconds?: number | null;
+  /** 일 송출 수 */
+  daily_broadcasts?: number | null;
 }
 
 export interface ProposalItem {
   media_id: string;
   name: string | null;
+  /** 매체명 — name 은 선택 상품명(서머리용)일 수 있다. */
+  media_name?: string | null;
+  /** 제안서에 담은 시각 */
+  created_at?: string | null;
   price: number | null;
   production_fee: number | null;
   thumbnail_url: string | null;
@@ -162,6 +168,10 @@ export interface ProposalItem {
   start_date: string | null;
   end_date: string | null;
   quantity: number | null;
+  /** 집행 개월 수(광고비에 곱한다) — 매체 정보 팝업에서 고른 값, 기본 1. */
+  months?: number;
+  /** 제작 수(제작비에 곱한다, OOH만) — 기본 1. */
+  production_count?: number;
   selected_plan_no: number | null;
   plans: PlanOption[];
 }
@@ -187,7 +197,9 @@ export interface ProposalLimitDetail {
 // 제안서 생성/이름변경 409 응답의 detail.reason 추출. 409 아니면 null.
 export function proposalErrorReason(err: unknown): string | null {
   const res = (
-    err as { response?: { status?: number; data?: { detail?: { reason?: string } } } }
+    err as {
+      response?: { status?: number; data?: { detail?: { reason?: string } } };
+    }
   )?.response;
   if (res?.status !== 409) return null;
   return res.data?.detail?.reason ?? null;
@@ -198,7 +210,9 @@ export function proposalLimitTier(
   err: unknown,
 ): ProposalLimitDetail["tier"] | null {
   const res = (
-    err as { response?: { status?: number; data?: { detail?: ProposalLimitDetail } } }
+    err as {
+      response?: { status?: number; data?: { detail?: ProposalLimitDetail } };
+    }
   )?.response;
   if (res?.status !== 409) return null;
   const detail = res.data?.detail;
@@ -246,11 +260,17 @@ export const proposalsClientApi = {
     id: string,
     mediaIds: string[],
     plans?: Record<string, number>,
+    options?: {
+      months?: Record<string, number>;
+      productionCounts?: Record<string, number>;
+    },
   ) =>
     api
       .post<ProposalDetail>(`/proposals/${id}/items`, {
         media_ids: mediaIds,
         plans,
+        months: options?.months,
+        production_counts: options?.productionCounts,
         session_id: getSessionId(),
       })
       .then((r) => r.data),
@@ -264,8 +284,15 @@ export const proposalsClientApi = {
     id: string,
     mediaIds: string[],
     plans?: Record<string, number>,
-    dates?: Record<string, { start_date: string | null; end_date: string | null }>,
+    dates?: Record<
+      string,
+      { start_date: string | null; end_date: string | null }
+    >,
     quantities?: Record<string, number | null>,
+    options?: {
+      months?: Record<string, number>;
+      productionCounts?: Record<string, number>;
+    },
   ) =>
     api
       .put<ProposalDetail>(`/proposals/${id}/order`, {
@@ -273,6 +300,8 @@ export const proposalsClientApi = {
         plans,
         dates,
         quantities,
+        months: options?.months,
+        production_counts: options?.productionCounts,
         session_id: getSessionId(),
       })
       .then((r) => r.data),
@@ -292,3 +321,15 @@ export const proposalsClientApi = {
       .post<{ claimed: number }>("/proposals/claim", { session_id: sessionId })
       .then((r) => r.data),
 };
+
+/**
+ * 담기·옵션 변경은 "작성 중"(편집 가능) 제안서에만 — 맞춤 제안·제출 완료·계약 완료는 뺀다.
+ * (ProposalsView.toStatus 의 "작성 중" 분류와 같은 기준)
+ */
+export function isDraftProposal(status: string): boolean {
+  return (
+    status !== "contracted" &&
+    status !== "custom" &&
+    status !== "execution_requested"
+  );
+}

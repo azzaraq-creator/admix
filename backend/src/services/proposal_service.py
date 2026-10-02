@@ -672,11 +672,26 @@ def delete(db: Session, proposal: Proposal) -> None:
     db.commit()
 
 
+def _positive(value: int | None) -> int:
+    """수량·개월 수·제작 수 — 비었거나 0 이하면 1로 본다."""
+    return value if value and value > 0 else 1
+
+
+def item_ad_multiplier(it) -> int:
+    """광고비에 곱하는 값 — 수량 × 개월 수."""
+    return _positive(it.quantity) * _positive(getattr(it, "months", None))
+
+
+def item_production_multiplier(it) -> int:
+    """제작비에 곱하는 값 — 수량 × 제작 수."""
+    return _positive(it.quantity) * _positive(getattr(it, "production_count", None))
+
+
 def _recount(proposal: Proposal) -> None:
     proposal.media_count = len(proposal.items)
-    # 수량 기본값 1 — 광고비 합계에 수량을 곱해 총액 산출(제작비는 기존 정의대로 제외)
+    # 광고비 합계(수량 × 개월 수)로 총액 산출 — 제작비는 기존 정의대로 제외
     proposal.total_amount = sum(
-        (it.price or 0) * (it.quantity or 1) for it in proposal.items
+        (it.price or 0) * item_ad_multiplier(it) for it in proposal.items
     )
 
 
@@ -691,10 +706,14 @@ def add_items(
     proposal: Proposal,
     media_ids: list[str],
     plans: dict[str, int] | None = None,
+    *,
+    months: dict[str, int] | None = None,
+    production_counts: dict[str, int] | None = None,
 ) -> Proposal:
     """media_ids 를 매체 마스터에서 조회해 스냅샷으로 담는다. 중복은 무시.
 
     plans({media_id: plan_no}) 가 주어지면 담을 때 해당 플랜을 지정한다.
+    months·production_counts({media_id: 값})는 매체 정보 팝업에서 고른 개월 수·제작 수(없으면 1).
     """
     existing = {it.media_id for it in proposal.items}
     wanted = [m for m in dict.fromkeys(media_ids) if m and m not in existing]
@@ -719,6 +738,8 @@ def add_items(
                     thumbnail_url=_rep_image_url(media),
                     selected_plan_no=plans.get(mid) if plans else None,
                     quantity=1,
+                    months=_positive((months or {}).get(mid)),
+                    production_count=_positive((production_counts or {}).get(mid)),
                 )
             )
             next_position += 1
@@ -743,6 +764,9 @@ def reorder_items(
     plans: dict[str, int] | None = None,
     dates: dict[str, dict[str, str | None]] | None = None,
     quantities: dict[str, int | None] | None = None,
+    *,
+    months: dict[str, int] | None = None,
+    production_counts: dict[str, int] | None = None,
 ) -> Proposal:
     order = {media_id: index for index, media_id in enumerate(media_ids)}
     fallback = len(order)
@@ -755,6 +779,10 @@ def reorder_items(
             item.end_date = dates[item.media_id].get("end_date")
         if quantities and item.media_id in quantities:
             item.quantity = quantities[item.media_id]
+        if months and item.media_id in months:
+            item.months = _positive(months[item.media_id])
+        if production_counts and item.media_id in production_counts:
+            item.production_count = _positive(production_counts[item.media_id])
     _recount(proposal)  # 수량 변경분을 total_amount 에 반영
     db.commit()
     db.refresh(proposal)
@@ -802,7 +830,7 @@ def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
 
     제작비는 항목에 저장되지 않고 매체의 선택 상품(plan)에 있어, 목록 전체 매체를 한 번에 읽는다.
     금액 규칙은 상세(to_detail)·PPT 요약과 같다: 선택 plan(없으면 첫 plan)의 광고비(없으면 항목 가격),
-    제작비는 plan 값. 합계는 수량(기본 1)을 곱한다.
+    제작비는 plan 값. 합계는 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
     """
     media_ids = {it.media_id for p in rows for it in p.items}
     media_map: dict = {}
@@ -836,7 +864,8 @@ def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
             advertisement_fee=ad_fee,
             production_fee=plan.production_fee if plan else None,
             created_at=it.created_at,
-            quantity=it.quantity or 1,
+            ad_multiplier=item_ad_multiplier(it),
+            production_multiplier=item_production_multiplier(it),
         )
 
     result = []
@@ -846,13 +875,19 @@ def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
             dict(
                 **to_summary(p),
                 advertisement_amount=sum(
-                    (x["advertisement_fee"] or 0) * x["quantity"] for x in previews
+                    (x["advertisement_fee"] or 0) * x["ad_multiplier"] for x in previews
                 ),
                 production_amount=sum(
-                    (x["production_fee"] or 0) * x["quantity"] for x in previews
+                    (x["production_fee"] or 0) * x["production_multiplier"]
+                    for x in previews
                 ),
                 preview_items=[
-                    {k: v for k, v in x.items() if k != "quantity"} for x in previews
+                    {
+                        k: v
+                        for k, v in x.items()
+                        if k not in ("ad_multiplier", "production_multiplier")
+                    }
+                    for x in previews
                 ],
             )
         )
@@ -896,6 +931,8 @@ def to_detail(db: Session, p: Proposal) -> dict:
         return dict(
             media_id=it.media_id,
             name=plan.product_name if plan and plan.product_name else it.name,
+            media_name=it.name or (m.name if m else None),
+            created_at=it.created_at.isoformat() if it.created_at else None,
             price=(
                 plan.advertisement_fee
                 if plan and plan.advertisement_fee is not None
@@ -917,6 +954,8 @@ def to_detail(db: Session, p: Proposal) -> dict:
             start_date=it.start_date,
             end_date=it.end_date,
             quantity=it.quantity,
+            months=_positive(it.months),
+            production_count=_positive(it.production_count),
             selected_plan_no=plan.plan_no if plan else None,
             plans=[
                 dict(
@@ -927,6 +966,13 @@ def to_detail(db: Session, p: Proposal) -> dict:
                     production_fee=pl.production_fee,
                     operation_start_time=pl.operation_start_time,
                     operation_end_time=pl.operation_end_time,
+                    exposure_seconds=pl.exposure_duration_seconds,
+                    # 일 송출 수 — 매체 상세 planOptions.dailyBroadcasts 와 같은 규칙.
+                    daily_broadcasts=(
+                        pl.broadcasts_count_manual
+                        or pl.broadcasts_count_auto
+                        or pl.exposure_count
+                    ),
                 )
                 for pl in plans
             ],

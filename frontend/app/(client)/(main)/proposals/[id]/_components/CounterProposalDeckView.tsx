@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollShadow } from "@heroui/react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/common/buttons";
@@ -99,7 +100,10 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                 슬라이드 <span className="text-primary">{total}</span>
               </p>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] py-[16px]">
+            <ScrollShadow
+              size={24}
+              className="flex min-h-0 flex-1 flex-col gap-[16px] px-[24px] py-[16px]"
+            >
               {slides.map((slide, index) => (
                 <div key={index} className="flex items-start">
                   <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-grey-500">
@@ -125,7 +129,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                   </button>
                 </div>
               ))}
-            </div>
+            </ScrollShadow>
           </aside>
 
           <section className="relative flex min-w-0 flex-1 flex-col">

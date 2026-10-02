@@ -63,11 +63,16 @@ class PlanOut(BaseModel):
     production_fee: Optional[int] = None
     operation_start_time: Optional[str] = None
     operation_end_time: Optional[str] = None
+    # 상품 고르기 목록의 "영상 20초, 일 100회 송출" — 매체 정보 팝업과 같은 값.
+    exposure_seconds: Optional[int] = None
+    daily_broadcasts: Optional[int] = None
 
 
 class ProposalItemOut(BaseModel):
     media_id: str
-    name: Optional[str] = None
+    name: Optional[str] = None  # 선택 상품명(서머리 슬라이드용) — 없으면 매체명
+    media_name: Optional[str] = None  # 매체명(지금 보고 있는 제안서 패널·담기 알림용)
+    created_at: Optional[str] = None  # 담은 시각 — 패널에서 최근에 담은 순으로 보여 준다
     price: Optional[int] = None
     production_fee: Optional[int] = None
     thumbnail_url: Optional[str] = None
@@ -85,6 +90,8 @@ class ProposalItemOut(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     quantity: Optional[int] = None
+    months: int = 1
+    production_count: int = 1
     selected_plan_no: Optional[int] = None
     plans: list[PlanOut] = []
 
@@ -147,6 +154,9 @@ class AddItemsRequest(BaseModel):
     media_ids: list[str] = Field(min_length=1)
     session_id: Optional[str] = None
     plans: Optional[dict[str, int]] = None  # {media_id: plan_no} — 담을 때 지정한 플랜
+    # 매체 정보 팝업에서 고른 개월 수·제작 수 — {media_id: 값}. 없으면 1.
+    months: Optional[dict[str, int]] = None
+    production_counts: Optional[dict[str, int]] = None
 
 
 class ReorderItemsRequest(BaseModel):
@@ -155,3 +165,5 @@ class ReorderItemsRequest(BaseModel):
     plans: Optional[dict[str, int]] = None  # {media_id: plan_no}
     dates: Optional[dict[str, dict[str, Optional[str]]]] = None  # {media_id: {start_date, end_date}}
     quantities: Optional[dict[str, Optional[int]]] = None  # {media_id: quantity}
+    months: Optional[dict[str, int]] = None  # {media_id: 개월 수}
+    production_counts: Optional[dict[str, int]] = None  # {media_id: 제작 수}

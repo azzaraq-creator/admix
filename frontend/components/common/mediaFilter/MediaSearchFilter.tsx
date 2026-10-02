@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollShadow } from "@heroui/react";
 import {
   useRef,
   useState,
@@ -131,14 +132,17 @@ export function MediaSearchFilter({
   if (!open) {
     return (
       <div className="flex items-center gap-[16px] border-b border-stroke py-[12px]">
-        <div
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          size={24}
           ref={scrollRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onClickCapture={onClickCapture}
-          className="flex flex-1 cursor-grab select-none items-center gap-[6px] overflow-x-auto px-[16px] active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex flex-1 cursor-grab select-none items-center gap-[6px] px-[16px] active:cursor-grabbing"
         >
           <button
             type="button"
@@ -168,7 +172,7 @@ export function MediaSearchFilter({
               </button>
             );
           })}
-        </div>
+        </ScrollShadow>
         <div className="pr-[16px]">
           <button
             type="button"

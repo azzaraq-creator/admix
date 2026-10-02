@@ -49,14 +49,24 @@ export function NewChatButton() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 <p className="text-[14px] leading-[22px] text-black-500">
-                  지금까지 믹시와 나눈 대화 기록이 모두 사라지고,<br/>다시 볼 수 없어요.
+                  지금까지 믹시와 나눈 대화 기록이 모두 사라지고,
+                  <br />
+                  다시 볼 수 없어요.
                 </p>
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <Button slot="close" variant="tertiary" className={DIALOG_BUTTON}>
+                <Button
+                  slot="close"
+                  variant="tertiary"
+                  className={DIALOG_BUTTON}
+                >
                   취소
                 </Button>
-                <Button variant="danger" onPress={start} className={DIALOG_BUTTON}>
+                <Button
+                  variant="danger"
+                  onPress={start}
+                  className={DIALOG_BUTTON}
+                >
                   새 대화 시작
                 </Button>
               </AlertDialog.Footer>

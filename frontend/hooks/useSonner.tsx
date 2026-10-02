@@ -4,7 +4,11 @@ import { toast } from "@heroui/react";
 import Image from "next/image";
 import { useCallback } from "react";
 
-import { CircleMinusIcon, CircleXIcon } from "@/components/icons";
+import {
+  CircleMinusIcon,
+  CirclePlusIcon,
+  CircleXIcon,
+} from "@/components/icons";
 
 /**
  * 짧은 알림(토스트) — HeroUI Toast. 화면 위 가운데에 뜨고 3초 뒤 저절로 사라진다
@@ -24,6 +28,16 @@ export function useSonner() {
   const error = useCallback(
     (message: string, detail?: string) =>
       toast.danger(message, { description: detail, timeout: TOAST_TIMEOUT }),
+    [],
+  );
+  // 더한 알림(관심 매체에 담았어요 등) — 성공과 같은 초록 톤에 동그라미 "+"로, 아래 "-"와 짝을 이룬다.
+  const added = useCallback(
+    (message: string, detail?: string) =>
+      toast.success(message, {
+        description: detail,
+        timeout: TOAST_TIMEOUT,
+        indicator: <CirclePlusIcon className="size-4" />,
+      }),
     [],
   );
   // 덜어 낸 알림(관심 매체에서 뺐어요 등) — 오류는 아니지만 빨간 동그라미 "-"로 성공(초록 체크)과 구분한다.
@@ -58,5 +72,12 @@ export function useSonner() {
       }),
     [],
   );
-  return { success, error, removed, blocked, deleted };
+  return {
+    success,
+    error,
+    added,
+    removed,
+    blocked,
+    deleted,
+  };
 }

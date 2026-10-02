@@ -1,13 +1,12 @@
 "use client";
 
-import { ListBox, Select } from "@heroui/react";
+import { ListBox, ScrollShadow, Select } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 
 import { TAB_ACTIVE, TAB_BASE, TAB_IDLE, TabButton } from "./MediaFilterPanel";
 
-// TODO: 백엔드 /media/fixed에 정렬 파라미터가 없다. 지금은 화면 안에서만 고를 수 있고
-// 리스트 순서는 바뀌지 않는다 — API가 생기면 고른 값을 조회 쿼리로 넘긴다.
+// 고른 값은 목록 조회의 sort 파라미터로 그대로 넘긴다(백엔드 MEDIA_SORT_KEYS 와 같은 값).
 const BASIC_SORTS = [
   { key: "latest", label: "최신순" },
   { key: "popular", label: "인기순" },
@@ -36,8 +35,16 @@ export const DEFAULT_MEDIA_SORT: MediaSortKey = "latest";
 
 const RATIO_PREFIX = "ratio-";
 
-/** 상단 정렬 버튼 라벨. 비율 정렬은 기준을 붙인다(예: "30대 비율이 높은 순"). */
-export function mediaSortLabel(key: MediaSortKey): string {
+/** 관심 매체는 "최신순"이 최근에 담은 순이라 "최근순"으로 부른다. */
+export const FAVORITE_LATEST_LABEL = "최근순";
+
+/** 상단 정렬 버튼 라벨. 비율 정렬은 기준을 붙인다(예: "30대 비율이 높은 순").
+ *  latestLabel: "최신순" 대신 쓸 이름(관심 매체는 FAVORITE_LATEST_LABEL). */
+export function mediaSortLabel(
+  key: MediaSortKey,
+  latestLabel?: string,
+): string {
+  if (key === "latest" && latestLabel) return latestLabel;
   const basic = BASIC_SORTS.find((sort) => sort.key === key);
   if (basic) return basic.label;
   const target = RATIO_TARGETS.find((t) => `${RATIO_PREFIX}${t.key}` === key);
@@ -52,9 +59,12 @@ export function mediaSortLabel(key: MediaSortKey): string {
 export function MediaSortBar({
   value,
   onChange,
+  latestLabel,
 }: {
   value: MediaSortKey;
   onChange: (next: MediaSortKey) => void;
+  /** "최신순" 탭 대신 쓸 이름 — 관심 매체는 "최근순". */
+  latestLabel?: string;
 }) {
   const ratioTarget = value.startsWith(RATIO_PREFIX)
     ? value.slice(RATIO_PREFIX.length)
@@ -62,11 +72,17 @@ export function MediaSortBar({
 
   return (
     <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
-      <div className="flex items-center gap-[4px] overflow-x-auto px-[16px] py-[12px] [scrollbar-width:none] max-sm:px-[12px] max-sm:py-[10px] [&::-webkit-scrollbar]:hidden">
+      {/* 정렬 줄 — 좁아 옆으로 넘치면 넘길 게 남은 쪽 가장자리를 흐리게(HeroUI ScrollShadow). */}
+      <ScrollShadow
+        orientation="horizontal"
+        hideScrollBar
+        size={24}
+        className="flex items-center gap-[4px] px-[16px] py-[12px] max-sm:px-[12px] max-sm:py-[10px]"
+      >
         {BASIC_SORTS.map((sort) => (
           <TabButton
             key={sort.key}
-            label={sort.label}
+            label={mediaSortLabel(sort.key, latestLabel)}
             count={0}
             active={value === sort.key}
             onClick={() => onChange(sort.key)}
@@ -117,7 +133,7 @@ export function MediaSortBar({
             </ListBox>
           </Select.Popover>
         </Select>
-      </div>
+      </ScrollShadow>
     </div>
   );
 }

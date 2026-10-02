@@ -1,6 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { proposalsApi, proposalsClientApi, type ProposalListParams } from "./apis";
+import {
+  proposalsApi,
+  proposalsClientApi,
+  type ProposalListParams,
+} from "./apis";
 import { proposalsKeys } from "./keys";
 
 export const useAdminProposals = (params?: ProposalListParams) =>

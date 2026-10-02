@@ -91,4 +91,6 @@ export { WriteIcon } from "./WriteIcon";
 export { EmailIcon } from "./EmailIcon";
 export { CopyLineIcon } from "./CopyLineIcon";
 export { CircleMinusIcon } from "./CircleMinusIcon";
+export { CirclePlusIcon } from "./CirclePlusIcon";
+export { BagIcon } from "./BagIcon";
 export { CircleXIcon } from "./CircleXIcon";

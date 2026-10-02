@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.models.media_favorite import MediaFavorite
 from src.models.media_master import Media
-from src.services.media_service import _media_base_query, _media_card
+from src.services.media_service import (
+    _apply_media_sort,
+    _media_base_query,
+    _media_card,
+    fixed_price_histogram,
+)
 
 
 def list_favorite_ids(db: Session, member_id: uuid.UUID) -> list[str]:
@@ -34,8 +39,12 @@ def list_favorite_cards(
     price_min: int | None = None,
     price_max: int | None = None,
     keyword: str | None = None,
+    sort: str | None = None,
 ) -> list[dict]:
-    """관심 매체 페이지용 카드 — 매체 찾기 목록과 같은 모양·같은 검색어/필터 조건, 최근에 담은 순."""
+    """관심 매체 페이지용 카드 — 매체 찾기 목록과 같은 모양·같은 검색어/필터 조건.
+
+    정렬은 매체 찾기와 같고, "최신순"만 최근에 담은 순이다.
+    """
     base = _media_base_query(
         db,
         categories=categories,
@@ -47,14 +56,44 @@ def list_favorite_cards(
         price_max=price_max,
         keyword=keyword,
     )
+    base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
+        MediaFavorite.member_id == member_id
+    )
     rows = (
-        base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id)
-        .filter(MediaFavorite.member_id == member_id)
+        _apply_media_sort(base, sort, latest=MediaFavorite.created_at)
         .options(selectinload(Media.images))
-        .order_by(MediaFavorite.created_at.desc())
         .all()
     )
     return [_media_card(m) for m in rows]
+
+
+def favorite_price_histogram(
+    db: Session,
+    member_id: uuid.UUID,
+    *,
+    categories: list[str] | None = None,
+    ooh_types: list[str] | None = None,
+    exposure_types: list[str] | None = None,
+    media_shapes: list[str] | None = None,
+    product_master_types: list[str] | None = None,
+    keyword: str | None = None,
+) -> list[int]:
+    """관심 매체 가격 그래프 — 내가 담은 매체 중 검색어·가격 외 필터에 맞는 것으로 센다."""
+    base = _media_base_query(
+        db,
+        categories=categories,
+        ooh_types=ooh_types,
+        exposure_types=exposure_types,
+        media_shapes=media_shapes,
+        product_master_types=product_master_types,
+        price_min=None,
+        price_max=None,
+        keyword=keyword,
+    )
+    base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
+        MediaFavorite.member_id == member_id
+    )
+    return fixed_price_histogram(db, base)
 
 
 def add_favorite(db: Session, member_id: uuid.UUID, media_id: str) -> bool:

@@ -99,6 +99,7 @@ export function MediaPopupCard({
   simple,
   selected = false,
   rank,
+  tag,
   onSelect,
   onAddProposal,
 }: {
@@ -108,6 +109,8 @@ export function MediaPopupCard({
   selected?: boolean;
   /** 추천 순위 — 있으면 매체명 앞에 번호 배지를 붙인다(믹시 추천 목록). */
   rank?: number;
+  /** 카드 맨 위 보라 칩(예: "검색한 매체") + 2px 보라 테두리 — 매체 찾기 목록 카드(MediaFindCard)와 같은 모양. */
+  tag?: string;
   onSelect?: () => void;
   onAddProposal?: () => void;
 }) {
@@ -145,6 +148,12 @@ export function MediaPopupCard({
   );
 
   // 매체명 첫 줄(20px)에 맞춰 세로 가운데에 놓인다.
+  // "검색한 매체" 칩 — 매체 찾기 목록 카드와 같은 모양(보라 바탕·흰 글자).
+  const tagChip = tag && (
+    <Chip className="shrink-0 rounded-[8px] bg-primary-500 px-[6px] py-[2px] text-[11px] leading-[15px] font-bold text-white max-sm:text-[10px]">
+      {tag}
+    </Chip>
+  );
   const rankBadge = rank != null && (
     <span className="mt-[1px] inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[11px] leading-none font-bold text-white tabular-nums">
       {rank}
@@ -158,8 +167,17 @@ export function MediaPopupCard({
         "cursor-pointer gap-0 rounded-[12px] border bg-white shadow-none transition-colors",
         simple ? "px-[10px] py-[8px]" : "p-[10px]",
         selected ? "border-primary" : "border-black-200 hover:border-black-300",
+        // 2px 보라 테두리를 카드 안쪽에 — 테두리 1px + 안쪽 1px 선(after). 팝업 스크롤 칸에 잘리지 않는다.
+        tag &&
+          "relative border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:rounded-[11px] after:border after:border-primary-500 after:content-['']",
       )}
     >
+      {/* "검색한 매체" 칩은 카드 맨 위(사진 위) 한 줄에 — 사진 옆 칸이 좁아 매체명 쪽에 두면 이름이 틀어진다. */}
+      {tagChip && (
+        <div className={cn("flex", simple ? "mb-[4px]" : "mb-[8px]")}>
+          {tagChip}
+        </div>
+      )}
       {simple ? (
         // 납작한 한 장 — 매체명 한 줄 + 금액 한 줄, 버튼 두 개.
         // PC: 버튼을 오른쪽에 두 줄 높이로 세로 가운데. 모바일: 폭이 좁아 버튼은 매체명 줄 오른쪽에 두고
@@ -185,7 +203,9 @@ export function MediaPopupCard({
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
           <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
             <InlinePrice label="광고비" value={row.minAdvertisementFeeKrw} />
-            <InlinePrice label="제작비" value={row.minProductionFeeKrw} />
+            {row.minProductionFeeKrw != null && (
+              <InlinePrice label="제작비" value={row.minProductionFeeKrw} />
+            )}
           </div>
         </div>
       ) : (
@@ -238,7 +258,13 @@ export function MediaPopupCard({
                 label="광고비 / 1개월"
                 value={row.minAdvertisementFeeKrw}
               />
-              <PriceCell label="제작비 / 1회" value={row.minProductionFeeKrw} />
+              {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
+              {row.minProductionFeeKrw != null && (
+                <PriceCell
+                  label="제작비 / 1회"
+                  value={row.minProductionFeeKrw}
+                />
+              )}
             </div>
             <Button
               variant="outline"
@@ -271,14 +297,23 @@ export function MarkerMediaPopup({
   onSimpleChange,
   onSelect,
   onAddProposal,
+  highlightId,
 }: {
   rows: MediaCardRow[];
   simple: boolean;
   onSimpleChange: (simple: boolean) => void;
   onSelect?: (row: MediaCardRow) => void;
   onAddProposal?: (row: MediaCardRow) => void;
+  /** 검색해서 고른 매체 — 같은 주소 묶음 팝업에서 맨 위로 올리고 테두리·"검색한 매체" 표시. */
+  highlightId?: string | null;
 }) {
   if (rows.length === 0) return null;
+  const ordered = highlightId
+    ? [
+        ...rows.filter((r) => r.id === highlightId),
+        ...rows.filter((r) => r.id !== highlightId),
+      ]
+    : rows;
 
   return (
     <div
@@ -303,11 +338,13 @@ export function MarkerMediaPopup({
         size={24}
         className="flex min-h-0 flex-col gap-[8px] px-[8px] pb-[8px]"
       >
-        {rows.map((row) => (
+        {ordered.map((row) => (
           <MediaPopupCard
             key={row.id}
             row={row}
             simple={simple}
+            selected={row.id === highlightId}
+            tag={row.id === highlightId ? "검색한 매체" : undefined}
             onSelect={() => onSelect?.(row)}
             onAddProposal={() => onAddProposal?.(row)}
           />

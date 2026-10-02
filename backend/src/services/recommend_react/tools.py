@@ -158,8 +158,25 @@ def _resolve_item(last_items: list[dict], index: Optional[int], name: Optional[s
     return None
 
 
-def _proposal_event(proposal, message: str) -> dict:
-    return {
+def _editable_proposals(ctx: ReactContext, member_id, owner_sid) -> list:
+    """믹시가 담거나 이름을 바꿀 수 있는 제안서 — 작성중(new)만.
+
+    제출 완료(execution_requested)·맞춤 제안(custom)·계약 완료(contracted)·취소는 고칠 수 없으므로
+    대상 결정·고르기 목록에서 뺀다(프런트 담기 창의 "작성 중" 기준과 같다).
+    """
+    return [
+        p
+        for p in proposal_service.list_for_owner(
+            ctx.db, member_id=member_id, session_id=owner_sid
+        )
+        if p.status == "new"
+    ]
+
+
+def _proposal_event(
+    proposal, message: str, added_media_ids: Optional[list[str]] = None
+) -> dict:
+    ev: dict = {
         "type": "proposal",
         "message": message,
         "proposal": {
@@ -168,6 +185,11 @@ def _proposal_event(proposal, message: str) -> dict:
             "media_count": proposal.media_count,
         },
     }
+    if added_media_ids:
+        # 이번에 담은 매체명 — 프런트가 "OOO 제안서에 담았습니다" 말풍선·담는 제안서 전환에 쓴다.
+        names = {it.media_id: it.name for it in proposal.items}
+        ev["added_media_names"] = [names.get(mid) or mid for mid in added_media_ids]
+    return ev
 
 
 def _emit_proposal_choices(
@@ -217,7 +239,7 @@ def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[in
         msg = f"'{title}' 제안서를 만들고 매체 {len(media_ids)}개를 담았어요."
     else:
         msg = f"'{title}' 제안서를 만들었어요."
-    ctx.events.append(_proposal_event(proposal, msg))
+    ctx.events.append(_proposal_event(proposal, msg, media_ids))
     return msg
 
 
@@ -242,14 +264,14 @@ def _do_add_media(
             "원하는 매체를 먼저 검색해 주세요 😊"
         )
 
-    proposals = proposal_service.list_for_owner(ctx.db, member_id=member_id, session_id=owner_sid)
+    proposals = _editable_proposals(ctx, member_id, owner_sid)
 
     # 대상 제안서 결정: ① 없으면 생성 안내(담지 않음) → ② 지정 이름 → ③ 세션 active →
     #                    ④ 유일 → ⑤ 여러 개인데 지정 없으면 되묻기(담지 않음)
     if not proposals:
         # 자동 생성하지 않고 사용자에게 제안서 생성을 안내한다(v2 동작). 마커 없음 → LLM 이 relay.
         return (
-            "보유중인 제안서가 없어요. 먼저 제안서를 만들어야 담을 수 있어요. "
+            "작성 중인 제안서가 없어요. 먼저 제안서를 만들어야 담을 수 있어요. "
             "어떤 이름으로 만들까요? (예: '여름캠페인으로 제안서 만들어줘')"
         )
     if proposal_name and proposal_name.strip():
@@ -283,7 +305,7 @@ def _do_add_media(
     updated = domain._add_items_sync(ctx.db, target.id, member_id, owner_sid, media_ids) or target
     ctx.active_proposal_id = str(updated.id)
     msg = f"매체 {len(media_ids)}개를 '{updated.title}' 제안서에 담았어요."
-    ctx.events.append(_proposal_event(updated, msg))
+    ctx.events.append(_proposal_event(updated, msg, media_ids))
     return msg
 
 
@@ -291,9 +313,9 @@ def _do_rename(
     ctx: ReactContext, new_name: str, target_name: Optional[str] = None
 ) -> str:
     member_id, owner_sid, _ = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
-    proposals = proposal_service.list_for_owner(ctx.db, member_id=member_id, session_id=owner_sid)
+    proposals = _editable_proposals(ctx, member_id, owner_sid)
     if not proposals:
-        return "이름을 바꿀 제안서가 없어요. 먼저 제안서를 만들어 주세요 😊"
+        return "이름을 바꿀 수 있는 작성 중인 제안서가 없어요. 먼저 제안서를 만들어 주세요 😊"
     nn = (new_name or "").strip()
     nn_arg = nn or None  # 새 이름 미지정이면 선택 카드 클릭 시 프런트에서 입력받음
 

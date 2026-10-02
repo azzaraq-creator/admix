@@ -57,6 +57,20 @@ export interface MediaPlanRow {
   subtitle: string | null;
 }
 
+/** 매체 정보 팝업의 "안건" 한 줄 — 플랜별 광고비·제작비·노출 조건(제안서가 고르는 플랜과 같은 범위). */
+export interface MediaPlanOption {
+  planNo: number;
+  title: string;
+  adFeeKrw: number | null;
+  productionFeeKrw: number | null;
+  exposureSeconds: number | null;
+  exposureCount: number | null;
+  /** 일 송출 수 */
+  dailyBroadcasts: number | null;
+  /** "1개월" */
+  durationText: string | null;
+}
+
 export interface MediaAgeRatio {
   label: string;
   value: number;
@@ -91,6 +105,7 @@ export interface MediaDetail {
   sizeText: string | null;
   features: MediaFeature[];
   plans: MediaPlanRow[];
+  planOptions: MediaPlanOption[];
   population: MediaPopulation | null;
 }
 
@@ -107,6 +122,8 @@ export interface MediaFilterParams {
   neLng?: number | null;
   swLng?: number | null;
   keyword?: string | null;
+  /** 목록 정렬(MediaSortKey). 기본(최신순)이면 보내지 않는다. 개수·지도 조회에는 넣지 않는다. */
+  sort?: string | null;
 }
 
 export interface MapBounds {
@@ -143,6 +160,11 @@ export interface MediaClusterResponse {
   markers: MediaMarkerDto[];
 }
 
+/** 가격 필터 그래프 — 가로축은 MediaFilterOptions.price_min~max, 막대는 지금 목록 기준. */
+export interface PriceHistogramResponse {
+  histogram: number[];
+}
+
 export interface MediaFilterOptions {
   categories: string[];
   ooh_types: string[];
@@ -163,6 +185,7 @@ function appendFilters(q: URLSearchParams, f?: MediaFilterParams): void {
   if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
   if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
   if (f?.keyword) q.set("keyword", f.keyword);
+  if (f?.sort && f.sort !== "latest") q.set("sort", f.sort);
 }
 
 function appendBounds(q: URLSearchParams, f?: MediaFilterParams): void {
@@ -200,6 +223,14 @@ export function buildMediaFilterQuery(f?: MediaFilterParams): string {
 }
 
 const buildMovingQuery = buildMediaFilterQuery;
+
+/** 가격 그래프 쿼리 — 목록과 같은 조건(지도 영역·검색어·필터)에서 가격·정렬만 뺀다. */
+export function buildPriceHistogramQuery(f?: MediaFilterParams): string {
+  const q = new URLSearchParams();
+  appendFilters(q, { ...f, priceMin: null, priceMax: null, sort: null });
+  appendBounds(q, f);
+  return q.toString();
+}
 
 function buildClusterQuery(zoom: number, f?: MediaFilterParams): string {
   const q = new URLSearchParams();
@@ -242,6 +273,14 @@ export const mediaApi = {
         `/media/fixed/clusters?${buildClusterQuery(zoom, filters)}`,
       )
       .then((r) => r.data),
+  fixedPriceHistogram: (filters?: MediaFilterParams) => {
+    const qs = buildPriceHistogramQuery(filters);
+    return api
+      .get<PriceHistogramResponse>(
+        `/media/fixed/price-histogram${qs ? `?${qs}` : ""}`,
+      )
+      .then((r) => r.data.histogram);
+  },
   fixedFilterOptions: () =>
     api
       .get<MediaFilterOptions>("/media/fixed/filter-options")

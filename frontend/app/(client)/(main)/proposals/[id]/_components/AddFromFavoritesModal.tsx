@@ -7,6 +7,7 @@ import {
   Dropdown,
   Label,
   Modal,
+  ScrollShadow,
   SearchField,
   Spinner,
   Switch,
@@ -258,7 +259,12 @@ export function AddFromFavoritesModal({
 
             {/* 카테고리 칩 한 줄(내 관심 매체에 있는 대분류만) — 칩 30px → 곡률 12px. */}
             {categories.length > 1 && (
-              <div className="mt-[12px] flex shrink-0 gap-[6px] overflow-x-auto [scrollbar-width:none]">
+              <ScrollShadow
+                orientation="horizontal"
+                hideScrollBar
+                size={24}
+                className="mt-[12px] flex shrink-0 gap-[6px]"
+              >
                 {[ALL, ...categories].map((name) => {
                   const active = category === name;
                   return (
@@ -283,11 +289,12 @@ export function AddFromFavoritesModal({
                     </Button>
                   );
                 })}
-              </div>
+              </ScrollShadow>
             )}
 
-            {/* 목록 칸 — 고정된 창 높이에서 남는 만큼 채우고(HeroUI 기본 flex-1), 넘치면 안에서 스크롤. */}
-            <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col overflow-y-auto p-0">
+            {/* 목록 칸 — 고정된 창 높이에서 남는 만큼 채우고(HeroUI 기본 flex-1), 넘치면 안쪽 ScrollShadow가
+                스크롤하며 넘치는 쪽 가장자리를 흐리게 한다. */}
+            <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col overflow-hidden p-0">
               {isLoading ? (
                 <div className="flex flex-1 items-center justify-center py-[40px]">
                   <Spinner />
@@ -312,17 +319,19 @@ export function AddFromFavoritesModal({
                   description="다른 검색어를 입력하거나 카테고리를 바꿔 보세요."
                 />
               ) : (
-                <div className="grid grid-cols-1 gap-[10px] p-[2px] sm:grid-cols-3">
-                  {rows.map((row) => (
-                    <PickCard
-                      key={row.id}
-                      row={row}
-                      added={existingIds.includes(row.id)}
-                      checked={selected.includes(row.id)}
-                      onChange={(checked) => toggle(row.id, checked)}
-                    />
-                  ))}
-                </div>
+                <ScrollShadow size={24} className="min-h-0 flex-1">
+                  <div className="grid grid-cols-1 gap-[10px] p-[2px] sm:grid-cols-3">
+                    {rows.map((row) => (
+                      <PickCard
+                        key={row.id}
+                        row={row}
+                        added={existingIds.includes(row.id)}
+                        checked={selected.includes(row.id)}
+                        onChange={(checked) => toggle(row.id, checked)}
+                      />
+                    ))}
+                  </div>
+                </ScrollShadow>
               )}
             </Modal.Body>
 
@@ -429,11 +438,13 @@ function PickCard({
             value={row.minAdvertisementFeeKrw}
             className="min-w-0 flex-1"
           />
-          <PickPrice
-            label="제작비 / 1회"
-            value={row.minProductionFeeKrw}
-            className="shrink-0"
-          />
+          {row.minProductionFeeKrw != null && (
+            <PickPrice
+              label="제작비 / 1회"
+              value={row.minProductionFeeKrw}
+              className="shrink-0"
+            />
+          )}
         </div>
       </div>
     </Card>

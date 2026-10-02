@@ -337,3 +337,27 @@
     color: #fff;
   }
 }
+
+/* 모달·드로어 뒤 반투명 검정 배경 — 아이폰 Safari 키보드 대응.
+   HeroUI는 배경 높이를 "보이는 화면 높이"(--visual-viewport-height)에 맞추는데, 키보드가 올라오면 이 높이가
+   줄고 Safari가 화면을 밀어 올리면서 배경이 위쪽에만 남아 위로 올라간 것처럼 보였다(아래가 덮이지 않음).
+   배경 자체는 그대로 두고(창 위치 계산은 HeroUI 그대로), 검정은 늘 가장 큰 화면 높이(100lvh)를 덮는
+   별도 층(::before)으로 그린다. 터치 기기에서만 — PC는 그대로. 투명 배경(--transparent)은 건드리지 않는다. */
+@layer components {
+  @media (hover: none) and (pointer: coarse) {
+    .modal__backdrop--opaque,
+    .drawer__backdrop--opaque {
+      background-color: transparent;
+    }
+    .modal__backdrop--opaque::before,
+    .drawer__backdrop--opaque::before {
+      content: "";
+      position: fixed;
+      inset-inline: 0;
+      top: 0;
+      height: 100lvh;
+      z-index: -1;
+      background-color: var(--backdrop);
+    }
+  }
+}

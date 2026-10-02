@@ -1,6 +1,6 @@
 "use client";
 
-import { Toast } from "@heroui/react";
+import { ScrollShadow, Toast } from "@heroui/react";
 import {
   useEffect,
   useRef,
@@ -34,7 +34,6 @@ export function showProposalAddedToast(proposals: ProposalSummary[]) {
 
 /** 터치로 토스트 높이의 이 비율 이상 끌어내리면 닫는다. 덜 끌면 제자리로 돌아간다. */
 const SWIPE_CLOSE_RATIO = 0.5;
-
 
 /**
  * 터치 기기(폰·아이패드 등 화면 크기와 무관) — 토스트를 아래로 쓸어내려 닫는다(바텀시트처럼). 손가락을 따라 내려가고,
@@ -152,21 +151,31 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
         </p>
       </div>
       {names.length > 0 && (
-        <ul className="flex flex-col gap-[8px]">
-          {/* 담긴 매체를 모두 보여 준다 — 많으면 토스트 안 카드 목록이 스크롤된다. */}
-          {names.map((name, i) => (
-            <li key={i} className="flex items-center gap-[8px]">
-              <span
-                aria-hidden
-                className="size-[6px] shrink-0 rounded-full bg-[#a33bd1]"
-              />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
-                {name}
-              </span>
-            </li>
-          ))}
-        </ul>
+        // 담긴 매체를 모두 보여 주되, 길어지면 목록만 따로 스크롤한다(최대 약 5.5줄 — 반쯤 보이는
+        // 6번째 줄로 더 있음을 알린다).
+        // 스크롤바가 안 보이는 아이패드·모바일에서도 더 있음을 알 수 있게, 위·아래로 더 있으면 그쪽
+        // 가장자리를 흐린다(HeroUI ScrollShadow). 끝에서 스크롤이 토스트 전체로 번지지 않게 막는다.
+        // 목록이 짧아 넘칠 게 없으면 흐림을 끈다(매체 찾기 목록과 같은 처리 — Chrome에서 흐림 값이 남는 것 방지).
+        <ScrollShadow
+          size={24}
+          className="-mr-[6px] max-h-[124px] overscroll-contain pr-[6px] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none]"
+        >
+          <ul className="flex flex-col gap-[8px]">
+            {names.map((name, i) => (
+              <li key={i} className="flex items-center gap-[8px]">
+                <span
+                  aria-hidden
+                  className="size-[6px] shrink-0 rounded-full bg-[#a33bd1]"
+                />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
+                  {name}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </ScrollShadow>
       )}
+      {/* 비용(광고비·제작비·총 예상 비용)은 매체 목록 아래에. */}
       <div className="flex flex-col gap-[8px] rounded-[16px] border border-[#ececef] bg-white px-[14px] py-[12px] whitespace-nowrap">
         <div className="flex items-center justify-between font-medium">
           <span className="text-[12px] text-[#71717a]">광고비</span>
@@ -262,19 +271,21 @@ function ProposalAddedToastItem({
           <span className="self-start rounded-full border border-[#ededef] bg-[#f7f3fe] px-[8px] py-[4px] text-[10px] font-semibold text-[#a33bd1]">
             {toast.content.proposals.length}개 제안서
           </span>
-          <div
+          {/* 제안서가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
+          <ScrollShadow
             ref={listRef}
             data-swipe-scroll
+            size={24}
             // overscroll-contain: 목록 끝에서 더 밀어도 뒤 화면이 따라 스크롤되지 않게 한다.
             className={cn(
-              "flex max-h-[min(60vh,480px)] flex-col gap-[8px] overflow-y-auto overscroll-contain",
+              "flex max-h-[min(60vh,480px)] flex-col gap-[8px] overscroll-contain",
               listOverflowing && "touch-pan-y",
             )}
           >
             {toast.content.proposals.map((proposal) => (
               <ProposalCard key={proposal.id} proposal={proposal} />
             ))}
-          </div>
+          </ScrollShadow>
         </div>
       </div>
       {/* 마우스를 올리면 오른쪽 위에 뜨는 닫기 — 앱 알림 토스트와 같은 HeroUI 기본 버튼. */}

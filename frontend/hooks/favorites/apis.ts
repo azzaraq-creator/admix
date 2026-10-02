@@ -2,8 +2,10 @@ import { api } from "@/lib/api";
 
 import {
   buildMediaFilterQuery,
+  buildPriceHistogramQuery,
   type MediaCardListResponse,
   type MediaFilterParams,
+  type PriceHistogramResponse,
 } from "../media/apis";
 
 /** 관심 매체 — 회원 전용(토큰 필수). */
@@ -19,6 +21,15 @@ export const favoritesApi = {
     return api
       .get<MediaCardListResponse>(`/favorites${qs ? `?${qs}` : ""}`)
       .then((r) => r.data);
+  },
+  /** 가격 필터 그래프 막대 — 내가 담은 매체 중 검색어·가격 외 필터에 맞는 것으로 센다. */
+  priceHistogram: (filters?: MediaFilterParams) => {
+    const qs = buildPriceHistogramQuery(filters);
+    return api
+      .get<PriceHistogramResponse>(
+        `/favorites/price-histogram${qs ? `?${qs}` : ""}`,
+      )
+      .then((r) => r.data.histogram);
   },
   add: (mediaId: string) =>
     api.put(`/favorites/${encodeURIComponent(mediaId)}`),
