@@ -20,7 +20,7 @@ import {
   ProfileAvatarIcon,
   ProfileFilledIcon,
 } from "@/components/icons";
-import { useLogout, useMe } from "@/hooks/auth";
+import { useHasUserToken, useLogout, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
@@ -107,7 +107,9 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   const { panelOpen, setPanelOpen } = useMixieChat();
 
   const { data: me, isError: meError } = useMe();
-  const meLoading = member && !me && !meError;
+  // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다.
+  const hasToken = useHasUserToken(member);
+  const meLoading = hasToken && !me && !meError;
 
   const logout = useLogout();
   const handleLogout = async () => {
@@ -271,7 +273,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
-            {/* 담는 제안서 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
+            {/* 현재 제안서 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
             <div className="mb-[12px] max-sm:hidden">
               <CurrentProposalButton variant="sidebar" collapsed={collapsed} />
             </div>

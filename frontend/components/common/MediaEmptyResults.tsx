@@ -25,8 +25,8 @@ export function MediaEmptyResults({
 
   return (
     <EmptyState className="flex h-full min-h-[240px] flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl border border-[#ececef] bg-white p-[24px] text-center max-sm:min-h-[200px] max-sm:p-[20px]">
-      {/* 아이콘 칸 56px → 곡률 25px. 브랜드 연보라 바탕에 돋보기. */}
-      <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-primary-50 text-primary max-sm:size-[48px] max-sm:rounded-[21px]">
+      {/* 아이콘 칸 56px → 곡률 25px. 차분한 회색 칸에 회색 돋보기(현재 제안서 빈 안내와 같은 색). */}
+      <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#f4f4f5] text-[#71717a] max-sm:size-[48px] max-sm:rounded-[21px]">
         <SearchIcon className="size-[24px] max-sm:size-[20px]" />
       </span>
       <p className="text-[16px] font-semibold text-black-900 max-sm:text-[14px]">

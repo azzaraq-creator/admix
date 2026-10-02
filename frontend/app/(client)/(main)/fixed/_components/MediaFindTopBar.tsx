@@ -4,6 +4,7 @@ import { Button } from "@heroui/react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 
 import {
+  CloseSmallIcon,
   FilterIcon,
   MapOutlineIcon,
   RotateLeftIcon,
@@ -26,6 +27,7 @@ export function MediaFindTopBar({
   keyword,
   onKeywordChange,
   onKeywordSubmit,
+  onKeywordClear,
   searchBoxRef,
   suggestionSlot,
   filterCount,
@@ -43,6 +45,8 @@ export function MediaFindTopBar({
   keyword: string;
   onKeywordChange: (value: string) => void;
   onKeywordSubmit: () => void;
+  /** 검색창 X — 검색어를 지우고 검색 결과도 되돌린다(빈 칸에서 Enter와 같다). */
+  onKeywordClear: () => void;
   searchBoxRef: RefObject<HTMLDivElement | null>;
   suggestionSlot?: ReactNode;
   filterCount: number;
@@ -95,6 +99,17 @@ export function MediaFindTopBar({
             aria-label="매체 검색"
             className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-black-900 outline-none placeholder:text-black-400"
           />
+          {/* 검색어 지우기 — 글자가 있을 때만. 버튼 22px → 곡률 원형. */}
+          {keyword && (
+            <button
+              type="button"
+              aria-label="검색어 지우기"
+              onClick={onKeywordClear}
+              className="-mr-[6px] flex size-[22px] shrink-0 items-center justify-center rounded-full bg-black-300 text-white transition-colors hover:bg-black-400 max-sm:-mr-[4px] max-sm:size-[20px]"
+            >
+              <CloseSmallIcon className="size-[14px] max-sm:size-[12px]" />
+            </button>
+          )}
         </div>
         {suggestionSlot}
       </div>

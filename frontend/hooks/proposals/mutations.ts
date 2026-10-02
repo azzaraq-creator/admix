@@ -111,7 +111,7 @@ export const useReorderProposal = () => {
 };
 
 /**
- * 제안서에 담긴 매체의 상품·개월 수·제작 수만 바꾼다(담는 제안서 패널).
+ * 제안서에 담긴 매체의 상품·개월 수·제작 수만 바꾼다(현재 제안서 패널).
  * 순서 저장 API를 같이 쓰므로 지금 순서(mediaIds)를 그대로 넘긴다. 금액이 바뀌어 목록 합계도 다시 받는다.
  */
 export const useUpdateProposalItemOptions = () => {

@@ -172,7 +172,7 @@ export function AddToProposalModal({
         const it = added[0]?.items.find((x) => x.media_id === mid);
         return it?.media_name ?? it?.name ?? mid;
       });
-      // 말풍선 + 담는 제안서 전환 + "N" 표시(notifyProposalsAdded).
+      // 말풍선 + 현재 제안서 전환 + "N" 표시(notifyProposalsAdded).
       notifyProposalsAdded(
         added.map((p) => ({ id: p.id, title: p.title })),
         names,

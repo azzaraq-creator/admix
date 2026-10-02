@@ -29,7 +29,7 @@ export function isOohMedia(oohType: string | null): boolean {
 
 /**
  * 상품 이름 — 영상 상품(DOOH)은 "영상 20초, 일 100회 송출", 영상이 아닌 상품(OOH 등
- * 영상 길이·송출 수가 둘 다 없음)은 상품명. 하나만 있으면 없는 자리에 "-"를 둔다.
+ * 영상 길이·송출 수가 둘 다 없음)은 상품명. 하나만 있으면 있는 쪽만 보여 준다.
  */
 export function planSpecText(
   plan: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">,
@@ -37,9 +37,13 @@ export function planSpecText(
   if (plan.exposureSeconds == null && plan.dailyBroadcasts == null) {
     return plan.title;
   }
-  const seconds = plan.exposureSeconds ?? "-";
-  const daily = plan.dailyBroadcasts?.toLocaleString() ?? "-";
-  return `영상 ${seconds}초, 일 ${daily}회 송출`;
+  return [
+    plan.exposureSeconds != null && `영상 ${plan.exposureSeconds}초`,
+    plan.dailyBroadcasts != null &&
+      `일 ${plan.dailyBroadcasts.toLocaleString()}회 송출`,
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 
 /**

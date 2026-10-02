@@ -210,7 +210,7 @@ export function HomeChat({
             id: proposalId,
             mediaIds: choices.mediaIds,
           });
-          // 담기 창으로 담았을 때와 같이 말풍선·담는 제안서 전환·"N" 표시.
+          // 담기 창으로 담았을 때와 같이 말풍선·현재 제안서 전환·"N" 표시.
           notifyProposalsAdded(
             [{ id: detail.id, title: detail.title }],
             choices.mediaIds.map((mid) => {

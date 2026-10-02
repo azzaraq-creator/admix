@@ -136,6 +136,7 @@ export function FixedMediaView() {
 
   // 지금 보이는 지도 영역을 URL 조회 영역(bbox)으로 반영 → 목록·지도 클러스터가 그 영역으로
   // 다시 조회된다. 장소 칩("OO 주변")은 사용자가 지도를 옮기면 더 이상 맞지 않아 뗀다.
+  // 검색해서 고른 매체(pin)는 지도를 옮겨도 목록 맨 위에 그대로 둔다 — 새로 검색하거나 초기화할 때만 지운다.
   const commitViewport = useCallback(
     (b: MapBoundsPayload, keepPlace: boolean) => {
       replaceQuery((q) => {
@@ -144,10 +145,7 @@ export function FixedMediaView() {
         q.set("swLat", roundCoord(b.swLat));
         q.set("neLng", roundCoord(b.neLng));
         q.set("swLng", roundCoord(b.swLng));
-        if (!keepPlace) {
-          q.delete("place");
-          q.delete("pin");
-        }
+        if (!keepPlace) q.delete("place");
       });
     },
     [],
@@ -179,7 +177,10 @@ export function FixedMediaView() {
         commitViewport(b, reason !== "cluster");
         return;
       }
-      // 사용자 드래그·줌 → 지금 보이는 영역으로 목록을 다시 조회.
+      // 사용자 드래그·줌 → 지금 보이는 영역으로 목록을 다시 조회하고, 골라 둔 마커·지도 팝업은 해제한다.
+      setFocusId(undefined);
+      setPopupId(null);
+      setGroupPopup(null);
       commitViewport(b, false);
     },
     [commitZoomOnly, commitViewport, searchParams],

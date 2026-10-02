@@ -81,6 +81,18 @@ def _media_badge(m: Media) -> str | None:
     return None
 
 
+def _size_text(m: Media) -> str | None:
+    """상세 "사이즈 및 규격" 문구.
+
+    media_shape_summary 는 운영 데이터에서 크기가 아니라 형태 코드("HORIZONTAL_SHAPE",
+    "HORIZONTAL_SHAPE,VERTICAL_SHAPE")가 들어 있어, 코드면 내보내지 않는다(섹션 숨김).
+    규격 속성(properties_extra_json)의 가로·세로는 원천에서 정수로 잘려("0 × 2 m")
+    크기 문구로 쓰지 않는다.
+    """
+    summary = (m.media_shape_summary or "").strip()
+    return summary if summary and "_SHAPE" not in summary else None
+
+
 def _fmt_fee(v: int | None) -> str:
     return f"{v:,}" if v is not None else "-"
 
@@ -105,7 +117,7 @@ def _media_card(m: Media) -> dict:
         address=m.address,
         categoryLarge=m.category_large,
         categorySmall=m.category_small,
-        salesType=m.sales_type,
+        salesType=_SALE_TYPE.get(m.sales_type, m.sales_type),
         thumbnailUrl=images[0] if images else None,
         images=images,
         badge=_media_badge(m),
@@ -745,10 +757,12 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
             exposureSeconds=p.exposure_duration_seconds,
             exposureCount=p.exposure_count,
             # 일 송출 수 — 직접 입력값 우선, 없으면 자동 계산값, 그것도 없으면 노출 횟수.
+            # 원천은 모르는 값을 0으로 채워 두므로 0은 "정보 없음"(None)으로 내보낸다.
             dailyBroadcasts=(
                 p.broadcasts_count_manual
                 or p.broadcasts_count_auto
                 or p.exposure_count
+                or None
             ),
             durationText=_duration_text(p),
         )
@@ -764,13 +778,13 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         minProductionFeeKrw=m.min_production_fee_krw,
         categoryLarge=m.category_large,
         categorySmall=m.category_small,
-        salesType=m.sales_type,
+        salesType=_SALE_TYPE.get(m.sales_type, m.sales_type),
         oohType=m.ooh_type,
         description=m.description,
         address=(m.accurate_address or m.address or m.full_address_jibun or None),
         thumbnailUrl=m.thumbnail_url,
         imageUrls=[img.image_url for img in m.images],
-        sizeText=(m.media_shape_summary or None),
+        sizeText=_size_text(m),
         features=features,
         plans=plans,
         planOptions=plan_options,

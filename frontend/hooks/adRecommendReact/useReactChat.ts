@@ -341,7 +341,7 @@ export function useReactChat() {
     (data: Record<string, unknown>, assistantId: string) => {
       const msgType = (data.type as V2ResponseType) || "chat";
 
-      // 믹시가 제안서에 매체를 담았다 — 담기 창으로 담았을 때와 같이 말풍선·담는 제안서 전환·"N".
+      // 믹시가 제안서에 매체를 담았다 — 담기 창으로 담았을 때와 같이 말풍선·현재 제안서 전환·"N".
       // 서버가 담았으므로 제안서 목록·상세(배지·패널)를 다시 받는다. (지난 대화 불러오기는 이 경로가 아니라 다시 뜨지 않는다.)
       const addedNames = data.added_media_names as string[] | undefined;
       const addedProposal = data.proposal as V2ProposalRef | undefined;

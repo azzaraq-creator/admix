@@ -186,6 +186,16 @@
 }
 
 /* 관심 매체를 켤 때 하트가 한 번 튀는 효과(매체 정보 모달). */
+/* 서서히 나타나기 — 사이드바를 펼칠 때 현재 제안서 카드 내용이 메뉴 글자처럼 천천히 보이게(0.3초). */
+@keyframes admix-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes admix-like-pop {
   0% {
     transform: scale(1);

@@ -239,10 +239,13 @@ export function MediaFindPanel({
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const total = data?.pages[0]?.total ?? 0;
   // 새로고침으로 들고 있던 카드 정보가 없으면 목록에서 찾는다(고른 매체 주변이라 대개 첫 페이지에 있다).
+  const foundPinned = pinId ? rows.find((r) => r.id === pinId) : undefined;
+  // 목록에서 한 번 찾으면 기억해 둔다 — 지도를 옮겨 그 매체가 영역 밖으로 나가도 맨 위에 남게.
+  if (foundPinned && pinnedRow?.id !== pinId) setPinnedRow(foundPinned);
   const pinned = pinId
     ? pinnedRow?.id === pinId
       ? pinnedRow
-      : (rows.find((r) => r.id === pinId) ?? null)
+      : (foundPinned ?? null)
     : null;
   const listRows = pinned ? rows.filter((r) => r.id !== pinned.id) : rows;
   const coordsById = new Map(
@@ -456,8 +459,30 @@ export function MediaFindPanel({
   };
 
   // Enter → 입력 텍스트가 포함된 매체(매체명/주소)를 리스트·지도에 표시. bbox는 해제.
+  // 검색어만 지운다(필터는 그대로) — 검색창 X, 또는 빈 칸에서 Enter.
+  // 검색어 검색은 지도 영역(bbox)을 떼므로, 지금 보이는 지도 영역을 다시 걸어 목록이 그 영역을 따르게 한다.
+  // (영역도 검색어도 없으면 조회할 범위가 없어 스켈레톤만 계속 보였다.)
+  const clearKeyword = () => {
+    setLocation("");
+    setShowSug(false);
+    const view = getViewport?.();
+    commit((params) => {
+      params.delete("kw");
+      params.delete("place");
+      params.delete("pin");
+      if (view) {
+        for (const k of BBOX_KEYS)
+          params.set(k, String(Math.round(view[k] * 1e6) / 1e6));
+      }
+    });
+  };
+
   const handleSubmit = () => {
     const q = location.trim();
+    if (!q) {
+      clearKeyword();
+      return;
+    }
     const prev = sp.get("kw");
     // 키워드가 실제로 바뀔 때만(=refetch가 일어날 때만) fit 예약. 같은 키워드 재입력은
     // URL 무변화 → 결과 무변화라 예약해두면 flag가 고아로 남아 엉뚱한 refit을 유발한다.
@@ -501,6 +526,7 @@ export function MediaFindPanel({
             setShowSug(true);
           }}
           onKeywordSubmit={handleSubmit}
+          onKeywordClear={clearKeyword}
           searchBoxRef={searchBoxRef}
           filterCount={filterCount}
           filterOpen={filterOpen}

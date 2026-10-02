@@ -105,7 +105,7 @@ function CountBadge({
 const won = (value: number) => `${value.toLocaleString()}원`;
 
 /**
- * "담는 제안서"(매체를 담으면 들어가는 제안서) 패널을 여는 버튼.
+ * "현재 제안서"(매체를 담으면 들어가는 제안서) 패널을 여는 버튼.
  * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 제안서명·매체 수·총 광고비가 보여 열지 않아도
  *   지금 상태를 안다. 사이드바가 접히면 아이콘 + 배지만 남는다.
  * - header: 모바일 헤더 오른쪽 아이콘 버튼.
@@ -172,7 +172,8 @@ export function CurrentProposalButton({
           title={CURRENT_PROPOSAL_LABEL}
           onClick={toggle}
           className={cn(
-            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-primary transition-colors",
+            // 아이콘은 메뉴 아이콘과 같은 짙은 색 — 보라 배지와 겹쳐 보이지 않게.
+            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-black-900 transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-black-200 hover:border-primary-200 hover:bg-primary-50/60",
@@ -192,45 +193,49 @@ export function CurrentProposalButton({
           aria-expanded={open}
           onClick={toggle}
           className={cn(
-            "flex w-full flex-col gap-[6px] rounded-[16px] border bg-white p-[12px] text-left shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors",
+            "flex w-full overflow-hidden rounded-[16px] border bg-white p-[12px] text-left shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-black-200 hover:border-primary-200 hover:bg-primary-50/60",
           )}
         >
-          <span className="flex items-center gap-[5px] text-[11px] font-semibold text-primary">
-            <BagIcon className="size-[13px] shrink-0" />
-            {CURRENT_PROPOSAL_LABEL}
-            <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-black-400" />
+          {/* 내용은 펼친 폭(안쪽 134px)으로 고정하고 서서히 나타낸다 — 사이드바가 펼쳐지는 동안
+              좁은 폭에서 글자가 먼저 줄바꿈돼 틀어져 보이지 않게(넘치는 부분은 카드가 잘라 낸다). */}
+          <span className="flex w-[134px] shrink-0 animate-[admix-fade-in_300ms_ease-in-out] flex-col gap-[6px] motion-reduce:animate-none">
+            <span className="flex items-center gap-[5px] text-[11px] font-semibold text-primary">
+              <BagIcon className="size-[13px] shrink-0" />
+              {CURRENT_PROPOSAL_LABEL}
+              <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-black-400" />
+            </span>
+            {isLoading ? (
+              // 제안서 목록 불러오는 중 — "매체를 담으면…"이 잠깐 보였다 바뀌지 않게.
+              <span
+                role="status"
+                aria-label="불러오는 중"
+                className="flex h-[40px] items-center"
+              >
+                <Spinner size="sm" />
+              </span>
+            ) : current ? (
+              <>
+                <span className="truncate text-[14px] font-bold text-black-900">
+                  {current.title}
+                </span>
+                <span className="flex items-center justify-between gap-[6px] whitespace-nowrap">
+                  <span className="text-[12px] text-black-500">
+                    매체 {count}개
+                  </span>
+                  <span className="truncate text-[13px] font-bold text-black-900">
+                    {won(current.advertisement_amount ?? current.total_amount)}
+                  </span>
+                </span>
+              </>
+            ) : (
+              <span className="text-[12px] leading-[1.5] break-keep text-black-500">
+                매체를 담으면 여기에 모여요
+              </span>
+            )}
           </span>
-          {isLoading ? (
-            // 제안서 목록 불러오는 중 — "매체를 담으면…"이 잠깐 보였다 바뀌지 않게.
-            <span
-              role="status"
-              aria-label="불러오는 중"
-              className="flex h-[40px] items-center"
-            >
-              <Spinner size="sm" />
-            </span>
-          ) : current ? (
-            <>
-              <span className="truncate text-[14px] font-bold text-black-900">
-                {current.title}
-              </span>
-              <span className="flex items-center justify-between gap-[6px] whitespace-nowrap">
-                <span className="text-[12px] text-black-500">
-                  매체 {count}개
-                </span>
-                <span className="truncate text-[13px] font-bold text-black-900">
-                  {won(current.advertisement_amount ?? current.total_amount)}
-                </span>
-              </span>
-            </>
-          ) : (
-            <span className="text-[12px] leading-[1.5] break-keep text-black-500">
-              매체를 담으면 여기에 모여요
-            </span>
-          )}
         </button>
       )}
       {isDesktop && (

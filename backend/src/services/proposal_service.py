@@ -972,6 +972,7 @@ def to_detail(db: Session, p: Proposal) -> dict:
                         pl.broadcasts_count_manual
                         or pl.broadcasts_count_auto
                         or pl.exposure_count
+                        or None
                     ),
                 )
                 for pl in plans

@@ -6,7 +6,7 @@ import { isDraftProposal } from "./apis";
 import { useMyProposals } from "./queries";
 
 /**
- * "담는 제안서" — 장바구니처럼 화면 어디서든 같은 제안서를 본다.
+ * "현재 제안서" — 장바구니처럼 화면 어디서든 같은 제안서를 본다.
  * 고른 제안서 id는 브라우저(localStorage)에 두고, 패널 열림은 메모리에 둔다.
  * 둘 다 작은 외부 저장소라 사이드바 버튼·모바일 헤더 버튼·패널이 같은 값을 본다.
  */
@@ -55,7 +55,7 @@ export function useCurrentProposalPanelOpen(): boolean {
 }
 
 /**
- * 새로 담긴 제안서 — 담는 제안서 패널의 제안서 목록에 "N" 표시를 붙인다.
+ * 새로 담긴 제안서 — 현재 제안서 패널의 제안서 목록에 "N" 표시를 붙인다.
  * 패널에서 본 제안서는 기억해 두었다가(markProposalViewed) 패널을 닫을 때 한꺼번에 지운다 —
  * 열려 있는 동안은 방금 담긴 제안서들이 무엇인지 계속 보인다. 이번 방문 동안만 기억한다(메모리).
  */
@@ -89,7 +89,7 @@ export function useNewProposalIds(): readonly string[] {
 const EMPTY_IDS: readonly string[] = [];
 
 /**
- * 담기 알림 말풍선 — "OOO 제안서에 담았습니다" + 매체명. 담는 제안서 버튼에서
+ * 담기 알림 말풍선 — "OOO 제안서에 담았습니다" + 매체명. 현재 제안서 버튼에서
  * 화살표로 가리키며 잠깐 떴다가 사라진다(같은 버튼 Badge가 늘어난 걸 함께 보게).
  */
 export type ProposalCallout = { key: number; title: string; detail?: string };
@@ -123,9 +123,9 @@ export function useProposalCallout(): ProposalCallout | null {
 
 /**
  * 제안서에 담은 뒤 공통 처리 — 담기 창·믹시 대화(직접 담기·제안서 고르기 카드)가 같이 쓴다.
- * 1) 담는 제안서 버튼에서 "A, B 제안서에 담았습니다" + 매체명 말풍선
- * 2) 담는 제안서를 방금 담은 제안서로 바꾼다(여러 개면 마지막 것)
- * 3) 담는 제안서 패널의 제안서 목록에 "N"(새로 담김) 표시
+ * 1) 현재 제안서 버튼에서 "A, B 제안서에 담았습니다" + 매체명 말풍선
+ * 2) 현재 제안서를 방금 담은 제안서로 바꾼다(여러 개면 마지막 것)
+ * 3) 현재 제안서 패널의 제안서 목록에 "N"(새로 담김) 표시
  */
 export function notifyProposalsAdded(
   proposals: { id: string; title: string }[],
@@ -143,7 +143,7 @@ export function notifyProposalsAdded(
 }
 
 /**
- * 담는 제안서 — 고른 것이 없거나 더는 작성 중이 아니면(삭제·제출 등) 가장 최근 작성 중 제안서.
+ * 현재 제안서 — 고른 것이 없거나 더는 작성 중이 아니면(삭제·제출 등) 가장 최근 작성 중 제안서.
  * drafts: 바꿔 볼 수 있는 작성 중 제안서 목록(최근 순).
  */
 export function useCurrentProposal() {

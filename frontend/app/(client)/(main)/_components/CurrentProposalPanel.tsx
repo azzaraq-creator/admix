@@ -58,14 +58,14 @@ type ItemOptions = {
 const SAVE_DELAY_MS = 500;
 
 /** 이 기능의 이름 — 매체를 담으면 들어가는 제안서(버튼·패널 제목·접근성 이름이 같이 쓴다). */
-export const CURRENT_PROPOSAL_LABEL = "담는 제안서";
+export const CURRENT_PROPOSAL_LABEL = "현재 제안서";
 
 /** 닫기 — 매체 정보 팝업과 같은 회색 원형 버튼(28px → 곡률 14px). */
 const CLOSE_BUTTON =
   "size-[28px] min-w-0 shrink-0 rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a]";
 
 /**
- * 담는 제안서 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
+ * 현재 제안서 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
  * 맨 위에서 다른 작성 중 제안서로 바꿔 볼 수 있고, 맨 아래에 총 광고비를 고정한다.
  * PC는 사이드바 버튼에 붙는 패널(CurrentProposalPopover), 모바일은 아래 시트(CurrentProposalPanel)가 감싼다.
  */
@@ -143,7 +143,7 @@ export function CurrentProposalPanel() {
 }
 
 /**
- * PC — 사이드바의 "담는 제안서" 카드 오른쪽에 붙어 위로 펼쳐지는 패널(HeroUI Popover).
+ * PC — 사이드바의 "현재 제안서" 카드 오른쪽에 붙어 위로 펼쳐지는 패널(HeroUI Popover).
  * 버튼과 아랫변을 맞추고(right bottom), 바깥을 누르거나 Esc로 닫는다. 담기 말풍선과 같은 자리에서 열린다.
  */
 export function CurrentProposalPopover({
@@ -261,7 +261,7 @@ function ProposalBody({
       {/* 다른 작성 중 제안서로 바꿔 보기. */}
       <div className="shrink-0 px-[20px] pb-[12px]">
         <Select
-          aria-label="담는 제안서 바꾸기"
+          aria-label={`${CURRENT_PROPOSAL_LABEL} 바꾸기`}
           selectedKey={proposalId}
           onSelectionChange={(key) => {
             if (key == null || key === proposalId) return;
@@ -271,7 +271,7 @@ function ProposalBody({
         >
           {/* 칸 44px → 곡률 19px(제안서 담기 창 입력칸과 같다). */}
           <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-[#ececef] bg-[#f7f7f8] ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-white">
-            {/* 제안서 아이콘 — 위 "담는 제안서" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
+            {/* 제안서 아이콘 — 위 "현재 제안서" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
             <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-black-700">
               <CollectionIcon className="size-[15px]" />
             </span>

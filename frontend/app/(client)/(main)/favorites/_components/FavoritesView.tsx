@@ -41,7 +41,7 @@ import {
   FolderAddIcon,
   LoveIcon,
 } from "@/components/icons";
-import { useMe } from "@/hooks/auth";
+import { useHasUserToken, useMe } from "@/hooks/auth";
 import {
   useFavoriteIds,
   useFavoriteList,
@@ -143,7 +143,9 @@ export function FavoritesView({ member }: { member: boolean }) {
 
   // 로그인 쿠키가 있으면 회원 정보를 받는 동안도 "불러오는 중"으로 본다(비회원 안내가 잠깐 비치지 않게).
   // 토큰이 만료돼 회원 정보를 못 받으면 비회원 안내로 넘어간다.
-  const loading = (member && !me && !meError) || (!!me && isLoading);
+  // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다(끝나지 않는 불러오는 중 방지).
+  const hasToken = useHasUserToken(member);
+  const loading = (hasToken && !me && !meError) || (!!me && isLoading);
   const isGuest = !loading && !me;
   // 담은 매체가 하나도 없을 때(검색·필터 전) — 빈 안내만 보이고 아래 바는 숨긴다.
   const noFavorites = !loading && !!me && !searched && rows.length === 0;
@@ -156,6 +158,10 @@ export function FavoritesView({ member }: { member: boolean }) {
           keyword={query}
           onKeywordChange={setQuery}
           onKeywordSubmit={() => setKeyword(query.trim())}
+          onKeywordClear={() => {
+            setQuery("");
+            setKeyword("");
+          }}
           searchBoxRef={searchBoxRef}
           filterCount={filterCount}
           filterOpen={filterOpen}
