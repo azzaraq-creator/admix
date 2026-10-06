@@ -41,7 +41,7 @@ export function AssistantBubble({
   /** 답변 앞 믹시 아이콘. 이미 "AI 믹시" 헤더가 있는 좁은 패널에서는 끈다. */
   showAvatar?: boolean;
 }) {
-  // 고른 제안서 — 지난 대화를 다시 불러온 경우엔 기록된 값으로 시작한다(목록 대신 완료 문구).
+  // 고른 기획안 — 지난 대화를 다시 불러온 경우엔 기록된 값으로 시작한다(목록 대신 완료 문구).
   const [pickedName, setPickedName] = useState<string | null>(
     message.proposalChoices?.picked?.name ?? null,
   );
@@ -74,7 +74,7 @@ export function AssistantBubble({
               {showAvatar && <AiIcon className="size-[24px] shrink-0" />}
               <MixieMarkdown>
                 {message.message ||
-                  `분석 완료! 가장 적합한 매체 ${message.items.length}개를 정리했어요! 원하는 매체를 선택하거나, AI에게 제안서 작성 요청해보세요.`}
+                  `분석 완료! 가장 적합한 매체 ${message.items.length}개를 정리했어요! 원하는 매체를 선택하거나, AI에게 기획안 작성 요청해보세요.`}
               </MixieMarkdown>
             </div>
             <ConditionChips message={message} />
@@ -108,9 +108,9 @@ export function AssistantBubble({
               <p className="text-[16px] leading-[22px] text-black sm:text-base sm:leading-[24px]">
                 {pickedName
                   ? message.proposalChoices.action === "rename"
-                    ? `'${pickedName}' 제안서 이름을 바꿨어요 ✓`
-                    : `'${pickedName}' 제안서에 담았어요 ✓`
-                  : message.message || "어느 제안서를 선택할까요?"}
+                    ? `'${pickedName}' 기획안 이름을 바꿨어요 ✓`
+                    : `'${pickedName}' 기획안에 담았어요 ✓`
+                  : message.message || "어느 기획안을 선택할까요?"}
               </p>
             </div>
             {!pickedName && (

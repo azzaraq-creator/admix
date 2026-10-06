@@ -58,7 +58,7 @@ const won = (value: number) => `${value.toLocaleString()}원`;
 /**
  * 관심 매체 — 시안 "04. 관심 매체". 매체 찾기와 같은 상단 바(검색·필터·초기화·정렬)와 필터 칩,
  * 매체 카드 격자. 카드의 "선택"으로 여러 매체를 고르고, 아래 고정 바에서 합계를 보며
- * 선택 해제·위시 취소(관심 매체에서 빼기)·제안서에 담기를 한다(회원 전용).
+ * 선택 해제·위시 취소(관심 매체에서 빼기)·기획안에 담기를 한다(회원 전용).
  */
 export function FavoritesView({ member }: { member: boolean }) {
   const router = useRouter();
@@ -392,7 +392,7 @@ const BAR_BUTTON_CLASS =
 
 /**
  * 선택 요약 바(시안 media-selection-summary) — 짙은 바탕에 고른 개수, 총 광고비·총 제작비,
- * 선택 해제 / 위시 취소 / 제안서에 담기. 화면 아래에 붙어 따라온다(sticky).
+ * 선택 해제 / 위시 취소 / 기획안에 담기. 화면 아래에 붙어 따라온다(sticky).
  * 모바일은 폭이 좁아 바에는 개수만 두고, 누르면 아래에서 시트(HeroUI Drawer)가 올라와
  * 합계를 보고 버튼을 누른다.
  */
@@ -482,7 +482,7 @@ function DesktopSelectionBar({
           className={cn(BAR_BUTTON_CLASS, "bg-primary-500 font-bold")}
         >
           <FolderAddIcon className="size-[16px] shrink-0" />
-          제안서에 담기
+          기획안에 담기
         </Button>
       </div>
     </div>
@@ -519,7 +519,7 @@ function MobileSelectionSheet({
         className={cn(BAR_CLASS, "w-full cursor-pointer text-left sm:hidden")}
       >
         <SelectionCount count={count} />
-        {/* 누르면 할 일을 알려 준다 — 고른 게 있으면 "담기 · 취소 ⌃"(시트에서 제안서에 담기·위시 취소),
+        {/* 누르면 할 일을 알려 준다 — 고른 게 있으면 "담기 · 취소 ⌃"(시트에서 기획안에 담기·위시 취소),
             없으면 먼저 고르라는 안내만(화살표 없이 흐리게). */}
         {none ? (
           <span className="shrink-0 pr-[4px] text-[12px] font-medium text-white/50">
@@ -565,7 +565,7 @@ function MobileSelectionSheet({
                 className={SHEET_PRIMARY_CLASS}
               >
                 <FolderAddIcon className="size-[18px] shrink-0" />
-                제안서에 담기
+                기획안에 담기
               </Button>
               <div className="flex w-full gap-[8px]">
                 <Button
@@ -618,7 +618,7 @@ function CostItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** 비어 있을 때·비회원일 때 — 내 제안서 목록의 빈 상태와 같은 모양(HeroUI EmptyState). */
+/** 비어 있을 때·비회원일 때 — 내 기획안 목록의 빈 상태와 같은 모양(HeroUI EmptyState). */
 function EmptyBox({
   title,
   description,

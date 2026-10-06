@@ -28,7 +28,7 @@ def db() -> Session:
 
 @pytest.fixture
 def session(db: Session):
-    """비회원 소유용 임시 ad_session. 종료 시 정리(제안서 cascade 삭제)."""
+    """비회원 소유용 임시 ad_session. 종료 시 정리(기획안 cascade 삭제)."""
     import uuid
 
     s = AdSession(thread_id=f"test-thread-{uuid.uuid4().hex[:12]}")
@@ -132,7 +132,7 @@ def test_admin_status_label_mapping():
 
 @pytest.fixture
 def cleanup_proposals(db):
-    """테스트가 만든 제안서를 id 로 직접 하드삭제. 소프트삭제(deleted_at) 건은
+    """테스트가 만든 기획안을 id 로 직접 하드삭제. 소프트삭제(deleted_at) 건은
     list_for_owner 로 조회되지 않아 session fixture teardown 이 못 지우므로 여기서 정리."""
     ids: list = []
     yield ids
@@ -215,7 +215,7 @@ def test_list_for_owner_excludes_deleted(db, session, cleanup_proposals):
 def test_get_owned_excludes_deleted(db, session, cleanup_proposals):
     p = _make(db, session, "execution_requested", cleanup_proposals)
     ps.delete(db, p)
-    # 삭제된 제안서는 소유자여도 조회 불가(수정/재조회 차단)
+    # 삭제된 기획안은 소유자여도 조회 불가(수정/재조회 차단)
     assert ps.get_owned(db, str(p.id), session_id=session.id) is None
 
 
@@ -356,7 +356,7 @@ def test_rename_duplicate_returns_409_and_self_ok(client, db, session):
     b = ps.create_proposal(
         db, "이름B", session_id=session.id, user=None, enforce_limit=False
     )
-    # 다른 제안서 이름으로 변경 → 중복 409
+    # 다른 기획안 이름으로 변경 → 중복 409
     r = client.patch(f"/proposals/{b.id}?session_id={sid}", json={"title": "이름A"})
     assert r.status_code == 409
     assert r.json()["detail"]["reason"] == "duplicate_name"

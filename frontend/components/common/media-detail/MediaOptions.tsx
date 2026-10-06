@@ -7,7 +7,7 @@ import type { MediaDetailViewModel } from "./useMediaDetailViewModel";
 
 /** 매체 정보 팝업에서 고르는 집행 옵션 — 상품(플랜)·개월 수·제작 수(OOH만). */
 export type MediaOptionsValue = {
-  /** null이면 첫 상품(제안서가 플랜을 안 고르면 쓰는 것과 같은 기본값). */
+  /** null이면 첫 상품(기획안이 플랜을 안 고르면 쓰는 것과 같은 기본값). */
   planNo: number | null;
   months: number;
   productionCount: number;
@@ -48,7 +48,7 @@ export function planSpecText(
 
 /**
  * 고른 옵션으로 계산한 금액 — 광고비 × 개월 수, 제작비 × 제작 수.
- * 제안서 금액 규칙(광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수)과 같다(담을 때 수량은 1).
+ * 기획안 금액 규칙(광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수)과 같다(담을 때 수량은 1).
  */
 export function mediaOptionTotals(
   vm: MediaDetailViewModel,

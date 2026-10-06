@@ -58,7 +58,7 @@ export function ProposalDetailView({ id }: { id: string }) {
   const { data: me } = useMe();
   const { data: proposal, isLoading, isError } = useProposalDetail(id);
 
-  // 로그인/계정 전환 후 이 제안서를 회원 토큰으로 재조회 (detail 키가 정적이라 수동 무효화).
+  // 로그인/계정 전환 후 이 기획안을 회원 토큰으로 재조회 (detail 키가 정적이라 수동 무효화).
   useEffect(() => {
     if (me) {
       queryClient.invalidateQueries({ queryKey: proposalsKeys.detail(id) });
@@ -66,7 +66,7 @@ export function ProposalDetailView({ id }: { id: string }) {
   }, [me, id, queryClient]);
 
   // 조회 실패 처리: 비로그인 → 로그인 모달(성공 시 위 무효화로 재조회),
-  // 타계정 로그인(접근 불가) → 권한 없음 안내 후 내 제안서 목록으로 이동.
+  // 타계정 로그인(접근 불가) → 권한 없음 안내 후 내 기획안 목록으로 이동.
   useEffect(() => {
     if (isLoading || proposal) return;
     if (!me) {
@@ -79,7 +79,7 @@ export function ProposalDetailView({ id }: { id: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isError, proposal, me]);
 
-  // 제안서 불러오는 중 — 제목·슬라이드가 빈 채로 잠깐 보이지 않게 가운데 스피너만.
+  // 기획안 불러오는 중 — 제목·슬라이드가 빈 채로 잠깐 보이지 않게 가운데 스피너만.
   if (isLoading && !proposal) {
     return (
       <div
@@ -87,7 +87,7 @@ export function ProposalDetailView({ id }: { id: string }) {
         className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f9fafb]"
       >
         <Spinner />
-        <p className="text-[13px] text-[#8c8c94]">제안서를 불러오는 중이에요</p>
+        <p className="text-[13px] text-[#8c8c94]">기획안을 불러오는 중이에요</p>
       </div>
     );
   }
@@ -102,13 +102,13 @@ export function ProposalDetailView({ id }: { id: string }) {
 }
 
 /**
- * 제안서 상세(편집) — 시안 "03. 제안서 - 상세 (제출 전)".
- * 위: 뒤로 가기·제안서명(수정)·상태 배지·최종 수정일시, 오른쪽 제출하기.
+ * 기획안 상세(편집) — 시안 "03. 제안서 - 상세 (제출 전)".
+ * 위: 뒤로 가기·기획안명(수정)·상태 배지·최종 수정일시, 오른쪽 제출하기.
  * 아래 카드: 도구 줄(슬라이드 수·선택된 매체 수, 다운로드·삭제) + 왼쪽 슬라이드 목록 + 오른쪽 미리보기.
- * 미리보기·목록 썸네일은 제안서 템플릿(표지·서머리·매체·THANK YOU) 그대로 — 서머리에서 날짜·수량,
+ * 미리보기·목록 썸네일은 기획안 템플릿(표지·서머리·매체·THANK YOU) 그대로 — 서머리에서 날짜·수량,
  * 매체 슬라이드에서 상품(플랜)을 고르면 바로 반영되고, 도구 줄의 "저장하기"로 저장한다.
  */
-// 제안서명 최대 글자 수 — 새 제안서 만들기 창과 같다.
+// 기획안명 최대 글자 수 — 새 기획안 만들기 창과 같다.
 const MAX_TITLE_LENGTH = 50;
 
 function ProposalEditorView({ id }: { id: string }) {
@@ -263,7 +263,7 @@ function ProposalEditorView({ id }: { id: string }) {
   // 제출(집행 요청)·계약 완료 상태는 편집 불가
   const locked = submitted || proposal?.status === "contracted";
 
-  // 왼쪽 목록 썸네일 — 제안서 템플릿 그대로(고른 상품·날짜·수량 반영).
+  // 왼쪽 목록 썸네일 — 기획안 템플릿 그대로(고른 상품·날짜·수량 반영).
   const renderSidebarThumb = (slide: Slide) => {
     const summaryPage = parseSummaryPage(slide.id);
     if (summaryPage !== null)
@@ -397,7 +397,7 @@ function ProposalEditorView({ id }: { id: string }) {
           <span className="font-semibold text-[#18181b]">
             {slideNumber}-{name}
           </span>
-          가 제안서에서 삭제됩니다.
+          가 기획안에서 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
@@ -413,7 +413,7 @@ function ProposalEditorView({ id }: { id: string }) {
       const ok = await confirm({
         title: "로그인 후 다운로드 할 수 있어요.",
         description:
-          "제안서 다운로드는 회원 전용 기능이에요.\n로그인 후 제안서를 저장하고 관리해 보세요.",
+          "기획안 다운로드는 회원 전용 기능이에요.\n로그인 후 기획안을 저장하고 관리해 보세요.",
         confirmText: "로그인 화면으로",
       });
       if (ok) openLoginModal();
@@ -426,7 +426,7 @@ function ProposalEditorView({ id }: { id: string }) {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${proposal?.title || "제안서"}.pptx`;
+      a.download = `${proposal?.title || "기획안"}.pptx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -441,9 +441,9 @@ function ProposalEditorView({ id }: { id: string }) {
   const handleSubmit = async () => {
     if (!isMember()) {
       const ok = await confirm({
-        title: "제안서 제출은 로그인 후 이용 가능해요.",
+        title: "기획안 제출은 로그인 후 이용 가능해요.",
         description:
-          "제안서를 제출하고 맞춤 제안을 받으시려면 회원가입을 진행해 주세요.",
+          "기획안을 제출하고 맞춤 제안을 받으시려면 회원가입을 진행해 주세요.",
         confirmText: "로그인 화면으로",
       });
       if (ok) openLoginModal();
@@ -451,11 +451,11 @@ function ProposalEditorView({ id }: { id: string }) {
     }
     // 시안 "03. 제안서 - 상세 (제출 컨펌)" — 굵은 강조. 종이비행기는 버튼 대신 제목 위 아이콘 칸에.
     const ok = await confirm({
-      title: "제안서를 제출하시겠습니까?",
+      title: "기획안을 제출하시겠습니까?",
       description: (
         <>
           관리자 검토 후 <b>맞춤 제안</b> 또는 <b>집행 가능 여부</b>가 안내되며,
-          {"\n"}제출 후에는 제안서 내용을 수정할 수 없습니다.
+          {"\n"}제출 후에는 기획안 내용을 수정할 수 없습니다.
         </>
       ),
       confirmText: "제출하기",
@@ -483,7 +483,7 @@ function ProposalEditorView({ id }: { id: string }) {
       description: (
         <>
           제출이 취소되면 다시 <b>작성 중</b> 상태로 돌아가며,
-          {"\n"}제안서 내용을 수정할 수 있습니다.
+          {"\n"}기획안 내용을 수정할 수 있습니다.
         </>
       ),
       confirmText: "제출 취소하기",
@@ -498,11 +498,11 @@ function ProposalEditorView({ id }: { id: string }) {
 
   const handleDelete = async () => {
     const ok = await confirm({
-      title: "제안서를 삭제하시겠습니까?",
+      title: "기획안을 삭제하시겠습니까?",
       description: (
         <>
           <span className="font-semibold text-[#18181b]">{title}</span>가 내
-          제안서에서 영구히 삭제됩니다.
+          기획안에서 영구히 삭제됩니다.
         </>
       ),
       confirmText: "삭제",
@@ -514,11 +514,11 @@ function ProposalEditorView({ id }: { id: string }) {
     try {
       await deleteMutation.mutateAsync(id);
       // 알림은 화면 전체(Toast.Provider)에 떠서 목록으로 넘어가도 이어서 보인다.
-      deleted("제안서를 삭제했어요", title);
+      deleted("기획안을 삭제했어요", title);
       router.push("/proposals");
     } catch {
       setDeleting(false);
-      error("제안서를 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
+      error("기획안을 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
     }
   };
 
@@ -528,12 +528,12 @@ function ProposalEditorView({ id }: { id: string }) {
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-white/80">
           <Spinner />
           <p className="text-[13px] text-[#8c8c94]">
-            제안서를 삭제하는 중이에요
+            기획안을 삭제하는 중이에요
           </p>
         </div>
       )}
 
-      {/* 머리 — 뒤로 가기·제안서명·수정 / 상태 배지·최종 수정일시, 오른쪽 제출하기. */}
+      {/* 머리 — 뒤로 가기·기획안명·수정 / 상태 배지·최종 수정일시, 오른쪽 제출하기. */}
       <header className="flex shrink-0 items-center justify-between gap-[20px]">
         <div className="flex min-w-0 flex-col gap-[10px]">
           {/* 제목 줄 높이 고정 — 제목 ↔ 이름 수정칸을 오가도 아래 줄이 움직이지 않는다. */}
@@ -541,7 +541,7 @@ function ProposalEditorView({ id }: { id: string }) {
             <button
               type="button"
               onClick={() => router.push("/proposals")}
-              aria-label="내 제안서로 돌아가기"
+              aria-label="내 기획안으로 돌아가기"
               className="shrink-0 rounded-[10px] transition-opacity hover:opacity-80"
             >
               <Image
@@ -552,7 +552,7 @@ function ProposalEditorView({ id }: { id: string }) {
               />
             </button>
             {editing ? (
-              // 이름 수정 — 새 제안서 만들기 창과 같은 HeroUI 입력칸(흰 바탕, 입력 중 보라 1px 테두리).
+              // 이름 수정 — 새 기획안 만들기 창과 같은 HeroUI 입력칸(흰 바탕, 입력 중 보라 1px 테두리).
               // 높이는 제목 줄(24px × 1.4 ≈ 34px)과 같게 해 수정을 눌러도 아래 줄이 움직이지 않는다.
               // 칸 안 오른쪽에 글자 수, 옆에 취소·저장. Enter 저장 / Esc 취소, 칸 밖을 누르면 저장.
               <TextField
@@ -563,7 +563,7 @@ function ProposalEditorView({ id }: { id: string }) {
                 }}
                 isInvalid={!!renameError}
                 maxLength={MAX_TITLE_LENGTH}
-                aria-label="제안서명"
+                aria-label="기획안명"
                 autoFocus
                 className="w-[min(440px,100%)] min-w-0"
               >
@@ -614,7 +614,7 @@ function ProposalEditorView({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={startRename}
-                aria-label="제안서명 수정"
+                aria-label="기획안명 수정"
                 className="shrink-0 transition-opacity hover:opacity-70"
               >
                 <Image
@@ -736,7 +736,7 @@ function ProposalEditorView({ id }: { id: string }) {
               )}
               다운로드
             </HeroButton>
-            {/* 제출 완료(시안)엔 다운로드만 — 제출·계약된 제안서는 지우지 않는다. */}
+            {/* 제출 완료(시안)엔 다운로드만 — 제출·계약된 기획안은 지우지 않는다. */}
             {!locked && (
               <HeroButton
                 variant="ghost"
@@ -763,7 +763,7 @@ function ProposalEditorView({ id }: { id: string }) {
             onAddFromFavorites={() => setAddOpen(true)}
           />
 
-          {/* 미리보기 — 회색 바탕 가운데에 제안서 템플릿 슬라이드. 미리보기 칸의 너비·높이 중 먼저 닿는
+          {/* 미리보기 — 회색 바탕 가운데에 기획안 템플릿 슬라이드. 미리보기 칸의 너비·높이 중 먼저 닿는
               쪽에 맞춰 16:9 그대로 줄이고 늘린다(가로로 넓고 낮은 iPad에서도 잘리거나 스크롤되지 않게).
               서머리는 날짜·수량, 매체 슬라이드는 상품(플랜)을 바로 고칠 수 있다(제출·계약 뒤엔 보기만). */}
           <section className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#f1f5f9] p-[40px]">

@@ -44,12 +44,12 @@ const DEFAULT_SORT: SortDescriptor = {
   direction: "descending",
 };
 
-/** 상태 탭을 골랐는데 해당 제안서가 없을 때 문구. */
+/** 상태 탭을 골랐는데 해당 기획안이 없을 때 문구. */
 const TAB_EMPTY_TITLE: Record<Status, string> = {
-  "작성 중": "작성 중인 제안서가 없어요",
-  "제출 완료": "제출 완료 된 제안서가 없어요",
-  "맞춤 제안": "맞춤 제안 중인 제안서가 없어요",
-  "계약 완료": "계약 완료 된 제안서가 없어요",
+  "작성 중": "작성 중인 기획안이 없어요",
+  "제출 완료": "제출 완료 된 기획안이 없어요",
+  "맞춤 제안": "맞춤 제안 중인 기획안이 없어요",
+  "계약 완료": "계약 완료 된 기획안이 없어요",
 };
 
 function compare(a: Proposal, b: Proposal, key: ProposalSortKey): number {
@@ -58,7 +58,7 @@ function compare(a: Proposal, b: Proposal, key: ProposalSortKey): number {
   return a.createdAtMs - b.createdAtMs;
 }
 
-/** 시안(03. 제안서 / 03. 제안서 - tooltip) — 내 제안서 목록. */
+/** 시안(03. 제안서 / 03. 제안서 - tooltip) — 내 기획안 목록. */
 export function ProposalsView() {
   const router = useRouter();
   const { data, isLoading } = useMyProposals();
@@ -107,7 +107,7 @@ export function ProposalsView() {
       return null;
     } catch (err) {
       if (proposalErrorReason(err) === "duplicate_name") {
-        return "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요.";
+        return "이미 사용 중인 기획안 이름입니다. 다른 이름을 입력해 주세요.";
       }
       const tier = proposalLimitTier(err);
       if (tier) {
@@ -115,15 +115,15 @@ export function ProposalsView() {
         void showLimitDialog(tier);
         return null;
       }
-      return "제안서를 만들지 못했어요. 다시 시도해 주세요.";
+      return "기획안을 만들지 못했어요. 다시 시도해 주세요.";
     }
   };
 
-  // 시안 주석: 삭제 전에 "{제안서명}을 삭제하시겠습니까?" 확인창.
+  // 시안 주석: 삭제 전에 "{기획안명}을 삭제하시겠습니까?" 확인창.
   const handleDelete = async (proposal: Proposal) => {
     const ok = await confirmDelete({
-      title: `'${proposal.title}' 제안서를 삭제하시겠습니까?`,
-      description: "삭제한 제안서는 내 제안서에서 사라집니다.",
+      title: `'${proposal.title}' 기획안을 삭제하시겠습니까?`,
+      description: "삭제한 기획안은 내 기획안에서 사라집니다.",
       confirmText: "삭제",
       destructive: true,
     });
@@ -131,9 +131,9 @@ export function ProposalsView() {
     // 회원 정보 저장처럼 결과를 화면 위 알림(HeroUI Toast)으로 알린다.
     try {
       await deleteMutation.mutateAsync(proposal.id);
-      deleted("제안서를 삭제했어요", proposal.title);
+      deleted("기획안을 삭제했어요", proposal.title);
     } catch {
-      toastError("제안서를 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
+      toastError("기획안을 삭제하지 못했어요", "잠시 후 다시 시도해 주세요.");
     }
   };
 
@@ -142,7 +142,7 @@ export function ProposalsView() {
       await confirm({
         title: "로그인 후 다운로드 할 수 있어요.",
         description:
-          "제안서 다운로드는 회원 전용 기능이에요.\n로그인 후 제안서를 저장하고 관리해 보세요.",
+          "기획안 다운로드는 회원 전용 기능이에요.\n로그인 후 기획안을 저장하고 관리해 보세요.",
         confirmText: "로그인 화면으로",
       });
       return;
@@ -154,7 +154,7 @@ export function ProposalsView() {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${proposal.title || "제안서"}.pptx`;
+      a.download = `${proposal.title || "기획안"}.pptx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -185,18 +185,18 @@ export function ProposalsView() {
     ) : proposals.length === 0 ? (
       <EmptyStateBox
         icon={<CollectionIcon className="size-[24px]" />}
-        title="아직 제안서가 없어요"
+        title="아직 기획안이 없어요"
         description={
           <>
-            오른쪽 위 &apos;새 제안서&apos;를 눌러
-            <br />첫 제안서를 만들어 보세요
+            오른쪽 위 &apos;새 기획안&apos;를 눌러
+            <br />첫 기획안을 만들어 보세요
           </>
         }
       ></EmptyStateBox>
     ) : (
       <EmptyStateBox
         icon={<SearchOutlineIcon className="size-[22px]" />}
-        title="조건에 맞는 제안서가 없어요"
+        title="조건에 맞는 기획안이 없어요"
         description="다른 검색어를 입력하거나 상태 탭을 바꿔 보세요"
       >
         <Button
@@ -214,10 +214,10 @@ export function ProposalsView() {
       <div className="flex items-center justify-between gap-[12px]">
         <div className="flex flex-col gap-[5px]">
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
-            내 제안서
+            내 기획안
           </h1>
           <p className="text-[13px] font-light text-[#6b7280]">
-            제안서 {proposals.length}건
+            기획안 {proposals.length}건
             {/* 모바일(sm 미만)에서는 설명 문구를 숨긴다. */}
             <span className="hidden sm:inline">
               {" "}
@@ -232,7 +232,7 @@ export function ProposalsView() {
           onPress={() => setCreateOpen(true)}
           className="shrink-0 rounded-[17px] md:rounded-[15px]"
         >
-          <PlusIcon />새 제안서
+          <PlusIcon />새 기획안
         </Button>
       </div>
 
@@ -250,7 +250,7 @@ export function ProposalsView() {
         >
           {/* 곡률 규칙(높이/2 - 3px): 틀 40px → 17px, 탭·선택 표시 32px → 13px. 나머지는 HeroUI 기본. */}
           <Tabs.ListContainer className="w-fit max-w-full rounded-[17px]">
-            <Tabs.List aria-label="제안서 상태">
+            <Tabs.List aria-label="기획안 상태">
               {TABS.map((tab) => (
                 <Tabs.Tab
                   key={tab}
@@ -268,7 +268,7 @@ export function ProposalsView() {
         {/* 검색 40px → 곡률 17px. 매체 찾기 검색바와 같은 회색 칸.
             포커스 표시는 HeroUI 기본 2px 링 대신 테두리 색만 바꾼 1px. */}
         <SearchField
-          aria-label="제안서 검색"
+          aria-label="기획안 검색"
           value={query}
           onChange={(value) => {
             setQuery(value);
@@ -279,7 +279,7 @@ export function ProposalsView() {
           <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-black-200 bg-black-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
             <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
             <SearchField.Input
-              placeholder="제안서명으로 검색해 보세요"
+              placeholder="기획안명으로 검색해 보세요"
               className="px-0 text-[14px] placeholder:text-[#a1a1aa]"
             />
             {/* HeroUI 기본 me-2를 빼서 좌우 여백을 칸의 px-[12px]로 맞춘다. */}
@@ -298,7 +298,7 @@ export function ProposalsView() {
           setPage(1);
         }}
         onOpen={(proposal) => {
-          // 제안서 상세(편집)는 모바일에서 지원하지 않는다 — 이동하지 않고 안내만 띄운다(639px 이하).
+          // 기획안 상세(편집)는 모바일에서 지원하지 않는다 — 이동하지 않고 안내만 띄운다(639px 이하).
           if (window.matchMedia("(max-width: 639px)").matches) {
             void confirmDelete({
               title: "해당 기능은 모바일에서 지원되지 않습니다.",

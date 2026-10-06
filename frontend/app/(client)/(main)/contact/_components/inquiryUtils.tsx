@@ -16,7 +16,7 @@ export function formatDateTime(
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${time}`;
 }
 
-/** 답변 상태 — 제안서 상태 배지와 같은 점 + 글자 모양. 높이 22px → 곡률 8px. */
+/** 답변 상태 — 기획안 상태 배지와 같은 점 + 글자 모양. 높이 22px → 곡률 8px. */
 export function InquiryStatusChip({ status }: { status: string }) {
   const answered = status === "answered";
   return (
@@ -40,7 +40,7 @@ export function InquiryStatusChip({ status }: { status: string }) {
   );
 }
 
-/** 비었을 때 — 제안서 목록의 빈 상태와 같은 모양(HeroUI EmptyState), 아이콘 칸만 회색. 탭 아래 남는 높이를 꽉 채운다(flex-1). */
+/** 비었을 때 — 기획안 목록의 빈 상태와 같은 모양(HeroUI EmptyState), 아이콘 칸만 회색. 탭 아래 남는 높이를 꽉 채운다(flex-1). */
 export function ContactEmptyState({
   icon,
   title,

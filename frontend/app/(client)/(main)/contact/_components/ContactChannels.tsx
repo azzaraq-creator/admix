@@ -157,7 +157,7 @@ function ChannelCard({
   children: ReactNode;
 }) {
   return (
-    // 카드 곡률 20px — 매체 정보 팝업·제안서 담기 창과 같다.
+    // 카드 곡률 20px — 매체 정보 팝업·기획안 담기 창과 같다.
     // 3칸일 때(카드 폭 280px 안팎)는 안쪽 여백을 20px로 줄여 머리 줄(아이콘·제목·배지)이 한 줄에 들어가게 한다.
     <Card className="gap-[20px] rounded-[20px] border border-[#ececef] p-[24px] shadow-[0_6px_20px_-8px_rgba(24,24,27,0.10)] @[880px]:p-[20px]">
       {/* 아이콘 옆에 제목·설명, 배지는 머리 줄 오른쪽 끝(위쪽 맞춤). */}

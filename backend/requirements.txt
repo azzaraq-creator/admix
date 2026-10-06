@@ -31,7 +31,7 @@ alembic>=1.13,<2
 # Excel import (scripts/import_media.py)
 openpyxl>=3.1
 
-# 제안서 PPT 생성 (python-pptx 템플릿 채우기)
+# 기획안 PPT 생성 (python-pptx 템플릿 채우기)
 python-pptx>=1.0
 
 # AWS (SQS enqueue — 비동기 AI 추천 job)

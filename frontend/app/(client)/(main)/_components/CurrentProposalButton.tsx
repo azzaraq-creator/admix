@@ -20,7 +20,7 @@ import {
 } from "./CurrentProposalPanel";
 
 /**
- * 담기 알림 말풍선 — 버튼을 화살표로 가리키며 "OOO 제안서에 담았습니다" + 매체명을 잠깐 보여 준다.
+ * 담기 알림 말풍선 — 버튼을 화살표로 가리키며 "OOO 기획안에 담았습니다" + 매체명을 잠깐 보여 준다.
  * 화면을 막지 않고(isNonModal) 포커스도 가져가지 않는다. 누르면 패널을 연다.
  */
 function ProposalCallout({
@@ -105,11 +105,11 @@ function CountBadge({
 const won = (value: number) => `${value.toLocaleString()}원`;
 
 /**
- * "현재 제안서"(매체를 담으면 들어가는 제안서) 패널을 여는 버튼.
- * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 제안서명·매체 수·총 광고비가 보여 열지 않아도
+ * "현재 기획안"(매체를 담으면 들어가는 기획안) 패널을 여는 버튼.
+ * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 기획안명·매체 수·총 광고비가 보여 열지 않아도
  *   지금 상태를 안다. 사이드바가 접히면 아이콘 + 배지만 남는다.
  * - header: 모바일 헤더 오른쪽 아이콘 버튼.
- * 아이콘은 사이드바 "제안서" 메뉴와 겹치지 않게 쇼핑백(BagIcon).
+ * 아이콘은 사이드바 "기획안" 메뉴와 겹치지 않게 쇼핑백(BagIcon).
  */
 export function CurrentProposalButton({
   variant,
@@ -185,7 +185,7 @@ export function CurrentProposalButton({
           </span>
         </button>
       ) : (
-        // 요약 카드(곡률 16px) — 이름표·제안서명·매체 수·총 광고비. 메뉴 줄과 달리 테두리 있는 카드.
+        // 요약 카드(곡률 16px) — 이름표·기획안명·매체 수·총 광고비. 메뉴 줄과 달리 테두리 있는 카드.
         <button
           ref={buttonRef}
           type="button"
@@ -208,7 +208,7 @@ export function CurrentProposalButton({
               <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-black-400" />
             </span>
             {isLoading ? (
-              // 제안서 목록 불러오는 중 — "매체를 담으면…"이 잠깐 보였다 바뀌지 않게.
+              // 기획안 목록 불러오는 중 — "매체를 담으면…"이 잠깐 보였다 바뀌지 않게.
               <span
                 role="status"
                 aria-label="불러오는 중"

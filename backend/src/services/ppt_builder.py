@@ -1,4 +1,4 @@
-"""제안서 PPT 생성 — python-pptx 로 슬라이드 레이아웃을 코드로 구성하고 데이터를 채운다.
+"""기획안 PPT 생성 — python-pptx 로 슬라이드 레이아웃을 코드로 구성하고 데이터를 채운다.
 
 프론트 React 슬라이드(components/proposals/*Template.tsx)의 1920x1080 디자인을
 근사 재현한다. 슬라이드 순서: 표지 → 서머리(매체 5개씩) → 매체별 → Thanks.
@@ -225,9 +225,9 @@ def build_cover(prs, detail: dict) -> None:
     _bg_pattern(slide)
     year, date = _year_date(detail.get("updated_at"))
     _rect(slide, _px(80), _px(80), _px(740), _px(24), WHITE)
-    _text(slide, _px(80), _px(140), _px(1200), _px(320), "ADMIX\n제안서",
+    _text(slide, _px(80), _px(140), _px(1200), _px(320), "ADMIX\n기획안",
           size=120, color=WHITE, bold=True)
-    _text(slide, _px(80), _px(800), _px(1700), _px(160), f"광고 제안서_{year}",
+    _text(slide, _px(80), _px(800), _px(1700), _px(160), f"광고 기획안_{year}",
           size=120, color=WHITE, bold=True)
     _text(slide, _px(80), _px(980), _px(1700), _px(70), date,
           size=48, color=RGBColor(0xCC, 0xCC, 0xCC))
@@ -246,7 +246,7 @@ def _pos(value) -> int:
 
 
 def _ad_mult(it: dict) -> int:
-    """광고비에 곱하는 값 — 수량 × 개월 수(제안서 금액 규칙과 같다)."""
+    """광고비에 곱하는 값 — 수량 × 개월 수(기획안 금액 규칙과 같다)."""
     return _pos(it.get("quantity")) * _pos(it.get("months"))
 
 

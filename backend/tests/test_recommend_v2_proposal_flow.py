@@ -1,4 +1,4 @@
-"""recommend_v2 챗 제안서 멀티턴 플로우 — 생성→이름→추가(Figma 시나리오).
+"""recommend_v2 챗 기획안 멀티턴 플로우 — 생성→이름→추가(Figma 시나리오).
 
 의도 분류 LLM 은 monkeypatch. DB 는 실제 postgres. 비회원 세션 소유로 검증.
 """
@@ -84,22 +84,22 @@ def test_proposal_create_then_add_flow(db, session, monkeypatch):
     ]
     sid = str(session.id)
 
-    # 턴1: "1,2번으로 제안서 만들어줘" → 이름 미지정 create + indices
+    # 턴1: "1,2번으로 기획안 만들어줘" → 이름 미지정 create + indices
     monkeypatch.setattr(v2, "classify_intent", lambda *_a, **_k: "PROPOSAL")
     monkeypatch.setattr(
         v2,
         "resolve_proposal_via_tools",
         lambda *_a, **_k: v2.ProposalIntent(action="create", media_indices=[1, 2]),
     )
-    events, ctx = _drive("1번 2번 매체로 제안서를 만들어줘", sid, {"last_items": last_items})
-    assert any("제안서 이름" in (e.get("message") or "") for e in events)
+    events, ctx = _drive("1번 2번 매체로 기획안을 만들어줘", sid, {"last_items": last_items})
+    assert any("기획안 이름" in (e.get("message") or "") for e in events)
     assert ctx.get("pending_proposal", {}).get("stage") == "await_name"
 
     # 턴2: 이름 입력 → 생성 완료 + 매체 추가 확인 카드(count 0)
-    events, ctx = _drive("제안서1로 생성해줘", sid, ctx)
+    events, ctx = _drive("기획안1로 생성해줘", sid, ctx)
     proposal_evt = next((e for e in events if e.get("type") == "proposal"), None)
     assert proposal_evt is not None
-    assert proposal_evt["proposal"]["name"] == "제안서1로 생성해줘"[:300] or proposal_evt[
+    assert proposal_evt["proposal"]["name"] == "기획안1로 생성해줘"[:300] or proposal_evt[
         "proposal"
     ]["name"]
     assert proposal_evt["proposal"]["media_count"] == 0
@@ -129,7 +129,7 @@ def test_proposal_intent_no_tool_asks_back_not_rerecommend(db, session, monkeypa
         v2, "resolve_proposal_via_tools", lambda *_a, **_k: v2.ProposalIntent(action="none")
     )
 
-    events, _ctx = _drive("제안서담기", sid, {"last_items": last_items})
+    events, _ctx = _drive("기획안담기", sid, {"last_items": last_items})
 
     assert all(e.get("type") == "chat" for e in events), [e.get("type") for e in events]
     assert any("번호" in (e.get("message") or "") for e in events)

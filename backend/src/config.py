@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     embed_dim: int = 1536
 
     frontend_url: str = "http://localhost:3000"
-    geoapify_api_key: str = ""  # 제안서 PPT 매체 슬라이드 정적지도용 (Geoapify Static Maps)
+    geoapify_api_key: str = ""  # 기획안 PPT 매체 슬라이드 정적지도용 (Geoapify Static Maps)
     port: int = 8000
 
     # 비동기 AI 추천 (SQS + Lambda)

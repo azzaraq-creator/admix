@@ -840,14 +840,14 @@ async def _iter_explain_event_data(
     }
 
 
-# ===== 제안서(장바구니/플래닝) 의도 분기 =====
+# ===== 기획안(장바구니/플래닝) 의도 분기 =====
 
 
 class ProposalIntent(BaseModel):
-    """발화의 제안서 작업 분류."""
+    """발화의 기획안 작업 분류."""
 
     action: Literal["create", "add_media", "rename", "none"] = "none"
-    name: Optional[str] = None  # create 시 지정한 제안서 이름
+    name: Optional[str] = None  # create 시 지정한 기획안 이름
     new_name: Optional[str] = None  # rename 대상 이름
     media_indices: list[int] = Field(default_factory=list)  # 1-based, 직전 리스트 기준
 
@@ -886,11 +886,11 @@ def _media_ids_from_indices(last_items: list[dict], indices: list[int]) -> list[
 def _proposal_limit_message(tier: str, limit: int) -> str:
     if tier == "guest":
         return (
-            "무료 체험 제안서 1건을 모두 사용했어요. "
-            "로그인하면 더 많은 제안서를 만들고 관리할 수 있어요 😊"
+            "무료 체험 기획안 1건을 모두 사용했어요. "
+            "로그인하면 더 많은 기획안을 만들고 관리할 수 있어요 😊"
         )
     return (
-        f"제안서 생성 한도 {limit}건을 모두 사용했어요. "
+        f"기획안 생성 한도 {limit}건을 모두 사용했어요. "
         "사업자 인증을 완료하면 무제한으로 이용할 수 있어요 😊"
     )
 
@@ -990,7 +990,7 @@ async def _event_stream(
         last_items = (
             prev_context.get("last_items") if isinstance(prev_context, dict) else None
         )
-        # 제안서(장바구니) 상태 — 슬롯 저장 시 유실 방지를 위해 save 래퍼가 보존.
+        # 기획안(장바구니) 상태 — 슬롯 저장 시 유실 방지를 위해 save 래퍼가 보존.
         active_proposal_id = (
             prev_context.get("active_proposal_id") if isinstance(prev_context, dict) else None
         )
@@ -1013,7 +1013,7 @@ async def _event_stream(
             _orig_save(merged)
 
         # ─────────────────────────────────────────────────────────
-        # 0) 제안서 멀티턴 진행중(pending_proposal) 우선 처리
+        # 0) 기획안 멀티턴 진행중(pending_proposal) 우선 처리
         # ─────────────────────────────────────────────────────────
         if pending_proposal and isinstance(pending_proposal, dict):
             stage = pending_proposal.get("stage")
@@ -1027,7 +1027,7 @@ async def _event_stream(
                     save_filter_context_fn({**prev_slots, "pending_change": None, "pending_proposal": None})
                     yield emit({
                         "type": "chat",
-                        "message": "제안서 생성을 취소했어요. 다른 도움이 필요하면 말씀해주세요 😊",
+                        "message": "기획안 생성을 취소했어요. 다른 도움이 필요하면 말씀해주세요 😊",
                         "previous_context": prev_slots,
                         "previous_context_detail": _enrich_context(prev_slots, desc_map),
                     })
@@ -1035,7 +1035,7 @@ async def _event_stream(
                     yield "event: done\ndata: {}\n\n"
                     return
 
-                title = message.strip()[:300] or "새 제안서"
+                title = message.strip()[:300] or "새 기획안"
                 try:
                     proposal = await _run_sync_in_thread(
                         _create_proposal_sync, db, title, member_id, owner_sid, owner_user
@@ -1065,14 +1065,14 @@ async def _event_stream(
                     save_filter_context_fn({**prev_slots, "pending_change": None})
                     yield emit(_proposal_card_payload(
                         proposal, prev_slots, desc_map,
-                        "제안서 생성 완료! 해당 제안서에 매체를 추가할까요?",
+                        "기획안 생성 완료! 해당 기획안에 매체를 추가할까요?",
                     ))
                 else:
                     _carry["pending_proposal"] = None
                     save_filter_context_fn({**prev_slots, "pending_change": None})
                     yield emit(_proposal_card_payload(
                         proposal, prev_slots, desc_map,
-                        "제안서 생성 완료! 추천 매체를 담아보세요 😊",
+                        "기획안 생성 완료! 추천 매체를 담아보세요 😊",
                     ))
                 finalize()
                 yield "event: done\ndata: {}\n\n"
@@ -1095,7 +1095,7 @@ async def _event_stream(
                     return
                 if _is_yes(message):
                     media_ids = _media_ids_from_indices(last_items or [], media_indices)
-                    # proposal_id 가 잔재/무효면 현재 세션 최근 제안서로 폴백.
+                    # proposal_id 가 잔재/무효면 현재 세션 최근 기획안으로 폴백.
                     target = await _run_sync_in_thread(
                         _get_active_or_latest, db, proposal_id, member_id, owner_sid
                     )
@@ -1111,7 +1111,7 @@ async def _event_stream(
                         save_filter_context_fn({**prev_slots, "pending_change": None})
                         yield emit({
                             "type": "chat",
-                            "message": "담을 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
+                            "message": "담을 기획안을 찾지 못했어요. 먼저 기획안을 만들어 주세요 😊",
                             "previous_context": prev_slots,
                             "previous_context_detail": _enrich_context(prev_slots, desc_map),
                         })
@@ -1120,7 +1120,7 @@ async def _event_stream(
                         save_filter_context_fn({**prev_slots, "pending_change": None})
                         yield emit(_proposal_card_payload(
                             proposal, prev_slots, desc_map,
-                            "제안서 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
+                            "기획안 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
                         ))
                     finalize()
                     yield "event: done\ndata: {}\n\n"
@@ -1227,13 +1227,13 @@ async def _event_stream(
             return
 
         # ─────────────────────────────────────────────────────────
-        # 1.3) PROPOSAL — bind_tools 리졸버로 제안서 작업 판정
+        # 1.3) PROPOSAL — bind_tools 리졸버로 기획안 작업 판정
         # ─────────────────────────────────────────────────────────
         intent = ProposalIntent()
         if intent_label == "PROPOSAL":
             # 소유자 먼저 계산 → active_proposal_id 가 없으면 현재 세션의 최근
-            # 제안서를 활성으로 보충한다. 챗봇 밖('내 제안서' 페이지)에서 만든
-            # 제안서도 세션(session_id) 소유이므로 챗봇이 인식하도록.
+            # 기획안을 활성으로 보충한다. 챗봇 밖('내 기획안' 페이지)에서 만든
+            # 기획안도 세션(session_id) 소유이므로 챗봇이 인식하도록.
             member_id, owner_sid, owner_user = await _run_sync_in_thread(
                 _proposal_owner_for_session, db, session_id
             )
@@ -1248,7 +1248,7 @@ async def _event_stream(
             )
         if intent.action in ("create", "add_media", "rename"):
 
-            # rename — 활성/최근 제안서 이름 변경
+            # rename — 활성/최근 기획안 이름 변경
             if intent.action == "rename":
                 proposal = await _run_sync_in_thread(
                     _get_active_or_latest, db, active_proposal_id, member_id, owner_sid
@@ -1256,7 +1256,7 @@ async def _event_stream(
                 if proposal is None or not intent.new_name:
                     yield emit({
                         "type": "chat",
-                        "message": "이름을 변경할 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
+                        "message": "이름을 변경할 기획안을 찾지 못했어요. 먼저 기획안을 만들어 주세요 😊",
                         "previous_context": prev_slots,
                         "previous_context_detail": _enrich_context(prev_slots, desc_map),
                     })
@@ -1268,7 +1268,7 @@ async def _event_stream(
                     save_filter_context_fn({**prev_slots, "pending_change": None})
                     yield emit(_proposal_card_payload(
                         proposal, prev_slots, desc_map,
-                        f"제안서 이름을 '{proposal.title}'(으)로 변경했어요.",
+                        f"기획안 이름을 '{proposal.title}'(으)로 변경했어요.",
                     ))
                 finalize()
                 yield "event: done\ndata: {}\n\n"
@@ -1276,7 +1276,7 @@ async def _event_stream(
 
             indices = intent.media_indices or []
 
-            # add_media — 활성 제안서가 있으면 바로 담기
+            # add_media — 활성 기획안이 있으면 바로 담기
             if intent.action == "add_media" and active_proposal_id:
                 media_ids = _media_ids_from_indices(last_items or [], indices)
                 if not media_ids:
@@ -1288,7 +1288,7 @@ async def _event_stream(
                     })
                 else:
                     # active_proposal_id 가 잔재/무효(다른 소유·삭제)면 현재
-                    # 세션의 최근 제안서로 폴백해 담는다(막다른 에러 방지).
+                    # 세션의 최근 기획안으로 폴백해 담는다(막다른 에러 방지).
                     target = await _run_sync_in_thread(
                         _get_active_or_latest, db, active_proposal_id, member_id, owner_sid
                     )
@@ -1302,7 +1302,7 @@ async def _event_stream(
                     if proposal is None:
                         yield emit({
                             "type": "chat",
-                            "message": "담을 제안서를 찾지 못했어요. 먼저 제안서를 만들어 주세요 😊",
+                            "message": "담을 기획안을 찾지 못했어요. 먼저 기획안을 만들어 주세요 😊",
                             "previous_context": prev_slots,
                             "previous_context_detail": _enrich_context(prev_slots, desc_map),
                         })
@@ -1311,13 +1311,13 @@ async def _event_stream(
                         save_filter_context_fn({**prev_slots, "pending_change": None})
                         yield emit(_proposal_card_payload(
                             proposal, prev_slots, desc_map,
-                            "제안서 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
+                            "기획안 추가 완료! 다른 작업이 필요하시면 말씀해주세요.",
                         ))
                 finalize()
                 yield "event: done\ndata: {}\n\n"
                 return
 
-            # create (또는 활성 제안서 없는 add_media)
+            # create (또는 활성 기획안 없는 add_media)
             if intent.name:
                 try:
                     proposal = await _run_sync_in_thread(
@@ -1344,13 +1344,13 @@ async def _event_stream(
                     save_filter_context_fn({**prev_slots, "pending_change": None})
                     yield emit(_proposal_card_payload(
                         proposal, prev_slots, desc_map,
-                        "제안서 생성 완료! 해당 제안서에 매체를 추가할까요?",
+                        "기획안 생성 완료! 해당 기획안에 매체를 추가할까요?",
                     ))
                 else:
                     save_filter_context_fn({**prev_slots, "pending_change": None})
                     yield emit(_proposal_card_payload(
                         proposal, prev_slots, desc_map,
-                        "제안서 생성 완료! 추천 매체를 담아보세요 😊",
+                        "기획안 생성 완료! 추천 매체를 담아보세요 😊",
                     ))
                 finalize()
                 yield "event: done\ndata: {}\n\n"
@@ -1361,7 +1361,7 @@ async def _event_stream(
             save_filter_context_fn({**prev_slots, "pending_change": None})
             yield emit({
                 "type": "chat",
-                "message": "보유중인 제안서가 없어요. 새 제안서 생성을 위해 제안서 이름을 입력해주세요.",
+                "message": "보유중인 기획안이 없어요. 새 기획안 생성을 위해 기획안 이름을 입력해주세요.",
                 "previous_context": prev_slots,
                 "previous_context_detail": _enrich_context(prev_slots, desc_map),
             })
@@ -1373,11 +1373,11 @@ async def _event_stream(
         if intent_label == "PROPOSAL":
             save_filter_context_fn({**prev_slots, "pending_change": None})
             if last_items:
-                msg = "제안서에 담을 매체 번호를 추천 목록에서 알려주세요 😊 (예: '1번 3번 담아줘')"
+                msg = "기획안에 담을 매체 번호를 추천 목록에서 알려주세요 😊 (예: '1번 3번 담아줘')"
             else:
                 msg = (
                     "먼저 매체를 추천받은 뒤 번호로 담아주세요 😊 "
-                    "새 제안서가 필요하면 '제안서 만들어줘'라고 해주세요."
+                    "새 기획안이 필요하면 '기획안 만들어줘'라고 해주세요."
                 )
             yield emit({
                 "type": "chat",

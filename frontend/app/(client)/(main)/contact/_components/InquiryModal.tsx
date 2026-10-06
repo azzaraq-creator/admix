@@ -42,7 +42,7 @@ const TEXTAREA_CLASS = cn(
 const LABEL_CLASS = "text-[13px] font-medium text-black-700 max-sm:text-[12px]";
 const ERROR_CLASS = "text-[12px] text-danger max-sm:text-[11px]";
 
-// 하단 버튼 — 매체 정보·제안서에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
+// 하단 버튼 — 매체 정보·기획안에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
 const ACTION_CLASS =
   "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
 
@@ -304,7 +304,7 @@ function InquiryForm({
 }
 
 /**
- * 문의하기 — HeroUI Modal. 모양은 ADMIX 팝업(매체 정보·제안서에 담기)과 같다:
+ * 문의하기 — HeroUI Modal. 모양은 ADMIX 팝업(매체 정보·기획안에 담기)과 같다:
  * 모서리 20px, 회색 원형 닫기, 16px 제목 + 12px 설명, 회색 입력칸, 오른쪽 아래 취소/제출.
  * 본문은 "보내는 사람"(2×2)과 "문의 내용"(제목·내용 전체 폭) 두 섹션을 구분선으로 나눈다.
  */

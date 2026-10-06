@@ -24,7 +24,7 @@ type ConfirmOptions = {
   /** 아이콘 칸 색 — primary면 연보라 바탕(아이콘도 메인 컬러로 넘긴다). 기본은 회색. */
   iconTone?: "neutral" | "primary";
   /**
-   * 제안서 제출·제출 취소 시안("03. 제안서 - 상세" 컨펌) 모양 — 설명 16px 진회색, 버튼은 오른쪽에
+   * 기획안 제출·제출 취소 시안("03. 제안서 - 상세" 컨펌) 모양 — 설명 16px 진회색, 버튼은 오른쪽에
    * 내용 폭(취소 90px · 확인 130px)으로 붙인다. width로 창 폭을 정한다(기본 400px).
    */
   compactActions?: boolean;
@@ -33,13 +33,13 @@ type ConfirmOptions = {
   neutral?: boolean;
 };
 
-// 버튼 — 매체 정보·제안서에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
+// 버튼 — 매체 정보·기획안에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
 const ACTION_CLASS =
   "h-auto min-w-0 flex-1 rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
 
 /**
  * 확인창 — useConfirm과 같은 사용법(`await confirm({...})` → true/false)을 HeroUI Modal로.
- * 모양은 ADMIX 팝업(매체 정보·제안서에 담기)과 같다: 모서리 20px, 회색 원형 닫기, 16px 제목.
+ * 모양은 ADMIX 팝업(매체 정보·기획안에 담기)과 같다: 모서리 20px, 회색 원형 닫기, 16px 제목.
  */
 export function useModalConfirm() {
   const [open, setOpen] = useState(false);

@@ -6,9 +6,9 @@ import type { V2ProposalRef } from "@/hooks/adRecommendReact";
 import { cn } from "@/lib/utils";
 
 /**
- * 믹시가 "어느 제안서에 담을까요?"라고 되물을 때의 제안서 고르기 목록.
- * 믹시 제안서 카드(ProposalCard)·현재 제안서 패널과 같은 흰 카드 — 제안서 아이콘(흰 칸·짙은 회색),
- * 제안서명, 매체 수, 오른쪽 화살표. 누르는 동안 그 줄에 스피너를 띄우고 다른 줄은 잠근다.
+ * 믹시가 "어느 기획안에 담을까요?"라고 되물을 때의 기획안 고르기 목록.
+ * 믹시 기획안 카드(ProposalCard)·현재 기획안 패널과 같은 흰 카드 — 기획안 아이콘(흰 칸·짙은 회색),
+ * 기획안명, 매체 수, 오른쪽 화살표. 누르는 동안 그 줄에 스피너를 띄우고 다른 줄은 잠근다.
  */
 export function ProposalChoiceList({
   proposals,
@@ -44,7 +44,7 @@ export function ProposalChoiceList({
               pendingId != null && !pending && "opacity-50",
             )}
           >
-            {/* 아이콘 칸 34px → 곡률 13px — 현재 제안서 패널의 제안서 선택 칸과 같은 모양. */}
+            {/* 아이콘 칸 34px → 곡률 13px — 현재 기획안 패널의 기획안 선택 칸과 같은 모양. */}
             <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[13px] border border-[#ececef] bg-white text-black-700">
               <CollectionIcon className="size-[17px]" />
             </span>

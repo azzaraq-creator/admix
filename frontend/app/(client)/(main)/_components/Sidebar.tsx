@@ -56,7 +56,7 @@ const MENU_ITEMS: MenuItem[] = [
   },
   {
     key: "proposals",
-    label: "제안서",
+    label: "기획안",
     Icon: CollectionIcon,
     href: "/proposals",
   },
@@ -273,7 +273,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
-            {/* 현재 제안서 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
+            {/* 현재 기획안 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
             <div className="mb-[12px] max-sm:hidden">
               <CurrentProposalButton variant="sidebar" collapsed={collapsed} />
             </div>

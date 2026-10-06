@@ -44,7 +44,7 @@ function effectiveQty(quantity: number | null | undefined): number {
   return quantity && quantity > 0 ? quantity : 1;
 }
 
-// 금액 규칙(백엔드 제안서 합계·PPT와 같다): 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
+// 금액 규칙(백엔드 기획안 합계·PPT와 같다): 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
 function adAmount(item: ProposalItem): number | null {
   if (item.price == null) return null;
   return item.price * effectiveQty(item.quantity) * effectiveQty(item.months);

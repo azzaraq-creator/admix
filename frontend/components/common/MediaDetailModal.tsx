@@ -71,7 +71,7 @@ export function MediaDetailModal({
   mediaId: string;
   onClose: () => void;
   /**
-   * 제안서 담기 — 부모가 이 모달을 연 채로 담기 모달(AddToProposalModal)을 위에 띄운다.
+   * 기획안 담기 — 부모가 이 모달을 연 채로 담기 모달(AddToProposalModal)을 위에 띄운다.
    * 담기 모달도 HeroUI Modal이라 react-aria가 모달 겹침(포커스·바깥 클릭)을 알아서 처리한다.
    */
   onAddProposal?: (
@@ -81,7 +81,7 @@ export function MediaDetailModal({
   ) => void;
 }) {
   const { vm } = useMediaDetailViewModel(mediaId);
-  // 상품·개월 수·제작 수 — 가격 칸 금액과 "제안서 담기"에 같이 쓴다.
+  // 상품·개월 수·제작 수 — 가격 칸 금액과 "기획안 담기"에 같이 쓴다.
   const [options, setOptions] = useState<MediaOptionsValue>(
     DEFAULT_MEDIA_OPTIONS,
   );
@@ -118,7 +118,7 @@ export function MediaDetailModal({
                 매체 정보
               </p>
               <p className="truncate text-[12px] text-[#888] max-sm:hidden">
-                매체 상세 정보를 확인하고 제안서에 담을 수 있습니다.
+                매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
               </p>
             </div>
 
@@ -158,7 +158,7 @@ export function MediaDetailModal({
 }
 
 /**
- * 매체 정보 본문만 — 팝업 틀 없이 다른 화면(제안서 상세의 매체 슬라이드 자리 등)에 끼워 쓴다.
+ * 매체 정보 본문만 — 팝업 틀 없이 다른 화면(기획안 상세의 매체 슬라이드 자리 등)에 끼워 쓴다.
  * 사진·이름·주소·칩·가격·설명·유동인구·스펙(모바일은 탭)을 팝업과 똑같이 보여 준다.
  */
 export function MediaDetailInfo({ mediaId }: { mediaId: string }) {
@@ -204,7 +204,7 @@ type OptionsControl = {
 
 /**
  * options가 있으면(매체 정보 팝업) 상품·개월 수·제작 수를 고르고 가격 칸이 그 금액으로 바뀐다.
- * 없으면(제안서 슬라이드 자리 등) 기존처럼 단가만 보여 준다.
+ * 없으면(기획안 슬라이드 자리 등) 기존처럼 단가만 보여 준다.
  */
 function MediaDetailBody({
   vm,
@@ -398,7 +398,7 @@ function MobileDetailTabs({
   );
 }
 
-/** 닫기·관심 매체·제안서 담기. 모바일은 세 버튼이 폭을 나눠 채운다. */
+/** 닫기·관심 매체·기획안 담기. 모바일은 세 버튼이 폭을 나눠 채운다. */
 function DetailActions({
   liked,
   onLikedChange: setLiked,
@@ -457,7 +457,7 @@ function DetailActions({
         )}
       >
         <FolderAddIcon className="size-[16px] shrink-0 text-[#fafafa] max-sm:size-[14px]" />
-        제안서 담기
+        기획안 담기
       </Button>
     </>
   );
@@ -531,7 +531,7 @@ function ImageGallery({ images }: { images: string[] }) {
   );
 }
 
-/** 가격 칸(단가) — 옵션 없이 끼워 쓰는 곳(제안서 슬라이드 자리 등). */
+/** 가격 칸(단가) — 옵션 없이 끼워 쓰는 곳(기획안 슬라이드 자리 등). */
 function PriceBox({ vm }: { vm: MediaDetailViewModel }) {
   return (
     <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]">

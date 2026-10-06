@@ -108,7 +108,7 @@ const LOGIN_REQUIRED = "로그인 후 이용할 수 있어요";
 
 /**
  * 비회원의 문의 내역 탭 글자 — 왜 못 누르는지 알려 준다.
- * PC(sm 이상)는 마우스를 올리면 Tooltip, 모바일은 hover가 없어 누르면 Popover(제안서 목록의 요약 툴팁과 같은 방식).
+ * PC(sm 이상)는 마우스를 올리면 Tooltip, 모바일은 hover가 없어 누르면 Popover(기획안 목록의 요약 툴팁과 같은 방식).
  */
 function DisabledTabLabel({ label }: { label: string }) {
   return (
@@ -193,7 +193,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
     // 본문이 남는 높이를 채워, 내용이 짧아도 Footer가 화면 바닥에 붙는다.
     <div className="flex min-h-full w-full flex-col">
       <div className="flex w-full flex-1 flex-col gap-[20px] p-[16px] sm:px-[20px]">
-        {/* 머리글 — 제안서 목록과 같은 제목·설명 크기. */}
+        {/* 머리글 — 기획안 목록과 같은 제목·설명 크기. */}
         <div className="flex flex-col gap-[5px]">
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
             문의하기
@@ -204,7 +204,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
         </div>
 
         <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
-          {/* HeroUI Tabs — 제안서 목록 탭과 같은 모양.
+          {/* HeroUI Tabs — 기획안 목록 탭과 같은 모양.
             곡률 규칙(높이/2 - 3px): 틀 40px → 17px, 탭·선택 표시 32px → 13px. */}
           {/* ?tab=으로 둘째·셋째 탭에 바로 들어오면, react-aria 선택 표시가 첫 화면의 덜 잡힌 배치를
             기억했다가 그만큼 밀린 채 멈춘다(첫 탭 위에 흰 알약이 남음). 하이드레이션 뒤 한 번 새로 그려 위치를 다시 잰다. */}
@@ -253,7 +253,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                   onChange={setStatusFilter}
                 />
               )}
-              {/* 제안서 검색창과 같은 회색 칸. */}
+              {/* 기획안 검색창과 같은 회색 칸. */}
               <SearchField
                 aria-label={searchPlaceholder}
                 value={searchQuery}
@@ -270,7 +270,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 </SearchField.Group>
               </SearchField>
               {activeTab === "history" && (
-                // 제안서 목록의 "새 제안서"와 같은 보라 버튼. 모바일은 폭이 좁아 아이콘만.
+                // 기획안 목록의 "새 기획안"과 같은 보라 버튼. 모바일은 폭이 좁아 아이콘만.
                 <Button
                   variant="primary"
                   onPress={openWrite}

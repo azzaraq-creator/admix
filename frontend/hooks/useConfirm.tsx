@@ -40,7 +40,7 @@ export function useConfirm() {
         if (!value) settle(false);
       }}
     >
-      {/* 확인창은 어떤 창(HeroUI 모달·제안서 담기 등) 위에서 떠도 맨 위에 보이게 한다. */}
+      {/* 확인창은 어떤 창(HeroUI 모달·기획안 담기 등) 위에서 떠도 맨 위에 보이게 한다. */}
       <DialogContent
         topLayer
         className="flex w-[calc(100vw-32px)] max-w-[400px] flex-col gap-[20px] px-[16px] py-[20px] sm:px-[30px]"

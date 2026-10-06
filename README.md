@@ -1,6 +1,6 @@
 # admix
 
-OOH(옥외광고) 매체 추천 플랫폼. 광고주 자연어 발화를 LangGraph 그래프로 분석해 매체 리스트·자연어 설명·맞춤 제안서를 만들고, 관리자 백오피스에서 매체·회원·문의·제안서를 운영한다.
+OOH(옥외광고) 매체 추천 플랫폼. 광고주 자연어 발화를 LangGraph 그래프로 분석해 매체 리스트·자연어 설명·맞춤 기획안을 만들고, 관리자 백오피스에서 매체·회원·문의·기획안을 운영한다.
 
 상세 문서: **[backend/README](backend/README.md)** · **[frontend/README](frontend/README.md)** · [deploy/](deploy/README.md) · [CONTEXT.md](CONTEXT.md)
 
@@ -62,20 +62,20 @@ admix/
 │   │   ├── main.py                FastAPI app + CORS + lifespan
 │   │   ├── config.py              Settings (DATABASE_URL, OPENAI_API_KEY 등)
 │   │   ├── database.py            SQLAlchemy engine + Base
-│   │   ├── models/                ORM 모델 (세션/회원/매체/제안서/문의 등)
+│   │   ├── models/                ORM 모델 (세션/회원/매체/기획안/문의 등)
 │   │   ├── schemas/               Pydantic in/out
 │   │   ├── routers/               API 엔드포인트
 │   │   │   ├── auth.py oauth.py            인증 · 소셜 로그인
 │   │   │   ├── chat_graph.py recommend_*   추천 챗봇 (현행 recommend_react · 비동기 잡 + 폴링)
 │   │   │   ├── media.py members.py         매체 · 회원
-│   │   │   ├── proposals*.py inquiries*.py 제안서 · 문의 (client/admin)
+│   │   │   ├── proposals*.py inquiries*.py 기획안 · 문의 (client/admin)
 │   │   │   ├── faq.py dashboard.py         FAQ · 대시보드
 │   │   │   └── admin*.py                   관리자 백오피스
 │   │   ├── services/              비즈니스 로직
 │   │   │   ├── graph/             LangGraph 노드/라우팅/빌더
 │   │   │   ├── recommend_react/   React 기반 추천 파이프라인
 │   │   │   ├── ai_job_service.py  SQS/Lambda 비동기 추천 잡
-│   │   │   ├── deck_converter.py ppt_builder.py  제안서 PPT 생성
+│   │   │   ├── deck_converter.py ppt_builder.py  기획안 PPT 생성
 │   │   │   └── *_service.py       auth/media/member/proposal/inquiry/faq/dashboard/ga4
 │   │   └── utils/
 │   ├── alembic/                   DB 마이그레이션
@@ -85,9 +85,9 @@ admix/
 │
 ├── frontend/
 │   └── app/
-│       ├── (client)/              사용자 화면 (추천 챗봇 · 매체 검색/지도 · 제안서 · 마이페이지)
+│       ├── (client)/              사용자 화면 (추천 챗봇 · 매체 검색/지도 · 기획안 · 마이페이지)
 │       ├── admin/                 관리자 백오피스
-│       └── deck/                  제안서 뷰어
+│       └── deck/                  기획안 뷰어
 │
 ├── deploy/                        EC2 셋업 · nginx · 재배포/DB복원 스크립트
 └── docker-compose*.yml            local / prod / newacct

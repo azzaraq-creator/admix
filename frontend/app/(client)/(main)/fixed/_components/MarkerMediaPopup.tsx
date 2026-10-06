@@ -192,7 +192,7 @@ export function MediaPopupCard({
             <Button
               isIconOnly
               variant="ghost"
-              aria-label="제안서 담기"
+              aria-label="기획안 담기"
               onPress={() => onAddProposal?.()}
               // 옆 관심 버튼과 같은 밝은 회색 바탕.
               className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-black-100 p-0 data-[hovered=true]:bg-black-200"
@@ -274,7 +274,7 @@ export function MediaPopupCard({
             >
               <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
               <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
-                제안서 담기
+                기획안 담기
               </span>
             </Button>
           </div>

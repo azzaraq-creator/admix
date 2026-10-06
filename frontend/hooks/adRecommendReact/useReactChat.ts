@@ -104,7 +104,7 @@ export interface V2Message {
     proposals: V2ProposalRef[];
     mediaIds: string[];
     newName?: string;
-    /** 이미 고른 제안서 — 지난 대화를 다시 불러올 때 목록 대신 완료 문구를 보여 준다. */
+    /** 이미 고른 기획안 — 지난 대화를 다시 불러올 때 목록 대신 완료 문구를 보여 준다. */
     picked?: { id: string; name: string };
   };
   cta?: string;
@@ -148,7 +148,7 @@ const POLL_INTERVAL_MS = 1200;
 const POLL_MAX_ATTEMPTS = 50;
 
 /** 가짜 스트리밍 로딩 문구(백엔드 async 처리 동안 순차 노출).
- * 작업 종류(추천/제안서/상세)를 특정하지 않는 중립 문구. */
+ * 작업 종류(추천/기획안/상세)를 특정하지 않는 중립 문구. */
 const LOADING_LABELS = [
   "요청을 확인하고 있어요…",
   "내용을 처리하고 있어요…",
@@ -219,7 +219,7 @@ function restoreMessage(saved: SavedMsg): V2Message {
       proposal: p.proposal as V2ProposalRef | undefined,
     };
   }
-  // 제안서 고르기 목록 — 지난 대화를 다시 불러와도(새로고침·화면 이동·믹시 패널 다시 열기) 목록이 남게 한다.
+  // 기획안 고르기 목록 — 지난 대화를 다시 불러와도(새로고침·화면 이동·믹시 패널 다시 열기) 목록이 남게 한다.
   if (ptype === "proposal_choices") {
     return {
       id: saved.id,
@@ -276,7 +276,7 @@ export function useReactChat() {
         setMessages((detail.messages ?? []).map(restoreMessage));
       } catch (err) {
         // 404/410(만료·삭제)만 세션 정리. 네트워크/5xx 등 일시 오류엔 세션을
-        // 유지한다 — 게스트 세션에 묶인 제안서가 일시 오류로 고아가 되는 것 방지.
+        // 유지한다 — 게스트 세션에 묶인 기획안이 일시 오류로 고아가 되는 것 방지.
         const status = (err as { response?: { status?: number } })?.response
           ?.status;
         if (status === 404 || status === 410) {
@@ -341,8 +341,8 @@ export function useReactChat() {
     (data: Record<string, unknown>, assistantId: string) => {
       const msgType = (data.type as V2ResponseType) || "chat";
 
-      // 믹시가 제안서에 매체를 담았다 — 담기 창으로 담았을 때와 같이 말풍선·현재 제안서 전환·"N".
-      // 서버가 담았으므로 제안서 목록·상세(배지·패널)를 다시 받는다. (지난 대화 불러오기는 이 경로가 아니라 다시 뜨지 않는다.)
+      // 믹시가 기획안에 매체를 담았다 — 담기 창으로 담았을 때와 같이 말풍선·현재 기획안 전환·"N".
+      // 서버가 담았으므로 기획안 목록·상세(배지·패널)를 다시 받는다. (지난 대화 불러오기는 이 경로가 아니라 다시 뜨지 않는다.)
       const addedNames = data.added_media_names as string[] | undefined;
       const addedProposal = data.proposal as V2ProposalRef | undefined;
       if (msgType === "proposal" && addedProposal && addedNames?.length) {

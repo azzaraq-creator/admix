@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { XIcon } from "@/components/icons";
 
-/** 제안서 이름 최대 길이 — 목록·PPT 표지에서 한눈에 보이도록 넉넉히 제한한다. */
+/** 기획안 이름 최대 길이 — 목록·PPT 표지에서 한눈에 보이도록 넉넉히 제한한다. */
 const MAX_NAME_LENGTH = 50;
 
 // 입력칸 44px → 곡률 19px. 로그인 창처럼 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
@@ -19,7 +19,7 @@ const ACTION_CLASS =
   "h-[40px] min-w-[76px] rounded-[17px] px-[18px] text-[14px] font-semibold";
 
 /**
- * 새 제안서 만들기 — HeroUI Modal. 로그인 창·"새 대화" 확인창과 같은 흰 창(모서리 24px)에
+ * 새 기획안 만들기 — HeroUI Modal. 로그인 창·"새 대화" 확인창과 같은 흰 창(모서리 24px)에
  * 이름 입력칸 하나와 취소/만들기 버튼. Enter로도 만들 수 있다.
  */
 export function NewProposalModal({
@@ -72,7 +72,7 @@ export function NewProposalModal({
       <Modal.Backdrop>
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
-            aria-label="새 제안서 만들기"
+            aria-label="새 기획안 만들기"
             className="w-full max-w-[420px] gap-0 rounded-[24px] bg-white px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
           >
             {/* 닫기 32px → 곡률 13px. */}
@@ -85,10 +85,10 @@ export function NewProposalModal({
 
             <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
               <Modal.Heading className="text-[18px] font-bold text-black-900">
-                새 제안서 만들기
+                새 기획안 만들기
               </Modal.Heading>
               <p className="text-[13px] leading-[1.5] text-black-500">
-                제안서 이름을 정해 주세요. 이름은 나중에도 바꿀 수 있어요.
+                기획안 이름을 정해 주세요. 이름은 나중에도 바꿀 수 있어요.
               </p>
             </Modal.Header>
 
@@ -109,7 +109,7 @@ export function NewProposalModal({
                   }}
                   isInvalid={!!error}
                   maxLength={MAX_NAME_LENGTH}
-                  aria-label="제안서 이름"
+                  aria-label="기획안 이름"
                   autoFocus
                   fullWidth
                   className="gap-[6px]"

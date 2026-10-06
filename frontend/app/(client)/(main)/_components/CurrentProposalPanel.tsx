@@ -57,16 +57,16 @@ type ItemOptions = {
 /** 옵션을 바꾸면 이만큼 멈춘 뒤 한 번에 저장한다(−·+를 연달아 눌러도 요청은 한 번). */
 const SAVE_DELAY_MS = 500;
 
-/** 이 기능의 이름 — 매체를 담으면 들어가는 제안서(버튼·패널 제목·접근성 이름이 같이 쓴다). */
-export const CURRENT_PROPOSAL_LABEL = "현재 제안서";
+/** 이 기능의 이름 — 매체를 담으면 들어가는 기획안(버튼·패널 제목·접근성 이름이 같이 쓴다). */
+export const CURRENT_PROPOSAL_LABEL = "현재 기획안";
 
 /** 닫기 — 매체 정보 팝업과 같은 회색 원형 버튼(28px → 곡률 14px). */
 const CLOSE_BUTTON =
   "size-[28px] min-w-0 shrink-0 rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a]";
 
 /**
- * 현재 제안서 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
- * 맨 위에서 다른 작성 중 제안서로 바꿔 볼 수 있고, 맨 아래에 총 광고비를 고정한다.
+ * 현재 기획안 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
+ * 맨 위에서 다른 작성 중 기획안으로 바꿔 볼 수 있고, 맨 아래에 총 광고비를 고정한다.
  * PC는 사이드바 버튼에 붙는 패널(CurrentProposalPopover), 모바일은 아래 시트(CurrentProposalPanel)가 감싼다.
  */
 function CurrentProposalContent({
@@ -98,7 +98,7 @@ function CurrentProposalContent({
       {isLoading ? (
         <LoadingMessage />
       ) : current ? (
-        // 제안서를 바꾸면 패널 안 임시 상태(저장 전 옵션)를 새로 시작한다.
+        // 기획안을 바꾸면 패널 안 임시 상태(저장 전 옵션)를 새로 시작한다.
         <ProposalBody
           key={current.id}
           proposalId={current.id}
@@ -106,8 +106,8 @@ function CurrentProposalContent({
         />
       ) : (
         <EmptyMessage
-          title="작성 중인 제안서가 없어요"
-          description="매체를 제안서에 담으면 여기에서 바로 보고 고칠 수 있어요."
+          title="작성 중인 기획안이 없어요"
+          description="매체를 기획안에 담으면 여기에서 바로 보고 고칠 수 있어요."
         />
       )}
     </>
@@ -143,7 +143,7 @@ export function CurrentProposalPanel() {
 }
 
 /**
- * PC — 사이드바의 "현재 제안서" 카드 오른쪽에 붙어 위로 펼쳐지는 패널(HeroUI Popover).
+ * PC — 사이드바의 "현재 기획안" 카드 오른쪽에 붙어 위로 펼쳐지는 패널(HeroUI Popover).
  * 버튼과 아랫변을 맞추고(right bottom), 바깥을 누르거나 Esc로 닫는다. 담기 말풍선과 같은 자리에서 열린다.
  */
 export function CurrentProposalPopover({
@@ -187,7 +187,7 @@ function ProposalBody({
   const removeItem = useRemoveProposalItem();
   const { removed, error } = useSonner();
   const newIds = useNewProposalIds();
-  // 패널에서 이 제안서를 봤다 — 패널을 닫으면 "N" 표시가 지워진다.
+  // 패널에서 이 기획안을 봤다 — 패널을 닫으면 "N" 표시가 지워진다.
   useEffect(() => markProposalViewed(proposalId), [proposalId]);
 
   // 바꾼 옵션은 화면에 바로 보여 주고(overrides), 잠시 멈추면 모아서 저장한다(pending).
@@ -228,7 +228,7 @@ function ProposalBody({
     );
   };
 
-  // 패널을 닫거나 제안서를 바꾸기 전에 남은 변경을 저장한다.
+  // 패널을 닫거나 기획안을 바꾸기 전에 남은 변경을 저장한다.
   const flushRef = useRef(flush);
   useEffect(() => {
     itemsRef.current = items;
@@ -246,7 +246,7 @@ function ProposalBody({
     timer.current = setTimeout(flush, SAVE_DELAY_MS);
   };
 
-  // 보여 주는 순서만 최근에 담은 순 — 제안서에 저장된 순서(슬라이드 순서)는 그대로 둔다(저장도 items 순서로).
+  // 보여 주는 순서만 최근에 담은 순 — 기획안에 저장된 순서(슬라이드 순서)는 그대로 둔다(저장도 items 순서로).
   const rows = [...items]
     .sort(
       (a, b) =>
@@ -258,7 +258,7 @@ function ProposalBody({
 
   return (
     <>
-      {/* 다른 작성 중 제안서로 바꿔 보기. */}
+      {/* 다른 작성 중 기획안으로 바꿔 보기. */}
       <div className="shrink-0 px-[20px] pb-[12px]">
         <Select
           aria-label={`${CURRENT_PROPOSAL_LABEL} 바꾸기`}
@@ -269,9 +269,9 @@ function ProposalBody({
             setCurrentProposalId(String(key));
           }}
         >
-          {/* 칸 44px → 곡률 19px(제안서 담기 창 입력칸과 같다). */}
+          {/* 칸 44px → 곡률 19px(기획안 담기 창 입력칸과 같다). */}
           <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-[#ececef] bg-[#f7f7f8] ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-white">
-            {/* 제안서 아이콘 — 위 "현재 제안서" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
+            {/* 기획안 아이콘 — 위 "현재 기획안" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
             <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-black-700">
               <CollectionIcon className="size-[15px]" />
             </span>
@@ -321,7 +321,7 @@ function ProposalBody({
         ) : rows.length === 0 ? (
           <EmptyMessage
             title="아직 담긴 매체가 없어요"
-            description="매체 찾기에서 마음에 드는 매체를 이 제안서에 담아 보세요."
+            description="매체 찾기에서 마음에 드는 매체를 이 기획안에 담아 보세요."
           />
         ) : (
           <ul className="flex flex-col gap-[10px]">
@@ -336,7 +336,7 @@ function ProposalBody({
                     {
                       onSuccess: () =>
                         removed(
-                          "제안서에서 뺐어요",
+                          "기획안에서 뺐어요",
                           row.item.media_name ?? row.item.name ?? undefined,
                         ),
                       onError: () =>
@@ -374,7 +374,7 @@ function ProposalBody({
           }}
           className="h-[44px] w-full gap-[4px] rounded-[17px] bg-primary text-[14px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
         >
-          제안서 보기
+          기획안 보기
           <ChevronRightIcon className="size-[16px]" />
         </Button>
       </div>
@@ -394,7 +394,7 @@ type Row = {
 
 /**
  * 항목 하나의 표시값 — 바꾼 옵션(override)이 있으면 그걸로, 없으면 저장된 값으로.
- * 금액 규칙은 제안서와 같다: 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
+ * 금액 규칙은 기획안과 같다: 광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수.
  */
 function toRow(item: ProposalItem, override?: ItemOptions): Row {
   const planNo = override?.planNo ?? item.selected_plan_no;
@@ -565,7 +565,7 @@ function EmptyMessage({
   );
 }
 
-/** 새로 담긴 제안서 표시 — 빨간 원 안 "N"(16px). */
+/** 새로 담긴 기획안 표시 — 빨간 원 안 "N"(16px). */
 function NewBadge() {
   return (
     <span

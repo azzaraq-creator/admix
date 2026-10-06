@@ -26,7 +26,7 @@
 |---|---|---|
 | 비회원 | 가입 화면 접근 가능 | 가입 완료 시 즉시 로그인(토큰 발급) 후 홈 이동 |
 
-> 가입 API(`POST /auth/register`)는 `remember=true`로 토큰을 발급한다(로그인 유지 30일 상당). 또한 `session_id`를 넘겨 **비회원 세션에서 담았던 제안서를 신규 회원 계정으로 이관**한다(`claim_session_proposals`).
+> 가입 API(`POST /auth/register`)는 `remember=true`로 토큰을 발급한다(로그인 유지 30일 상당). 또한 `session_id`를 넘겨 **비회원 세션에서 담았던 기획안을 신규 회원 계정으로 이관**한다(`claim_session_proposals`).
 
 ---
 
@@ -113,10 +113,10 @@ React Hook Form + Zod(`zodResolver`)로 검증. 필수 항목 라벨에 `*` 표�
 
 | 항목 | 출처 / 연동 | 트리거 · 비고 |
 |---|---|---|
-| 가입 | `POST /auth/register` | `가입 완료` 클릭. 성공 시 토큰 반환 + 세션 제안서 이관 |
+| 가입 | `POST /auth/register` | `가입 완료` 클릭. 성공 시 토큰 반환 + 세션 기획안 이관 |
 | 소셜 인가 URL | `GET /auth/sns/{provider}` | 카카오/네이버 버튼 클릭 |
 | 소셜 토큰 교환 | `GET /auth/sns/{provider}/callback` | `/oauth/[provider]/callback`에서 처리 |
-| 세션 제안서 이관 | `claim_session_proposals(session_id)` | 가입 성공 시 서버측 자동 |
+| 세션 기획안 이관 | `claim_session_proposals(session_id)` | 가입 성공 시 서버측 자동 |
 | 사업자등록증 업로드 | `POST /auth/me/business-registration` (multipart) | 기업 가입 + 파일 선택 시, 토큰 발급 직후(best-effort). 상태 `reviewing` |
 
 > 백엔드 검증: 이메일 중복 409 "이미 가입된 이메일입니다.", 전화번호 중복 409 "이미 가입된 전화번호입니다."(`phone` unique). `User.membership_type` 기본값 individual.
@@ -135,5 +135,5 @@ React Hook Form + Zod(`zodResolver`)로 검증. 필수 항목 라벨에 `*` 표�
 
 **결정됨**
 - [2026-07-09] 이메일/기업 폼은 동일 `SignupForm`을 `membershipType`으로 분기(기업은 회사명 필수 + 사업자등록증 블록 추가). — (코드 기반)
-- [2026-07-09] 가입 성공 시 토큰 즉시 발급(remember=true) + 비회원 세션 제안서 이관 후 홈(`/`) 이동. — (코드 기반)
+- [2026-07-09] 가입 성공 시 토큰 즉시 발급(remember=true) + 비회원 세션 기획안 이관 후 홈(`/`) 이동. — (코드 기반)
 - [2026-07-10] 기업 가입 사업자등록증 UI를 Figma대로 재구성(선택 칩 + "파일 업로드" 버튼) + 가입 완료 직후 `POST /auth/me/business-registration`로 업로드(선택, best-effort). — (코드 기반)

@@ -35,7 +35,7 @@ const useIsMobile = () =>
 const PAGE_SIZE_PC = 10;
 const PAGE_SIZE_MOBILE = 5;
 
-// 페이지 번호 28px → 곡률 11px. 제안서 목록 페이지네이션과 같다.
+// 페이지 번호 28px → 곡률 11px. 기획안 목록 페이지네이션과 같다.
 const PAGE_LINK_CLASS =
   "size-[28px] min-w-0 rounded-[11px] border p-0 text-[11px] font-medium";
 const PAGE_NAV_CLASS =
@@ -54,7 +54,7 @@ export const INQUIRY_STATUS_FILTERS: {
   { key: "answered", label: "답변 완료", short: "완료" },
 ];
 
-/** 문의 내역 탭 — 제안서 목록과 같은 HeroUI Table. 행을 누르면 문의 상세로 간다. */
+/** 문의 내역 탭 — 기획안 목록과 같은 HeroUI Table. 행을 누르면 문의 상세로 간다. */
 export function HistoryPanel({
   query,
   status,
@@ -202,7 +202,7 @@ export function HistoryPanel({
             </Table.Body>
           </Table.Content>
         </Table.ScrollContainer>
-        {/* 마지막 행 아래를 흰색으로 이어 채우는 칸 — 모서리는 HeroUI 본문 모서리 값 그대로(제안서 목록과 같다).
+        {/* 마지막 행 아래를 흰색으로 이어 채우는 칸 — 모서리는 HeroUI 본문 모서리 값 그대로(기획안 목록과 같다).
           행이 바닥까지 차도 둥근 아래 모서리가 남도록 최소 16px. */}
         <div
           aria-hidden
@@ -210,7 +210,7 @@ export function HistoryPanel({
         />
       </Table>
 
-      {/* 페이지네이션 — 제안서 목록과 같은 HeroUI Pagination. */}
+      {/* 페이지네이션 — 기획안 목록과 같은 HeroUI Pagination. */}
       <Pagination className="gap-[12px]">
         <Pagination.Summary className="text-[12px] text-[#8c8c94]">
           전체 {items.length}건 중 {rangeStart}–{rangeEnd}건

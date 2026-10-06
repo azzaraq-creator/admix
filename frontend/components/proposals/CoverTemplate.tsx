@@ -29,12 +29,12 @@ export function CoverTemplate({ updatedAt }: { updatedAt: string | null }) {
         <div className="h-[24px] w-[740px] bg-white" />
         <div className="flex flex-col text-[120px] leading-none tracking-[-3px] text-white">
           <p className="font-medium">ADMIX</p>
-          <p className="font-normal">제안서</p>
+          <p className="font-normal">기획안</p>
         </div>
       </div>
       <div className="absolute left-[80px] top-[812px] flex flex-col gap-[20px]">
         <p className="whitespace-nowrap text-[120px] font-medium leading-none tracking-[-3px] text-white">
-          광고 제안서_{year}
+          광고 기획안_{year}
         </p>
         <p className="text-[48px] font-medium text-left leading-none tracking-[-1.2px] text-white/70">
           {date}

@@ -20,7 +20,7 @@
 - 성공 기준: ❓
 
 ## 2. 권한
-문의 관리 라우터(`/admin/inquiries`)는 **`require_permission("business")`** 로 보호된다(`backend/src/routers/inquiries.py`). 즉 목록 조회·상세 조회·답변(PATCH) 모두 `business` 메뉴 권한이 필요하다. 마스터 계정은 권한 설정과 무관하게 전체 허용, 권한 없는 일반 관리자는 API 직접 호출 시 403. (권한 모델 상세: [admin-auth-permissions.md](admin-auth-permissions.md) §3 — 제안서 관리와 동일한 `business` 키를 공유)
+문의 관리 라우터(`/admin/inquiries`)는 **`require_permission("business")`** 로 보호된다(`backend/src/routers/inquiries.py`). 즉 목록 조회·상세 조회·답변(PATCH) 모두 `business` 메뉴 권한이 필요하다. 마스터 계정은 권한 설정과 무관하게 전체 허용, 권한 없는 일반 관리자는 API 직접 호출 시 403. (권한 모델 상세: [admin-auth-permissions.md](admin-auth-permissions.md) §3 — 기획안 관리와 동일한 `business` 키를 공유)
 
 | 사용자 | 접근 | 비고 |
 |---|---|---|

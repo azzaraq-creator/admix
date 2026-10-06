@@ -11,12 +11,12 @@ import { cn } from "@/lib/utils";
 import { ContactEmptyState } from "./inquiryUtils";
 
 const ALL = "전체";
-const CATEGORIES = [ALL, "이용안내", "매체검색 & 제안서"];
+const CATEGORIES = [ALL, "이용안내", "매체검색 & 기획안"];
 
 // canonical faq_type(어드민) → 클라이언트 노출 카테고리
 const TYPE_TO_CATEGORY: Record<string, string> = {
   "이용 안내": "이용안내",
-  "매체검색&제안서": "매체검색 & 제안서",
+  "매체검색&제안서": "매체검색 & 기획안",
 };
 
 // 분류 칩 32px → 곡률 13px. 매체 찾기 필터 칩과 같은 모양(선택 시 진한 테두리·굵은 글자).

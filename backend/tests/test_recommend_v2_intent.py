@@ -102,8 +102,8 @@ def test_proposal_routes_to_resolver(db, session, monkeypatch):
     monkeypatch.setattr(v2, "classify_intent", lambda *_a, **_k: "PROPOSAL")
     monkeypatch.setattr(
         v2, "resolve_proposal_via_tools",
-        lambda *_a, **_k: v2.ProposalIntent(action="create", name="테스트제안서"),
+        lambda *_a, **_k: v2.ProposalIntent(action="create", name="테스트기획안"),
     )
-    events, ctx = _drive("제안서 만들어줘", str(session.id), {"last_items": last_items})
+    events, ctx = _drive("기획안 만들어줘", str(session.id), {"last_items": last_items})
     proposal_evt = next((e for e in events if e.get("type") == "proposal"), None)
     assert proposal_evt is not None

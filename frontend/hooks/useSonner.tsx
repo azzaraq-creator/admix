@@ -60,7 +60,7 @@ export function useSonner() {
       }),
     [],
   );
-  // 지운 알림(제안서 삭제 등) — 삭제 확인창과 같은 빨간 휴지통(public/icons/trash.svg), 빨간 톤.
+  // 지운 알림(기획안 삭제 등) — 삭제 확인창과 같은 빨간 휴지통(public/icons/trash.svg), 빨간 톤.
   const deleted = useCallback(
     (message: string, detail?: string) =>
       toast.danger(message, {

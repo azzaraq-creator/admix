@@ -13,7 +13,7 @@ import { CheckCircleFilledIcon } from "@/components/icons";
 import type { ProposalSummary } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
 
-/** 제안서 담기 완료 토스트가 떠 있는 시간. */
+/** 기획안 담기 완료 토스트가 떠 있는 시간. */
 const PROPOSAL_ADDED_TOAST_TIMEOUT = 5000;
 
 type ProposalAddedToastContent = { proposals: ProposalSummary[] };
@@ -24,7 +24,7 @@ const proposalAddedToastQueue = new Toast.Queue<ProposalAddedToastContent>({
   exitDuration: 350,
 });
 
-/** 매체를 제안서에 담은 뒤 — 담긴 제안서들의 요약을 왼쪽 아래에 5초 띄운다. */
+/** 매체를 기획안에 담은 뒤 — 담긴 기획안들의 요약을 왼쪽 아래에 5초 띄운다. */
 export function showProposalAddedToast(proposals: ProposalSummary[]) {
   proposalAddedToastQueue.add(
     { proposals },
@@ -135,7 +135,7 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
         (a.created_at ? Date.parse(a.created_at) : 0),
     )
     .map((item) => item.name);
-  // 예전 응답(금액 분리 전)은 total_amount가 광고비 합계다 — 제안서 목록(toView)과 같은 기준.
+  // 예전 응답(금액 분리 전)은 total_amount가 광고비 합계다 — 기획안 목록(toView)과 같은 기준.
   const adAmount = proposal.advertisement_amount ?? proposal.total_amount;
   const productionAmount = proposal.production_amount ?? 0;
 
@@ -197,7 +197,7 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
 }
 
 /**
- * 시안 "02. 매체 상세 - 제안서 담기 완료" — 흰 카드(곡률 20px) 왼쪽 아래 30px.
+ * 시안 "02. 매체 상세 - 기획안 담기 완료" — 흰 카드(곡률 20px) 왼쪽 아래 30px.
  * HeroUI 토스트 기본 모양과 globals.css의 검정 토스트 덮어쓰기는 유틸리티 클래스로 되돌린다.
  */
 export function ProposalAddedToastProvider() {
@@ -264,14 +264,14 @@ function ProposalAddedToastItem({
         <div className="flex items-center gap-[10px] p-[10px]">
           <CheckCircleFilledIcon className="shrink-0 text-[#16a34a]" />
           <p className="text-[13px] font-medium text-[#111827]">
-            제안서에 추가되었습니다
+            기획안에 추가되었습니다
           </p>
         </div>
         <div className="flex w-full flex-col gap-[8px] p-[10px]">
           <span className="self-start rounded-full border border-[#ededef] bg-[#f7f3fe] px-[8px] py-[4px] text-[10px] font-semibold text-[#a33bd1]">
-            {toast.content.proposals.length}개 제안서
+            {toast.content.proposals.length}개 기획안
           </span>
-          {/* 제안서가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
+          {/* 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
           <ScrollShadow
             ref={listRef}
             data-swipe-scroll

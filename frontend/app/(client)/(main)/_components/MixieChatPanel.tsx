@@ -18,7 +18,7 @@ import { useMixieChat } from "./useMixieChat";
  */
 /**
  * 바깥 클릭으로 보지 않을 요소 — LNB의 "AI 믹시" 버튼과, 패널에서 연 창들.
- * - dialog-*: shadcn/base-ui 다이얼로그(제안서 담기 등). 배경(dialog-backdrop)을 눌러 창을
+ * - dialog-*: shadcn/base-ui 다이얼로그(기획안 담기 등). 배경(dialog-backdrop)을 눌러 창을
  *   닫을 때도 패널은 그대로 둔다.
  * - modal-backdrop / alert-dialog-backdrop: HeroUI Modal(로그인)·AlertDialog("새 대화" 확인창).
  *   배경이 창 전체를 감싸서 창 안 버튼이든 배경이든 모두 걸러진다.
@@ -82,7 +82,7 @@ export function MixieChatPanel() {
 
   // 패널 바깥(다른 메뉴·본문·지도 등)을 누르면 닫는다. 캡처 단계에서 들어 지도처럼
   // 자체적으로 이벤트 전파를 막는 곳을 눌러도 닫히게 한다. 단, LNB의 "AI 믹시" 버튼은
-  // 자기 onClick으로 여닫고, 패널에서 연 모달(제안서 담기·로그인)은 패널의 일부로 본다.
+  // 자기 onClick으로 여닫고, 패널에서 연 모달(기획안 담기·로그인)은 패널의 일부로 본다.
   useEffect(() => {
     if (!panelOpen) return;
     const handlePointerDown = (event: PointerEvent) => {

@@ -1,8 +1,8 @@
 # admix — Frontend
 
 Next.js 16 (App Router) 기반 OOH 매체 추천 플랫폼 프런트.
-사용자 화면(추천 챗봇·매체 검색/지도·제안서·마이페이지),
-관리자 백오피스, 제안서 뷰어(deck)를 한 앱에서 제공한다.
+사용자 화면(추천 챗봇·매체 검색/지도·기획안·마이페이지),
+관리자 백오피스, 기획안 뷰어(deck)를 한 앱에서 제공한다.
 
 전체 개요·설계도는 루트 [README](../README.md),
 프런트 구조 상세는 [docs/frontend-structure.md](../docs/frontend-structure.md),
@@ -27,7 +27,7 @@ flowchart TD
     subgraph APP["Next.js App Router (app/)"]
         CLIENT["(client)  사용자 화면"]
         ADMIN["admin  백오피스"]
-        DECK["deck/[id]  제안서 뷰어"]
+        DECK["deck/[id]  기획안 뷰어"]
     end
     APP --> HOOKS["hooks/[domain]/<br/>apis · keys · queries · mutations"]
     HOOKS --> RQ["react-query<br/>(캐시 · 상태)"]
@@ -48,7 +48,7 @@ flowchart TD
 │   ├── (홈)                      추천 챗봇
 │   ├── fixed · moving            고정/유동 매체 검색 + 카카오 지도
 │   ├── media/[id]                매체 상세
-│   ├── proposals · proposals/[id]  제안서 목록·상세
+│   ├── proposals · proposals/[id]  기획안 목록·상세
 │   ├── contact · contact/inquiries/[id]  문의
 │   ├── service · help · erd      소개 · 도움말 · ERD
 ├── (mypage)/profile              내 정보
@@ -59,7 +59,7 @@ admin/                            관리자 백오피스
 ├── (auth)/login
 └── (main)/  media · members · proposals(+write) · inquiries · faq · chat · roles · (대시보드)
 
-deck/[id]                         제안서 외부 공유 뷰어 (가드 밖)
+deck/[id]                         기획안 외부 공유 뷰어 (가드 밖)
 ```
 
 ## 컴포넌트 · 디자인

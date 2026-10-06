@@ -1,6 +1,6 @@
 # admix — Backend
 
-FastAPI + LangGraph 기반 OOH 매체 추천 API. 광고주 자연어 발화를 그래프로 분석해 매체 리스트·자연어 설명·맞춤 제안서를 생성하고, 관리자 백오피스용 매체·회원·문의·제안서·FAQ·대시보드 API를 제공한다.
+FastAPI + LangGraph 기반 OOH 매체 추천 API. 광고주 자연어 발화를 그래프로 분석해 매체 리스트·자연어 설명·맞춤 기획안을 생성하고, 관리자 백오피스용 매체·회원·문의·기획안·FAQ·대시보드 API를 제공한다.
 
 전체 개요·설계도는 루트 [README](../README.md),
 운영 배포는 [deploy/](../deploy/README.md),
@@ -16,7 +16,7 @@ FastAPI + LangGraph 기반 OOH 매체 추천 API. 광고주 자연어 발화를 
 | 세션 영속 | langgraph-checkpoint-postgres (그래프 체크포인트)                             |
 | 인증      | python-jose(JWT) · passlib · OAuth(카카오/네이버)                             |
 | 비동기    | boto3 · AWS SQS + Lambda                                                      |
-| 문서생성  | python-pptx(제안서 PPT) · openpyxl(엑셀)                                      |
+| 문서생성  | python-pptx(기획안 PPT) · openpyxl(엑셀)                                      |
 | 런타임    | Python 3.12 (slim)                                                            |
 
 ## 아키텍처
@@ -37,7 +37,7 @@ flowchart TD
     S -->|이미지| S3["S3<br/>ooh-image-public"]
     S -->|메일| SMTP["Gmail SMTP<br/>(인증·재설정·알림)"]
     S -->|소셜| OAUTH["Kakao / Naver OAuth"]
-    S -->|지도| GEO["Geoapify Static Maps<br/>(제안서 PPT 지도)"]
+    S -->|지도| GEO["Geoapify Static Maps<br/>(기획안 PPT 지도)"]
 ```
 
 3계층: **routers(HTTP 경계) → services(로직) → models(ORM)**. AI 추천만 별도 그래프 패키지로 분리.
@@ -54,7 +54,7 @@ src/
 │   ├── recommend_react.py               추천 챗봇 (현행 · 비동기 잡 + 폴링)
 │   ├── recommend_v2.py chat_graph.py    이전 버전 그래프 (보존)
 │   ├── media.py members.py              매체 · 회원
-│   ├── proposals.py proposals_client.py 제안서 (admin / client)
+│   ├── proposals.py proposals_client.py 기획안 (admin / client)
 │   ├── inquiries.py inquiries_client.py 문의 (admin / client)
 │   ├── faq.py dashboard.py              FAQ · 대시보드 통계
 │   └── admin.py admin_auth.py admin_media.py admin_chat.py   관리자 백오피스
@@ -62,7 +62,7 @@ src/
 │   ├── recommend_react/   현행 추천 파이프라인 (domain · graph · tools · persist)
 │   ├── graph/             그래프 공용 — intent_classifier · welcome · tools · llm · settings · checkpoint_cleanup
 │   ├── ai_job_service.py  SQS 발행 + ai_recommend_job 상태 관리 (비동기 추천)
-│   ├── deck_converter.py ppt_builder.py   제안서 PPT 생성 (템플릿 채우기 + Geoapify 지도)
+│   ├── deck_converter.py ppt_builder.py   기획안 PPT 생성 (템플릿 채우기 + Geoapify 지도)
 │   ├── auth_service.py oauth_service.py   인증 · 소셜 계정 연동
 │   ├── media_service.py member_service.py proposal_service.py inquiry_service.py
 │   ├── faq_service.py dashboard_service.py ga4_service.py chat_limit.py ad_session_service.py admin_service.py

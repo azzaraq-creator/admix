@@ -65,7 +65,7 @@ const won = (value: number | null) =>
 /**
  * 관심 매체에서 추가하기 — 시안 "03. 제안서 - 상세 (관심 매체에서 추가하기)"의 틀
  * (제목·총 개수, 검색, 정렬, 닫기/추가하기)에, 고르기 쉬운 3열 작은 카드와 카테고리 칩 한 줄을 둔다.
- * 카드를 누르거나 "선택"으로 고르고, 이 제안서에 이미 담긴 매체는 "이미 담김"으로 막는다.
+ * 카드를 누르거나 "선택"으로 고르고, 이 기획안에 이미 담긴 매체는 "이미 담김"으로 막는다.
  * 검색·정렬·카테고리는 화면 안에서 바로 거른다(관심 매체는 보통 수십 개 이하라 서버 조회 없이).
  */
 export function AddFromFavoritesModal({
@@ -74,7 +74,7 @@ export function AddFromFavoritesModal({
   onClose,
 }: {
   proposalId: string;
-  /** 이 제안서에 이미 담긴 매체 id. */
+  /** 이 기획안에 이미 담긴 매체 id. */
   existingIds: string[];
   onClose: () => void;
 }) {
@@ -84,7 +84,7 @@ export function AddFromFavoritesModal({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL);
   const [sort, setSort] = useState<SortKey>("latest");
-  // 이 제안서에 이미 담긴 매체 숨기기 — 담을 수 있는 매체만 보고 싶을 때.
+  // 이 기획안에 이미 담긴 매체 숨기기 — 담을 수 있는 매체만 보고 싶을 때.
   const [hideAdded, setHideAdded] = useState(false);
   const addedCount = allRows.filter((r) => existingIds.includes(r.id)).length;
   const [selected, setSelected] = useState<string[]>([]);
@@ -129,7 +129,7 @@ export function AddFromFavoritesModal({
       { id: proposalId, mediaIds: selected },
       {
         onSuccess: () => {
-          success(`제안서에 매체 ${count}개를 담았어요`);
+          success(`기획안에 매체 ${count}개를 담았어요`);
           onClose();
         },
         onError: () =>

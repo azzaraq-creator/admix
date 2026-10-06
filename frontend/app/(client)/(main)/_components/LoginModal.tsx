@@ -150,7 +150,7 @@ export function LoginModal() {
         remember: keepLoggedIn,
       });
       setTokens(res.access_token, res.refresh_token, keepLoggedIn);
-      // 로그인(기존 회원)은 게스트 제안서를 승계하지 않는다 — 무관한 잔여
+      // 로그인(기존 회원)은 게스트 기획안을 승계하지 않는다 — 무관한 잔여
       // 게스트 세션이 딸려오는 것 방지. 승계는 회원가입(이메일/소셜 신규)만.
       // 로그인 직후 me 캐시를 즉시 채워 사이드바가 바로 반영되도록 한다.
       // useMe 는 enabled:!!token 이라 로그인 전엔 disabled 상태이고,
@@ -163,7 +163,7 @@ export function LoginModal() {
       setPassword("");
       setLoginModalOpen(false);
       // 모달 로그인은 페이지 이동이 없어 서버 컴포넌트(예: 쿠키 기반 member 판정)와
-      // 게스트로 이미 캐시된 쿼리(예: 내 제안서)가 그대로 남는다. 사이드바(useMe)만
+      // 게스트로 이미 캐시된 쿼리(예: 내 기획안)이 그대로 남는다. 사이드바(useMe)만
       // 반영되고 페이지는 비회원처럼 보이는 문제 → 로그인 시점에 강제 재동기화.
       queryClient.invalidateQueries();
       router.refresh();
@@ -208,7 +208,7 @@ export function LoginModal() {
               <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
                 <LogoFullDark className="h-[28px]" />
                 <p className="text-[13px] leading-[20px] text-black-500">
-                  로그인하고 AI 믹시 추천과 제안서를 이어서 관리하세요
+                  로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요
                 </p>
               </Modal.Header>
 

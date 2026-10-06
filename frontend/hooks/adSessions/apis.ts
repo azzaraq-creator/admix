@@ -21,7 +21,7 @@ export interface AdSessionDetail extends AdSessionSummary {
 }
 
 export const adSessionsApi = {
-  /** 믹시 "어느 제안서에 담을까요?" 목록에서 고른 결과를 대화 기록에 남긴다(새로고침해도 완료 문구로 보이게). */
+  /** 믹시 "어느 기획안에 담을까요?" 목록에서 고른 결과를 대화 기록에 남긴다(새로고침해도 완료 문구로 보이게). */
   markProposalChoice: (
     sessionId: string,
     body: { proposal_id: string; proposal_name: string; media_ids: string[] },

@@ -8,7 +8,7 @@
 | **상태/작성자** | draft · LaLa · 2026-06-16 |
 | **다이어그램** | [`admix-erd.mermaid`](./admix-erd.mermaid) |
 
-이 문서는 두 도메인을 다룬다. **매체 도메인**은 엑셀(`ADMIX_최종본_v3.xlsx`)을 정규화한 추천 데이터이고, **플랫폼 도메인**은 홈 화면 정책서(`docs/policies/home.md`)에서 도출한 서비스 운영 데이터(회원·관리자·AI채팅·제안서·FAQ)다.
+이 문서는 두 도메인을 다룬다. **매체 도메인**은 엑셀(`ADMIX_최종본_v3.xlsx`)을 정규화한 추천 데이터이고, **플랫폼 도메인**은 홈 화면 정책서(`docs/policies/home.md`)에서 도출한 서비스 운영 데이터(회원·관리자·AI채팅·기획안·FAQ)다.
 
 ---
 
@@ -193,10 +193,10 @@
 - **`chat_message`**: `session_id` FK, `sender`(user/ai), `content`(채팅 전문), `token_cost`(발화 1회=1 차감), `status`(ok/error/blocked). → 메시지 수 = 메시지 count.
 - **`chat_recommendation`**: AI 응답 메시지가 추천한 매체(M:N). `message_id` FK, `media_id` FK, `rank`, `reason`.
 
-### 3.6 제안서 — `proposal` / `proposal_item` (제안 관리 + 내 제안서)
+### 3.6 기획안 — `proposal` / `proposal_item` (제안 관리 + 내 기획안)
 어드민 제안 관리/회원 상세 제안 이력 공용. 상태: `cancelled`(취소) / `new`(신규) / `custom`(맞춤제안=역제안) / `execution_requested`(집행요청) / `contracted`(계약완료).
 
-- **`proposal`**: `member_id` FK, `title`(제안서명), `status`, `media_count`(매체 수 캐시), `total_amount`(전체 금액 합계), `memo`, **`counter_proposal_file_url`(역제안 PPT 첨부)**, `counter_proposal_by` FK→`admin`, `counter_proposal_at`, `created_at`(등록일).
+- **`proposal`**: `member_id` FK, `title`(기획안명), `status`, `media_count`(매체 수 캐시), `total_amount`(전체 금액 합계), `memo`, **`counter_proposal_file_url`(역제안 PPT 첨부)**, `counter_proposal_by` FK→`admin`, `counter_proposal_at`, `created_at`(등록일).
   - **역제안 처리**: 관리자가 회원 제안에 대해 맞춤제안을 올릴 때, 별도 항목 편집 없이 **PPT 파일 첨부**(`counter_proposal_file_url`)로 대체. 상태는 `custom`.
 - **`proposal_item`**: `proposal_id` FK, `media_id` FK, `media_plan_id` FK(선택 플랜, nullable), `quantity`, `price_snapshot`(담을 당시 광고비), `sort_order`.
 
@@ -240,7 +240,7 @@ admin 1—N admin_permission · 1—N member_sanction(처리) · 1—N proposal(
 - [ ] **원천 스냅샷·중복 컬럼**(`detail.productMaster`, `list.*`, `featureCollectionVo` 등) 적재 여부 — 운영 화면에서 실제 사용되면 컬럼/테이블 추가.
 - [ ] **파생 컬럼 재계산 파이프라인**: `final_grade`/`quality_score`/`execution_status`/`lead_time_bizdays` 배치 주기와 트리거(`02_기준` 산식 기준).
 - [ ] **소셜 로그인 콜백·회원가입 단계** 데이터(약관 동의 이력 등) 추가 테이블 필요 여부.
-- [ ] **제안서 PDF/공유** 산출물 저장 여부(별도 `proposal_export` 테이블).
+- [ ] **기획안 PDF/공유** 산출물 저장 여부(별도 `proposal_export` 테이블).
 - [ ] **`admin_permission` 메뉴 키 확정**: 6개(dashboard/media/member/business/faq/account) 외 세부 권한(읽기/쓰기 구분) 필요 여부.
 - [ ] **회원 제재 정책**: 영구/기간 제재 구분, 제재 중 로그인·기능 차단 범위, 자동 해제 처리.
 - [ ] **역제안(맞춤제안) PPT**: 파일 저장소(S3 등)·버전 관리, 회원 다운로드 노출 규칙.

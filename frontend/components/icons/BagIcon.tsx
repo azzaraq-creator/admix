@@ -1,7 +1,7 @@
 import type { IconProps } from "./types";
 
-// 쇼핑백 — "현재 제안서"(매체를 담아 두는 곳) 아이콘. 원본은 public/icons/shopping-bag.svg,
-// 색만 currentColor로 바꿔 글자색을 따른다. 사이드바 "제안서" 메뉴(CollectionIcon)와 구분하려고 따로 둔다.
+// 쇼핑백 — "현재 기획안"(매체를 담아 두는 곳) 아이콘. 원본은 public/icons/shopping-bag.svg,
+// 색만 currentColor로 바꿔 글자색을 따른다. 사이드바 "기획안" 메뉴(CollectionIcon)와 구분하려고 따로 둔다.
 export function BagIcon(props: IconProps) {
   return (
     <svg

@@ -57,7 +57,7 @@ export interface MediaPlanRow {
   subtitle: string | null;
 }
 
-/** 매체 정보 팝업의 "안건" 한 줄 — 플랜별 광고비·제작비·노출 조건(제안서가 고르는 플랜과 같은 범위). */
+/** 매체 정보 팝업의 "안건" 한 줄 — 플랜별 광고비·제작비·노출 조건(기획안이 고르는 플랜과 같은 범위). */
 export interface MediaPlanOption {
   planNo: number;
   title: string;

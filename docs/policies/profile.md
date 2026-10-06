@@ -74,7 +74,7 @@
   - **검토중/검토완료/반려**(파일 존재): 파일 정보 블록 — 공용 컴포넌트 `LicenseFileInfo`(파일 아이콘 + **업로드한 원본 파일명** `license_file_name` + **업로드 시각** `license_uploaded_at`), 클릭 시 파일 새 탭 열림. 상태별 부가:
     - **검토중**: 안내 "변경시, 검토 후 3영업일 이내 담당자가 확인 후 반영이 됩니다." + 우측 **"취소"** → 확인 다이얼로그 후 `DELETE /auth/me/business-registration`(파일 삭제 + 미등록 복귀, Figma 1100:27796).
     - **인증 반려**: **"인증 반려 사유 : {reject_reason}"**(빨강 `#ff6c64`) + 우측 **"변경"** (Figma 1100:28626).
-    - **검토 완료**: 우측 **"변경"** (Figma 1115:36415). → **혜택**: 사업자 인증(`verified`) 회원은 제안서 생성 **무제한** + AI 채팅 **무제한**(미인증은 각각 5건 / 100회 제한). [proposals §2](proposals.md) · [ai-media-recommend](ai-media-recommend.md) 참조.
+    - **검토 완료**: 우측 **"변경"** (Figma 1115:36415). → **혜택**: 사업자 인증(`verified`) 회원은 기획안 생성 **무제한** + AI 채팅 **무제한**(미인증은 각각 5건 / 100회 제한). [proposals §2](proposals.md) · [ai-media-recommend](ai-media-recommend.md) 참조.
   - **업로드 모달(`BusinessRegisterModal`)**: `mode`(register/change) 분기 — 미등록이면 제목 "사업자등록증 **등록**"·"**등록하기**", 등록됨이면 "사업자등록증 **변경**"·"**변경하기**".
     - **빈 상태**: 점선 드롭존(원형 배지 아이콘 `public/icons/business-upload.svg` + "파일을 드래그하거나 클릭하여 업로드" + "PDF 형식, 최대 10MB"). **클릭·드래그앤드롭** 지원, 드래그 중 primary 하이라이트.
     - **파일 선택 시**: `LicenseFileInfo` 파일 칩 + ✕ 삭제(Figma 1100:27541).

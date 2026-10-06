@@ -64,7 +64,7 @@ function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
       <div>
         <MixieMarkdown>
           {
-            "안녕하세요, **AI 믹시**예요.\n\n지역·예산·타겟을 알려주시면 딱 맞는 옥외광고 매체를 찾아드리고, 마음에 드는 매체는 제안서에 바로 담아드릴게요."
+            "안녕하세요, **AI 믹시**예요.\n\n지역·예산·타겟을 알려주시면 딱 맞는 옥외광고 매체를 찾아드리고, 마음에 드는 매체는 기획안에 바로 담아드릴게요."
           }
         </MixieMarkdown>
       </div>
@@ -200,17 +200,17 @@ export function HomeChat({
           const title =
             (choices.newName ?? "").trim() ||
             (typeof window !== "undefined"
-              ? (window.prompt("새 제안서 이름을 입력하세요")?.trim() ?? "")
+              ? (window.prompt("새 기획안 이름을 입력하세요")?.trim() ?? "")
               : "");
           if (!title) return false;
           await renameProposal.mutateAsync({ id: proposalId, title });
-          success("제안서 이름을 바꿨어요.");
+          success("기획안 이름을 바꿨어요.");
         } else {
           const detail = await addProposalItems.mutateAsync({
             id: proposalId,
             mediaIds: choices.mediaIds,
           });
-          // 담기 창으로 담았을 때와 같이 말풍선·현재 제안서 전환·"N" 표시.
+          // 담기 창으로 담았을 때와 같이 말풍선·현재 기획안 전환·"N" 표시.
           notifyProposalsAdded(
             [{ id: detail.id, title: detail.title }],
             choices.mediaIds.map((mid) => {
@@ -233,7 +233,7 @@ export function HomeChat({
     if (!text || chat.running) return;
     setValue("");
     // 전송 버튼은 1자라도 활성화되므로 동일하게 짧은 입력 허용
-    // ("응"/"네"/"예" 등 제안서 추가 확인 응답이 막히지 않도록).
+    // ("응"/"네"/"예" 등 기획안 추가 확인 응답이 막히지 않도록).
     void chat.submit(text, { allowShort: true });
   };
 

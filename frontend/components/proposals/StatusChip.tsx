@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-// backend status(raw) → 사용자 노출 라벨/칩 색상. 제안서 리스트·상세 공통.
+// backend status(raw) → 사용자 노출 라벨/칩 색상. 기획안 리스트·상세 공통.
 const STATUS_LABEL: Record<string, string> = {
   new: "작성중",
   custom: "맞춤제안",

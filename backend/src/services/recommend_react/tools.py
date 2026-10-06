@@ -63,14 +63,14 @@ class ExplainMediaArgs(BaseModel):
 
 
 class CreateProposalArgs(BaseModel):
-    """새 제안서(장바구니) 생성. 이름 없으면 null."""
+    """새 기획안(장바구니) 생성. 이름 없으면 null."""
 
-    name: Optional[str] = Field(None, description="제안서 이름만(조사·'제안서'·'만들어줘' 제외)")
+    name: Optional[str] = Field(None, description="기획안 이름만(조사·'기획안'·'만들어줘' 제외)")
     media_indices: list[int] = Field(default_factory=list, description="함께 담을 1-based 번호")
 
 
 class AddMediaArgs(BaseModel):
-    """직전 추천 매체를 제안서에 담기."""
+    """직전 추천 매체를 기획안에 담기."""
 
     media_indices: list[int] = Field(default_factory=list, description="담을 1-based 번호")
     media_names: list[str] = Field(
@@ -83,20 +83,20 @@ class AddMediaArgs(BaseModel):
     proposal_name: Optional[str] = Field(
         None,
         description=(
-            "담을 대상 제안서 이름. 사용자가 특정 제안서를 지목했을 때만 채운다"
+            "담을 대상 기획안 이름. 사용자가 특정 기획안을 지목했을 때만 채운다"
             "(예: '여름캠페인에 담아줘'→'여름캠페인'). 지목 안 했으면 null."
         ),
     )
 
 
 class RenameProposalArgs(BaseModel):
-    """제안서 이름 변경."""
+    """기획안 이름 변경."""
 
     new_name: str = Field(description="바꿀 새 이름")
     target_name: Optional[str] = Field(
         None,
         description=(
-            "이름을 바꿀 대상 제안서의 현재 이름. 사용자가 어느 제안서인지 지목했을 때만 채운다"
+            "이름을 바꿀 대상 기획안의 현재 이름. 사용자가 어느 기획안인지 지목했을 때만 채운다"
             "(예: '여름캠페인 이름을 가을세일로 바꿔줘'→target_name='여름캠페인'). 지목 안 했으면 null."
         ),
     )
@@ -159,7 +159,7 @@ def _resolve_item(last_items: list[dict], index: Optional[int], name: Optional[s
 
 
 def _editable_proposals(ctx: ReactContext, member_id, owner_sid) -> list:
-    """믹시가 담거나 이름을 바꿀 수 있는 제안서 — 작성중(new)만.
+    """믹시가 담거나 이름을 바꿀 수 있는 기획안 — 작성중(new)만.
 
     제출 완료(execution_requested)·맞춤 제안(custom)·계약 완료(contracted)·취소는 고칠 수 없으므로
     대상 결정·고르기 목록에서 뺀다(프런트 담기 창의 "작성 중" 기준과 같다).
@@ -186,7 +186,7 @@ def _proposal_event(
         },
     }
     if added_media_ids:
-        # 이번에 담은 매체명 — 프런트가 "OOO 제안서에 담았습니다" 말풍선·담는 제안서 전환에 쓴다.
+        # 이번에 담은 매체명 — 프런트가 "OOO 기획안에 담았습니다" 말풍선·담는 기획안 전환에 쓴다.
         names = {it.media_id: it.name for it in proposal.items}
         ev["added_media_names"] = [names.get(mid) or mid for mid in added_media_ids]
     return ev
@@ -201,10 +201,10 @@ def _emit_proposal_choices(
     media_ids: Optional[list[str]] = None,
     new_name: Optional[str] = None,
 ) -> str:
-    """대상 제안서가 애매할 때 선택 목록(카드)을 프런트로 방출한다(작업은 클릭 시 수행).
+    """대상 기획안이 애매할 때 선택 목록(카드)을 프런트로 방출한다(작업은 클릭 시 수행).
 
-    action="add" → 카드 클릭 시 media_ids 를 그 제안서에 담는다.
-    action="rename" → 카드 클릭 시 그 제안서 이름을 new_name 으로 바꾼다.
+    action="add" → 카드 클릭 시 media_ids 를 그 기획안에 담는다.
+    action="rename" → 카드 클릭 시 그 기획안 이름을 new_name 으로 바꾼다.
     """
     ev: dict = {
         "type": "proposal_choices",
@@ -220,12 +220,12 @@ def _emit_proposal_choices(
     if new_name is not None:
         ev["new_name"] = new_name
     ctx.events.append(ev)
-    return "사용자에게 제안서 선택 목록을 보여줬습니다."
+    return "사용자에게 기획안 선택 목록을 보여줬습니다."
 
 
 def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[int]) -> str:
     member_id, owner_sid, owner_user = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
-    title = (name or "").strip()[:300] or "새 제안서"
+    title = (name or "").strip()[:300] or "새 기획안"
     try:
         proposal = domain._create_proposal_sync(ctx.db, title, member_id, owner_sid, owner_user)
     except proposal_service.ProposalLimitError as exc:
@@ -236,9 +236,9 @@ def _do_create_proposal(ctx: ReactContext, name: Optional[str], indices: list[in
     media_ids = domain._media_ids_from_indices(ctx.last_items, indices)
     if media_ids:
         proposal = domain._add_items_sync(ctx.db, proposal.id, member_id, owner_sid, media_ids) or proposal
-        msg = f"'{title}' 제안서를 만들고 매체 {len(media_ids)}개를 담았어요."
+        msg = f"'{title}' 기획안을 만들고 매체 {len(media_ids)}개를 담았어요."
     else:
-        msg = f"'{title}' 제안서를 만들었어요."
+        msg = f"'{title}' 기획안을 만들었어요."
     ctx.events.append(_proposal_event(proposal, msg, media_ids))
     return msg
 
@@ -266,13 +266,13 @@ def _do_add_media(
 
     proposals = _editable_proposals(ctx, member_id, owner_sid)
 
-    # 대상 제안서 결정: ① 없으면 생성 안내(담지 않음) → ② 지정 이름 → ③ 세션 active →
+    # 대상 기획안 결정: ① 없으면 생성 안내(담지 않음) → ② 지정 이름 → ③ 세션 active →
     #                    ④ 유일 → ⑤ 여러 개인데 지정 없으면 되묻기(담지 않음)
     if not proposals:
-        # 자동 생성하지 않고 사용자에게 제안서 생성을 안내한다(v2 동작). 마커 없음 → LLM 이 relay.
+        # 자동 생성하지 않고 사용자에게 기획안 생성을 안내한다(v2 동작). 마커 없음 → LLM 이 relay.
         return (
-            "작성 중인 제안서가 없어요. 먼저 제안서를 만들어야 담을 수 있어요. "
-            "어떤 이름으로 만들까요? (예: '여름캠페인으로 제안서 만들어줘')"
+            "작성 중인 기획안이 없어요. 먼저 기획안을 만들어야 담을 수 있어요. "
+            "어떤 이름으로 만들까요? (예: '여름캠페인으로 기획안 만들어줘')"
         )
     if proposal_name and proposal_name.strip():
         name = proposal_name.strip()
@@ -282,13 +282,13 @@ def _do_add_media(
         elif not matches:
             return _emit_proposal_choices(
                 ctx, proposals,
-                f"'{name}' 제안서를 찾지 못했어요. 아래에서 담을 제안서를 선택해주세요 😊",
+                f"'{name}' 기획안을 찾지 못했어요. 아래에서 담을 기획안을 선택해주세요 😊",
                 media_ids=media_ids,
             )
         else:
             return _emit_proposal_choices(
                 ctx, matches,
-                f"'{name}'와 비슷한 제안서가 여러 개예요. 아래에서 선택해주세요 😊",
+                f"'{name}'와 비슷한 기획안이 여러 개예요. 아래에서 선택해주세요 😊",
                 media_ids=media_ids,
             )
     elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
@@ -298,13 +298,13 @@ def _do_add_media(
     else:
         return _emit_proposal_choices(
             ctx, proposals,
-            "어느 제안서에 담을까요? 아래에서 선택해주세요 😊",
+            "어느 기획안에 담을까요? 아래에서 선택해주세요 😊",
             media_ids=media_ids,
         )
 
     updated = domain._add_items_sync(ctx.db, target.id, member_id, owner_sid, media_ids) or target
     ctx.active_proposal_id = str(updated.id)
-    msg = f"매체 {len(media_ids)}개를 '{updated.title}' 제안서에 담았어요."
+    msg = f"매체 {len(media_ids)}개를 '{updated.title}' 기획안에 담았어요."
     ctx.events.append(_proposal_event(updated, msg, media_ids))
     return msg
 
@@ -315,7 +315,7 @@ def _do_rename(
     member_id, owner_sid, _ = domain._proposal_owner_for_session(ctx.db, ctx.session_id)
     proposals = _editable_proposals(ctx, member_id, owner_sid)
     if not proposals:
-        return "이름을 바꿀 수 있는 작성 중인 제안서가 없어요. 먼저 제안서를 만들어 주세요 😊"
+        return "이름을 바꿀 수 있는 작성 중인 기획안이 없어요. 먼저 기획안을 만들어 주세요 😊"
     nn = (new_name or "").strip()
     nn_arg = nn or None  # 새 이름 미지정이면 선택 카드 클릭 시 프런트에서 입력받음
 
@@ -328,13 +328,13 @@ def _do_rename(
         elif not matches:
             return _emit_proposal_choices(
                 ctx, proposals,
-                f"'{t}' 제안서를 찾지 못했어요. 이름을 바꿀 제안서를 아래에서 선택해주세요 😊",
+                f"'{t}' 기획안을 찾지 못했어요. 이름을 바꿀 기획안을 아래에서 선택해주세요 😊",
                 action="rename", new_name=nn_arg,
             )
         else:
             return _emit_proposal_choices(
                 ctx, matches,
-                f"'{t}'와 비슷한 제안서가 여러 개예요. 이름을 바꿀 제안서를 선택해주세요 😊",
+                f"'{t}'와 비슷한 기획안이 여러 개예요. 이름을 바꿀 기획안을 선택해주세요 😊",
                 action="rename", new_name=nn_arg,
             )
     elif ctx.active_proposal_id and any(str(p.id) == str(ctx.active_proposal_id) for p in proposals):
@@ -343,19 +343,19 @@ def _do_rename(
         target = proposals[0]
     else:
         msg = (
-            f"어느 제안서를 '{nn}'(으)로 바꿀까요? 아래에서 선택해주세요 😊"
+            f"어느 기획안을 '{nn}'(으)로 바꿀까요? 아래에서 선택해주세요 😊"
             if nn
-            else "어느 제안서의 이름을 바꿀까요? 아래에서 선택하면 새 이름을 입력할 수 있어요 😊"
+            else "어느 기획안의 이름을 바꿀까요? 아래에서 선택하면 새 이름을 입력할 수 있어요 😊"
         )
         return _emit_proposal_choices(ctx, proposals, msg, action="rename", new_name=nn_arg)
 
     # 대상은 정해졌는데 새 이름을 아직 안 준 경우 → 이름을 물어본다.
     if not nn:
-        return f"'{target.title}' 제안서를 어떤 이름으로 바꿀까요? 새 이름을 알려주세요 😊"
+        return f"'{target.title}' 기획안을 어떤 이름으로 바꿀까요? 새 이름을 알려주세요 😊"
 
     updated = proposal_service.rename(ctx.db, target, nn)
     ctx.active_proposal_id = str(updated.id)
-    msg = f"제안서 이름을 '{updated.title}'(으)로 바꿨어요."
+    msg = f"기획안 이름을 '{updated.title}'(으)로 바꿨어요."
     ctx.events.append(_proposal_event(updated, msg))
     return msg
 
@@ -404,17 +404,17 @@ def build_tools(ctx: ReactContext) -> list:
 
     @tool(args_schema=CreateProposalArgs)
     def CreateProposal(name=None, media_indices=None):  # noqa: N802
-        """새 제안서 생성."""
+        """새 기획안 생성."""
         return _do_create_proposal(ctx, name, media_indices or [])
 
     @tool(args_schema=AddMediaArgs)
     def AddMedia(media_indices=None, media_names=None, proposal_name=None):  # noqa: N802
-        """직전 매체를 제안서에 담기."""
+        """직전 매체를 기획안에 담기."""
         return _do_add_media(ctx, media_indices or [], proposal_name, media_names or [])
 
     @tool(args_schema=RenameProposalArgs)
     def RenameProposal(new_name, target_name=None):  # noqa: N802
-        """제안서 이름 변경."""
+        """기획안 이름 변경."""
         return _do_rename(ctx, new_name, target_name)
 
     return [SearchMedia, ExplainMedia, CreateProposal, AddMedia, RenameProposal]

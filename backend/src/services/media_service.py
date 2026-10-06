@@ -746,7 +746,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         for p in m.plans
         if p.product_master_type == "PM_INDIVIDUAL"
     ]
-    # 매체 정보 팝업의 "안건" 옵션 — 제안서가 고르는 플랜과 같은 범위(전체 플랜, plan_no 순).
+    # 매체 정보 팝업의 "안건" 옵션 — 기획안이 고르는 플랜과 같은 범위(전체 플랜, plan_no 순).
     # 프론트가 "[1안] 영상 20초, 100회, 1개월 10,000,000원"처럼 이어 붙인다.
     plan_options = [
         dict(

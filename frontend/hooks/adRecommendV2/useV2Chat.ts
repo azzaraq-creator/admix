@@ -137,7 +137,7 @@ const POLL_INTERVAL_MS = 1200;
 const POLL_MAX_ATTEMPTS = 50;
 
 /** 가짜 스트리밍 로딩 문구(백엔드 async 처리 동안 순차 노출).
- * 작업 종류(추천/제안서/상세)를 특정하지 않는 중립 문구. */
+ * 작업 종류(추천/기획안/상세)를 특정하지 않는 중립 문구. */
 const LOADING_LABELS = [
   "요청을 확인하고 있어요…",
   "내용을 처리하고 있어요…",
@@ -245,7 +245,7 @@ export function useV2Chat() {
         setMessages((detail.messages ?? []).map(restoreMessage));
       } catch (err) {
         // 404/410(만료·삭제)만 세션 정리. 네트워크/5xx 등 일시 오류엔 세션을
-        // 유지한다 — 게스트 세션에 묶인 제안서가 일시 오류로 고아가 되는 것 방지.
+        // 유지한다 — 게스트 세션에 묶인 기획안이 일시 오류로 고아가 되는 것 방지.
         const status = (err as { response?: { status?: number } })?.response
           ?.status;
         if (status === 404 || status === 410) {

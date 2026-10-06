@@ -53,7 +53,7 @@ export function StatusBadge({ status }: { status: Status }) {
   );
 }
 
-/** 표지 — 샘플 이미지 위에 어두운 막 + "ADMIX 제안서 / 연도". */
+/** 표지 — 샘플 이미지 위에 어두운 막 + "ADMIX 기획안 / 연도". */
 function Cover({ year }: { year: string }) {
   return (
     <div className="relative h-[50px] w-[70px] overflow-hidden rounded-[8px] bg-black">
@@ -67,7 +67,7 @@ function Cover({ year }: { year: string }) {
         <span>
           ADMIX
           <br />
-          제안서
+          기획안
         </span>
         <span>{year}</span>
       </div>
@@ -75,13 +75,13 @@ function Cover({ year }: { year: string }) {
   );
 }
 
-/** 제안서명에 마우스를 올리면(태블릿은 누르면) 뜨는 "제안서 요약" — 담긴 매체와 광고비·제작비. */
+/** 기획안명에 마우스를 올리면(태블릿은 누르면) 뜨는 "기획안 요약" — 담긴 매체와 광고비·제작비. */
 function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
   // min-h-0 사슬 — Popover가 화면 남은 높이에 맞춰 줄어들면(아이패드 가로 등) 목록도 같이 줄어
   // 그 안에서 스크롤된다. 없으면 목록이 360px을 고집해 Popover 밖으로 넘친다.
   return (
     <div className="flex min-h-0 w-full flex-col gap-[12px]">
-      <p className="text-[14px] font-bold text-[#111827]">제안서 요약</p>
+      <p className="text-[14px] font-bold text-[#111827]">기획안 요약</p>
       {proposal.previews.length === 0 ? (
         <p className="text-[12px] text-[#6b7280]">아직 담긴 매체가 없어요.</p>
       ) : (
@@ -138,7 +138,7 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
   );
 }
 
-/** 태블릿 제안서 요약 — 터치 화면(sm 이상)에서 제안서명을 누르면 툴팁과 같은 내용을 Popover로. */
+/** 태블릿 기획안 요약 — 터치 화면(sm 이상)에서 기획안명을 누르면 툴팁과 같은 내용을 Popover로. */
 function SummaryPopover({ proposal }: { proposal: Proposal }) {
   return (
     <Popover>
@@ -168,8 +168,8 @@ function SummaryPopover({ proposal }: { proposal: Proposal }) {
 }
 
 /**
- * 모바일 제안서 요약 시트 — 제안서명 칸 전체가 여는 버튼(HeroUI Drawer, 아래에서 올라옴).
- * 머리: 제안서명·매체 수·최근 수정 / 본문: 담긴 매체(썸네일·이름·주소·광고비·제작비, 많으면 스크롤)
+ * 모바일 기획안 요약 시트 — 기획안명 칸 전체가 여는 버튼(HeroUI Drawer, 아래에서 올라옴).
+ * 머리: 기획안명·매체 수·최근 수정 / 본문: 담긴 매체(썸네일·이름·주소·광고비·제작비, 많으면 스크롤)
  * / 바닥: 광고비·제작비 합계 + 닫기. 모양은 관심 매체의 "선택한 매체" 시트와 같다.
  */
 function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
@@ -322,8 +322,8 @@ function SortableHeader({
 export type ProposalSortKey = "title" | "updatedAt" | "createdAt";
 
 /**
- * 시안(03. 제안서) 제안서 표 — HeroUI Table.
- * 시안 주석: 정렬은 제안서명·최근 수정·제작 일시(기본 제작 일시), 삭제는 확인창을 띄운다.
+ * 시안(03. 제안서) 기획안 표 — HeroUI Table.
+ * 시안 주석: 정렬은 기획안명·최근 수정·제작 일시(기본 제작 일시), 삭제는 확인창을 띄운다.
  * 행을 누르면 상세로 간다(PPT·삭제 버튼은 행 이동 없이 자기 동작만).
  */
 export function ProposalTable({
@@ -340,7 +340,7 @@ export function ProposalTable({
   items: Proposal[];
   /** 처음 불러오거나 만들기·삭제 뒤 목록을 다시 받는 중 — 행 대신 본문 가운데에 스피너를 보인다. */
   loading?: boolean;
-  /** 행이 없을 때 표 본문에 보여 줄 내용(불러오는 중·제안서 없음·검색 결과 없음). */
+  /** 행이 없을 때 표 본문에 보여 줄 내용(불러오는 중·기획안 없음·검색 결과 없음). */
   emptyState: ReactNode;
   sortDescriptor: SortDescriptor;
   onSortChange: (descriptor: SortDescriptor) => void;
@@ -413,7 +413,7 @@ export function ProposalTable({
             모든 화면에서 스크롤 틀 자체의 아래 모서리를 같은 곡률로 깎는다. */}
         <Table.ScrollContainer className="rounded-b-[min(32px,var(--radius-2xl))]">
           <Table.Content
-            aria-label="내 제안서"
+            aria-label="내 기획안"
             sortDescriptor={sortDescriptor}
             onSortChange={onSortChange}
             onRowAction={(key) => {
@@ -423,9 +423,9 @@ export function ProposalTable({
             }}
             // 아래를 흰색으로 이어 채울 땐 마지막 행의 아래 둥근 모서리를 채움 영역으로 넘긴다.
             className={cn(
-              // 칸 폭 고정 배치 — 긴 제안서명이 다른 칸을 밀지 않고 말줄임된다.
+              // 칸 폭 고정 배치 — 긴 기획안명이 다른 칸을 밀지 않고 말줄임된다.
               // 칸 폭은 내용 + HeroUI 칸 좌우 여백(16px×2)이 들어가게 잡았다.
-              // 고정 칸 합계 1008px + 제안서명 최소 200px = 1208px보다 좁을 때만 가로 스크롤
+              // 고정 칸 합계 1008px + 기획안명 최소 200px = 1208px보다 좁을 때만 가로 스크롤
               // (사이드바를 펼친 1440px 화면의 표 폭 약 1259px에서는 스크롤이 생기지 않는다).
               "min-w-[1208px] table-fixed",
               filling && "[&_tbody_tr:last-child_td]:rounded-b-none",
@@ -435,11 +435,11 @@ export function ProposalTable({
               {/* 표지: 이미지 70px + 칸 좌우 여백 32px. */}
               <Table.Column className="w-[102px]">표지</Table.Column>
               <Table.Column className="w-[110px]">상태</Table.Column>
-              {/* 제안서명은 폭을 정하지 않아 나머지 폭을 모두 가져간다(표는 table-fixed). */}
+              {/* 기획안명은 폭을 정하지 않아 나머지 폭을 모두 가져간다(표는 table-fixed). */}
               <Table.Column id="title" allowsSorting isRowHeader>
                 {({ sortDirection }) => (
                   <SortableHeader
-                    label="제안서명"
+                    label="기획안명"
                     sortDirection={sortDirection}
                   />
                 )}
@@ -472,7 +472,7 @@ export function ProposalTable({
                 불러오는 중엔 행 없이 헤더만 두고(빈 화면 문구도 숨김), 본문 자리는 아래 스피너 칸이 채운다. */}
             <Table.Body
               items={loading ? [] : items}
-              // react-aria는 items가 그대로면 행을 다시 그리지 않는다 — 받는 중인 제안서가 바뀌면
+              // react-aria는 items가 그대로면 행을 다시 그리지 않는다 — 받는 중인 기획안이 바뀌면
               // PPT 버튼(스피너·비활성)이 반영되도록 다시 그리게 한다.
               dependencies={[downloadingId, loading]}
               renderEmptyState={() =>
@@ -492,7 +492,7 @@ export function ProposalTable({
                     <StatusBadge status={proposal.status} />
                   </Table.Cell>
                   <Table.Cell>
-                    {/* 시안 "03. 제안서 - tooltip": 제안서명(밑줄)에 올리면 제안서 요약이 뜬다.
+                    {/* 시안 "03. 제안서 - tooltip": 기획안명(밑줄)에 올리면 기획안 요약이 뜬다.
                         마우스로 쓰는 PC에서만 — 터치 화면(iPad 등)은 hover가 없어 아래 Popover로 연다. */}
                     <Tooltip delay={200} closeDelay={100}>
                       <Tooltip.Trigger className="max-w-full max-sm:hidden pointer-coarse:hidden">
@@ -509,12 +509,12 @@ export function ProposalTable({
                         <SummaryTooltipBody proposal={proposal} />
                       </Tooltip.Content>
                     </Tooltip>
-                    {/* 태블릿(sm 이상 터치 화면)은 제안서명을 누르면 같은 요약을 Popover로 띄운다.
-                        버튼이라 눌러도 행 동작(제안서 열기)으로 번지지 않는다. */}
+                    {/* 태블릿(sm 이상 터치 화면)은 기획안명을 누르면 같은 요약을 Popover로 띄운다.
+                        버튼이라 눌러도 행 동작(기획안 열기)으로 번지지 않는다. */}
                     <SummaryPopover proposal={proposal} />
-                    {/* 모바일은 hover가 없어, 제안서명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
-                        담긴 매체를 크게 보여 준다(제안서는 열지 않는다). 제안서명 칸 전체가 버튼이라
-                        짧은 제안서명 옆 빈 곳을 눌러도 시트만 뜬다. */}
+                    {/* 모바일은 hover가 없어, 기획안명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
+                        담긴 매체를 크게 보여 준다(기획안은 열지 않는다). 기획안명 칸 전체가 버튼이라
+                        짧은 기획안명 옆 빈 곳을 눌러도 시트만 뜬다. */}
                     <MobileSummaryDrawer proposal={proposal} />
                   </Table.Cell>
                   <Table.Cell>{proposal.mediaCount}</Table.Cell>
@@ -609,7 +609,7 @@ export function ProposalTable({
           <div className="flex min-h-0 flex-col items-center justify-center gap-[12px] rounded-[min(32px,var(--radius-2xl))] bg-surface">
             <Spinner />
             <p className="text-[13px] text-[#8c8c94]">
-              제안서를 불러오는 중이에요
+              기획안을 불러오는 중이에요
             </p>
           </div>
         )}

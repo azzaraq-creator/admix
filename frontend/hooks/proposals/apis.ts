@@ -100,7 +100,7 @@ export function isMember(): boolean {
   return Boolean(getUserToken());
 }
 
-/** 내 제안서 목록 — 제안서명에 마우스를 올리면 뜨는 "제안서 요약"의 매체 한 줄. */
+/** 내 기획안 목록 — 기획안명에 마우스를 올리면 뜨는 "기획안 요약"의 매체 한 줄. */
 export interface ProposalPreviewItem {
   media_id: string;
   name: string;
@@ -109,7 +109,7 @@ export interface ProposalPreviewItem {
   /** 선택한 상품의 광고비·제작비(1회분). */
   advertisement_fee: number | null;
   production_fee: number | null;
-  /** 제안서에 담긴 시각. */
+  /** 기획안에 담긴 시각. */
   created_at?: string | null;
 }
 
@@ -122,7 +122,7 @@ export interface ProposalSummary {
   updated_at: string | null;
   media_ids: string[];
   created_at?: string | null;
-  // 아래는 내 제안서 목록(GET /proposals)에서만 채워진다.
+  // 아래는 내 기획안 목록(GET /proposals)에서만 채워진다.
   /** 광고비 × 수량 합계 */
   advertisement_amount?: number | null;
   /** 제작비 × 수량 합계 */
@@ -149,7 +149,7 @@ export interface ProposalItem {
   name: string | null;
   /** 매체명 — name 은 선택 상품명(서머리용)일 수 있다. */
   media_name?: string | null;
-  /** 제안서에 담은 시각 */
+  /** 기획안에 담은 시각 */
   created_at?: string | null;
   price: number | null;
   production_fee: number | null;
@@ -194,7 +194,7 @@ export interface ProposalLimitDetail {
   limit: number;
 }
 
-// 제안서 생성/이름변경 409 응답의 detail.reason 추출. 409 아니면 null.
+// 기획안 생성/이름변경 409 응답의 detail.reason 추출. 409 아니면 null.
 export function proposalErrorReason(err: unknown): string | null {
   const res = (
     err as {
@@ -315,7 +315,7 @@ export const proposalsClientApi = {
       params: { session_id: getSessionId() },
       timeout: 60000,
     }),
-  // 로그인/가입 시 게스트 세션 제안서 + 챗 세션을 회원으로 승계.
+  // 로그인/가입 시 게스트 세션 기획안 + 챗 세션을 회원으로 승계.
   claim: (sessionId: string) =>
     api
       .post<{ claimed: number }>("/proposals/claim", { session_id: sessionId })
@@ -323,7 +323,7 @@ export const proposalsClientApi = {
 };
 
 /**
- * 담기·옵션 변경은 "작성 중"(편집 가능) 제안서에만 — 맞춤 제안·제출 완료·계약 완료는 뺀다.
+ * 담기·옵션 변경은 "작성 중"(편집 가능) 기획안에만 — 맞춤 제안·제출 완료·계약 완료는 뺀다.
  * (ProposalsView.toStatus 의 "작성 중" 분류와 같은 기준)
  */
 export function isDraftProposal(status: string): boolean {

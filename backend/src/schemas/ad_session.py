@@ -18,7 +18,7 @@ class AdSessionUpdate(BaseModel):
 
 
 class ProposalChoicePicked(BaseModel):
-    """믹시 "어느 제안서에 담을까요?" 목록에서 사용자가 고른 제안서."""
+    """믹시 "어느 기획안에 담을까요?" 목록에서 사용자가 고른 기획안."""
 
     proposal_id: str
     proposal_name: str = Field(max_length=300)

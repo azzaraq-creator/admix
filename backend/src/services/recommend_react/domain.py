@@ -1,6 +1,6 @@
 """recommend_react 도메인 헬퍼 — recommend_v2에서 포팅한 순수 로직(독립).
 
-키워드 추출 / DB 필터 / 광고비 정렬 / 응답 포맷 / 제안서 실행기.
+키워드 추출 / DB 필터 / 광고비 정렬 / 응답 포맷 / 기획안 실행기.
 슬롯·스트림·충돌 로직은 가져오지 않는다.
 """
 from __future__ import annotations
@@ -479,10 +479,10 @@ def _explain_with_llm(item: dict, detail: dict | None, aspect: str | None = None
 
 
 class ProposalIntent(BaseModel):
-    """발화의 제안서 작업 분류."""
+    """발화의 기획안 작업 분류."""
 
     action: str = "none"  # create | add_media | rename | none
-    name: Optional[str] = None  # create 시 지정한 제안서 이름
+    name: Optional[str] = None  # create 시 지정한 기획안 이름
     new_name: Optional[str] = None  # rename 대상 이름
     media_indices: list[int] = Field(default_factory=list)  # 1-based, 직전 리스트 기준
 
@@ -521,11 +521,11 @@ def _media_ids_from_indices(last_items: list[dict], indices: list[int]) -> list[
 def _proposal_limit_message(tier: str, limit: int) -> str:
     if tier == "guest":
         return (
-            "무료 체험 제안서 1건을 모두 사용했어요. "
-            "로그인하면 더 많은 제안서를 만들고 관리할 수 있어요 😊"
+            "무료 체험 기획안 1건을 모두 사용했어요. "
+            "로그인하면 더 많은 기획안을 만들고 관리할 수 있어요 😊"
         )
     return (
-        f"제안서 생성 한도 {limit}건을 모두 사용했어요. "
+        f"기획안 생성 한도 {limit}건을 모두 사용했어요. "
         "사업자 인증을 완료하면 무제한으로 이용할 수 있어요 😊"
     )
 

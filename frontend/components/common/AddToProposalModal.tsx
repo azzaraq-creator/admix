@@ -31,21 +31,21 @@ import {
 import { getSessionId, setSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-/** 제안서 이름 최대 길이 — 새 제안서 만들기 창(NewProposalModal)과 같다. */
+/** 기획안 이름 최대 길이 — 새 기획안 만들기 창(NewProposalModal)과 같다. */
 const MAX_NAME_LENGTH = 50;
 
-// 입력칸 44px → 곡률 19px. 새 제안서 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
-// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 제안서 검색창과 같은 방식.
+// 입력칸 44px → 곡률 19px. 새 기획안 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
+// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 기획안 검색창과 같은 방식.
 const FIELD_CLASS =
   "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
   "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
-// 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·제안서 담기)과 같은 모양.
+// 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·기획안 담기)과 같은 모양.
 const ACTION_CLASS =
   "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
 const CANCEL_CLASS = "bg-[#eee] text-[#18181b]";
 
-// 새 제안서 입력칸 아래 작은 버튼 32px → 곡률 13px.
+// 새 기획안 입력칸 아래 작은 버튼 32px → 곡률 13px.
 const SMALL_ACTION_CLASS =
   "h-[32px] min-w-0 rounded-[13px] px-[12px] text-[12px] font-medium";
 
@@ -56,7 +56,7 @@ const SMALL_ACTION_CLASS =
 const HEROUI_CHECKBOX_SCOPE =
   "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)] [--app-radius:0.46875rem]";
 
-/** 매체 정보 팝업에서 고른 개월 수·제작 수 — 담을 때 제안서 항목에 같이 저장한다. */
+/** 매체 정보 팝업에서 고른 개월 수·제작 수 — 담을 때 기획안 항목에 같이 저장한다. */
 export type AddProposalOptions = { months: number; productionCount: number };
 
 type AddToProposalModalProps = {
@@ -85,7 +85,7 @@ export function AddToProposalModal({
   const { showLimitDialog, limitDialog } = useProposalLimitDialog();
 
   // 게스트인데 세션이 없으면(챗 미사용/세션 소실) 담기 전에 세션을 확보한다.
-  // 세션이 없으면 제안서 조회가 비어 "제안서 없음"으로 오판되므로.
+  // 세션이 없으면 기획안 조회가 비어 "기획안 없음"으로 오판되므로.
   useEffect(() => {
     if (isMember() || getSessionId()) return;
     let cancelled = false;
@@ -110,7 +110,7 @@ export function AddToProposalModal({
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // 담을 매체를 모두 이미 담고 있는 제안서는 고를 수 없다(일부만 담겨 있으면 나머지만 담긴다).
+  // 담을 매체를 모두 이미 담고 있는 기획안은 고를 수 없다(일부만 담겨 있으면 나머지만 담긴다).
   const hasMedia = (proposal: { media_ids: string[] }) =>
     targetIds.every((id) => proposal.media_ids.includes(id));
 
@@ -135,8 +135,8 @@ export function AddToProposalModal({
         }
         setNameError(
           proposalErrorReason(err) === "duplicate_name"
-            ? "이미 사용 중인 제안서 이름입니다. 다른 이름을 입력해 주세요."
-            : "제안서를 만들지 못했어요. 다시 시도해 주세요.",
+            ? "이미 사용 중인 기획안 이름입니다. 다른 이름을 입력해 주세요."
+            : "기획안을 만들지 못했어요. 다시 시도해 주세요.",
         );
       },
       onSettled: () => {
@@ -172,7 +172,7 @@ export function AddToProposalModal({
         const it = added[0]?.items.find((x) => x.media_id === mid);
         return it?.media_name ?? it?.name ?? mid;
       });
-      // 말풍선 + 현재 제안서 전환 + "N" 표시(notifyProposalsAdded).
+      // 말풍선 + 현재 기획안 전환 + "N" 표시(notifyProposalsAdded).
       notifyProposalsAdded(
         added.map((p) => ({ id: p.id, title: p.title })),
         names,
@@ -201,7 +201,7 @@ export function AddToProposalModal({
         <Modal.Backdrop>
           <Modal.Container placement="center" className="px-[16px] sm:px-0">
             <Modal.Dialog
-              aria-label="제안서에 담기"
+              aria-label="기획안에 담기"
               className="w-full max-w-[440px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
             >
               <Modal.CloseTrigger
@@ -213,13 +213,13 @@ export function AddToProposalModal({
 
               <Modal.Header className="flex min-h-[28px] shrink-0 flex-col justify-center gap-[4px] p-0 pr-[40px]">
                 <Modal.Heading className="text-[16px] font-semibold text-black">
-                  제안서에 담기
+                  기획안에 담기
                 </Modal.Heading>
                 <p className="text-[12px] leading-[1.5] text-[#888]">
                   {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
                   {targetIds.length > 1
-                    ? `매체 ${targetIds.length}개를 담을 제안서를 골라 주세요`
-                    : "이 매체를 담을 제안서를 골라 주세요"}
+                    ? `매체 ${targetIds.length}개를 담을 기획안을 골라 주세요`
+                    : "이 매체를 담을 기획안을 골라 주세요"}
                   <span className="hidden sm:inline">. </span>
                   <br className="sm:hidden" />
                   여러 개를 함께 고를 수 있어요
@@ -245,7 +245,7 @@ export function AddToProposalModal({
                       }}
                       isInvalid={!!nameError}
                       maxLength={MAX_NAME_LENGTH}
-                      aria-label="새 제안서 이름"
+                      aria-label="새 기획안 이름"
                       autoFocus
                       fullWidth
                       className="gap-[6px]"
@@ -287,20 +287,20 @@ export function AddToProposalModal({
                     </div>
                   </form>
                 ) : (
-                  // 제안서 목록 줄과 같은 높이(44px), 점선 테두리로 "추가" 자리임을 보인다.
+                  // 기획안 목록 줄과 같은 높이(44px), 점선 테두리로 "추가" 자리임을 보인다.
                   <Button
                     variant="ghost"
                     onPress={() => setCreating(true)}
                     className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-[13px] font-medium text-[#52525b] data-[hovered=true]:bg-[#fafafa]"
                   >
-                    <FolderAddIcon className="size-[16px] shrink-0" />새 제안서
+                    <FolderAddIcon className="size-[16px] shrink-0" />새 기획안
                     만들기
                   </Button>
                 )}
 
                 <div className="flex items-center justify-between px-[2px] pt-[4px]">
                   <p className="text-[13px] font-semibold text-[#18181b]">
-                    내 제안서
+                    내 기획안
                     {proposals.length > 0 && (
                       <span className="ml-[4px] text-[#a1a1aa]">
                         {proposals.length}
@@ -310,7 +310,7 @@ export function AddToProposalModal({
                 </div>
 
                 {isLoading ? (
-                  // 내 제안서 불러오는 중 — "아직 만든 제안서가 없어요"가 잠깐 보이지 않게.
+                  // 내 기획안 불러오는 중 — "아직 만든 기획안이 없어요"가 잠깐 보이지 않게.
                   <div
                     role="status"
                     aria-label="불러오는 중"
@@ -321,22 +321,22 @@ export function AddToProposalModal({
                 ) : proposals.length === 0 ? (
                   <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[28px]">
                     <p className="text-[14px] font-semibold text-[#18181b]">
-                      아직 만든 제안서가 없어요
+                      아직 만든 기획안이 없어요
                     </p>
                     <p className="text-[12px] text-[#888]">
-                      새 제안서를 만들어 매체를 담아 보세요.
+                      새 기획안을 만들어 매체를 담아 보세요.
                     </p>
                   </div>
                 ) : (
                   // HeroUI CheckboxGroup — 줄 전체가 체크박스라 어디를 눌러도 고르고, 키보드(Tab·Space)로도 고른다.
-                  // 이미 담긴 제안서는 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
-                  // 제안서가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
+                  // 이미 담긴 기획안은 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
+                  // 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
                   <ScrollShadow
                     size={24}
                     className="max-h-[264px] shrink-0 [scrollbar-width:thin]"
                   >
                     <CheckboxGroup
-                      aria-label="담을 제안서"
+                      aria-label="담을 기획안"
                       value={selected}
                       onChange={setSelected}
                       className={cn(
@@ -405,8 +405,8 @@ export function AddToProposalModal({
                   {submitting
                     ? "담는 중..."
                     : selected.length > 1
-                      ? `${selected.length}개 제안서에 담기`
-                      : "제안서에 담기"}
+                      ? `${selected.length}개 기획안에 담기`
+                      : "기획안에 담기"}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>

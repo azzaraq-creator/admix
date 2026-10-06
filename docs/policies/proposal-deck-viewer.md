@@ -1,15 +1,15 @@
-# 제안서 덱(슬라이드) 뷰어 화면 정책서 (UI중심)
+# 기획안 덱(슬라이드) 뷰어 화면 정책서 (UI중심)
 
 > **이 문서는 "이 화면이 어떤 규칙으로 동작하는가"를 정의합니다.**
 > 화면을 위→아래 **UI 블록 순서**로 읽습니다. 각 블록은 **"무엇 + 동작 규칙"**만 적고, 디자인(색·여백·컴포넌트 모양)은 Figma에 둡니다. 미정은 줄 안에 `❓`로 표시하고 맨 아래 "미정" 섹션에 한 번 더 모읍니다.
 
 | | |
 |---|---|
-| **화면** | 제안서 덱(슬라이드) 뷰어 · `/deck/[id]` |
+| **화면** | 기획안 덱(슬라이드) 뷰어 · `/deck/[id]` |
 | **진입** | 덱 ID를 아는 사람이 URL 직접 접근 (예: `/deck/sample`). 현재 앱 내부 UI에 이 화면으로 가는 링크·버튼은 없음 ❓ |
 | **Figma** | ❓(미확인) — 이 화면 전용 프레임 링크 미확인. 앱 내 다른 뷰어와 달리 zinc 다크 테마 자체 UI(별도 컴포넌트 `PptDeckViewer`) |
 | **상태/작성자** | `draft` · (코드 기반 자동생성) · 2026-07-09 |
-| **관련 화면** | 제안서 상세(`/proposals/[id]`)의 슬라이드 뷰(`CounterProposalDeckView`/`SlideLightbox`)는 **별개 구현**임 — 아래 5·6 참조 |
+| **관련 화면** | 기획안 상세(`/proposals/[id]`)의 슬라이드 뷰(`CounterProposalDeckView`/`SlideLightbox`)는 **별개 구현**임 — 아래 5·6 참조 |
 
 ---
 
@@ -47,7 +47,7 @@ PPT/PPTX를 슬라이드 이미지로 변환한 **덱을 전체화면으로 넘�
 - **규칙**:
   - 이미지 경로: `/decks/{id}/{slide.image}` (예: `/decks/sample/slide-1.png`).
   - 영역 안에서 비율 유지 축소(`max-h-full max-w-full`), 넘치면 잘림(`overflow-hidden`), 확대는 하지 않음.
-  - 슬라이드 클릭·확대·라이트박스 동작 **없음**(이 화면에는 확대 오버레이가 없다). 상세 제안서 화면의 라이트박스와 다름 — 6번 참조.
+  - 슬라이드 클릭·확대·라이트박스 동작 **없음**(이 화면에는 확대 오버레이가 없다). 상세 기획안 화면의 라이트박스와 다름 — 6번 참조.
 
 ### 3.2 하단 네비게이션 바 (우측 하단, 고정)
 - **기능**: 이전/다음 이동 + 현재 위치 표시.
@@ -88,7 +88,7 @@ PPT/PPTX를 슬라이드 이미지로 변환한 **덱을 전체화면으로 넘�
 | 슬라이드/썸네일 이미지 | `frontend/public/decks/{id}/slide-N.png`, `thumb-N.png` (정적 자산) | 브라우저가 `/decks/{id}/...` 정적 경로로 요청 |
 | (덱 생성) PPT→슬라이드 변환 | 백엔드 `backend/src/services/deck_converter.py` (LibreOffice `soffice` + poppler `pdftoppm`) | `slide`=150dpi, `thumb`=50dpi로 렌더, 같은 폴더에 `meta.json` 작성 |
 
-> **주의(코드-문서 불일치)**: 계획 문서 [`docs/plans/2026-06-02-ppt-upload-and-rendering.md`](../plans/2026-06-02-ppt-upload-and-rendering.md)는 이 화면이 백엔드 `GET /api/decks/{id}/meta.json`을 fetch하고 이미지도 `/api/decks/{id}/...`에서 받도록 설계했으나, **현재 코드는 여전히 프론트 `public/decks/`를 읽는다.** 업로드 페이지(`/deck/upload`)도 미구현. 또한 백엔드 `proposal_service.py`의 슬라이드 로직은 `upload_dir`의 meta.json을 읽어 **제안서(카운터 제안) 화면**에 쓰이며, 이 `/deck/[id]` 뷰어와는 데이터 경로가 분리돼 있음.
+> **주의(코드-문서 불일치)**: 계획 문서 [`docs/plans/2026-06-02-ppt-upload-and-rendering.md`](../plans/2026-06-02-ppt-upload-and-rendering.md)는 이 화면이 백엔드 `GET /api/decks/{id}/meta.json`을 fetch하고 이미지도 `/api/decks/{id}/...`에서 받도록 설계했으나, **현재 코드는 여전히 프론트 `public/decks/`를 읽는다.** 업로드 페이지(`/deck/upload`)도 미구현. 또한 백엔드 `proposal_service.py`의 슬라이드 로직은 `upload_dir`의 meta.json을 읽어 **기획안(카운터 제안) 화면**에 쓰이며, 이 `/deck/[id]` 뷰어와는 데이터 경로가 분리돼 있음.
 
 ---
 
@@ -97,11 +97,11 @@ PPT/PPTX를 슬라이드 이미지로 변환한 **덱을 전체화면으로 넘�
 > `/deck/[id]` 뷰어 화면 기준. 제품 결정이 필요한 항목만.
 
 **미결정**
-- [ ] 이 화면으로의 **진입 경로/링크** — 현재 앱 UI 어디에도 `/deck/[id]`로 가는 버튼이 없다. 어디서(관리자? 제안서? 이메일?) 이 URL을 공유하는가.
+- [ ] 이 화면으로의 **진입 경로/링크** — 현재 앱 UI 어디에도 `/deck/[id]`로 가는 버튼이 없다. 어디서(관리자? 기획안? 이메일?) 이 URL을 공유하는가.
 - [ ] **접근 범위** — 공개 링크가 의도된 정책인가. 그렇다면 덱 ID를 추측 불가능하게(랜덤/토큰) 발급하는가, 만료·회수가 필요한가.
 - [ ] **Figma 프레임** — 이 다크 테마 뷰어 전용 디자인 링크(미확인).
 - [ ] **데이터 소스 확정** — 프론트 정적(`public/decks`) 유지인가, 계획대로 백엔드 `/api/decks`로 전환인가. 전환 시 `basePath`·fetch 변경 필요(계획 문서와 코드 불일치 해소).
-- [ ] **제안서 슬라이드 뷰와의 관계** — `(client)/proposals/[id]`의 `CounterProposalDeckView`/`SlideLightbox`와 이 단독 뷰어를 통합할지, 별개로 둘지.
+- [ ] **기획안 슬라이드 뷰와의 관계** — `(client)/proposals/[id]`의 `CounterProposalDeckView`/`SlideLightbox`와 이 단독 뷰어를 통합할지, 별개로 둘지.
 - [ ] **이미지 로드 실패/일반 에러** UI(현재 대체 UI 없음).
 
 **결정됨**

@@ -98,7 +98,7 @@ export function MediaItem({
               event.stopPropagation();
               onAddProposal?.();
             }}
-            aria-label="제안서 담기"
+            aria-label="기획안 담기"
             className="flex shrink-0 items-center justify-center rounded-full border border-[#d3d4d6] p-[8px] text-black transition-colors hover:bg-platinum-100"
           >
             <FolderPlusIcon className="size-[20px]" />

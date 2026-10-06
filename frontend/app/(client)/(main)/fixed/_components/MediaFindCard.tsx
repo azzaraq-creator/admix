@@ -50,8 +50,8 @@ function PriceCell({
 }
 
 /**
- * 관심 매체 페이지의 고르기 버튼(시안 "04. 관심 매체") — "제안서 담기" 자리에 놓인다.
- * 제안서 상세의 "관심 매체에서 추가하기" 카드도 같은 버튼을 쓴다.
+ * 관심 매체 페이지의 고르기 버튼(시안 "04. 관심 매체") — "기획안 담기" 자리에 놓인다.
+ * 기획안 상세의 "관심 매체에서 추가하기" 카드도 같은 버튼을 쓴다.
  * 끔: 흰 칩 + 빈 체크박스 + "선택", 켬: 보라 칩 + 흰 체크박스(보라 체크) + "선택됨".
  */
 export function SelectToggle({
@@ -113,7 +113,7 @@ export function MediaFindCard({
   onClick?: () => void;
   onAddProposal?: () => void;
   /**
-   * 고르기 모드(관심 매체 페이지) — 주면 "제안서 담기"·하트 대신 "선택" 체크 버튼을 두고,
+   * 고르기 모드(관심 매체 페이지) — 주면 "기획안 담기"·하트 대신 "선택" 체크 버튼을 두고,
    * 고른 카드는 보라 테두리(2px)로 표시한다.
    */
   selection?: { checked: boolean; onChange: (checked: boolean) => void };
@@ -162,7 +162,7 @@ export function MediaFindCard({
             >
               <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
               <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
-                제안서 담기
+                기획안 담기
               </span>
             </Button>
 

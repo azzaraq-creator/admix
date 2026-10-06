@@ -82,7 +82,7 @@ def get_proposal(
 ) -> AdminProposalDetail:
     detail = proposal_service.get_admin_detail(db, proposal_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     return AdminProposalDetail(**detail)
 
 
@@ -138,10 +138,10 @@ async def upload_counter_proposal(
     if p is None:
         pptx_path.unlink(missing_ok=True)
         shutil.rmtree(slides_dir, ignore_errors=True)
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
 
     detail = proposal_service.get_admin_detail(db, proposal_id)
-    # 제안서 소유 회원의 연락받을 이메일로 맞춤제안 도착 알림 발송
+    # 기획안 소유 회원의 연락받을 이메일로 맞춤제안 도착 알림 발송
     recipient = (detail.get("member") or {}).get("email")
     if recipient:
         background.add_task(
@@ -163,9 +163,9 @@ def accept_proposal(
     """집행 수락 — 상태를 계약 완료(contracted)로 변경."""
     p = proposal_service.update_status(db, proposal_id, "contracted")
     if p is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     detail = proposal_service.get_admin_detail(db, proposal_id)
-    # 제안서 소유 회원의 연락받을 이메일로 계약 완료 알림 발송
+    # 기획안 소유 회원의 연락받을 이메일로 계약 완료 알림 발송
     recipient = (detail.get("member") or {}).get("email")
     if recipient:
         background.add_task(
@@ -219,10 +219,10 @@ def export_proposal_ppt(
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("business")),
 ) -> FileResponse:
-    """고객 제안서를 python-pptx 로 생성해 다운로드."""
+    """고객 기획안을 python-pptx 로 생성해 다운로드."""
     detail = proposal_service.get_admin_detail(db, proposal_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     tmp_dir = tempfile.mkdtemp()
     out_path = os.path.join(tmp_dir, "proposal.pptx")
     try:
@@ -230,7 +230,7 @@ def export_proposal_ppt(
     except Exception as exc:  # noqa: BLE001 — 생성 실패 사용자에게 전달
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"PPT 생성 실패: {exc}") from exc
-    title = detail.get("title") or "제안서"
+    title = detail.get("title") or "기획안"
     return FileResponse(
         out_path,
         filename=f"{title}.pptx",

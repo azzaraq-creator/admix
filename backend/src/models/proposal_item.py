@@ -1,4 +1,4 @@
-"""제안서에 담긴 개별 매체 — proposal 1:N.
+"""기획안에 담긴 개별 매체 — proposal 1:N.
 
 매체 마스터(media)의 스냅샷(name/price/thumbnail)을 담는다. media_id 는 media.media_id 키.
 """

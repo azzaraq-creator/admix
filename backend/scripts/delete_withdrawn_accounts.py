@@ -5,8 +5,8 @@
 제재 모달과 동일하게 노출된다. 이 스크립트로 실제 삭제하면 로그인 시 401(일반
 인증 실패)로 떨어진다.
 
-전제: alembic 036 적용 완료(제출 제안서 스냅샷 backfill). 실행 전 DB 스냅샷/백업 필수.
-제출 제안서는 member_id SET NULL + 스냅샷으로 보존되고, 작성중(new)은 함께 삭제된다.
+전제: alembic 036 적용 완료(제출 기획안 스냅샷 backfill). 실행 전 DB 스냅샷/백업 필수.
+제출 기획안은 member_id SET NULL + 스냅샷으로 보존되고, 작성중(new)은 함께 삭제된다.
 
 실행:
     python -m scripts.delete_withdrawn_accounts            # dry-run (목록만)

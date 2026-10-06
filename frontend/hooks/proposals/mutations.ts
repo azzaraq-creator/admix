@@ -21,7 +21,7 @@ export const useClaimGuestProposals = () => {
 };
 
 /**
- * 비회원은 제안서를 대화 세션(session_id)에 묶어 저장하는데, 로그아웃하면 세션이 지워진다.
+ * 비회원은 기획안을 대화 세션(session_id)에 묶어 저장하는데, 로그아웃하면 세션이 지워진다.
  * 세션 없이 만들기·담기를 하면 서버가 "session_id 가 필요합니다"로 거절하므로, 없으면 먼저 만든다.
  */
 async function ensureGuestSession(): Promise<void> {
@@ -111,7 +111,7 @@ export const useReorderProposal = () => {
 };
 
 /**
- * 제안서에 담긴 매체의 상품·개월 수·제작 수만 바꾼다(현재 제안서 패널).
+ * 기획안에 담긴 매체의 상품·개월 수·제작 수만 바꾼다(현재 기획안 패널).
  * 순서 저장 API를 같이 쓰므로 지금 순서(mediaIds)를 그대로 넘긴다. 금액이 바뀌어 목록 합계도 다시 받는다.
  */
 export const useUpdateProposalItemOptions = () => {
@@ -157,7 +157,7 @@ export const useDeleteProposal = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => proposalsClientApi.remove(id),
-    // 목록을 다시 받아 올 때까지 기다려(isPending 유지) 지운 제안서가 잠깐 남아 보이지 않게 한다.
+    // 목록을 다시 받아 올 때까지 기다려(isPending 유지) 지운 기획안이 잠깐 남아 보이지 않게 한다.
     onSuccess: () => qc.invalidateQueries({ queryKey: proposalsKeys.myList() }),
   });
 };

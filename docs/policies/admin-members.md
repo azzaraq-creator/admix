@@ -107,12 +107,12 @@
 
 ### 3.8 상세 — 제안 이력 탭
 
-- **기능**: 회원이 등록한 제안서 목록.
-- **규칙**(2026-07-27 개편): [admin/proposals 목록](admin-proposals.md#3a3-목록-테이블) 테이블을 **그대로 재사용**한다 — `GET /admin/proposals?member_id={회원UUID}`로 해당 회원 소유 제안서만 조회하고, admin/proposals의 컬럼·상태 배지(`ProposalStatusBadge`)·백엔드 상태 매핑(`proposal_service._STATUS`)을 공유. 검색 바 없음(`useSearch=false`), 페이지 크기 10.
-  - 컬럼: No · 제안서 명 · 이름 · **매체 수** · 전체 금액 합계 · 상태 · 등록일 (= admin/proposals와 동일).
+- **기능**: 회원이 등록한 기획안 목록.
+- **규칙**(2026-07-27 개편): [admin/proposals 목록](admin-proposals.md#3a3-목록-테이블) 테이블을 **그대로 재사용**한다 — `GET /admin/proposals?member_id={회원UUID}`로 해당 회원 소유 기획안만 조회하고, admin/proposals의 컬럼·상태 배지(`ProposalStatusBadge`)·백엔드 상태 매핑(`proposal_service._STATUS`)을 공유. 검색 바 없음(`useSearch=false`), 페이지 크기 10.
+  - 컬럼: No · 기획안 명 · 이름 · **매체 수** · 전체 금액 합계 · 상태 · 등록일 (= admin/proposals와 동일).
   - 상태 배지: 신규(파랑)/맞춤제안(노랑)/계약완료(회색)/취소(빨강) — admin/proposals와 색·라벨 일치. `execution_requested`→"신규", `contracted`→"계약완료"로 통일(예전 member 상세 전용 매핑의 "집행요청"·"계약 완료"(공백) 불일치 해소).
   - **작성중(`new`) 제외**: admin/proposals 규칙과 동일하게 제출 전 초안은 탭에 노출되지 않음.
-  - **행 클릭** 시 제안서 상세(`/admin/proposals/{id}`)로 이동.
+  - **행 클릭** 시 기획안 상세(`/admin/proposals/{id}`)로 이동.
 
 ### 3.9 상세 — 문의 이력 탭
 
@@ -176,7 +176,7 @@
 
 **결정됨**
 
-- 2026-07-27 — 제안 이력 탭을 admin/proposals 목록 재사용으로 개편. `GET /admin/proposals?member_id=` 필터 신설, 컬럼·상태 배지·백엔드 매핑 공유 → "집행요청" 배지 색 미정의 문제 해소. 행 클릭 시 제안서 상세 이동. §3.8 참조.
+- 2026-07-27 — 제안 이력 탭을 admin/proposals 목록 재사용으로 개편. `GET /admin/proposals?member_id=` 필터 신설, 컬럼·상태 배지·백엔드 매핑 공유 → "집행요청" 배지 색 미정의 문제 해소. 행 클릭 시 기획안 상세 이동. §3.8 참조.
 - 2026-07-27 — 문의 이력 탭도 동일 패턴으로 admin/inquiries 목록 재사용. `GET /admin/inquiries?member_id=` 필터 신설, 컬럼·상태 배지 공유, 행 클릭 시 문의 상세 이동. §3.9 참조.
 - 2026-07-27 — 제안 이력·문의 이력 탭을 **비즈니스 관리(`business`) 권한으로 게이팅**. 회원 관리(`member`)만으론 두 탭 비노출, 마스터=전체, URL 강제진입 시 기본 정보 폴백. 제안/문의는 단일 `business` 권한이라 두 탭 함께 열림/숨김(독립 분리는 권한 키 신설 필요 — 미채택). §3.6 참조.
 - 제재 관리 탭에 제재 추가/상세(수정·삭제) 모달 구현(2026-07-15). `reason`+`detail` 분리(마이그레이션 033), 기간 오늘 이후·시작≤종료, `POST/PATCH/DELETE /admin/members/{id}/sanctions`.

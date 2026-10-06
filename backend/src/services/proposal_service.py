@@ -1,6 +1,6 @@
 """제안 관리 비즈니스 로직 — admin 목록 + 클라이언트 장바구니(플래닝) CRUD.
 
-제안서는 회원(member_id) 또는 비회원 세션(session_id)이 소유한다. 챗·REST 양쪽에서 호출.
+기획안은 회원(member_id) 또는 비회원 세션(session_id)이 소유한다. 챗·REST 양쪽에서 호출.
 """
 from __future__ import annotations
 
@@ -45,16 +45,16 @@ def assert_status_mutable(current: str) -> None:
     if current in _TERMINAL_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail=f"'{_STATUS.get(current, current)}' 상태의 제안서는 변경할 수 없습니다.",
+            detail=f"'{_STATUS.get(current, current)}' 상태의 기획안은 변경할 수 없습니다.",
         )
 
-# 티어별 제안서(플래닝) 개수 제한. None = 무제한.
+# 티어별 기획안(플래닝) 개수 제한. None = 무제한.
 GUEST_LIMIT = 1
 MEMBER_LIMIT = 5
 
 
 class ProposalLimitError(Exception):
-    """티어 제안서 개수 한도 초과."""
+    """티어 기획안 개수 한도 초과."""
 
     def __init__(self, tier: str, limit: int):
         self.tier = tier
@@ -76,7 +76,7 @@ def proposal_tier(user: Optional[User]) -> str:
 
 
 def proposal_limit(user: Optional[User]) -> Optional[int]:
-    """현재 사용자 티어의 제안서 개수 제한. None = 무제한."""
+    """현재 사용자 티어의 기획안 개수 제한. None = 무제한."""
     tier = proposal_tier(user)
     if tier == "guest":
         return GUEST_LIMIT
@@ -101,7 +101,7 @@ def _owner_count(
         q = q.filter(Proposal.member_id == member_id)
     else:
         q = q.filter(Proposal.session_id == session_id)
-    # 삭제(논리삭제)한 제안서는 생성 한도에 포함하지 않는다.
+    # 삭제(논리삭제)한 기획안은 생성 한도에 포함하지 않는다.
     q = q.filter(Proposal.deleted_at.is_(None))
     return q.count()
 
@@ -127,7 +127,7 @@ def title_exists(
     title: str,
     exclude_id: Optional[uuid.UUID] = None,
 ) -> bool:
-    """같은 소유자(회원/세션)가 동일 제목의 (삭제 안 된) 제안서를 이미 가졌는지.
+    """같은 소유자(회원/세션)가 동일 제목의 (삭제 안 된) 기획안을 이미 가졌는지.
 
     비교는 앞뒤 공백 제거 + 대소문자 무시. exclude_id 는 rename 시 자기 자신 제외용.
     """
@@ -149,9 +149,9 @@ def title_exists(
 def claim_guest_proposals(
     db: Session, *, session_id: uuid.UUID, member_id: uuid.UUID
 ) -> int:
-    """게스트 세션 소유 제안서를 회원으로 이관하고 챗 세션도 회원에 연결.
+    """게스트 세션 소유 기획안을 회원으로 이관하고 챗 세션도 회원에 연결.
 
-    로그인/회원가입 시 호출. 대상 없으면 0(멱등). 회원 제안서 개수 한도는 승계 시
+    로그인/회원가입 시 호출. 대상 없으면 0(멱등). 회원 기획안 개수 한도는 승계 시
     적용하지 않는다(게스트 자산 보존).
     """
     from src.models.ad_session import AdSession
@@ -244,7 +244,7 @@ def list_proposals(
 
 
 _EXPORT_COLUMNS = [
-    ("name", "제안서 명"),
+    ("name", "기획안 명"),
     ("member", "이름"),
     ("mediaCount", "매체 수"),
     ("totalAmount", "전체 금액 합계"),
@@ -336,7 +336,7 @@ def get_admin_detail(db: Session, proposal_id: str) -> Optional[dict]:
 
 
 def update_status(db: Session, proposal_id: str, status: str) -> Optional[Proposal]:
-    """제안서 상태 변경. 제안서 없으면 None."""
+    """기획안 상태 변경. 기획안 없으면 None."""
     try:
         pid = uuid.UUID(str(proposal_id))
     except (ValueError, AttributeError):
@@ -345,7 +345,7 @@ def update_status(db: Session, proposal_id: str, status: str) -> Optional[Propos
     if p is None:
         return None
     if status not in _STATUS:
-        raise HTTPException(status_code=400, detail="알 수 없는 제안서 상태입니다.")
+        raise HTTPException(status_code=400, detail="알 수 없는 기획안 상태입니다.")
     assert_status_mutable(p.status)
     p.status = status
     db.commit()
@@ -363,7 +363,7 @@ def save_counter_proposal_file(
     slides_url: Optional[str] = None,
     author_name: Optional[str] = None,
 ) -> Optional[Proposal]:
-    """맞춤제안 PPT 파일 정보를 제안서에 저장. 제안서 없으면 None."""
+    """맞춤제안 PPT 파일 정보를 기획안에 저장. 기획안 없으면 None."""
     try:
         pid = uuid.UUID(str(proposal_id))
     except (ValueError, AttributeError):
@@ -406,17 +406,17 @@ def send_custom_proposal_email(
         if base
         else 'ADMIX<span style="color:#00AAA4">●</span>'
     )
-    title = proposal_title or "제안서"
+    title = proposal_title or "기획안"
 
     subject = "[ADMIX] 새로운 맞춤제안이 도착했습니다."
     text_lines = [
         "안녕하세요.",
-        "회원님이 제출한 제안서를 검토한 후 광고 매체 및 집행 조건을 반영하여 "
+        "회원님이 제출한 기획안을 검토한 후 광고 매체 및 집행 조건을 반영하여 "
         "새로운 맞춤제안이 도착했습니다.",
         "",
-        f"- 제안서명 : {title}",
+        f"- 기획안명 : {title}",
         "",
-        "제안서는 서비스 내 [내 제안서]에서 확인할 수 있습니다.",
+        "기획안은 서비스 내 [내 기획안]에서 확인할 수 있습니다.",
     ]
     if my_url:
         text_lines.append(my_url)
@@ -425,16 +425,16 @@ def send_custom_proposal_email(
 
     safe_title = escape(title)
     my_proposal = (
-        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[내 제안서]</a>'
+        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[내 기획안]</a>'
         if my_url
-        else "[내 제안서]"
+        else "[내 기획안]"
     )
     button_html = (
         f"""
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0">
                 <tr>
                   <td bgcolor="#00AAA4" style="border-radius:8px">
-                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">맞춤제안서 확인하기</a>
+                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">맞춤기획안 확인하기</a>
                   </td>
                 </tr>
               </table>"""
@@ -460,15 +460,15 @@ def send_custom_proposal_email(
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
               안녕하세요.<br>
-              회원님이 제출한 제안서를 검토한 후 광고 매체 및 집행 조건을 반영하여 새로운 맞춤제안이 도착했습니다.
+              회원님이 제출한 기획안을 검토한 후 광고 매체 및 집행 조건을 반영하여 새로운 맞춤제안이 도착했습니다.
               <ul style="margin:24px 0 0;padding-left:24px">
-                <li style="line-height:24px">제안서명 : {safe_title}</li>
+                <li style="line-height:24px">기획안명 : {safe_title}</li>
               </ul>
             </td>
           </tr>
           <tr>
             <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
-              제안서는 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
+              기획안은 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
               ADMIX 드림{button_html}
             </td>
@@ -498,17 +498,17 @@ def send_contract_completed_email(
         if base
         else 'ADMIX<span style="color:#00AAA4">●</span>'
     )
-    title = proposal_title or "제안서"
+    title = proposal_title or "기획안"
 
     subject = "[ADMIX] 광고 계약이 완료되었습니다"
     text_lines = [
         "안녕하세요.",
         "회원님이 요청하신 광고 계약이 완료되었습니다.",
         "",
-        f"- 제안서명 : {title}",
+        f"- 기획안명 : {title}",
         "",
-        "아래 버튼을 통해 최종 제안서를 확인해 보세요.",
-        "제안서는 서비스 내 [내 제안서]에서 확인할 수 있습니다.",
+        "아래 버튼을 통해 최종 기획안을 확인해 보세요.",
+        "기획안은 서비스 내 [내 기획안]에서 확인할 수 있습니다.",
     ]
     if my_url:
         text_lines.append(my_url)
@@ -517,16 +517,16 @@ def send_contract_completed_email(
 
     safe_title = escape(title)
     my_proposal = (
-        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[내 제안서]</a>'
+        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[내 기획안]</a>'
         if my_url
-        else "[내 제안서]"
+        else "[내 기획안]"
     )
     button_html = (
         f"""
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0">
                 <tr>
                   <td bgcolor="#00AAA4" style="border-radius:8px">
-                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">내 제안서 확인하기</a>
+                    <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">내 기획안 확인하기</a>
                   </td>
                 </tr>
               </table>"""
@@ -554,14 +554,14 @@ def send_contract_completed_email(
               안녕하세요.<br>
               회원님이 요청하신 광고 계약이 완료되었습니다.
               <ul style="margin:24px 0 0;padding-left:24px">
-                <li style="line-height:24px">제안서명 : {safe_title}</li>
+                <li style="line-height:24px">기획안명 : {safe_title}</li>
               </ul>
             </td>
           </tr>
           <tr>
             <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
-              아래 버튼을 통해 최종 제안서를 확인해 보세요.<br><br>
-              제안서는 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
+              아래 버튼을 통해 최종 기획안을 확인해 보세요.<br><br>
+              기획안은 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
               ADMIX 드림{button_html}
             </td>
@@ -587,14 +587,14 @@ def create_proposal(
     user: Optional[User] = None,
     enforce_limit: bool = True,
 ) -> Proposal:
-    """제안서 생성. enforce_limit 시 티어 한도 초과면 ProposalLimitError."""
+    """기획안 생성. enforce_limit 시 티어 한도 초과면 ProposalLimitError."""
     if enforce_limit and not can_create_proposal(
         db, member_id=member_id, session_id=session_id, user=user
     ):
         tier = proposal_tier(user)
         raise ProposalLimitError(tier, proposal_limit(user) or 0)
     p = Proposal(
-        title=title.strip()[:300] or "새 제안서",
+        title=title.strip()[:300] or "새 기획안",
         member_id=member_id,
         session_id=session_id,
     )
@@ -617,7 +617,7 @@ def list_for_owner(
         q = q.filter(Proposal.session_id == session_id)
     else:
         return []
-    # 유저가 삭제(논리삭제)한 제안서는 목록에서 숨긴다.
+    # 유저가 삭제(논리삭제)한 기획안은 목록에서 숨긴다.
     q = q.filter(Proposal.deleted_at.is_(None))
     return q.order_by(Proposal.updated_at.desc()).all()
 
@@ -629,7 +629,7 @@ def get_owned(
     member_id: Optional[uuid.UUID] = None,
     session_id: Optional[uuid.UUID] = None,
 ) -> Optional[Proposal]:
-    """소유권 확인 후 제안서 반환. 권한 없으면 None."""
+    """소유권 확인 후 기획안 반환. 권한 없으면 None."""
     try:
         pid = uuid.UUID(str(proposal_id))
     except (ValueError, AttributeError):
@@ -792,7 +792,7 @@ def reorder_items(
 def claim_session_proposals(
     db: Session, *, member_id: uuid.UUID, session_id: Optional[str]
 ) -> int:
-    """비회원 세션이 소유한 제안서를 회원 계정으로 이관(claim). 이관 개수 반환."""
+    """비회원 세션이 소유한 기획안을 회원 계정으로 이관(claim). 이관 개수 반환."""
     if session_id is None:
         return 0
     try:
@@ -826,7 +826,7 @@ def to_summary(p: Proposal) -> dict:
 
 
 def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
-    """내 제안서 목록 — 요약에 광고비·제작비 합계와 "제안서 요약"(매체 목록)을 더한다.
+    """내 기획안 목록 — 요약에 광고비·제작비 합계와 "기획안 요약"(매체 목록)을 더한다.
 
     제작비는 항목에 저장되지 않고 매체의 선택 상품(plan)에 있어, 목록 전체 매체를 한 번에 읽는다.
     금액 규칙은 상세(to_detail)·PPT 요약과 같다: 선택 plan(없으면 첫 plan)의 광고비(없으면 항목 가격),
@@ -1003,6 +1003,6 @@ def _slides_from_url(url: Optional[str]) -> list[dict]:
 
 
 def _counter_slides(p: Proposal) -> tuple[Optional[str], list[dict]]:
-    """제안서 최신 맞춤제안 슬라이드 (URL, 목록)."""
+    """기획안 최신 맞춤제안 슬라이드 (URL, 목록)."""
     url = p.counter_proposal_slides_url
     return url, _slides_from_url(url)

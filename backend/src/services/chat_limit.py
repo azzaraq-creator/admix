@@ -1,7 +1,7 @@
 """챗봇 대화 횟수 티어별 제한 정책.
 
 PRD: docs/plans/2026-07-13-chat-usage-tier-limit.md
-티어 판별(guest/member/verified)은 제안서 제한과 동일하게 proposal_tier 재사용.
+티어 판별(guest/member/verified)은 기획안 제한과 동일하게 proposal_tier 재사용.
 """
 from __future__ import annotations
 

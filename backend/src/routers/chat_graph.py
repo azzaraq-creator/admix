@@ -8,7 +8,7 @@
 - GET    /chat/graph/sessions/{id}     세션 상세 (메시지 포함)
 - PATCH  /chat/graph/sessions/{id}     title 변경
 - DELETE /chat/graph/sessions/{id}     삭제
-- POST   /chat/graph/sessions/{id}/proposal-choice  믹시 제안서 고르기 목록에서 고른 결과 기록
+- POST   /chat/graph/sessions/{id}/proposal-choice  믹시 기획안 고르기 목록에서 고른 결과 기록
 """
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 def mark_proposal_choice(
     session_id: str, payload: ProposalChoicePicked, db: Session = Depends(get_db)
 ):
-    """고르기 목록에서 고른 제안서를 기록 — 대화를 다시 불러와도 목록 대신 완료 문구가 보인다."""
+    """고르기 목록에서 고른 기획안을 기록 — 대화를 다시 불러와도 목록 대신 완료 문구가 보인다."""
     if not svc.mark_proposal_choice_picked(
         db,
         session_id,

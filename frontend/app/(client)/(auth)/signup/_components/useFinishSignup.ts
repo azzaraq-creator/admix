@@ -26,7 +26,7 @@ export function useFinishSignup() {
   const claimGuest = useClaimGuestProposals();
 
   return async (bizFile: File | null) => {
-    // 게스트 세션 제안서·챗 승계 (best-effort — 실패해도 가입은 유지).
+    // 게스트 세션 기획안·챗 승계 (best-effort — 실패해도 가입은 유지).
     await claimGuest.mutateAsync().catch(() => {});
     // 사업자등록증은 가입(로그인) 후 올린다. 실패해도 마이페이지에서 다시 올릴 수 있어 막지 않는다.
     if (bizFile) await authApi.uploadBusinessRegistration(bizFile).catch(() => {});

@@ -1,4 +1,4 @@
-"""클라이언트 제안서(장바구니/플래닝) 라우터.
+"""클라이언트 기획안(장바구니/플래닝) 라우터.
 
 소유자: 회원(토큰) 또는 비회원 세션(session_id). 매체 담기는 양쪽 모두 가능하나
 제출/다운로드는 회원 전용. admin 의 /admin/proposals 와는 별개.
@@ -104,7 +104,7 @@ def claim_proposals(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """로그인/회원가입 시 게스트 세션 제안서 + 챗 세션을 회원으로 승계."""
+    """로그인/회원가입 시 게스트 세션 기획안 + 챗 세션을 회원으로 승계."""
     sid = _parse_uuid(body.session_id)
     if sid is None:
         return {"claimed": 0}
@@ -122,7 +122,7 @@ def _get_owned_or_404(
         db, proposal_id, member_id=member_id, session_id=sid
     )
     if p is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     return p
 
 
@@ -233,7 +233,7 @@ def submit_proposal(
 ):
     p = proposal_service.get_owned(db, proposal_id, member_id=user.id, session_id=None)
     if p is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     proposal_service.assert_status_mutable(p.status)  # 계약완료/취소 건 재제출 방지
     p.status = "execution_requested"
     proposal_service.snapshot_submitter(p, user)
@@ -250,9 +250,9 @@ def cancel_submit_proposal(
 ):
     p = proposal_service.get_owned(db, proposal_id, member_id=user.id, session_id=None)
     if p is None:
-        raise HTTPException(status_code=404, detail="제안서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="기획안을 찾을 수 없습니다.")
     if p.status != "execution_requested":
-        raise HTTPException(status_code=400, detail="제출된 제안서만 취소할 수 있습니다.")
+        raise HTTPException(status_code=400, detail="제출된 기획안만 취소할 수 있습니다.")
     p.status = "new"
     db.commit()
     db.refresh(p)
@@ -289,7 +289,7 @@ def export_proposal_ppt(
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
 ) -> FileResponse:
-    """내 제안서를 python-pptx 로 생성해 다운로드."""
+    """내 기획안을 python-pptx 로 생성해 다운로드."""
     p = _get_owned_or_404(db, proposal_id, user, session_id)
     detail = proposal_service.to_detail(db, p)
     tmp_dir = tempfile.mkdtemp()
@@ -299,7 +299,7 @@ def export_proposal_ppt(
     except Exception as exc:  # noqa: BLE001 — 생성 실패 사용자에게 전달
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"PPT 생성 실패: {exc}") from exc
-    title = detail.get("title") or "제안서"
+    title = detail.get("title") or "기획안"
     return FileResponse(
         out_path,
         filename=f"{title}.pptx",

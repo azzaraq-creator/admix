@@ -31,13 +31,13 @@ class ExplainMedia(BaseModel):
 
 
 class CreateProposal(BaseModel):
-    """새 제안서(장바구니) 생성."""
+    """새 기획안(장바구니) 생성."""
 
     name: Optional[str] = Field(
         None,
         description=(
-            "사용자가 지정한 제안서 이름만. 조사(으로/로/라고/이라고)와 '제안서'·'만들어줘' 같은 "
-            "단어는 제외한다. 예: '테스트로 제안서 만들어줘'→'테스트', '여름캠페인 제안서'→'여름캠페인'. "
+            "사용자가 지정한 기획안 이름만. 조사(으로/로/라고/이라고)와 '기획안'·'만들어줘' 같은 "
+            "단어는 제외한다. 예: '테스트로 기획안 만들어줘'→'테스트', '여름캠페인 기획안'→'여름캠페인'. "
             "이름을 지정하지 않았으면 null."
         ),
     )
@@ -45,15 +45,15 @@ class CreateProposal(BaseModel):
 
 
 class AddMedia(BaseModel):
-    """직전 추천 매체를 현재 제안서에 담기."""
+    """직전 추천 매체를 현재 기획안에 담기."""
 
     media_indices: list[int] = Field(default_factory=list, description="담을 1-based 번호")
 
 
 class RenameProposal(BaseModel):
-    """기존 제안서 이름 변경."""
+    """기존 기획안 이름 변경."""
 
-    new_name: str = Field(description="새 제안서 이름")
+    new_name: str = Field(description="새 기획안 이름")
 
 
 # ===== 순수 파서 (tool_calls → 도메인 객체) =====
@@ -107,27 +107,27 @@ def media_item_from_tool_calls(
 
 
 def resolve_proposal_via_tools(message: str, last_items: list[dict], has_active: bool):
-    """발화를 제안서 도구(create/add/rename)로 매핑 → ProposalIntent."""
+    """발화를 기획안 도구(create/add/rename)로 매핑 → ProposalIntent."""
     from src.services.recommend_v2 import ProposalIntent
 
     listing = "\n".join(
         f"{i + 1}. {it.get('name', '')}" for i, it in enumerate(last_items or [])
     )
     sys_prompt = (
-        "사용자 발화를 아래 제안서 도구 중 하나로 매핑하라.\n"
-        "- CreateProposal: 새 제안서 생성 (예: '제안서 만들어줘', 'XX로 제안서 만들어줘'). "
-        "name 에는 사용자가 준 이름만 넣고 조사·'제안서'·'만들어줘'는 뺀다 "
-        "('테스트로 제안서 만들어줘'→name='테스트').\n"
-        "- AddMedia: 추천 매체를 제안서에 담기. '담기'와 '넣기'는 같은 의미다 "
-        "(예: '1번 3번 담아줘', '2번 넣어줘', '제안서에 넣어줘', '제안서담기').\n"
-        "- RenameProposal: 기존 제안서 이름 변경 (예: '이름 XX로 바꿔줘').\n"
-        "- '제안서' 를 언급한 발화는 반드시 위 세 도구 중 하나를 호출하라. "
+        "사용자 발화를 아래 기획안 도구 중 하나로 매핑하라.\n"
+        "- CreateProposal: 새 기획안 생성 (예: '기획안 만들어줘', 'XX로 기획안 만들어줘'). "
+        "name 에는 사용자가 준 이름만 넣고 조사·'기획안'·'만들어줘'는 뺀다 "
+        "('테스트로 기획안 만들어줘'→name='테스트').\n"
+        "- AddMedia: 추천 매체를 기획안에 담기. '담기'와 '넣기'는 같은 의미다 "
+        "(예: '1번 3번 담아줘', '2번 넣어줘', '기획안에 넣어줘', '기획안담기').\n"
+        "- RenameProposal: 기존 기획안 이름 변경 (예: '이름 XX로 바꿔줘').\n"
+        "- '기획안'(또는 예전 표현인 '제안서'·'기획서')을 언급한 발화는 반드시 위 세 도구 중 하나를 호출하라. "
         "무엇을 담을지 번호가 없어도 담기/넣기 의도면 AddMedia 를 media_indices 빈 배열로 호출한다.\n"
-        "- 제안서와 무관한 발화(새 검색조건·매체 설명요청 등)만 어떤 도구도 호출하지 마라.\n"
-        "- '1번 3번으로 제안서 만들어줘'는 CreateProposal + media_indices.\n"
+        "- 기획안과 무관한 발화(새 검색조건·매체 설명요청 등)만 어떤 도구도 호출하지 마라.\n"
+        "- '1번 3번으로 기획안 만들어줘'는 CreateProposal + media_indices.\n"
         "- 발화에 명시되지 않은 번호를 media_indices 에 절대 지어내지 마라. "
         "번호가 안 나오면 빈 배열로 둔다.\n\n"
-        f"현재 작업중 제안서: {'있음' if has_active else '없음'}\n"
+        f"현재 작업중 기획안: {'있음' if has_active else '없음'}\n"
         f"[직전 추천 매체]\n{listing or '(없음)'}"
     )
     try:

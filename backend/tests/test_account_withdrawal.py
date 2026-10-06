@@ -1,4 +1,4 @@
-"""회원 탈퇴 hard delete + 제안서 스냅샷 보존 테스트. 실제 postgres.
+"""회원 탈퇴 hard delete + 기획안 스냅샷 보존 테스트. 실제 postgres.
 
 throwaway user/proposal 만 사용하며 테스트 종료 시 정리한다(운영 데이터 미접촉).
 """

@@ -31,7 +31,7 @@ export function MobileTopNav() {
           priority
         />
       </Link>
-      {/* 현재 제안서 — 왼쪽 메뉴 버튼과 같은 폭이라 로고가 가운데에 남는다. */}
+      {/* 현재 기획안 — 왼쪽 메뉴 버튼과 같은 폭이라 로고가 가운데에 남는다. */}
       <CurrentProposalButton variant="header" />
     </header>
   );
