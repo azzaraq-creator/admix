@@ -85,8 +85,8 @@ export default function FindAccountPage() {
             />
             {/* 보낸 주소 — 요약 줄 52px → 곡률 23px. */}
             <div className="flex w-full flex-col items-center gap-[4px] rounded-[23px] bg-primary-50 px-[16px] py-[14px] text-center">
-              <span className="text-[12px] text-black-500">받는 이메일</span>
-              <span className="max-w-full text-[15px] font-bold break-all text-black-900">
+              <span className="text-[12px] text-gray-500">받는 이메일</span>
+              <span className="max-w-full text-[15px] font-bold break-all text-gray-900">
                 {sentTo}
               </span>
             </div>

@@ -37,11 +37,11 @@ export function TermsModal({
           <Modal.Dialog aria-label={title} className="max-h-[80dvh]">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading className="text-[18px] font-bold text-black-900">
+              <Modal.Heading className="text-[18px] font-bold text-gray-900">
                 {title}
               </Modal.Heading>
             </Modal.Header>
-            <Modal.Body className="text-[13px] leading-[1.6] whitespace-pre-wrap text-black-700">
+            <Modal.Body className="text-[13px] leading-[1.6] whitespace-pre-wrap text-gray-700">
               {tab && HELP_CONTENT[tab]}
             </Modal.Body>
             <Modal.Footer>

@@ -31,15 +31,15 @@ const CONTENT_PLACEHOLDER =
 // 입력 중엔 1px 보라 테두리, 잘못된 값이면 1px 빨간 테두리 — HeroUI가 바깥에 더 그리는 빨간 외곽선은 꺼
 // 굵어지거나 스크롤 영역 가장자리에서 잘리지 않게 한다). 40px → 곡률 17px.
 const FIELD_CLASS =
-  "w-full border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 transition-colors [box-shadow:none]! max-sm:px-[14px] max-sm:text-[13px] " +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "w-full border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! max-sm:px-[14px] max-sm:text-[13px] " +
+  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 const INPUT_CLASS = cn(FIELD_CLASS, "h-[40px] rounded-[17px]");
 // 내용 칸은 여러 줄이라 곡률은 카드 칸(12px)과 같게.
 const TEXTAREA_CLASS = cn(
   FIELD_CLASS,
   "min-h-[160px] resize-none rounded-[12px] py-[12px] leading-[1.6]",
 );
-const LABEL_CLASS = "text-[13px] font-medium text-black-700 max-sm:text-[12px]";
+const LABEL_CLASS = "text-[13px] font-medium text-gray-700 max-sm:text-[12px]";
 const ERROR_CLASS = "text-[12px] text-danger max-sm:text-[11px]";
 
 // 하단 버튼 — 매체 정보·기획안에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).

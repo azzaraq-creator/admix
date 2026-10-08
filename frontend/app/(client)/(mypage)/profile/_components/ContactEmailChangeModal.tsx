@@ -34,7 +34,7 @@ const RESEND_COOLDOWN_MS = 30 * 1000;
 
 // 입력칸 옆 버튼(40px → 곡률 17px) — 파일 선택 버튼처럼 테두리 없는 회색 바탕.
 const SIDE_BUTTON =
-  "h-[40px] w-[88px] shrink-0 rounded-[17px] bg-black-200 px-0 text-[13px] font-medium text-black-800 data-[hovered=true]:bg-black-300 data-[disabled=true]:opacity-100 data-[disabled=true]:bg-black-100 data-[disabled=true]:text-black-400 max-sm:h-[36px] max-sm:w-auto max-sm:min-w-[48px] max-sm:flex-1 max-sm:rounded-[15px] max-sm:text-[12px]";
+  "h-[40px] w-[88px] shrink-0 rounded-[17px] bg-gray-200 px-0 text-[13px] font-medium text-gray-800 data-[hovered=true]:bg-gray-300 data-[disabled=true]:opacity-100 data-[disabled=true]:bg-gray-100 data-[disabled=true]:text-gray-400 max-sm:h-[36px] max-sm:w-auto max-sm:min-w-[48px] max-sm:flex-1 max-sm:rounded-[15px] max-sm:text-[12px]";
 
 function formatRemaining(ms: number) {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -211,7 +211,7 @@ export function ContactEmailChangeModal({
                 // 화면이 넓으면 남는 폭은 버튼이 채우고, 좁으면 입력칸이 줄어든다(버튼은 최소 48px).
                 "max-sm:w-auto max-sm:flex-[0_1_236px]",
                 // 잠긴 칸은 올리거나 눌러도 흰색으로 바뀌지 않게 회색 그대로 둔다.
-                sent && "cursor-default bg-black-100!",
+                sent && "cursor-default bg-gray-100!",
               )}
             />
             <Button
@@ -296,10 +296,10 @@ export function ContactEmailChangeModal({
             sent &&
             !verified && (
               <div className="flex items-center justify-between gap-[8px] text-[12px] max-sm:text-[11px]">
-                <p className="text-black-500">
+                <p className="text-gray-500">
                   인증번호를 보냈어요. 메일이 안 보이면 스팸함을 확인해 주세요.
                 </p>
-                <span className="shrink-0 font-semibold text-black-700 tabular-nums">
+                <span className="shrink-0 font-semibold text-gray-700 tabular-nums">
                   {formatRemaining(remaining)}
                 </span>
               </div>

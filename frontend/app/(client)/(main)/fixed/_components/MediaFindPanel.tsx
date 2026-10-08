@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, ScrollShadow } from "@heroui/react";
+import { Chip, ScrollShadow, Tabs } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -8,6 +8,7 @@ import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
   buildFilterUi,
+  regionLabel,
   toChipFilterParams,
   type ChipDimKey,
   type MediaFilterState,
@@ -16,10 +17,12 @@ import { CloseSmallIcon, ListIcon, MapOutlineIcon } from "@/components/icons";
 import {
   mediaApi,
   useFixedClusters,
-  useFixedFilterOptions,
+  useMediaFilterOptions,
   useFixedMediaInfinite,
   type MediaCardRow,
   type MediaFilterParams,
+  type MediaFindSource,
+  type OperatingArea,
 } from "@/hooks/media";
 
 import { MediaFilterPanel } from "./MediaFilterPanel";
@@ -56,6 +59,7 @@ function parseFilter(sp: URLSearchParams): MediaFilterState {
     return v != null && v !== "" ? Number(v) : null;
   };
   return {
+    region: sp.getAll("region"),
     category: sp.getAll("category"),
     saleType: sp.getAll("saleType"),
     oohType: sp.getAll("oohType"),
@@ -100,8 +104,22 @@ const FOCUS_ZOOM_LEVEL = 3;
 // 첫 진입에서 목록 조회가 이만큼 멈춰 있으면 자리를 잡은 것으로 보고 스켈레톤을 걷는다.
 const ENTRY_SETTLE_MS = 300;
 
+// 매체 찾기 탭 — "all"은 URL에 남기지 않는다(source 파라미터 없음 = 전체).
+const SOURCE_TABS = [
+  { key: "all", label: "전체" },
+  { key: "fixed", label: "고정" },
+  { key: "moving", label: "이동" },
+] as const;
+type SourceTabKey = (typeof SOURCE_TABS)[number]["key"];
+
+function parseSource(sp: URLSearchParams): MediaFindSource | null {
+  const v = sp.get("source");
+  return v === "fixed" || v === "moving" ? v : null;
+}
+
 export function countFilters(f: MediaFilterState): number {
   return (
+    f.region.length +
     CHIP_DIMS.reduce((sum, key) => sum + f[key].length, 0) +
     (f.priceMin != null || f.priceMax != null ? 1 : 0)
   );
@@ -123,7 +141,7 @@ export function FilterChip({
         type="button"
         onClick={onRemove}
         aria-label="필터 제거"
-        className="cursor-pointer transition-colors hover:text-black-900"
+        className="cursor-pointer transition-colors hover:text-gray-900"
       >
         <CloseSmallIcon className="size-[12px]" />
       </button>
@@ -140,6 +158,7 @@ export function MediaFindPanel({
   onMapData,
   onRequestMapMove,
   getViewport,
+  onHoverArea,
 }: {
   /** 지도 영역 — 데이터는 onMapData로 올려보내고 엘리먼트는 부모가 내려준다. */
   mapSlot: ReactNode;
@@ -163,6 +182,8 @@ export function MediaFindPanel({
     neLng: number;
     swLng: number;
   } | null;
+  /** 이동매체 카드에 마우스를 올리면 그 운행 지역, 떼면 null — 지도에 영역으로 그린다. */
+  onHoverArea?: (area: OperatingArea | null) => void;
 }) {
   const searchParams = useSearchParams();
   const sp = new URLSearchParams(searchParams.toString());
@@ -176,6 +197,8 @@ export function MediaFindPanel({
   // 자동완성에서 고른 매체 — 목록 맨 위에 하이라이트해 고정한다. 장소 칩과 함께 세팅되고,
   // 지도를 직접 옮기거나 다른 검색을 하면 함께 풀린다.
   const pinId = sp.get("pin");
+  // 매체 찾기 탭 — 전체(null)는 고정매체와 지도 영역을 다니는 이동매체를 한 목록으로 섞는다.
+  const source = parseSource(sp);
 
   const [location, setLocation] = useState(() => keyword ?? "");
   const [placeSug, setPlaceSug] = useState<KakaoPlace[]>([]);
@@ -191,15 +214,18 @@ export function MediaFindPanel({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
   // Enter 키워드 검색 직후, 새 클러스터 결과가 도착하면 그 결과로 지도를 fit하도록 예약.
-  const pendingFitRef = useRef(false);
+  // 지역이 걸린 주소로 영역 없이 들어오면(링크 공유 등) 첫 결과에 맞춰 지도를 옮긴다.
+  const pendingFitRef = useRef(
+    filter.region.length > 0 && BBOX_KEYS.some((k) => bounds[k] == null),
+  );
 
   // 검색어·장소 스코프·필터 칩 중 하나라도 걸려 있으면 "검색한 상태"로 본다.
   // 초기화 버튼과 결과 문구가 같은 기준을 쓴다.
   const filterCount = countFilters(filter);
   const searched = Boolean(keyword || placeLabel) || filterCount > 0;
 
-  const { data: opts } = useFixedFilterOptions();
-  const { optionsByKey, price } = buildFilterUi(opts);
+  const { data: opts } = useMediaFilterOptions();
+  const { optionsByKey, price, regions } = buildFilterUi(opts);
 
   const chipFilters: MediaFilterParams = toChipFilterParams(filter);
   const scopedFilters: MediaFilterParams = {
@@ -211,8 +237,11 @@ export function MediaFindPanel({
   // 조회 범위가 정해지기 전(첫 진입에서 지도가 아직 영역을 알려 주지 않았을 때)에는 조회하지 않는다.
   // 그대로 조회하면 범위 없는 전체 매체가 잠깐 떴다가 지도 영역 매체로 바뀐다. 검색어로 들어온
   // 경우는 영역 없이 전체에서 찾는 게 맞으므로 바로 조회한다.
+  // 지역 필터도 검색어처럼 지도 영역 없이 그 지역 전체에서 찾는다.
   const scopeReady =
-    Boolean(keyword) || BBOX_KEYS.every((k) => bounds[k] != null);
+    Boolean(keyword) ||
+    filter.region.length > 0 ||
+    BBOX_KEYS.every((k) => bounds[k] != null);
 
   const {
     data,
@@ -221,7 +250,7 @@ export function MediaFindPanel({
     isFetchingNextPage,
     isFetching: listFetching,
     isPending: listPending,
-  } = useFixedMediaInfinite({ ...scopedFilters, sort }, scopeReady);
+  } = useFixedMediaInfinite({ ...scopedFilters, sort, source }, scopeReady);
 
   // 첫 진입 — 지도가 자리를 잡으며 조회 영역이 한 번 더 바뀌면, 먼저 받은 목록이 보였다가 다른
   // 목록으로 바뀌며 깜빡인다. 목록이 도착한 뒤에도 조회가 잠시(ENTRY_SETTLE_MS) 멈출 때까지는
@@ -238,6 +267,7 @@ export function MediaFindPanel({
   const isLoading = !scopeReady || listPending || !entrySettled;
   const rows = (data?.pages ?? []).flatMap((page) => page.items);
   const total = data?.pages[0]?.total ?? 0;
+  const sourceCounts = data?.pages[0]?.sourceCounts;
   // 새로고침으로 들고 있던 카드 정보가 없으면 목록에서 찾는다(고른 매체 주변이라 대개 첫 페이지에 있다).
   const foundPinned = pinId ? rows.find((r) => r.id === pinId) : undefined;
   // 목록에서 한 번 찾으면 기억해 둔다 — 지도를 옮겨 그 매체가 영역 밖으로 나가도 맨 위에 남게.
@@ -256,6 +286,13 @@ export function MediaFindPanel({
 
   /** URL 파라미터를 고쳐 다시 조회한다. 이 화면의 모든 상태는 URL이 원본이다. */
   const commit = replaceQuery;
+
+  // 이동매체 카드에 마우스를 올리면 운행 지역을 지도에 그린다(고정매체는 핀이 있어 그리지 않는다).
+  const areaHover = (row: MediaCardRow) =>
+    row.mediaSource === "MOVING" && row.operatingArea
+      ? (hovered: boolean) =>
+          onHoverArea?.(hovered ? (row.operatingArea ?? null) : null)
+      : undefined;
 
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
@@ -278,13 +315,18 @@ export function MediaFindPanel({
       });
   };
 
+  // 이동 탭은 목록에 고정매체가 없어 지도 핀도 숨긴다(지도는 조회 영역을 정하는 데만 쓴다).
+  const showPins = source !== "moving";
   const { data: clusterData } = useFixedClusters(
     zoom,
     scopedFilters,
-    scopeReady,
+    scopeReady && showPins,
   );
   useEffect(() => {
-    if (!clusterData) return;
+    if (!showPins) onMapData?.({ markers: [], clusters: [] });
+  }, [showPins, onMapData]);
+  useEffect(() => {
+    if (!clusterData || !showPins) return;
     onMapData?.({
       markers: clusterData.markers.map((m) => ({
         id: m.id,
@@ -306,7 +348,7 @@ export function MediaFindPanel({
         count: c.count,
       })),
     });
-  }, [clusterData, onMapData]);
+  }, [clusterData, showPins, onMapData]);
 
   // 키워드 검색 결과가 도착하면 그 결과(마커+클러스터) 영역에 맞춰 지도를 이동/fit.
   // useFixedClusters가 keepPreviousData를 쓰지 않아 키 전환 시 clusterData가 undefined가
@@ -340,8 +382,29 @@ export function MediaFindPanel({
     }
   }, [clusterData, onRequestMapMove]);
 
-  const applyFilter = (next: MediaFilterState) =>
+  // 지역을 새로 고르면 검색어 검색처럼 지도 영역(bbox)을 떼고 그 지역 전체에서 찾은 뒤, 결과에 맞춰
+  // 지도를 옮긴다(옮기면 그 영역이 다시 걸린다). 지역을 모두 빼면 지금 보이는 지도 영역을 다시 건다.
+  const applyFilter = (next: MediaFilterState) => {
+    const regionKey = (f: MediaFilterState) => [...f.region].sort().join("|");
+    const regionChanged = regionKey(next) !== regionKey(filter);
+    const regionPicked = regionChanged && next.region.length > 0;
+    const view =
+      regionChanged && next.region.length === 0 && !keyword
+        ? getViewport?.()
+        : null;
+    if (regionPicked) pendingFitRef.current = true;
     commit((q) => {
+      q.delete("region");
+      next.region.forEach((v) => q.append("region", v));
+      if (regionPicked) {
+        for (const k of BBOX_KEYS) q.delete(k);
+        q.delete("place");
+        q.delete("pin");
+      }
+      if (view) {
+        for (const k of BBOX_KEYS)
+          q.set(k, String(Math.round(view[k] * 1e6) / 1e6));
+      }
       for (const key of CHIP_DIMS) {
         q.delete(key);
         next[key].forEach((v) => q.append(key, v));
@@ -351,6 +414,7 @@ export function MediaFindPanel({
       if (next.priceMax != null) q.set("priceMax", String(next.priceMax));
       else q.delete("priceMax");
     });
+  };
 
   // 초기화 — 칩·키워드·장소 칩을 비우고 검색 입력도 지운다. 목록은 지도 영역을 따르므로
   // 줌과 지금 보이는 지도 영역(bbox)은 유지한다. 필터 패널 안의 초기화는 패널을 열어 둔다.
@@ -359,10 +423,12 @@ export function MediaFindPanel({
     setShowSug(false);
     const view = getViewport?.();
     replaceQuery((q) => {
-      // 줌과 지금 보이는 영역만 남기고 모두 비운다.
+      // 줌·탭과 지금 보이는 영역만 남기고 모두 비운다.
       const z = q.get("zoom");
+      const src = q.get("source");
       for (const k of [...q.keys()]) q.delete(k);
       if (z != null) q.set("zoom", z);
+      if (src != null) q.set("source", src);
       if (view) {
         for (const k of BBOX_KEYS)
           q.set(k, String(Math.round(view[k] * 1e6) / 1e6));
@@ -547,11 +613,11 @@ export function MediaFindPanel({
           suggestionSlot={
             showSug && (placeSug.length > 0 || mediaSug.length > 0) ? (
               // 검색 추천 — 테두리·그림자는 바깥 칸에 두고, 안쪽 ScrollShadow가 스크롤하며 넘치는 쪽을 흐리게 한다.
-              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[16px] border border-black-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
+              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
                 <ScrollShadow size={24} className="max-h-[318px]">
                   {mediaSug.length > 0 && (
                     <div>
-                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
+                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
                         매체
                       </div>
                       {mediaSug.map((m) => (
@@ -559,7 +625,7 @@ export function MediaFindPanel({
                           key={`media-${m.id}`}
                           type="button"
                           onClick={() => selectMediaSug(m)}
-                          className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-black-100"
+                          className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-gray-100"
                         >
                           {m.name}
                         </button>
@@ -568,7 +634,7 @@ export function MediaFindPanel({
                   )}
                   {placeSug.length > 0 && (
                     <div>
-                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-black-500">
+                      <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
                         장소
                       </div>
                       {placeSug.map((p, i) => (
@@ -576,13 +642,13 @@ export function MediaFindPanel({
                           key={`place-${i}`}
                           type="button"
                           onClick={() => selectPlace(p)}
-                          className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-black-100"
+                          className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-gray-100"
                         >
                           <span className="text-[14px] max-sm:text-[13px] text-black">
                             {p.name}
                           </span>
                           {p.address && (
-                            <span className="text-[12px] max-sm:text-[11px] text-black-500">
+                            <span className="text-[12px] max-sm:text-[11px] text-gray-500">
                               {p.address}
                             </span>
                           )}
@@ -616,8 +682,9 @@ export function MediaFindPanel({
               value={filter}
               optionsByKey={optionsByKey}
               price={price}
+              regions={regions}
               totalCount={total}
-              scope={{ ...bounds, keyword }}
+              scope={{ ...bounds, keyword, source }}
               onApply={applyFilter}
               onReset={resetSearch}
               onClose={() => setFilterOpen(false)}
@@ -629,10 +696,60 @@ export function MediaFindPanel({
       {/* 아래 리스트가 카드 그림자 자리를 만드느라 -mt-[30px]로 이 줄 위까지 박스를
           끌어올린다. 그대로 두면 나중에 그려지는 리스트가 칩을 덮어 X가 눌리지 않으므로
           칩 줄을 z-20으로 띄운다(필터 패널 z-30보다는 아래). */}
-      <div className="relative z-20 flex shrink-0 items-center justify-between gap-[12px]">
+      <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-[12px]">
+        {/* 매체 찾기 탭 — 숫자는 탭과 무관하게 같은 조건(지도 영역·검색어·필터)으로 센다.
+            곡률·크기는 기획안 목록 탭과 같다. */}
+        <Tabs
+          className="shrink-0"
+          selectedKey={source ?? "all"}
+          onSelectionChange={(key) => {
+            const next = key as SourceTabKey;
+            onHoverArea?.(null);
+            scrollRef.current?.scrollTo({ top: 0 });
+            commit((q) => {
+              if (next === "all") q.delete("source");
+              else q.set("source", next);
+            });
+          }}
+        >
+          <Tabs.ListContainer className="w-fit rounded-[17px]">
+            <Tabs.List aria-label="매체 종류">
+              {SOURCE_TABS.map(({ key, label }) => (
+                <Tabs.Tab
+                  key={key}
+                  id={key}
+                  className="gap-[4px] rounded-[13px] whitespace-nowrap"
+                >
+                  {label}
+                  {sourceCounts && (
+                    <span className="tabular-nums">
+                      {sourceCounts[key].toLocaleString()}
+                    </span>
+                  )}
+                  {/* 선택 알약은 늘 이 탭을 꽉 채운다. HeroUI(react-aria) Tabs.Indicator 는 미끄러지는 연출용으로
+                      잰 크기·위치를 인라인 스타일로 잠깐 두는데, 첫 화면에서 그 값이 지워지지 않고 굳으면
+                      개수(예: "18")가 붙기 전 "전체" 폭에 멈춰 알약이 짧아진다 — 인라인 값보다 우선해 덮는다. */}
+                  <Tabs.Indicator className="h-full! w-full! translate-none! rounded-[13px]" />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
         <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
           {/* 검색어·장소 스코프는 검색창이 이미 보여주므로 칩으로 내보내지 않는다.
               이 줄에는 "적용된 필터"만 남긴다. */}
+          {filter.region.map((value) => (
+            <FilterChip
+              key={`region-${value}`}
+              label={regionLabel(value, regions)}
+              onRemove={() =>
+                applyFilter({
+                  ...filter,
+                  region: filter.region.filter((v) => v !== value),
+                })
+              }
+            />
+          ))}
           {CHIP_DIMS.flatMap((key) =>
             filter[key].map((value) => (
               <FilterChip
@@ -651,13 +768,6 @@ export function MediaFindPanel({
             />
           )}
         </div>
-
-        <p className="shrink-0 text-[12px] max-sm:text-[11px] text-black-500">
-          {searched ? "검색 결과" : "전체"}{" "}
-          <span className="font-semibold text-[#18181b]">
-            {isLoading ? "불러오는 중…" : `${total.toLocaleString()}개 매체`}
-          </span>
-        </p>
       </div>
 
       <div className="relative flex min-h-0 flex-1 gap-[20px]">
@@ -686,6 +796,7 @@ export function MediaFindPanel({
                 selected={pinned.id === selectedId}
                 onClick={() => handleItemClick(pinned)}
                 onAddProposal={() => onAddProposal?.(pinned.id)}
+                onHoverChange={areaHover(pinned)}
               />
             )}
             {isLoading ? (
@@ -715,6 +826,7 @@ export function MediaFindPanel({
                     selected={row.id === selectedId}
                     onClick={() => handleItemClick(row)}
                     onAddProposal={() => onAddProposal?.(row.id)}
+                    onHoverChange={areaHover(row)}
                   />
                 ))}
                 {/* 무한스크롤 감지용 1px 줄. 목록 마지막에 gap 10px + 1px만큼
@@ -741,7 +853,7 @@ export function MediaFindPanel({
         <button
           type="button"
           onClick={() => setMapExpanded((v) => !v)}
-          className="absolute bottom-[16px] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-black-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-black-900 sm:hidden"
+          className="absolute bottom-[16px] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-gray-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-gray-900 sm:hidden"
         >
           {mapExpanded ? (
             <ListIcon className="size-[18px] shrink-0" />

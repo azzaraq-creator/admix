@@ -1,15 +1,22 @@
 "use client";
 
-import { Button as HeroButton, Input, Spinner, TextField } from "@heroui/react";
+import {
+  Button as HeroButton,
+  Input,
+  Spinner,
+  TextField,
+  Tooltip,
+} from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useMe } from "@/hooks/auth";
 import {
   CircleAlertIcon,
   CircleQuestionIcon,
+  SaveIcon,
   TrashOutlineIcon,
 } from "@/components/icons";
 import {
@@ -27,12 +34,14 @@ import {
   type ProposalItem,
 } from "@/hooks/proposals";
 import { useModalConfirm } from "@/hooks/useModalConfirm";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useSonner } from "@/hooks/useSonner";
 import { formatDateTime } from "@/lib/date";
 
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
 import {
+  campaignEndDate,
   SummarySlide,
   SummaryThumb,
 } from "@/components/proposals/SummaryTemplate";
@@ -50,6 +59,23 @@ import { type Slide } from "./SlideLightbox";
 import { SlideSidebar } from "./SlideSidebar";
 
 const SUMMARY_PAGE_SIZE = 5;
+// 자동 저장 — 마지막으로 바꾼 뒤 이만큼 더 바꾸지 않으면 저장한다.
+const AUTOSAVE_DELAY_MS = 2000;
+// "저장 중..."이 너무 빨리 사라져 깜빡이지 않게, 저장이 끝난 뒤에도 잠깐 더 보여 준다.
+const SAVING_LINGER_MS = 600;
+
+// 저장한 값과 지금 값이 같은 항목은 지우고, 저장하는 사이 다시 바꾼 항목만 남긴다.
+function keepUnsaved<T>(
+  current: Record<string, T>,
+  saved: Record<string, T>,
+  same: (a: T, b: T) => boolean = Object.is,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(current).filter(
+      ([key, value]) => !(key in saved && same(value, saved[key])),
+    ),
+  );
+}
 
 export function ProposalDetailView({ id }: { id: string }) {
   const router = useRouter();
@@ -84,7 +110,7 @@ export function ProposalDetailView({ id }: { id: string }) {
     return (
       <div
         role="status"
-        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f9fafb]"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f5f6fb]"
       >
         <Spinner />
         <p className="text-[13px] text-[#8c8c94]">기획안을 불러오는 중이에요</p>
@@ -105,8 +131,8 @@ export function ProposalDetailView({ id }: { id: string }) {
  * 기획안 상세(편집) — 시안 "03. 제안서 - 상세 (제출 전)".
  * 위: 뒤로 가기·기획안명(수정)·상태 배지·최종 수정일시, 오른쪽 제출하기.
  * 아래 카드: 도구 줄(슬라이드 수·선택된 매체 수, 다운로드·삭제) + 왼쪽 슬라이드 목록 + 오른쪽 미리보기.
- * 미리보기·목록 썸네일은 기획안 템플릿(표지·서머리·매체·THANK YOU) 그대로 — 서머리에서 날짜·수량,
- * 매체 슬라이드에서 상품(플랜)을 고르면 바로 반영되고, 도구 줄의 "저장하기"로 저장한다.
+ * 미리보기·목록 썸네일은 기획안 템플릿(표지·서머리·매체·THANK YOU) 그대로 — 서머리에서 개월 수·시작일,
+ * 매체 슬라이드에서 상품(플랜)을 고르면 바로 반영되고, 몇 초 뒤 자동 저장된다(머리의 저장 아이콘으로 바로 저장도 가능).
  */
 // 기획안명 최대 글자 수 — 새 기획안 만들기 창과 같다.
 const MAX_TITLE_LENGTH = 50;
@@ -133,37 +159,25 @@ function ProposalEditorView({ id }: { id: string }) {
   const [selectedId, setSelectedId] = useState("cover");
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  // 저장 전 편집 — 매체별 상품(플랜)·시작일/종료일·수량. "저장하기"로 한꺼번에 저장한다.
+  // 저장 전 편집 — 매체별 상품(플랜)·시작일/종료일·개월 수. 자동 저장(또는 저장 아이콘)으로 한꺼번에 저장한다.
+  // 종료일은 직접 고르지 않고 시작일·개월 수가 바뀔 때 함께 계산해 넣는다.
   const [selectedPlans, setSelectedPlans] = useState<Record<string, number>>(
     {},
   );
   const [selectedDates, setSelectedDates] = useState<
     Record<string, { start_date?: string | null; end_date?: string | null }>
   >({});
-  const [selectedQuantities, setSelectedQuantities] = useState<
+  const [selectedMonths, setSelectedMonths] = useState<
     Record<string, number | null>
+  >({});
+  const [selectedProductionCounts, setSelectedProductionCounts] = useState<
+    Record<string, number>
   >({});
   const dirty =
     Object.keys(selectedPlans).length > 0 ||
     Object.keys(selectedDates).length > 0 ||
-    Object.keys(selectedQuantities).length > 0;
-
-  const handleDateChange = (
-    mediaId: string,
-    field: "start_date" | "end_date",
-    value: string,
-  ) => {
-    setSelectedDates((prev) => ({
-      ...prev,
-      [mediaId]: { ...prev[mediaId], [field]: value },
-    }));
-  };
-  const handleQuantityChange = (mediaId: string, value: string) => {
-    setSelectedQuantities((prev) => ({
-      ...prev,
-      [mediaId]: value === "" ? null : Number(value),
-    }));
-  };
+    Object.keys(selectedMonths).length > 0 ||
+    Object.keys(selectedProductionCounts).length > 0;
 
   const orderedItems = useMemo<ProposalItem[]>(() => {
     const items = proposal?.items ?? [];
@@ -189,7 +203,7 @@ function ProposalEditorView({ id }: { id: string }) {
         planNo != null && plan
           ? {
               ...item,
-              name: plan.product_name ?? item.name,
+              selected_plan_no: planNo,
               product: plan.product_display_name,
               price: plan.advertisement_fee,
               production_fee: plan.production_fee,
@@ -203,11 +217,56 @@ function ProposalEditorView({ id }: { id: string }) {
             end_date: dateOverride.end_date ?? withPlan.end_date,
           }
         : withPlan;
-      return item.media_id in selectedQuantities
-        ? { ...withDate, quantity: selectedQuantities[item.media_id] }
-        : withDate;
+      const withMonths =
+        item.media_id in selectedMonths
+          ? { ...withDate, months: selectedMonths[item.media_id] ?? undefined }
+          : withDate;
+      return item.media_id in selectedProductionCounts
+        ? {
+            ...withMonths,
+            production_count: selectedProductionCounts[item.media_id],
+          }
+        : withMonths;
     });
-  }, [orderedItems, selectedPlans, selectedDates, selectedQuantities]);
+  }, [
+    orderedItems,
+    selectedPlans,
+    selectedDates,
+    selectedMonths,
+    selectedProductionCounts,
+  ]);
+
+  const handleProductionCountChange = (mediaId: string, value: number) => {
+    setSelectedProductionCounts((prev) => ({ ...prev, [mediaId]: value }));
+  };
+  const handlePlanChange = (mediaId: string, planNo: number) => {
+    setSelectedPlans((prev) => ({ ...prev, [mediaId]: planNo }));
+  };
+  const handleStartDateChange = (mediaId: string, value: string) => {
+    const item = displayItems.find((it) => it.media_id === mediaId);
+    setSelectedDates((prev) => ({
+      ...prev,
+      [mediaId]: {
+        start_date: value,
+        end_date: campaignEndDate(value, item?.months),
+      },
+    }));
+  };
+  // 개월 수를 바꾸면 시작일이 있는 매체는 종료일도 다시 계산한다(빈칸은 1개월로 본다).
+  const handleMonthsChange = (mediaId: string, value: string) => {
+    const months = value === "" ? null : Number(value);
+    setSelectedMonths((prev) => ({ ...prev, [mediaId]: months }));
+    const item = displayItems.find((it) => it.media_id === mediaId);
+    if (item?.start_date) {
+      setSelectedDates((prev) => ({
+        ...prev,
+        [mediaId]: {
+          start_date: item.start_date,
+          end_date: campaignEndDate(item.start_date, months),
+        },
+      }));
+    }
+  };
 
   // 서머리 1장당 매체 5개, 초과 시 페이지 분할 (매체가 없어도 빈 서머리 1장 유지)
   const summaryPages = useMemo<ProposalItem[][]>(() => {
@@ -230,7 +289,7 @@ function ProposalEditorView({ id }: { id: string }) {
     }));
     const mediaSlides = orderedItems.map((item) => ({
       id: item.media_id,
-      name: item.name ?? "이름 없음",
+      name: item.media_name ?? item.name ?? "이름 없음",
     }));
     return [
       { id: "cover", name: "표지" },
@@ -263,7 +322,21 @@ function ProposalEditorView({ id }: { id: string }) {
   // 제출(집행 요청)·계약 완료 상태는 편집 불가
   const locked = submitted || proposal?.status === "contracted";
 
-  // 왼쪽 목록 썸네일 — 기획안 템플릿 그대로(고른 상품·날짜·수량 반영).
+  // 아직 저장되지 않은 수정(자동 저장 전 몇 초·저장 실패)이 있으면 뒤로 가기(화면 버튼·브라우저) 전에 묻는다.
+  const { leave } = useUnsavedChangesGuard(!locked && dirty, () =>
+    confirm({
+      title: "수정한 내용이 저장되지 않았어요.",
+      description:
+        "페이지를 나가면 수정한 내용이 사라져요.\n저장하지 않고 나가시겠습니까?",
+      confirmText: "나가기",
+      icon: <SaveIcon className="size-[22px]" />,
+      iconTone: "danger",
+      compactActions: true,
+      width: 478,
+    }),
+  );
+
+  // 왼쪽 목록 썸네일 — 기획안 템플릿 그대로(고른 상품·개월 수·기간 반영).
   const renderSidebarThumb = (slide: Slide) => {
     const summaryPage = parseSummaryPage(slide.id);
     if (summaryPage !== null)
@@ -275,7 +348,12 @@ function ProposalEditorView({ id }: { id: string }) {
         />
       ) : null;
     if (slide.id === "cover")
-      return <CoverThumb updatedAt={proposal?.updated_at ?? null} />;
+      return (
+        <CoverThumb
+          title={proposal?.title}
+          updatedAt={proposal?.updated_at ?? null}
+        />
+      );
     if (slide.id === "thanks") return <ThanksThumb />;
     const item = displayItems.find((it) => it.media_id === slide.id);
     return item ? <MediaThumb item={item} /> : null;
@@ -343,8 +421,16 @@ function ProposalEditorView({ id }: { id: string }) {
     );
   };
 
-  // 저장하기 — 고른 상품(플랜)·날짜·수량을 지금 순서와 함께 저장한다.
+  // 저장 — 고른 상품(플랜)·날짜·개월 수를 지금 순서와 함께 저장한다. 보내는 동안 새로 바꾼 값은
+  // 지우지 않고 남겨 다음 저장으로 넘긴다. 응답(최종 수정일시 포함)으로 바로 화면을 갱신한다.
+  const saving = reorderMutation.isPending;
+  const [savingLinger, setSavingLinger] = useState(false);
   const handleSave = async () => {
+    if (saving) return;
+    const plans = selectedPlans;
+    const dates = selectedDates;
+    const months = selectedMonths;
+    const productionCounts = selectedProductionCounts;
     const mediaIds = slides
       .slice(firstMediaIndex, slides.length - 1)
       .map((slide) => slide.id);
@@ -352,7 +438,7 @@ function ProposalEditorView({ id }: { id: string }) {
       string,
       { start_date: string | null; end_date: string | null }
     > = {};
-    Object.keys(selectedDates).forEach((mediaId) => {
+    Object.keys(dates).forEach((mediaId) => {
       const item = displayItems.find((it) => it.media_id === mediaId);
       if (item) {
         dateEntries[mediaId] = {
@@ -362,28 +448,73 @@ function ProposalEditorView({ id }: { id: string }) {
       }
     });
     try {
-      await reorderMutation.mutateAsync({
+      const saved = await reorderMutation.mutateAsync({
         id,
         mediaIds,
-        plans:
-          Object.keys(selectedPlans).length > 0 ? selectedPlans : undefined,
+        plans: Object.keys(plans).length > 0 ? plans : undefined,
         dates: Object.keys(dateEntries).length > 0 ? dateEntries : undefined,
-        quantities:
-          Object.keys(selectedQuantities).length > 0
-            ? selectedQuantities
+        months:
+          Object.keys(months).length > 0
+            ? Object.fromEntries(
+                Object.entries(months).map(([mediaId, value]) => [
+                  mediaId,
+                  value && value > 0 ? value : 1,
+                ]),
+              )
+            : undefined,
+        productionCounts:
+          Object.keys(productionCounts).length > 0
+            ? productionCounts
             : undefined,
       });
-      await queryClient.invalidateQueries({
-        queryKey: proposalsKeys.detail(id),
-      });
-      setSelectedPlans({});
-      setSelectedDates({});
-      setSelectedQuantities({});
-      success("저장이 완료되었습니다.");
+      queryClient.setQueryData(proposalsKeys.detail(id), saved);
+      setSelectedPlans((prev) => keepUnsaved(prev, plans));
+      setSelectedDates((prev) =>
+        keepUnsaved(
+          prev,
+          dates,
+          (a, b) => a.start_date === b.start_date && a.end_date === b.end_date,
+        ),
+      );
+      setSelectedMonths((prev) => keepUnsaved(prev, months));
+      setSelectedProductionCounts((prev) =>
+        keepUnsaved(prev, productionCounts),
+      );
     } catch {
       error("저장하지 못했어요", "잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSavingLinger(true);
+      window.setTimeout(() => setSavingLinger(false), SAVING_LINGER_MS);
     }
   };
+  const saveRef = useRef(handleSave);
+  useEffect(() => {
+    saveRef.current = handleSave;
+  });
+
+  // 자동 저장 — 마지막 변경 뒤 AUTOSAVE_DELAY_MS 동안 더 바꾸지 않으면 저장한다. 저장 중엔 기다렸다가
+  // 끝나면(saving 이 false 로 바뀌면) 남은 변경을 다시 잰다. 개월 수 칸이 빈 동안은 저장하지 않는다
+  // (지금 저장하면 1로 바뀌어 입력 중인 칸이 튄다). 실패하면 다음 변경이나 저장 아이콘으로 다시 시도.
+  const hasEmptyMonths = Object.values(selectedMonths).some((m) => m == null);
+  useEffect(() => {
+    if (locked || !dirty || saving || hasEmptyMonths) return;
+    const timer = window.setTimeout(
+      () => void saveRef.current(),
+      AUTOSAVE_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    locked,
+    dirty,
+    saving,
+    hasEmptyMonths,
+    selectedPlans,
+    selectedDates,
+    selectedMonths,
+    selectedProductionCounts,
+  ]);
+
+  const savingVisible = saving || savingLinger;
 
   const handleDeleteSlide = async (
     slideNumber: number,
@@ -523,7 +654,7 @@ function ProposalEditorView({ id }: { id: string }) {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto bg-[#f9fafb] p-[20px]">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto bg-[#f5f6fb] p-[20px]">
       {deleting && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-white/80">
           <Spinner />
@@ -540,7 +671,7 @@ function ProposalEditorView({ id }: { id: string }) {
           <div className="flex h-[34px] min-w-0 items-center gap-[10px]">
             <button
               type="button"
-              onClick={() => router.push("/proposals")}
+              onClick={() => leave("/proposals")}
               aria-label="내 기획안으로 돌아가기"
               className="shrink-0 rounded-[10px] transition-opacity hover:opacity-80"
             >
@@ -577,9 +708,9 @@ function ProposalEditorView({ id }: { id: string }) {
                         if (event.key === "Enter") void commitRename();
                         if (event.key === "Escape") cancelRename();
                       }}
-                      className="h-[34px] w-full rounded-[13px] border border-[#e5e7eb] bg-white pr-[56px] pl-[12px] text-[20px] leading-none font-semibold text-black [box-shadow:none]! transition-colors focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none"
+                      className="h-[34px] w-full rounded-[13px] border border-[#dde0ea] bg-white pr-[56px] pl-[12px] text-[20px] leading-none font-semibold text-black [box-shadow:none]! transition-colors focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 right-[14px] -translate-y-1/2 text-[12px] text-[#9ca3af]">
+                    <span className="pointer-events-none absolute top-1/2 right-[14px] -translate-y-1/2 text-[12px] text-[#9aa0b4]">
                       {draft.length}/{MAX_TITLE_LENGTH}
                     </span>
                   </div>
@@ -637,22 +768,51 @@ function ProposalEditorView({ id }: { id: string }) {
           ) : (
             <div className="flex items-center gap-[10px]">
               <StatusBadge status={toStatus(proposal?.status ?? "new")} />
-              <p className="text-[12px] leading-[1.4] whitespace-nowrap text-[#6b7280]">
-                {/* 제출 완료(시안)는 제출일 — 제출 뒤엔 편집이 막혀 최종 수정 시각이 곧 제출 시각이다. */}
-                {submitted ? "제출일시" : "최종 수정일시"}:{" "}
-                {formatDateTime(proposal?.updated_at, { withSeconds: true })}
-              </p>
+              {!locked && savingVisible ? (
+                <p
+                  role="status"
+                  className="flex items-center gap-[6px] text-[12px] leading-[1.4] whitespace-nowrap text-[#727892]"
+                >
+                  <Spinner
+                    size="sm"
+                    color="current"
+                    className="size-[12px] shrink-0"
+                  />
+                  저장 중...
+                </p>
+              ) : (
+                <p className="text-[12px] leading-[1.4] whitespace-nowrap text-[#727892]">
+                  {/* 제출 완료(시안)는 제출일 — 제출 뒤엔 편집이 막혀 최종 수정 시각이 곧 제출 시각이다. */}
+                  {submitted ? "제출일시" : "최종 수정일시"}:{" "}
+                  {formatDateTime(proposal?.updated_at, { withSeconds: true })}
+                </p>
+              )}
+              {/* 지금 저장 — 자동 저장을 기다리지 않고 바로 저장. 바뀐 게 없어도 늘 누를 수 있다(지금 순서로 다시 저장). */}
+              {!locked && (
+                <Tooltip delay={300}>
+                  <HeroButton
+                    isIconOnly
+                    variant="ghost"
+                    aria-label="지금 저장"
+                    onPress={() => void handleSave()}
+                    className="size-[24px] min-w-0 rounded-[8px] p-0 text-gray-700 data-[hovered=true]:bg-gray-200"
+                  >
+                    <SaveIcon className="size-[16px]" />
+                  </HeroButton>
+                  <Tooltip.Content>지금 저장</Tooltip.Content>
+                </Tooltip>
+              )}
             </div>
           )}
         </div>
 
         {submitted ? (
-          // 제출 취소 — 시안: 회색(#e5e7eb) 45px · 곡률 15px, X 아이콘 + 진회색 글자.
+          // 제출 취소 — 시안: 회색(#dde0ea) 45px · 곡률 15px, X 아이콘 + 진회색 글자.
           <HeroButton
             variant="ghost"
             onPress={handleCancelSubmit}
             isPending={cancelSubmitMutation.isPending}
-            className="h-[45px] min-w-[171px] shrink-0 gap-[10px] rounded-[15px] bg-[#e5e7eb] px-[20px] text-[14px] font-bold text-[#4b5563] data-[hovered=true]:bg-[#d1d5db]"
+            className="h-[45px] min-w-[171px] shrink-0 gap-[10px] rounded-[15px] bg-[#dde0ea] px-[20px] text-[14px] font-bold text-[#555b73] data-[hovered=true]:bg-[#c3c7d6]"
           >
             <Image
               src="/icons/proposal-detail/cancel-submit.svg"
@@ -683,35 +843,17 @@ function ProposalEditorView({ id }: { id: string }) {
 
       {/* 본문 카드 — 도구 줄 + 슬라이드 목록 + 미리보기. 화면 아래까지 채우되, 최소 높이를 두지 않아
           iPad Safari처럼 보이는 높이가 낮아도 페이지 전체엔 스크롤이 생기지 않는다(목록·미리보기만 안에서 스크롤). */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-[#f8fafc] shadow-[0px_2px_10px_0px_rgba(0,0,0,0.05)]">
-        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#e5e7eb] pr-[10px] pl-[20px]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#dde0ea] bg-[#f5f6fb] shadow-[0px_2px_10px_0px_rgba(0,0,0,0.05)]">
+        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#dde0ea] pr-[10px] pl-[20px]">
           <p className="flex items-center gap-[10px] text-[12px] whitespace-nowrap">
             <span className="font-semibold text-black">
               슬라이드 {slides.length}
             </span>
-            <span className="text-[#6b7280]">
+            <span className="text-[#727892]">
               선택된 매체 {orderedItems.length}개
             </span>
           </p>
           <div className="flex items-center gap-[10px]">
-            {/* 저장하기 — 상품·날짜·수량을 바꿨을 때만 보인다(순서 변경은 놓는 즉시 저장). 35px → 곡률 15px. */}
-            {!locked && dirty && (
-              <HeroButton
-                variant="primary"
-                onPress={() => void handleSave()}
-                isPending={reorderMutation.isPending}
-                className="h-[35px] rounded-[15px] bg-primary-500 px-[14px] text-[12px] font-semibold text-white"
-              >
-                {reorderMutation.isPending && (
-                  <Spinner
-                    size="sm"
-                    color="current"
-                    className="size-[14px] shrink-0"
-                  />
-                )}
-                저장하기
-              </HeroButton>
-            )}
             {/* 도구 버튼 35px → 곡률 15px(시안 값). */}
             <HeroButton
               variant="ghost"
@@ -766,7 +908,7 @@ function ProposalEditorView({ id }: { id: string }) {
           {/* 미리보기 — 회색 바탕 가운데에 기획안 템플릿 슬라이드. 미리보기 칸의 너비·높이 중 먼저 닿는
               쪽에 맞춰 16:9 그대로 줄이고 늘린다(가로로 넓고 낮은 iPad에서도 잘리거나 스크롤되지 않게).
               서머리는 날짜·수량, 매체 슬라이드는 상품(플랜)을 바로 고칠 수 있다(제출·계약 뒤엔 보기만). */}
-          <section className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#f1f5f9] p-[40px]">
+          <section className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#eceef5] p-[40px]">
             <div className="flex min-w-0 flex-1 items-center justify-center self-stretch [container-type:size]">
               <div className="w-[min(100cqw,calc(100cqh*16/9))]">
                 {selectedSummaryPage !== null && displayProposal ? (
@@ -776,8 +918,14 @@ function ProposalEditorView({ id }: { id: string }) {
                     startIndex={selectedSummaryPage * SUMMARY_PAGE_SIZE}
                     zoom={100}
                     interactive={!locked}
-                    onDateChange={locked ? undefined : handleDateChange}
-                    onQuantityChange={locked ? undefined : handleQuantityChange}
+                    onPlanChange={locked ? undefined : handlePlanChange}
+                    onStartDateChange={
+                      locked ? undefined : handleStartDateChange
+                    }
+                    onMonthsChange={locked ? undefined : handleMonthsChange}
+                    onProductionCountChange={
+                      locked ? undefined : handleProductionCountChange
+                    }
                   />
                 ) : previewMediaItem ? (
                   <MediaSlide
@@ -789,16 +937,14 @@ function ProposalEditorView({ id }: { id: string }) {
                       locked
                         ? undefined
                         : (planNo) =>
-                            setSelectedPlans((prev) => ({
-                              ...prev,
-                              [previewMediaItem.media_id]: planNo,
-                            }))
+                            handlePlanChange(previewMediaItem.media_id, planNo)
                     }
                   />
                 ) : selectedId === "thanks" ? (
                   <ThanksSlide zoom={100} />
                 ) : (
                   <CoverSlide
+                    title={proposal?.title}
                     updatedAt={proposal?.updated_at ?? null}
                     zoom={100}
                   />

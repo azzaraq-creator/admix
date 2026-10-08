@@ -24,7 +24,7 @@ export function LicenseFileInfo({
           {name}
         </p>
         {uploadedAt && (
-          <p className="text-xs font-normal leading-[16px] tracking-[0.0048px] text-grey-500">
+          <p className="text-xs font-normal leading-[16px] tracking-[0.0048px] text-gray-500">
             {formatDateTime(uploadedAt)}
           </p>
         )}

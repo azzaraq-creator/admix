@@ -11,7 +11,7 @@ import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
 const CARD_CLASS =
-  "rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
+  "rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
 
 function InfoRow({
   label,
@@ -129,7 +129,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
           readOnly={answered}
           placeholder="답변 내용을 입력해 주세요."
           className={`h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f] ${
-            answered ? "cursor-default bg-grey-50" : "bg-[#f0f0f3]"
+            answered ? "cursor-default bg-gray-50" : "bg-[#f0f0f3]"
           }`}
         />
         <div className="flex items-center justify-between">

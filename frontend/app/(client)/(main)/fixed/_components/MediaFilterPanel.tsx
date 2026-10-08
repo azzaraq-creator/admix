@@ -25,13 +25,14 @@ import { PriceRangeFilter } from "@/components/common/mediaFilter/PriceRangeFilt
 import { RotateLeftIcon } from "@/components/icons";
 import { useFavoriteList, useFavoritePriceHistogram } from "@/hooks/favorites";
 import {
-  useFixedMediaCount,
+  useMediaFindCount,
   useFixedPriceHistogram,
   type MediaFilterParams,
+  type RegionOption,
 } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
-/** 시안(02. 매체 찾기 - 필터)의 탭 순서. `region`은 아직 백엔드 필터가 없다. */
+/** 시안(02. 매체 찾기 - 필터)의 탭 순서. 지역은 regions 를 넘길 때만 보인다. */
 type TabKey = FilterPanelKey | "region";
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -39,7 +40,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "category", label: "카테고리" },
   { key: "price", label: "가격 범위" },
   { key: "oohType", label: "매체 타입" },
-  { key: "saleType", label: "매체 판매 유형" },
+  { key: "saleType", label: "판매 유형" },
   { key: "exposureType", label: "설치 장소" },
   { key: "mediaShape", label: "매체 형태" },
 ];
@@ -47,11 +48,11 @@ const TABS: { key: TabKey; label: string }[] = [
 /** 패널 탭 모양 — 정렬 패널(MediaSortBar)의 Select 트리거도 같은 모양을 쓴다. */
 export const TAB_BASE =
   "flex h-[38px] shrink-0 items-center gap-[8px] rounded-[16px] px-[20px] text-[14px] max-sm:text-[12px] transition-colors";
-// 선택된 탭의 테두리는 #9ca3af(= black-400).
+// 선택된 탭의 테두리는 #9aa0b4(= gray-400).
 export const TAB_ACTIVE =
-  "border border-black-400 bg-white font-bold text-black-900";
+  "border border-gray-400 bg-white font-bold text-gray-900";
 export const TAB_IDLE =
-  "bg-transparent font-medium text-black-500 hover:bg-transparent hover:text-black-900";
+  "bg-transparent font-medium text-gray-500 hover:bg-transparent hover:text-gray-900";
 
 export function TabButton({
   label,
@@ -74,7 +75,7 @@ export function TabButton({
       className={cn(
         TAB_BASE,
         active ? TAB_ACTIVE : TAB_IDLE,
-        disabled && "cursor-not-allowed opacity-40 hover:text-black-500",
+        disabled && "cursor-not-allowed opacity-40 hover:text-gray-500",
       )}
     >
       {label}
@@ -90,13 +91,18 @@ export function TabButton({
 
 /** 두 필터 선택이 같은지(값 순서 무관). */
 function sameFilter(a: MediaFilterState, b: MediaFilterState): boolean {
-  return FILTER_DIMS.every((dim) => {
-    if (dim.key === "price")
-      return a.priceMin === b.priceMin && a.priceMax === b.priceMax;
-    const x = [...a[dim.key]].sort().join("\u0000");
-    const y = [...b[dim.key]].sort().join("\u0000");
-    return x === y;
-  });
+  const sameRegion =
+    [...a.region].sort().join("\u0000") === [...b.region].sort().join("\u0000");
+  return (
+    sameRegion &&
+    FILTER_DIMS.every((dim) => {
+      if (dim.key === "price")
+        return a.priceMin === b.priceMin && a.priceMax === b.priceMax;
+      const x = [...a[dim.key]].sort().join("\u0000");
+      const y = [...b[dim.key]].sort().join("\u0000");
+      return x === y;
+    })
+  );
 }
 
 // 패널에서 선택을 바꾼 뒤 개수를 다시 셀 때까지 기다리는 시간 — 가격 슬라이더를 끄는 동안
@@ -105,22 +111,131 @@ const COUNT_DEBOUNCE_MS = 300;
 
 /** 칩·가격 중 하나라도 걸려 있으면 true. FILTER_DIMS가 전 차원을 덮는다. */
 function hasSelection(f: MediaFilterState): boolean {
-  return FILTER_DIMS.some((dim) => dimSelectionCount(dim.key, f) > 0);
+  return (
+    f.region.length > 0 ||
+    FILTER_DIMS.some((dim) => dimSelectionCount(dim.key, f) > 0)
+  );
+}
+
+const ALL_DISTRICTS = "__all__";
+
+/**
+ * 지역 — 위 줄에서 시·도를 고르면 아래 줄에 그 안의 구·군이 나온다(여러 개, 시·도를 넘나들어도 된다).
+ * "전체"는 그 시·도 전체 — 구·군을 고르면 풀리고, 전체를 고르면 고른 구·군이 풀린다.
+ * 값: "서울특별시"(시·도 전체) / "서울특별시 강남구".
+ */
+function RegionFilter({
+  regions,
+  value,
+  onChange,
+}: {
+  regions: RegionOption[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [sido, setSido] = useState(
+    () =>
+      regions.find((r) =>
+        value.some((v) => v === r.sido || v.startsWith(`${r.sido} `)),
+      )?.sido ??
+      regions[0]?.sido ??
+      "",
+  );
+  const current = regions.find((r) => r.sido === sido);
+  if (!current) {
+    return (
+      <p className="text-[13px] text-gray-500 max-sm:text-[11px]">
+        지역 정보를 불러오지 못했어요.
+      </p>
+    );
+  }
+  const prefix = `${sido} `;
+  const whole = value.includes(sido);
+  const picked = value
+    .filter((v) => v.startsWith(prefix))
+    .map((v) => v.slice(prefix.length));
+  const pickCount = (r: RegionOption) =>
+    value.filter((v) => v === r.sido || v.startsWith(`${r.sido} `)).length;
+
+  return (
+    <div className="flex flex-col gap-[14px]">
+      <TagGroup
+        aria-label="시·도"
+        selectionMode="single"
+        disallowEmptySelection
+        selectedKeys={new Set([sido])}
+        onSelectionChange={(keys) => {
+          const next = [...keys][0];
+          if (next != null) setSido(String(next));
+        }}
+      >
+        <TagGroup.List className="flex flex-wrap gap-[8px]">
+          {regions.map((r) => (
+            <Tag key={r.sido} id={r.sido} className={OPTION_TAG}>
+              {r.label}
+              {pickCount(r) > 0 && (
+                <span className="ml-[4px] text-primary-500">
+                  {pickCount(r)}
+                </span>
+              )}
+            </Tag>
+          ))}
+        </TagGroup.List>
+      </TagGroup>
+      <div className="flex flex-col gap-[10px] rounded-[16px] bg-gray-50 p-[14px] max-sm:p-[12px]">
+        <TagGroup
+          aria-label={`${current.label} 구·군`}
+          selectionMode="multiple"
+          selectedKeys={new Set(whole ? [ALL_DISTRICTS] : picked)}
+          onSelectionChange={(keys) => {
+            const next =
+              keys === "all" ? [ALL_DISTRICTS] : [...keys].map(String);
+            const others = value.filter(
+              (v) => v !== sido && !v.startsWith(prefix),
+            );
+            const mine =
+              next.includes(ALL_DISTRICTS) && !whole
+                ? [sido]
+                : next
+                    .filter((k) => k !== ALL_DISTRICTS)
+                    .map((d) => `${sido} ${d}`);
+            onChange([...others, ...mine]);
+          }}
+        >
+          <TagGroup.List className="flex flex-wrap gap-[8px]">
+            <Tag id={ALL_DISTRICTS} className={OPTION_TAG}>
+              {current.label} 전체
+            </Tag>
+            {current.districts.map((d) => (
+              <Tag key={d} id={d} className={OPTION_TAG}>
+                {d}
+              </Tag>
+            ))}
+          </TagGroup.List>
+        </TagGroup>
+        <p className="text-[12px] text-gray-500 max-sm:text-[11px]">
+          이동 매체는 운행 지역으로 찾아요. 시·도 전체를 다니는 매체와 전국
+          매체는 구·군을 골라도 함께 나와요.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // 옵션 태그 — 높이 32px, 모서리는 (높이/2)-3px = 13px.
-// 선택 시 테두리 #9ca3af(= black-400) + black-900 볼드. HeroUI Tag의 기본 배경·선택 색은
+// 선택 시 테두리 #9aa0b4(= gray-400) + gray-900 볼드. HeroUI Tag의 기본 배경·선택 색은
 // bg-white로 덮는다(유틸리티 레이어가 컴포넌트 레이어보다 뒤에 와서 그대로 이긴다).
 const OPTION_TAG = cn(
-  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-black-200 bg-white px-[14px] text-[13px] max-sm:text-[11px] font-medium text-black-600 transition-colors",
-  "hover:border-black-300",
-  "data-[selected=true]:border-black-400 data-[selected=true]:font-bold data-[selected=true]:text-black-900",
+  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-white px-[14px] text-[13px] max-sm:text-[11px] font-medium text-gray-600 transition-colors",
+  "hover:border-gray-300",
+  "data-[selected=true]:border-gray-400 data-[selected=true]:font-bold data-[selected=true]:text-gray-900",
 );
 
 export function MediaFilterPanel({
   value,
   optionsByKey,
   price,
+  regions,
   totalCount,
   scope,
   countSource = "fixed",
@@ -131,14 +246,16 @@ export function MediaFilterPanel({
   value: MediaFilterState;
   optionsByKey: Record<ChipDimKey, FilterOption[]>;
   price: PriceMeta;
+  /** 지역 선택지 — 넘기면 지역 탭이 보인다(매체 찾기·관심 매체). */
+  regions?: RegionOption[];
   /** 이미 적용된 필터의 결과 수 — 패널 선택이 적용된 것과 같으면 다시 세지 않고 이 값을 쓴다. */
   totalCount: number;
-  /** 필터 외 조회 조건(지도 영역·검색어). 패널 선택의 개수를 셀 때 함께 건다. */
+  /** 필터 외 조회 조건(지도 영역·검색어·매체 찾기 탭). 패널 선택의 개수를 셀 때 함께 건다. */
   scope: Pick<
     MediaFilterParams,
-    "neLat" | "swLat" | "neLng" | "swLng" | "keyword"
+    "neLat" | "swLat" | "neLng" | "swLng" | "keyword" | "source"
   >;
-  /** 결과 수를 셀 대상 — 매체 찾기(전체 고정 매체) 또는 관심 매체(내가 하트한 매체). */
+  /** 결과 수를 셀 대상 — 매체 찾기(고른 탭 — 전체면 고정 매체 + 그 영역을 다니는 이동매체) 또는 관심 매체(내가 하트한 매체). */
   countSource?: "fixed" | "favorites";
   onApply: (next: MediaFilterState) => void;
   onReset: () => void;
@@ -146,7 +263,8 @@ export function MediaFilterPanel({
 }) {
   // 패널 안에서만 쓰는 임시 상태 — "결과 보기"를 눌러야 URL(=조회)에 반영된다.
   const [draft, setDraft] = useState<MediaFilterState>(value);
-  const [tab, setTab] = useState<TabKey>("category");
+  // 처음 여는 탭 — 지역 탭이 있으면 지역, 없으면 카테고리.
+  const [tab, setTab] = useState<TabKey>(regions ? "region" : "category");
 
   // 선택이 멈추면 그 조건으로 결과 수를 다시 센다. 적용된 필터와 같으면 목록의 total을 그대로 쓴다.
   const [settledDraft, setSettledDraft] = useState(draft);
@@ -155,8 +273,13 @@ export function MediaFilterPanel({
     return () => clearTimeout(timer);
   }, [draft]);
   const sameAsApplied = sameFilter(settledDraft, value);
-  const countParams = { ...toChipFilterParams(settledDraft), ...scope };
-  const fixedCount = useFixedMediaCount(
+  // 지역을 고르면 적용할 때 지도 영역을 떼고 그 지역 전체에서 찾으므로, 개수·가격 그래프도 영역 없이 센다.
+  const draftScope =
+    settledDraft.region.length > 0
+      ? { ...scope, neLat: null, swLat: null, neLng: null, swLng: null }
+      : scope;
+  const countParams = { ...toChipFilterParams(settledDraft), ...draftScope };
+  const findCount = useMediaFindCount(
     countParams,
     !sameAsApplied && countSource === "fixed",
   );
@@ -167,7 +290,7 @@ export function MediaFilterPanel({
   const countQuery =
     countSource === "favorites"
       ? { ...favoriteCount, data: favoriteCount.data?.total }
-      : fixedCount;
+      : findCount;
   const counting =
     !sameFilter(draft, settledDraft) ||
     (!sameAsApplied && (countQuery.isFetching || countQuery.data == null));
@@ -179,7 +302,7 @@ export function MediaFilterPanel({
     ...toChipFilterParams(settledDraft),
     priceMin: null,
     priceMax: null,
-    ...scope,
+    ...draftScope,
   };
   const fixedHistogram = useFixedPriceHistogram(
     histogramParams,
@@ -194,31 +317,29 @@ export function MediaFilterPanel({
     price?.histogram ??
     [];
 
-  const tabCount = (key: TabKey) =>
-    key === "region" ? 0 : dimSelectionCount(key, draft);
+  const tabCount = (key: TabKey) => dimSelectionCount(key, draft);
+  const tabs = TABS.filter((t) => t.key !== "region" || regions);
 
   // 되돌릴 게 없으면(패널에서 고른 것도, 이미 적용된 것도 없으면) 초기화를 잠근다.
   const resetDisabled = !hasSelection(draft) && !hasSelection(value);
 
   return (
-    <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
+    <div className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
       {/* 탭 줄 — 모바일처럼 좁아 옆으로 넘치면 넘길 게 남은 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
           아래 구분선은 바깥 칸에 두어 흐림(마스크)에 같이 지워지지 않게 한다. */}
-      <div className="border-b border-black-200">
+      <div className="border-b border-gray-200">
         <ScrollShadow
           orientation="horizontal"
           hideScrollBar
           size={24}
           className="flex items-center gap-[4px] px-[16px] py-[12px] max-sm:px-[12px] max-sm:py-[10px]"
         >
-          {TABS.map(({ key, label }) => (
+          {tabs.map(({ key, label }) => (
             <TabButton
               key={key}
               label={label}
               count={tabCount(key)}
               active={tab === key}
-              // TODO: 지역 필터는 백엔드 파라미터가 없어 아직 열 수 없다.
-              disabled={key === "region"}
               onClick={() => setTab(key)}
             />
           ))}
@@ -239,14 +360,16 @@ export function MediaFilterPanel({
               }
             />
           ) : (
-            <p className="text-[13px] max-sm:text-[11px] text-black-500">
+            <p className="text-[13px] max-sm:text-[11px] text-gray-500">
               가격 정보를 불러오지 못했어요.
             </p>
           )
         ) : tab === "region" ? (
-          <p className="text-[13px] max-sm:text-[11px] text-black-500">
-            준비 중인 필터입니다. 상단 검색창에 지역명을 입력해 보세요.
-          </p>
+          <RegionFilter
+            regions={regions ?? []}
+            value={draft.region}
+            onChange={(region) => setDraft((prev) => ({ ...prev, region }))}
+          />
         ) : (
           <TagGroup
             aria-label={`${TABS.find((t) => t.key === tab)?.label ?? ""} 필터`}
@@ -275,7 +398,7 @@ export function MediaFilterPanel({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-[8px] border-t border-black-200 px-[20px] py-[16px] max-sm:px-[16px] max-sm:py-[12px]">
+      <div className="flex items-center justify-between gap-[8px] border-t border-gray-200 px-[20px] py-[16px] max-sm:px-[16px] max-sm:py-[12px]">
         <Button
           variant="ghost"
           isDisabled={resetDisabled}
@@ -283,7 +406,7 @@ export function MediaFilterPanel({
             setDraft(EMPTY_MEDIA_FILTER);
             onReset();
           }}
-          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-black-200 bg-white px-[16px] text-[14px] font-medium text-black-700 hover:bg-black-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
+          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-gray-200 bg-white px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
         >
           <RotateLeftIcon className="m-0 size-[18px] shrink-0 max-sm:size-[15px]" />
           {/* 모바일은 폭이 좁아 버튼 글자를 줄인다. */}

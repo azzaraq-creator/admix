@@ -112,7 +112,7 @@ export function ResetPasswordView() {
                 "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
                 canSubmit
                   ? "bg-primary text-white"
-                  : "bg-[#eee] text-[#757575]",
+                  : "bg-[#eee] text-[#727892]",
               )}
             >
               {confirmMutation.isPending ? "재설정 중..." : "비밀번호 재설정"}

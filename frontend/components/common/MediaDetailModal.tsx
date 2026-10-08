@@ -56,7 +56,13 @@ function ageLabel(age: MediaDetailAgeRatio): string {
 }
 
 // 카테고리·판매 유형·매체 유형은 상단 칩/태그로 따로 보여주므로 스펙 칸에서는 뺀다.
-const SPEC_EXCLUDED_LABELS = new Set(["매체 카테고리", "타입", "판매 형태"]);
+// 고정/이동은 매체 찾기의 고정·이동 탭으로 이미 나뉘어 있어 굳이 보여 주지 않는다.
+const SPEC_EXCLUDED_LABELS = new Set([
+  "매체 카테고리",
+  "타입",
+  "판매 형태",
+  "고정/이동",
+]);
 
 /** 매체 상세 팝업 — 목록/마커에서 매체를 고르면 띄운다. 페이지로 이동하지 않으므로 검색 결과·지도 상태가 유지된다.
  *
@@ -236,7 +242,14 @@ function MediaDetailBody({
           </p>
 
           <div className="flex items-center gap-[3px]">
-            <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
+            {/* 이동 매체는 주소 대신 운행 지역이라 목록 카드처럼 "이동" 칩을 앞에 붙인다. */}
+            {vm.isMoving ? (
+              <Chip className="mr-[2px] shrink-0 rounded-[6px] bg-primary-50 px-[5px] py-0 text-[11px] leading-[16px] font-bold text-primary-500">
+                이동
+              </Chip>
+            ) : (
+              <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
+            )}
             <span className="text-[12px] text-[#6c757d]">
               {vm.address ?? "-"}
             </span>
@@ -289,8 +302,19 @@ function MediaDetailBody({
       <div className="flex flex-col gap-[10px] pb-[10px] max-sm:hidden md:flex-row md:items-start">
         {vm.population && <PopulationCard population={vm.population} />}
 
-        <div className="flex w-full min-w-0 flex-1 flex-col gap-[10px] md:pl-[10px]">
-          <SpecSection oohType={vm.oohType} specs={specs} showTitle />
+        {/* 인구 카드가 있으면 오른쪽을 카드 높이(315px)에 맞추고, 넘치는 항목은 안에서 스크롤한다. */}
+        <div
+          className={cn(
+            "flex w-full min-w-0 flex-1 flex-col gap-[10px] md:pl-[10px]",
+            vm.population && "md:h-[315px]",
+          )}
+        >
+          <SpecSection
+            oohType={vm.oohType}
+            specs={specs}
+            showTitle
+            scrollable={!!vm.population}
+          />
         </div>
       </div>
     </>
@@ -302,12 +326,28 @@ function SpecSection({
   oohType,
   specs,
   showTitle,
+  scrollable = false,
 }: {
   oohType: string | null;
   specs: [string, string][];
   /** 모바일 탭은 탭 이름이 제목을 대신해 뺀다. */
   showTitle?: boolean;
+  /** 부모 높이가 정해져 있을 때 — 항목 격자만 남은 높이 안에서 스크롤(위아래 그림자). */
+  scrollable?: boolean;
 }) {
+  const grid = (
+    <div className="grid grid-cols-2 gap-[12px] max-sm:gap-[8px]">
+      {specs.map(([label, value]) => (
+        <div
+          key={label}
+          className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-[#ececef] bg-[#f5f6fb] p-[12px] font-semibold max-sm:p-[10px]"
+        >
+          <p className="text-[11px] tracking-[0.6px] text-[#a1a1aa]">{label}</p>
+          <p className="text-[13px] break-keep text-[#18181b]">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
   return (
     <>
       <div className="flex items-center justify-between">
@@ -325,30 +365,23 @@ function SpecSection({
       <p className="text-[12px] text-[#888]">
         매체 유형별로 항목이 달라집니다.
       </p>
-      {specs.length > 0 && (
-        <div className="grid grid-cols-2 gap-[12px] max-sm:gap-[8px]">
-          {specs.map(([label, value]) => (
-            <div
-              key={label}
-              className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-[#ececef] bg-[#f9fafb] p-[12px] font-semibold max-sm:p-[10px]"
-            >
-              <p className="text-[11px] tracking-[0.6px] text-[#a1a1aa]">
-                {label}
-              </p>
-              <p className="text-[13px] break-keep text-[#18181b]">{value}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {specs.length > 0 &&
+        (scrollable ? (
+          <ScrollShadow size={24} className="min-h-0 flex-1 pr-[4px]">
+            {grid}
+          </ScrollShadow>
+        ) : (
+          grid
+        ))}
     </>
   );
 }
 
 // 모바일 상세 탭 — 선택 표시는 밑줄. HeroUI 탭의 알약 모양(배경·둥근 모서리)은 덮어쓴다.
 const MOBILE_TAB =
-  "-mb-px h-[40px] flex-1 rounded-none border-b-2 border-transparent bg-transparent px-[4px] text-[13px] font-medium whitespace-nowrap text-[#8c8c94] data-[selected=true]:border-black-900 data-[selected=true]:font-semibold data-[selected=true]:text-black-900";
+  "-mb-px h-[40px] flex-1 rounded-none border-b-2 border-transparent bg-transparent px-[4px] text-[13px] font-medium whitespace-nowrap text-[#8c8c94] data-[selected=true]:border-gray-900 data-[selected=true]:font-semibold data-[selected=true]:text-gray-900";
 
-/** 모바일 전용 — 매체 설명·월평균 유동인구·매체 정보를 탭으로 나눠 본다. 내용이 없는 탭은 뺀다. */
+/** 모바일 전용 — 매체 설명·인구(실시간/직접 입력)·매체 정보를 탭으로 나눠 본다. 내용이 없는 탭은 뺀다. */
 function MobileDetailTabs({
   vm,
   specs,
@@ -358,7 +391,9 @@ function MobileDetailTabs({
 }) {
   const tabs = [
     ...(vm.description ? [{ key: "description", label: "매체 설명" }] : []),
-    ...(vm.population ? [{ key: "population", label: "월평균 유동인구" }] : []),
+    ...(vm.population
+      ? [{ key: "population", label: vm.population.title }]
+      : []),
     { key: "specs", label: "매체 정보" },
   ];
   const [tab, setTab] = useState(tabs[0].key);
@@ -668,6 +703,14 @@ function Description({ text }: { text: string }) {
 
 const AGE_MAX_BAR_HEIGHT = 76;
 
+/** 서울시 혼잡도 4단계 → 칩 색. */
+const CONGEST_CHIP: Record<string, string> = {
+  여유: "bg-success-bg text-success",
+  보통: "bg-sky-50 text-sky-700",
+  "약간 붐빔": "bg-warning-bg text-warning",
+  붐빔: "bg-error-bg text-error",
+};
+
 function PopulationCard({
   population,
 }: {
@@ -685,19 +728,39 @@ function PopulationCard({
 
   return (
     <div className="flex h-[315px] w-full shrink-0 flex-col justify-between rounded-[16px] border border-[#f1f1f4] bg-white px-[20px] py-[16px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-[2px] whitespace-nowrap">
-          <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
-            월평균 유동인구
-          </p>
+      <div className="flex items-start justify-between gap-[8px]">
+        <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
+          <div className="flex min-w-0 items-baseline gap-[6px]">
+            <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
+              {population.title}
+            </p>
+            {population.caption && (
+              <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
+                {population.caption}
+              </p>
+            )}
+          </div>
           <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
-            {population.monthlyTrafficText}명
+            {population.populationText}명
           </p>
         </div>
-        <Chip className="gap-[4px] rounded-[20px] bg-primary-50 px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold text-primary-500">
-          <TrendingUpIcon className="size-[10px]" />
-          {ageLabel(topAge)} {topGender}
-        </Chip>
+        <div className="flex shrink-0 items-center gap-[4px]">
+          {population.congestLevel && (
+            <Chip
+              className={cn(
+                "rounded-[20px] px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold",
+                CONGEST_CHIP[population.congestLevel] ??
+                  "bg-gray-100 text-gray-600",
+              )}
+            >
+              {population.congestLevel}
+            </Chip>
+          )}
+          <Chip className="gap-[4px] rounded-[20px] bg-primary-50 px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold text-primary-500">
+            <TrendingUpIcon className="size-[10px]" />
+            {ageLabel(topAge)} {topGender}
+          </Chip>
+        </div>
       </div>
 
       <div className="h-px w-full bg-[#f1f1f4]" />

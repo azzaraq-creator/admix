@@ -18,7 +18,7 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
   return (
     <footer
       className={cn(
-        "w-full border-t border-black-200 bg-white px-[16px] py-[20px] sm:py-[36px]",
+        "w-full border-t border-gray-200 bg-white px-[16px] py-[20px] sm:py-[36px]",
         fullWidth ? "sm:px-[20px]" : "sm:px-[24px]",
       )}
     >
@@ -31,7 +31,7 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
         <div className="flex flex-col justify-between gap-[12px] sm:flex-row sm:gap-[16px] sm:items-center">
           <div className="flex flex-col gap-[6px] sm:gap-[8px]">
             <LogoFullDark className="h-[20px] w-fit sm:h-[24px]" />
-            <p className="text-[12px] font-medium text-black-600 sm:text-[13px]">
+            <p className="text-[12px] font-medium text-gray-600 sm:text-[13px]">
               옥외광고, 대화로 찾고 바로 제안까지.
             </p>
           </div>
@@ -42,14 +42,14 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
             {POLICY_LINKS.map(({ href, label, strong }, i) => (
               <span key={href} className="flex items-center gap-x-[4px]">
                 {i > 0 && (
-                  <span aria-hidden className="text-black-300">
+                  <span aria-hidden className="text-gray-300">
                     ·
                   </span>
                 )}
                 <Link
                   href={href}
-                  className={`rounded-[6px] px-[4px] text-[12px] transition-colors sm:text-[13px] hover:text-black-900 ${
-                    strong ? "font-semibold text-black-800" : "text-black-500"
+                  className={`rounded-[6px] px-[4px] text-[12px] transition-colors sm:text-[13px] hover:text-gray-900 ${
+                    strong ? "font-semibold text-gray-800" : "text-gray-500"
                   }`}
                 >
                   {label}
@@ -59,10 +59,10 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
           </nav>
         </div>
 
-        <div className="flex flex-col gap-[4px] border-t border-black-100 pt-[16px] text-[11px] leading-[16px] text-black-400 sm:pt-[20px] sm:text-[12px] sm:leading-[18px]">
+        <div className="flex flex-col gap-[4px] border-t border-gray-100 pt-[16px] text-[11px] leading-[16px] text-gray-400 sm:pt-[20px] sm:text-[12px] sm:leading-[18px]">
           <p>
             주식회사 애드믹스
-            <span aria-hidden className="mx-[6px] text-black-300">
+            <span aria-hidden className="mx-[6px] text-gray-300">
               |
             </span>
             사업자등록번호 635-86-01172

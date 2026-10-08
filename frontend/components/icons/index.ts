@@ -42,6 +42,7 @@ export { GripVerticalIcon } from "./GripVerticalIcon";
 export { UserIcon } from "./UserIcon";
 export { FileUpIcon } from "./FileUpIcon";
 export { RotateCwIcon } from "./RotateCwIcon";
+export { SaveIcon } from "./SaveIcon";
 export { LocateIcon } from "./LocateIcon";
 export { TvIcon } from "./TvIcon";
 export { AdmixWordmark } from "./AdmixWordmark";

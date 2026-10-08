@@ -775,12 +775,9 @@ def _explain_with_llm(item: dict, detail: dict | None, aspect: str | None = None
             facts.append(f"규격: {detail['sizeText']}")
         for f in detail.get("features") or []:
             facts.append(f"{f.get('label')}: {f.get('value')}")
-        pop = detail.get("population")
-        if pop and pop.get("monthlyFootTraffic"):
-            facts.append(
-                f"유동인구(상권 {pop.get('sangwonName')}): 월 {pop['monthlyFootTraffic']:,}명, "
-                f"남 {pop.get('malePct')}% / 여 {pop.get('femalePct')}%"
-            )
+        pop_fact = media_service.population_fact(detail.get("population"))
+        if pop_fact:
+            facts.append(pop_fact)
         fee_min = detail.get("minAdvertisementFeeKrw")
         if fee_min:
             facts.append(f"최소 광고비: {fee_min:,}원")

@@ -140,7 +140,7 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
   const productionAmount = proposal.production_amount ?? 0;
 
   return (
-    <div className="flex w-full flex-col gap-[12px] rounded-[16px] border border-[#ececef] bg-[#f9fafb] p-[14px]">
+    <div className="flex w-full flex-col gap-[12px] rounded-[16px] border border-[#ececef] bg-[#f5f6fb] p-[14px]">
       <div className="flex min-w-0 flex-col gap-[4px]">
         <p className="truncate text-[16px] font-bold text-[#18181b]">
           {proposal.title}
@@ -165,7 +165,7 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
               <li key={i} className="flex items-center gap-[8px]">
                 <span
                   aria-hidden
-                  className="size-[6px] shrink-0 rounded-full bg-[#a33bd1]"
+                  className="size-[6px] shrink-0 rounded-full bg-[#7a3fe0]"
                 />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
                   {name}
@@ -263,12 +263,12 @@ function ProposalAddedToastItem({
         />
         <div className="flex items-center gap-[10px] p-[10px]">
           <CheckCircleFilledIcon className="shrink-0 text-[#16a34a]" />
-          <p className="text-[13px] font-medium text-[#111827]">
+          <p className="text-[13px] font-medium text-[#161A2E]">
             기획안에 추가되었습니다
           </p>
         </div>
         <div className="flex w-full flex-col gap-[8px] p-[10px]">
-          <span className="self-start rounded-full border border-[#ededef] bg-[#f7f3fe] px-[8px] py-[4px] text-[10px] font-semibold text-[#a33bd1]">
+          <span className="self-start rounded-full border border-[#ededef] bg-[#f7f3fe] px-[8px] py-[4px] text-[10px] font-semibold text-[#7a3fe0]">
             {toast.content.proposals.length}개 기획안
           </span>
           {/* 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}

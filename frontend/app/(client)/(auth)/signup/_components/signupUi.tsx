@@ -21,7 +21,7 @@ export const RADIUS = {
 
 /**
  * HeroUI 기본 테마 값으로 되돌리는 범위 지정 CSS 변수.
- * globals.css의 `@theme inline`이 shadcn용으로 accent 색(연보라 #f5f3ff·진보라 글자)과
+ * globals.css의 `@theme inline`이 shadcn용으로 accent 색(연보라 #f6f4fe·진보라 글자)과
  * radius(--app-radius 기준)를 바꿔 두어, HeroUI 체크박스·라디오가 원래 모습과 다르게 보인다.
  * 전역을 바꾸면 관리자 화면의 shadcn 컴포넌트까지 달라지므로 이 영역에서만 되돌린다.
  * - accent: HeroUI 원래대로 --accent(브랜드 보라) 바탕 + --accent-foreground(흰색) 표시
@@ -46,7 +46,7 @@ export function SignupCard({
   return (
     <Card
       className={cn(
-        "w-full gap-[16px] rounded-[20px] border border-black-200 bg-white p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] max-sm:gap-[12px] max-sm:p-[16px] sm:p-[32px]",
+        "w-full gap-[16px] rounded-[20px] border border-gray-200 bg-white p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] max-sm:gap-[12px] max-sm:p-[16px] sm:p-[32px]",
         // 모바일은 카드가 남는 세로 공간을 채운다. 안쪽 폭(cqw)으로 크기를 잡는 항목을 위해 컨테이너로 둔다.
         "max-sm:@container max-sm:flex-1",
         className,
@@ -73,10 +73,10 @@ export function CardHeading({
         center && "text-center",
       )}
     >
-      <Card.Title className="text-[24px] leading-normal font-bold text-black-900 max-sm:text-[19px] sm:text-[28px]">
+      <Card.Title className="text-[24px] leading-normal font-bold text-gray-900 max-sm:text-[19px] sm:text-[28px]">
         {title}
       </Card.Title>
-      <Card.Description className="text-[14px] leading-[1.5] break-keep text-black-500 max-sm:text-[12px]">
+      <Card.Description className="text-[14px] leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]">
         {description}
       </Card.Description>
     </Card.Header>
@@ -92,7 +92,7 @@ export function FieldLabel({
   children: ReactNode;
 }) {
   return (
-    <Label className="flex items-center gap-[6px] text-[13px] font-medium text-black-900">
+    <Label className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
       {children}
       {required && <span className="font-bold text-[#e23535]">*</span>}
     </Label>
@@ -119,7 +119,7 @@ export const INPUT_CLASS = cn(
  */
 const SIDE_BUTTON_TONE = {
   outline:
-    "border border-[#ececef] bg-white text-[#18181b] data-[hovered=true]:bg-black-50 data-[disabled=true]:opacity-40",
+    "border border-[#ececef] bg-white text-[#18181b] data-[hovered=true]:bg-gray-50 data-[disabled=true]:opacity-40",
   soft: "border border-primary-200 bg-primary-50 text-primary-500 data-[hovered=true]:bg-primary-100 data-[disabled=true]:opacity-40",
   success:
     "gap-[4px] border border-[#bbf7d0] bg-[#f0fdf4] font-semibold text-[#16a34a] data-[disabled=true]:opacity-100",

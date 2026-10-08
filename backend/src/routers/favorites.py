@@ -43,6 +43,8 @@ def list_favorites(
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
     keyword: str | None = Query(None),
+    # 지역 — 매체 찾기와 같은 값("서울특별시" / "서울특별시 강남구").
+    region: list[str] | None = Query(None),
     sort: str = Query("latest", pattern=media_service.MEDIA_SORT_PATTERN),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -59,6 +61,7 @@ def list_favorites(
         price_min=price_min,
         price_max=price_max,
         keyword=keyword,
+        regions=region,
         sort=sort,
     )
     return MediaCardListResponse(total=len(items), items=items)
@@ -72,6 +75,8 @@ def get_favorite_price_histogram(
     media_shape: list[str] | None = Query(None),
     product_master_type: list[str] | None = Query(None),
     keyword: str | None = Query(None),
+    # 지역 — 매체 찾기와 같은 값("서울특별시" / "서울특별시 강남구").
+    region: list[str] | None = Query(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PriceHistogramResponse:
@@ -85,6 +90,7 @@ def get_favorite_price_histogram(
         media_shapes=media_shape,
         product_master_types=product_master_type,
         keyword=keyword,
+        regions=region,
     )
     return PriceHistogramResponse(histogram=histogram)
 

@@ -242,7 +242,7 @@ export function SanctionModal({
               type="button"
               onClick={handleDelete}
               disabled={pending}
-              className="flex flex-1 items-center justify-center rounded-[4px] bg-platinum-100 py-[20px] text-[18px] font-semibold leading-[24px] text-black disabled:opacity-50"
+              className="flex flex-1 items-center justify-center rounded-[4px] bg-gray-100 py-[20px] text-[18px] font-semibold leading-[24px] text-black disabled:opacity-50"
             >
               삭제
             </button>

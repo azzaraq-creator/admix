@@ -23,6 +23,7 @@ from src.routers.favorites import router as favorites_router
 from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
 from src.routers.recommend_react import router as recommend_react_router
+from src.services.sangwon_sync import start_daily_sync
 
 settings = get_settings()
 
@@ -64,6 +65,12 @@ app.include_router(dashboard_router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+
+
+@app.on_event("startup")
+def _start_background_jobs() -> None:
+    # 서울시 상권 유동인구 새 분기 확인(하루 한 번). 키가 없으면 돌지 않는다.
+    start_daily_sync()
 
 
 @app.get("/health")

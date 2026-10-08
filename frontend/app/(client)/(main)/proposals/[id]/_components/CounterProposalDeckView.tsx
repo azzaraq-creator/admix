@@ -78,7 +78,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
             </p>
             <div className="flex items-center gap-[12px]">
               <StatusChip status={proposal?.status ?? "custom"} />
-              <p className="text-sm font-medium leading-[20px] text-grey-500">
+              <p className="text-sm font-medium leading-[20px] text-gray-500">
                 {fmtDateTime(proposal?.updated_at)}
               </p>
             </div>
@@ -96,7 +96,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
         <div className="flex min-h-0 flex-1">
           <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
             <div className="flex h-[48px] items-center px-[24px]">
-              <p className="text-sm font-medium leading-[20px] text-grey-500">
+              <p className="text-sm font-medium leading-[20px] text-gray-500">
                 슬라이드 <span className="text-primary">{total}</span>
               </p>
             </div>
@@ -106,7 +106,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
             >
               {slides.map((slide, index) => (
                 <div key={index} className="flex items-start">
-                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-grey-500">
+                  <p className="w-[20px] shrink-0 pt-[8px] text-sm font-medium leading-[20px] text-gray-500">
                     {index + 1}
                   </p>
                   <button
@@ -145,12 +145,12 @@ export function CounterProposalDeckView({ id }: { id: string }) {
               )}
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-[40px] flex justify-center">
-              <div className="pointer-events-auto flex items-center rounded-[12px] border border-grey-50 bg-white shadow-sm">
+              <div className="pointer-events-auto flex items-center rounded-[12px] border border-gray-50 bg-white shadow-sm">
                 <button
                   type="button"
                   onClick={() => setLightbox(true)}
                   aria-label="전체보기"
-                  className="border-r border-grey-50 px-[14px] py-[10px] text-black"
+                  className="border-r border-gray-50 px-[14px] py-[10px] text-black"
                 >
                   <MaximizeIcon className="size-[18px]" />
                 </button>

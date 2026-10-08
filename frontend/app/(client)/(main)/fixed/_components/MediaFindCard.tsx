@@ -38,7 +38,7 @@ function PriceCell({
 }) {
   return (
     <div className={cn("flex flex-col items-end gap-[4px]", className)}>
-      <span className="text-[11px] max-sm:text-[10px] font-medium text-black-400">
+      <span className="text-[11px] max-sm:text-[10px] font-medium text-gray-400">
         {label}
       </span>
       {/* 금액은 줄바꿈하지 않는다(예: "4,000,000원"이 "4,000,000 / 원"으로 깨지지 않게). */}
@@ -81,13 +81,13 @@ export function SelectToggle({
         >
           {/* 14px 상자 — 끔은 흰 바탕·회색 테두리, 켬은 흰 상자에 보라 체크. */}
           {/* 켬은 그림자를 뺀다 — 끔 상태의 옅은 회색 그림자가 보라 바탕 위에선 흰 번짐처럼 보인다. */}
-          <Checkbox.Control className="size-[14px] rounded-[5.25px] border border-[#e5e7eb] bg-white shadow-[0px_0.75px_2.25px_0px_rgba(229,231,235,0.8)] group-data-[selected=true]:border-white group-data-[selected=true]:bg-white! group-data-[selected=true]:shadow-none! group-data-[selected=true]:before:bg-white!">
+          <Checkbox.Control className="size-[14px] rounded-[5.25px] border border-[#dde0ea] bg-white shadow-[0px_0.75px_2.25px_0px_rgba(229,231,235,0.8)] group-data-[selected=true]:border-white group-data-[selected=true]:bg-white! group-data-[selected=true]:shadow-none! group-data-[selected=true]:before:bg-white!">
             <Checkbox.Indicator className="text-primary-500 [&_svg]:stroke-primary-500! [&_svg]:text-primary-500!" />
           </Checkbox.Control>
           <Label
             className={cn(
               "cursor-pointer text-[12px] whitespace-nowrap",
-              checked ? "font-bold text-white" : "text-[#111827]",
+              checked ? "font-bold text-white" : "text-[#161A2E]",
             )}
           >
             {checked ? "선택됨" : "선택"}
@@ -104,6 +104,7 @@ export function MediaFindCard({
   highlighted,
   onClick,
   onAddProposal,
+  onHoverChange,
   selection,
 }: {
   row: MediaCardRow;
@@ -112,6 +113,8 @@ export function MediaFindCard({
   highlighted?: boolean;
   onClick?: () => void;
   onAddProposal?: () => void;
+  /** 마우스를 올리고 뗄 때 — 매체 찾기는 이동매체 운행 지역을 지도에 그리는 데 쓴다. */
+  onHoverChange?: (hovered: boolean) => void;
   /**
    * 고르기 모드(관심 매체 페이지) — 주면 "기획안 담기"·하트 대신 "선택" 체크 버튼을 두고,
    * 고른 카드는 보라 테두리(2px)로 표시한다.
@@ -122,10 +125,14 @@ export function MediaFindCard({
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
   // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
   const { liked, setLiked } = useFavorite(row.id, { notifyName: row.name });
+  // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
+  const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
 
   return (
     <Card
       onClick={onClick}
+      onMouseEnter={onHoverChange && (() => onHoverChange(true))}
+      onMouseLeave={onHoverChange && (() => onHoverChange(false))}
       className={cn(
         // group — hover 때 안쪽 사진을 확대(group-hover)하려고.
         "group relative w-full shrink-0 cursor-pointer gap-0 overflow-hidden rounded-[16px] border bg-white p-0 transition-colors",
@@ -133,7 +140,7 @@ export function MediaFindCard({
         // 카드들이 형제라 다음 카드가 위에 그려져, 고른 카드는 z-10으로 올려 보라 테두리가 가리지 않게 한다.
         selected
           ? "z-10"
-          : "border-black-200 shadow-none hover:border-[#18181b]",
+          : "border-gray-200 shadow-none hover:border-[#18181b]",
         // 고른 카드 — 2px 보라 테두리를 카드 안쪽에 그린다: 테두리 1px + 안쪽 1px 선(after, 사진 위에 얹힘).
         // 바깥 그림자로 그리면 목록 스크롤 칸 맨 위·아래에서 잘린다. 안쪽 내용은 밀리지 않는다.
         (selection?.checked || highlighted) &&
@@ -185,7 +192,7 @@ export function MediaFindCard({
                   "size-[17px] transition-colors",
                   liked
                     ? "animate-[admix-like-pop_280ms_ease-out] text-red-500"
-                    : "text-black-300",
+                    : "text-gray-300",
                 )}
               />
             </ToggleButton>
@@ -205,12 +212,29 @@ export function MediaFindCard({
           </p>
         </div>
 
-        <div className="mt-[5px] flex items-center gap-[3px]">
-          <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
-          <span className="truncate text-[12px] max-sm:text-[11px] text-[#6c757d]">
-            {row.address ?? "-"}
-          </span>
-        </div>
+        {row.mediaSource === "MOVING" ? (
+          <div
+            className="mt-[5px] flex min-w-0 items-center gap-[4px]"
+            title={area?.route ?? undefined}
+          >
+            <Chip className="shrink-0 rounded-[6px] bg-primary-50 px-[5px] py-0 text-[11px] max-sm:text-[10px] leading-[16px] font-bold text-primary-500">
+              이동
+            </Chip>
+            <span className="truncate text-[12px] max-sm:text-[11px] text-[#6c757d]">
+              {area?.label ?? "-"}
+              {area?.route && (
+                <span className="text-gray-400"> · {area.route}</span>
+              )}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-[5px] flex items-center gap-[3px]">
+            <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
+            <span className="truncate text-[12px] max-sm:text-[11px] text-[#6c757d]">
+              {row.address ?? "-"}
+            </span>
+          </div>
+        )}
 
         <div className="mt-[8px] flex items-center justify-between gap-[8px]">
           {/* 정렬·shrink-0·가로 패딩(8px)은 HeroUI Chip 기본값이라 색·모서리·세로 여백만 준다. */}
@@ -236,7 +260,7 @@ export function MediaFindCard({
         </div>
       </div>
 
-      <div className="mx-[10px] mt-[10px] border-t border-black-200" />
+      <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
       <div className="p-[10px] flex items-center gap-[20px]">
         <PriceCell
@@ -264,7 +288,7 @@ export function MediaFindCardSkeleton() {
   return (
     <Card
       aria-hidden
-      className="w-full shrink-0 gap-0 overflow-hidden rounded-[16px] border border-black-200 bg-white p-0 shadow-none"
+      className="w-full shrink-0 gap-0 overflow-hidden rounded-[16px] border border-gray-200 bg-white p-0 shadow-none"
     >
       <Skeleton className="h-[199px] w-full rounded-none" />
       <div className="flex flex-col gap-[8px] px-[12px] pt-[12px]">
@@ -272,7 +296,7 @@ export function MediaFindCardSkeleton() {
         <Skeleton className="h-[14px] w-[80%] rounded-[6px]" />
         <Skeleton className="h-[22px] w-[110px] rounded-[8px]" />
       </div>
-      <div className="mx-[10px] mt-[10px] border-t border-black-200" />
+      <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
       <div className="flex justify-end gap-[20px] p-[10px]">
         <Skeleton className="h-[34px] w-[120px] rounded-[6px]" />
         <Skeleton className="h-[34px] w-[90px] rounded-[6px]" />

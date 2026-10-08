@@ -15,7 +15,7 @@ const PILL_CLASS =
 // 미끄러지는 알약이 이어받으므로 탭 배경은 지운다.
 const TAB_CLASS =
   "h-[30px] w-auto rounded-[12px] py-[3px] text-sm font-normal sm:h-[32px] sm:rounded-[13px] whitespace-nowrap text-[#8c8c94] " +
-  "data-[selected=true]:font-semibold data-[selected=true]:text-black-900 " +
+  "data-[selected=true]:font-semibold data-[selected=true]:text-gray-900 " +
   "data-[selected=true]:bg-white data-[selected=true]:shadow-[1px_1px_4px_0px_rgba(0,0,0,0.1)] " +
   "[[data-pill-ready]_&]:bg-transparent [[data-pill-ready]_&]:shadow-none";
 

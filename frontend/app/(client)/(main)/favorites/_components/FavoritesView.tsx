@@ -30,6 +30,7 @@ import {
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import {
   buildFilterUi,
+  regionLabel,
   EMPTY_MEDIA_FILTER,
   toChipFilterParams,
   type ChipDimKey,
@@ -47,7 +48,7 @@ import {
   useFavoriteList,
   useRemoveFavorites,
 } from "@/hooks/favorites";
-import { useFixedFilterOptions } from "@/hooks/media";
+import { useMediaFilterOptions } from "@/hooks/media";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
@@ -86,8 +87,8 @@ export function FavoritesView({ member }: { member: boolean }) {
     (row) => !ids || ids.includes(row.id),
   );
 
-  const { data: opts } = useFixedFilterOptions();
-  const { optionsByKey, price } = buildFilterUi(opts);
+  const { data: opts } = useMediaFilterOptions();
+  const { optionsByKey, price, regions } = buildFilterUi(opts);
 
   // 고른 매체 — 지금 목록에 보이는 것만 센다(필터로 빠지거나 위시 취소된 매체는 자동으로 빠진다).
   const [picked, setPicked] = useState<string[]>([]);
@@ -199,6 +200,7 @@ export function FavoritesView({ member }: { member: boolean }) {
               value={filter}
               optionsByKey={optionsByKey}
               price={price}
+              regions={regions}
               totalCount={data?.total ?? 0}
               scope={{ keyword: keyword || null }}
               countSource="favorites"
@@ -217,6 +219,18 @@ export function FavoritesView({ member }: { member: boolean }) {
       {me && (
         <div className="flex shrink-0 items-center justify-between gap-[12px]">
           <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
+            {filter.region.map((value) => (
+              <FilterChip
+                key={`region-${value}`}
+                label={regionLabel(value, regions)}
+                onRemove={() =>
+                  setFilter({
+                    ...filter,
+                    region: filter.region.filter((v) => v !== value),
+                  })
+                }
+              />
+            ))}
             {CHIP_DIMS.flatMap((key) =>
               filter[key].map((value) => (
                 <FilterChip
@@ -240,7 +254,7 @@ export function FavoritesView({ member }: { member: boolean }) {
               />
             )}
           </div>
-          <p className="shrink-0 text-[12px] text-[#6b7280] max-sm:text-[11px]">
+          <p className="shrink-0 text-[12px] text-[#727892] max-sm:text-[11px]">
             총{" "}
             <span className="font-semibold text-[#18181b]">
               {loading ? "-" : `${rows.length.toLocaleString()}개 매체`}
@@ -415,7 +429,7 @@ type SelectionBarProps = {
 };
 
 const BAR_CLASS =
-  "sticky bottom-[20px] z-20 mt-auto flex h-[50px] shrink-0 items-center justify-between gap-[12px] rounded-[22px] bg-[#1f2937] p-[10px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)]";
+  "sticky bottom-[20px] z-20 mt-auto flex h-[50px] shrink-0 items-center justify-between gap-[12px] rounded-[22px] bg-[#262a3d] p-[10px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)]";
 
 /** 개수 칸 + 문구 — 바·시트 머리가 같이 쓴다. 개수 칸 28px → 곡률 11px. */
 function SelectionCount({ count }: { count: number }) {
@@ -612,7 +626,7 @@ function SheetCostRow({ label, value }: { label: string; value: string }) {
 function CostItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-[2px] whitespace-nowrap">
-      <span className="text-[11px] font-medium text-[#9ca3af]">{label}</span>
+      <span className="text-[11px] font-medium text-[#9aa0b4]">{label}</span>
       <span className="text-[14px] font-bold text-white">{value}</span>
     </div>
   );
@@ -634,7 +648,7 @@ function EmptyBox({
       <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#fff1f0] text-red-500">
         <LoveIcon className="size-[24px]" />
       </span>
-      <p className="text-[16px] font-semibold text-black-900">{title}</p>
+      <p className="text-[16px] font-semibold text-gray-900">{title}</p>
       <p className="text-[13px] leading-[1.6] break-keep text-[#8c8c94]">
         {description}
       </p>

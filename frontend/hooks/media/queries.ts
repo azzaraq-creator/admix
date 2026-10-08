@@ -64,15 +64,12 @@ export const useFixedMediaInfinite = (
   });
 
 /**
- * 조건에 맞는 고정 매체 수만 조회(목록 1건만 받아 total을 쓴다). 매체 찾기 필터 패널에서
- * 아직 적용 전인 선택으로 "결과 보기 N개"를 미리 보여 주는 데 쓴다.
+ * 조건에 맞는 매체 수만 조회(목록 1건만 받아 total을 쓴다 — 탭이 전체면 고정+이동).
+ * 매체 찾기 필터 패널에서 아직 적용 전인 선택으로 "결과 보기 N개"를 미리 보여 주는 데 쓴다.
  */
-export const useFixedMediaCount = (
-  filters: MediaFilterParams,
-  enabled = true,
-) =>
+export const useMediaFindCount = (filters: MediaFilterParams, enabled = true) =>
   useQuery({
-    queryKey: mediaKeys.fixedCount(filters),
+    queryKey: mediaKeys.findCount(filters),
     queryFn: async () => (await mediaApi.fixedList(1, 0, filters)).total,
     enabled,
     staleTime: 60 * 1000,
@@ -104,11 +101,34 @@ export const useFixedPriceHistogram = (
     placeholderData: keepPreviousData,
   });
 
-export const useFixedFilterOptions = () =>
+/** 고정·이동 매체 전체 기준 필터 옵션 — 매체 찾기·관심 매체가 쓴다. */
+export const useMediaFilterOptions = () =>
   useQuery({
-    queryKey: mediaKeys.fixedFilterOptions(),
-    queryFn: mediaApi.fixedFilterOptions,
+    queryKey: mediaKeys.filterOptions(),
+    queryFn: mediaApi.filterOptions,
     staleTime: 5 * 60 * 1000,
+  });
+
+/** 어드민 매체 폼 선택지(카테고리·등급 산정 방식). 저장하면 새 값이 들어오도록 짧게 캐시한다. */
+export const useAdminMediaFieldOptions = () =>
+  useQuery({
+    queryKey: mediaKeys.adminFieldOptions(),
+    queryFn: adminMediaApi.fieldOptions,
+    staleTime: 30 * 1000,
+  });
+
+/** 어드민 매체 폼 — 지금 좌표로 실시간 인구를 가져올 수 있는지(서울시는 5분마다 갱신). */
+export const useAdminRealtimePopulation = (
+  lat: number | null,
+  lng: number | null,
+  mediaId: string | null,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: mediaKeys.adminRealtimePopulation(lat, lng, mediaId),
+    queryFn: () => adminMediaApi.realtimePopulation(lat, lng, mediaId),
+    enabled,
+    staleTime: 60 * 1000,
   });
 
 export const useMediaDetail = (id: string | null) =>

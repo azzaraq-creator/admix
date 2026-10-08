@@ -91,7 +91,7 @@
   - **썸네일 삭제(X)**: 수정 모드는 `DELETE /admin/media/{id}/images/{imageId}`, 등록 모드는 대기 목록에서 제거.
   - 최대 개수 도달 시 업로드 박스 비활성화.
   - **이미지 형식 제약(백엔드)**: `.jpg/.jpeg/.png/.webp/.gif`만 허용, **개당 최대 10MB**. 위반 시 400.
-  - **저장(백엔드)**: 업로드 파일은 **S3 버킷 `ooh-image-public`**(ap-northeast-2, 퍼블릭 read)에 `media/{media_id}/{uuid}.ext`로 저장(ContentType 지정), 반환 퍼블릭 URL을 `media_image.image_url`에 기록. 삭제 시 S3 객체도 정리. 저장 아키텍처: [media-image-storage](../plans/2026-07-22-media-image-storage.md).
+  - **저장(백엔드)**: 업로드 파일은 **S3 버킷 `ooh-image-public`**(ap-northeast-2, 퍼블릭 read)에 `media/{media_id}/{uuid}.ext`로 저장(ContentType 지정), 반환 퍼블릭 URL을 `media_image.image_url`에 기록. 삭제 시 S3 객체도 정리. S3 인증은 EC2 인스턴스 역할이라 **로컬엔 AWS 인증 정보가 없다** → 로컬 `backend/.env` 에 `MEDIA_IMAGE_STORAGE=local` 을 두면 S3 대신 `upload_dir/media/{media_id}/{uuid}.ext` 에 저장하고 URL 은 `/uploads/media/...`(삭제 시 파일도 정리, PPT 는 디스크에서 읽음). 기본값은 `s3` 라 운영엔 영향 없음. 로컬 프론트는 Next 16 이 localhost 이미지 최적화를 막아 dev 에서만 `images.dangerouslyAllowLocalIP` 를 켠다. 저장 아키텍처: [media-image-storage](../plans/2026-07-22-media-image-storage.md).
   - **대표(썸네일) 규칙(백엔드)**: 매체의 **첫 이미지**가 `is_thumbnail=true`. 대표 이미지를 삭제하면 남은 이미지 중 `sort_order` 최소 항목이 자동 대표가 된다. (이 `is_thumbnail`은 `thumbnail_url` 텍스트 컬럼과 별개로 관리 — 업로드가 `thumbnail_url`을 건드리지 않음.)
 
 #### 3.1.2 입력 필드 그리드 (2열)
@@ -108,6 +108,11 @@
   - **전송 시 값 변환**: 빈 문자열 → `null`. number → `Number()`. boolean → true/false 또는 null. json → `JSON.parse`(파싱 실패 시 해당 필드에 "JSON 형식이 올바르지 않습니다." 에러 표시하고 저장 중단).
   - 필드 목록(라벨 예): 매체명·보조명·건물명·매체 출처·판매 유형·OOH 유형·노출 유형·디바이스 유형·매체 형태·카테고리(대/소)·좌표(위/경도)·최소/최대 광고비·최소/최대 제작비·리드타임·수량·품질/등급 관련·로드뷰·각종 JSON(`markers_vo`, `map_bounds_vo` 등)·원본 생성/수정일시 등 media 전 컬럼.
   - 저장 대상에서 제외되는 자동 컬럼: `created_at`, `updated_at`(백엔드에서 무시). 수정 시 `media_id`도 변경 불가.
+  - **인구 데이터(위치·인구 탭, 고정 매체만)**: "월평균 유동인구 직접 입력" 칸(월평균 유동인구(명)·유동인구 기준·남녀 비율·연령대 6구간, 비율은 %). 팝업 우선순위: 실시간 인구 → 직접 입력한 월평균 유동인구 → 원천 상권 월평균 유동인구.
+    - 탭 맨 위 안내 상자가 **지금 폼의 좌표**로 서울시 실시간 인구를 가져올 수 있는지 `GET /admin/media/realtime-population?lat=&lng=`로 확인한다(좌표 입력이 멈춘 뒤 0.6초 후).
+    - 가져올 수 있음(초록): 장소·혼잡도·인구·기준 시각을 보여 주고 "아래 칸은 비워 두어도 됩니다". / 121장소에서 1km 넘게 멂(노랑): 가장 가까운 장소와 거리 + 직접 입력 안내. / 좌표 없음(회색): 위치에서 좌표를 먼저 입력하라고 안내. 이동 매체는 이 구역이 없고 팝업에도 인구 카드가 없다. / 키 없음·호출 실패(노랑): 계속 안 되면 직접 입력 값이 대신 보인다고 안내.
+    - 실시간이 안 되면 안내 상자가 "직접 입력하지 않으면 원천 상권 데이터(OO 상권 · 2025년 4분기, N명)가 보입니다"(상권 데이터가 없으면 "인구 카드가 보이지 않습니다")를 함께 보여 준다(`media_id`로 조회, 등록 중에는 없음).
+    - 직접 입력은 필수가 아니다.
 
 #### 3.1.3 하단 액션 버튼
 - **기능**: 목록 이동 / 삭제 / 저장.

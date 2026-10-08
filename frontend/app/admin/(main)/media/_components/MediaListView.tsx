@@ -9,6 +9,7 @@ import {
 } from "@/components/common/Table/CommonTable";
 import { ChevronDownIcon, PlusIcon } from "@/components/icons";
 import { mediaApi, useBulkImportMedia, useMediaList } from "@/hooks/media";
+import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 
 import { mediaColumnList, mediaSearchOptionList, type Media } from "./index";
@@ -29,14 +30,19 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function ExcelDownloadMenu({ onSelect }: { onSelect: (action: string) => void }) {
+function ExcelDownloadMenu({
+  onSelect,
+}: {
+  onSelect: (action: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -89,13 +95,21 @@ export function MediaListView() {
     type: search.type,
   });
   const { success, error } = useSonner();
+  const { alert, confirmDialog } = useAdminConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkImport = useBulkImportMedia();
 
   const handleExcel = async (action: string) => {
     try {
       if (action === "data") {
-        triggerDownload(await mediaApi.exportExcel(), "매체_데이터.xlsx");
+        // 파일 이름에 받은 날짜를 붙인다(예: 매체_데이터_20261006.xlsx).
+        const today = new Date()
+          .toLocaleDateString("sv-SE")
+          .replaceAll("-", "");
+        triggerDownload(
+          await mediaApi.exportExcel(),
+          `매체_데이터_${today}.xlsx`,
+        );
       } else if (action === "template") {
         triggerDownload(
           await mediaApi.downloadTemplate(),
@@ -116,8 +130,30 @@ export function MediaListView() {
       const parts = [`${result.inserted}건 등록`];
       if (result.skipped > 0) parts.push(`${result.skipped}건 중복 제외`);
       if (result.failed > 0) parts.push(`${result.failed}건 실패`);
-      const notify = result.failed > 0 ? error : success;
-      notify(parts.join(", "));
+      if (result.failed === 0) {
+        success(parts.join(", "));
+        return;
+      }
+      // 실패가 있으면 몇 번째 줄이 왜 실패했는지 창으로 보여 준다(토스트는 금방 사라져 읽기 어렵다).
+      await alert({
+        title: "일괄 등록 결과",
+        description: (
+          <div className="flex flex-col gap-[8px]">
+            <p>{parts.join(", ")}</p>
+            <ul className="flex max-h-[240px] list-disc flex-col gap-[4px] overflow-y-auto pl-[18px] text-left">
+              {result.errors.map((e) => (
+                <li key={`${e.row}-${e.reason}`}>
+                  {e.row}행: {e.reason}
+                </li>
+              ))}
+            </ul>
+            {result.failed > result.errors.length && (
+              <p>외 {result.failed - result.errors.length}건</p>
+            )}
+          </div>
+        ),
+        confirmText: "확인",
+      });
     } catch {
       error("일괄 등록에 실패했습니다. 엑셀 양식을 확인해 주세요.");
     }
@@ -180,6 +216,7 @@ export function MediaListView() {
           </>
         }
       />
+      {confirmDialog}
     </div>
   );
 }

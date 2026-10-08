@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 /** 시안(02. 매체 찾기)의 상단 바 — 높이 45px, 회색 필 스타일로 통일한다.
  *  모바일은 40px(모서리 40/2-3 = 17px)로 줄인다. */
 const PILL =
-  "flex h-[45px] items-center rounded-[20px] border border-black-200 bg-black-100 transition-colors max-sm:h-[40px] max-sm:rounded-[17px]";
+  "flex h-[45px] items-center rounded-[20px] border border-gray-200 bg-gray-100 transition-colors max-sm:h-[40px] max-sm:rounded-[17px]";
 /** hover·pressed에서 흰 배경으로 밝아진다. HeroUI 버튼은 data-pressed로 눌림을 알린다. */
 const PILL_ACTIVE =
   "hover:bg-white active:bg-white data-[pressed=true]:bg-white";
@@ -89,7 +89,7 @@ export function MediaFindTopBar({
           )}
         >
           <SearchOutlineIcon
-            className={cn(PILL_ICON, "text-black-500 max-sm:size-[18px]")}
+            className={cn(PILL_ICON, "text-gray-500 max-sm:size-[18px]")}
           />
           <input
             value={keyword}
@@ -97,7 +97,7 @@ export function MediaFindTopBar({
             onKeyDown={handleKeyDown}
             placeholder="매체명, 지역, 주소로 검색해 보세요"
             aria-label="매체 검색"
-            className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-black-900 outline-none placeholder:text-black-400"
+            className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-gray-900 outline-none placeholder:text-gray-400"
           />
           {/* 검색어 지우기 — 글자가 있을 때만. 버튼 22px → 곡률 원형. */}
           {keyword && (
@@ -105,7 +105,7 @@ export function MediaFindTopBar({
               type="button"
               aria-label="검색어 지우기"
               onClick={onKeywordClear}
-              className="-mr-[6px] flex size-[22px] shrink-0 items-center justify-center rounded-full bg-black-300 text-white transition-colors hover:bg-black-400 max-sm:-mr-[4px] max-sm:size-[20px]"
+              className="-mr-[6px] flex size-[22px] shrink-0 items-center justify-center rounded-full bg-gray-300 text-white transition-colors hover:bg-gray-400 max-sm:-mr-[4px] max-sm:size-[20px]"
             >
               <CloseSmallIcon className="size-[14px] max-sm:size-[12px]" />
             </button>
@@ -151,7 +151,7 @@ export function MediaFindTopBar({
         )}
       >
         <RotateLeftIcon
-          className={cn(PILL_ICON, "text-black-500 max-sm:size-[17px]")}
+          className={cn(PILL_ICON, "text-gray-500 max-sm:size-[17px]")}
         />
       </Button>
 
@@ -171,7 +171,7 @@ export function MediaFindTopBar({
           <SortIcon
             className={cn(PILL_ICON, "text-[#18181b] max-sm:size-[17px]")}
           />
-          <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-black-900 max-sm:truncate">
+          <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-gray-900 max-sm:truncate">
             {sortLabel}
           </span>
         </Button>
@@ -182,7 +182,7 @@ export function MediaFindTopBar({
             variant="ghost"
             onPress={onToggleMapExpanded}
             aria-pressed={mapExpanded}
-            className="flex h-[40px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[17px] bg-black-800 px-[20px] text-white transition-colors hover:bg-black-900 active:bg-black-900 data-[pressed=true]:bg-black-900"
+            className="flex h-[40px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[17px] bg-gray-800 px-[20px] text-white transition-colors hover:bg-gray-900 active:bg-gray-900 data-[pressed=true]:bg-gray-900"
           >
             <MapOutlineIcon className="m-0 size-[24px] shrink-0" />
             <span className="text-[12px] whitespace-nowrap">

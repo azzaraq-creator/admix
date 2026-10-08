@@ -61,7 +61,7 @@ export function useAlertConfirm() {
             </AlertDialog.Header>
             {options?.description && (
               <AlertDialog.Body>
-                <div className="text-[14px] leading-[22px] text-black-500">
+                <div className="text-[14px] leading-[22px] text-gray-500">
                   {options.description}
                 </div>
               </AlertDialog.Body>

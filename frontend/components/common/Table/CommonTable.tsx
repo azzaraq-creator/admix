@@ -294,7 +294,7 @@ export function CommonTable<T>({
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-platinum-100"
+                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-100"
                   >
                     <RotateCw className="size-[16px]" />
                     초기화
@@ -379,7 +379,7 @@ export function CommonTable<T>({
                 <TableRow
                   key={idKey ? String(item[idKey]) : idx}
                   className={cn(
-                    "h-[56px] border-b-[1.25px] border-[#E5E5E5] hover:bg-platinum-50",
+                    "h-[56px] border-b-[1.25px] border-[#E5E5E5] hover:bg-gray-50",
                     onRowClick && "cursor-pointer",
                     rowClassName?.(item),
                   )}

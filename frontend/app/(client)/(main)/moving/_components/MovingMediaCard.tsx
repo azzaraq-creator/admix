@@ -41,7 +41,7 @@ export function MovingMediaCard({
       onClick={onClick}
       className={cn(
         "flex min-w-0 flex-col gap-[12px] px-6 py-3 text-left transition-colors sm:min-w-[228px]",
-        selected ? "bg-grey-50" : "bg-white",
+        selected ? "bg-gray-50" : "bg-white",
       )}
     >
       <MediaThumbnail
@@ -54,7 +54,7 @@ export function MovingMediaCard({
         <p className="truncate text-[16px] font-bold leading-[24px] text-black sm:text-[20px] sm:leading-[28px] sm:tracking-[-0.08px]">
           {data.name}
         </p>
-        <p className="truncate text-sm font-medium leading-[20px] text-grey-500">
+        <p className="truncate text-sm font-medium leading-[20px] text-gray-500">
           {data.price}
         </p>
       </div>

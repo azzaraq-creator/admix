@@ -75,7 +75,7 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 // 프로필 메뉴 아이콘 — 글자보다 한 톤 옅게 둬 글자가 먼저 읽히게 한다.
-const MENU_ICON = "size-[16px] shrink-0 text-black-500";
+const MENU_ICON = "size-[16px] shrink-0 text-gray-500";
 
 // 접고 펼칠 때 아무것도 좌우로 움직이지 않게, 아이콘·로고 심볼·아바타의 가운데를 모두
 // x=39px 열에 맞춘다. 접힌 폭 78px의 정가운데가 39px이라 접혀도 제자리에 남는다.
@@ -144,7 +144,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
         <nav
           aria-label="사이드바"
           className={cn(
-            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-black-200 bg-white p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
+            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-gray-200 bg-white p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
             expanded ? "translate-x-0" : "-translate-x-full",
             collapsed && "sm:w-[78px]",
           )}
@@ -157,7 +157,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-expanded={!collapsed}
             onPress={() => setLnbCollapsed(!collapsed)}
-            className="absolute top-[28px] -right-[12px] hidden size-[24px] min-w-0 rounded-[9px] border border-black-200 bg-white p-0 text-black-500 shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black-900 sm:flex"
+            className="absolute top-[28px] -right-[12px] hidden size-[24px] min-w-0 rounded-[9px] border border-gray-200 bg-white p-0 text-gray-500 shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-gray-900 sm:flex"
           >
             <ChevronLeftIcon
               className={cn(
@@ -232,7 +232,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
               </li>
             </ul>
 
-            <hr className="my-[15px] border-t border-black-200" />
+            <hr className="my-[15px] border-t border-gray-200" />
 
             <ul className="flex flex-col gap-[3px]">
               {MENU_ITEMS.map(({ key, label, Icon, href, alsoActiveOn }) => {
@@ -252,7 +252,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                         NAV_ROW,
                         active
                           ? "bg-primary-100 font-bold text-primary"
-                          : "font-medium text-black-900 hover:bg-[#f7f3fe]",
+                          : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
                       )}
                     >
                       {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
@@ -346,7 +346,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                         </span>
                       </Dropdown.Item>
                       {/* 이동 메뉴와 로그아웃을 구분선으로 떼고, 로그아웃은 위험 동작이라 붉게 둔다. */}
-                      <Separator className="my-[4px] bg-black-200" />
+                      <Separator className="my-[4px] bg-gray-200" />
                       <Dropdown.Item
                         id="logout"
                         textValue="로그아웃"

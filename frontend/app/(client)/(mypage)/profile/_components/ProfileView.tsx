@@ -119,9 +119,9 @@ function SignupMethodIcon({ provider }: { provider: string | null }) {
     <span
       role="img"
       aria-label="이메일 가입"
-      className={cn(circle, "bg-black-100")}
+      className={cn(circle, "bg-gray-100")}
     >
-      <MailIcon className="size-[11px] text-black-500" />
+      <MailIcon className="size-[11px] text-gray-500" />
     </span>
   );
 }
@@ -135,10 +135,10 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // 회색 입력칸과 구분되게 흰 바탕 + 테두리(outline)로 둔다.
 const SMALL_BUTTON =
-  "h-[32px] min-w-0 shrink-0 rounded-[13px] border border-black-200 bg-white px-[12px] text-[13px] font-medium text-black-700 data-[hovered=true]:bg-black-50 max-sm:text-[12px]";
+  "h-[32px] min-w-0 shrink-0 rounded-[13px] border border-gray-200 bg-white px-[12px] text-[13px] font-medium text-gray-700 data-[hovered=true]:bg-gray-50 max-sm:text-[12px]";
 // 파일 선택은 "수정"(흰 바탕 테두리)과 구분되게 테두리 없는 회색 바탕으로 둔다.
 const UPLOAD_BUTTON =
-  "h-[32px] min-w-0 shrink-0 rounded-[13px] bg-black-200 px-[14px] text-[13px] font-medium text-black-800 data-[hovered=true]:bg-black-300 max-sm:h-[30px] max-sm:rounded-[12px] max-sm:text-[12px]";
+  "h-[32px] min-w-0 shrink-0 rounded-[13px] bg-gray-200 px-[14px] text-[13px] font-medium text-gray-800 data-[hovered=true]:bg-gray-300 max-sm:h-[30px] max-sm:rounded-[12px] max-sm:text-[12px]";
 // "수정"과 X(취소)가 같은 자리에서 바뀌므로 폭을 고정해 입력칸 폭이 흔들리지 않게 한다.
 const EDIT_TOGGLE_WIDTH = "w-[56px] px-0";
 // 입력칸 옆 버튼은 입력칸(40px)과 높이·곡률을 맞춘다.
@@ -151,8 +151,8 @@ const FOOTER_BUTTON =
   "h-[40px] rounded-[17px] text-[14px] font-semibold max-sm:h-[36px] max-sm:rounded-[15px] max-sm:text-[13px]";
 // 읽기 전용일 땐 검색바처럼 회색 칸, 고치는 중엔 흰 바탕 + 옅은 보라 테두리.
 const FIELD_INPUT =
-  "h-[40px] w-full rounded-[17px] border px-[16px] text-[14px] text-black-900 transition-colors [box-shadow:none]! placeholder:text-black-400 max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px]";
-const FIELD_READONLY = "cursor-default border-transparent bg-black-100";
+  "h-[40px] w-full rounded-[17px] border px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! placeholder:text-gray-400 max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px]";
+const FIELD_READONLY = "cursor-default border-transparent bg-gray-100";
 const FIELD_EDITING = "border-primary-300 bg-white focus:border-focus";
 
 /** 작은 배지 — HeroUI Chip(soft). */
@@ -206,7 +206,7 @@ function StatusBadge({
   children: ReactNode;
 }) {
   const icon = {
-    waiting: <PulseDot ring="bg-black-300" dot="bg-black-400" />,
+    waiting: <PulseDot ring="bg-gray-300" dot="bg-gray-400" />,
     reviewing: <PulseDot ring="bg-[#fbbf24]" dot="bg-[#f59e0b]" />,
     verified: <CircleCheckIcon aria-hidden className="size-[14px]" />,
     rejected: (
@@ -228,7 +228,7 @@ function StatusBadge({
           ? "text-[#16a34a]"
           : status === "rejected"
             ? "text-[#dc2626]"
-            : "text-black-600",
+            : "text-gray-600",
       )}
     >
       {icon}
@@ -245,8 +245,8 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="w-full gap-0 rounded-[20px] border border-black-200 bg-white px-[16px] pt-[16px] pb-[4px] shadow-none sm:px-[28px] sm:pt-[24px] sm:pb-[8px]">
-      <h2 className="pb-[10px] text-[15px] leading-[20px] font-bold text-black-900 sm:pb-[12px] sm:text-[17px] sm:leading-[24px]">
+    <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-white px-[16px] pt-[16px] pb-[4px] shadow-none sm:px-[28px] sm:pt-[24px] sm:pb-[8px]">
+      <h2 className="pb-[10px] text-[15px] leading-[20px] font-bold text-gray-900 sm:pb-[12px] sm:text-[17px] sm:leading-[24px]">
         {title}
       </h2>
       {children}
@@ -269,13 +269,13 @@ function Field({
   return (
     <div
       className={cn(
-        "flex flex-col gap-[6px] border-t border-black-100 py-[12px] sm:flex-row sm:gap-[16px] sm:py-[16px]",
+        "flex flex-col gap-[6px] border-t border-gray-100 py-[12px] sm:flex-row sm:gap-[16px] sm:py-[16px]",
         alignTop ? "sm:items-start" : "sm:items-center",
       )}
     >
       <p
         className={cn(
-          "shrink-0 text-[12px] font-medium text-black-500 sm:w-[140px] sm:text-[13px]",
+          "shrink-0 text-[12px] font-medium text-gray-500 sm:w-[140px] sm:text-[13px]",
           alignTop && "sm:pt-[12px]",
         )}
       >
@@ -470,7 +470,7 @@ export function ProfileView() {
           탈퇴하면 계정을{" "}
           <span className="text-danger">다시 되돌릴 수 없어요.</span>
           <br />
-          모든 데이터는 <span className="text-black-800">30일 이내</span>에
+          모든 데이터는 <span className="text-gray-800">30일 이내</span>에
           완전히 지워져요.
         </>
       ),
@@ -551,7 +551,7 @@ export function ProfileView() {
             onPress={() => cancelEdit(key)}
             className={cn(FIELD_BUTTON, EDIT_TOGGLE_WIDTH)}
           >
-            <XIcon className="size-[16px] text-black-500" />
+            <XIcon className="size-[16px] text-gray-500" />
           </Button>
         ) : (
           <Button
@@ -570,26 +570,26 @@ export function ProfileView() {
   // 가입 방법을 몰라 아바타가 기본 보라로 잠깐 보인다. 그동안은 로딩만 보여 준다.
   if (!me) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-black-50">
+      <div className="flex min-h-full items-center justify-center bg-gray-50">
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-black-50">
+    <div className="min-h-full bg-gray-50">
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-[12px] px-[16px] py-[16px] sm:gap-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[64px]">
         <header className="flex flex-col gap-[4px] pb-[4px] sm:gap-[6px] sm:pb-[8px]">
-          <h1 className="text-[20px] leading-[28px] font-bold text-black-900 sm:text-[26px] sm:leading-[34px]">
+          <h1 className="text-[20px] leading-[28px] font-bold text-gray-900 sm:text-[26px] sm:leading-[34px]">
             회원 정보
           </h1>
-          <p className="text-[12px] text-black-500 sm:text-[14px]">
+          <p className="text-[12px] text-gray-500 sm:text-[14px]">
             계정과 회원 정보를 확인하고 바꿀 수 있어요.
           </p>
         </header>
 
         {/* 계정 정보 — 가입 때 정해진 값(읽기 전용)을 프로필 카드로 보여 준다. */}
-        <Card className="w-full gap-0 rounded-[20px] border border-black-200 bg-white p-[16px] shadow-none sm:p-[28px]">
+        <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-white p-[16px] shadow-none sm:p-[28px]">
           <div className="flex items-center gap-[12px] sm:gap-[20px]">
             <ProfileBadgeIcon
               aria-hidden
@@ -600,7 +600,7 @@ export function ProfileView() {
             />
             <div className="flex min-w-0 flex-1 flex-col gap-[4px] sm:gap-[6px]">
               <div className="flex min-w-0 flex-wrap items-center gap-[6px] sm:gap-[8px]">
-                <p className="truncate text-[15px] leading-[20px] font-bold text-black-900 sm:text-[20px] sm:leading-[28px]">
+                <p className="truncate text-[15px] leading-[20px] font-bold text-gray-900 sm:text-[20px] sm:leading-[28px]">
                   {saved.name || "이름 미입력"}
                 </p>
                 <Badge
@@ -635,7 +635,7 @@ export function ProfileView() {
                         placement="top"
                         className="rounded-[12px]"
                       >
-                        <Popover.Dialog className="px-[10px] py-[6px] text-[12px] font-medium text-black-900">
+                        <Popover.Dialog className="px-[10px] py-[6px] text-[12px] font-medium text-gray-900">
                           사업자 인증 완료
                         </Popover.Dialog>
                       </Popover.Content>
@@ -645,12 +645,12 @@ export function ProfileView() {
               </div>
               <div className="flex min-w-0 items-center gap-[6px]">
                 <SignupMethodIcon provider={snsProvider} />
-                <p className="min-w-0 truncate text-[13px] leading-[18px] text-black-600 sm:text-[14px] sm:leading-[24px]">
+                <p className="min-w-0 truncate text-[13px] leading-[18px] text-gray-600 sm:text-[14px] sm:leading-[24px]">
                   {me?.login_id ?? "-"}
                 </p>
               </div>
               {me?.created_at && (
-                <p className="text-[11px] leading-[16px] text-black-400 sm:text-[12px] sm:leading-[24px]">
+                <p className="text-[11px] leading-[16px] text-gray-400 sm:text-[12px] sm:leading-[24px]">
                   {formatDate(me.created_at)} 가입
                 </p>
               )}
@@ -743,7 +743,7 @@ export function ProfileView() {
                     "flex w-full flex-col items-center gap-[4px] rounded-[18px] border border-dashed px-[14px] py-[16px] text-center transition-colors sm:gap-[6px] sm:px-[20px] sm:py-[22px]",
                     dragging
                       ? "border-primary-300 bg-primary-50"
-                      : "border-black-200 bg-black-50",
+                      : "border-gray-200 bg-gray-50",
                   )}
                 >
                   <span className="flex size-[36px] items-center justify-center rounded-full bg-white sm:size-[44px]">
@@ -754,10 +754,10 @@ export function ProfileView() {
                       height={20}
                     />
                   </span>
-                  <p className="text-[13px] font-semibold text-black-900 sm:text-[14px]">
+                  <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
                     사업자등록증 파일을 올려 주세요
                   </p>
-                  <p className="pb-[6px] text-[11px] text-black-400 sm:text-[12px]">
+                  <p className="pb-[6px] text-[11px] text-gray-400 sm:text-[12px]">
                     끌어다 놓거나 파일을 골라 주세요 · 최대 10MB, PDF·PNG·JPG만
                     가능해요
                   </p>
@@ -812,7 +812,7 @@ export function ProfileView() {
                     반려 사유: {bizReg.reject_reason}
                   </p>
                 )}
-                <p className="text-[11px] text-black-400 sm:text-[12px]">
+                <p className="text-[11px] text-gray-400 sm:text-[12px]">
                   저장하면 검토 후 3영업일 이내에 반영돼요.
                 </p>
               </div>
@@ -834,22 +834,22 @@ export function ProfileView() {
                     <Switch.Thumb className="bg-white!" />
                   </Switch.Control>
                   <span className="flex flex-col gap-[2px] text-left">
-                    <span className="text-[13px] font-medium text-black-900 sm:text-[14px]">
+                    <span className="text-[13px] font-medium text-gray-900 sm:text-[14px]">
                       마케팅 정보 수신에 동의해요
                     </span>
-                    <span className="text-[11px] text-black-400 max-sm:hidden sm:text-[12px]">
+                    <span className="text-[11px] text-gray-400 max-sm:hidden sm:text-[12px]">
                       새로운 매체와 프로모션 소식을 이메일로 받아볼 수 있어요.
                     </span>
                   </span>
                 </Switch.Content>
               </Switch>
-              <p className="text-[11px] text-black-400 sm:hidden">
+              <p className="text-[11px] text-gray-400 sm:hidden">
                 새로운 매체와 프로모션 소식을 이메일로 받아볼 수 있어요.
               </p>
             </div>
           </Field>
 
-          <div className="flex justify-end gap-[8px] border-t border-black-100 py-[12px] sm:py-[16px]">
+          <div className="flex justify-end gap-[8px] border-t border-gray-100 py-[12px] sm:py-[16px]">
             <Button
               variant="tertiary"
               isDisabled={!dirty || saving}
@@ -882,7 +882,7 @@ export function ProfileView() {
           <button
             type="button"
             onClick={handleWithdraw}
-            className="text-[12px] text-black-400 underline underline-offset-[3px] sm:text-[13px] transition-colors hover:text-black-600"
+            className="text-[12px] text-gray-400 underline underline-offset-[3px] sm:text-[13px] transition-colors hover:text-gray-600"
           >
             회원 탈퇴
           </button>
@@ -933,15 +933,15 @@ function FileRow({
   removeDisabled?: boolean;
 }) {
   const title = (
-    <span className="min-w-0 truncate text-[12px] font-medium text-black-900 sm:text-[13px]">
+    <span className="min-w-0 truncate text-[12px] font-medium text-gray-900 sm:text-[13px]">
       {name}
     </span>
   );
   return (
     // 모바일은 폭이 좁아 첫 줄엔 아이콘·파일 이름만 두고, 용량·상태·삭제는 둘째 줄로 내린다.
-    <div className="flex w-full items-center gap-[10px] rounded-[18px] border border-black-200 bg-white py-[10px] pr-[10px] pl-[12px] max-sm:flex-wrap max-sm:gap-y-[4px]">
+    <div className="flex w-full items-center gap-[10px] rounded-[18px] border border-gray-200 bg-white py-[10px] pr-[10px] pl-[12px] max-sm:flex-wrap max-sm:gap-y-[4px]">
       <div className="flex min-w-0 items-center gap-[10px] max-sm:basis-full">
-        <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[13px] bg-black-100 text-black-500">
+        <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[13px] bg-gray-100 text-gray-500">
           <FileTypeIcon ext={fileExt(name)} className="size-[26px]" />
         </span>
         {href ? (
@@ -958,7 +958,7 @@ function FileRow({
         )}
       </div>
       {meta && (
-        <span className="shrink-0 text-[11px] text-black-400 sm:text-[12px]">
+        <span className="shrink-0 text-[11px] text-gray-400 sm:text-[12px]">
           {meta}
         </span>
       )}

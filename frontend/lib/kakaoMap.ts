@@ -28,6 +28,10 @@ export interface KakaoCustomOverlay {
   setZIndex: (zIndex: number) => void;
 }
 
+export interface KakaoPolygon {
+  setMap: (map: KakaoMap | null) => void;
+}
+
 export interface KakaoPoint {
   x: number;
   y: number;
@@ -107,6 +111,16 @@ export interface KakaoMaps {
     zIndex?: number;
     clickable?: boolean;
   }) => KakaoCustomOverlay;
+  Polygon: new (options: {
+    path: KakaoLatLng[] | KakaoLatLng[][];
+    strokeWeight?: number;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeStyle?: string;
+    fillColor?: string;
+    fillOpacity?: number;
+    zIndex?: number;
+  }) => KakaoPolygon;
   event: {
     addListener: (target: object, type: string, handler: () => void) => void;
     removeListener: (target: object, type: string, handler: () => void) => void;
@@ -187,6 +201,36 @@ export async function geocodeAddress(
             resolve(null);
           }
         });
+      });
+    });
+  });
+}
+
+/**
+ * 정확한 주소 → 좌표. geocodeAddress 와 달리 장소 키워드 검색을 거치지 않는다
+ * (어드민 매체 주소처럼 이미 정해진 주소의 좌표만 필요할 때).
+ */
+export async function coordsOfAddress(
+  address: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const trimmed = address.trim();
+  if (!trimmed) return null;
+  await loadKakaoSdk();
+  const maps = window.kakao?.maps;
+  if (!maps) return null;
+  return new Promise((resolve) => {
+    maps.load(() => {
+      const services = maps.services;
+      if (!services) {
+        resolve(null);
+        return;
+      }
+      new services.Geocoder().addressSearch(trimmed, (result, status) => {
+        resolve(
+          status === services.Status.OK && result.length > 0
+            ? { lat: Number(result[0].y), lng: Number(result[0].x) }
+            : null,
+        );
       });
     });
   });

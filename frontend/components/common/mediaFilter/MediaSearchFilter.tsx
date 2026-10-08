@@ -147,7 +147,7 @@ export function MediaSearchFilter({
           <button
             type="button"
             onClick={reset}
-            className="flex shrink-0 items-center gap-[4px] rounded-[8px] bg-platinum-100 px-[12px] py-[8px] text-sm font-medium text-black"
+            className="flex shrink-0 items-center gap-[4px] rounded-[8px] bg-gray-100 px-[12px] py-[8px] text-sm font-medium text-black"
           >
             <RotateCwIcon className="size-[20px] text-primary" />
             초기화
@@ -164,7 +164,7 @@ export function MediaSearchFilter({
                 className={`flex shrink-0 items-center gap-[4px] whitespace-nowrap rounded-[8px] px-[12px] py-[8px] text-sm font-medium ${
                   active
                     ? "bg-primary text-white"
-                    : "bg-platinum-100 text-black"
+                    : "bg-gray-100 text-black"
                 }`}
               >
                 {label}
@@ -206,7 +206,7 @@ export function MediaSearchFilter({
                   className={`flex flex-1 items-center justify-center gap-[4px] rounded-[8px] px-[12px] py-[8px] text-sm font-medium ${
                     active
                       ? "bg-primary text-white"
-                      : "bg-platinum-100 text-black"
+                      : "bg-gray-100 text-black"
                   }`}
                 >
                   {label}
@@ -232,7 +232,7 @@ export function MediaSearchFilter({
             }
           />
         ) : (
-          <p className="px-[16px] py-[8px] text-sm text-grey-500">
+          <p className="px-[16px] py-[8px] text-sm text-gray-500">
             가격 정보를 불러오는 중...
           </p>
         )
@@ -248,7 +248,7 @@ export function MediaSearchFilter({
                 className={`flex items-center justify-center gap-[4px] rounded-full px-[12px] py-[6px] text-base font-medium ${
                   selected
                     ? "bg-primary text-white"
-                    : "bg-platinum-100 text-black"
+                    : "bg-gray-100 text-black"
                 }`}
               >
                 {opt.label}
@@ -256,12 +256,12 @@ export function MediaSearchFilter({
             );
           })}
           {chipOptions(activeKey).length === 0 && (
-            <p className="py-[8px] text-sm text-grey-500">옵션이 없습니다.</p>
+            <p className="py-[8px] text-sm text-gray-500">옵션이 없습니다.</p>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between bg-grey-50 px-[16px] py-[12px]">
+      <div className="flex items-center justify-between bg-gray-50 px-[16px] py-[12px]">
         <button
           type="button"
           onClick={reset}

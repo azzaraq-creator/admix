@@ -87,6 +87,13 @@ class ProposalItemOut(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     spec: Optional[str] = None
+    # 매체 슬라이드·PPT 용 추가 정보(media_service.proposal_slide_facts)
+    media_source: Optional[str] = None  # FIXED / MOVING
+    operating_area: Optional[str] = None  # 이동 매체 운행 지역
+    operating_route: Optional[str] = None  # 이동 매체 운행 노선
+    resolution: Optional[str] = None
+    material_formats: Optional[str] = None
+    operation: Optional[str] = None  # 매체 운영 시간 "06:00 ~ 24:00 (18시간)"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     quantity: Optional[int] = None

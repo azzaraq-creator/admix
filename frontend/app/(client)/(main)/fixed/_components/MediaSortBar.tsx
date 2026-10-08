@@ -71,7 +71,7 @@ export function MediaSortBar({
     : null;
 
   return (
-    <div className="flex flex-col rounded-[20px] border border-black-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
+    <div className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
       {/* 정렬 줄 — 좁아 옆으로 넘치면 넘길 게 남은 쪽 가장자리를 흐리게(HeroUI ScrollShadow). */}
       <ScrollShadow
         orientation="horizontal"

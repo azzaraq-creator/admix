@@ -24,11 +24,15 @@ const SIZE = {
 } as const;
 
 export function PopulationSummaryBar({
-  monthlyTraffic,
+  title = "실시간 인구",
+  populationText,
   mainAudience,
   size = "sm",
 }: {
-  monthlyTraffic: string;
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·원천 상권) */
+  title?: string;
+  /** 인구 범위 — "80,000~82,000" */
+  populationText: string;
   mainAudience: { gender: string; age: string }[];
   size?: "sm" | "lg";
 }) {
@@ -36,17 +40,17 @@ export function PopulationSummaryBar({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-[20px] rounded-[12px] bg-grey-50",
+        "flex items-center justify-center gap-[20px] rounded-[12px] bg-gray-50",
         s.box,
       )}
     >
       <div className={cn("flex flex-1 flex-col items-center text-center", s.tileGap)}>
-        <p className={cn("w-full text-grey-500", s.label)}>월평균 유동인구수</p>
-        <p className={cn("w-full text-black", s.value)}>{monthlyTraffic}</p>
+        <p className={cn("w-full text-gray-500", s.label)}>{title}</p>
+        <p className={cn("w-full text-black", s.value)}>{populationText}명</p>
       </div>
       <div className={cn("w-px self-stretch bg-stroke", s.divider)} />
       <div className={cn("flex flex-1 flex-col items-center text-center", s.tileGap)}>
-        <p className={cn("w-full text-grey-500", s.label)}>주요 인구층</p>
+        <p className={cn("w-full text-gray-500", s.label)}>주요 인구층</p>
         <div
           className={cn(
             "flex w-full items-center justify-center whitespace-nowrap text-black",

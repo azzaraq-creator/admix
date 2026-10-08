@@ -24,7 +24,7 @@ XLSX_MEDIA_TYPE = (
 from src.database import get_db
 from src.models.admin import Admin
 from src.schemas.media import MediaListResponse
-from src.services import media_service
+from src.services import media_excel, media_service, seoul_citydata
 from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/admin/media", tags=["admin-media"])
@@ -58,8 +58,8 @@ def export_media(
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("media")),
 ) -> Response:
-    """전체 매체 데이터 xlsx 다운로드."""
-    content = media_service.export_media_xlsx(db)
+    """전체 매체 데이터 xlsx 다운로드 — 어드민 매체 폼과 같은 구조(한글 칸 이름·구역), 사용하지 않는 값 제외."""
+    content = media_excel.export_media_xlsx(db)
     return Response(
         content=content,
         media_type=XLSX_MEDIA_TYPE,
@@ -74,7 +74,7 @@ def download_media_template(
     _: Admin = Depends(require_permission("media")),
 ) -> Response:
     """엑셀 일괄등록용 빈 양식 xlsx 다운로드."""
-    content = media_service.media_template_xlsx()
+    content = media_excel.media_template_xlsx()
     return Response(
         content=content,
         media_type=XLSX_MEDIA_TYPE,
@@ -95,7 +95,37 @@ def import_media(
     if not filename.endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="xlsx 파일만 업로드할 수 있습니다.")
     content = file.file.read()
-    return media_service.import_media_xlsx(db, content)
+    return media_excel.import_media_xlsx(db, content)
+
+
+@router.get("/field-options")
+def get_media_field_options(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """매체 폼 선택지 — 카테고리(대분류→소분류)·등급 산정 방식. 지금 매체들에 들어 있는 값 기준."""
+    return media_service.admin_media_field_options(db)
+
+
+@router.get("/realtime-population")
+def check_realtime_population(
+    lat: float | None = None,
+    lng: float | None = None,
+    media_id: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """매체 폼의 인구 데이터 탭 — 이 좌표로 서울시 실시간 인구를 가져올 수 있는지 확인한다.
+
+    실시간이 안 되면 sangwon 에 그 매체의 원천 상권 월평균 유동인구(직접 입력이 없을 때 대신 보이는 값)를 담는다.
+    """
+    result = seoul_citydata.check_realtime(lat, lng)
+    result["sangwon"] = (
+        media_service.sangwon_population_of(db, media_id)
+        if media_id and result["status"] != "available"
+        else None
+    )
+    return result
 
 
 @router.get("/{media_id}")
@@ -154,3 +184,14 @@ def delete_media_image(
     _: Admin = Depends(require_permission("media")),
 ) -> dict:
     return media_service.delete_media_image(db, media_id, image_id)
+
+
+@router.put("/{media_id}/images/{image_id}/thumbnail")
+def set_media_thumbnail(
+    media_id: str,
+    image_id: str,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """대표 이미지 지정 — 그 사진을 맨 앞으로 올리고 대표로 표시한다."""
+    return media_service.set_media_thumbnail(db, media_id, image_id)

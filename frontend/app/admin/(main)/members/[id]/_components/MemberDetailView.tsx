@@ -105,7 +105,7 @@ export function MemberDetailView() {
 
       <div className="flex items-center gap-[48px] rounded-[12px] border border-[#cdcdcd] p-[36px]">
         <div className="flex min-w-0 flex-1 items-center gap-[21px]">
-          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-grey-50">
+          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-gray-50">
             <Building2 className="size-[60px] text-[#767676]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[20px]">

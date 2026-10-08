@@ -66,7 +66,7 @@ export function MixieMarkdown({
             </a>
           ),
           code: ({ children }) => (
-            <code className="rounded-[4px] bg-black-100 px-[4px] text-[0.9em]">
+            <code className="rounded-[4px] bg-gray-100 px-[4px] text-[0.9em]">
               {children}
             </code>
           ),

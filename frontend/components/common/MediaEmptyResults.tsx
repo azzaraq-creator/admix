@@ -29,7 +29,7 @@ export function MediaEmptyResults({
       <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#f4f4f5] text-[#71717a] max-sm:size-[48px] max-sm:rounded-[21px]">
         <SearchIcon className="size-[24px] max-sm:size-[20px]" />
       </span>
-      <p className="text-[16px] font-semibold text-black-900 max-sm:text-[14px]">
+      <p className="text-[16px] font-semibold text-gray-900 max-sm:text-[14px]">
         조건에 맞는 매체가 없어요
       </p>
       <p className="text-[13px] leading-[1.6] break-keep text-[#8c8c94] max-sm:text-[12px]">

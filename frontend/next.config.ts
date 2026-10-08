@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["@/components/icons"],
   },
   images: {
+    // Next 16 은 내부 주소(localhost 등)로 풀리는 이미지 최적화를 막는다. 로컬 개발에서 백엔드(localhost:8001)의
+    // /uploads 사진(로컬 저장 매체 사진 등)이 깨지지 않게 dev 에서만 허용한다 — 운영 빌드엔 영향 없다.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns: [
       { protocol: "http", hostname: "localhost", port: "8001", pathname: "/uploads/**" },
       { protocol: "https", hostname: "43-201-172-34.sslip.io", pathname: "/uploads/**" },

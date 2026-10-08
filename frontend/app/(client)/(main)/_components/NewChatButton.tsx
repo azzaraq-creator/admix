@@ -30,7 +30,7 @@ export function NewChatButton() {
         size="sm"
         isDisabled={chat.running}
         onPress={() => setOpen(true)}
-        className="h-auto min-w-0 gap-[4px] bg-transparent p-0 text-[13px] font-medium text-black-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
+        className="h-auto min-w-0 gap-[4px] bg-transparent p-0 text-[13px] font-medium text-gray-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
       >
         <RotateCwIcon className="size-[14px]" />새 대화
       </Button>
@@ -48,7 +48,7 @@ export function NewChatButton() {
                 <AlertDialog.Heading>새 대화를 시작할까요?</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-[14px] leading-[22px] text-black-500">
+                <p className="text-[14px] leading-[22px] text-gray-500">
                   지금까지 믹시와 나눈 대화 기록이 모두 사라지고,
                   <br />
                   다시 볼 수 없어요.

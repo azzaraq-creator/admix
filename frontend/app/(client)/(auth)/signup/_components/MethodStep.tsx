@@ -38,7 +38,7 @@ export function MethodStep({
       {/* 선택한 유형 줄 — 높이 56px → 곡률 25px. */}
       <div
         className={cn(
-          "flex h-[56px] w-full items-center justify-between border border-black-200 bg-white pr-[4px] pl-[16px]",
+          "flex h-[56px] w-full items-center justify-between border border-gray-200 bg-white pr-[4px] pl-[16px]",
           RADIUS.h56,
         )}
       >
@@ -51,7 +51,7 @@ export function MethodStep({
           size="sm"
           onPress={onChangeCategory}
           className={cn(
-            "h-[40px] px-[12px] text-[13px] font-medium text-[#71717a] data-[hovered=true]:text-black-900",
+            "h-[40px] px-[12px] text-[13px] font-medium text-[#71717a] data-[hovered=true]:text-gray-900",
             RADIUS.h40,
           )}
         >
@@ -80,9 +80,9 @@ export function MethodStep({
         </Button>
 
         <div className="flex w-full items-center gap-[16px]">
-          <Separator className="flex-1 bg-black-200" />
+          <Separator className="flex-1 bg-gray-200" />
           <span className="text-[13px] text-[#a1a1aa]">또는</span>
-          <Separator className="flex-1 bg-black-200" />
+          <Separator className="flex-1 bg-gray-200" />
         </div>
 
         <Button
@@ -91,7 +91,7 @@ export function MethodStep({
           onPress={onEmail}
           className={cn(
             METHOD_BUTTON,
-            "border border-black-200 bg-white text-[#18181b] data-[hovered=true]:bg-black-50",
+            "border border-gray-200 bg-white text-[#18181b] data-[hovered=true]:bg-gray-50",
           )}
         >
           이메일로 가입하기

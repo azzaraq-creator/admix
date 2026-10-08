@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
  * 높이·곡률·글자 크기는 쓰는 곳에서 붙인다.
  */
 export const OTP_SLOT_CLASS = cn(
-  "border text-black-900 [box-shadow:none]! outline-none",
-  "not-data-[invalid=true]:border-black-200 not-data-[invalid=true]:bg-white",
-  "not-data-[invalid=true]:data-[hovered=true]:border-black-300",
-  "not-data-[invalid=true]:data-[filled=true]:border-black-300",
-  "not-data-[invalid=true]:data-[active=true]:border-black-500",
-  "data-[disabled=true]:opacity-100 not-data-[invalid=true]:data-[disabled=true]:border-black-200 not-data-[invalid=true]:data-[disabled=true]:bg-black-100",
+  "border text-gray-900 [box-shadow:none]! outline-none",
+  "not-data-[invalid=true]:border-gray-200 not-data-[invalid=true]:bg-white",
+  "not-data-[invalid=true]:data-[hovered=true]:border-gray-300",
+  "not-data-[invalid=true]:data-[filled=true]:border-gray-300",
+  "not-data-[invalid=true]:data-[active=true]:border-gray-500",
+  "data-[disabled=true]:opacity-100 not-data-[invalid=true]:data-[disabled=true]:border-gray-200 not-data-[invalid=true]:data-[disabled=true]:bg-gray-100",
 );

@@ -59,7 +59,7 @@ export function useConfirm() {
           <button
             type="button"
             onClick={() => settle(false)}
-            className="flex flex-1 items-center justify-center rounded-[8px] bg-[#f1f5f9] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+            className="flex flex-1 items-center justify-center rounded-[8px] bg-[#eceef5] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
           >
             {options?.cancelText ?? "취소"}
           </button>

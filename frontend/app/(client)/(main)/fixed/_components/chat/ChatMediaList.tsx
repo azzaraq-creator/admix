@@ -54,7 +54,7 @@ export function ChatMediaList({
   return (
     <div className="flex flex-col gap-[8px]">
       <div className="flex items-center justify-between gap-[8px] px-[2px]">
-        <span className="text-[13px] font-medium text-black-500 max-sm:text-[14px]">
+        <span className="text-[13px] font-medium text-gray-500 max-sm:text-[14px]">
           추천 매체{" "}
           <span className="font-bold text-primary">{items.length}</span>개
         </span>

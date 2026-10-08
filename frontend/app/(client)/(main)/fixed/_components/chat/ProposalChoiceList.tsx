@@ -45,7 +45,7 @@ export function ProposalChoiceList({
             )}
           >
             {/* 아이콘 칸 34px → 곡률 13px — 현재 기획안 패널의 기획안 선택 칸과 같은 모양. */}
-            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[13px] border border-[#ececef] bg-white text-black-700">
+            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[13px] border border-[#ececef] bg-white text-gray-700">
               <CollectionIcon className="size-[17px]" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-[1px]">

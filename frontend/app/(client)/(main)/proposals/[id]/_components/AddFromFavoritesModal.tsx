@@ -183,7 +183,7 @@ export function AddFromFavoritesModal({
                 onChange={setQuery}
                 className="w-full max-w-[420px]"
               >
-                <SearchField.Group className="h-[36px] gap-[10px] rounded-[15px] border border-black-200 bg-black-100 px-[12px] shadow-none focus-within:border-focus focus-within:bg-white focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
+                <SearchField.Group className="h-[36px] gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:bg-white focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
                   <SearchOutlineIcon className="size-[16px] shrink-0 text-[#6c757d]" />
                   <SearchField.Input
                     placeholder="매체명·주소로 검색해 보세요"
@@ -220,7 +220,7 @@ export function AddFromFavoritesModal({
                 <Dropdown>
                   <Dropdown.Trigger
                     aria-label={`정렬: ${currentSort.label}`}
-                    className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-black-200 bg-black-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-[#18181b] outline-none hover:bg-white data-[focus-visible=true]:border-focus"
+                    className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-[#18181b] outline-none hover:bg-white data-[focus-visible=true]:border-focus"
                   >
                     <SortIcon className="size-[16px] shrink-0 text-[#18181b]" />
                     {currentSort.label}
@@ -467,7 +467,7 @@ function PickPrice({
         className,
       )}
     >
-      <span className="text-[10px] font-medium text-black-400">{label}</span>
+      <span className="text-[10px] font-medium text-gray-400">{label}</span>
       <span className="text-[14px] font-bold text-[#2d264b]">{won(value)}</span>
     </div>
   );

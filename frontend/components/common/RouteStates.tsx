@@ -8,7 +8,7 @@ import { CircleAlertIcon, RotateCwIcon } from "@/components/icons";
 export function LoadingState() {
   return (
     <div className="flex min-h-[240px] w-full flex-1 items-center justify-center py-[80px]">
-      <div className="size-[36px] animate-spin rounded-full border-[3px] border-grey-200 border-t-primary" />
+      <div className="size-[36px] animate-spin rounded-full border-[3px] border-gray-200 border-t-primary" />
     </div>
   );
 }
@@ -37,16 +37,16 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="flex min-h-[240px] w-full flex-1 flex-col items-center justify-center bg-black-50 px-[20px] py-[80px]"
+      className="flex min-h-[240px] w-full flex-1 flex-col items-center justify-center bg-gray-50 px-[20px] py-[80px]"
     >
       <div className="flex w-full max-w-[400px] flex-col items-center text-center">
-        <span className="flex size-[56px] items-center justify-center rounded-full border border-black-200 bg-white text-black-500">
+        <span className="flex size-[56px] items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500">
           <CircleAlertIcon className="size-[24px]" />
         </span>
-        <h1 className="mt-[20px] text-[20px] leading-[28px] font-bold text-black-900">
+        <h1 className="mt-[20px] text-[20px] leading-[28px] font-bold text-gray-900">
           {title}
         </h1>
-        <p className="mt-[8px] text-[14px] leading-[22px] text-black-500">
+        <p className="mt-[8px] text-[14px] leading-[22px] text-gray-500">
           {message}
         </p>
 
@@ -64,14 +64,14 @@ export function ErrorState({
           <Button
             variant="outline"
             onPress={() => router.push(homeHref)}
-            className="h-[40px] flex-1 rounded-[17px] border-black-200 bg-white px-[18px] text-[14px] font-medium text-black-700 data-[hovered=true]:bg-black-100 sm:flex-none"
+            className="h-[40px] flex-1 rounded-[17px] border-gray-200 bg-white px-[18px] text-[14px] font-medium text-gray-700 data-[hovered=true]:bg-gray-100 sm:flex-none"
           >
             홈으로
           </Button>
         </div>
 
         {digest && (
-          <p className="mt-[24px] text-[12px] text-black-400">
+          <p className="mt-[24px] text-[12px] text-gray-400">
             오류 코드 {digest}
           </p>
         )}

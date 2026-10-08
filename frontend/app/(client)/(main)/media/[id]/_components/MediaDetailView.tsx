@@ -25,7 +25,8 @@ export function MediaDetailView() {
       population={
         vm.population
           ? {
-              monthlyFootTraffic: vm.population.monthlyFootTraffic,
+              title: vm.population.title,
+              populationText: vm.population.populationText,
               malePct: vm.population.malePct,
               femalePct: vm.population.femalePct,
               ageRatios: vm.population.ageRatios,

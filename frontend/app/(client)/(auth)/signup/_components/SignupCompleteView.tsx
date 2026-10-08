@@ -40,14 +40,14 @@ export function SignupCompleteView() {
             그 아래로 가입 유형 문구를 내린다. */}
           {me && (
             <div className="flex w-full flex-col items-center gap-[4px] rounded-[20px] bg-primary-50 px-[16px] py-[16px] text-center sm:hidden">
-              <span className="max-w-full text-[17px] leading-[24px] font-bold break-all text-black-900">
+              <span className="max-w-full text-[17px] leading-[24px] font-bold break-all text-gray-900">
                 {me.email}
               </span>
               <div className="mt-[8px] flex flex-wrap items-center justify-center gap-[6px]">
                 {categoryLabel && (
                   <CategoryBadge>{categoryLabel}</CategoryBadge>
                 )}
-                <span className="text-[13px] text-black-900">
+                <span className="text-[13px] text-gray-900">
                   {categoryLabel
                     ? `${categoryLabel}로 가입하셨습니다.`
                     : "가입하셨습니다."}
@@ -68,13 +68,13 @@ export function SignupCompleteView() {
                 {categoryLabel && (
                   <CategoryBadge>{categoryLabel}</CategoryBadge>
                 )}
-                <span className="text-[13px] text-black-900">
+                <span className="text-[13px] text-gray-900">
                   {categoryLabel
                     ? `${categoryLabel}로 가입하셨습니다.`
                     : "가입하셨습니다."}
                 </span>
               </div>
-              <span className="truncate text-[13px] text-black-500">
+              <span className="truncate text-[13px] text-gray-500">
                 {me.email}
               </span>
             </div>

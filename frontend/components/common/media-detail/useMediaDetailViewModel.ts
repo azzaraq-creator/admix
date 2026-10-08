@@ -3,6 +3,7 @@
 import {
   type MediaDetail,
   type MediaPlanOption,
+  type MediaPopulation,
   useMediaDetail,
 } from "@/hooks/media";
 
@@ -19,8 +20,13 @@ export type MediaDetailPlan = {
 };
 
 export type MediaDetailPopulationVM = {
-  monthlyFootTraffic: number;
-  monthlyTrafficText: string;
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·원천 상권) */
+  title: string;
+  /** 제목 옆 작은 글씨 — "역삼역 · 15:05 기준" / "2025년 3분기" / "OO 상권 · 2025년 4분기" */
+  caption: string;
+  /** "80,000~82,000" — 서울시는 인구를 범위로 준다. */
+  populationText: string;
+  congestLevel: string | null;
   malePct: number;
   femalePct: number;
   ageRatios: MediaDetailAgeRatio[];
@@ -31,6 +37,8 @@ export type MediaDetailPopulationVM = {
 export type MediaDetailViewModel = {
   id: string;
   name: string;
+  /** 이동 매체 — 주소 자리에 운행 지역이 오고 앞에 "이동" 칩을 붙인다. */
+  isMoving: boolean;
   price: string;
   adFeeKrw: number | null;
   productionFeeKrw: number | null;
@@ -56,6 +64,20 @@ export function formatFee(krw: number | null): string {
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
 }
 
+/** 인구 카드 제목 옆 설명 — 실시간은 "장소 · 시:분 기준", 월평균은 기준(시기·상권). */
+function populationCaption(pop: MediaPopulation): string {
+  if (pop.source !== "realtime") return pop.placeName;
+  const time = pop.measuredAt?.slice(11, 16);
+  return time ? `${pop.placeName} · ${time} 기준` : pop.placeName;
+}
+
+/** 인구 범위 — "80,000~82,000". 두 값이 같으면 하나만. */
+export function formatPopulationRange(min: number, max: number): string {
+  return min === max
+    ? max.toLocaleString()
+    : `${min.toLocaleString()}~${max.toLocaleString()}`;
+}
+
 export function toMediaDetailViewModel(
   detail: MediaDetail,
 ): MediaDetailViewModel {
@@ -68,6 +90,7 @@ export function toMediaDetailViewModel(
   return {
     id: detail.id,
     name: detail.name,
+    isMoving: detail.mediaSource === "MOVING",
     price: formatFee(detail.minAdvertisementFeeKrw),
     adFeeKrw: detail.minAdvertisementFeeKrw,
     productionFeeKrw: detail.minProductionFeeKrw ?? null,
@@ -92,8 +115,13 @@ export function toMediaDetailViewModel(
     planOptions: detail.planOptions ?? [],
     population: pop
       ? {
-          monthlyFootTraffic: pop.monthlyFootTraffic,
-          monthlyTrafficText: pop.monthlyFootTraffic.toLocaleString(),
+          populationText: formatPopulationRange(
+            pop.populationMin,
+            pop.populationMax,
+          ),
+          title: pop.source === "realtime" ? "실시간 인구" : "월평균 유동인구",
+          caption: populationCaption(pop),
+          congestLevel: pop.congestLevel,
           malePct: pop.malePct,
           femalePct: pop.femalePct,
           ageRatios: pop.ageRatios.map((a) => ({

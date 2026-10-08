@@ -21,9 +21,9 @@ const TYPE_TO_CATEGORY: Record<string, string> = {
 
 // 분류 칩 32px → 곡률 13px. 매체 찾기 필터 칩과 같은 모양(선택 시 진한 테두리·굵은 글자).
 const CATEGORY_TAG = cn(
-  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-black-200 bg-white px-[14px] text-[13px] font-medium text-black-600 transition-colors",
-  "hover:border-black-300",
-  "data-[selected=true]:border-black-400 data-[selected=true]:font-bold data-[selected=true]:text-black-900",
+  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-white px-[14px] text-[13px] font-medium text-gray-600 transition-colors",
+  "hover:border-gray-300",
+  "data-[selected=true]:border-gray-400 data-[selected=true]:font-bold data-[selected=true]:text-gray-900",
 );
 
 type Faq = {

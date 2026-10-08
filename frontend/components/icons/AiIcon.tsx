@@ -59,8 +59,8 @@ export function AiIcon(props: IconProps) {
           y2="77.9961"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#C7A8E3" />
-          <stop offset="1" stopColor="#A33BD1" />
+          <stop stopColor="#B7A3F2" />
+          <stop offset="1" stopColor="#7A3FE0" />
         </linearGradient>
       </defs>
     </svg>

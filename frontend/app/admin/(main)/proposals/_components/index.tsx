@@ -20,7 +20,7 @@ export type Proposal = {
 const STATUS_CLASS: Record<ProposalStatus, string> = {
   신규: "bg-[#d6f1ff] text-[#0689ff]",
   맞춤제안: "bg-[#fdf6e3] text-[#c99a2e]",
-  계약완료: "bg-platinum-100 text-[#64748b]",
+  계약완료: "bg-gray-100 text-[#64748b]",
   취소: "bg-[#fef2f2] text-[#ef4444]",
 };
 
@@ -36,7 +36,7 @@ export function ProposalStatusBadge({ status }: { status: ProposalStatus }) {
 
 export const proposalColumnList: TableColumn<Proposal>[] = [
   { name: "no", label: "No", className: "text-disabled" },
-  { name: "name", label: "제안서 명" },
+  { name: "name", label: "기획안 명" },
   { name: "member", label: "이름" },
   { name: "mediaCount", label: "매체 수" },
   { name: "totalAmount", label: "전체 금액 합계" },

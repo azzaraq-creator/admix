@@ -27,7 +27,7 @@ export function FeaturesSection({
   const s = SIZE[size];
   const items = features.map(([label, value]) => (
     <div key={label} className={s.item}>
-      <p className={cn("text-grey-500", s.label)}>{label}</p>
+      <p className={cn("text-gray-500", s.label)}>{label}</p>
       <p className={cn("text-black", s.value)}>{value}</p>
     </div>
   ));

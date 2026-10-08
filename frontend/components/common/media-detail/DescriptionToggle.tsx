@@ -32,10 +32,10 @@ export function DescriptionToggle({
       onClick={onToggle}
       className="flex items-center justify-center gap-[8px]"
     >
-      <span className="h-px flex-1 bg-grey-50" />
+      <span className="h-px flex-1 bg-gray-50" />
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full bg-grey-50 px-[16px] py-[6px] whitespace-nowrap text-black",
+          "flex shrink-0 items-center justify-center rounded-full bg-gray-50 px-[16px] py-[6px] whitespace-nowrap text-black",
           s.text,
           s.gap,
         )}
@@ -49,7 +49,7 @@ export function DescriptionToggle({
           )}
         />
       </span>
-      <span className="h-px flex-1 bg-grey-50" />
+      <span className="h-px flex-1 bg-gray-50" />
     </button>
   );
 }

@@ -23,7 +23,9 @@ export function AdminSlideView({
 }) {
   return (
     <>
-      {slide.kind === "cover" && <CoverThumb updatedAt={updatedAt} />}
+      {slide.kind === "cover" && (
+        <CoverThumb title={summaryProposal?.title} updatedAt={updatedAt} />
+      )}
       {slide.kind === "summary" && summaryProposal && (
         <SummaryThumb
           proposal={summaryProposal}

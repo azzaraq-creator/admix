@@ -48,7 +48,7 @@ export function AssistantBubble({
 
   if (message.isLoading) {
     return (
-      <div className="flex items-center gap-[10px] text-[14px] text-black-500">
+      <div className="flex items-center gap-[10px] text-[14px] text-gray-500">
         <Spinner size="sm" />
         <span>{message.loadingLabel || "추천 중..."}</span>
       </div>

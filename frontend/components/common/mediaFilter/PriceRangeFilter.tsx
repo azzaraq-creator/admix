@@ -69,7 +69,7 @@ export function PriceRangeFilter({
       {/* 최저·최대 — 고른 두 값을 한 줄에 나란히 보여 준다. */}
       <div className="flex items-center gap-[8px]">
         <PriceBox label="최저" value={priceLabel(lo)} />
-        <span className="shrink-0 text-[14px] text-black-400">–</span>
+        <span className="shrink-0 text-[14px] text-gray-400">–</span>
         <PriceBox label="최대" value={priceLabel(hi)} />
       </div>
 
@@ -85,7 +85,7 @@ export function PriceRangeFilter({
               return (
                 <div
                   key={i}
-                  className={`flex-1 rounded-t-[3px] transition-colors duration-150 ${inRange ? "bg-primary-300" : "bg-black-100"}`}
+                  className={`flex-1 rounded-t-[3px] transition-colors duration-150 ${inRange ? "bg-primary-300" : "bg-gray-100"}`}
                   style={{ height: `${barHeightPct(count, maxCount)}%` }}
                 />
               );
@@ -110,7 +110,7 @@ export function PriceRangeFilter({
         >
           {/* 트랙은 얇은 4px 선으로, 손잡이는 흰 원 + 브랜드색 테두리로 바꾼다.
               (손잡이 세로 가운데는 React Aria 가 translate(-50%, -50%)로 맞춘다.) */}
-          <Slider.Track className="h-[4px]! rounded-full bg-black-100 my-[10px]">
+          <Slider.Track className="h-[4px]! rounded-full bg-gray-100 my-[10px]">
             <Slider.Fill className="rounded-full bg-primary" />
             <Slider.Thumb
               index={0}
@@ -125,7 +125,7 @@ export function PriceRangeFilter({
           </Slider.Track>
         </Slider>
 
-        <div className="flex justify-between px-[2px] text-[12px] text-black-400 max-sm:text-[10px]">
+        <div className="flex justify-between px-[2px] text-[12px] text-gray-400 max-sm:text-[10px]">
           <span>{priceLabel(rmin)}</span>
           <span>{priceLabel(rmax)}</span>
         </div>
@@ -136,8 +136,8 @@ export function PriceRangeFilter({
 
 function PriceBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-[2px] rounded-[14px] border border-black-200 px-[14px] py-[10px] max-sm:rounded-[12px] max-sm:px-[12px] max-sm:py-[8px]">
-      <span className="text-[12px] font-medium text-black-500 max-sm:text-[10px]">
+    <div className="flex min-w-0 flex-1 flex-col gap-[2px] rounded-[14px] border border-gray-200 px-[14px] py-[10px] max-sm:rounded-[12px] max-sm:px-[12px] max-sm:py-[8px]">
+      <span className="text-[12px] font-medium text-gray-500 max-sm:text-[10px]">
         {label}
       </span>
       <span className="truncate text-[16px] font-bold tabular-nums text-black max-sm:text-[13px]">

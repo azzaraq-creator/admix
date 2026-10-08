@@ -305,7 +305,7 @@ export function AiChatPanel({
                     key={faq}
                     type="button"
                     onClick={() => void chat.submit(faq, { allowShort: true })}
-                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-platinum-100"
+                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-gray-100"
                   >
                     <SparkleIcon className="size-[24px] shrink-0 text-primary" />
                     <span className="flex-1 text-base font-medium leading-[24px] text-black">
@@ -322,7 +322,7 @@ export function AiChatPanel({
       <div className="flex flex-col items-center gap-[10px] px-[24px] pb-[24px] pt-[8px]">
         {chat.lastConfirmingId && (
           <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-[#f9fafc] px-[16px] py-[10px]">
-            <span className="flex-1 text-sm font-medium text-grey-500">
+            <span className="flex-1 text-sm font-medium text-gray-500">
               기존 조건에 어떻게 반영할까요?
             </span>
             <button
@@ -389,7 +389,7 @@ export function AiChatPanel({
                   : "매체 조건을 입력하세요"
             }
             disabled={chat.restoring || chat.limitReached}
-            className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-grey-500 disabled:opacity-60"
+            className="max-h-[120px] flex-1 resize-none bg-transparent text-base font-medium leading-[24px] text-black outline-none placeholder:text-gray-500 disabled:opacity-60"
           />
           <Button
             isIconOnly
@@ -408,7 +408,7 @@ export function AiChatPanel({
             <ArrowUpIcon className="size-[18px]" />
           </Button>
         </div>
-        <p className="w-full text-center text-xs font-medium leading-[16px] text-grey-500">
+        <p className="w-full text-center text-xs font-medium leading-[16px] text-gray-500">
           AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.
         </p>
       </div>
@@ -435,7 +435,7 @@ function SlotBar({
 
   return (
     <div className="flex flex-col gap-[6px] border-b border-stroke bg-[#f9fafc] px-[24px] py-[12px]">
-      <div className="text-xs font-medium tracking-wide text-grey-500">
+      <div className="text-xs font-medium tracking-wide text-gray-500">
         현재 조건
       </div>
       <div className="flex flex-wrap gap-[6px]">
@@ -447,7 +447,7 @@ function SlotBar({
                 key={`${cat}-${e.code}`}
                 className="inline-flex items-center gap-[6px] rounded-[6px] border border-primary/30 bg-secondary py-[2px] pl-[8px] pr-[4px] text-xs"
               >
-                <span className="text-grey-500">{label}</span>
+                <span className="text-gray-500">{label}</span>
                 <span className="text-black">{valueLabel}</span>
                 <button
                   type="button"
@@ -455,7 +455,7 @@ function SlotBar({
                   onClick={() => onRemove(cat, e.code, valueLabel)}
                   aria-label={`${label} ${valueLabel} 제거`}
                   className={cn(
-                    "flex size-[16px] items-center justify-center rounded text-grey-500 transition-colors hover:bg-primary/15 hover:text-black",
+                    "flex size-[16px] items-center justify-center rounded text-gray-500 transition-colors hover:bg-primary/15 hover:text-black",
                     disabled && "cursor-not-allowed opacity-40",
                   )}
                 >

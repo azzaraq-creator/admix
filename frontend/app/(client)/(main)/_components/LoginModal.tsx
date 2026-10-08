@@ -87,11 +87,11 @@ function EyeIcon({
 // 곡률 규칙: 높이/2 - 3px. 입력칸·버튼 모두 HeroUI 기본 높이 36px → 15px.
 const CONTROL_RADIUS = "rounded-[15px]";
 
-// 입력칸 — 매체 찾기 검색바와 같은 회색 필(black-100 바탕·black-200 테두리)로 두고,
+// 입력칸 — 매체 찾기 검색바와 같은 회색 필(gray-100 바탕·gray-200 테두리)로 두고,
 // 마우스를 올리거나 입력 중이면 흰 바탕이 된다. 포커스 링 대신 1px 테두리가 보라색으로 바뀌고, 잘못된 입력이면 테두리만 빨갛게.
 const FIELD_CLASS =
-  `${CONTROL_RADIUS} border border-black-200 bg-black-100 text-[14px] text-black-900 [box-shadow:none]! transition-colors ` +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white " +
+  `${CONTROL_RADIUS} border border-gray-200 bg-gray-100 text-[14px] text-gray-900 [box-shadow:none]! transition-colors ` +
+  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white " +
   "data-[focus-within=true]:bg-white focus-within:border-focus focus-within:bg-white focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 간편 로그인 — 각 소셜 브랜드 색(카카오 노랑·네이버 초록). 크기는 HeroUI 기본 버튼(md) 그대로.
@@ -200,14 +200,14 @@ export function LoginModal() {
             >
               <Modal.CloseTrigger
                 aria-label="닫기"
-                className="top-[16px] right-[16px] size-[32px] rounded-full bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
+                className="top-[16px] right-[16px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
               >
                 <XIcon className="size-[20px]" />
               </Modal.CloseTrigger>
 
               <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
                 <LogoFullDark className="h-[28px]" />
-                <p className="text-[13px] leading-[20px] text-black-500">
+                <p className="text-[13px] leading-[20px] text-gray-500">
                   로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요
                 </p>
               </Modal.Header>
@@ -249,7 +249,7 @@ export function LoginModal() {
                     <InputGroup className={FIELD_CLASS}>
                       <InputGroup.Input
                         placeholder="비밀번호"
-                        className="bg-transparent text-[14px] text-black-900 placeholder:text-black-400"
+                        className="bg-transparent text-[14px] text-gray-900 placeholder:text-gray-400"
                       />
                       <InputGroup.Suffix className="pr-[4px]">
                         <Button
@@ -260,7 +260,7 @@ export function LoginModal() {
                             showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
                           }
                           onPress={() => setShowPassword((prev) => !prev)}
-                          className="size-[28px] min-w-0 rounded-[11px] text-black-400 data-[hovered=true]:text-black"
+                          className="size-[28px] min-w-0 rounded-[11px] text-gray-400 data-[hovered=true]:text-black"
                         >
                           <EyeIcon off={showPassword} className="size-[16px]" />
                         </Button>
@@ -292,7 +292,7 @@ export function LoginModal() {
                       variant="ghost"
                       size="sm"
                       onPress={() => goTo("/find-account")}
-                      className="h-auto min-w-0 p-0 text-[13px] font-medium text-black-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
+                      className="h-auto min-w-0 p-0 text-[13px] font-medium text-gray-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
                     >
                       비밀번호 재설정
                     </Button>
@@ -311,7 +311,7 @@ export function LoginModal() {
 
                 <div className="flex items-center gap-[12px]">
                   <Separator className="flex-1 bg-stroke" />
-                  <span className="text-[12px] font-medium text-black-400">
+                  <span className="text-[12px] font-medium text-gray-400">
                     간편 로그인
                   </span>
                   <Separator className="flex-1 bg-stroke" />
@@ -343,7 +343,7 @@ export function LoginModal() {
 
               {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
               <Modal.Footer className="mt-[24px] flex items-center justify-center gap-[6px] border-t border-stroke p-0 pt-[20px] text-[13px]">
-                <span className="text-black-500">아직 회원이 아니신가요?</span>
+                <span className="text-gray-500">아직 회원이 아니신가요?</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -371,7 +371,7 @@ export function LoginModal() {
                   서비스 이용이 제한되었습니다
                 </Modal.Heading>
               </Modal.Header>
-              <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-black-700">
+              <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-gray-700">
                 <p>
                   운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로
                   제한되었습니다.

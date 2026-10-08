@@ -12,7 +12,7 @@ from src.services.media_service import (
     _apply_media_sort,
     _media_base_query,
     _media_card,
-    fixed_price_histogram,
+    price_histogram,
 )
 
 
@@ -39,6 +39,7 @@ def list_favorite_cards(
     price_min: int | None = None,
     price_max: int | None = None,
     keyword: str | None = None,
+    regions: list[str] | None = None,
     sort: str | None = None,
 ) -> list[dict]:
     """관심 매체 페이지용 카드 — 매체 찾기 목록과 같은 모양·같은 검색어/필터 조건.
@@ -47,6 +48,7 @@ def list_favorite_cards(
     """
     base = _media_base_query(
         db,
+        media_source=None,
         categories=categories,
         ooh_types=ooh_types,
         exposure_types=exposure_types,
@@ -55,6 +57,7 @@ def list_favorite_cards(
         price_min=price_min,
         price_max=price_max,
         keyword=keyword,
+        regions=regions,
     )
     base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
         MediaFavorite.member_id == member_id
@@ -77,10 +80,12 @@ def favorite_price_histogram(
     media_shapes: list[str] | None = None,
     product_master_types: list[str] | None = None,
     keyword: str | None = None,
+    regions: list[str] | None = None,
 ) -> list[int]:
     """관심 매체 가격 그래프 — 내가 담은 매체 중 검색어·가격 외 필터에 맞는 것으로 센다."""
     base = _media_base_query(
         db,
+        media_source=None,
         categories=categories,
         ooh_types=ooh_types,
         exposure_types=exposure_types,
@@ -89,11 +94,12 @@ def favorite_price_histogram(
         price_min=None,
         price_max=None,
         keyword=keyword,
+        regions=regions,
     )
     base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
         MediaFavorite.member_id == member_id
     )
-    return fixed_price_histogram(db, base)
+    return price_histogram(db, base)
 
 
 def add_favorite(db: Session, member_id: uuid.UUID, media_id: str) -> bool:

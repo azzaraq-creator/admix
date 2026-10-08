@@ -19,11 +19,11 @@ const BUTTON_SIZE: Record<ButtonSize, string> = {
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:bg-primary-800 active:bg-primary-800 disabled:bg-grey-100 disabled:text-grey-500",
+    "bg-primary text-white hover:bg-primary-800 active:bg-primary-800 disabled:bg-gray-100 disabled:text-gray-500",
   secondary:
-    "bg-platinum-100 text-black hover:bg-platinum-200 active:bg-platinum-200 disabled:bg-grey-100 disabled:text-grey-500",
+    "bg-gray-100 text-black hover:bg-gray-200 active:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-500",
   tertiary:
-    "border border-primary bg-white text-primary hover:bg-grey-50 active:bg-grey-50 disabled:border-grey-200 disabled:bg-white disabled:text-grey-300",
+    "border border-primary bg-white text-primary hover:bg-gray-50 active:bg-gray-50 disabled:border-gray-200 disabled:bg-white disabled:text-gray-300",
 };
 
 export function Button({
@@ -72,11 +72,11 @@ const ICON_BUTTON_SIZE: Record<IconButtonSize, string> = {
 
 const ICON_BUTTON_VARIANT: Record<IconButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:bg-primary-800 active:bg-primary-800 disabled:bg-grey-100 disabled:text-grey-300",
+    "bg-primary text-white hover:bg-primary-800 active:bg-primary-800 disabled:bg-gray-100 disabled:text-gray-300",
   secondary:
-    "bg-platinum-100 text-black hover:bg-platinum-200 active:bg-platinum-200 disabled:bg-grey-100 disabled:text-grey-300",
+    "bg-gray-100 text-black hover:bg-gray-200 active:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-300",
   tertiary:
-    "border border-primary bg-white text-primary hover:bg-grey-50 active:bg-grey-100 disabled:border-grey-200 disabled:bg-white disabled:text-grey-300",
+    "border border-primary bg-white text-primary hover:bg-gray-50 active:bg-gray-100 disabled:border-gray-200 disabled:bg-white disabled:text-gray-300",
 };
 
 export function IconButton({
@@ -171,7 +171,7 @@ export function DeleteButton({
     <button
       type="button"
       className={cn(
-        "flex h-[36px] items-center justify-center rounded-[6px] bg-platinum-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-platinum-200 active:translate-y-px active:bg-[#cbd5e1]",
+        "flex h-[36px] items-center justify-center rounded-[6px] bg-gray-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200 active:translate-y-px active:bg-[#c3c7d6]",
         className,
       )}
       {...props}

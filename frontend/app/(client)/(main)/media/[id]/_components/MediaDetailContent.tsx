@@ -34,7 +34,7 @@ const BADGE = {
 const FEATURES: [string, string][] = [
   ["매체 카테고리", "지하철"],
   ["타입", "DOOH"],
-  ["노출 종류", "실내"],
+  ["설치 장소", "공간형"],
   ["판매 형태", "단품"],
   ["고정/이동", "고정"],
   ["상품 표시", "영상(20초)"],
@@ -45,7 +45,10 @@ const FEATURES: [string, string][] = [
 ];
 
 export type PopulationData = {
-  monthlyFootTraffic: number;
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·원천 상권) */
+  title: string;
+  /** 실시간 인구 범위 — "80,000~82,000" */
+  populationText: string;
   malePct: number;
   femalePct: number;
   ageRatios: AgeRatio[];
@@ -150,7 +153,7 @@ export function MediaDetailContent({
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
                     {name}
                   </p>
-                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-grey-500">
+                  <p className="text-[18px] font-medium leading-[28px] tracking-[-0.04px] text-gray-500">
                     {price}
                   </p>
                 </div>
@@ -170,7 +173,8 @@ export function MediaDetailContent({
 
             {showPopulation && population && (
               <PopulationSummaryBar
-                monthlyTraffic={population.monthlyFootTraffic.toLocaleString()}
+                title={population.title}
+                populationText={population.populationText}
                 mainAudience={[{ gender: primaryGender, age: primaryAge }]}
                 size="lg"
               />
@@ -223,7 +227,7 @@ export function MediaDetailContent({
 
           {showPopulation && population && (
             <div className="flex flex-col gap-[24px]">
-              <SectionTitle>유동 인구 데이터</SectionTitle>
+              <SectionTitle>{population.title} 데이터</SectionTitle>
               <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
                 <div className="flex flex-1 flex-col gap-[16px]">
                   <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">

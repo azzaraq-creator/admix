@@ -74,7 +74,7 @@ export function BusinessRegisterModal({
     >
       <div className="flex flex-col gap-[20px]">
         <div className="flex flex-col gap-[16px]">
-          <p className="text-sm font-medium leading-[20px] text-grey-500">
+          <p className="text-sm font-medium leading-[20px] text-gray-500">
             {isRegister
               ? "사업자등록증을 업로드해주세요."
               : "새로운 사업자등록증을 업로드해주세요."}
@@ -99,7 +99,7 @@ export function BusinessRegisterModal({
                 type="button"
                 aria-label="파일 삭제"
                 onClick={clearFile}
-                className="shrink-0 cursor-pointer text-grey-500"
+                className="shrink-0 cursor-pointer text-gray-500"
               >
                 <XIcon className="size-[24px]" />
               </button>

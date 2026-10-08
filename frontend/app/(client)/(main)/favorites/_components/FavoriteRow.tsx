@@ -34,7 +34,7 @@ export function FavoriteRow({
         "cursor-pointer flex-row items-center gap-[12px] rounded-[14px] border bg-white p-[10px] shadow-none transition-colors",
         checked
           ? "border-primary-500 shadow-[0_0_0_1px_var(--color-primary-500)]"
-          : "border-black-200",
+          : "border-gray-200",
       )}
     >
       <div className="relative size-[88px] shrink-0">
@@ -88,7 +88,7 @@ export function FavoriteRow({
 function PriceLine({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="flex items-baseline gap-[6px] whitespace-nowrap">
-      <span className="w-[34px] shrink-0 text-[11px] font-medium text-black-400">
+      <span className="w-[34px] shrink-0 text-[11px] font-medium text-gray-400">
         {label}
       </span>
       <span className="text-[13px] font-bold text-[#2d264b]">{won(value)}</span>
@@ -99,7 +99,7 @@ function PriceLine({ label, value }: { label: string; value: number | null }) {
 /** 불러오는 동안의 한 줄 — FavoriteRow와 같은 크기·배치. */
 export function FavoriteRowSkeleton() {
   return (
-    <div className="flex items-center gap-[12px] rounded-[14px] border border-black-200 bg-white p-[10px]">
+    <div className="flex items-center gap-[12px] rounded-[14px] border border-gray-200 bg-white p-[10px]">
       <Skeleton className="size-[88px] shrink-0 rounded-[10px]" />
       <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
         <Skeleton className="h-[16px] w-[70%] rounded-[6px]" />

@@ -15,7 +15,11 @@ export const useCreateMedia = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: AdminMediaPayload) => adminMediaApi.create(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: mediaKeys.list() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: mediaKeys.list() });
+      // 새 카테고리·등급 산정 방식이 다음 등록 때 선택지에 보이게.
+      qc.invalidateQueries({ queryKey: mediaKeys.adminFieldOptions() });
+    },
   });
 };
 
@@ -27,6 +31,7 @@ export const useUpdateMedia = () => {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: mediaKeys.list() });
       qc.invalidateQueries({ queryKey: mediaKeys.adminDetail(vars.id) });
+      qc.invalidateQueries({ queryKey: mediaKeys.adminFieldOptions() });
     },
   });
 };
@@ -54,6 +59,16 @@ export const useDeleteMediaImage = () => {
   return useMutation({
     mutationFn: ({ id, imageId }: { id: string; imageId: string }) =>
       adminMediaApi.deleteImage(id, imageId),
+    onSuccess: (_, vars) =>
+      qc.invalidateQueries({ queryKey: mediaKeys.adminDetail(vars.id) }),
+  });
+};
+
+export const useSetMediaThumbnail = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, imageId }: { id: string; imageId: string }) =>
+      adminMediaApi.setThumbnail(id, imageId),
     onSuccess: (_, vars) =>
       qc.invalidateQueries({ queryKey: mediaKeys.adminDetail(vars.id) }),
   });

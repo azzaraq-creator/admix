@@ -312,7 +312,7 @@ export function InfoStep({
 
           {showBizCert && (
             <div className="flex w-full flex-col gap-[8px]">
-              <p className="text-[13px] font-medium text-black-900">
+              <p className="text-[13px] font-medium text-gray-900">
                 사업자등록증
               </p>
               <input
@@ -333,7 +333,7 @@ export function InfoStep({
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-[8px]">
-                    <FileIcon className="size-[18px] shrink-0 text-black-500" />
+                    <FileIcon className="size-[18px] shrink-0 text-gray-500" />
                     <span className="truncate text-[13px] text-[#18181b]">
                       {values.file.name}
                     </span>
@@ -343,7 +343,7 @@ export function InfoStep({
                     size="sm"
                     onPress={() => set("file", null)}
                     className={cn(
-                      "h-[36px] shrink-0 px-[12px] text-[12px] text-black-500 data-[hovered=true]:text-black-900",
+                      "h-[36px] shrink-0 px-[12px] text-[12px] text-gray-500 data-[hovered=true]:text-gray-900",
                       RADIUS.h36,
                     )}
                   >
@@ -370,10 +370,10 @@ export function InfoStep({
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   className={cn(
-                    "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-black-400 transition-colors",
+                    "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-gray-400 transition-colors",
                     dragging
                       ? "border-primary-500 bg-primary-50"
-                      : "border-black-200 bg-[#fafafa] hover:border-black-300",
+                      : "border-gray-200 bg-[#fafafa] hover:border-gray-300",
                   )}
                 >
                   <UploadIcon className="size-[20px]" />

@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import type { OperatingArea } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -14,6 +15,7 @@ import type {
 } from "./mapTypes";
 import { POPUP_BG_CLASS } from "./MarkerMediaPopup";
 import { useKakaoMap } from "./useKakaoMap";
+import { useMapArea } from "./useMapArea";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMapPopup } from "./useMapPopup";
 
@@ -47,6 +49,7 @@ export function MapArea({
   popupPosition,
   popupContent,
   onPopupClose,
+  highlightArea,
 }: {
   className?: string;
   markers?: MapMarker[];
@@ -65,6 +68,8 @@ export function MapArea({
   popupPosition?: { lat: number; lng: number } | null;
   popupContent?: ReactNode;
   onPopupClose?: () => void;
+  /** 이동매체 운행 지역 — 반투명 영역으로 그린다(이동매체는 핀이 없다). */
+  highlightArea?: OperatingArea | null;
 }) {
   const markerObjsRef = useRef<MarkerEntry[]>([]);
 
@@ -92,6 +97,8 @@ export function MapArea({
     onClusterClick,
     onGroupClick,
   });
+
+  useMapArea({ mapRef, mapReady, area: highlightArea });
 
   const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
     mapRef,
@@ -134,7 +141,7 @@ export function MapArea({
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute left-1/2 size-[10px] rotate-45 border-black-200",
+                  "pointer-events-none absolute left-1/2 size-[10px] rotate-45 border-gray-200",
                   POPUP_BG_CLASS,
                   flipUp
                     ? "-bottom-[5px] border-r border-b"

@@ -37,8 +37,8 @@ const MAX_NAME_LENGTH = 50;
 // 입력칸 44px → 곡률 19px. 새 기획안 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
 // 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 기획안 검색창과 같은 방식.
 const FIELD_CLASS =
-  "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
+  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·기획안 담기)과 같은 모양.
 const ACTION_CLASS =
@@ -258,7 +258,7 @@ export function AddToProposalModal({
                         <FieldError className="text-[12px] text-danger">
                           {nameError}
                         </FieldError>
-                        <span className="ml-auto shrink-0 text-[12px] text-black-400">
+                        <span className="ml-auto shrink-0 text-[12px] text-gray-400">
                           {newName.length}/{MAX_NAME_LENGTH}
                         </span>
                       </div>
@@ -356,7 +356,7 @@ export function AddToProposalModal({
                           {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
                           <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[14px] transition-colors data-[hovered=true]:bg-[#fafafa] in-data-[selected=true]:bg-[#f7f7f8]">
                             {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
-                            <Checkbox.Control className="border border-black-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                            <Checkbox.Control className="border border-gray-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
                               <Checkbox.Indicator />
                             </Checkbox.Control>
                             <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b] in-data-[disabled=true]:text-[#a1a1aa]">

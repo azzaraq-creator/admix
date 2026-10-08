@@ -81,7 +81,7 @@ function CurrentProposalContent({
         className={`flex shrink-0 items-center justify-between gap-[8px] px-[20px] pb-[12px] ${headerClassName}`}
       >
         <p className="flex items-center gap-[6px] text-[16px] font-semibold text-black">
-          <BagIcon className="size-[18px] text-black-900" />
+          <BagIcon className="size-[18px] text-gray-900" />
           {CURRENT_PROPOSAL_LABEL}
         </p>
         <Button
@@ -272,7 +272,7 @@ function ProposalBody({
           {/* 칸 44px → 곡률 19px(기획안 담기 창 입력칸과 같다). */}
           <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-[#ececef] bg-[#f7f7f8] ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-white">
             {/* 기획안 아이콘 — 위 "현재 기획안" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
-            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-black-700">
+            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-gray-700">
               <CollectionIcon className="size-[15px]" />
             </span>
             <Select.Value className="flex min-w-0 flex-1 items-center gap-[6px]">
@@ -362,7 +362,7 @@ function ProposalBody({
               매체 {rows.length}개
             </span>
           </span>
-          <span className="text-[20px] font-bold text-black-900">
+          <span className="text-[20px] font-bold text-gray-900">
             {won(totalAd)}
           </span>
         </div>

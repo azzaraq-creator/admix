@@ -81,7 +81,7 @@ function TermCheckboxBody({
       {/* HeroUI 기본 체크박스 그대로 두고, 흰 바탕에서 잘 보이게 옅은 회색 테두리(1px)만 더한다.
           (기본 테두리는 두께 0이라 그림자로만 구분된다.) 켜짐·부분 선택일 땐 테두리도 채움색으로, 켜짐은 바탕까지 채워
           테두리 안쪽 모서리에 흰 틈이 보이지 않게 한다. */}
-      <Checkbox.Control className="border border-black-300 in-data-[indeterminate=true]:border-accent in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+      <Checkbox.Control className="border border-gray-300 in-data-[indeterminate=true]:border-accent in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
         <Checkbox.Indicator />
       </Checkbox.Control>
       {children}
@@ -96,7 +96,7 @@ function TermBadge({ required }: { required: boolean }) {
       className={cn(
         "h-[18px] px-[7px] py-0 text-[10px] font-semibold",
         RADIUS.h18,
-        required ? "bg-black-600 text-black-50" : "bg-[#ededef] text-[#71717a]",
+        required ? "bg-gray-600 text-gray-50" : "bg-[#ededef] text-[#71717a]",
       )}
     >
       {required ? "필수" : "선택"}
@@ -148,7 +148,7 @@ export function TermsStep({
           className={cn(
             "flex w-full rounded-[12px] border px-[16px] py-[14px]",
             itemCount === 0
-              ? "border-black-200 bg-white"
+              ? "border-gray-200 bg-white"
               : "border-primary-200 bg-primary-50",
           )}
         >
@@ -159,10 +159,10 @@ export function TermsStep({
           >
             <TermCheckboxBody>
               <span className="flex flex-col gap-[2px]">
-                <Label className="text-[15px] font-bold text-black-900">
+                <Label className="text-[15px] font-bold text-gray-900">
                   전체 동의
                 </Label>
-                <span className="text-[11px] leading-[1.4] text-black-500">
+                <span className="text-[11px] leading-[1.4] text-gray-500">
                   모든 약관 및 마케팅 정보 수신에 동의합니다.
                 </span>
               </span>
@@ -182,7 +182,7 @@ export function TermsStep({
                 <TermCheckboxBody>
                   <span className="flex min-w-0 items-center gap-[8px]">
                     <TermBadge required />
-                    <Label className="truncate text-[13px] font-semibold text-black-900">
+                    <Label className="truncate text-[13px] font-semibold text-gray-900">
                       {term.label}
                     </Label>
                   </span>
@@ -194,7 +194,7 @@ export function TermsStep({
                   size="sm"
                   aria-label={`${term.label} 전문 보기`}
                   onPress={() => setOpenTerm(term.tab ?? null)}
-                  className="h-auto min-w-0 shrink-0 gap-[1px] p-0 text-[11px] font-normal text-[#a1a1aa] data-[hovered=true]:bg-transparent data-[hovered=true]:text-black-600"
+                  className="h-auto min-w-0 shrink-0 gap-[1px] p-0 text-[11px] font-normal text-[#a1a1aa] data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
                 >
                   보기
                   <SmallChevronRightIcon className="size-[10px]" />
@@ -214,11 +214,11 @@ export function TermsStep({
             <span className="flex flex-col gap-[2px]">
               <span className="flex items-center gap-[8px]">
                 <TermBadge required={false} />
-                <Label className="text-[13px] font-semibold text-black-900">
+                <Label className="text-[13px] font-semibold text-gray-900">
                   마케팅 정보 수신 동의
                 </Label>
               </span>
-              <span className="text-[12px] text-black-400">
+              <span className="text-[12px] text-gray-400">
                 신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있어요
               </span>
             </span>

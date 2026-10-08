@@ -65,8 +65,7 @@ export function ProposalDetailView() {
   const handleAccept = async () => {
     const ok = await confirm({
       title: "집행을 수락하시겠습니까?",
-      description:
-        "수락하면 제안서 상태가 계약완료로 변경됩니다.",
+      description: "수락하면 기획안 상태가 계약완료로 변경됩니다.",
       confirmText: "집행 수락",
     });
     if (!ok) return;
@@ -91,7 +90,7 @@ export function ProposalDetailView() {
       })),
       ...items.map((item) => ({
         kind: "media" as const,
-        name: item.name ?? "이름 없음",
+        name: item.media_name ?? item.name ?? "이름 없음",
         item,
       })),
       { kind: "thanks", name: "THANK YOU" },
@@ -128,7 +127,7 @@ export function ProposalDetailView() {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${proposal?.title ?? "제안서"}.pptx`;
+      a.download = `${proposal?.title ?? "기획안"}.pptx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -161,7 +160,7 @@ export function ProposalDetailView() {
 
   return (
     <div className="flex flex-col gap-[32px]">
-      <div className="flex flex-col gap-[16px] rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <div className="flex flex-col gap-[16px] rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <h1 className="pb-[8px] text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
           제안 상세
         </h1>
@@ -191,7 +190,7 @@ export function ProposalDetailView() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#e5e7eb] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex items-center justify-between">
           <p className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
             {proposal?.title ?? ""}
@@ -270,7 +269,7 @@ export function ProposalDetailView() {
             {accepted ? (
               <span
                 aria-disabled="true"
-                title="계약 완료된 제안서는 맞춤제안을 작성할 수 없습니다."
+                title="계약 완료된 기획안은 맞춤제안을 작성할 수 없습니다."
                 className="flex h-[36px] cursor-not-allowed items-center rounded-[15px] border border-[#ebebeb] bg-[#f5f5f5] px-[17px] text-sm font-medium leading-[20px] text-disabled"
               >
                 맞춤제안 작성

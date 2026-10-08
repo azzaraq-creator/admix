@@ -67,7 +67,7 @@ export function ProposalBarChart({ values }: { values: number[] }) {
                   x={PL - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-[#9ca3af] text-[12px]"
+                  className="fill-[#9aa0b4] text-[12px]"
                 >
                   {value}
                 </text>
@@ -86,7 +86,7 @@ export function ProposalBarChart({ values }: { values: number[] }) {
                 width={BAR_W}
                 height={PT + PLOT_H - y}
                 rx={2}
-                fill="#a33bd1"
+                fill="#7a3fe0"
               />
             );
           })}
@@ -112,7 +112,7 @@ export function ProposalBarChart({ values }: { values: number[] }) {
               x={PL + SLOT * index + SLOT / 2}
               y={H - 20}
               textAnchor="middle"
-              className="fill-[#9ca3af] text-[12px]"
+              className="fill-[#9aa0b4] text-[12px]"
             >
               {month}
             </text>

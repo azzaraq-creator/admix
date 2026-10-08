@@ -11,8 +11,8 @@ const MAX_NAME_LENGTH = 50;
 // 입력칸 44px → 곡률 19px. 로그인 창처럼 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
 // 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다.
 const FIELD_CLASS =
-  "h-[44px] rounded-[19px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-black-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
+  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 버튼 40px → 곡률 17px. 오른쪽 아래에 내용 폭만큼 나란히 둔다.
 const ACTION_CLASS =
@@ -78,16 +78,16 @@ export function NewProposalModal({
             {/* 닫기 32px → 곡률 13px. */}
             <Modal.CloseTrigger
               aria-label="닫기"
-              className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
+              className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
             >
               <XIcon className="size-[20px]" />
             </Modal.CloseTrigger>
 
             <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
-              <Modal.Heading className="text-[18px] font-bold text-black-900">
+              <Modal.Heading className="text-[18px] font-bold text-gray-900">
                 새 기획안 만들기
               </Modal.Heading>
-              <p className="text-[13px] leading-[1.5] text-black-500">
+              <p className="text-[13px] leading-[1.5] text-gray-500">
                 기획안 이름을 정해 주세요. 이름은 나중에도 바꿀 수 있어요.
               </p>
             </Modal.Header>
@@ -122,7 +122,7 @@ export function NewProposalModal({
                     <FieldError className="text-[12px] text-danger">
                       {error}
                     </FieldError>
-                    <span className="ml-auto shrink-0 text-[12px] text-black-400">
+                    <span className="ml-auto shrink-0 text-[12px] text-gray-400">
                       {name.length}/{MAX_NAME_LENGTH}
                     </span>
                   </div>

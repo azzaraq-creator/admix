@@ -165,6 +165,16 @@ export interface ProposalItem {
   latitude: number | null;
   longitude: number | null;
   spec: string | null;
+  // 매체 슬라이드용 추가 정보
+  media_source?: "FIXED" | "MOVING" | null;
+  /** 이동 매체 운행 지역 */
+  operating_area?: string | null;
+  /** 이동 매체 운행 노선 */
+  operating_route?: string | null;
+  resolution?: string | null;
+  material_formats?: string | null;
+  /** 매체 운영 시간 "06:00 ~ 24:00 (18시간)" */
+  operation?: string | null;
   start_date: string | null;
   end_date: string | null;
   quantity: number | null;

@@ -16,7 +16,7 @@ export type Faq = {
 
 export const FAQ_TYPE_OPTIONS: { label: string; value: FaqType }[] = [
   { label: "이용 안내", value: "이용 안내" },
-  { label: "매체검색&제안서", value: "매체검색&제안서" },
+  { label: "매체검색&기획안", value: "매체검색&제안서" },
 ];
 
 export const faqColumnList: TableColumn<Faq>[] = [

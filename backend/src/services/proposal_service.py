@@ -21,6 +21,7 @@ from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import User
+from src.services import media_service
 
 # 백엔드 원본 status → admin 표시 라벨.
 # 유저 노출 라벨(작성중/제출완료/…)은 프런트 StatusChip 이 별도 관리.
@@ -783,7 +784,9 @@ def reorder_items(
             item.months = _positive(months[item.media_id])
         if production_counts and item.media_id in production_counts:
             item.production_count = _positive(production_counts[item.media_id])
-    _recount(proposal)  # 수량 변경분을 total_amount 에 반영
+    _recount(proposal)  # 개월 수 변경분을 total_amount 에 반영
+    # 매체 항목만 바뀌면 기획안 행은 그대로라 onupdate 가 안 걸린다 — 화면의 최종 수정일시가 따라오게 직접 갱신.
+    proposal.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(proposal)
     return proposal
@@ -907,7 +910,10 @@ def to_detail(db: Session, p: Proposal) -> dict:
         media_map = {m.media_id: m for m in rows}
 
     def _spec(m) -> Optional[str]:
-        # properties_extra_json 중 width 값이 있는 첫 property = 규격
+        # 어드민에서 입력한 규격(spec_*) 우선, 없으면 properties_extra_json 중 width 값이 있는 첫 property
+        typed = media_service.spec_text(m) if m else None
+        if typed:
+            return typed
         for prop in (m.properties_extra_json or []) if m else []:
             width = prop.get("propertyWidthValue")
             if width is None:
@@ -951,6 +957,7 @@ def to_detail(db: Session, p: Proposal) -> dict:
             latitude=float(m.latitude) if m and m.latitude is not None else None,
             longitude=float(m.longitude) if m and m.longitude is not None else None,
             spec=_spec(m),
+            **(media_service.proposal_slide_facts(m) if m else {}),
             start_date=it.start_date,
             end_date=it.end_date,
             quantity=it.quantity,

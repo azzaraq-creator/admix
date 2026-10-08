@@ -140,7 +140,7 @@ export function CurrentProposalButton({
             hideProposalCallout();
             setCurrentProposalPanelOpen(true);
           }}
-          className="flex h-full w-[48px] shrink-0 items-center justify-center text-black-900"
+          className="flex h-full w-[48px] shrink-0 items-center justify-center text-gray-900"
         >
           <span className="relative">
             <BagIcon className="size-[20px]" />
@@ -173,10 +173,10 @@ export function CurrentProposalButton({
           onClick={toggle}
           className={cn(
             // 아이콘은 메뉴 아이콘과 같은 짙은 색 — 보라 배지와 겹쳐 보이지 않게.
-            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-black-900 transition-colors",
+            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-gray-900 transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
-              : "border-black-200 hover:border-primary-200 hover:bg-primary-50/60",
+              : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",
           )}
         >
           <span className="relative">
@@ -196,7 +196,7 @@ export function CurrentProposalButton({
             "flex w-full overflow-hidden rounded-[16px] border bg-white p-[12px] text-left shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
-              : "border-black-200 hover:border-primary-200 hover:bg-primary-50/60",
+              : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",
           )}
         >
           {/* 내용은 펼친 폭(안쪽 134px)으로 고정하고 서서히 나타낸다 — 사이드바가 펼쳐지는 동안
@@ -205,7 +205,7 @@ export function CurrentProposalButton({
             <span className="flex items-center gap-[5px] text-[11px] font-semibold text-primary">
               <BagIcon className="size-[13px] shrink-0" />
               {CURRENT_PROPOSAL_LABEL}
-              <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-black-400" />
+              <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-gray-400" />
             </span>
             {isLoading ? (
               // 기획안 목록 불러오는 중 — "매체를 담으면…"이 잠깐 보였다 바뀌지 않게.
@@ -218,20 +218,20 @@ export function CurrentProposalButton({
               </span>
             ) : current ? (
               <>
-                <span className="truncate text-[14px] font-bold text-black-900">
+                <span className="truncate text-[14px] font-bold text-gray-900">
                   {current.title}
                 </span>
                 <span className="flex items-center justify-between gap-[6px] whitespace-nowrap">
-                  <span className="text-[12px] text-black-500">
+                  <span className="text-[12px] text-gray-500">
                     매체 {count}개
                   </span>
-                  <span className="truncate text-[13px] font-bold text-black-900">
+                  <span className="truncate text-[13px] font-bold text-gray-900">
                     {won(current.advertisement_amount ?? current.total_amount)}
                   </span>
                 </span>
               </>
             ) : (
-              <span className="text-[12px] leading-[1.5] break-keep text-black-500">
+              <span className="text-[12px] leading-[1.5] break-keep text-gray-500">
                 매체를 담으면 여기에 모여요
               </span>
             )}

@@ -41,7 +41,7 @@ export function SnsSignupWizard() {
 
   if (!me || me.verified) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-black-50">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
         <Spinner />
       </div>
     );

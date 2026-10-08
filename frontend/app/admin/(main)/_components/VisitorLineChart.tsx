@@ -69,7 +69,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
                   x={PL - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-[#9ca3af] text-[12px]"
+                  className="fill-[#9aa0b4] text-[12px]"
                 >
                   {value.toLocaleString()}
                 </text>
@@ -80,7 +80,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
           <polyline
             points={points}
             fill="none"
-            stroke="#a33bd1"
+            stroke="#7a3fe0"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -93,7 +93,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
               cy={yFor(value)}
               r={hover === index ? 5 : 4}
               fill="#ffffff"
-              stroke="#a33bd1"
+              stroke="#7a3fe0"
               strokeWidth={2}
             />
           ))}
@@ -119,7 +119,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
               x={xFor(index)}
               y={H - 20}
               textAnchor="middle"
-              className="fill-[#9ca3af] text-[12px]"
+              className="fill-[#9aa0b4] text-[12px]"
             >
               {month}
             </text>

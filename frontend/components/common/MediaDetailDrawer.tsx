@@ -15,7 +15,7 @@ import type { MediaItemData } from "./MediaItem";
 export type MediaDetail = {
   subName?: string;
   images?: string[];
-  monthlyTraffic?: string;
+  populationText?: string;
   mainAudience?: { gender: string; age: string }[];
   address?: string;
   description?: string;
@@ -71,19 +71,19 @@ export function MediaDetailDrawer({
             <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
               {media.name}
               {data.subName && (
-                <span className="ml-[6px] text-[14px] font-medium text-grey-500">
+                <span className="ml-[6px] text-[14px] font-medium text-gray-500">
                   {data.subName}
                 </span>
               )}
             </p>
-            <p className="text-sm font-medium leading-[20px] text-grey-500">
+            <p className="text-sm font-medium leading-[20px] text-gray-500">
               {media.price}
             </p>
           </div>
 
           {hasPopulation && (
             <PopulationSummaryBar
-              monthlyTraffic={data.monthlyTraffic ?? ""}
+              populationText={data.populationText ?? ""}
               mainAudience={mainAudience}
               size="sm"
             />
@@ -93,7 +93,7 @@ export function MediaDetailDrawer({
             <button
               type="button"
               onClick={onAddProposal}
-              className="flex flex-1 items-center justify-center rounded-[8px] bg-platinum-100 px-[16px] py-[12px] text-base font-medium text-black"
+              className="flex flex-1 items-center justify-center rounded-[8px] bg-gray-100 px-[16px] py-[12px] text-base font-medium text-black"
             >
               매체 담기
             </button>

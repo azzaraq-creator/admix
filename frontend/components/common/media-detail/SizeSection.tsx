@@ -35,7 +35,7 @@ export function SizeSection({
     >
       <MaximizeIcon className={cn("shrink-0 text-black", s.icon)} />
       <div className={cn("flex flex-col", s.inner)}>
-        <p className={cn("text-grey-500", s.label)}>사이즈 및 규격</p>
+        <p className={cn("text-gray-500", s.label)}>사이즈 및 규격</p>
         <p className={cn("text-black", s.value)}>{sizeText}</p>
       </div>
     </div>

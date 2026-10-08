@@ -62,7 +62,7 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
         </div>
       ) : count === 0 ? (
         // 매체 없이 만든 기획안 — 다음에 할 일을 알려 준다.
-        <p className="rounded-[12px] border border-dashed border-[#e4e4e7] bg-[#f9fafb] px-[12px] py-[14px] text-center text-[12px] leading-[1.6] break-keep text-[#71717a]">
+        <p className="rounded-[12px] border border-dashed border-[#e4e4e7] bg-[#f5f6fb] px-[12px] py-[14px] text-center text-[12px] leading-[1.6] break-keep text-[#71717a]">
           아직 담긴 매체가 없어요.
           <br />
           믹시에게 매체를 추천받아 이 기획안에 담아 보세요.
@@ -73,7 +73,7 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
             {items.slice(0, PREVIEW_COUNT).map((item) => (
               <li
                 key={item.media_id}
-                className="flex h-[56px] items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f9fafb] px-[8px]"
+                className="flex h-[56px] items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f5f6fb] px-[8px]"
               >
                 <MediaThumbnail
                   src={item.thumbnail_url ?? undefined}

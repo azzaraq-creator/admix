@@ -71,7 +71,7 @@ export function useAdminConfirm() {
             <button
               type="button"
               onClick={() => settle(false)}
-              className="rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] text-sm font-medium leading-[20px] text-[#2f3442] transition-colors hover:bg-[#e2e8f0]"
+              className="rounded-[8px] bg-[#eceef5] px-[16px] py-[10px] text-sm font-medium leading-[20px] text-[#2f3442] transition-colors hover:bg-[#dde0ea]"
             >
               {state?.cancelText ?? "취소"}
             </button>

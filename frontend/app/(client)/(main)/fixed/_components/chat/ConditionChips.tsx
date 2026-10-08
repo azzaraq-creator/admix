@@ -19,7 +19,7 @@ export function MatchedChips({ message }: { message: V2Message }) {
 
   return (
     <div className="space-y-[8px]">
-      <div className="text-xs font-medium tracking-wide text-grey-500">
+      <div className="text-xs font-medium tracking-wide text-gray-500">
         매칭된 조건
       </div>
       <div className="flex flex-wrap gap-[6px]">
@@ -28,7 +28,7 @@ export function MatchedChips({ message }: { message: V2Message }) {
             key={label}
             className="rounded-[6px] border border-stroke bg-secondary px-[8px] py-[2px] text-xs"
           >
-            <span className="text-grey-500">{label}</span>{" "}
+            <span className="text-gray-500">{label}</span>{" "}
             <span className="text-black">{values.join(", ")}</span>
           </span>
         ))}

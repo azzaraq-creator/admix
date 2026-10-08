@@ -9,7 +9,11 @@ import {
 } from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
 import type { MediaItemData } from "@/components/common/MediaItem";
-import { useMediaDetail, type MediaCardRow } from "@/hooks/media";
+import {
+  type MediaCardRow,
+  type OperatingArea,
+  useMediaDetail,
+} from "@/hooks/media";
 
 import {
   MapArea,
@@ -110,6 +114,8 @@ export function FixedMediaView() {
       : { ...DEFAULT_CENTER };
   });
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
+  // 목록에서 마우스를 올린 이동매체의 운행 지역 — 지도에 반투명 영역으로 그린다.
+  const [hoverArea, setHoverArea] = useState<OperatingArea | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [groupPopup, setGroupPopup] = useState<MapMarker[] | null>(null);
   // 지도 팝업 "간략히 보기" — 핀을 바꿔 눌러도 고른 보기를 유지한다.
@@ -178,7 +184,9 @@ export function FixedMediaView() {
         return;
       }
       // 사용자 드래그·줌 → 지금 보이는 영역으로 목록을 다시 조회하고, 골라 둔 마커·지도 팝업은 해제한다.
+      // 목록이 바뀌며 올려 둔 카드가 사라질 수 있어(마우스를 떼는 이벤트가 안 온다) 운행 지역도 지운다.
       setFocusId(undefined);
+      setHoverArea(null);
       setPopupId(null);
       setGroupPopup(null);
       commitViewport(b, false);
@@ -303,7 +311,7 @@ export function FixedMediaView() {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-[16px]">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-[16px]">
       <MediaFindPanel
         selectedId={selectedMedia?.id}
         onSelectMedia={setSelectedMedia}
@@ -317,6 +325,7 @@ export function FixedMediaView() {
         onMapData={handleMapData}
         onRequestMapMove={handleRequestMapMove}
         getViewport={() => lastViewportRef.current}
+        onHoverArea={setHoverArea}
         mapSlot={
           <MapArea
             markers={markers}
@@ -365,6 +374,7 @@ export function FixedMediaView() {
               ) : null
             }
             onPopupClose={closePopup}
+            highlightArea={hoverArea}
             className="size-full"
           />
         }

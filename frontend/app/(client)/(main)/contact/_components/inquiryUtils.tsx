@@ -58,7 +58,7 @@ export function ContactEmptyState({
       <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#f4f4f5] text-[#52525b]">
         {icon}
       </span>
-      <p className="text-[16px] font-semibold text-black-900">{title}</p>
+      <p className="text-[16px] font-semibold text-gray-900">{title}</p>
       {description && (
         <p className="text-[13px] leading-[1.6] text-[#8c8c94]">
           {description}

@@ -10,15 +10,29 @@ export const mediaKeys = {
     [...mediaKeys.all, "moving", "filter-options"] as const,
   fixedList: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "list", filters ?? {}] as const,
-  fixedCount: (filters?: MediaFilterParams) =>
-    [...mediaKeys.all, "fixed", "count", filters ?? {}] as const,
+  findCount: (filters?: MediaFilterParams) =>
+    [...mediaKeys.all, "find", "count", filters ?? {}] as const,
   fixedClusters: (zoom: number, filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "clusters", zoom, filters ?? {}] as const,
   fixedPriceHistogram: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "price-histogram", filters ?? {}] as const,
-  fixedFilterOptions: () =>
-    [...mediaKeys.all, "fixed", "filter-options"] as const,
+  filterOptions: () => [...mediaKeys.all, "filter-options"] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,
+  adminFieldOptions: () =>
+    [...mediaKeys.all, "admin", "field-options"] as const,
+  adminRealtimePopulation: (
+    lat: number | null,
+    lng: number | null,
+    mediaId: string | null,
+  ) =>
+    [
+      ...mediaKeys.all,
+      "admin",
+      "realtime-population",
+      lat,
+      lng,
+      mediaId,
+    ] as const,
   adminDetail: (id: string) =>
     [...mediaKeys.all, "admin", "detail", id] as const,
 };

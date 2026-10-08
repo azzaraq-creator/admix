@@ -52,7 +52,7 @@ export function MediaItem({
       onClick={onClick}
       className={cn(
         "flex w-full items-start gap-[12px] rounded-[8px] border border-stroke px-[16px] py-[24px]",
-        selected ? "bg-grey-50" : "bg-white",
+        selected ? "bg-gray-50" : "bg-white",
         onClick && "cursor-pointer",
         className,
       )}
@@ -87,7 +87,7 @@ export function MediaItem({
               <p className="truncate text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                 {name}
               </p>
-              <p className="truncate text-sm font-medium leading-[20px] text-grey-500">
+              <p className="truncate text-sm font-medium leading-[20px] text-gray-500">
                 {price}
               </p>
             </div>
@@ -99,7 +99,7 @@ export function MediaItem({
               onAddProposal?.();
             }}
             aria-label="기획안 담기"
-            className="flex shrink-0 items-center justify-center rounded-full border border-[#d3d4d6] p-[8px] text-black transition-colors hover:bg-platinum-100"
+            className="flex shrink-0 items-center justify-center rounded-full border border-[#d3d4d6] p-[8px] text-black transition-colors hover:bg-gray-100"
           >
             <FolderPlusIcon className="size-[20px]" />
           </button>

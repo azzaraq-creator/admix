@@ -1,19 +1,21 @@
-import type { MediaFilterOptions } from "@/hooks/media";
+import type { MediaFilterOptions, RegionOption } from "@/hooks/media";
 
 export type ChipDimKey =
-  | "category"
-  | "saleType"
-  | "oohType"
-  | "exposureType"
-  | "mediaShape";
+  "category" | "saleType" | "oohType" | "exposureType" | "mediaShape";
 
 export type FilterPanelKey = ChipDimKey | "price";
 
 export type FilterOption = { label: string; value: string };
 
-export type PriceMeta = { min: number; max: number; histogram: number[] } | null;
+export type PriceMeta = {
+  min: number;
+  max: number;
+  histogram: number[];
+} | null;
 
 export type MediaFilterState = {
+  /** 지역 — "서울특별시"(시·도 전체) 또는 "서울특별시 강남구". 매체 찾기에서만 고른다. */
+  region: string[];
   category: string[];
   saleType: string[];
   oohType: string[];
@@ -24,6 +26,7 @@ export type MediaFilterState = {
 };
 
 export const EMPTY_MEDIA_FILTER: MediaFilterState = {
+  region: [],
   category: [],
   saleType: [],
   oohType: [],
@@ -59,24 +62,32 @@ export function toOptions(key: ChipDimKey, values: string[]): FilterOption[] {
 export const FILTER_DIMS: { key: FilterPanelKey; label: string }[] = [
   { key: "category", label: "카테고리" },
   { key: "price", label: "가격 범위" },
-  { key: "saleType", label: "매체 판매 유형" },
+  { key: "saleType", label: "판매 유형" },
   { key: "oohType", label: "매체 타입" },
   { key: "exposureType", label: "설치 장소" },
   { key: "mediaShape", label: "매체 형태" },
 ];
 
 export function dimSelectionCount(
-  key: FilterPanelKey,
+  key: FilterPanelKey | "region",
   f: MediaFilterState,
 ): number {
   if (key === "price") return f.priceMin != null || f.priceMax != null ? 1 : 0;
   return f[key].length;
 }
 
+/** 지역 필터 값 → 칩 글자 — "서울특별시" → "서울 전체", "서울특별시 강남구" → "서울 강남구". */
+export function regionLabel(value: string, regions: RegionOption[]): string {
+  const [sido, district] = value.split(" ", 2);
+  const short = regions.find((r) => r.sido === sido)?.label ?? sido;
+  return district ? `${short} ${district}` : `${short} 전체`;
+}
+
 // 백엔드 filter-options 응답을 필터 UI가 쓰는 형태로 변환. fixed/moving 공용.
 export function buildFilterUi(opts: MediaFilterOptions | undefined): {
   optionsByKey: Record<ChipDimKey, FilterOption[]>;
   price: PriceMeta;
+  regions: RegionOption[];
 } {
   const optionsByKey: Record<ChipDimKey, FilterOption[]> = {
     category: toOptions("category", opts?.categories ?? []),
@@ -93,11 +104,12 @@ export function buildFilterUi(opts: MediaFilterOptions | undefined): {
           histogram: opts.price_histogram,
         }
       : null;
-  return { optionsByKey, price };
+  return { optionsByKey, price, regions: opts?.regions ?? [] };
 }
 
 // MediaFilterState → API 필터 파라미터(칩 차원). bbox/pagination 은 호출부에서 병합.
 export function toChipFilterParams(f: MediaFilterState): {
+  region: string[];
   category: string[];
   oohType: string[];
   exposureType: string[];
@@ -107,6 +119,7 @@ export function toChipFilterParams(f: MediaFilterState): {
   priceMax: number | null;
 } {
   return {
+    region: f.region,
     category: f.category,
     oohType: f.oohType,
     exposureType: f.exposureType,

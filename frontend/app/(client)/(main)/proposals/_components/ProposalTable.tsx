@@ -81,9 +81,9 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
   // 그 안에서 스크롤된다. 없으면 목록이 360px을 고집해 Popover 밖으로 넘친다.
   return (
     <div className="flex min-h-0 w-full flex-col gap-[12px]">
-      <p className="text-[14px] font-bold text-[#111827]">기획안 요약</p>
+      <p className="text-[14px] font-bold text-[#161A2E]">기획안 요약</p>
       {proposal.previews.length === 0 ? (
-        <p className="text-[12px] text-[#6b7280]">아직 담긴 매체가 없어요.</p>
+        <p className="text-[12px] text-[#727892]">아직 담긴 매체가 없어요.</p>
       ) : (
         // 아이패드 사파리는 흐림(mask)이 걸린 목록을 손가락으로 스크롤하는 동안 목록을 따로 그리면서
         // 바깥을 잘라 내지 못해, 카드가 Popover 밖으로 넘쳐 보였다. 감싸는 칸에서 clip-path로 확실히 자른다.
@@ -102,27 +102,27 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
                     fallback={<Logo className="size-[16px] opacity-30" />}
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-                    <p className="truncate text-[14px] font-semibold text-[#111827]">
+                    <p className="truncate text-[14px] font-semibold text-[#161A2E]">
                       {item.name}
                     </p>
-                    <p className="truncate text-[12px] text-[#6b7280]">
+                    <p className="truncate text-[12px] text-[#727892]">
                       {item.address ?? "-"}
                     </p>
                   </div>
                   {/* 금액 칸 — 광고비 14px·제작비 12px(이름표 11px). 억 단위 금액도 들어가게 160px. */}
-                  <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-[#e5e7eb] bg-[#f8fafc] px-[8px] py-[5px] whitespace-nowrap">
+                  <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-[#dde0ea] bg-[#f5f6fb] px-[8px] py-[5px] whitespace-nowrap">
                     <div className="flex items-center justify-between gap-[8px]">
-                      <span className="text-[11px] text-[#6b7280]">광고비</span>
-                      <span className="text-[14px] leading-[20px] font-bold text-[#111827]">
+                      <span className="text-[11px] text-[#727892]">광고비</span>
+                      <span className="text-[14px] leading-[20px] font-bold text-[#161A2E]">
                         {won(item.advertisement_fee)}
                       </span>
                     </div>
                     {item.production_fee != null && (
                       <div className="flex items-center justify-between gap-[8px]">
-                        <span className="text-[11px] text-[#6b7280]">
+                        <span className="text-[11px] text-[#727892]">
                           제작비
                         </span>
-                        <span className="text-[12px] leading-[16px] font-bold text-[#111827]">
+                        <span className="text-[12px] leading-[16px] font-bold text-[#161A2E]">
                           {won(item.production_fee)}
                         </span>
                       </div>

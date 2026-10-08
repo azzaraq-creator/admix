@@ -13,17 +13,17 @@ import { XIcon } from "@/components/icons";
 
 /**
  * 창 안 입력칸(HeroUI Input) — 로그인 창·매체 찾기 검색바와 같은 ADMIX 입력칸.
- * 회색 필(black-100 바탕·black-200 테두리), 올리거나 입력 중이면 흰 바탕(테두리는 그대로라 흰 창 위에서도 보인다).
+ * 회색 필(gray-100 바탕·gray-200 테두리), 올리거나 입력 중이면 흰 바탕(테두리는 그대로라 흰 창 위에서도 보인다).
  * 포커스 링 대신 입력 중에는 1px 테두리가 보라색으로(잠긴 칸 제외), 잘못된 입력이면 테두리만 빨갛게.
  */
 export const MODAL_INPUT_CLASS =
-  "h-[40px] w-full rounded-[17px] border border-black-200 bg-black-100 px-[16px] text-[14px] text-black-900 transition-colors [box-shadow:none]! max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px] " +
-  "placeholder:text-black-400 data-[hovered=true]:bg-white data-[focused=true]:bg-white focus:not-read-only:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none " +
-  "data-[disabled=true]:bg-black-50 data-[disabled=true]:opacity-100 data-[disabled=true]:text-black-400";
+  "h-[40px] w-full rounded-[17px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px] " +
+  "placeholder:text-gray-400 data-[hovered=true]:bg-white data-[focused=true]:bg-white focus:not-read-only:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none " +
+  "data-[disabled=true]:bg-gray-50 data-[disabled=true]:opacity-100 data-[disabled=true]:text-gray-400";
 
 /** 창 안 라벨(HeroUI Label). */
 export const MODAL_LABEL_CLASS =
-  "text-[13px] font-medium text-black-700 max-sm:text-[12px]";
+  "text-[13px] font-medium text-gray-700 max-sm:text-[12px]";
 
 /** 창 안 오류 문구(HeroUI FieldError). */
 export const MODAL_ERROR_CLASS = "text-[12px] text-danger max-sm:text-[11px]";
@@ -64,17 +64,17 @@ export function ProfileModalShell({
                 모바일은 위 20px + 줄높이 22px → 가운데 31px, X 28px → top 17px. */}
             <Modal.CloseTrigger
               aria-label="닫기"
-              className="top-[25px] right-[20px] size-[32px] rounded-full max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px] bg-transparent p-0 text-black-400 data-[hovered=true]:bg-black-50 data-[hovered=true]:text-black"
+              className="top-[25px] right-[20px] size-[32px] rounded-full max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
             >
               <XIcon className="size-[20px] max-sm:size-[18px]" />
             </Modal.CloseTrigger>
 
             <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[32px]">
-              <Modal.Heading className="text-[18px] leading-[26px] font-bold text-black-900 max-sm:text-[16px] max-sm:leading-[22px]">
+              <Modal.Heading className="text-[18px] leading-[26px] font-bold text-gray-900 max-sm:text-[16px] max-sm:leading-[22px]">
                 {title}
               </Modal.Heading>
               {description && (
-                <p className="text-[13px] leading-[20px] text-black-500 max-sm:text-[12px] max-sm:leading-[18px]">
+                <p className="text-[13px] leading-[20px] text-gray-500 max-sm:text-[12px] max-sm:leading-[18px]">
                   {description}
                 </p>
               )}

@@ -8,9 +8,11 @@ import { XIcon } from "@/components/icons";
 import { API_BASE_URL } from "@/lib/api";
 import {
   useDeleteMediaImage,
+  useSetMediaThumbnail,
   useUploadMediaImage,
   type MediaImageItem,
 } from "@/hooks/media";
+import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 50;
 
@@ -31,6 +33,7 @@ export function MediaPhotoSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const upload = useUploadMediaImage();
   const remove = useDeleteMediaImage();
+  const setThumbnail = useSetMediaThumbnail();
 
   // 등록 모드: 로컬 대기 파일 미리보기 URL (변경 시 이전 URL revoke)
   const previews = useMemo(
@@ -61,11 +64,10 @@ export function MediaPhotoSection({
       <h2 className="text-lg font-bold leading-[28px] text-black">
         매체 사진 {count}/{MAX_IMAGES}
       </h2>
-      {!mediaId && (
-        <p className="text-sm font-medium leading-[20px] text-disabled">
-          저장 시 함께 등록됩니다.
-        </p>
-      )}
+      <p className="text-sm font-medium leading-[20px] text-disabled">
+        {mediaId ? "" : "저장 시 함께 등록됩니다. "}
+        대표 이미지는 목록 카드·지도·기획안에 첫 사진으로 쓰입니다.
+      </p>
 
       <div className="flex items-start gap-[10px]">
         {/* 업로드 박스 */}
@@ -99,6 +101,10 @@ export function MediaPhotoSection({
                   <Thumbnail
                     key={img.id}
                     src={toSrc(img.image_url)}
+                    isThumbnail={img.is_thumbnail}
+                    onSetThumbnail={() =>
+                      setThumbnail.mutate({ id: mediaId, imageId: img.id })
+                    }
                     onDelete={() =>
                       remove.mutate({ id: mediaId, imageId: img.id })
                     }
@@ -108,8 +114,18 @@ export function MediaPhotoSection({
                   <Thumbnail
                     key={`${file.name}-${i}`}
                     src={previews[i]}
+                    // 등록: 첫 번째로 올라가는 사진이 대표가 된다 — 고른 사진을 맨 앞으로 옮긴다.
+                    isThumbnail={i === 0}
+                    onSetThumbnail={() =>
+                      onPendingChange([
+                        file,
+                        ...pendingFiles.filter((_, idx) => idx !== i),
+                      ])
+                    }
                     onDelete={() =>
-                      onPendingChange(pendingFiles.filter((_, idx) => idx !== i))
+                      onPendingChange(
+                        pendingFiles.filter((_, idx) => idx !== i),
+                      )
                     }
                   />
                 ))}
@@ -129,9 +145,24 @@ export function MediaPhotoSection({
   );
 }
 
-function Thumbnail({ src, onDelete }: { src: string; onDelete: () => void }) {
+function Thumbnail({
+  src,
+  isThumbnail,
+  onSetThumbnail,
+  onDelete,
+}: {
+  src: string;
+  isThumbnail: boolean;
+  onSetThumbnail: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <div className="relative flex size-[200px] shrink-0 flex-col items-end rounded-[8px] p-[16px]">
+    <div
+      className={cn(
+        "relative flex size-[200px] shrink-0 flex-col items-end justify-between rounded-[8px] p-[16px]",
+        isThumbnail && "ring-2 ring-primary",
+      )}
+    >
       <Image
         src={src}
         alt=""
@@ -148,6 +179,19 @@ function Thumbnail({ src, onDelete }: { src: string; onDelete: () => void }) {
       >
         <XIcon className="size-[18px] text-white" />
       </button>
+      {isThumbnail ? (
+        <span className="relative self-start rounded-[6px] bg-primary px-[10px] py-[4px] text-[12px] font-bold leading-[16px] text-white">
+          대표 이미지
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onSetThumbnail}
+          className="relative self-start rounded-[6px] bg-black/70 px-[10px] py-[4px] text-[12px] font-bold leading-[16px] text-white transition-opacity hover:opacity-90"
+        >
+          대표로 지정
+        </button>
+      )}
     </div>
   );
 }

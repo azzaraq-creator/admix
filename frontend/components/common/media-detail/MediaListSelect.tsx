@@ -61,7 +61,7 @@ export function MediaListSelect({
             <div className={cn("flex min-w-0 flex-1 flex-col", s.textGap)}>
               <p className={cn("text-black", s.title)}>{item.title}</p>
               {item.subtitle && (
-                <p className={cn("text-grey-500", s.subtitle)}>
+                <p className={cn("text-gray-500", s.subtitle)}>
                   {item.subtitle}
                 </p>
               )}

@@ -49,7 +49,7 @@ export function SlideSidebar({
   };
 
   return (
-    <aside className="flex w-[197px] shrink-0 flex-col border-r border-[#e5e7eb]">
+    <aside className="flex w-[197px] shrink-0 flex-col border-r border-[#dde0ea]">
       {/* 세로 스크롤바가 자리를 차지하는 환경(스크롤 막대 항상 보기·마우스 연결)에서도 가로 스크롤이
           생기지 않게 가로 넘침은 숨기고, 썸네일 카드는 남는 폭에 맞춰 줄어든다(최대 150px).
           슬라이드가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
@@ -67,7 +67,7 @@ export function SlideSidebar({
           return (
             <Fragment key={slide.id}>
               {showDivider && (
-                <div className="h-px w-full shrink-0 bg-[#e5e7eb]" />
+                <div className="h-px w-full shrink-0 bg-[#dde0ea]" />
               )}
               <div
                 draggable={canEdit && armed === index}
@@ -110,7 +110,7 @@ export function SlideSidebar({
                 )}
                 {/* 번호(16px 칸) — 매체 슬라이드는 아래에 끌기 손잡이. */}
                 <div className="flex w-[16px] shrink-0 flex-col items-center gap-[11px] pt-[10px]">
-                  <span className="text-center text-[12px] leading-[14px] text-[#6b7280]">
+                  <span className="text-center text-[12px] leading-[14px] text-[#727892]">
                     {index + 1}
                   </span>
                   {canEdit && (
@@ -122,7 +122,7 @@ export function SlideSidebar({
                       onPointerUp={() => {
                         if (from === null) setArmed(null);
                       }}
-                      className="-my-[7px] flex h-[24px] w-[16px] cursor-grab items-center justify-center rounded-[4px] hover:bg-[#e5e7eb] active:cursor-grabbing"
+                      className="-my-[7px] flex h-[24px] w-[16px] cursor-grab items-center justify-center rounded-[4px] hover:bg-[#dde0ea] active:cursor-grabbing"
                     >
                       <Image
                         src="/icons/proposal-detail/grip.svg"
@@ -145,21 +145,21 @@ export function SlideSidebar({
                   className={cn(
                     "relative flex h-[95px] max-w-[150px] min-w-0 flex-1 flex-col items-center rounded-[10px] bg-white p-[4px] text-left transition-colors",
                     selected
-                      ? "border-2 border-[#a33bd1] p-[3px]"
-                      : "border border-[#e5e7eb] hover:border-[#d4d4d8]",
+                      ? "border-2 border-[#7a3fe0] p-[3px]"
+                      : "border border-[#dde0ea] hover:border-[#d4d4d8]",
                   )}
                 >
                   <span
                     className={cn(
                       "relative h-[67px] w-full shrink-0 overflow-hidden rounded-[5px]",
-                      selected ? "bg-[#e2e8f0]" : "bg-[#f1f5f9]",
+                      selected ? "bg-[#dde0ea]" : "bg-[#eceef5]",
                     )}
                   >
                     {renderThumb(slide)}
                   </span>
                   <span
                     className={cn(
-                      "mt-[5px] w-full truncate text-center text-[11px] leading-[13px] text-[#1f2937]",
+                      "mt-[5px] w-full truncate text-center text-[11px] leading-[13px] text-[#262a3d]",
                       selected ? "font-bold" : "font-medium",
                     )}
                   >
@@ -183,7 +183,7 @@ export function SlideSidebar({
                         }
                       }}
                       className={cn(
-                        "absolute flex size-[20px] items-center justify-center rounded-[7px] bg-[#6b7280] text-white transition-colors hover:bg-[#4b5563]",
+                        "absolute flex size-[20px] items-center justify-center rounded-[7px] bg-[#727892] text-white transition-colors hover:bg-[#555b73]",
                         selected
                           ? "top-[8px] right-[8px]"
                           : "top-[9px] right-[9px]",
@@ -205,7 +205,7 @@ export function SlideSidebar({
           <Button
             variant="ghost"
             onPress={onAddFromFavorites}
-            className="h-[40px] w-full gap-[10px] rounded-[17px] border border-[#e5e7eb] bg-white px-[10px] text-[12px] font-semibold text-[#111827] shadow-[0px_2px_8px_0px_rgba(229,231,235,0.5)] data-[hovered=true]:bg-[#fafafa]"
+            className="h-[40px] w-full gap-[10px] rounded-[17px] border border-[#dde0ea] bg-white px-[10px] text-[12px] font-semibold text-[#161A2E] shadow-[0px_2px_8px_0px_rgba(229,231,235,0.5)] data-[hovered=true]:bg-[#fafafa]"
           >
             <Image
               src="/icons/proposal-detail/add-favorites.svg"

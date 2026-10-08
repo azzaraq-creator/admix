@@ -158,13 +158,13 @@ export function HelpView() {
   };
 
   return (
-    <div className="min-w-0 flex-1 overflow-y-auto bg-black-50">
+    <div className="min-w-0 flex-1 overflow-y-auto bg-gray-50">
       <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[40px]">
         <header className="flex flex-col gap-[6px]">
-          <h1 className="text-[18px] leading-[26px] font-bold text-black-900 sm:text-[26px] sm:leading-[34px]">
+          <h1 className="text-[18px] leading-[26px] font-bold text-gray-900 sm:text-[26px] sm:leading-[34px]">
             약관 및 정책
           </h1>
-          <p className="text-[12px] leading-[18px] text-black-500 max-sm:break-keep sm:text-[14px] sm:leading-[inherit]">
+          <p className="text-[12px] leading-[18px] text-gray-500 max-sm:break-keep sm:text-[14px] sm:leading-[inherit]">
             ADMIXAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수
             있어요.
           </p>
@@ -234,9 +234,9 @@ export function HelpView() {
         <div className="mt-[16px] grid gap-[20px] sm:mt-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
           <nav
             aria-label="목차"
-            className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-black-200 bg-white lg:flex"
+            className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white lg:flex"
           >
-            <p className="shrink-0 px-[20px] pt-[12px] pb-[8px] text-[12px] font-semibold text-black-400">
+            <p className="shrink-0 px-[20px] pt-[12px] pb-[8px] text-[12px] font-semibold text-gray-400">
               목차
             </p>
             {/* 목차가 길어 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) — 테두리는 바깥 nav에 둔다. */}
@@ -253,13 +253,13 @@ export function HelpView() {
                     aria-current={active ? "location" : undefined}
                     onClick={() => jumpTo(s.id)}
                     className={cn(
-                      "flex shrink-0 gap-[6px] rounded-[10px] px-[8px] py-[6px] text-left text-[13px] leading-[18px] transition-colors hover:bg-black-50 hover:text-black-900",
+                      "flex shrink-0 gap-[6px] rounded-[10px] px-[8px] py-[6px] text-left text-[13px] leading-[18px] transition-colors hover:bg-gray-50 hover:text-gray-900",
                       active
-                        ? "bg-black-50 font-semibold text-black-900"
-                        : "text-black-600",
+                        ? "bg-gray-50 font-semibold text-gray-900"
+                        : "text-gray-600",
                     )}
                   >
-                    <span className="shrink-0 text-black-400">{s.num}</span>
+                    <span className="shrink-0 text-gray-400">{s.num}</span>
                     <span className="min-w-0 break-keep">{s.title}</span>
                   </button>
                 );
@@ -269,10 +269,10 @@ export function HelpView() {
 
           <article
             ref={articleRef}
-            className="relative flex min-h-0 flex-col rounded-[20px] border border-black-200 bg-white p-[20px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
+            className="relative flex min-h-0 flex-col rounded-[20px] border border-gray-200 bg-white p-[20px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
           >
             {intro && (
-              <div className="mb-[20px] shrink-0 rounded-[14px] bg-black-50 p-[14px] sm:mb-[24px] sm:px-[18px]">
+              <div className="mb-[20px] shrink-0 rounded-[14px] bg-gray-50 p-[14px] sm:mb-[24px] sm:px-[18px]">
                 <TermsSectionBody section={intro} />
               </div>
             )}
@@ -283,11 +283,11 @@ export function HelpView() {
                 className={cn(
                   "shrink-0",
                   i > 0 &&
-                    "mt-[20px] border-t border-black-100 pt-[20px] sm:mt-[24px] sm:pt-[24px]",
+                    "mt-[20px] border-t border-gray-100 pt-[20px] sm:mt-[24px] sm:pt-[24px]",
                 )}
               >
-                <h2 className="mb-[8px] flex flex-wrap items-baseline gap-x-[8px] text-[14px] leading-[20px] font-bold text-black-900 sm:mb-[10px] sm:text-[16px] sm:leading-[24px]">
-                  <span className="text-black-400">{s.num}</span>
+                <h2 className="mb-[8px] flex flex-wrap items-baseline gap-x-[8px] text-[14px] leading-[20px] font-bold text-gray-900 sm:mb-[10px] sm:text-[16px] sm:leading-[24px]">
+                  <span className="text-gray-400">{s.num}</span>
                   {s.title && <span>{s.title}</span>}
                 </h2>
                 <TermsSectionBody section={s} />

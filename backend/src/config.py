@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:3000"
     geoapify_api_key: str = ""  # 기획안 PPT 매체 슬라이드 정적지도용 (Geoapify Static Maps)
+    seoul_openapi_key: str = ""  # 서울 열린데이터광장 인증키 — 매체 정보 팝업의 실시간 인구(citydata_ppltn)
     port: int = 8000
 
     # 비동기 AI 추천 (SQS + Lambda)
@@ -26,6 +27,9 @@ class Settings(BaseSettings):
 
     # 매체 이미지 저장 S3 (퍼블릭 read 버킷)
     s3_bucket: str = "ooh-image-public"
+    # 매체 이미지 저장 위치 — "s3"(기본, EC2 인스턴스 역할로 인증) 또는 "local"(upload_dir/media, 로컬 개발용).
+    # 로컬엔 AWS 인증 정보가 없어 S3 업로드가 실패하므로 로컬 .env 에서만 local 로 둔다.
+    media_image_storage: str = "s3"
 
     # GA4 Data API (관리자 대시보드 홈 진입 수). 둘 중 하나라도 비면 GA4 집계 비활성(0 반환).
     ga4_property_id: str = ""  # 숫자 속성 ID (측정 ID G-XXXX 아님)
@@ -53,6 +57,8 @@ class Settings(BaseSettings):
     kakao_client_id: str = ""
     kakao_client_secret: str = ""
     kakao_redirect_uri: str = "http://localhost:3000/oauth/kakao/callback"
+    # 카카오 로컬(주소 검색) REST API 키 — 엑셀 일괄 등록에서 도로명 주소로 좌표 등을 채운다. 비우면 kakao_client_id 를 쓴다.
+    kakao_rest_api_key: str = ""
 
     naver_client_id: str = ""
     naver_client_secret: str = ""

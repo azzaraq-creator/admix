@@ -71,7 +71,7 @@ export function AdminSidebar() {
           type="button"
           aria-label="메뉴 열기"
           onClick={() => setDrawerOpen(true)}
-          className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-platinum-100"
+          className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-gray-100"
         >
           <MenuIcon className="size-[24px]" />
         </button>
@@ -92,7 +92,7 @@ export function AdminSidebar() {
                 type="button"
                 aria-label="메뉴 닫기"
                 onClick={() => setDrawerOpen(false)}
-                className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-platinum-100"
+                className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-gray-100"
               >
                 <XIcon className="size-[20px]" />
               </button>
@@ -146,7 +146,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const topClass = (active: boolean) =>
     `flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
-      active ? "bg-primary text-white" : "text-[#364153] hover:bg-platinum-100"
+      active ? "bg-primary text-white" : "text-[#364153] hover:bg-gray-100"
     }`;
 
   return (
@@ -170,7 +170,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
               onClick={() => setBusinessOpen((value) => !value)}
               className={`flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
                 businessActive ? "text-primary" : "text-[#364153]"
-              } hover:bg-platinum-100`}
+              } hover:bg-gray-100`}
             >
               <span className="flex-1 text-left">비즈니스 관리</span>
               <ChevronDownIcon
@@ -191,7 +191,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
                       className={`flex items-center rounded-[8px] py-[10px] pl-[36px] pr-[20px] text-sm leading-[20px] ${
                         active
                           ? "font-semibold text-primary"
-                          : "font-medium text-[#4a5565] hover:bg-platinum-100"
+                          : "font-medium text-[#4a5565] hover:bg-gray-100"
                       }`}
                     >
                       {link.label}
@@ -219,7 +219,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-platinum-100"
+          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-gray-100"
         >
           <LogOutIcon className="size-[20px] shrink-0" />
           로그아웃

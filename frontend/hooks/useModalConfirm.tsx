@@ -21,8 +21,11 @@ type ConfirmOptions = {
   hideCancel?: boolean;
   /** 제목 위 아이콘(회색 칸) — 예: 안내용 느낌표. destructive면 빨간 휴지통이 우선한다. */
   icon?: ReactNode;
-  /** 아이콘 칸 색 — primary면 연보라 바탕(아이콘도 메인 컬러로 넘긴다). 기본은 회색. */
-  iconTone?: "neutral" | "primary";
+  /**
+   * 아이콘 칸 색 — primary면 연보라 바탕(아이콘도 메인 컬러), danger면 옅은 빨강 바탕에 빨간 아이콘
+   * (삭제 확인의 휴지통 칸과 같은 바탕)이고 확인 버튼도 빨강(HeroUI danger)이 된다. 기본은 회색.
+   */
+  iconTone?: "neutral" | "primary" | "danger";
   /**
    * 기획안 제출·제출 취소 시안("03. 제안서 - 상세" 컨펌) 모양 — 설명 16px 진회색, 버튼은 오른쪽에
    * 내용 폭(취소 90px · 확인 130px)으로 붙인다. width로 창 폭을 정한다(기본 400px).
@@ -62,6 +65,9 @@ export function useModalConfirm() {
     setOpen(false);
   }, []);
 
+  // 확인 버튼을 빨강으로 — 삭제 확인이거나 빨간 아이콘 칸일 때.
+  const danger = options?.destructive || options?.iconTone === "danger";
+
   const confirmDialog = (
     <Modal
       isOpen={open}
@@ -99,7 +105,9 @@ export function useModalConfirm() {
                     "mb-[6px] flex size-[44px] items-center justify-center rounded-[19px]",
                     options.iconTone === "primary"
                       ? "bg-primary-50 text-primary-500"
-                      : "bg-[#f4f4f5] text-[#52525b]",
+                      : options.iconTone === "danger"
+                        ? "bg-[#fef2f2] text-danger"
+                        : "bg-[#f4f4f5] text-[#52525b]",
                   )}
                 >
                   {options.icon}
@@ -108,7 +116,7 @@ export function useModalConfirm() {
               <Modal.Heading
                 className={cn(
                   "text-[16px] leading-[1.4] font-semibold break-keep text-black",
-                  options?.compactActions && "font-bold text-[#111827]",
+                  options?.compactActions && "font-bold text-[#161A2E]",
                 )}
               >
                 {options?.title}
@@ -118,7 +126,7 @@ export function useModalConfirm() {
                   className={cn(
                     "text-[14px] leading-[1.6] whitespace-pre-line text-[#71717a]",
                     options?.compactActions &&
-                      "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-[#374151]",
+                      "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-[#3D4258]",
                   )}
                 >
                   {options.description}
@@ -146,12 +154,12 @@ export function useModalConfirm() {
                 </Button>
               )}
               <Button
-                variant={options?.destructive ? "danger" : "primary"}
+                variant={danger ? "danger" : "primary"}
                 onPress={() => settle(true)}
                 className={cn(
                   ACTION_CLASS,
                   options?.compactActions && "w-[130px] flex-none",
-                  !options?.destructive &&
+                  !danger &&
                     (options?.neutral
                       ? "bg-[#eee] text-[#18181b]"
                       : "bg-primary-500 text-white"),

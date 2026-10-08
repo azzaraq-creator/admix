@@ -18,11 +18,11 @@ import {
 } from "./mapTypes";
 
 /**
- * 매체명 말풍선 — 마커와 같은 모양새: 보라(#A33BD1) 바탕에 흰 글자, 아래 뾰족한 꼬리, 마커와 같은 그림자.
+ * 매체명 말풍선 — 마커와 같은 모양새: 보라(#7A3FE0) 바탕에 흰 글자, 아래 뾰족한 꼬리, 마커와 같은 그림자.
  * 선택(포커스)되면 포커스 마커처럼 흰 바탕·보라 테두리·보라 글자. 이름이 길면 말줄임(전체 이름은 title).
  * 바깥 상자(아래 여백 = 꼬리 길이)의 아래 가운데가 매체 위치다(yAnchor 1).
  */
-const PIN_COLOR = "#A33BD1";
+const PIN_COLOR = "#7A3FE0";
 
 function bubbleCss(selected: boolean) {
   const bg = selected ? "#ffffff" : PIN_COLOR;
@@ -142,8 +142,8 @@ function groupKeyOf(lat: number, lng: number): string {
 function numberPinCss(size: number, selected: boolean): string {
   const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.42)}px;font-weight:600;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;`;
   return selected
-    ? `${base}background:#ffffff;border:${(size * 0.05).toFixed(1)}px solid #a33bd1;color:#a33bd1;`
-    : `${base}background:#a33bd1;color:#ffffff;`;
+    ? `${base}background:#ffffff;border:${(size * 0.05).toFixed(1)}px solid #7a3fe0;color:#7a3fe0;`
+    : `${base}background:#7a3fe0;color:#ffffff;`;
 }
 
 export function useMapMarkers({

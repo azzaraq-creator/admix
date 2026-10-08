@@ -216,7 +216,7 @@ export function ProposalsView() {
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
             내 기획안
           </h1>
-          <p className="text-[13px] font-light text-[#6b7280]">
+          <p className="text-[13px] font-light text-[#727892]">
             기획안 {proposals.length}건
             {/* 모바일(sm 미만)에서는 설명 문구를 숨긴다. */}
             <span className="hidden sm:inline">
@@ -276,7 +276,7 @@ export function ProposalsView() {
           }}
           className="w-full sm:w-[350px]"
         >
-          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-black-200 bg-black-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
+          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
             <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
             <SearchField.Input
               placeholder="기획안명으로 검색해 보세요"
@@ -391,7 +391,7 @@ function EmptyStateBox({
         </span>
       )}
       {title && (
-        <p className="text-[16px] font-semibold text-black-900">{title}</p>
+        <p className="text-[16px] font-semibold text-gray-900">{title}</p>
       )}
       {description && (
         <p className="text-[13px] leading-[1.6] text-[#8c8c94]">

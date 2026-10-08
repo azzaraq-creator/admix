@@ -51,14 +51,14 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#e5e7eb] bg-white p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#dde0ea] bg-white p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
       <div className="flex items-center gap-[12px]">
         <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-[#2a2a2a]">
-          맞춤제안서 명
+          맞춤기획안 명
         </span>
         <span className="shrink-0 text-base font-semibold leading-[24px] text-[#d65856]">
           *

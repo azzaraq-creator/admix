@@ -9,11 +9,11 @@ export function BusinessUploadIcon(props: IconProps) {
       fill="none"
       {...props}
     >
-      <circle cx="40" cy="40" r="40" fill="#F5F3FF" />
+      <circle cx="40" cy="40" r="40" fill="#F6F4FE" />
       <g
         transform="translate(24 24) scale(1.3333)"
         fill="none"
-        stroke="#A33BD1"
+        stroke="#7A3FE0"
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"

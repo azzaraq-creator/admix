@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
-from src.services import proposal_service
+from src.services import media_service, proposal_service
 from src.services.graph.llm import get_chat
 
 DEFAULT_TOP_K = 20
@@ -443,12 +443,9 @@ def _explain_with_llm(item: dict, detail: dict | None, aspect: str | None = None
             facts.append(f"규격: {detail['sizeText']}")
         for f in detail.get("features") or []:
             facts.append(f"{f.get('label')}: {f.get('value')}")
-        pop = detail.get("population")
-        if pop and pop.get("monthlyFootTraffic"):
-            facts.append(
-                f"유동인구(상권 {pop.get('sangwonName')}): 월 {pop['monthlyFootTraffic']:,}명, "
-                f"남 {pop.get('malePct')}% / 여 {pop.get('femalePct')}%"
-            )
+        pop_fact = media_service.population_fact(detail.get("population"))
+        if pop_fact:
+            facts.append(pop_fact)
         fee_min = detail.get("minAdvertisementFeeKrw")
         if fee_min:
             facts.append(f"최소 광고비: {fee_min:,}원")

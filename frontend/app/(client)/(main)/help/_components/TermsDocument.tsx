@@ -48,7 +48,7 @@ function TermsLine({ line }: { line: string }): ReactNode {
   if (numbered)
     return (
       <p className="flex gap-[8px]">
-        <span className="w-[22px] shrink-0 text-right text-black-400 tabular-nums">
+        <span className="w-[22px] shrink-0 text-right text-gray-400 tabular-nums">
           {numbered[1]}.
         </span>
         <span>{numbered[2]}</span>
@@ -65,21 +65,21 @@ function TermsLine({ line }: { line: string }): ReactNode {
         className="flex gap-[8px]"
         style={{ paddingLeft: 30 + depth * 18 }}
       >
-        <span className="shrink-0 text-black-400">{["•", "–", "·"][depth]}</span>
+        <span className="shrink-0 text-gray-400">{["•", "–", "·"][depth]}</span>
         <span>{bullet[1]}</span>
       </p>
     );
   }
 
   if (/^[①-⑳]/.test(text))
-    return <p className="pt-[4px] font-semibold text-black-900">{text}</p>;
+    return <p className="pt-[4px] font-semibold text-gray-900">{text}</p>;
 
   return <p>{text}</p>;
 }
 
 export function TermsSectionBody({ section }: { section: TermsSection }) {
   return (
-    <div className="flex flex-col gap-[6px] text-[12px] leading-[20px] break-keep text-black-700 sm:text-[14px] sm:leading-[24px]">
+    <div className="flex flex-col gap-[6px] text-[12px] leading-[20px] break-keep text-gray-700 sm:text-[14px] sm:leading-[24px]">
       {section.lines.map((line, i) => (
         <TermsLine key={i} line={line} />
       ))}

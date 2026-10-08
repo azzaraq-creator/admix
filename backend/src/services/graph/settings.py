@@ -91,7 +91,8 @@ EMBED_MODEL = "text-embedding-3-small"
 EMBED_DIM = 1536
 TOP_N = 10
 
-# 상권 매칭 — 최신 분기, 거리 임계값.
+# 상권 매칭 — 거리 임계값. 분기는 DB의 최신 분기를 쓴다(services/sangwon_sync 가 서울시 API로 채운다).
+# SANGWON_QUARTER 는 데모 시드(scripts/seed_demo_media.py)가 넣는 분기다.
 SANGWON_QUARTER = "20254"
 SANGWON_MAX_DISTANCE_M = 3000
 

@@ -15,7 +15,8 @@ import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 export type MobilePopulation = {
-  monthlyFootTraffic: number;
+  /** 실시간 인구 범위 — "80,000~82,000" */
+  populationText: string;
   malePct: number;
   femalePct: number;
   ageRatios: AgeRatio[];
@@ -27,7 +28,7 @@ const DEFAULT_DESCRIPTION =
 const DEFAULT_FEATURES: [string, string][] = [
   ["매체 카테고리", "버스"],
   ["타입", "OOH"],
-  ["노출 종류", "실외"],
+  ["설치 장소", "외부형"],
   ["판매 형태", "단품"],
   ["고정/이동", "이동"],
   ["송출 시간", "-"],
@@ -38,10 +39,13 @@ const DEFAULT_FEATURES: [string, string][] = [
 
 export type MobileMediaListItem = { title: string; subtitle: string };
 
-const DEFAULT_MEDIA_LIST: MobileMediaListItem[] = Array.from({ length: 3 }, () => ({
-  title: "영상(20초) / 팬클럽 광고",
-  subtitle: "1기 1면 / 20초 / 3일",
-}));
+const DEFAULT_MEDIA_LIST: MobileMediaListItem[] = Array.from(
+  { length: 3 },
+  () => ({
+    title: "영상(20초) / 팬클럽 광고",
+    subtitle: "1기 1면 / 20초 / 3일",
+  }),
+);
 
 const BADGE = {
   popular: { label: "인기", className: "bg-secondary text-primary" },
@@ -143,7 +147,7 @@ export function MobileMediaDetail({
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                   {name}
                 </p>
-                <p className="text-sm font-medium leading-[20px] text-grey-500">
+                <p className="text-sm font-medium leading-[20px] text-gray-500">
                   {price}
                 </p>
               </div>
@@ -160,7 +164,7 @@ export function MobileMediaDetail({
 
           {!hidePopulation && population && (
             <PopulationSummaryBar
-              monthlyTraffic={population.monthlyFootTraffic.toLocaleString()}
+              populationText={population.populationText}
               mainAudience={[{ gender: primaryGender, age: primaryAge }]}
               size="sm"
             />

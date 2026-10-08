@@ -66,7 +66,7 @@ function StatusFilterDropdown({
     <Dropdown>
       <Dropdown.Trigger
         aria-label={`답변 상태: ${current.label}`}
-        className="flex h-[40px] shrink-0 items-center gap-[6px] rounded-[17px] border border-black-200 bg-black-100 px-[14px] text-[14px] font-medium whitespace-nowrap text-[#18181b] outline-none data-[focus-visible=true]:border-focus"
+        className="flex h-[40px] shrink-0 items-center gap-[6px] rounded-[17px] border border-gray-200 bg-gray-100 px-[14px] text-[14px] font-medium whitespace-nowrap text-[#18181b] outline-none data-[focus-visible=true]:border-focus"
       >
         {/* 모바일(sm 미만)은 짧은 이름 — 전체·대기·완료. */}
         <span className="max-sm:hidden">{current.label}</span>
@@ -198,7 +198,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
             문의하기
           </h1>
-          <p className="text-[13px] font-light text-[#6b7280]">
+          <p className="text-[13px] font-light text-[#727892]">
             궁금한 점을 가장 편한 방법으로 문의해 주세요.
           </p>
         </div>
@@ -260,7 +260,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 onChange={setSearchQuery}
                 className="min-w-0 flex-1 sm:w-[350px] sm:flex-none"
               >
-                <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-black-200 bg-black-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
+                <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
                   <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
                   <SearchField.Input
                     placeholder={searchPlaceholder}

@@ -25,7 +25,7 @@ function PriceCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="flex flex-col gap-[2px]">
       {/* 이름표(광고비·제작비)는 모바일에서 13px로 조금 크게. */}
-      <span className="text-[11px] font-medium text-black-400 max-sm:text-[13px]">
+      <span className="text-[11px] font-medium text-gray-400 max-sm:text-[13px]">
         {label}
       </span>
       {/* 모바일은 매체명과 같은 14px. */}
@@ -46,7 +46,7 @@ function InlinePrice({
 }) {
   return (
     <span className="flex items-baseline gap-[4px] whitespace-nowrap">
-      <span className="text-[11px] font-medium text-black-400 max-sm:text-[12px]">
+      <span className="text-[11px] font-medium text-gray-400 max-sm:text-[12px]">
         {label}
       </span>
       <span className="text-[13px] font-bold text-[#2d264b]">
@@ -77,7 +77,7 @@ function LikeButton({
         // 꺼짐도 밝은 회색 바탕을 깔아 하트만 떠 보이지 않게 한다.
         liked
           ? "bg-[#fff1f0] data-[selected=true]:bg-[#fff1f0]"
-          : "bg-black-100 data-[hovered=true]:bg-black-200",
+          : "bg-gray-100 data-[hovered=true]:bg-gray-200",
       )}
     >
       <LoveIcon
@@ -86,7 +86,7 @@ function LikeButton({
           "size-[15px] transition-colors",
           liked
             ? "animate-[admix-like-pop_280ms_ease-out] text-red-500"
-            : "text-black-400",
+            : "text-gray-400",
         )}
       />
     </ToggleButton>
@@ -166,7 +166,7 @@ export function MediaPopupCard({
       className={cn(
         "cursor-pointer gap-0 rounded-[12px] border bg-white shadow-none transition-colors",
         simple ? "px-[10px] py-[8px]" : "p-[10px]",
-        selected ? "border-primary" : "border-black-200 hover:border-black-300",
+        selected ? "border-primary" : "border-gray-200 hover:border-gray-300",
         // 2px 보라 테두리를 카드 안쪽에 — 테두리 1px + 안쪽 1px 선(after). 팝업 스크롤 칸에 잘리지 않는다.
         tag &&
           "relative border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:rounded-[11px] after:border after:border-primary-500 after:content-['']",
@@ -195,7 +195,7 @@ export function MediaPopupCard({
               aria-label="기획안 담기"
               onPress={() => onAddProposal?.()}
               // 옆 관심 버튼과 같은 밝은 회색 바탕.
-              className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-black-100 p-0 data-[hovered=true]:bg-black-200"
+              className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-gray-100 p-0 data-[hovered=true]:bg-gray-200"
             >
               <FolderAddIcon className="size-[16px] text-primary" />
             </Button>
@@ -252,7 +252,7 @@ export function MediaPopupCard({
             </div>
           </div>
 
-          <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-black-200 pt-[8px]">
+          <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
             <div className="flex gap-[16px]">
               <PriceCell
                 label="광고비 / 1개월"
@@ -270,7 +270,7 @@ export function MediaPopupCard({
               variant="outline"
               size="sm"
               onPress={() => onAddProposal?.()}
-              className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-black-200 px-[10px]"
+              className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-gray-200 px-[10px]"
             >
               <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
               <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
@@ -318,12 +318,12 @@ export function MarkerMediaPopup({
   return (
     <div
       className={cn(
-        "flex max-h-[var(--map-popup-max-h,420px)] w-[var(--map-popup-w,min(360px,calc(100vw-24px)))] flex-col rounded-[16px] border border-black-200",
+        "flex max-h-[var(--map-popup-max-h,420px)] w-[var(--map-popup-w,min(360px,calc(100vw-24px)))] flex-col rounded-[16px] border border-gray-200",
         POPUP_BG_CLASS,
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-[8px] px-[12px] pt-[10px] pb-[8px]">
-        <span className="text-[13px] max-sm:text-[12px] font-medium text-black-500">
+        <span className="text-[13px] max-sm:text-[12px] font-medium text-gray-500">
           {rows.length > 1 ? `매체 ${rows.length}개` : ""}
         </span>
         {/* 모바일은 왼쪽 "매체 N개"와 같은 12px로 작게. */}

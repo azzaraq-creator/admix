@@ -35,7 +35,7 @@ function Stepper({ current }: { current: number }) {
                 className={cn(
                   // 모바일 막대는 점(24px)의 세로 가운데(11px)에 둔다.
                   "h-[2px] min-w-[8px] flex-1 max-sm:mt-[11px]",
-                  index <= current ? "bg-primary-500" : "bg-black-200",
+                  index <= current ? "bg-primary-500" : "bg-gray-200",
                 )}
               />
             )}
@@ -50,7 +50,7 @@ function Stepper({ current }: { current: number }) {
                   RADIUS.h24,
                   done || active
                     ? "bg-primary-500 text-white"
-                    : "border border-black-200 bg-white text-black-400",
+                    : "border border-gray-200 bg-white text-gray-400",
                 )}
               >
                 {done ? <StepCheckIcon className="size-[14px]" /> : index + 1}
@@ -59,8 +59,8 @@ function Stepper({ current }: { current: number }) {
                 className={cn(
                   "text-[11px] whitespace-nowrap",
                   done || active
-                    ? "font-semibold text-black-900"
-                    : "text-black-400",
+                    ? "font-semibold text-gray-900"
+                    : "text-gray-400",
                 )}
               >
                 {label}
@@ -93,16 +93,16 @@ export function SignupShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-black-50">
+    <div className="flex min-h-dvh w-full flex-col bg-gray-50">
       {/* 모바일은 앱 상단 바(48px)와 같은 높이로 줄이고 로고도 작게 둔다. */}
-      <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-black-200 bg-white px-[16px] sm:px-[32px]">
+      <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px] sm:px-[32px]">
         {/* 링크가 글줄(inline)이면 아래 글자 여백만큼 로고가 위로 뜬다 → flex로 세로 가운데. */}
         <Link href="/" aria-label="홈" className="max-sm:flex">
           <LogoFullDark className="h-[30px] max-sm:h-[22px]" />
         </Link>
         {!hideLoginLink && (
           <p className="flex items-center gap-[12px] text-[13px] whitespace-nowrap">
-            <span className="hidden text-black-500 sm:inline">
+            <span className="hidden text-gray-500 sm:inline">
               {loginPrompt}
             </span>
             <Link
@@ -125,7 +125,7 @@ export function SignupShell({
               variant="ghost"
               size="sm"
               onPress={onBack}
-              className="h-auto w-fit min-w-0 p-0 text-[13px] font-medium text-black-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-black-900"
+              className="h-auto w-fit min-w-0 p-0 text-[13px] font-medium text-gray-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-900"
             >
               ‹ 이전
             </Button>
