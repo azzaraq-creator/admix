@@ -239,9 +239,16 @@ function MediaDetailBody({
         />
 
         <div className="flex w-full min-w-0 flex-1 flex-col items-start gap-[10px]">
-          <div className="flex min-w-0 items-center gap-[8px]">
-            {vm.badge && <MediaBadgeChip badge={vm.badge} size="md" />}
-            <p className="text-[20px] font-bold text-black max-sm:text-[17px]">
+          {/* 칩은 매체명 첫 줄에 맞춘다(매체명이 두 줄이 돼도 가운데로 내려가지 않게). */}
+          <div className="flex min-w-0 items-start gap-[8px]">
+            {vm.badge && (
+              <MediaBadgeChip
+                badge={vm.badge}
+                size="md"
+                className="mt-[2px] max-sm:mt-0"
+              />
+            )}
+            <p className="text-[20px] leading-[28px] font-bold text-black max-sm:text-[17px] max-sm:leading-[24px]">
               {vm.name}
             </p>
           </div>
