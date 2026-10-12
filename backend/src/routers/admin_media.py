@@ -5,6 +5,8 @@ routers/media.py(/media) 참조.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import (
     APIRouter,
     Body,
@@ -38,6 +40,8 @@ def list_media(
     date_to: str | None = None,
     keyword: str | None = None,
     type: str | None = None,
+    sort: Literal["created", "updated", "id"] = "created",
+    order: Literal["asc", "desc"] = "desc",
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("media")),
 ) -> MediaListResponse:
@@ -47,6 +51,8 @@ def list_media(
         date_to=date_to,
         keyword=keyword,
         media_type=type,
+        sort=sort,
+        order=order,
         page=page,
         page_size=page_size,
     )

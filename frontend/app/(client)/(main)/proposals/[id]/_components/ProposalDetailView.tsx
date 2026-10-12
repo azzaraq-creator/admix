@@ -213,8 +213,15 @@ function ProposalEditorView({ id }: { id: string }) {
       const withDate = dateOverride
         ? {
             ...withPlan,
-            start_date: dateOverride.start_date ?? withPlan.start_date,
-            end_date: dateOverride.end_date ?? withPlan.end_date,
+            // 비운 값(null)도 그대로 쓴다 — ?? 를 쓰면 저장된 날짜로 되돌아간다.
+            start_date:
+              dateOverride.start_date !== undefined
+                ? dateOverride.start_date
+                : withPlan.start_date,
+            end_date:
+              dateOverride.end_date !== undefined
+                ? dateOverride.end_date
+                : withPlan.end_date,
           }
         : withPlan;
       const withMonths =
@@ -242,13 +249,14 @@ function ProposalEditorView({ id }: { id: string }) {
   const handlePlanChange = (mediaId: string, planNo: number) => {
     setSelectedPlans((prev) => ({ ...prev, [mediaId]: planNo }));
   };
+  // 빈 값("")은 "미정으로 되돌리기" — 시작일·종료일을 모두 비운다.
   const handleStartDateChange = (mediaId: string, value: string) => {
     const item = displayItems.find((it) => it.media_id === mediaId);
     setSelectedDates((prev) => ({
       ...prev,
       [mediaId]: {
-        start_date: value,
-        end_date: campaignEndDate(value, item?.months),
+        start_date: value || null,
+        end_date: value ? campaignEndDate(value, item?.months) : null,
       },
     }));
   };

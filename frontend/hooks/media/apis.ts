@@ -1,8 +1,12 @@
 import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
 
+export type MediaListSort = "created" | "updated" | "id";
+
 export interface MediaListParams extends AdminListParams {
   type?: string;
+  sort?: MediaListSort;
+  order?: "asc" | "desc";
 }
 
 export interface MediaRow {

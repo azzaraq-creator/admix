@@ -688,11 +688,44 @@ def item_production_multiplier(it) -> int:
     return _positive(it.quantity) * _positive(getattr(it, "production_count", None))
 
 
-def _recount(proposal: Proposal) -> None:
+def _selected_plan(it, media: Media | None):
+    """항목이 고른 상품(plan) — 고른 번호가 없거나 사라졌으면 첫 상품."""
+    plans = list(media.plans) if media else []
+    if not plans:
+        return None
+    return next((pl for pl in plans if pl.plan_no == it.selected_plan_no), plans[0])
+
+
+def _item_fees(it, media: Media | None) -> tuple[int | None, int | None]:
+    """(광고비, 제작비) 단가 — 고른 상품 값, 광고비가 없으면 담을 때 저장한 가격."""
+    plan = _selected_plan(it, media)
+    ad_fee = plan.advertisement_fee if plan and plan.advertisement_fee is not None else it.price
+    return ad_fee, (plan.production_fee if plan else None)
+
+
+def item_total(it, media: Media | None) -> int:
+    """항목 금액 — 광고비 × 수량 × 개월 수 + 제작비 × 수량 × 제작 수(요약 페이지 "합계" 칸)."""
+    ad_fee, prod_fee = _item_fees(it, media)
+    return (ad_fee or 0) * item_ad_multiplier(it) + (prod_fee or 0) * item_production_multiplier(it)
+
+
+def _recount(db: Session, proposal: Proposal) -> None:
+    """매체 수·전체 금액 합계(GROSS = 광고비 합계 + 제작비 합계) 다시 계산."""
     proposal.media_count = len(proposal.items)
-    # 광고비 합계(수량 × 개월 수)로 총액 산출 — 제작비는 기존 정의대로 제외
+    media_ids = {it.media_id for it in proposal.items}
+    media_map = (
+        {
+            m.media_id: m
+            for m in db.query(Media)
+            .options(joinedload(Media.plans))
+            .filter(Media.media_id.in_(media_ids))
+            .all()
+        }
+        if media_ids
+        else {}
+    )
     proposal.total_amount = sum(
-        (it.price or 0) * item_ad_multiplier(it) for it in proposal.items
+        item_total(it, media_map.get(it.media_id)) for it in proposal.items
     )
 
 
@@ -744,7 +777,7 @@ def add_items(
                 )
             )
             next_position += 1
-        _recount(proposal)
+        _recount(db, proposal)
         db.commit()
         db.refresh(proposal)
     return proposal
@@ -752,7 +785,7 @@ def add_items(
 
 def remove_item(db: Session, proposal: Proposal, media_id: str) -> Proposal:
     proposal.items[:] = [it for it in proposal.items if it.media_id != media_id]
-    _recount(proposal)
+    _recount(db, proposal)
     db.commit()
     db.refresh(proposal)
     return proposal
@@ -784,7 +817,7 @@ def reorder_items(
             item.months = _positive(months[item.media_id])
         if production_counts and item.media_id in production_counts:
             item.production_count = _positive(production_counts[item.media_id])
-    _recount(proposal)  # 개월 수 변경분을 total_amount 에 반영
+    _recount(db, proposal)  # 개월 수·제작 수·상품 변경분을 total_amount 에 반영
     # 매체 항목만 바뀌면 기획안 행은 그대로라 onupdate 가 안 걸린다 — 화면의 최종 수정일시가 따라오게 직접 갱신.
     proposal.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -848,24 +881,14 @@ def to_list_summaries(db: Session, rows: list[Proposal]) -> list[dict]:
 
     def _preview(it) -> dict:
         m = media_map.get(it.media_id)
-        plans = list(m.plans) if m else []
-        plan = (
-            next((pl for pl in plans if pl.plan_no == it.selected_plan_no), plans[0])
-            if plans
-            else None
-        )
-        ad_fee = (
-            plan.advertisement_fee
-            if plan and plan.advertisement_fee is not None
-            else it.price
-        )
+        ad_fee, prod_fee = _item_fees(it, m)
         return dict(
             media_id=it.media_id,
             name=it.name or (m.name if m else None) or "-",
             address=m.address if m else None,
             thumbnail_url=it.thumbnail_url,
             advertisement_fee=ad_fee,
-            production_fee=plan.production_fee if plan else None,
+            production_fee=prod_fee,
             created_at=it.created_at,
             ad_multiplier=item_ad_multiplier(it),
             production_multiplier=item_production_multiplier(it),

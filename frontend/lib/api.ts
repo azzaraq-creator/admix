@@ -38,6 +38,12 @@ export const API_BASE_URL = resolveApiBaseUrl();
 
 export const api = axios.create({ baseURL: API_BASE_URL });
 
+const ADMIN_AUTH_NO_REFRESH = [
+  "/admin/auth/login",
+  "/admin/auth/refresh",
+  "/admin/auth/logout",
+];
+
 function isAdminRequest(url: string | undefined): boolean {
   return (url ?? "").startsWith("/admin");
 }
@@ -87,11 +93,12 @@ api.interceptors.response.use(
     const url = original?.url ?? "";
 
     // 관리자 토큰 만료/무효(401): refresh 로 access 재발급 시도, 실패 시 로그인으로.
-    // /admin/auth/* 는 제외(로그인·refresh 자체 실패 시 리다이렉트 루프 방지).
+    // 로그인·refresh·로그아웃은 제외(그 자체 실패 시 리다이렉트 루프 방지). /admin/auth/me 는
+    // 사이드바 메뉴 권한을 받는 요청이라 재발급 대상에 넣는다(빠지면 메뉴가 대시보드만 보인다).
     if (
       error.response?.status === 401 &&
       isAdminRequest(url) &&
-      !url.includes("/admin/auth/")
+      !ADMIN_AUTH_NO_REFRESH.some((path) => url.includes(path))
     ) {
       const endAdminSession = (cause: unknown) => {
         clearAdminToken();

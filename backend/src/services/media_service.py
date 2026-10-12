@@ -1264,6 +1264,23 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
     )
 
 
+def _admin_region(m: Media) -> str:
+    """어드민 목록 "지역" 칸 — 고정은 시/도·구/군("서울 강남구"), 이동은 운행 지역("서울 강남구·서초구").
+
+    둘 다 없을 때만 지역 라벨(검색용 값)을 보여 준다.
+    """
+    if m.media_source == "MOVING":
+        area = _operating_area(m)
+        if area and (m.city or "").strip():
+            return area["label"]
+    else:
+        parts = [oa.short_city(m.city), (m.district or "").strip()]
+        text = " ".join(p for p in parts if p)
+        if text:
+            return text
+    return (m.loc_label or "").strip() or "-"
+
+
 def list_media(
     db: Session,
     *,
@@ -1271,10 +1288,17 @@ def list_media(
     date_to: str | None = None,
     keyword: str | None = None,
     media_type: str | None = None,
+    sort: str = "created",
+    order: str = "desc",
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[int, list[dict]]:
-    """등록일(createdAt) 기간·유형·키워드(매체명) 필터 + 페이지네이션. (total, items) 반환."""
+    """등록일(createdAt) 기간·유형·키워드(매체명) 필터 + 정렬 + 페이지네이션. (total, items) 반환.
+
+    sort: "created"(등록일, 기본 — 신규순) | "updated"(업데이트) | "id"(매체 ID), order: "desc" | "asc".
+    등록일은 원천 시스템 등록일이 있으면 그것을, 없으면(어드민·엑셀로 넣은 매체) DB에 들어온 시각을 쓴다.
+    업데이트는 DB에서 마지막으로 고친 시각이다.
+    """
     rows = (
         db.query(Media, MediaPlan)
         .outerjoin(
@@ -1285,7 +1309,10 @@ def list_media(
         .all()
     )
     items: list[dict] = []
+    sort_keys: dict[str, datetime | None] = {}
     for m, plan in rows:
+        created = m.source_created_at or m.created_at
+        sort_keys[m.media_id] = m.updated_at if sort == "updated" else created
         product = "-"
         if plan is not None:
             product = plan.product_display_name or plan.product_name or "-"
@@ -1295,13 +1322,13 @@ def list_media(
                 no=m.media_id,
                 mediaType="이동" if m.media_source == "MOVING" else "고정",
                 name=name or "-",
-                region=m.loc_label or "-",
+                region=_admin_region(m),
                 category=m.category_small or "-",
                 product=product,
                 adCost=_fmt_fee(m.min_advertisement_fee_krw),
                 saleType=_SALE_TYPE.get(m.sales_type, m.sales_type or "-"),
-                updatedAt=_fmt_date(m.source_updated_at),
-                createdAt=_fmt_date(m.source_created_at),
+                updatedAt=_fmt_date(m.updated_at),
+                createdAt=_fmt_date(created),
             )
         )
 
@@ -1319,6 +1346,15 @@ def list_media(
         return True
 
     filtered = [r for r in items if keep(r)]
+    desc = order != "asc"
+    if sort == "id":
+        filtered.sort(key=lambda r: r["no"], reverse=desc)
+    else:
+        # 같은 시각이면 매체 ID 순(방향은 함께 바꾼다). 시각이 없는 매체는 방향과 상관없이 맨 뒤.
+        dated = [r for r in filtered if sort_keys[r["no"]] is not None]
+        undated = [r for r in filtered if sort_keys[r["no"]] is None]
+        dated.sort(key=lambda r: (sort_keys[r["no"]], r["no"]), reverse=desc)
+        filtered = dated + undated
     return paginate(filtered, page, page_size)
 
 

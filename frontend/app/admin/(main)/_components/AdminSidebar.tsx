@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import {
   MenuIcon,
   XIcon,
 } from "@/components/icons";
-import { adminAuthApi, useAdminMe } from "@/hooks/adminAuth";
+import { adminAuthApi, adminAuthKeys, useAdminMe } from "@/hooks/adminAuth";
 import { clearAdminToken, getAdminRefreshToken } from "@/lib/adminToken";
 
 const MASTER_ACCOUNT_TYPE = "마스터 계정";
@@ -116,6 +117,7 @@ export function AdminSidebar() {
 function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: me } = useAdminMe();
   const isMaster = me?.account_type === MASTER_ACCOUNT_TYPE;
   const perms = me?.permissions ?? [];
@@ -136,6 +138,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
       void adminAuthApi.logout(refreshToken).catch(() => undefined);
     }
     clearAdminToken();
+    queryClient.removeQueries({ queryKey: adminAuthKeys.all });
     router.replace("/admin/login");
     router.refresh();
   };

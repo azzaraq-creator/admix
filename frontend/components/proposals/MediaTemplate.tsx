@@ -329,7 +329,7 @@ export function MediaTemplate({
 
   return (
     // 아래 여백을 넉넉히(72px) 둬 오른쪽 아래 워터마크가 금액 카드와 겹치지 않게 한다.
-    <div className="relative flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white px-[64px] pb-[72px] pt-[56px]">
+    <div className="relative flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white px-[64px] pb-[48px] pt-[56px]">
       {/* 머리: 매체명 + 분류 칩 / 위치 · 오른쪽 집행 기간 */}
       <div className="flex shrink-0 items-start justify-between gap-[40px]">
         <div className="flex min-w-0 flex-col gap-[14px]">

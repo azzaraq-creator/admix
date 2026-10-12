@@ -15,7 +15,7 @@ import {
   today as calendarToday,
   type CalendarDate,
 } from "@internationalized/date";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { CalendarIcon } from "@/components/icons";
 import type {
@@ -465,7 +465,9 @@ function ProductionCell({
   );
 }
 
-// 시작일 — 직접 입력(연·월·일 칸) 또는 달력에서 선택. 오늘 이후만 고를 수 있다.
+// 시작일 — 꼭 정하지 않아도 된다. 비어 있으면 입력 칸 대신 테두리 없는 "미정" 버튼만 보이고,
+// 누르면 달력이 뜬다. 고른 뒤에는 날짜 칸(직접 입력 가능)과 달력 버튼이 보이고, 달력 아래
+// "미정으로 되돌리기"로 다시 비울 수 있다(onChange("")). 오늘 이후만 고를 수 있다.
 function StartDatePicker({
   value,
   onChange,
@@ -474,12 +476,16 @@ function StartDatePicker({
   onChange?: (value: string) => void;
 }) {
   const minDate = calendarToday(getLocalTimeZone());
+  const [open, setOpen] = useState(false);
+  const empty = !value;
   return (
     <I18nProvider locale="ko-KR">
       <DatePicker
         aria-label="시작일"
         value={toCalendarDate(value)}
         minValue={minDate}
+        isOpen={open}
+        onOpenChange={setOpen}
         onChange={(date) => {
           // 직접 입력한 날짜가 오늘 이전이면 저장하지 않는다(칸은 HeroUI가 오류 상태로 표시).
           if (date && date.compare(minDate) >= 0) {
@@ -489,9 +495,26 @@ function StartDatePicker({
         className="w-[204px] shrink-0"
       >
         <DateField.Group
-          className={cn(FIELD_BOX, "w-full gap-[4px] ps-[14px] pe-[5px]")}
+          className={cn(
+            FIELD_BOX,
+            "w-full gap-[4px] ps-[14px] pe-[5px]",
+            empty &&
+              "border-0 px-0 data-[hovered=true]:bg-gray-100 hover:bg-gray-100",
+          )}
         >
-          <DateField.Input className="min-w-0 flex-1 text-[18px] font-semibold tracking-[-0.45px] text-gray-900 tabular-nums">
+          {empty && (
+            <DatePicker.Trigger className="flex h-full w-full min-w-0 items-center justify-center gap-[8px] bg-transparent p-0 text-[18px] font-semibold tracking-[-0.45px] text-gray-600">
+              <CalendarIcon className="size-[18px] text-gray-400" />
+              미정
+            </DatePicker.Trigger>
+          )}
+          {/* 비어 있는 동안 연·월·일 칸은 화면에서 숨긴다(키보드로 들어가 입력하면 값이 생겨 다시 보인다). */}
+          <DateField.Input
+            className={cn(
+              "min-w-0 flex-1 text-[18px] font-semibold tracking-[-0.45px] text-gray-900 tabular-nums",
+              empty && "sr-only",
+            )}
+          >
             {(segment) => (
               <DateField.Segment
                 segment={segment}
@@ -499,11 +522,16 @@ function StartDatePicker({
               />
             )}
           </DateField.Input>
-          <DateField.Suffix>
-            <DatePicker.Trigger aria-label="달력 열기" className={FIELD_BUTTON}>
-              <CalendarIcon className="size-[18px]" />
-            </DatePicker.Trigger>
-          </DateField.Suffix>
+          {!empty && (
+            <DateField.Suffix>
+              <DatePicker.Trigger
+                aria-label="달력 열기"
+                className={FIELD_BUTTON}
+              >
+                <CalendarIcon className="size-[18px]" />
+              </DatePicker.Trigger>
+            </DateField.Suffix>
+          )}
         </DateField.Group>
         <DatePicker.Popover>
           {/* DatePicker 의 minValue 가 안쪽 달력까지 내려가지 않아 달력에도 직접 넣는다. */}
@@ -522,6 +550,18 @@ function StartDatePicker({
               </Calendar.GridBody>
             </Calendar.Grid>
           </Calendar>
+          {!empty && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange?.("");
+                setOpen(false);
+              }}
+              className="mt-[8px] w-full rounded-[10px] py-[8px] text-[13px] font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            >
+              미정으로 되돌리기
+            </button>
+          )}
         </DatePicker.Popover>
       </DatePicker>
     </I18nProvider>
@@ -545,7 +585,7 @@ function PeriodCell({
   if (!interactive) {
     return (
       <Cell width={width} className="whitespace-nowrap tabular-nums">
-        {startDate ? `${startDate} ~ ${endDate ?? EMPTY}` : EMPTY}
+        {startDate ? `${startDate} ~ ${endDate ?? EMPTY}` : "미정"}
       </Cell>
     );
   }
@@ -555,15 +595,15 @@ function PeriodCell({
       className="flex shrink-0 items-center justify-center gap-[10px] px-[12px]"
     >
       <StartDatePicker value={startDate} onChange={onStartChange} />
-      <span className="text-[18px] text-gray-400">~</span>
-      <span
-        className={cn(
-          "w-[106px] whitespace-nowrap text-[18px] font-medium leading-[1.4] tracking-[-0.45px] tabular-nums",
-          endDate ? "text-gray-700" : "text-gray-400",
-        )}
-      >
-        {endDate || "종료 일자"}
-      </span>
+      {/* 시작일이 미정이면 "미정" 버튼만 칸 가운데에 둔다. */}
+      {startDate && (
+        <>
+          <span className="text-[18px] text-gray-400">~</span>
+          <span className="w-[106px] whitespace-nowrap text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-gray-700 tabular-nums">
+            {endDate || EMPTY}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -613,8 +653,8 @@ export function SummaryTemplate({
     (sum, item) => sum + (productionAmount(item) ?? 0),
     0,
   );
-  // GROSS 는 기존 정의(광고비 합계, 제작비 제외)를 유지하되 개월 수를 반영해 실시간 계산
-  const grossTotal = adTotal;
+  // GROSS = 광고비 합계 + 제작비 합계(아래 표 "합계" 칸을 모두 더한 값)
+  const grossTotal = adTotal + prodTotal;
   const regions = Array.from(
     new Set(
       items

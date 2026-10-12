@@ -66,7 +66,7 @@ const CLOSE_BUTTON =
 
 /**
  * 현재 기획안 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
- * 맨 위에서 다른 작성 중 기획안으로 바꿔 볼 수 있고, 맨 아래에 총 광고비를 고정한다.
+ * 맨 위에서 다른 작성 중 기획안으로 바꿔 볼 수 있고, 맨 아래에 총 예상 비용(광고비 + 제작비)을 고정한다.
  * PC는 사이드바 버튼에 붙는 패널(CurrentProposalPopover), 모바일은 아래 시트(CurrentProposalPanel)가 감싼다.
  */
 function CurrentProposalContent({
@@ -254,7 +254,11 @@ function ProposalBody({
         (a.created_at ? Date.parse(a.created_at) : 0),
     )
     .map((item) => toRow(item, overrides[item.media_id]));
-  const totalAd = rows.reduce((sum, r) => sum + (r.adAmount ?? 0), 0);
+  // 기획안 요약 페이지 GROSS 와 같은 기준 — 광고비 합계 + 제작비 합계.
+  const total = rows.reduce(
+    (sum, r) => sum + (r.adAmount ?? 0) + (r.productionAmount ?? 0),
+    0,
+  );
 
   return (
     <>
@@ -353,17 +357,17 @@ function ProposalBody({
         )}
       </div>
 
-      {/* 총 광고비 — 목록을 스크롤해도 맨 아래에 고정. */}
+      {/* 총 예상 비용(광고비 + 제작비) — 목록을 스크롤해도 맨 아래에 고정. */}
       <div className="flex shrink-0 flex-col gap-[12px] border-t border-[#ececef] bg-white px-[20px] pt-[14px] pb-[calc(16px+env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between whitespace-nowrap">
           <span className="text-[14px] font-bold text-[#18181b]">
-            총 광고비
+            총 예상 비용
             <span className="ml-[6px] text-[12px] font-medium text-[#71717a]">
               매체 {rows.length}개
             </span>
           </span>
           <span className="text-[20px] font-bold text-gray-900">
-            {won(totalAd)}
+            {won(total)}
           </span>
         </div>
         <Button

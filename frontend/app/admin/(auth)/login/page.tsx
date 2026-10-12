@@ -1,16 +1,18 @@
 "use client";
 
 import Image from "next/image";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { useAdminLogin } from "@/hooks/adminAuth";
+import { adminAuthKeys, useAdminLogin } from "@/hooks/adminAuth";
 import { setAdminTokens } from "@/lib/adminToken";
 import { extractApiError } from "@/lib/apiError";
 import { LogoFullColor } from "@/components/icons/LogoFull";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const loginMutation = useAdminLogin();
 
   const [email, setEmail] = useState("");
@@ -28,6 +30,8 @@ export default function AdminLoginPage() {
         remember: persist,
       });
       setAdminTokens(res.access_token, res.refresh_token, persist);
+      // 이전 계정(또는 만료로 실패한) 내 정보가 남아 있으면 메뉴 권한이 틀리게 보인다.
+      queryClient.removeQueries({ queryKey: adminAuthKeys.all });
       router.replace("/admin");
       router.refresh();
     } catch (err) {

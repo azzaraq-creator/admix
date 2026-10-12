@@ -62,6 +62,8 @@ COVER_BG = os.path.join(ASSETS, "cover-bg.png")
 THANKS_BG = os.path.join(ASSETS, "thanks-bg.png")
 # 매체·서머리 오른쪽 아래 흐린 로고(투명도 18% 를 이미지에 입혀 둠)
 WATERMARK = os.path.join(ASSETS, "watermark.png")
+# 매체·서머리 내용이 끝나는 y — 아래 여백 48 + 로고 24 + 로고와의 간격 24 를 뺀 값(SlideWatermark.tsx).
+CONTENT_BOTTOM = 1080 - 48 - 24 - 24
 
 # (머리글, 너비, 정렬) — SummaryTemplate.tsx 의 COL·HEADER_COLUMNS 와 같다.
 SUMMARY_COLS = [
@@ -149,10 +151,14 @@ def _bg_image(slide, path: str) -> None:
 
 
 def _watermark(slide) -> None:
-    """오른쪽 아래 흐린 로고 — SlideWatermark.tsx(right 40, bottom 28, 높이 36)와 같은 위치."""
+    """오른쪽 아래 흐린 로고 — SlideWatermark.tsx 와 같은 자리·크기.
+
+    오른쪽 끝은 내용의 오른쪽 여백 선(64), 아래는 슬라이드 아래 여백(48). 내용은 로고 위 24 에서 끝난다
+    (CONTENT_BOTTOM).
+    """
     if os.path.exists(WATERMARK):
-        w, h = 127, 36
-        slide.shapes.add_picture(WATERMARK, _px(1920 - 40 - w), _px(1080 - 28 - h),
+        w, h = 85, 24  # 원본 비율(508×144) 유지
+        slide.shapes.add_picture(WATERMARK, _px(1920 - 64 - w), _px(1080 - 48 - h),
                                  width=_px(w), height=_px(h))
 
 
@@ -331,7 +337,7 @@ def build_summary_pages(prs, detail: dict) -> None:
     table_top = 290
     head_h = 56
     rows_top = table_top + head_h
-    row_h = (1080 - 48 - rows_top) / ROWS_PER_PAGE
+    row_h = (CONTENT_BOTTOM - rows_top) / ROWS_PER_PAGE
     col_x = [left]
     for _, w, _ in SUMMARY_COLS:
         col_x.append(col_x[-1] + w)
@@ -366,14 +372,14 @@ def build_summary_pages(prs, detail: dict) -> None:
             _summary_stat(slide, x, w, label, value, top=stats_top, divider=i > 0)
             x += w
 
-        # 전체 금액 카드(보라) — GROSS 는 광고비 합계(제작비 제외)
+        # 전체 금액 카드(보라) — GROSS = 광고비 합계 + 제작비 합계(표 "합계" 칸의 합)
         gx = left + card_w + 20
         _round_rect(slide, _px(gx), _px(stats_top), _px(gross_w), _px(stats_h), PRIMARY, 16)
         _text(slide, _px(gx + 36), _px(stats_top + 24), _px(gross_w - 72), _px(24),
               "전체 금액 합계(GROSS) · VAT 별도", size=16, color=WHITE_75_ON_PRIMARY,
               tight=True, wrap=False)
         _text(slide, _px(gx + 36), _px(stats_top + 54), _px(gross_w - 72), _px(48),
-              _won(ad_total), size=36, color=WHITE, bold=True, tight=True, wrap=False)
+              _won(ad_total + prod_total), size=36, color=WHITE, bold=True, tight=True, wrap=False)
 
         # 합계 열 연보라 바탕(머리글 ~ 마지막 매체 행)
         tint_bottom = rows_top + row_h * len(rows)
@@ -409,7 +415,7 @@ def build_summary_pages(prs, detail: dict) -> None:
                 (_num(ad), GRAY_700, False),
                 (_num(prod), GRAY_700, False),
                 (_num((ad or 0) + (prod or 0)), PRIMARY_800, True),
-                (f"{start} ~ {it.get('end_date') or EMPTY}" if start else EMPTY, GRAY_700, False),
+                (f"{start} ~ {it.get('end_date') or EMPTY}" if start else "미정", GRAY_700, False),
             ]
             for ci, cell in enumerate(cells):
                 _, w, align = SUMMARY_COLS[ci]
@@ -672,7 +678,8 @@ def build_media(prs, item: dict) -> None:
     """MediaTemplate.tsx 와 같은 배치(1920×1080 px 좌표)."""
     slide = _new_slide(prs)
     _bg(slide, WHITE)
-    left, body_top, body_h = 64, 167, 841
+    left, body_top = 64, 167
+    body_h = CONTENT_BOTTOM - body_top
     photo_w = 860
     right_l = left + photo_w + 24
     right_w = 1792 - photo_w - 24

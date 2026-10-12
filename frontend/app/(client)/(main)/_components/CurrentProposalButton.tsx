@@ -106,7 +106,7 @@ const won = (value: number) => `${value.toLocaleString()}원`;
 
 /**
  * "현재 기획안"(매체를 담으면 들어가는 기획안) 패널을 여는 버튼.
- * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 기획안명·매체 수·총 광고비가 보여 열지 않아도
+ * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 기획안명·매체 수·총 예상 비용이 보여 열지 않아도
  *   지금 상태를 안다. 사이드바가 접히면 아이콘 + 배지만 남는다.
  * - header: 모바일 헤더 오른쪽 아이콘 버튼.
  * 아이콘은 사이드바 "기획안" 메뉴와 겹치지 않게 쇼핑백(BagIcon).
@@ -185,7 +185,7 @@ export function CurrentProposalButton({
           </span>
         </button>
       ) : (
-        // 요약 카드(곡률 16px) — 이름표·기획안명·매체 수·총 광고비. 메뉴 줄과 달리 테두리 있는 카드.
+        // 요약 카드(곡률 16px) — 이름표·기획안명·매체 수·총 예상 비용(광고비 + 제작비). 메뉴 줄과 달리 테두리 있는 카드.
         <button
           ref={buttonRef}
           type="button"
@@ -226,7 +226,12 @@ export function CurrentProposalButton({
                     매체 {count}개
                   </span>
                   <span className="truncate text-[13px] font-bold text-gray-900">
-                    {won(current.advertisement_amount ?? current.total_amount)}
+                    {won(
+                      current.advertisement_amount != null
+                        ? current.advertisement_amount +
+                            (current.production_amount ?? 0)
+                        : current.total_amount,
+                    )}
                   </span>
                 </span>
               </>
