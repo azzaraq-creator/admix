@@ -21,6 +21,8 @@ import {
 import { useFavorite } from "@/hooks/favorites";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
+import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
+import { MovingChip } from "@/components/common/MovingChip";
 
 /** 카드 하단 금액 — 값이 없으면 시안대로 "-". */
 function formatKrw(value: number | null): string {
@@ -207,6 +209,7 @@ export function MediaFindCard({
               검색한 매체
             </Chip>
           )}
+          {row.badge && <MediaBadgeChip badge={row.badge} />}
           <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
             {row.name}
           </p>
@@ -217,9 +220,7 @@ export function MediaFindCard({
             className="mt-[5px] flex min-w-0 items-center gap-[4px]"
             title={area?.route ?? undefined}
           >
-            <Chip className="shrink-0 rounded-[6px] bg-primary-50 px-[5px] py-0 text-[11px] max-sm:text-[10px] leading-[16px] font-bold text-primary-500">
-              이동
-            </Chip>
+            <MovingChip />
             <span className="truncate text-[12px] max-sm:text-[11px] text-[#6c757d]">
               {area?.label ?? "-"}
               {area?.route && (

@@ -19,7 +19,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session, selectinload
 
 from src.models.media_master import Media
-from src.services import kakao_address
+from src.services import ai_index, kakao_address
 from src.services import media_service as ms
 
 # (컬럼, 칸 이름, 값 변환) — 변환: None(그대로) | dict(선택값→한글) | "bool" | "fee_yn" | "tags" | "won"
@@ -174,6 +174,7 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
 # 어드민 폼 "사용하지 않는 값" 구역 — 사이트·추천에 쓰이지 않아 내보내지 않는다.
 UNUSED_COLUMNS = frozenset(
     {
+        "target_codes",  # 믹시 타깃 — 엑셀이 아니라 어드민 폼에서 고른다(비면 자동)
         "device_type",
         "feature",
         "production_fees_summary",
@@ -454,7 +455,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
     "population_female_pct": ("여성 비율(%).", "52"),
     "population_age_10": ("연령대 비율(%) — 여섯 칸 합쳐 100.", "8"),
     "population_age_60": ("60대 이상 비율(%).", "12"),
-    "is_popular_yn": ("예 / 아니오 — 카드에 '인기' 뱃지", "아니오"),
+    "is_popular_yn": ("예 / 아니오 — 인기 점수 +5(뱃지는 점수 상위 10%에 자동)", "아니오"),
     "is_newly_built_yn": ("예 / 아니오 — 카드에 '신규' 뱃지", "예"),
     "popular_type": ("쉼표로 여러 개.", "패션, 화장품"),
     "loc_label": ("이 말로 검색해도 매체가 나옵니다.", "강남역"),
@@ -859,6 +860,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
 
     inserted = skipped = failed = 0
     errors: list[dict] = []
+    new_ids: list[str] = []  # 믹시 검색 표에 올릴 새 매체
     seen_links: set[str] = set()
     address_cache: dict[str, dict | str] = {}
 
@@ -934,6 +936,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
                 ms._apply_plan_aggregates(media)
                 db.flush()
             inserted += 1
+            new_ids.append(media.media_id)
         except HTTPException as exc:  # 상품 검사(media_service._clean_plan) 실패
             fail(row_no, f"상품 시트({link_label} {link}): {exc.detail}")
         except Exception:
@@ -951,6 +954,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
     errors.extend(plan_errors[: max(0, ms._IMPORT_MAX_ERRORS - len(errors))])
 
     db.commit()
+    ai_index.sync_media_ids(db, new_ids)
     return {
         "total": inserted + skipped + failed,
         "inserted": inserted,

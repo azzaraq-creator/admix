@@ -104,7 +104,7 @@ const FOCUS_ZOOM_LEVEL = 3;
 // 첫 진입에서 목록 조회가 이만큼 멈춰 있으면 자리를 잡은 것으로 보고 스켈레톤을 걷는다.
 const ENTRY_SETTLE_MS = 300;
 
-// 매체 찾기 탭 — "all"은 URL에 남기지 않는다(source 파라미터 없음 = 전체).
+// 매체 찾기 탭 — 기본은 "고정"이라 URL에 남기지 않는다(source 파라미터 없음 = 고정).
 const SOURCE_TABS = [
   { key: "all", label: "전체" },
   { key: "fixed", label: "고정" },
@@ -112,9 +112,11 @@ const SOURCE_TABS = [
 ] as const;
 type SourceTabKey = (typeof SOURCE_TABS)[number]["key"];
 
+/** 지금 탭 — null 은 전체. 파라미터가 없거나 모르는 값이면 고정. */
 function parseSource(sp: URLSearchParams): MediaFindSource | null {
   const v = sp.get("source");
-  return v === "fixed" || v === "moving" ? v : null;
+  if (v === "all") return null;
+  return v === "moving" ? "moving" : "fixed";
 }
 
 export function countFilters(f: MediaFilterState): number {
@@ -707,7 +709,7 @@ export function MediaFindPanel({
             onHoverArea?.(null);
             scrollRef.current?.scrollTo({ top: 0 });
             commit((q) => {
-              if (next === "all") q.delete("source");
+              if (next === "fixed") q.delete("source");
               else q.set("source", next);
             });
           }}

@@ -28,6 +28,8 @@ import {
 } from "@/components/icons";
 import { useFavorite } from "@/hooks/favorites";
 import { cn } from "@/lib/utils";
+import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
+import { MovingChip } from "@/components/common/MovingChip";
 
 import {
   DEFAULT_MEDIA_OPTIONS,
@@ -237,16 +239,17 @@ function MediaDetailBody({
         />
 
         <div className="flex w-full min-w-0 flex-1 flex-col items-start gap-[10px]">
-          <p className="text-[20px] font-bold text-black max-sm:text-[17px]">
-            {vm.name}
-          </p>
+          <div className="flex min-w-0 items-center gap-[8px]">
+            {vm.badge && <MediaBadgeChip badge={vm.badge} size="md" />}
+            <p className="text-[20px] font-bold text-black max-sm:text-[17px]">
+              {vm.name}
+            </p>
+          </div>
 
           <div className="flex items-center gap-[3px]">
             {/* 이동 매체는 주소 대신 운행 지역이라 목록 카드처럼 "이동" 칩을 앞에 붙인다. */}
             {vm.isMoving ? (
-              <Chip className="mr-[2px] shrink-0 rounded-[6px] bg-primary-50 px-[5px] py-0 text-[11px] leading-[16px] font-bold text-primary-500">
-                이동
-              </Chip>
+              <MovingChip className="mr-[2px]" />
             ) : (
               <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
             )}

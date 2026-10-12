@@ -57,7 +57,7 @@ class MediaItem(Base):
     all_image_urls = Column(Text, nullable=True)                   # "url1 | url2"
     media_id = Column(
         String(20),
-        ForeignKey("media.media_id"),
+        ForeignKey("media.media_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -75,6 +75,8 @@ class MediaItem(Base):
     raw_tgt = Column(Text, nullable=True)
     raw_loc = Column(Text, nullable=True)
     raw_cat = Column(Text, nullable=True)   # detail.mediaItemCategory.displayValue 원문
+    # 엑셀(Sheet1)에서 온 코드 원본 {ind, prd, obj, tgt, loc, cat} — 코드 칸은 이것 + 자동 태그(ai_index).
+    source_codes = Column(JSONB, nullable=True)
     # 메타
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)

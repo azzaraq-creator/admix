@@ -95,3 +95,5 @@ export { CircleMinusIcon } from "./CircleMinusIcon";
 export { CirclePlusIcon } from "./CirclePlusIcon";
 export { BagIcon } from "./BagIcon";
 export { CircleXIcon } from "./CircleXIcon";
+export { FlameIcon } from "./FlameIcon";
+export { NewStarIcon } from "./NewStarIcon";

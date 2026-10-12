@@ -42,8 +42,10 @@ export interface MediaFieldDef {
    * 목록 카드·필터·지도에 꼭 필요한 값만 필수로 둔다(나머지는 비어도 화면이 깨지지 않는다).
    */
   required?: boolean | "FIXED" | "MOVING";
-  /** tags 칸의 저장 형태 — array: JSON 배열(검색 태그), string: "패션,화장품"(인기 업종) */
+  /** tags·multiselect 칸의 저장 형태 — array: JSON 배열(검색 태그·타깃), string: "패션, 화장품"(인기 업종) */
   tagsAs?: "array" | "string";
+  /** 선택지를 서버(field-options)에서 받는다 — 믹시 키워드 사전의 업종·타깃 */
+  optionsFrom?: "industries" | "targets";
   /** 매체 타입이 DOOH일 때만 입력한다(아니면 잠기고 저장하지 않는다). */
   doohOnly?: boolean;
   /**
@@ -513,7 +515,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         key: "is_popular_yn",
         label: "인기 매체",
         type: "boolean",
-        help: "목록 카드에 '인기' 뱃지가 붙습니다.",
+        help: "인기 점수에 +5점을 더합니다. '인기' 뱃지는 인기 점수 상위 10% 매체에 자동으로 붙어요.",
       },
       {
         key: "is_newly_built_yn",
@@ -522,12 +524,37 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         help: "목록 카드에 '신규' 뱃지가 붙습니다(인기가 우선).",
       },
       {
+        key: "popularity_summary",
+        label: "인기 점수",
+        type: "readonly",
+        help: "최근 90일 고객 반응으로 계산해요(같은 사람은 1번). 매체 찾기 '인기순'과 '인기' 뱃지가 이 점수를 씁니다.",
+      },
+      {
         key: "popular_type",
         label: "인기 업종",
-        type: "tags",
+        type: "multiselect",
         tagsAs: "string",
-        placeholder: "예: 패션, 화장품, 가구",
-        help: "이 매체에 광고를 많이 하는 업종입니다. 쉼표로 여러 개 입력합니다.",
+        optionsFrom: "industries",
+        help: "이 매체에 광고를 많이 하는 업종입니다. 여러 개 고를 수 있고, 믹시(AI)는 고객이 말한 업종과 맞는 매체를 위로 올립니다.",
+      },
+      {
+        key: "target_codes",
+        label: "타깃",
+        type: "multiselect",
+        optionsFrom: "targets",
+        help: "비워 두면 인구 데이터(가장 많은 연령대·55% 이상인 성별)와 장소로 자동으로 정합니다(아래 '자동 추천 타깃'). 고르면 그 값을 씁니다.",
+      },
+      {
+        key: "ai_auto_targets",
+        label: "자동 추천 타깃",
+        type: "readonly",
+        help: "타깃을 비워 두면 쓰는 값입니다. 저장된 인구·카테고리 기준이에요.",
+      },
+      {
+        key: "ai_tags_preview",
+        label: "AI 검색 태그",
+        type: "readonly",
+        help: "믹시(AI)가 이 매체를 찾을 때 쓰는 태그입니다. 저장하면 다시 계산돼요.",
       },
       {
         key: "loc_label",

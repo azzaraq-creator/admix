@@ -383,6 +383,31 @@ export interface AdminMediaDetail {
   thumbnail_url: string | null;
   images: MediaImageItem[];
   plans?: AdminMediaPlan[];
+  /** 노출·검색 구역 보기 전용 — 자동 추천 타깃, 믹시 검색 태그(저장된 값 기준) */
+  ai_preview?: {
+    auto_targets: string;
+    in_index: boolean;
+    groups: {
+      key: string;
+      label: string;
+      values: { label: string; origin: "auto" | "manual" | "source" }[];
+    }[];
+  };
+  /** 노출·검색 구역 보기 전용 — 인기 점수(최근 90일 제출·담기·관심 + 인기 매체 표시) */
+  popularity?: {
+    score: number;
+    rank: number | null;
+    total: number;
+    top_pct: number | null;
+    badge: boolean;
+    breakdown: {
+      key: string;
+      label: string;
+      people: number | null;
+      weight: number;
+      points: number;
+    }[];
+  };
   [key: string]: unknown;
 }
 
@@ -421,6 +446,10 @@ export interface AdminMediaFieldOptions {
   categories: Record<string, string[]>;
   /** 등급 산정 방식 */
   grade_methods: string[];
+  /** 믹시 키워드 사전 — 인기 업종(값: 사전 첫 낱말) */
+  industries?: { value: string; label: string }[];
+  /** 믹시 키워드 사전 — 타깃(값: 사전 코드) */
+  targets?: { value: string; label: string }[];
 }
 
 export const adminMediaApi = {

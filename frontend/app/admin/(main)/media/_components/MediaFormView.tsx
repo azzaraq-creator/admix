@@ -34,6 +34,8 @@ import {
   HeroSelect,
   HeroTagMulti,
 } from "./heroFields";
+import { AiTagsPreview, AutoTargets } from "./AiTagsPreview";
+import { PopularityScore } from "./PopularityScore";
 import {
   ADDRESS_KEYS,
   MEDIA_FIELDS,
@@ -117,7 +119,9 @@ function toInput(value: unknown, type: MediaFieldType): string {
   if (value === null || value === undefined) return "";
   // 여러 개 고르기(소재 형식)는 폼 안에서 "MP4,IMAGE"로 들고 있다.
   if (type === "multiselect")
-    return Array.isArray(value) ? value.map(String).join(",") : String(value);
+    return (
+      Array.isArray(value) ? value.map(String) : splitTags(String(value))
+    ).join(",");
   if (type === "tags")
     return (
       Array.isArray(value) ? value.map(String) : splitTags(String(value))
@@ -325,7 +329,12 @@ function MediaForm({
           payload[f.key] = null;
         } else if (f.type === "multiselect") {
           const picked = raw.split(",").filter(Boolean);
-          payload[f.key] = picked.length > 0 ? picked : null;
+          payload[f.key] =
+            picked.length === 0
+              ? null
+              : f.tagsAs === "string"
+                ? picked.join(", ")
+                : picked;
         } else if (f.type === "tags") {
           const tags = splitTags(raw);
           payload[f.key] =
@@ -485,15 +494,25 @@ function MediaForm({
         <Controller
           name={f.key}
           control={control}
-          render={({ field }) => (
-            <HeroTagMulti
-              ariaLabel={f.label}
-              options={f.options ?? []}
-              values={(field.value ?? "").split(",").filter(Boolean)}
-              onChange={(next) => field.onChange(next.join(","))}
-              isDisabled={disabled}
-            />
-          )}
+          render={({ field }) => {
+            const values = (field.value ?? "").split(",").filter(Boolean);
+            const base = f.optionsFrom
+              ? (fieldOptions?.[f.optionsFrom] ?? [])
+              : (f.options ?? []);
+            // 선택지에 없는 기존 값(예전에 자유 입력한 인기 업종)도 보여 줘서 풀 수 있게 한다.
+            const unknown = values
+              .filter((v) => !base.some((o) => o.value === v))
+              .map((v) => ({ value: v, label: `${v} (목록에 없음)` }));
+            return (
+              <HeroTagMulti
+                ariaLabel={f.label}
+                options={[...base, ...unknown]}
+                values={values}
+                onChange={(next) => field.onChange(next.join(","))}
+                isDisabled={disabled}
+              />
+            );
+          }}
         />
       );
     }
@@ -608,6 +627,15 @@ function MediaForm({
           value={shown}
         />
       );
+    }
+    if (f.key === "popularity_summary") {
+      return <PopularityScore data={detail?.popularity} />;
+    }
+    if (f.key === "ai_tags_preview") {
+      return <AiTagsPreview data={detail?.ai_preview} />;
+    }
+    if (f.key === "ai_auto_targets") {
+      return <AutoTargets text={detail?.ai_preview?.auto_targets} />;
     }
     if (f.type === "readonly") {
       const shown =
@@ -775,7 +803,11 @@ function MediaForm({
         help={f.help}
         error={error ? String(error) : undefined}
         wide={
-          f.type === "textarea" || f.type === "json" || f.type === "multiselect"
+          f.type === "textarea" ||
+          f.type === "json" ||
+          f.type === "multiselect" ||
+          f.key === "ai_tags_preview" ||
+          f.key === "popularity_summary"
         }
       >
         {f.pair

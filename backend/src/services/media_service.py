@@ -37,9 +37,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, array
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, object_session, selectinload
 
 from src.config import get_settings
+from src.services import ai_index, popularity
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
@@ -81,7 +82,8 @@ def _duration_text(p: MediaPlan) -> str | None:
 
 
 def _media_badge(m: Media) -> str | None:
-    if m.is_popular_yn:
+    # "인기"는 인기 점수 상위 10%에 자동으로 붙는다(popularity) — 관리자 "인기 매체" 표시는 점수 가산점.
+    if popularity.is_badge(object_session(m), m.media_id):
         return "popular"
     if m.is_newly_built_yn:
         return "new"
@@ -586,9 +588,8 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
     """
     latest_col = latest if latest is not None else Media.created_at
     if sort == "popular":
-        return base.order_by(
-            Media.is_popular_yn.desc().nullslast(), latest_col.desc(), Media.media_id
-        )
+        # 인기 점수(최근 90일 제출·담기·하트 + 관리자 표시) 높은 순 — popularity.py
+        return popularity.order_by_popularity(base, latest_col)
     if sort in ("priceDesc", "priceAsc"):
         fee = Media.min_advertisement_fee_krw
         return base.order_by(
@@ -765,11 +766,13 @@ def _images_by_media(db: Session, media_ids: list[str]) -> dict[str, list[str]]:
     return out
 
 
-def _marker_from_row(r, lat: float, lng: float, img_map: dict) -> dict:
+def _marker_from_row(
+    r, lat: float, lng: float, img_map: dict, badge_ids: frozenset[str] = frozenset()
+) -> dict:
     name = " ".join(
         p for p in [(r.name or "").strip(), (r.second_name or "").strip()] if p
     )
-    if r.is_popular_yn:
+    if r.media_id in badge_ids:
         badge = "popular"
     elif r.is_newly_built_yn:
         badge = "new"
@@ -884,8 +887,9 @@ def list_fixed_clusters(
 
     # 마커 매체 이미지 일괄 조회 → 검색 리스트와 동일한 카드 이미지(최대 3장).
     img_map = _images_by_media(db, [r.media_id for r, _, _ in marker_points])
+    badge_ids = popularity.snapshot(db).badge_ids
     markers = [
-        _marker_from_row(r, lat, lng, img_map) for r, lat, lng in marker_points
+        _marker_from_row(r, lat, lng, img_map, badge_ids) for r, lat, lng in marker_points
     ]
     return dict(clusters=clusters, markers=markers)
 
@@ -1443,6 +1447,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
     col_index = {h: i for i, h in enumerate(headers) if h in editable}
     mid_idx = headers.index("media_id") if "media_id" in headers else None
     columns = sa_inspect(Media).columns
+    new_ids: list[str] = []
     existing_ids = {r[0] for r in db.query(Media.media_id).all()}
 
     seen: set[str] = set()
@@ -1499,12 +1504,14 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
                 db.flush()
             inserted += 1
             seen.add(data["media_id"])
+            new_ids.append(data["media_id"])
         except Exception:
             failed += 1
             if len(errors) < _IMPORT_MAX_ERRORS:
                 errors.append({"row": row_no, "media_id": mid, "reason": "저장 실패"})
 
     db.commit()
+    ai_index.sync_media_ids(db, new_ids)
     return {
         "total": inserted + skipped + failed,
         "inserted": inserted,
@@ -1542,7 +1549,13 @@ def _get_media_or_404(db: Session, media_id: str) -> Media:
 
 
 def get_admin_media(db: Session, media_id: str) -> dict:
-    return _serialize_media(_get_media_or_404(db, media_id))
+    m = _get_media_or_404(db, media_id)
+    data = _serialize_media(m)
+    # 노출·검색 구역의 "자동 추천 타깃"·"AI 검색 태그" 칸 — 저장된 값 기준.
+    data["ai_preview"] = ai_index.ai_preview(db, m)
+    # 노출·검색 구역의 "인기 점수" 칸 — 점수·내역·순위·뱃지 여부.
+    data["popularity"] = popularity.admin_summary(db, media_id)
+    return data
 
 
 # ── 상품(media_plan) — 어드민 매체 폼에서 추가·수정·삭제 ─────────────────────
@@ -1769,6 +1782,7 @@ def create_media(db: Session, payload: dict) -> dict:
         _apply_plan_aggregates(m)
     db.commit()
     db.refresh(m)
+    ai_index.sync_media_ids(db, [m.media_id])
     return _serialize_media(m)
 
 
@@ -1803,11 +1817,14 @@ def update_media(db: Session, media_id: str, payload: dict) -> dict:
         _apply_plan_aggregates(m)
     db.commit()
     db.refresh(m)
+    ai_index.sync_media_ids(db, [m.media_id])
     return _serialize_media(m)
 
 
 def delete_media(db: Session, media_id: str) -> None:
-    db.delete(_get_media_or_404(db, media_id))
+    m = _get_media_or_404(db, media_id)
+    ai_index.remove_media_items(db, media_id)
+    db.delete(m)
     db.commit()
 
 
@@ -1884,6 +1901,7 @@ def add_media_image(db: Session, media_id: str, file: UploadFile) -> dict:
     m.image_count = len(m.images) + 1
     db.commit()
     db.refresh(m)
+    ai_index.sync_media_ids(db, [media_id])
     return _serialize_media(m)
 
 
@@ -1927,6 +1945,7 @@ def delete_media_image(db: Session, media_id: str, image_id: str) -> dict:
         local_path.unlink(missing_ok=True)
 
     db.refresh(m)
+    ai_index.sync_media_ids(db, [media_id])
     return _serialize_media(m)
 
 
@@ -1945,6 +1964,7 @@ def set_media_thumbnail(db: Session, media_id: str, image_id: str) -> dict:
         img.is_thumbnail = img is target
     db.commit()
     db.refresh(m)
+    ai_index.sync_media_ids(db, [media_id])
     return _serialize_media(m)
 
 
@@ -1973,4 +1993,10 @@ def admin_media_field_options(db: Session) -> dict:
         .order_by(Media.grade_method)
         .all()
     ]
-    return dict(categories=categories, grade_methods=grade_methods)
+    return dict(
+        categories=categories,
+        grade_methods=grade_methods,
+        # 믹시 키워드 사전 — 인기 업종·타깃 선택지
+        industries=ai_index.industry_options(db),
+        targets=ai_index.target_options(db),
+    )

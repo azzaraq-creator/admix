@@ -116,6 +116,8 @@ class Media(Base):
     is_popular_yn = Column(Boolean, nullable=True)
     # 인기 업종 — 쉼표로 여러 개(예: "패션,화장품").
     popular_type = Column(String(300), nullable=True)
+    # 믹시 타깃 — 직접 고른 타깃 코드(키워드 사전 TGT, 예: ["TGT-02", "TGT-07"]). 비면 ai_index 가 자동으로 정한다.
+    target_codes = Column(JSONB(none_as_null=True), nullable=True)
     special_remarks = Column(Text, nullable=True)
     children_count = Column(Integer, nullable=True)
     device_type = Column(String(50), nullable=True)

@@ -13,6 +13,7 @@ import { SizeSection } from "@/components/common/media-detail/SizeSection";
 import { ChevronLeftIcon, FolderIcon } from "@/components/icons";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 
 export type MobilePopulation = {
   /** 실시간 인구 범위 — "80,000~82,000" */
@@ -46,11 +47,6 @@ const DEFAULT_MEDIA_LIST: MobileMediaListItem[] = Array.from(
     subtitle: "1기 1면 / 20초 / 3일",
   }),
 );
-
-const BADGE = {
-  popular: { label: "인기", className: "bg-secondary text-primary" },
-  new: { label: "신규", className: "bg-[#fff3d3] text-[#ff920a]" },
-} as const;
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -133,16 +129,7 @@ export function MobileMediaDetail({
         <div className="flex flex-col gap-[16px]">
           <div className="flex items-start justify-between gap-[12px]">
             <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-              {badge && (
-                <span
-                  className={cn(
-                    "inline-flex w-fit items-center justify-center rounded-full px-[10px] py-[4px] text-xs font-medium leading-[16px]",
-                    BADGE[badge].className,
-                  )}
-                >
-                  {BADGE[badge].label}
-                </span>
-              )}
+              {badge && <MediaBadgeChip badge={badge} size="md" />}
               <div className="flex flex-col gap-[4px]">
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                   {name}

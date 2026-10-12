@@ -1,6 +1,7 @@
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import { FolderPlusIcon, Logo } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 
 /** 매체 카드에 노출하는 썸네일 슬롯 수(이미지 없으면 로고 플레이스홀더). */
 const THUMBNAIL_COUNT = 3;
@@ -21,19 +22,6 @@ type MediaItemProps = MediaItemData & {
   onAddProposal?: () => void;
   className?: string;
 };
-
-function PopularChip({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-center rounded-full bg-secondary px-[10px] py-[4px] text-xs font-medium leading-[16px] text-primary",
-        className,
-      )}
-    >
-      인기
-    </span>
-  );
-}
 
 export function MediaItem({
   name,
@@ -72,17 +60,32 @@ export function MediaItem({
                 src={images[index]}
                 className="aspect-square min-w-0 flex-1 rounded-[4px]"
                 fallback={
-                  <Logo className="size-[24px] grayscale opacity-50" aria-hidden />
+                  <Logo
+                    className="size-[24px] grayscale opacity-50"
+                    aria-hidden
+                  />
                 }
               />
             ))}
-            {popular && <PopularChip className="absolute left-[8px] top-[8px]" />}
+            {popular && (
+              <MediaBadgeChip
+                badge="popular"
+                size="md"
+                className="absolute left-[8px] top-[8px]"
+              />
+            )}
           </div>
         )}
 
         <div className="flex items-start justify-between gap-[24px]">
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-[4px]">
-            {simple && popular && <PopularChip className="self-start" />}
+            {simple && popular && (
+              <MediaBadgeChip
+                badge="popular"
+                size="md"
+                className="self-start"
+              />
+            )}
             <div className="flex flex-col">
               <p className="truncate text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                 {name}

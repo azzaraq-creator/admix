@@ -15,19 +15,26 @@ from src.services.recommend_react import domain
 from src.services.recommend_react.graph import NOT_FOUND_MARKER, ReactContext
 
 
-def build_list_event(items: list[dict], total: int, shown: int) -> dict:
-    if total > shown:
+def build_list_event(items: list[dict], total: int, shown: int, requested: Optional[int] = None) -> dict:
+    if requested:
+        message = f"조건에 맞는 매체 {total}개 중 {shown}개를 골랐어요 😊"
+    elif total > shown:
         message = f"조건에 맞는 매체를 {total}개 찾았어요. {shown}개만 먼저 보여드릴게요 😊"
     else:
         message = f"조건에 맞는 매체를 {total}개 찾았어요."
     return {"type": "list", "message": message, "items": items, "match_count": total}
 
 
-def list_summary_for_llm(items: list[dict], total: int) -> str:
-    """LLM 이 후속 추론(비교·최저가 등)에 쓸 텍스트 요약."""
+def list_summary_for_llm(items: list[dict], total: int, requested: Optional[int] = None) -> str:
+    """LLM 이 후속 추론(비교·최저가 등)에 쓸 텍스트 요약. 번호는 화면 카드 순서와 같다(위가 추천 우선)."""
     if not items:
         return f"{NOT_FOUND_MARKER} 조건에 맞는 매체가 없습니다."
-    lines = [f"총 {total}건 중 상위 {len(items)}건:"]
+    head = (
+        f"총 {total}건 중 요청한 {len(items)}건(추천 순, 화면 카드에는 이 {len(items)}건만 같은 순서로 표시됨):"
+        if requested
+        else f"총 {total}건 중 상위 {len(items)}건(추천 순, 화면 카드와 같은 순서):"
+    )
+    lines = [head]
     for i, it in enumerate(items, 1):
         price = it.get("price") or "가격미정"
         line = f"{i}. {it.get('name')} — {price}"
@@ -52,6 +59,10 @@ class SearchMediaArgs(BaseModel):
     target: str = Field("", description="타깃 오디언스")
     media_type: str = Field("", description="매체 카테고리 (예: 전광판, 버스, 지하철)")
     budget: str = Field("", description="예산 표현 그대로 (예: '5천만원', '1억'). 없으면 빈 문자열.")
+    count: Optional[int] = Field(
+        None,
+        description="사용자가 '2개', '세 곳', '하나만'처럼 추천받을 개수를 말하면 그 숫자(1~20). 말하지 않았으면 null.",
+    )
 
 
 class ExplainMediaArgs(BaseModel):
@@ -117,15 +128,19 @@ def _run_search(ctx: ReactContext, text: str) -> tuple[list[dict], int]:
     # 단, 연령 발화가 있으면(랭킹 신호) 진행한다.
     if not domain._has_any_filter(codes) and not age_bands:
         return [], 0
-    candidates, total = domain.filter_media_items(ctx.db, codes, domain.MAX_CANDIDATE_FETCH)
+    # 사전에 없는 코드는 버린다 — 전부 지어낸 코드였다면 전 매체를 보여 주지 않고 "못 찾음".
+    codes = domain._valid_codes(ctx.db, codes)
+    if not domain._has_any_filter(codes) and not age_bands:
+        return [], 0
+    candidates, total, scores = domain.filter_media_items(ctx.db, codes, domain.MAX_CANDIDATE_FETCH)
     if total == 0:
         return [], 0
-    # 연령 발화면 유동인구·연령 중심으로 랭킹, 아니면 기존 광고비 내림차순.
+    # 점수(검색어·업종·타깃 등이 맞은 만큼) 높은 순 → 연령 발화면 유동인구·연령, 아니면 광고비 내림차순.
     if age_bands:
         audience = domain._audience_by_media_id(ctx.db, candidates)
-        selected = domain.sort_by_relevance(candidates, age_bands, audience, top_k=ctx.top_k)
+        selected = domain.sort_by_relevance(candidates, age_bands, audience, top_k=ctx.top_k, scores=scores)
     else:
-        selected = domain.sort_by_price_desc(candidates, top_k=ctx.top_k)
+        selected = domain.sort_by_price_desc(candidates, top_k=ctx.top_k, scores=scores)
     meta = domain._media_meta_by_media_id(ctx.db, selected)
     images = domain._images_by_media_id(ctx.db, [it.media_id for it in selected])
     items = [domain._to_response_item(it, meta, images).model_dump() for it in selected]
@@ -367,7 +382,9 @@ def build_tools(ctx: ReactContext) -> list:
     """요청별 ctx를 클로저로 캡처한 도구 5개 리스트. (스키마 클래스와 도구 함수는 이름을 분리)"""
 
     @tool(args_schema=SearchMediaArgs)
-    def SearchMedia(region="", industry="", product="", objective="", target="", media_type="", budget=""):  # noqa: N802
+    def SearchMedia(  # noqa: N802
+        region="", industry="", product="", objective="", target="", media_type="", budget="", count=None
+    ):
         """광고 조건으로 매체를 검색한다."""
         text = " ".join(
             p for p in (region, industry, product, objective, target, media_type, budget) if p
@@ -375,9 +392,13 @@ def build_tools(ctx: ReactContext) -> list:
         items, total = _run_search(ctx, text)
         if total == 0:
             return f"{NOT_FOUND_MARKER} 조건에 맞는 매체가 없습니다."
+        # 개수를 말했으면("2개 추천해줘") 추천 순 위에서 그만큼만 — 화면 카드와 답변이 같은 매체가 되게.
+        requested = count if isinstance(count, int) and count > 0 else None
+        if requested:
+            items = items[:requested]
         ctx.last_items = items
-        ctx.events.append(build_list_event(items, total, len(items)))
-        return list_summary_for_llm(items, total)
+        ctx.events.append(build_list_event(items, total, len(items), requested))
+        return list_summary_for_llm(items, total, requested)
 
     @tool(args_schema=ExplainMediaArgs)
     def ExplainMedia(index=None, name=None, aspect=None):  # noqa: N802

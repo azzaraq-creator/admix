@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Chip } from "@heroui/react";
+import { Button } from "@heroui/react";
 import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
@@ -15,6 +15,7 @@ import { SizeSection } from "@/components/common/media-detail/SizeSection";
 import { FolderIcon } from "@/components/icons";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 
 const DESCRIPTION =
   "맥스비전은 서울 지하철 1~4호선 주요 유동역사 24개소에 설치된 대형 디지털 광고 매체입니다. 역사 내 동선 중심부나 개찰구 주변, 환승 통로, 연결 계단 등 시야 확보가 우수한 위치에 설치되어 이용객의 이동 동선과 맞물린 자연스러운 노출이 가능합니다. 기존 사이니지보다 큰 사이즈의 디지털 스크린으로 구성되어 시각적 주목도가 높으며 일부 구간은 음성 송출이 가능해 브랜드 영상 콘텐츠 전달력이 우수합니다.";
@@ -25,11 +26,6 @@ const MEDIA_LIST_DEFAULT: MediaListItem[] = Array.from({ length: 6 }, () => ({
   title: "영상(20초) / 팬클럽 광고",
   subtitle: "1기 1면 / 20초 / 3일",
 }));
-
-const BADGE = {
-  popular: { label: "인기", className: "bg-secondary text-primary" },
-  new: { label: "신규", className: "bg-[#fff3d3] text-[#ff920a]" },
-} as const;
 
 const FEATURES: [string, string][] = [
   ["매체 카테고리", "지하철"],
@@ -139,16 +135,7 @@ export function MediaDetailContent({
           <div className="flex flex-col gap-[36px]">
             <div className="flex items-start gap-[12px]">
               <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-                {badge && (
-                  <Chip
-                    className={cn(
-                      "w-fit justify-center rounded-full px-[12px] py-[6px] text-base font-medium leading-[24px]",
-                      BADGE[badge].className,
-                    )}
-                  >
-                    {BADGE[badge].label}
-                  </Chip>
-                )}
+                {badge && <MediaBadgeChip badge={badge} size="lg" />}
                 <div className="flex flex-col gap-[4px]">
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
                     {name}
