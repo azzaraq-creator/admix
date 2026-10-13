@@ -24,6 +24,7 @@ import type {
   ProposalItem,
 } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
+import { AD_FEE_INQUIRY, formatTotalWithInquiry } from "@/lib/media";
 
 import { SlideScaler } from "./SlideScaler";
 import { SlideWatermark } from "./SlideWatermark";
@@ -655,6 +656,8 @@ export function SummaryTemplate({
   );
   // GROSS = 광고비 합계 + 제작비 합계(아래 표 "합계" 칸을 모두 더한 값)
   const grossTotal = adTotal + prodTotal;
+  // 광고비가 없는(별도 문의) 매체가 있으면 광고비 합계·GROSS 뒤에 "+ @"
+  const adInquiry = items.some((item) => adAmount(item) == null);
   const regions = Array.from(
     new Set(
       items
@@ -690,15 +693,24 @@ export function SummaryTemplate({
           <HeaderStat label="캠페인 기간" value={period} />
           <HeaderStat label="집행 매체" value={`${items.length}개`} />
           <HeaderStat label="캠페인 지역" value={regions || EMPTY} />
-          <HeaderStat label="광고비 합계" value={formatWon(adTotal)} />
+          <HeaderStat
+            label="광고비 합계"
+            value={formatTotalWithInquiry(adTotal, adInquiry)}
+          />
           <HeaderStat label="제작비 합계" value={formatWon(prodTotal)} />
         </div>
         <div className="flex w-[400px] shrink-0 flex-col justify-center gap-[10px] rounded-[16px] bg-primary px-[36px] py-[28px] text-white">
           <p className="whitespace-nowrap text-[16px] font-medium leading-[1.4] tracking-[-0.4px] text-white/75">
             전체 금액 합계(GROSS) · VAT 별도
           </p>
-          <p className="truncate text-[36px] font-bold leading-[1.2] tracking-[-0.9px] tabular-nums">
-            {formatWon(grossTotal)}
+          {/* "+ @"가 붙으면 카드 폭을 넘지 않게 조금 줄인다. */}
+          <p
+            className={cn(
+              "truncate font-bold leading-[1.2] tracking-[-0.9px] tabular-nums",
+              adInquiry ? "text-[30px]" : "text-[36px]",
+            )}
+          >
+            {formatTotalWithInquiry(grossTotal, adInquiry)}
           </p>
         </div>
       </div>
@@ -752,7 +764,9 @@ export function SummaryTemplate({
               onChange={(value) => onMonthsChange?.(item.media_id, value)}
             />
             <AmountCell width={COL.ad}>
-              {formatNumber(adAmount(item))}
+              {adAmount(item) == null
+                ? AD_FEE_INQUIRY
+                : formatNumber(adAmount(item))}
             </AmountCell>
             <ProductionCell
               width={COL.prod}
@@ -763,9 +777,12 @@ export function SummaryTemplate({
               }
             />
             <AmountCell width={COL.total} strong>
-              {formatNumber(
-                (adAmount(item) ?? 0) + (productionAmount(item) ?? 0),
-              )}
+              {/* 광고비가 없으면(별도 문의) 행 합계도 알 수 없다. */}
+              {adAmount(item) == null
+                ? AD_FEE_INQUIRY
+                : formatNumber(
+                    (adAmount(item) ?? 0) + (productionAmount(item) ?? 0),
+                  )}
             </AmountCell>
             <PeriodCell
               width={COL.period}

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
 import { AddToProposalModal } from "@/components/common/AddToProposalModal";
@@ -13,9 +12,10 @@ import { MediaListSelect } from "@/components/common/media-detail/MediaListSelec
 import { PopulationSummaryBar } from "@/components/common/media-detail/PopulationSummaryBar";
 import { SizeSection } from "@/components/common/media-detail/SizeSection";
 import { FolderIcon } from "@/components/icons";
-import { isOptimizable, mediaSrc } from "@/lib/media";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
+import { MediaImage } from "@/components/common/MediaImage";
 
 const DESCRIPTION =
   "맥스비전은 서울 지하철 1~4호선 주요 유동역사 24개소에 설치된 대형 디지털 광고 매체입니다. 역사 내 동선 중심부나 개찰구 주변, 환승 통로, 연결 계단 등 시야 확보가 우수한 위치에 설치되어 이용객의 이동 동선과 맞물린 자연스러운 노출이 가능합니다. 기존 사이니지보다 큰 사이즈의 디지털 스크린으로 구성되어 시각적 주목도가 높으며 일부 구간은 음성 송출이 가능해 브랜드 영상 콘텐츠 전달력이 우수합니다.";
@@ -120,12 +120,11 @@ export function MediaDetailContent({
       <div className="flex w-full max-w-[1016px] flex-col">
         <div className="relative h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
           {imageUrl && (
-            <Image
+            <MediaImage
               src={mediaSrc(imageUrl)}
               alt=""
               fill
               sizes="(max-width: 640px) 100vw, 1016px"
-              unoptimized={!isOptimizable(mediaSrc(imageUrl))}
               className="object-cover"
             />
           )}
@@ -135,7 +134,7 @@ export function MediaDetailContent({
           <div className="flex flex-col gap-[36px]">
             <div className="flex items-start gap-[12px]">
               <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-                {badge && <MediaBadgeChip badge={badge} size="lg" />}
+                {badge && <MediaBadgeChip badge={badge} size="lg" explain />}
                 <div className="flex flex-col gap-[4px]">
                   <p className="text-[32px] font-bold leading-[40px] tracking-[-0.16px] text-black">
                     {name}

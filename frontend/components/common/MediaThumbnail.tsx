@@ -1,11 +1,11 @@
 "use client";
 
 import { Skeleton } from "@heroui/react";
-import Image from "next/image";
 import { useState } from "react";
 
-import { isOptimizable, mediaSrc } from "@/lib/media";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import { MediaImage } from "@/components/common/MediaImage";
 
 type MediaThumbnailProps = {
   src?: string;
@@ -39,12 +39,11 @@ export function MediaThumbnail({
     >
       {resolved ? (
         <>
-          <Image
+          <MediaImage
             src={resolved}
             alt=""
             fill
             sizes={sizes}
-            unoptimized={!isOptimizable(resolved)}
             onLoad={() => setLoaded(true)}
             onError={() => setLoaded(true)}
             className={cn(

@@ -30,6 +30,7 @@ import type { MediaCardRow } from "@/hooks/media";
 import { useAddProposalItems } from "@/hooks/proposals";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
+import { formatAdFee } from "@/lib/media";
 
 // 하단 버튼 — 시안 "닫기 / 추가하기"(36px → 곡률 15px).
 const ACTION_CLASS =
@@ -58,9 +59,6 @@ function sortRows(rows: MediaCardRow[], key: SortKey): MediaCardRow[] {
     return key === "priceDesc" ? pb - pa : pa - pb;
   });
 }
-
-const won = (value: number | null) =>
-  value == null ? "-" : `${value.toLocaleString()}원`;
 
 /**
  * 관심 매체에서 추가하기 — 시안 "03. 제안서 - 상세 (관심 매체에서 추가하기)"의 틀
@@ -468,7 +466,10 @@ function PickPrice({
       )}
     >
       <span className="text-[10px] font-medium text-gray-400">{label}</span>
-      <span className="text-[14px] font-bold text-[#2d264b]">{won(value)}</span>
+      {/* 광고비 칸만 값이 비어 들어온다(제작비는 없으면 칸째 숨김) — 없으면 "별도 문의". */}
+      <span className="text-[14px] font-bold text-[#2d264b]">
+        {formatAdFee(value)}
+      </span>
     </div>
   );
 }

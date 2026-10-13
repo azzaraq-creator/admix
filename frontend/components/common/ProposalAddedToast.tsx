@@ -12,6 +12,7 @@ import {
 import { CheckCircleFilledIcon } from "@/components/icons";
 import type { ProposalSummary } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
+import { formatTotalWithInquiry, hasAdInquiry } from "@/lib/media";
 
 /** 기획안 담기 완료 토스트가 떠 있는 시간. */
 const PROPOSAL_ADDED_TOAST_TIMEOUT = 5000;
@@ -138,6 +139,8 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
   // 예전 응답(금액 분리 전)은 total_amount가 광고비 합계다 — 기획안 목록(toView)과 같은 기준.
   const adAmount = proposal.advertisement_amount ?? proposal.total_amount;
   const productionAmount = proposal.production_amount ?? 0;
+  // 광고비가 없는(별도 문의) 매체가 담겼으면 광고비·총액 뒤에 "+ @"
+  const adInquiry = hasAdInquiry(proposal.preview_items);
 
   return (
     <div className="flex w-full flex-col gap-[12px] rounded-[16px] border border-[#ececef] bg-[#f5f6fb] p-[14px]">
@@ -179,7 +182,9 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
       <div className="flex flex-col gap-[8px] rounded-[16px] border border-[#ececef] bg-white px-[14px] py-[12px] whitespace-nowrap">
         <div className="flex items-center justify-between font-medium">
           <span className="text-[12px] text-[#71717a]">광고비</span>
-          <span className="text-[14px] text-[#18181b]">{won(adAmount)}</span>
+          <span className="text-[14px] text-[#18181b]">
+            {formatTotalWithInquiry(adAmount, adInquiry)}
+          </span>
         </div>
         <div className="flex items-center justify-between font-medium">
           <span className="text-[12px] text-[#71717a]">제작비</span>
@@ -189,7 +194,9 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
         </div>
         <div className="flex items-center justify-between border-t border-[#ececef] pt-[8px] text-[14px] font-bold text-[#18181b]">
           <span>총 예상 비용</span>
-          <span>{won(adAmount + productionAmount)}</span>
+          <span>
+            {formatTotalWithInquiry(adAmount + productionAmount, adInquiry)}
+          </span>
         </div>
       </div>
     </div>

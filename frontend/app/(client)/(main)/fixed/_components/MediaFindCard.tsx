@@ -10,6 +10,7 @@ import {
   ToggleButton,
 } from "@heroui/react";
 
+import { formatAdFee } from "@/lib/media";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
   ChevronRightBoldIcon,
@@ -24,10 +25,8 @@ import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 import { MovingChip } from "@/components/common/MovingChip";
 
-/** 카드 하단 금액 — 값이 없으면 시안대로 "-". */
-function formatKrw(value: number | null): string {
-  return value == null ? "-" : `${value.toLocaleString()}원`;
-}
+// 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
+const formatKrw = formatAdFee;
 
 function PriceCell({
   label,

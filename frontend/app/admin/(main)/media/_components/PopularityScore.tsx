@@ -8,10 +8,13 @@ export interface PopularitySummary {
   total: number;
   top_pct: number | null;
   badge: boolean;
+  /** 관리자가 "인기 매체"로 지정해 뱃지가 붙었는지(저장된 값 기준) */
+  forced?: boolean;
+  /** 뱃지 기준 — 상위 몇 %(백엔드 BADGE_TOP_RATIO) */
+  badge_top_pct?: number;
   breakdown: {
     key: string;
     label: string;
-    /** 사람 수 — "인기 매체 표시"는 null */
     people: number | null;
     weight: number;
     points: number;
@@ -19,7 +22,8 @@ export interface PopularitySummary {
 }
 
 /**
- * 어드민 매체 상세 "인기 점수" — 총점·순위·뱃지와 항목별 점수(제출·기획안 담기·관심 매체·인기 매체 표시).
+ * 어드민 매체 상세 "인기 점수" — 총점·순위·뱃지와 항목별 점수(제출·기획안 담기·관심 매체).
+ * 관리자 "인기 매체" 지정은 점수에 더하지 않고 뱃지만 붙인다(forced).
  * 점수 규칙은 백엔드 popularity.py.
  */
 export function PopularityScore({ data }: { data?: PopularitySummary }) {
@@ -52,11 +56,15 @@ export function PopularityScore({ data }: { data?: PopularitySummary }) {
               : "bg-white text-[#9aa0b4]",
           )}
         >
-          {data.badge ? "인기 뱃지 표시 중" : "뱃지 없음 · 상위 10%부터"}
+          {data.forced
+            ? "인기 뱃지 표시 중 · 관리자 지정"
+            : data.badge
+              ? "인기 뱃지 표시 중 · 점수 상위"
+              : `뱃지 없음 · 상위 ${data.badge_top_pct ?? 5}%부터`}
         </span>
       </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-4 gap-[8px] max-sm:grid-cols-2">
+      <div className="grid min-w-0 flex-1 grid-cols-3 gap-[8px] max-sm:grid-cols-1">
         {data.breakdown.map((item) => {
           const empty = item.points === 0;
           return (
@@ -78,9 +86,7 @@ export function PopularityScore({ data }: { data?: PopularitySummary }) {
               <p className="text-[11px] text-[#9aa0b4] tabular-nums">
                 {item.people != null
                   ? `${item.people}명 × ${item.weight}점`
-                  : empty
-                    ? "표시 안 함"
-                    : `표시함 · +${item.weight}점`}
+                  : "-"}
               </p>
             </div>
           );

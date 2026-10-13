@@ -40,6 +40,7 @@ import {
 } from "@/hooks/proposals";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useSonner } from "@/hooks/useSonner";
+import { formatAdFee, formatTotalWithInquiry } from "@/lib/media";
 
 const won = (value: number | null) =>
   value == null ? "-" : `${value.toLocaleString()}원`;
@@ -367,7 +368,11 @@ function ProposalBody({
             </span>
           </span>
           <span className="text-[20px] font-bold text-gray-900">
-            {won(total)}
+            {/* 광고비가 없는(별도 문의) 매체가 있으면 "+ @" */}
+            {formatTotalWithInquiry(
+              total,
+              rows.some((r) => r.adAmount == null),
+            )}
           </span>
         </div>
         <Button
@@ -525,7 +530,7 @@ function ItemCard({
             max={36}
             onChange={(months) => onChange({ months })}
           />
-          <span className={ROW_AMOUNT}>{won(row.adAmount)}</span>
+          <span className={ROW_AMOUNT}>{formatAdFee(row.adAmount)}</span>
         </div>
         {/* 제작비 줄은 OOH이고 제작비가 있을 때만. */}
         {row.hasProduction && (

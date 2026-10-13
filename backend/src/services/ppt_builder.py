@@ -54,6 +54,8 @@ WHITE_60_ON_DARK = RGBColor(0xA0, 0x9E, 0xA7)
 
 ROWS_PER_PAGE = 5
 EMPTY = "-"
+# 광고비가 없는 매체(운영 원천 데이터 일부) — 화면(frontend lib/media.ts AD_FEE_INQUIRY)과 같은 말.
+AD_FEE_INQUIRY = "별도 문의"
 
 # 프론트 슬라이드를 그대로 캡처한 이미지(1920×1080). 블러·그라데이션 심볼은 pptx 도형으로
 # 재현할 수 없어 이미지로 깐다. 표지는 기획안명·날짜만 빼고 캡처, Thanks 는 슬라이드 전체.
@@ -94,6 +96,15 @@ def _won(value) -> str:
         return f"{int(value):,}원"
     except (TypeError, ValueError):
         return EMPTY
+
+
+def _won_with_inquiry(total: int, inquiry: bool) -> str:
+    """여러 매체 합계 — 별도 문의(광고비 없음) 매체가 섞이면 "+ @", 아는 금액이 없으면 "별도 문의"."""
+    if not inquiry:
+        return _won(total)
+    if not total:
+        return AD_FEE_INQUIRY
+    return f"{_won(total)} + @"
 
 
 def _num(value) -> str:
@@ -323,6 +334,8 @@ def build_summary_pages(prs, detail: dict) -> None:
 
     ad_total = sum((it.get("price") or 0) * _ad_mult(it) for it in items)
     prod_total = sum((it.get("production_fee") or 0) * _prod_mult(it) for it in items)
+    # 광고비가 없는(별도 문의) 매체가 있으면 광고비 합계·GROSS 뒤에 "+ @"(화면 formatTotalWithInquiry 와 같다)
+    ad_inquiry = any(it.get("price") is None for it in items)
     regions = ", ".join(
         dict.fromkeys(it.get("region") for it in items if it.get("region"))
     ) or EMPTY
@@ -361,7 +374,7 @@ def build_summary_pages(prs, detail: dict) -> None:
             ("캠페인 기간", period, 1.5),
             ("집행 매체", f"{len(items)}개", 0.7),
             ("캠페인 지역", regions, 1.2),
-            ("광고비 합계", _won(ad_total), 1),
+            ("광고비 합계", _won_with_inquiry(ad_total, ad_inquiry), 1),
             ("제작비 합계", _won(prod_total), 1),
         ]
         inner = card_w - 72
@@ -379,7 +392,9 @@ def build_summary_pages(prs, detail: dict) -> None:
               "전체 금액 합계(GROSS) · VAT 별도", size=16, color=WHITE_75_ON_PRIMARY,
               tight=True, wrap=False)
         _text(slide, _px(gx + 36), _px(stats_top + 54), _px(gross_w - 72), _px(48),
-              _won(ad_total + prod_total), size=36, color=WHITE, bold=True, tight=True, wrap=False)
+              # "+ @"가 붙으면 카드 폭(400px)을 넘지 않게 조금 줄인다.
+              _won_with_inquiry(ad_total + prod_total, ad_inquiry), size=30 if ad_inquiry else 36,
+              color=WHITE, bold=True, tight=True, wrap=False)
 
         # 합계 열 연보라 바탕(머리글 ~ 마지막 매체 행)
         tint_bottom = rows_top + row_h * len(rows)
@@ -412,9 +427,10 @@ def build_summary_pages(prs, detail: dict) -> None:
                 (it.get("media_name") or it.get("name") or EMPTY, GRAY_900, True),
                 (it.get("product") or EMPTY, GRAY_700, False),
                 (f"{_pos(it.get('months'))}개월", GRAY_700, False),
-                (_num(ad), GRAY_700, False),
+                (AD_FEE_INQUIRY if ad is None else _num(ad), GRAY_700, False),
                 (_num(prod), GRAY_700, False),
-                (_num((ad or 0) + (prod or 0)), PRIMARY_800, True),
+                # 광고비가 없으면 행 합계도 알 수 없다.
+                (AD_FEE_INQUIRY if ad is None else _num(ad + (prod or 0)), PRIMARY_800, True),
                 (f"{start} ~ {it.get('end_date') or EMPTY}" if start else "미정", GRAY_700, False),
             ]
             for ci, cell in enumerate(cells):
@@ -609,7 +625,7 @@ def _price_card(slide, left, top, width, height, item: dict) -> None:
     prod = fee * _prod_mult(item) if fee is not None else None
     _price_row(slide, inner_l, top + 62, inner_w, "광고비",
                f"{_won(price)} × {_pos(item.get('months'))}개월" if price is not None else None,
-               _won(ad))
+               AD_FEE_INQUIRY if ad is None else _won(ad))
     _price_row(slide, inner_l, top + 98, inner_w, "제작비",
                f"{_won(fee)} × {_pos(item.get('production_count'))}회" if fee is not None else None,
                _won(prod))
@@ -619,7 +635,7 @@ def _price_card(slide, left, top, width, height, item: dict) -> None:
           size=18, color=WHITE_85_ON_PRIMARY, bold=True, tight=True, wrap=False,
           anchor=MSO_ANCHOR.BOTTOM)
     _text(slide, _px(inner_l), _px(top + height - 28 - 48), _px(inner_w), _px(48),
-          _won((ad or 0) + (prod or 0)), size=36, color=WHITE, bold=True, tight=True,
+          AD_FEE_INQUIRY if ad is None else _won(ad + (prod or 0)), size=36, color=WHITE, bold=True, tight=True,
           wrap=False, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.BOTTOM, spacing=-0.9)
 
 

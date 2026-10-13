@@ -666,6 +666,7 @@ function MediaForm({
               options={
                 f.type === "boolean" ? BOOLEAN_OPTIONS : (f.options ?? [])
               }
+              emptyLabel={f.emptyLabel}
               isDisabled={disabled}
               isInvalid={invalid}
             />
@@ -813,6 +814,12 @@ function MediaForm({
         {f.pair
           ? renderPairControl({ ...f, pair: f.pair })
           : renderControl(f, disabled)}
+        {f.key === "is_newly_built_yn" && (
+          <NewBadgeStatus
+            value={allValues[f.key] ?? ""}
+            status={detail?.new_badge}
+          />
+        )}
       </HeroField>
     );
   };
@@ -1143,5 +1150,49 @@ function MediaForm({
 
       {confirmDialog}
     </div>
+  );
+}
+
+/** "신규 매체" 칸 아래 — 지금 고른 값으로 신규 뱃지가 어떻게 붙는지(자동이면 언제까지). */
+function NewBadgeStatus({
+  value,
+  status,
+}: {
+  value: string;
+  status?: AdminMediaDetail["new_badge"];
+}) {
+  const fmt = (d: string) => d.slice(5).replace("-", "/");
+  let text: string;
+  let on: boolean;
+  if (value === "true") {
+    text = "기간과 상관없이 '신규' 뱃지를 붙여요.";
+    on = true;
+  } else if (value === "false") {
+    text = "'신규' 뱃지를 붙이지 않아요.";
+    on = false;
+  } else if (!status) {
+    text = "저장하면 등록일부터 14일 동안 '신규' 뱃지가 붙어요.";
+    on = true;
+  } else if (
+    status.until &&
+    new Date(`${status.until}T23:59:59+09:00`) >= new Date()
+  ) {
+    text = `자동 · 지금 신규 (${fmt(status.until)}까지)`;
+    on = true;
+  } else {
+    text = status.until
+      ? `자동 · 신규 기간이 끝났어요 (${fmt(status.until)}까지였어요)`
+      : "자동 · 등록일이 없어 신규로 보지 않아요.";
+    on = false;
+  }
+  return (
+    <p
+      className={cn(
+        "mt-[6px] w-fit rounded-full px-[10px] py-[3px] text-[12px] font-semibold",
+        on ? "bg-[#eff6ff] text-[#2e90fa]" : "bg-[#f5f6fb] text-[#9aa0b4]",
+      )}
+    >
+      {text}
+    </p>
   );
 }

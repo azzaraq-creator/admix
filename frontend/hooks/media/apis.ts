@@ -400,6 +400,8 @@ export interface AdminMediaDetail {
     total: number;
     top_pct: number | null;
     badge: boolean;
+    forced?: boolean;
+    badge_top_pct?: number;
     breakdown: {
       key: string;
       label: string;
@@ -407,6 +409,13 @@ export interface AdminMediaDetail {
       weight: number;
       points: number;
     }[];
+  };
+  /** 노출·검색 구역 "신규 매체" 안내 — auto: 자동(값 비움), until: 자동 신규가 끝나는 날(YYYY-MM-DD) */
+  new_badge?: {
+    auto: boolean;
+    is_new: boolean;
+    until: string | null;
+    days: number;
   };
   [key: string]: unknown;
 }

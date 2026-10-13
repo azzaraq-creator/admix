@@ -1,15 +1,15 @@
 "use client";
 
 import { Button, Modal } from "@heroui/react";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
 
+import { MediaImage } from "@/components/common/MediaImage";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "@/components/icons";
-import { isOptimizable, mediaSrc } from "@/lib/media";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 const NAV_BUTTON_CLASS =
@@ -163,12 +163,11 @@ export function ImageLightbox({
                           가까운 장만 불러온다(멀리 있는 장은 넘길 때 로드). */}
                       <div className="relative size-full">
                         {Math.abs(i - index) <= 1 && (
-                          <Image
+                          <MediaImage
                             src={resolved}
                             alt={`${i + 1}번째 이미지`}
                             fill
                             sizes="100vw"
-                            unoptimized={!isOptimizable(resolved)}
                             draggable={false}
                             className="object-contain"
                           />

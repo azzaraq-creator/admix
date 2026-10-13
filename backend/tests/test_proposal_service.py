@@ -89,7 +89,11 @@ def test_add_items_recount_and_dedupe(db, session):
     p = ps.create_proposal(db, "담기 테스트", session_id=session.id, user=None)
     ps.add_items(db, p, [media.media_id])
     assert p.media_count == 1
-    assert p.total_amount == (media.min_advertisement_fee_krw or 0)
+    # 전체 금액 = 첫 상품의 광고비 + 제작비(개월 수·제작 수 1) — 2026-10-12부터 제작비 포함
+    plan = media.plans[0] if media.plans else None
+    ad = plan.advertisement_fee if plan and plan.advertisement_fee is not None else media.min_advertisement_fee_krw
+    prod = plan.production_fee if plan else None
+    assert p.total_amount == (ad or 0) + (prod or 0)
     # 목록 요약에 담긴 매체 id 가 노출되어야 함(중복추가 방지 UI용)
     assert ps.to_summary(p)["media_ids"] == [media.media_id]
 

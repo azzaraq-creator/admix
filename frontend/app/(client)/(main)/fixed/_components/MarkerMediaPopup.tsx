@@ -2,6 +2,7 @@
 
 import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 
+import { formatAdFee } from "@/lib/media";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
@@ -17,9 +18,8 @@ import { cn } from "@/lib/utils";
 /** 팝업 바탕색 — MapArea의 꼬리(화살표)도 같은 색으로 칠한다. */
 export const POPUP_BG_CLASS = "bg-[#f1f1f3]";
 
-function formatKrw(value: number | null): string {
-  return value == null ? "-" : `${value.toLocaleString()}원`;
-}
+// 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
+const formatKrw = formatAdFee;
 
 function PriceCell({ label, value }: { label: string; value: number | null }) {
   return (

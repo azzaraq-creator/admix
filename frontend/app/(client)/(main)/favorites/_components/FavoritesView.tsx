@@ -51,6 +51,7 @@ import {
 import { useMediaFilterOptions } from "@/hooks/media";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
+import { formatTotalWithInquiry } from "@/lib/media";
 
 import { FavoriteRow, FavoriteRowSkeleton } from "./FavoriteRow";
 
@@ -97,6 +98,10 @@ export function FavoritesView({ member }: { member: boolean }) {
   const totalAd = selectedRows.reduce(
     (sum, row) => sum + (row.minAdvertisementFeeKrw ?? 0),
     0,
+  );
+  // 광고비가 없는(별도 문의) 매체를 골랐으면 총 광고비 뒤에 "+ @".
+  const adInquiry = selectedRows.some(
+    (row) => row.minAdvertisementFeeKrw == null,
   );
   const totalProduction = selectedRows.reduce(
     (sum, row) => sum + (row.minProductionFeeKrw ?? 0),
@@ -356,6 +361,7 @@ export function FavoritesView({ member }: { member: boolean }) {
         <SelectionBar
           count={selectedIds.length}
           totalAd={totalAd}
+          adInquiry={adInquiry}
           totalProduction={totalProduction}
           onDeselect={() => setPicked([])}
           onWishCancel={handleWishCancel}
@@ -422,6 +428,8 @@ function SelectionBar(props: SelectionBarProps) {
 type SelectionBarProps = {
   count: number;
   totalAd: number;
+  /** 고른 매체 중 광고비가 없는(별도 문의) 매체가 있으면 총 광고비 뒤에 "+ @" */
+  adInquiry: boolean;
   totalProduction: number;
   onDeselect: () => void;
   onWishCancel: () => void;
@@ -448,6 +456,7 @@ function SelectionCount({ count }: { count: number }) {
 function DesktopSelectionBar({
   count,
   totalAd,
+  adInquiry,
   totalProduction,
   onDeselect,
   onWishCancel,
@@ -460,7 +469,10 @@ function DesktopSelectionBar({
 
       {/* 합계 — 좁은 화면(태블릿 세로 등)에선 버튼 자리를 위해 뺀다. */}
       <div className="flex shrink-0 items-center gap-[24px] max-lg:hidden">
-        <CostItem label="총 광고비" value={won(totalAd)} />
+        <CostItem
+          label="총 광고비"
+          value={formatTotalWithInquiry(totalAd, adInquiry)}
+        />
         <span aria-hidden className="h-[24px] w-px bg-white/10" />
         <CostItem label="총 제작비" value={won(totalProduction)} />
       </div>
@@ -512,6 +524,7 @@ const SHEET_SECONDARY_CLASS =
 function MobileSelectionSheet({
   count,
   totalAd,
+  adInquiry,
   totalProduction,
   onDeselect,
   onWishCancel,
@@ -566,7 +579,10 @@ function MobileSelectionSheet({
             <Drawer.Body className="mt-[12px] p-0">
               {/* 합계 — 매체 정보 팝업 가격 칸과 같은 회색 상자. */}
               <div className="flex flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
-                <SheetCostRow label="총 광고비" value={won(totalAd)} />
+                <SheetCostRow
+                  label="총 광고비"
+                  value={formatTotalWithInquiry(totalAd, adInquiry)}
+                />
                 <div className="h-px bg-[#ececef]" />
                 <SheetCostRow label="총 제작비" value={won(totalProduction)} />
               </div>

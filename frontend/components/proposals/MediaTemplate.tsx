@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { StaticKakaoMap } from "@/components/common/StaticKakaoMap";
 import type { PlanOption, ProposalItem } from "@/hooks/proposals";
 import { cn } from "@/lib/utils";
+import { AD_FEE_INQUIRY } from "@/lib/media";
 
 import { SlideScaler } from "./SlideScaler";
 import { SlideWatermark } from "./SlideWatermark";
@@ -131,7 +132,7 @@ function PriceCard({ item }: { item: ProposalItem }) {
               ? `${formatWon(item.price)} × ${months}개월`
               : null
           }
-          value={formatWon(ad)}
+          value={ad == null ? AD_FEE_INQUIRY : formatWon(ad)}
         />
         <PriceRow
           label="제작비"
@@ -148,7 +149,8 @@ function PriceCard({ item }: { item: ProposalItem }) {
           합계
         </p>
         <p className="whitespace-nowrap text-[36px] font-bold leading-[1.2] tracking-[-0.9px] tabular-nums">
-          {formatWon((ad ?? 0) + (prod ?? 0))}
+          {/* 광고비가 없으면(별도 문의) 합계도 알 수 없다. */}
+          {ad == null ? AD_FEE_INQUIRY : formatWon(ad + (prod ?? 0))}
         </p>
       </div>
     </div>

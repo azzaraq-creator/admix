@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { type ReactNode, useState } from "react";
 
 import { AgeBarChart, type AgeRatio } from "@/components/common/AgeBarChart";
@@ -11,9 +10,10 @@ import { MediaListSelect } from "@/components/common/media-detail/MediaListSelec
 import { PopulationSummaryBar } from "@/components/common/media-detail/PopulationSummaryBar";
 import { SizeSection } from "@/components/common/media-detail/SizeSection";
 import { ChevronLeftIcon, FolderIcon } from "@/components/icons";
-import { isOptimizable, mediaSrc } from "@/lib/media";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
+import { MediaImage } from "@/components/common/MediaImage";
 
 export type MobilePopulation = {
   /** 실시간 인구 범위 — "80,000~82,000" */
@@ -104,12 +104,11 @@ export function MobileMediaDetail({
     <div className={cn("flex w-full flex-col", className)}>
       <div className="relative h-[250px] w-full shrink-0 bg-[#d9d9d9]">
         {imageUrl && (
-          <Image
+          <MediaImage
             src={mediaSrc(imageUrl)}
             alt=""
             fill
             sizes="100vw"
-            unoptimized={!isOptimizable(mediaSrc(imageUrl))}
             className="object-cover"
           />
         )}
@@ -129,7 +128,7 @@ export function MobileMediaDetail({
         <div className="flex flex-col gap-[16px]">
           <div className="flex items-start justify-between gap-[12px]">
             <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
-              {badge && <MediaBadgeChip badge={badge} size="md" />}
+              {badge && <MediaBadgeChip badge={badge} size="md" explain />}
               <div className="flex flex-col gap-[4px]">
                 <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
                   {name}

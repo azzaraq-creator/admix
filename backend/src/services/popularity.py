@@ -3,12 +3,15 @@
 최근 WINDOW_DAYS(90일) 동안의 고객 행동을 사람 수로 센다(같은 사람이 여러 번 해도 1번).
 사람 = 회원 ID, 비회원은 세션 ID.
 
-    점수 = 제출한 기획안에 포함 × 5 + 기획안에 담기 × 3 + 관심 매체(하트) × 2 + 관리자 "인기 매체" 표시 5
+    점수 = 제출한 기획안에 포함 × 5 + 기획안에 담기 × 3 + 관심 매체(하트) × 2
 
 - 제출: 기획안 상태가 제출 이후(집행 요청·맞춤제안·계약 완료)이고 그 기획안이 최근 90일 안에 바뀐 것.
 - 담기: 최근 90일 안에 기획안에 담긴 것(지운 기획안은 빼고).
 - 하트: 최근 90일 안에 관심 매체로 담은 것.
-- 뱃지: 점수가 있는 매체 중 상위 BADGE_TOP_RATIO(10%, 전체 매체 수 기준) — 같은 점수는 함께 포함.
+- 뱃지: 점수가 있는 매체 중 상위 BADGE_TOP_RATIO(5%, 전체 매체 수 기준) — 같은 점수는 함께 포함.
+  (2026-10-13 10% → 5%: 뱃지가 너무 많아 보여 줄임)
+- 관리자 "인기 매체" = 예: 점수와 상관없이 뱃지를 붙이고 "인기순"에서 맨 앞에 둔다(점수에는 더하지 않는다).
+  (2026-10-13 변경 — 전에는 점수 +5)
 """
 from __future__ import annotations
 
@@ -30,8 +33,7 @@ WINDOW_DAYS = 90
 W_SUBMIT = 5
 W_ADD = 3
 W_FAVORITE = 2
-ADMIN_BONUS = 5
-BADGE_TOP_RATIO = 0.10
+BADGE_TOP_RATIO = 0.05
 CACHE_SECONDS = 300
 
 SUBMITTED_STATUSES = ("execution_requested", "custom", "contracted")
@@ -76,19 +78,23 @@ def score_expr(submit, add, fav):
         func.coalesce(submit.c.n, 0) * W_SUBMIT
         + func.coalesce(add.c.n, 0) * W_ADD
         + func.coalesce(fav.c.n, 0) * W_FAVORITE
-        + case((Media.is_popular_yn.is_(True), ADMIN_BONUS), else_=0)
     )
 
 
 def order_by_popularity(base, latest_col):
-    """매체 쿼리를 인기 점수 높은 순 → 최신순으로."""
+    """매체 쿼리를 관리자 "인기 매체" 지정 → 인기 점수 높은 순 → 최신순으로."""
     submit, add, fav = counts_subquery()
     score = score_expr(submit, add, fav)
     return (
         base.outerjoin(submit, submit.c.media_id == Media.media_id)
         .outerjoin(add, add.c.media_id == Media.media_id)
         .outerjoin(fav, fav.c.media_id == Media.media_id)
-        .order_by(score.desc(), latest_col.desc(), Media.media_id)
+        .order_by(
+            case((Media.is_popular_yn.is_(True), 0), else_=1),
+            score.desc(),
+            latest_col.desc(),
+            Media.media_id,
+        )
     )
 
 
@@ -96,7 +102,7 @@ def order_by_popularity(base, latest_col):
 class Snapshot:
     """전체 매체의 점수·내역·뱃지 — 잠깐(CACHE_SECONDS) 재사용한다."""
 
-    detail: dict[str, dict]  # media_id → {submit, add, favorite, admin, score}
+    detail: dict[str, dict]  # media_id → {submit, add, favorite, forced, score}
     badge_ids: frozenset[str]
     total_media: int
     at: float
@@ -123,15 +129,16 @@ def _compute(db: Session) -> Snapshot:
     ).all()
     detail: dict[str, dict] = {}
     for mid, n_submit, n_add, n_fav, flagged in rows:
-        admin = ADMIN_BONUS if flagged else 0
-        score = n_submit * W_SUBMIT + n_add * W_ADD + n_fav * W_FAVORITE + admin
-        detail[mid] = dict(submit=n_submit, add=n_add, favorite=n_fav, admin=admin, score=score)
+        score = n_submit * W_SUBMIT + n_add * W_ADD + n_fav * W_FAVORITE
+        detail[mid] = dict(submit=n_submit, add=n_add, favorite=n_fav, forced=bool(flagged), score=score)
     scored = sorted((d["score"] for d in detail.values() if d["score"] > 0), reverse=True)
     top_n = math.ceil(len(detail) * BADGE_TOP_RATIO)
     badge_ids: frozenset[str] = frozenset()
     if scored and top_n > 0:
         cutoff = scored[min(top_n, len(scored)) - 1]
         badge_ids = frozenset(mid for mid, d in detail.items() if d["score"] > 0 and d["score"] >= cutoff)
+    # 관리자가 "인기 매체"로 지정한 매체는 점수와 상관없이 뱃지.
+    badge_ids |= frozenset(mid for mid, d in detail.items() if d["forced"])
     return Snapshot(detail=detail, badge_ids=badge_ids, total_media=len(detail), at=time.monotonic())
 
 
@@ -152,14 +159,13 @@ def is_badge(db: Session | None, media_id: str) -> bool:
 def admin_summary(db: Session, media_id: str) -> dict:
     """어드민 매체 상세의 "인기 점수" 칸 — 총점·항목별 점수·순위·뱃지 여부(방금 계산한 값)."""
     snap = snapshot(db, fresh=True)
-    d = snap.detail.get(media_id) or dict(submit=0, add=0, favorite=0, admin=0, score=0)
+    d = snap.detail.get(media_id) or dict(submit=0, add=0, favorite=0, forced=False, score=0)
     rank = sum(1 for x in snap.detail.values() if x["score"] > d["score"]) + 1
     top_pct = math.ceil(rank / snap.total_media * 100) if snap.total_media else 100
     breakdown = [
         dict(key="submit", label="제출", people=d["submit"], weight=W_SUBMIT, points=d["submit"] * W_SUBMIT),
         dict(key="add", label="기획안 담기", people=d["add"], weight=W_ADD, points=d["add"] * W_ADD),
         dict(key="favorite", label="관심 매체", people=d["favorite"], weight=W_FAVORITE, points=d["favorite"] * W_FAVORITE),
-        dict(key="admin", label="인기 매체 표시", people=None, weight=ADMIN_BONUS, points=d["admin"]),
     ]
     return dict(
         score=d["score"],
@@ -167,5 +173,8 @@ def admin_summary(db: Session, media_id: str) -> dict:
         total=snap.total_media,
         top_pct=top_pct if d["score"] > 0 else None,
         badge=media_id in snap.badge_ids,
+        # 관리자가 "인기 매체"로 지정해 뱃지가 붙은 것인지
+        forced=d["forced"],
+        badge_top_pct=round(BADGE_TOP_RATIO * 100),
         breakdown=breakdown,
     )

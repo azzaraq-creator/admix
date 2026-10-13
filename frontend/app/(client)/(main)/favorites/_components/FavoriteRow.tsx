@@ -6,9 +6,7 @@ import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import { LocationFilledIcon, Logo } from "@/components/icons";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
-
-const won = (value: number | null) =>
-  value == null ? "-" : `${value.toLocaleString()}원`;
+import { formatAdFee } from "@/lib/media";
 
 /**
  * 모바일 관심 매체 한 줄 — 카드 한 장이 화면을 다 차지해 한 번에 1~2개밖에 안 보여서,
@@ -91,7 +89,10 @@ function PriceLine({ label, value }: { label: string; value: number | null }) {
       <span className="w-[34px] shrink-0 text-[11px] font-medium text-gray-400">
         {label}
       </span>
-      <span className="text-[13px] font-bold text-[#2d264b]">{won(value)}</span>
+      {/* 광고비 줄만 값이 비어 들어온다(제작비는 없으면 줄째 숨김) — 없으면 "별도 문의". */}
+      <span className="text-[13px] font-bold text-[#2d264b]">
+        {formatAdFee(value)}
+      </span>
     </div>
   );
 }

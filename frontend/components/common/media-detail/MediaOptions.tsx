@@ -3,6 +3,7 @@
 import { ListBox, NumberField, Select } from "@heroui/react";
 
 import type { MediaPlanOption } from "@/hooks/media";
+import { formatAdFee } from "@/lib/media";
 import type { MediaDetailViewModel } from "./useMediaDetailViewModel";
 
 /** 매체 정보 팝업에서 고르는 집행 옵션 — 상품(플랜)·개월 수·제작 수(OOH만). */
@@ -76,10 +77,8 @@ export function mediaOptionTotals(
     productionCount,
     adTotal,
     productionTotal,
-    total:
-      adTotal == null && productionTotal == null
-        ? null
-        : (adTotal ?? 0) + (productionTotal ?? 0),
+    // 광고비가 없으면(별도 문의) 총액도 알 수 없다.
+    total: adTotal == null ? null : adTotal + (productionTotal ?? 0),
   };
 }
 
@@ -155,7 +154,7 @@ export function MediaOptionsPriceBox({
           max={MAX_MONTHS}
           onChange={(months) => onChange({ ...value, months })}
         />
-        <span className={ROW_AMOUNT}>{won(totals.adTotal)}</span>
+        <span className={ROW_AMOUNT}>{formatAdFee(totals.adTotal)}</span>
       </div>
       {/* 제작비 줄은 OOH이고 제작비가 있을 때만 — DOOH(디지털)·제작비 없음이면 뺀다. */}
       {totals.hasProduction && (
@@ -182,7 +181,7 @@ export function MediaOptionsPriceBox({
           총 예상 비용
         </span>
         <span className="text-[17px] font-bold text-primary max-sm:text-[16px]">
-          {won(totals.total)}
+          {formatAdFee(totals.total)}
         </span>
       </div>
     </div>

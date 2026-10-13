@@ -21,6 +21,7 @@ import {
   TrashOutlineIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { formatAdFee, formatTotalWithInquiry, hasAdInquiry } from "@/lib/media";
 
 import { type Proposal, type Status } from "./proposalTypes";
 
@@ -114,7 +115,7 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
                     <div className="flex items-center justify-between gap-[8px]">
                       <span className="text-[11px] text-[#727892]">광고비</span>
                       <span className="text-[14px] leading-[20px] font-bold text-[#161A2E]">
-                        {won(item.advertisement_fee)}
+                        {formatAdFee(item.advertisement_fee)}
                       </span>
                     </div>
                     {item.production_fee != null && (
@@ -238,7 +239,7 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
                                 <span>
                                   광고비{" "}
                                   <span className="font-semibold text-[#18181b]">
-                                    {won(item.advertisement_fee)}
+                                    {formatAdFee(item.advertisement_fee)}
                                   </span>
                                 </span>
                                 {item.production_fee != null && (
@@ -265,7 +266,10 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
                         광고비 합계
                       </span>
                       <span className="text-[16px] font-bold text-[#18181b]">
-                        {won(proposal.advertisementAmount)}
+                        {formatTotalWithInquiry(
+                          proposal.advertisementAmount,
+                          hasAdInquiry(proposal.previews),
+                        )}
                       </span>
                     </div>
                     <div className="h-px bg-[#ececef]" />
@@ -525,7 +529,10 @@ export function ProposalTable({
                           광고비
                         </span>
                         <span className="text-[14px] font-semibold text-black">
-                          {won(proposal.advertisementAmount)}
+                          {formatTotalWithInquiry(
+                            proposal.advertisementAmount,
+                            hasAdInquiry(proposal.previews),
+                          )}
                         </span>
                       </div>
                       <div className="flex items-baseline justify-between">

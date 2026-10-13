@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import type { ReactNode } from "react";
 
+import { MediaImage } from "@/components/common/MediaImage";
 import { PlusIcon } from "@/components/icons";
-import { isOptimizable, mediaSrc } from "@/lib/media";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 type MediaDetailImagesProps = {
@@ -40,12 +40,11 @@ function ImageCell({
       )}
     >
       {resolved && (
-        <Image
+        <MediaImage
           src={resolved}
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, 400px"
-          unoptimized={!isOptimizable(resolved)}
           className="object-cover"
         />
       )}

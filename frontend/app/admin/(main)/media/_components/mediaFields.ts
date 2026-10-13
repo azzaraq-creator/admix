@@ -33,6 +33,8 @@ export interface MediaFieldDef {
   options?: MediaFieldOption[];
   /** 칸 아래 설명 */
   help?: string;
+  /** 선택 칸에서 값을 비웠을 때 보이는 이름 — 기본 "미설정"(신규 매체는 "자동") */
+  emptyLabel?: string;
   placeholder?: string;
   /** 숫자 칸 하한·상한 */
   min?: number;
@@ -515,19 +517,20 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         key: "is_popular_yn",
         label: "인기 매체",
         type: "boolean",
-        help: "인기 점수에 +5점을 더합니다. '인기' 뱃지는 인기 점수 상위 10% 매체에 자동으로 붙어요.",
+        help: "예로 하면 점수와 상관없이 '인기' 뱃지가 붙고 매체 찾기 '인기순' 맨 앞에 보여요. 아니오면 인기 점수 상위 5%일 때만 자동으로 붙어요.",
       },
       {
         key: "is_newly_built_yn",
         label: "신규 매체",
         type: "boolean",
-        help: "목록 카드에 '신규' 뱃지가 붙습니다(인기가 우선).",
+        emptyLabel: "자동 (등록 후 14일)",
+        help: "신규 기준: 등록일로부터 14일 동안 자동으로 '신규' 뱃지가 붙어요. 예/아니오를 고르면 기간과 상관없이 그 값으로 고정됩니다. 인기 뱃지가 있으면 인기가 먼저 보여요.",
       },
       {
         key: "popularity_summary",
         label: "인기 점수",
         type: "readonly",
-        help: "최근 90일 고객 반응으로 계산해요(같은 사람은 1번). 매체 찾기 '인기순'과 '인기' 뱃지가 이 점수를 씁니다.",
+        help: "최근 90일 고객 반응으로 계산해요(같은 사람은 1번). 매체 찾기 '인기순'과 '인기' 뱃지가 이 점수를 씁니다. '인기 매체'를 예로 한 매체는 점수와 상관없이 뱃지가 붙어요.",
       },
       {
         key: "popular_type",

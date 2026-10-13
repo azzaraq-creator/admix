@@ -12,6 +12,7 @@ import {
 } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
+import { formatAdFee } from "@/lib/media";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
@@ -45,10 +46,8 @@ import {
   useMediaDetailViewModel,
 } from "./media-detail/useMediaDetailViewModel";
 
-/** 광고비·제작비 — 값이 없으면 "-" (매체 찾기 카드와 같은 규칙). */
-function formatKrw(value: number | null): string {
-  return value == null ? "-" : `${value.toLocaleString()}원`;
-}
+// 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
+const formatKrw = formatAdFee;
 
 /** 백엔드 연령 라벨("10"+under, "20대", "60"+over) → 시안 표기("10대", "60대+"). */
 function ageLabel(age: MediaDetailAgeRatio): string {
@@ -245,6 +244,7 @@ function MediaDetailBody({
               <MediaBadgeChip
                 badge={vm.badge}
                 size="md"
+                explain
                 className="mt-[2px] max-sm:mt-0"
               />
             )}

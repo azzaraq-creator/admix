@@ -8,7 +8,7 @@ import json
 import math
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -60,6 +60,36 @@ _MEDIA_IMAGE_CONTENT_TYPES = {
     ".webp": "image/webp",
     ".gif": "image/gif",
 }
+# 올린 사진의 긴 변 상한(px) — 운영 이미지 최적화(Amplify, /_next/image)는 가로·세로 9000px 넘는 원본을
+# 거부해 서비스 화면에 사진이 안 뜬다(2026-10-13, 압구정로데오 H1 등 8장). 화면에는 이 크기면 충분하다.
+MEDIA_IMAGE_MAX_SIDE = 4000
+_PIL_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
+
+
+def shrink_media_image(content: bytes, ext: str) -> bytes:
+    """긴 변이 MEDIA_IMAGE_MAX_SIDE 를 넘으면 비율대로 줄인 바이트를, 아니면 원본 그대로 돌려준다.
+
+    휴대폰 사진의 회전 정보(EXIF)는 줄일 때 픽셀에 반영한다. GIF(움직이는 그림)와 읽지 못하는 파일은 그대로 둔다.
+    """
+    fmt = _PIL_FORMATS.get(ext)
+    if fmt is None:
+        return content
+    from PIL import Image, ImageOps
+
+    try:
+        with Image.open(BytesIO(content)) as img:
+            if max(img.size) <= MEDIA_IMAGE_MAX_SIDE:
+                return content
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((MEDIA_IMAGE_MAX_SIDE, MEDIA_IMAGE_MAX_SIDE), Image.Resampling.LANCZOS)
+            if fmt == "JPEG" and img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            out = BytesIO()
+            save_opts = {"quality": 88, "optimize": True} if fmt in ("JPEG", "WEBP") else {"optimize": True}
+            img.save(out, format=fmt, **save_opts)
+            return out.getvalue()
+    except Exception:  # 손상·특이 형식 — 줄이지 못해도 업로드는 막지 않는다
+        return content
 
 _SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
 _EXPOSURE_TYPE = {"INSIDE": "공간형", "OUTSIDE": "외부형"}  # 설치 장소 — 어드민·매체 필터와 같은 표기
@@ -81,11 +111,51 @@ def _duration_text(p: MediaPlan) -> str | None:
     return f"{p.contractual_duration}{unit}"
 
 
+# "신규" 뱃지 — 등록 후 이 기간 동안 자동으로 붙는다.
+NEW_BADGE_DAYS = 14
+_KST = timezone(timedelta(hours=9))
+
+
+def is_new_media(flag: bool | None, registered_at: datetime | None) -> bool:
+    """신규 매체인지 — is_newly_built_yn 이 비어 있으면(자동) 등록 후 NEW_BADGE_DAYS 일 이내,
+    관리자가 예/아니오를 고르면 그 값.
+
+    registered_at: 등록일 — 원천 시스템 등록일(source_created_at), 없으면 DB에 들어온 시각(created_at).
+    """
+    if flag is not None:
+        return bool(flag)
+    if registered_at is None:
+        return False
+    if registered_at.tzinfo is None:
+        registered_at = registered_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - registered_at < timedelta(days=NEW_BADGE_DAYS)
+
+
+def _registered_at(m) -> datetime | None:
+    return m.source_created_at or m.created_at
+
+
+def new_badge_status(m: Media) -> dict:
+    """어드민 "신규 매체" 칸 아래 안내 — 자동인지, 지금 신규인지, 자동이면 언제까지인지."""
+    registered = _registered_at(m)
+    until = None
+    if registered is not None:
+        if registered.tzinfo is None:
+            registered = registered.replace(tzinfo=timezone.utc)
+        until = (registered + timedelta(days=NEW_BADGE_DAYS)).astimezone(_KST).date().isoformat()
+    return dict(
+        auto=m.is_newly_built_yn is None,
+        is_new=is_new_media(m.is_newly_built_yn, registered),
+        until=until,
+        days=NEW_BADGE_DAYS,
+    )
+
+
 def _media_badge(m: Media) -> str | None:
-    # "인기"는 인기 점수 상위 10%에 자동으로 붙는다(popularity) — 관리자 "인기 매체" 표시는 점수 가산점.
+    # "인기"는 인기 점수 상위 5% 또는 관리자 "인기 매체" 지정 매체에 붙는다(popularity).
     if popularity.is_badge(object_session(m), m.media_id):
         return "popular"
-    if m.is_newly_built_yn:
+    if is_new_media(m.is_newly_built_yn, _registered_at(m)):
         return "new"
     return None
 
@@ -588,7 +658,7 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
     """
     latest_col = latest if latest is not None else Media.created_at
     if sort == "popular":
-        # 인기 점수(최근 90일 제출·담기·하트 + 관리자 표시) 높은 순 — popularity.py
+        # 관리자 "인기 매체" 지정 → 인기 점수(최근 90일 제출·담기·하트) 높은 순 — popularity.py
         return popularity.order_by_popularity(base, latest_col)
     if sort in ("priceDesc", "priceAsc"):
         fee = Media.min_advertisement_fee_krw
@@ -774,7 +844,7 @@ def _marker_from_row(
     )
     if r.media_id in badge_ids:
         badge = "popular"
-    elif r.is_newly_built_yn:
+    elif is_new_media(r.is_newly_built_yn, _registered_at(r)):
         badge = "new"
     else:
         badge = None
@@ -853,6 +923,8 @@ def list_fixed_clusters(
         Media.thumbnail_url,
         Media.is_popular_yn,
         Media.is_newly_built_yn,
+        Media.source_created_at,
+        Media.created_at,
     ).all()
 
     points = [
@@ -1555,6 +1627,8 @@ def get_admin_media(db: Session, media_id: str) -> dict:
     data["ai_preview"] = ai_index.ai_preview(db, m)
     # 노출·검색 구역의 "인기 점수" 칸 — 점수·내역·순위·뱃지 여부.
     data["popularity"] = popularity.admin_summary(db, media_id)
+    # 노출·검색 구역의 "신규 매체" 칸 안내 — 자동 여부·지금 신규인지·자동이면 언제까지.
+    data["new_badge"] = new_badge_status(m)
     return data
 
 
@@ -1870,6 +1944,7 @@ def add_media_image(db: Session, media_id: str, file: UploadFile) -> dict:
     content = file.file.read(_MEDIA_IMAGE_MAX_BYTES + 1)
     if len(content) > _MEDIA_IMAGE_MAX_BYTES:
         raise HTTPException(status_code=400, detail="이미지 용량은 10MB 이하만 가능합니다.")
+    content = shrink_media_image(content, ext)
 
     settings = get_settings()
     key = f"media/{media_id}/{uuid.uuid4().hex}{ext}"

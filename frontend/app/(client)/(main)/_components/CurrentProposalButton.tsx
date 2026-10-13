@@ -13,6 +13,7 @@ import {
 } from "@/hooks/proposals";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
+import { formatTotalWithInquiry, hasAdInquiry } from "@/lib/media";
 
 import {
   CURRENT_PROPOSAL_LABEL,
@@ -101,8 +102,6 @@ function CountBadge({
     </span>
   );
 }
-
-const won = (value: number) => `${value.toLocaleString()}원`;
 
 /**
  * "현재 기획안"(매체를 담으면 들어가는 기획안) 패널을 여는 버튼.
@@ -226,11 +225,12 @@ export function CurrentProposalButton({
                     매체 {count}개
                   </span>
                   <span className="truncate text-[13px] font-bold text-gray-900">
-                    {won(
+                    {formatTotalWithInquiry(
                       current.advertisement_amount != null
                         ? current.advertisement_amount +
                             (current.production_amount ?? 0)
                         : current.total_amount,
+                      hasAdInquiry(current.preview_items),
                     )}
                   </span>
                 </span>
