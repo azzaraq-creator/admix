@@ -973,11 +973,7 @@ function MediaForm({
           <PopulationSourceStatus
             manualCount={allValues.population_count}
             sangwon={detail?.sangwon_population}
-            isEdit={isEdit}
           />
-          <h3 className="text-base font-bold leading-[24px] text-black">
-            월평균 유동인구 직접 입력
-          </h3>
           <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
             {section.fields.map((f) => renderField(f))}
           </div>

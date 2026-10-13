@@ -344,9 +344,9 @@ export function FixedMediaView() {
     setFocusId(undefined);
   };
 
+  // 상세 팝업을 닫아도 핀 포커스는 유지한다 — 어느 매체를 보고 있었는지 지도에 남긴다.
   const closeDetail = () => {
     setSelectedMedia(null);
-    setFocusId(undefined);
   };
 
   return (
@@ -391,11 +391,8 @@ export function FixedMediaView() {
                   onSimpleChange={setPopupSimple}
                   rows={groupRows}
                   highlightId={searchedId}
-                  onSelect={(row) => {
-                    setSelectedMedia(cardRowToItem(row));
-                    setFocusId(row.id);
-                    setGroupPopup(null);
-                  }}
+                  // 상세 팝업을 닫으면 보던 묶음 목록으로 돌아오도록 목록 팝업은 열어 둔다.
+                  onSelect={(row) => setSelectedMedia(cardRowToItem(row))}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                 />
               ) : popupId ? (
@@ -404,10 +401,8 @@ export function FixedMediaView() {
                   onSimpleChange={setPopupSimple}
                   rows={popupRows}
                   highlightId={searchedId}
-                  onSelect={(row) => {
-                    setSelectedMedia(cardRowToItem(row));
-                    setPopupId(null);
-                  }}
+                  // 상세 팝업을 닫으면 보던 지도 팝업으로 돌아오도록 지도 팝업은 열어 둔다.
+                  onSelect={(row) => setSelectedMedia(cardRowToItem(row))}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                 />
               ) : null

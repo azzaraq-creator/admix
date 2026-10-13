@@ -186,10 +186,16 @@ function MemberDetail({ userId }: { userId: string }) {
               <span className="tabular-nums text-disabled">{shown.length}</span>
             </p>
             {emptyCount > 0 && (
-              <Switch size="sm" isSelected={hideEmpty} onChange={setHideEmpty}>
+              <Switch
+                size="sm"
+                className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                isSelected={hideEmpty}
+                onChange={setHideEmpty}
+              >
                 <Switch.Content>
                   <Switch.Control>
-                    <Switch.Thumb />
+                    {/* 켜져도 손잡이는 흰색 — 테마 기본은 진한 색이라 검게 보인다. */}
+                    <Switch.Thumb className="bg-white!" />
                   </Switch.Control>
                   <span className="text-xs text-[#555b73]">
                     메시지 없는 대화 숨기기 ({emptyCount})

@@ -173,7 +173,10 @@ export function ChatListView() {
       <div className="flex flex-col gap-[16px]">
         <div className="flex flex-wrap items-center justify-between gap-[12px]">
           <div className="flex items-center gap-[16px]">
+            {/* 숫자가 바뀌면(데이터 도착·빈 대화 숨기기) 탭을 새로 그려 선택 표시 폭을 다시 잰다 — HeroUI 표시는
+                처음 잰 폭에서 멈춰 짧아진다. 탭을 누를 때 미끄러지는 애니메이션은 그대로다. */}
             <Tabs
+              key={`${counts.all}-${counts.member}-${counts.guest}`}
               selectedKey={tab}
               onSelectionChange={(key) => {
                 setTab(key as KindTab);
@@ -198,8 +201,7 @@ export function ChatListView() {
                       <span className="tabular-nums">
                         {counts[id].toLocaleString()}
                       </span>
-                      {/* 숫자가 바뀌어도 선택 알약이 탭을 꽉 채우게(매체 찾기 탭과 같은 처리). */}
-                      <Tabs.Indicator className="h-full! w-full! translate-none! rounded-[13px]" />
+                      <Tabs.Indicator className="rounded-[13px]" />
                     </Tabs.Tab>
                   ))}
                 </Tabs.List>
@@ -207,6 +209,7 @@ export function ChatListView() {
             </Tabs>
             <Switch
               size="sm"
+              className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
               isSelected={hideEmpty}
               onChange={(v) => {
                 setHideEmpty(v);
@@ -215,7 +218,8 @@ export function ChatListView() {
             >
               <Switch.Content>
                 <Switch.Control>
-                  <Switch.Thumb />
+                  {/* 켜져도 손잡이는 흰색 — 테마 기본은 진한 색이라 검게 보인다. */}
+                  <Switch.Thumb className="bg-white!" />
                 </Switch.Control>
                 <span className="text-sm text-[#555b73]">
                   메시지 없는 대화 숨기기
