@@ -1215,15 +1215,15 @@ def sangwon_population_of(db: Session, media_id: str) -> dict | None:
 
 
 def media_population(db: Session, m: Media) -> dict | None:
-    """매체 정보 팝업의 인구 — ① 실시간(서울시 121장소) ② 어드민에서 직접 입력한 월평균 유동인구
-    ③ 원천 상권 데이터의 월평균 유동인구 순으로 먼저 있는 것. 이동 매체는 보여 주지 않는다."""
+    """매체 정보 팝업의 인구 — ① 어드민에서 직접 입력한 월평균 유동인구 ② 원천 상권 데이터의 월평균
+    유동인구 순으로 먼저 있는 것. 이동 매체는 보여 주지 않는다.
+
+    2026-10-13부터 서울시 실시간 인구(realtime_population)는 보여 주지 않는다 — 시각마다 바뀌어 매체 비교·
+    믹시 추천(상권 월평균 기준)과 숫자가 어긋났다. 실시간을 어디에 쓸지는 따로 정한다(함수는 남겨 둔다).
+    """
     if m.media_source == "MOVING":
         return None
-    return (
-        realtime_population(m.latitude, m.longitude)
-        or _manual_population(m)
-        or _sangwon_population(db, m.source_detail_id)
-    )
+    return _manual_population(m) or _sangwon_population(db, m.source_detail_id)
 
 
 def proposal_slide_facts(m: Media) -> dict:
@@ -1629,6 +1629,8 @@ def get_admin_media(db: Session, media_id: str) -> dict:
     data["popularity"] = popularity.admin_summary(db, media_id)
     # 노출·검색 구역의 "신규 매체" 칸 안내 — 자동 여부·지금 신규인지·자동이면 언제까지.
     data["new_badge"] = new_badge_status(m)
+    # 위치·인구 탭 "인구 데이터" 안내 — 직접 입력이 없을 때 팝업에 대신 보이는 원천 상권 월평균 유동인구.
+    data["sangwon_population"] = _sangwon_population(db, m.source_detail_id)
     return data
 
 

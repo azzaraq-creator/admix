@@ -428,44 +428,84 @@ def test_parse_age_bands():
     assert parse_age_bands("") == set()
 
 
-def test_parse_audience_summary():
-    from src.services.recommend_react.domain import parse_audience_summary
+def _aud(female, ages, count=10.0):
+    """format_audience_summary 와 같은 형식의 인구 글."""
+    from src.services.ai_index import format_audience_summary
 
-    ages, vol = parse_audience_summary("일평균 45.8만 · 여성 47% · 20·40대 중심")
-    assert ages == {20, 40}
-    assert vol == 45.8
-    # 시니어(60+) 는 'N0대' 형태가 아니므로 age center 로 세지 않는다.
-    ages2, vol2 = parse_audience_summary("일평균 10.5만 · 여성 46% · 50·40대 중심 · 시니어(60+) 26%")
-    assert ages2 == {40, 50}
-    assert vol2 == 10.5
-    assert parse_audience_summary("") == (set(), 0.0)
-    assert parse_audience_summary(None) == (set(), 0.0)
+    labels = {10: "10", 20: "20대", 30: "30대", 40: "40대", 50: "50대", 60: "60"}
+    return format_audience_summary(
+        dict(
+            femalePct=female,
+            malePct=100 - female,
+            populationMax=int(count * 10000),
+            placeName="테스트 상권 · 2026년 2분기",
+            ageRatios=[dict(label=labels[d], value=ages.get(d, 0)) for d in labels],
+        )
+    )
 
 
-def test_sort_by_relevance_age_match_then_volume_then_price():
+def test_audience_summary_round_trip():
+    from src.services.ai_index import format_audience_summary, parse_audience_profile
+
+    text = _aud(55, {20: 34.9, 30: 25.1, 10: 9.2}, count=37.9)
+    assert text.startswith("월평균 37.9만 · 여성 55% · 남성 45% · 10대 이하 9% · 20대 35% · 30대 25%")
+    assert text.endswith("(테스트 상권 · 2026년 2분기)")
+    p = parse_audience_profile(text)
+    assert p["female"] == 55 and p["male"] == 45 and p["ages"][20] == 35 and p["count_man"] == 37.9
+    assert p["place"] == "테스트 상권 · 2026년 2분기"
+    # 예전 원천 요약 글(연령은 "중심"만)은 비율을 알 수 없다 — 성별만 읽는다.
+    assert parse_audience_profile("일평균 113.7만 · 여성 45% · 20·30대 중심")["ages"] == {}
+    assert parse_audience_profile(None) is None
+    assert format_audience_summary(None) is None
+
+
+def test_parse_gender():
+    from src.services.recommend_react.domain import parse_gender
+
+    assert parse_gender("20대 여성 타깃") == "F"
+    assert parse_gender("남자 직장인") == "M"
+    assert parse_gender("남녀 모두") is None
+    assert parse_gender("강남 전광판") is None
+
+
+def test_sort_by_relevance_target_ratio_then_volume_then_price():
     from src.services.recommend_react import domain
 
-    a = _FakeMedia("A", "1000000")  # 20대 매치, 유동 10
-    b = _FakeMedia("B", "9000000")  # 비매치(비쌈)
-    c = _FakeMedia("C", "2000000")  # 20대 매치, 유동 30
+    a = _FakeMedia("A", "1000000")
+    b = _FakeMedia("B", "9000000")
+    c = _FakeMedia("C", "2000000")
     audience = {
-        "A": "일평균 10만 · 20대 중심",
-        "B": "일평균 50만 · 40대 중심",
-        "C": "일평균 30만 · 20·30대 중심",
+        "A": _aud(55, {20: 35}, count=10),  # 20대 여성 35×55 = 19.3
+        "B": _aud(45, {20: 35}, count=99),  # 20대 여성 35×45 = 15.8 (여성 적음)
+        "C": _aud(60, {20: 20}, count=50),  # 20대 여성 20×60 = 12.0
     }
-    out = domain.sort_by_relevance([a, b, c], {20}, audience, top_k=10)
-    # 매치(C,A) 먼저 — 그중 유동 큰 C 우선, 비매치 B 는 뒤
+    out = domain.sort_by_relevance([a, b, c], {20}, audience, top_k=10, gender="F")
+    assert [x.media_id for x in out] == ["A", "B", "C"]
+    # 성별만 말하면 여성 비율 순
+    out = domain.sort_by_relevance([a, b, c], set(), audience, top_k=10, gender="F")
     assert [x.media_id for x in out] == ["C", "A", "B"]
 
 
-def test_sort_by_relevance_match_tie_breaks_on_price():
+def test_sort_by_relevance_tie_breaks_on_volume_then_price():
     from src.services.recommend_react import domain
 
-    a = _FakeMedia("A", "1000000")  # 매치, 유동 20
-    c = _FakeMedia("C", "5000000")  # 매치, 유동 20 (동일) → 광고비로 결정
-    audience = {"A": "일평균 20만 · 20대 중심", "C": "일평균 20만 · 20대 중심"}
-    out = domain.sort_by_relevance([a, c], {20}, audience, top_k=10)
-    assert [x.media_id for x in out] == ["C", "A"]
+    a = _FakeMedia("A", "1000000")
+    c = _FakeMedia("C", "5000000")
+    d = _FakeMedia("D", "9000000")
+    audience = {"A": _aud(50, {20: 30}, 20), "C": _aud(50, {20: 30}, 20), "D": _aud(50, {20: 30}, 5)}
+    out = domain.sort_by_relevance([a, c, d], {20}, audience, top_k=10)
+    assert [x.media_id for x in out] == ["C", "A", "D"]
+
+
+def test_audience_brief_puts_target_first():
+    from src.services.ai_index import parse_audience_profile
+    from src.services.recommend_react.domain import audience_brief
+
+    p = parse_audience_profile(_aud(55, {20: 34.9, 30: 25.1, 40: 16}, count=37.9))
+    assert audience_brief(p, {20}, "F") == "여성 55% · 20대 35% · 월평균 37.9만 (테스트 상권 · 2026년 2분기)"
+    # 타깃이 없으면 성별 + 비율 높은 연령대 둘
+    assert audience_brief(p, set(), None).startswith("여성 55% · 20대 35% · 30대 25%")
+    assert audience_brief(None, {20}, "F") is None
 
 
 def test_sort_by_relevance_no_age_equals_price_desc():

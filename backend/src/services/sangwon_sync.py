@@ -125,6 +125,11 @@ def sync_new_quarters(db: Session) -> list[str]:
         logger.info("상권 유동인구 %s분기 %d곳 저장", quarter, len(rows))
         added.append(quarter)
         quarter = next_quarter(quarter)
+    if added:
+        # 새 분기 인구로 믹시 타깃 태그·인구 요약을 다시 맞춘다.
+        from src.services import ai_index
+
+        ai_index.sync_all(db)
     return added
 
 

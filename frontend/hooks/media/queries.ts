@@ -6,6 +6,7 @@ import {
 
 import {
   adminMediaApi,
+  type CrowdBounds,
   mediaApi,
   type MediaFilterParams,
   type MediaListParams,
@@ -138,3 +139,28 @@ export const useMediaDetail = (id: string | null) =>
     enabled: !!id,
     staleTime: 60 * 1000,
   });
+
+/** 소수 셋째 자리(약 100m)로 맞춘 지도 영역 — 조금 움직일 때마다 다시 묻지 않게. */
+const roundBounds = (b: CrowdBounds): CrowdBounds => ({
+  neLat: Math.round(b.neLat * 1000) / 1000,
+  swLat: Math.round(b.swLat * 1000) / 1000,
+  neLng: Math.round(b.neLng * 1000) / 1000,
+  swLng: Math.round(b.swLng * 1000) / 1000,
+});
+
+/**
+ * 매체 찾기 지도 "실시간 인구" — 켰을 때만 묻는다. 서버가 아직 불러오는 장소가 있으면(pending)
+ * 3초 뒤 다시, 다 받았으면 서울시 갱신 주기(5분)마다 다시 묻는다.
+ */
+export const useMediaCrowd = (bounds: CrowdBounds | null, enabled: boolean) => {
+  const key = bounds ? roundBounds(bounds) : null;
+  return useQuery({
+    queryKey: mediaKeys.crowd(key),
+    queryFn: () => mediaApi.crowd(key as CrowdBounds),
+    enabled: enabled && !!key,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+    refetchInterval: (query) =>
+      (query.state.data?.pending ?? 0) > 0 ? 3000 : 5 * 60 * 1000,
+  });
+};

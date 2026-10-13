@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   type AddProposalOptions,
@@ -13,6 +13,7 @@ import {
   type MediaCardRow,
   type OperatingArea,
   useMediaDetail,
+  useMediaCrowd,
 } from "@/hooks/media";
 
 import {
@@ -90,6 +91,32 @@ function roundCoord(v: number): string {
   return String(Math.round(v * 1e6) / 1e6);
 }
 
+const CROWD_STORAGE_KEY = "admix.map.crowd";
+// "실시간 인구"를 보여 주는 가장 넓은 지도 레벨(카카오 — 숫자가 클수록 넓게 본다).
+const CROWD_MAX_LEVEL = 7;
+const CROWD_EVENT = "admix:crowd-setting";
+
+/** "실시간 인구" 켜 둔 상태 — 이 브라우저(localStorage)에 기억한다. 서버 렌더에서는 꺼짐. */
+function useCrowdSetting(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(CROWD_EVENT, onChange);
+      window.addEventListener("storage", onChange);
+      return () => {
+        window.removeEventListener(CROWD_EVENT, onChange);
+        window.removeEventListener("storage", onChange);
+      };
+    },
+    () => window.localStorage.getItem(CROWD_STORAGE_KEY) === "1",
+    () => false,
+  );
+}
+
+function setCrowdSetting(on: boolean) {
+  window.localStorage.setItem(CROWD_STORAGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(CROWD_EVENT));
+}
+
 export function FixedMediaView() {
   const searchParams = useSearchParams();
 
@@ -134,6 +161,17 @@ export function FixedMediaView() {
   );
   // 마지막으로 멈춘 지도 영역 — 초기화 때 "지금 보이는 영역" 조회를 유지하는 데 쓴다.
   const lastViewportRef = useRef<MapBoundsPayload | null>(null);
+  // "실시간 인구" — 켜 둔 상태는 이 브라우저에 기억한다. 켰을 때만 서울시 혼잡도를 묻는다.
+  const crowdOn = useCrowdSetting();
+  const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
+  const toggleCrowd = setCrowdSetting;
+  // 넓게 볼 때(레벨 8 이상)는 버튼·표시를 모두 숨기고 서울시에도 묻지 않는다 — 장소가 너무 많아 겹친다.
+  const crowdZoomOk =
+    crowdBounds != null && crowdBounds.zoom <= CROWD_MAX_LEVEL;
+  const { data: crowdData } = useMediaCrowd(
+    crowdBounds,
+    crowdOn && crowdZoomOk,
+  );
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
   const commitZoomOnly = useCallback((zoom: number) => {
@@ -160,6 +198,7 @@ export function FixedMediaView() {
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
       lastViewportRef.current = b;
+      setCrowdBounds(b);
       if (b.moveType === "program") {
         const reason = pendingCommitRef.current;
         if (!reason) return;
@@ -375,6 +414,17 @@ export function FixedMediaView() {
             }
             onPopupClose={closePopup}
             highlightArea={hoverArea}
+            crowd={
+              // 넓게 보거나(레벨 8 이상) 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
+              !crowdZoomOk || crowdData?.enabled === false
+                ? undefined
+                : {
+                    on: crowdOn,
+                    onToggle: toggleCrowd,
+                    places: crowdData?.places ?? [],
+                    loading: !crowdData || crowdData.pending > 0,
+                  }
+            }
             className="size-full"
           />
         }

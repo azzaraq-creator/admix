@@ -387,7 +387,9 @@ _TEMPLATE_ADDRESS_SKIP = frozenset(_ADDRESS_FILLED) - {"city", "district"}
 # 양식에서만 쓰는 칸 이름 — 고정 매체는 자동으로 채우니 이동 매체 칸으로 보이게 한다(다운로드 엑셀은 원래 이름).
 _TEMPLATE_LABELS = {"city": "시/도 (이동 매체)", "district": "구/군 (이동 매체)"}
 _TEMPLATE_SKIP = (
-    frozenset({"media_id", "created_at", "updated_at", "spec_unit"}) | _PLAN_DERIVED | _TEMPLATE_ADDRESS_SKIP
+    frozenset({"media_id", "created_at", "updated_at", "spec_unit", "audience_summary"})  # 인구 요약은 자동(ai_index)
+    | _PLAN_DERIVED
+    | _TEMPLATE_ADDRESS_SKIP
 )
 _TEMPLATE_SKIP_SECTIONS = frozenset({"상권", "원천 데이터"})
 
@@ -449,7 +451,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
     ),
     "operation_start_time": ("DOOH 운영 시작 시각(HH:MM). 매체 타입이 DOOH일 때만 저장합니다.", "06:00"),
     "operation_end_time": ("DOOH 운영 종료 시각(HH:MM, 자정은 24:00).", "24:00"),
-    "population_count": ("월평균 유동인구. 실시간 인구(서울시 주요 121장소)를 가져올 수 없는 고정 매체에 적으면 원천 상권 데이터보다 먼저 보입니다. 이동 매체는 쓰지 않습니다.", "450000"),
+    "population_count": ("월평균 유동인구. 적으면 매체 정보 팝업·믹시 추천에 원천 상권 데이터보다 먼저 쓰입니다. 이동 매체는 쓰지 않습니다.", "450000"),
     "population_note": ("유동인구 수치의 기준(시기·출처). 팝업에 함께 보입니다.", "2025년 3분기"),
     "population_male_pct": ("남성 비율(%). 여성과 합쳐 100.", "48"),
     "population_female_pct": ("여성 비율(%).", "52"),
@@ -464,7 +466,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
     "loc_label": ("이 말로 검색해도 매체가 나옵니다.", "강남역"),
     "list_labels": ("검색 태그. 쉼표로 여러 개.", "강남, 대형, 전광판"),
     "quality_score": ("0~100", "80"),
-    "audience_summary": ("믹시가 읽는 형식을 지켜 주세요.", "일평균 45.8만 · 여성 47% · 20·40대 중심"),
+    "audience_summary": ("인구 데이터로 자동 계산됩니다(올려도 저장할 때 다시 씁니다).", ""),
 }
 _PLAN_GUIDE: dict[str, tuple[str, str]] = {
     "product_display_name": ("상품 이름. 매체 상세·기획안에 보입니다.", "영상(20초)"),

@@ -16,6 +16,7 @@ import logging
 import math
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 
@@ -220,3 +221,91 @@ def check_realtime(lat: float | None, lng: float | None) -> dict:
             "nearest": {"name": near[0], "distanceM": near[1]} if near else None,
         }
     return {"status": "unavailable", "population": None, "nearest": None}
+
+
+# ===== 매체 찾기 지도 "지금 붐비는 곳" =====
+# 지도 영역 안의 장소만, 장소별 캐시(CACHE_TTL_S)로. 캐시가 없는 장소는 뒤에서 가져오고 응답에는 "불러오는 중"으로
+# 센다(pending) — 지도는 잠시 뒤 다시 묻는다. 지도를 켠 사람이 있을 때만 서울시를 부른다(호출 수 보호).
+_crowd_pool = ThreadPoolExecutor(max_workers=6, thread_name_prefix="citydata")
+_inflight: set[str] = set()
+_inflight_lock = threading.Lock()
+
+
+@lru_cache(maxsize=1)
+def _place_centers() -> dict[str, tuple[float, float]]:
+    """장소 코드 → 표시 위치(위도, 경도) — 가장 넓은 외곽선의 무게중심(밖으로 나가면 상자 가운데)."""
+    out: dict[str, tuple[float, float]] = {}
+    for p in _places():
+        ring = max(p.rings, key=lambda r: abs(_ring_area(r)))
+        a = _ring_area(ring)
+        if a:
+            cx = sum((x1 + x2) * (x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1])) / (6 * a)
+            cy = sum((y1 + y2) * (x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1])) / (6 * a)
+        else:
+            cx, cy = (p.min_x + p.max_x) / 2, (p.min_y + p.max_y) / 2
+        if not _point_in_ring(cx, cy, ring):
+            cx, cy = (p.min_x + p.max_x) / 2, (p.min_y + p.max_y) / 2
+        out[p.code] = (cy, cx)
+    return out
+
+
+def _cached_row(code: str) -> tuple[bool, dict | None]:
+    """(캐시가 살아 있는지, 원본 한 건)."""
+    with _cache_lock:
+        hit = _cache.get(code)
+    if hit and hit[0] > time.monotonic():
+        return True, hit[1]
+    return False, None
+
+
+def _fetch_in_background(code: str) -> None:
+    with _inflight_lock:
+        if code in _inflight:
+            return
+        _inflight.add(code)
+
+    def run() -> None:
+        try:
+            _fetch(code)
+        finally:
+            with _inflight_lock:
+                _inflight.discard(code)
+
+    _crowd_pool.submit(run)
+
+
+def crowd_in_bounds(ne_lat: float, sw_lat: float, ne_lng: float, sw_lng: float) -> dict:
+    """지도 영역 안 장소의 실시간 혼잡도 — {"enabled", "places": [...], "pending": 불러오는 중인 장소 수}.
+
+    place: {code, name, lat, lng, level(여유·보통·약간 붐빔·붐빔), populationMin, populationMax, measuredAt}
+    """
+    if not get_settings().seoul_openapi_key:
+        return {"enabled": False, "places": [], "pending": 0}
+    centers = _place_centers()
+    places: list[dict] = []
+    pending = 0
+    for p in _places():
+        lat, lng = centers[p.code]
+        if not (sw_lat <= lat <= ne_lat and sw_lng <= lng <= ne_lng):
+            continue
+        fresh, row = _cached_row(p.code)
+        if not fresh:
+            _fetch_in_background(p.code)
+            pending += 1
+            continue
+        if not row or not row.get("AREA_CONGEST_LVL"):
+            continue
+        places.append(
+            dict(
+                code=p.code,
+                name=row.get("AREA_NM") or p.name,
+                lat=round(lat, 6),
+                lng=round(lng, 6),
+                level=row.get("AREA_CONGEST_LVL"),
+                populationMin=int(_num(row.get("AREA_PPLTN_MIN"))),
+                populationMax=int(_num(row.get("AREA_PPLTN_MAX"))),
+                measuredAt=row.get("PPLTN_TIME") or None,
+            )
+        )
+    return {"enabled": True, "places": places, "pending": pending}
+

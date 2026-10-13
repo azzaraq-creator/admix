@@ -27,10 +27,13 @@ const PIN_COLOR = "#7A3FE0";
 function bubbleCss(selected: boolean) {
   const bg = selected ? "#ffffff" : PIN_COLOR;
   const fg = selected ? PIN_COLOR : "#ffffff";
-  // 테두리는 늘 보라 — 기본은 바탕과 같은 색이라 안 보이고, 선택(흰 바탕)에선 보라 테두리가 된다.
-  const border = `1.5px solid ${PIN_COLOR}`;
+  // 테두리 — 기본은 옅은 흰 테두리(실시간 인구 표시의 유리 가장자리와 질감을 맞춘다), 선택(흰 바탕)은 보라.
+  const border = selected
+    ? `1.5px solid ${PIN_COLOR}`
+    : "1.5px solid rgba(255,255,255,0.55)";
   return {
-    wrap: "position:relative;padding-bottom:7px;filter:drop-shadow(0 1.5px 1.5px rgba(26,16,37,0.26));cursor:pointer;",
+    // 그림자는 실시간 인구 표시처럼 부드럽고 넓게.
+    wrap: "position:relative;padding-bottom:7px;filter:drop-shadow(0 2px 4px rgba(26,16,37,0.24));cursor:pointer;",
     box: `position:relative;display:block;max-width:190px;padding:4px 10px;border-radius:14px;background:${bg};border:${border};color:${fg};font-size:12px;line-height:16px;font-weight:600;letter-spacing:-0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`,
     // 꼬리는 몸통 위에 그려(z-index) 몸통 아래 테두리가 꼬리를 가로지르지 않게 한다 — 꼬리 윗부분(몸통 안쪽)이
     // 같은 바탕색으로 그 테두리를 덮고, 바깥 두 변(오른쪽·아래)에만 테두리를 그어 몸통 테두리와 이어진다.
@@ -138,12 +141,13 @@ function groupKeyOf(lat: number, lng: number): string {
 // focus/cluster.svg(선택)를 그대로 옮긴 것. SVG엔 숫자가 박혀 있어 이미지로는 못 쓰고
 // 같은 색·테두리를 CSS로 그린다. 기본은 보라 원 + 흰 숫자(테두리·그림자 없음),
 // 선택은 흰 원 + 보라 테두리·숫자(단일 핀 포커스와 같이 크기는 그대로).
+// 기본 원에는 옅은 흰 테두리와 부드러운 그림자 — 실시간 인구 표시(유리 스타일)와 질감을 맞춘다.
 // 숫자 크기·테두리 두께는 SVG(원 지름 약 29 : 숫자 12 : 선 1.6) 비율로 핀 크기에 맞춘다.
 function numberPinCss(size: number, selected: boolean): string {
   const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.42)}px;font-weight:600;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;`;
   return selected
     ? `${base}background:#ffffff;border:${(size * 0.05).toFixed(1)}px solid #7a3fe0;color:#7a3fe0;`
-    : `${base}background:#7a3fe0;color:#ffffff;`;
+    : `${base}background:#7a3fe0;color:#ffffff;border:${(size * 0.05).toFixed(1)}px solid rgba(255,255,255,0.55);box-shadow:0 2px 8px rgba(26,16,37,0.24);`;
 }
 
 export function useMapMarkers({

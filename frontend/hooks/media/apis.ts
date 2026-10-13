@@ -305,7 +305,40 @@ function buildClusterQuery(zoom: number, f?: MediaFilterParams): string {
   return q.toString();
 }
 
+/** 매체 찾기 지도 "실시간 인구" — 서울시 주요 장소 실시간 혼잡도 한 곳. */
+export interface CrowdPlace {
+  code: string;
+  name: string;
+  lat: number;
+  lng: number;
+  /** 서울시 혼잡도 — "여유" · "보통" · "약간 붐빔" · "붐빔" */
+  level: string;
+  populationMin: number;
+  populationMax: number;
+  /** "2026-10-13 14:15" */
+  measuredAt: string | null;
+}
+
+export interface CrowdResponse {
+  /** 서버에 서울시 키가 없으면 false */
+  enabled: boolean;
+  places: CrowdPlace[];
+  /** 아직 불러오는 중인 장소 수 — 0이 될 때까지 잠시 뒤 다시 묻는다 */
+  pending: number;
+}
+
+export interface CrowdBounds {
+  neLat: number;
+  swLat: number;
+  neLng: number;
+  swLng: number;
+}
+
 export const mediaApi = {
+  crowd: (b: CrowdBounds) =>
+    api
+      .get<CrowdResponse>("/media/crowd", { params: b })
+      .then((r) => r.data),
   list: (params?: MediaListParams) =>
     api.get<MediaListResponse>("/admin/media", { params }).then((r) => r.data),
   exportExcel: () =>
@@ -417,6 +450,13 @@ export interface AdminMediaDetail {
     until: string | null;
     days: number;
   };
+  /** 위치·인구 탭 안내 — 원천 상권 월평균 유동인구(직접 입력이 없을 때 팝업에 대신 보이는 값) */
+  sangwon_population?: {
+    placeName: string;
+    populationMax: number;
+    femalePct: number;
+    malePct: number;
+  } | null;
   [key: string]: unknown;
 }
 

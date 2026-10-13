@@ -281,7 +281,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
     only: "FIXED",
     title: "인구 데이터",
     description:
-      "매체 정보 팝업의 인구 카드는 ① 서울시 실시간 인구(주요 121장소, 1km 이내) ② 아래에 직접 입력한 월평균 유동인구 ③ 원천 상권 데이터의 월평균 유동인구 순으로 먼저 있는 값을 보여 줍니다.",
+      "매체 정보 팝업의 인구 카드와 믹시 추천은 ① 아래에 직접 입력한 월평균 유동인구 ② 원천 상권 데이터의 월평균 유동인구 순으로 먼저 있는 값을 씁니다.",
     fields: [
       {
         key: "population_count",
@@ -613,9 +613,8 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
       {
         key: "audience_summary",
         label: "타깃(유동인구) 요약",
-        type: "textarea",
-        placeholder: "예: 일평균 45.8만 · 여성 47% · 20·40대 중심",
-        help: "믹시(AI 추천)가 연령·유동인구 순위를 매길 때 읽는 값입니다. 위 예시 형식을 지켜 주세요.",
+        type: "readonly",
+        help: "저장할 때 인구 데이터(직접 입력한 월평균 → 원천 상권 순)로 자동으로 다시 써요. 믹시가 20대·여성 같은 타깃 순위를 매기고 답변에 비율을 말할 때 이 값을 씁니다.",
       },
     ],
   },

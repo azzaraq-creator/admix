@@ -49,7 +49,7 @@ import {
   type MediaFieldType,
 } from "./mediaFields";
 import { MediaPhotoSection } from "./MediaPhotoSection";
-import { RealtimePopulationStatus } from "./RealtimePopulationStatus";
+import { PopulationSourceStatus } from "./PopulationSourceStatus";
 import {
   MediaPlansEditor,
   newPlanDraft,
@@ -808,7 +808,8 @@ function MediaForm({
           f.type === "json" ||
           f.type === "multiselect" ||
           f.key === "ai_tags_preview" ||
-          f.key === "popularity_summary"
+          f.key === "popularity_summary" ||
+          f.key === "audience_summary"
         }
       >
         {f.pair
@@ -969,10 +970,10 @@ function MediaForm({
     if (section.key === "population")
       return (
         <div className="flex flex-col gap-[20px]">
-          <RealtimePopulationStatus
-            latitude={allValues[ADDRESS_KEYS.latitude]}
-            longitude={allValues[ADDRESS_KEYS.longitude]}
-            mediaId={isEdit ? id : null}
+          <PopulationSourceStatus
+            manualCount={allValues.population_count}
+            sangwon={detail?.sangwon_population}
+            isEdit={isEdit}
           />
           <h3 className="text-base font-bold leading-[24px] text-black">
             월평균 유동인구 직접 입력

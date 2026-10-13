@@ -36,7 +36,7 @@ def list_summary_for_llm(items: list[dict], total: int, requested: Optional[int]
     )
     lines = [head]
     for i, it in enumerate(items, 1):
-        price = it.get("price") or "가격미정"
+        price = it.get("price") or "광고비 별도 문의"
         line = f"{i}. {it.get('name')} — {price}"
         aud = it.get("audience_summary")
         if aud:
@@ -124,26 +124,37 @@ def _run_search(ctx: ReactContext, text: str) -> tuple[list[dict], int]:
     """
     codes = domain.extract_keywords(text, ctx.db)
     age_bands = domain.parse_age_bands(text)
+    gender = domain.parse_gender(text)
+    targeted = bool(age_bands or gender)
     # 유효 필터가 하나도 없으면(예: 사전에 없는 지역) 전 매체 덤프 대신 NOT_FOUND 처리.
-    # 단, 연령 발화가 있으면(랭킹 신호) 진행한다.
-    if not domain._has_any_filter(codes) and not age_bands:
+    # 단, 연령·성별 발화가 있으면(랭킹 신호) 진행한다.
+    if not domain._has_any_filter(codes) and not targeted:
         return [], 0
     # 사전에 없는 코드는 버린다 — 전부 지어낸 코드였다면 전 매체를 보여 주지 않고 "못 찾음".
     codes = domain._valid_codes(ctx.db, codes)
-    if not domain._has_any_filter(codes) and not age_bands:
+    if not domain._has_any_filter(codes) and not targeted:
         return [], 0
     candidates, total, scores = domain.filter_media_items(ctx.db, codes, domain.MAX_CANDIDATE_FETCH)
     if total == 0:
         return [], 0
-    # 점수(검색어·업종·타깃 등이 맞은 만큼) 높은 순 → 연령 발화면 유동인구·연령, 아니면 광고비 내림차순.
-    if age_bands:
+    # 점수(검색어·업종·타깃 등이 맞은 만큼) 높은 순 → 연령·성별 발화면 그 타깃 비율, 아니면 광고비 내림차순.
+    if targeted:
         audience = domain._audience_by_media_id(ctx.db, candidates)
-        selected = domain.sort_by_relevance(candidates, age_bands, audience, top_k=ctx.top_k, scores=scores)
+        selected = domain.sort_by_relevance(
+            candidates, age_bands, audience, top_k=ctx.top_k, scores=scores, gender=gender
+        )
     else:
         selected = domain.sort_by_price_desc(candidates, top_k=ctx.top_k, scores=scores)
     meta = domain._media_meta_by_media_id(ctx.db, selected)
     images = domain._images_by_media_id(ctx.db, [it.media_id for it in selected])
     items = [domain._to_response_item(it, meta, images).model_dump() for it in selected]
+    # 인구는 짧게 — 말한 타깃 비율을 앞에, 출처(상권·분기)를 뒤에. 순위를 매긴 숫자와 같은 데이터다.
+    from src.services.ai_index import parse_audience_profile
+
+    for it in items:
+        it["audience_summary"] = domain.audience_brief(
+            parse_audience_profile(it.get("audience_summary")), age_bands, gender
+        )
     return items, total
 
 

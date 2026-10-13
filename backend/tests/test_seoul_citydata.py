@@ -84,7 +84,8 @@ def _media(**kw):
     return m
 
 
-def test_media_population_prefers_realtime_then_manual():
+def test_media_population_uses_monthly_manual_then_sangwon():
+    """팝업 인구는 월평균만 — 직접 입력 → 원천 상권. 실시간이 있어도 쓰지 않는다(2026-10-13)."""
     from src.services import media_service as ms
 
     manual = dict(population_count=450000, population_note="2025년 3분기 월평균", population_male_pct=48,
@@ -92,9 +93,7 @@ def test_media_population_prefers_realtime_then_manual():
                   population_age_40=15, population_age_50=10, population_age_60=12)
     m = _media(lat=37.49795, lng=127.02763, **manual)
     sangwon = {"source": "sangwon"}
-    with patch.object(ms, "realtime_population", return_value={"source": "realtime"}):
-        assert ms.media_population(None, m) == {"source": "realtime"}
-    with patch.object(ms, "realtime_population", return_value=None), patch.object(
+    with patch.object(ms, "realtime_population", return_value={"source": "realtime"}), patch.object(
         ms, "_sangwon_population", return_value=sangwon
     ):
         pop = ms.media_population(None, m)
@@ -146,3 +145,31 @@ def test_quarter_label():
     assert ms._quarter_label("20254") == "2025년 4분기"
     assert ms._sangwon_label("성남시 상권") == "성남시 상권"
     assert ms._sangwon_label("역삼역") == "역삼역 상권"
+
+
+def test_crowd_in_bounds_uses_cache_and_counts_pending():
+    """지도 영역 안 장소만 — 캐시가 있으면 혼잡도, 없으면 뒤에서 가져오고 pending 으로 센다."""
+    import time
+
+    centers = sc._place_centers()
+    gangnam = next(p for p in sc._places() if p.name == "강남역")
+    lat, lng = centers[gangnam.code]
+    row = {"AREA_NM": "강남역", "AREA_CONGEST_LVL": "붐빔", "AREA_PPLTN_MIN": "78000",
+           "AREA_PPLTN_MAX": "80000", "PPLTN_TIME": "2026-10-13 14:55"}
+    box = dict(ne_lat=lat + 0.001, sw_lat=lat - 0.001, ne_lng=lng + 0.001, sw_lng=lng - 0.001)
+    with patch.object(sc, "get_settings") as gs, patch.object(sc, "_fetch_in_background") as bg:
+        gs.return_value.seoul_openapi_key = "k"
+        with sc._cache_lock:
+            sc._cache.pop(gangnam.code, None)
+        first = sc.crowd_in_bounds(**box)
+        assert first["enabled"] and first["places"] == [] and first["pending"] >= 1
+        bg.assert_called()
+        with sc._cache_lock:
+            sc._cache[gangnam.code] = (time.monotonic() + 60, row)
+        second = sc.crowd_in_bounds(**box)
+        names = {p["name"]: p for p in second["places"]}
+        assert names["강남역"]["level"] == "붐빔"
+        assert (names["강남역"]["populationMin"], names["강남역"]["populationMax"]) == (78000, 80000)
+    with patch.object(sc, "get_settings") as gs:
+        gs.return_value.seoul_openapi_key = ""
+        assert sc.crowd_in_bounds(**box)["enabled"] is False

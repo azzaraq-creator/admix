@@ -1,4 +1,4 @@
-import type { MediaFilterParams, MediaListParams } from "./apis";
+import type { CrowdBounds, MediaFilterParams, MediaListParams } from "./apis";
 
 export const mediaKeys = {
   all: ["media"] as const,
@@ -17,6 +17,7 @@ export const mediaKeys = {
   fixedPriceHistogram: (filters?: MediaFilterParams) =>
     [...mediaKeys.all, "fixed", "price-histogram", filters ?? {}] as const,
   filterOptions: () => [...mediaKeys.all, "filter-options"] as const,
+  crowd: (b: CrowdBounds | null) => [...mediaKeys.all, "crowd", b] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,
   adminFieldOptions: () =>
     [...mediaKeys.all, "admin", "field-options"] as const,

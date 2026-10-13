@@ -12,6 +12,9 @@
   - 타깃(TGT): 인구(직접 입력한 월평균 → 원천 상권 순, 실시간은 쓰지 않음)에서 비율이 가장 높은
     연령대 1개 + 한쪽 성별이 55% 이상이면 그 성별, 그리고 장소(카테고리·매체명) 규칙
 - 제품(PRD)·목적(OBJ)은 광고주 쪽 정보라 자동으로 만들지 않는다(엑셀에서 온 값만).
+- 인구 요약(media.audience_summary): 타깃 태그와 같은 인구로 다시 써 둔다 — 믹시가 연령·성별 순위와
+  답변 숫자에 쓴다(format_audience_summary / parse_audience_profile). 원천에서 온 예전 요약 글은 출처·시기가
+  달라 지금 데이터와 맞지 않았다(2026-10-13, 강남역 매체가 "여성 45%"로 안내된 일).
 """
 from __future__ import annotations
 
@@ -75,6 +78,72 @@ def _codes_matching(entries: list[tuple[str, list[str]]], tokens: set[str], text
 def _code_for_word(entries: list[tuple[str, list[str]]], word: str) -> str | None:
     """사전에서 이 낱말을 가진 첫 코드 — 코드 번호가 바뀌어도 낱말로 찾는다."""
     return next((code for code, keywords in entries if word in keywords), None)
+
+
+_AGE_KEYS = ((10, "10대 이하"), (20, "20대"), (30, "30대"), (40, "40대"), (50, "50대"), (60, "60대 이상"))
+
+
+def _age_decade(label) -> int | None:
+    found = re.match(r"\d+", str(label or ""))
+    return int(found.group(0)) if found else None
+
+
+def format_audience_summary(pop: dict | None) -> str | None:
+    """인구 → 요약 글. 예: "월평균 37.9만 · 여성 55% · 남성 45% · 10대 이하 9% · 20대 35% · … (국기원 상권 · 2026년 2분기)".
+
+    parse_audience_profile 이 다시 읽는다 — 형식을 바꾸면 두 함수를 함께 고친다.
+    """
+    if not pop:
+        return None
+    ages = {_age_decade(r.get("label")): r.get("value") or 0 for r in pop.get("ageRatios") or []}
+    if not any(ages.values()) and not (pop.get("femalePct") or pop.get("malePct")):
+        return None
+    parts: list[str] = []
+    count = pop.get("populationMax") or pop.get("populationMin")
+    if count:
+        parts.append(f"월평균 {count / 10000:.1f}만")
+    parts.append(f"여성 {round(pop.get('femalePct') or 0)}%")
+    parts.append(f"남성 {round(pop.get('malePct') or 0)}%")
+    for decade, label in _AGE_KEYS:
+        parts.append(f"{label} {round(ages.get(decade) or 0)}%")
+    text = " · ".join(parts)
+    place = (pop.get("placeName") or "").strip()
+    return f"{text} ({place})" if place else text
+
+
+_PROFILE_PCT_RE = re.compile(r"(여성|남성|10대 이하|20대|30대|40대|50대|60대 이상)\s*(\d+(?:\.\d+)?)%")
+_PROFILE_COUNT_RE = re.compile(r"(?:월평균|일평균)\s*([\d.]+)\s*만")
+_PROFILE_KEY = {"10대 이하": 10, "20대": 20, "30대": 30, "40대": 40, "50대": 50, "60대 이상": 60}
+
+
+def parse_audience_profile(text: str | None) -> dict | None:
+    """format_audience_summary 가 쓴 글 → {"female", "male", "ages": {20: 35.0, …}, "count_man", "place"}.
+
+    성별·연령 비율이 하나도 없으면(예전 원천 요약 글 등) None.
+    """
+    if not text:
+        return None
+    female = male = None
+    ages: dict[int, float] = {}
+    for word, value in _PROFILE_PCT_RE.findall(text):
+        v = float(value)
+        if word == "여성":
+            female = v
+        elif word == "남성":
+            male = v
+        else:
+            ages[_PROFILE_KEY[word]] = v
+    if female is None and not ages:
+        return None
+    count = _PROFILE_COUNT_RE.search(text)
+    place = re.search(r"\(([^)]*)\)\s*$", text)
+    return dict(
+        female=female,
+        male=male,
+        ages=ages,
+        count_man=float(count.group(1)) if count else 0.0,
+        place=place.group(1) if place else "",
+    )
 
 
 def _population_for_tags(db: Session, m: Media) -> dict | None:
@@ -215,6 +284,8 @@ def sync_media_item(db: Session, m: Media, dictionary=None) -> None:
         items = [item]
     urls = _image_urls(m)
     name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
+    # 인구 요약 — 타깃 태그와 같은 인구로 다시 쓴다(인구가 없으면 비운다 — 예전 원천 글은 숫자가 맞지 않았다).
+    m.audience_summary = format_audience_summary(_population_for_tags(db, m))
     for item in items:
         source = item.source_codes or {}
         for key in CODE_KEYS:

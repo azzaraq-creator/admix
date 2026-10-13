@@ -345,8 +345,6 @@ def sort_by_price_desc(
 AGE_TGT_CODES = frozenset({"TGT-01", "TGT-02", "TGT-03", "TGT-04", "TGT-05", "TGT-06"})
 
 _AGE_BAND_RE = re.compile(r"([1-7]0)\s*대")
-_AUDIENCE_AGE_RE = re.compile(r"((?:\d0·)*\d0)대")
-_AUDIENCE_VOL_RE = re.compile(r"일평균\s*([\d.]+)\s*만")
 
 
 def parse_age_bands(text: Optional[str]) -> set[int]:
@@ -361,27 +359,64 @@ def parse_age_bands(text: Optional[str]) -> set[int]:
     return bands
 
 
-def parse_audience_summary(summary: Optional[str]) -> tuple[set[int], float]:
-    """audience_summary → (연령 중심 set, 일평균 유동인구 만단위 float).
+_FEMALE_WORDS = ("여성", "여자", "여대생", "여학생", "주부", "엄마", "맘")
+_MALE_WORDS = ("남성", "남자", "남대생", "남학생", "아빠")
 
-    예: '일평균 45.8만 · 여성 47% · 20·40대 중심' → ({20, 40}, 45.8).
-    '시니어(60+)' 는 'N0대' 형태가 아니라 age center 로 세지 않는다.
+
+def parse_gender(text: Optional[str]) -> Optional[str]:
+    """발화의 성별 타깃 — "F"(여성)·"M"(남성)·None. 둘 다 말하면 None(성별을 가리지 않음)."""
+    if not text:
+        return None
+    female = any(w in text for w in _FEMALE_WORDS)
+    male = any(w in text for w in _MALE_WORDS)
+    if female == male:
+        return None
+    return "F" if female else "M"
+
+
+def target_fit(profile: Optional[dict], age_bands: set[int], gender: Optional[str]) -> float:
+    """타깃이 인구에서 차지하는 비율(%) — 연령은 말한 연령대 비율의 합, 성별은 그 성별 비율.
+
+    둘 다 말하면 두 비율을 곱해 비율로 돌린다(예: 20대 35% × 여성 55% → 19.3). 인구가 없으면 0.
     """
-    if not summary:
-        return set(), 0.0
-    ages: set[int] = set()
-    for m in _AUDIENCE_AGE_RE.finditer(summary):
-        for tok in m.group(1).split("·"):
-            if tok.isdigit():
-                ages.add(int(tok))
-    vol = 0.0
-    mv = _AUDIENCE_VOL_RE.search(summary)
-    if mv:
-        try:
-            vol = float(mv.group(1))
-        except ValueError:
-            vol = 0.0
-    return ages, vol
+    if not profile:
+        return 0.0
+    age = sum(profile["ages"].get(b, 0.0) for b in age_bands) if age_bands else None
+    sex = None
+    if gender == "F":
+        sex = profile.get("female") or 0.0
+    elif gender == "M":
+        sex = profile.get("male") or 0.0
+    if age is not None and sex is not None:
+        return age * sex / 100
+    return age if age is not None else (sex or 0.0)
+
+
+def audience_brief(
+    profile: Optional[dict], age_bands: set[int], gender: Optional[str]
+) -> Optional[str]:
+    """믹시 답변·카드용 짧은 인구 글 — 말한 타깃 비율을 앞에, 출처를 뒤에.
+
+    예: "여성 55% · 20대 35% · 월평균 37.9만 (국기원 상권 · 2026년 2분기)".
+    타깃을 말하지 않았으면 성별과 비율이 높은 연령대 둘.
+    """
+    if not profile:
+        return None
+    parts: list[str] = []
+    if gender != "M":
+        parts.append(f"여성 {profile.get('female') or 0:.0f}%")
+    if gender == "M":
+        parts.append(f"남성 {profile.get('male') or 0:.0f}%")
+    ages = profile["ages"]
+    shown = sorted(b for b in age_bands if b in ages) if age_bands else sorted(
+        sorted(ages, key=lambda b: ages[b], reverse=True)[:2]
+    )
+    label = {10: "10대 이하", 60: "60대 이상"}
+    parts += [f"{label.get(b, f'{b}대')} {ages[b]:.0f}%" for b in shown]
+    if profile.get("count_man"):
+        parts.append(f"월평균 {profile['count_man']:.1f}만")
+    text = " · ".join(parts)
+    return f"{text} ({profile['place']})" if profile.get("place") else text
 
 
 def _audience_by_media_id(db: Session, items: list[MediaItem]) -> dict[str, str]:
@@ -403,19 +438,24 @@ def sort_by_relevance(
     audience_map: dict[str, str],
     top_k: int = DEFAULT_TOP_K,
     scores: Optional[dict[str, int]] = None,
+    gender: Optional[str] = None,
 ) -> list[MediaItem]:
-    """연령 발화 시 랭킹: ⓪ 점수 → ① 연령매치 → ② 유동인구 규모 → ③ 광고비 (모두 내림차순).
+    """연령·성별 발화 시 랭킹: ⓪ 점수 → ① 타깃 비율(target_fit) → ② 유동인구 규모 → ③ 광고비 (모두 내림차순).
 
-    age_bands 가 비어 있으면 점수 → 광고비 내림차순과 동일하게 동작한다.
+    인구는 media.audience_summary(ai_index.format_audience_summary 가 지금 인구로 쓴 글)에서 읽는다.
+    연령·성별을 말하지 않았으면 점수 → 광고비 내림차순과 같다.
     """
-    if not age_bands:
+    if not age_bands and not gender:
         return sort_by_price_desc(candidates, top_k, scores)
+    from src.services.ai_index import parse_audience_profile
+
     scores = scores or {}
 
-    def key(item: MediaItem) -> tuple[int, int, float, int]:
-        ages, vol = parse_audience_summary(audience_map.get(item.media_id or "", ""))
-        match = 1 if age_bands & ages else 0
-        return (scores.get(str(getattr(item, "id", "")), 0), match, vol, _ad_fee_int(item))
+    def key(item: MediaItem) -> tuple[int, float, float, int]:
+        profile = parse_audience_profile(audience_map.get(item.media_id or "", ""))
+        fit = target_fit(profile, age_bands, gender)
+        vol = profile["count_man"] if profile else 0.0
+        return (scores.get(str(getattr(item, "id", "")), 0), round(fit, 1), vol, _ad_fee_int(item))
 
     return sorted(candidates, key=key, reverse=True)[:top_k]
 

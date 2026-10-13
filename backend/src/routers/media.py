@@ -15,7 +15,7 @@ from src.schemas.media import (
     MediaFilterOptions,
     PriceHistogramResponse,
 )
-from src.services import media_service
+from src.services import media_service, seoul_citydata
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -198,6 +198,20 @@ def list_fixed_clusters(
         regions=region,
     )
     return MediaClusterResponse(**data)
+
+
+@router.get("/crowd")
+def get_crowd(
+    neLat: float = Query(...),
+    swLat: float = Query(...),
+    neLng: float = Query(...),
+    swLng: float = Query(...),
+) -> dict:
+    """매체 찾기 지도 "지금 붐비는 곳" — 영역 안 서울시 주요 장소의 실시간 혼잡도(5분 캐시).
+
+    캐시가 없는 장소는 뒤에서 가져오고 pending 으로 센다 — 지도는 잠시 뒤 다시 묻는다.
+    """
+    return seoul_citydata.crowd_in_bounds(neLat, swLat, neLng, swLng)
 
 
 @router.get("/{media_id}", response_model=MediaDetail)
