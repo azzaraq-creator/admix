@@ -15,7 +15,7 @@ from src.schemas.media import (
     MediaFilterOptions,
     PriceHistogramResponse,
 )
-from src.services import media_service, seoul_citydata
+from src.services import media_service, road_traffic, seoul_citydata, transit_sync
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -221,6 +221,30 @@ def get_crowd(
     캐시가 없는 장소는 뒤에서 가져오고 pending 으로 센다 — 지도는 잠시 뒤 다시 묻는다.
     """
     return seoul_citydata.crowd_in_bounds(neLat, swLat, neLng, swLng)
+
+
+@router.get("/traffic")
+def get_traffic(
+    neLat: float = Query(...),
+    swLat: float = Query(...),
+    neLng: float = Query(...),
+    swLng: float = Query(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    """매체 찾기 지도 "도로 현황" — 영역 안 서울시 도로 구간(링크)별 실시간 소통(TOPIS, 링크별 5분 캐시).
+
+    캐시가 없는 링크는 뒤에서 가져오고 pending 으로 센다 — 지도는 잠시 뒤 다시 묻는다.
+    """
+    return road_traffic.traffic_in_bounds(db, neLat, swLat, neLng, swLng)
+
+
+@router.get("/crowd/{code}/transit")
+def get_crowd_transit(code: str, db: Session = Depends(get_db)) -> dict:
+    """실시간 인구 장소를 눌렀을 때 — 그 범위 안 지하철역·버스정류장의 가장 최근 달 승하차 인원."""
+    data = transit_sync.transit_in_place(db, code)
+    if data is None:
+        raise HTTPException(status_code=404, detail="place not found")
+    return data
 
 
 @router.get("/{media_id}", response_model=MediaDetail)

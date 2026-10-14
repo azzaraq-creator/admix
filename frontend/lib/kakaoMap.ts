@@ -59,6 +59,10 @@ export interface KakaoMap {
   getProjection: () => KakaoProjection;
 }
 
+export interface KakaoPolyline {
+  setMap: (map: KakaoMap | null) => void;
+}
+
 export interface KakaoGeocoderResult {
   x: string;
   y: string;
@@ -127,6 +131,14 @@ export interface KakaoMaps {
     fillOpacity?: number;
     zIndex?: number;
   }) => KakaoPolygon;
+  Polyline: new (options: {
+    path: KakaoLatLng[];
+    strokeWeight?: number;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeStyle?: string;
+    zIndex?: number;
+  }) => KakaoPolyline;
   event: {
     addListener: (target: object, type: string, handler: () => void) => void;
     removeListener: (target: object, type: string, handler: () => void) => void;

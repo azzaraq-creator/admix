@@ -1,10 +1,16 @@
 "use client";
 
 import { Card, Chip, Switch } from "@heroui/react";
-import { type CSSProperties, type ReactNode, useRef } from "react";
+import { type CSSProperties, type ReactNode, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { CrowdPlace, OperatingArea } from "@/hooks/media";
+import {
+  useCrowdTransit,
+  type CrowdPlace,
+  type OperatingArea,
+  type TrafficLink,
+} from "@/hooks/media";
+import { XIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -17,9 +23,11 @@ import type {
 import { POPUP_BG_CLASS } from "./MarkerMediaPopup";
 import { useKakaoMap } from "./useKakaoMap";
 import { useMapArea } from "./useMapArea";
-import { CROWD_LEVELS, crowdColor, useMapCrowd } from "./useMapCrowd";
+import { CrowdTransitSections } from "./CrowdTransitSections";
+import { CROWD_LEVELS, crowdBg, crowdColor, useMapCrowd } from "./useMapCrowd";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMapPopup } from "./useMapPopup";
+import { TRAFFIC_LEVELS, useMapTraffic } from "./useMapTraffic";
 
 export { geocodeAddress, searchPlaces, type KakaoPlace } from "@/lib/kakaoMap";
 export type {
@@ -53,6 +61,7 @@ export function MapArea({
   onPopupClose,
   highlightArea,
   crowd,
+  traffic,
 }: {
   className?: string;
   markers?: MapMarker[];
@@ -81,6 +90,14 @@ export function MapArea({
     gray: boolean;
     onToggleGray: (on: boolean) => void;
     places: CrowdPlace[];
+    /** 아직 불러오는 장소가 있음 */
+    loading: boolean;
+  };
+  /** "도로 현황" — 서울시 도로 구간의 실시간 소통(서울시 실시간 도로 소통 정보, TOPIS). 키가 없으면 넘기지 않는다. */
+  traffic?: {
+    on: boolean;
+    onToggle: (on: boolean) => void;
+    links: TrafficLink[];
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
   };
@@ -113,6 +130,20 @@ export function MapArea({
   });
 
   useMapArea({ mapRef, mapReady, area: highlightArea });
+
+  useMapTraffic({
+    mapRef,
+    mapReady,
+    links: traffic?.on ? traffic.links : null,
+  });
+
+  // 실시간 인구 장소 이름표를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
+  const [pickedPlace, setPickedPlace] = useState<CrowdPlace | null>(null);
+  const picked =
+    crowd?.on && pickedPlace
+      ? (crowd.places.find((p) => p.code === pickedPlace.code) ?? pickedPlace)
+      : null;
+
   const {
     hovered: crowdHovered,
     hoverEl: crowdHoverEl,
@@ -122,6 +153,8 @@ export function MapArea({
     mapReady,
     places: crowd?.on ? crowd.places : null,
     gray: !!crowd?.gray,
+    selectedCode: picked?.code,
+    onSelect: setPickedPlace,
   });
 
   const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
@@ -151,11 +184,11 @@ export function MapArea({
       {crowdHovered && crowdHoverEl
         ? createPortal(<CrowdHoverCard place={crowdHovered} />, crowdHoverEl)
         : null}
-      {crowd && (
-        <>
-          {/* 스위치형 — [아이콘 · 실시간 인구 · 스위치]. 켜면 스위치만 서비스 색(보라)으로 바뀐다
-              (혼잡도 "붐빔" 빨강과 헷갈리지 않게). 바탕은 반투명 유리(뒤 지도가 흐리게 비친다). */}
-          <div className="absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]">
+      {(crowd || traffic) && (
+        // 스위치형 — [아이콘 · 실시간 인구 · 스위치 | 흑백 | 도로 현황]. 켜면 스위치만 서비스 색(보라)으로 바뀐다
+        // (혼잡도 "붐빔" 빨강과 헷갈리지 않게). 바탕은 반투명 유리(뒤 지도가 흐리게 비친다).
+        <div className="absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]">
+          {crowd && (
             <Switch
               size="sm"
               isSelected={crowd.on}
@@ -182,48 +215,62 @@ export function MapArea({
                 </Switch.Control>
               </Switch.Content>
             </Switch>
-            {crowd.on && (
-              <>
-                {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
-                <span
-                  aria-hidden
-                  className="mx-[8px] h-[14px] w-px bg-[#18181b]/15"
-                />
-                <Switch
-                  size="sm"
-                  isSelected={crowd.gray}
-                  onChange={crowd.onToggleGray}
-                  aria-label="범위 밖 흑백으로 보기"
-                  className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-                >
-                  <Switch.Content className="gap-[6px] text-[12px] font-semibold text-[#18181b]">
-                    <span>흑백</span>
-                    <Switch.Control>
-                      <Switch.Thumb className="bg-white!" />
-                    </Switch.Control>
-                  </Switch.Content>
-                </Switch>
-              </>
-            )}
-          </div>
-          {crowd.on && (
-            // 범례 — 서울시 실시간 도시데이터 4단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
-            // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 둔다.
-            <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[50px] max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)]">
-              <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[2px]">
-                {CROWD_LEVELS.map(({ level, color }) => (
-                  <span
-                    key={level}
-                    className="flex items-center gap-[3px] font-medium text-[#3f3f46]"
-                  >
-                    <span
-                      className="size-[8px] rounded-full"
-                      style={{ background: color }}
-                    />
-                    {level}
-                  </span>
-                ))}
-              </div>
+          )}
+          {crowd?.on && (
+            <>
+              {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
+              <span
+                aria-hidden
+                className="mx-[8px] h-[14px] w-px bg-[#18181b]/15"
+              />
+              <Switch
+                size="sm"
+                isSelected={crowd.gray}
+                onChange={crowd.onToggleGray}
+                aria-label="범위 밖 흑백으로 보기"
+                className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+              >
+                <Switch.Content className="gap-[6px] text-[12px] font-semibold text-[#18181b]">
+                  <span>흑백</span>
+                  <Switch.Control>
+                    <Switch.Thumb className="bg-white!" />
+                  </Switch.Control>
+                </Switch.Content>
+              </Switch>
+            </>
+          )}
+          {crowd && traffic && (
+            <span
+              aria-hidden
+              className="mx-[8px] h-[14px] w-px bg-[#18181b]/15"
+            />
+          )}
+          {traffic && (
+            // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
+            <Switch
+              size="sm"
+              isSelected={traffic.on}
+              onChange={traffic.onToggle}
+              aria-label="도로 현황 보기"
+              className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+            >
+              <Switch.Content className="gap-[6px] text-[12px] font-semibold text-[#18181b]">
+                <span>도로 현황</span>
+                <Switch.Control>
+                  <Switch.Thumb className="bg-white!" />
+                </Switch.Control>
+              </Switch.Content>
+            </Switch>
+          )}
+        </div>
+      )}
+      {(crowd?.on || traffic?.on) && (
+        // 범례 — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
+        // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 둔다.
+        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[50px] max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)]">
+          {crowd?.on && (
+            <>
+              <LegendRow levels={CROWD_LEVELS} />
               <span className="text-[10px] text-gray-500">
                 {crowd.loading
                   ? "서울시 실시간 혼잡도를 불러오는 중…"
@@ -231,9 +278,24 @@ export function MapArea({
                     ? "이 지역엔 서울시 주요 장소가 없어요"
                     : "서울시 주요 장소 실시간 혼잡도 · 5분마다 갱신"}
               </span>
-            </div>
+            </>
           )}
-        </>
+          {traffic?.on && (
+            <>
+              <LegendRow levels={TRAFFIC_LEVELS} line />
+              <span className="text-[10px] text-gray-500">
+                {traffic.loading
+                  ? "서울시 도로 현황을 불러오는 중…"
+                  : traffic.links.length === 0
+                    ? "이 지역엔 서울시 도로 정보가 없어요"
+                    : "서울시 실시간 도로 소통(주요 도로) · 5분마다 갱신"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+      {picked && (
+        <CrowdPlaceCard place={picked} onClose={() => setPickedPlace(null)} />
       )}
       {(popupId || popupPosition) && popupEl
         ? createPortal(
@@ -316,6 +378,98 @@ function CrowdHoverCard({ place }: { place: CrowdPlace }) {
         {range}
         {time && <span className="ml-[4px] text-white/60">· {time}</span>}
       </span>
+    </Card>
+  );
+}
+
+/** 범례 한 줄 — 색 점(도로 현황은 짧은 선) + 등급. */
+function LegendRow({
+  levels,
+  line = false,
+}: {
+  levels: { level: string; color: string }[];
+  line?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[2px]">
+      {levels.map(({ level, color }) => (
+        <span
+          key={level}
+          className="flex items-center gap-[3px] font-medium text-[#3f3f46]"
+        >
+          <span
+            className={cn(
+              "rounded-full",
+              line ? "h-[3px] w-[12px]" : "size-[8px]",
+            )}
+            style={{ background: color }}
+          />
+          {level}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 실시간 인구 장소 이름표를 눌렀을 때 — 실시간 인구와, 그 범위 안 지하철역·버스정류장의 하루 승하차 인원.
+ * 지도 왼쪽 위(토글 아래)에 띄우고, 닫기·지도 빈 곳·실시간 인구 끄기로 닫는다. 모바일은 아래쪽("목록 보기" 버튼 위).
+ */
+function CrowdPlaceCard({
+  place,
+  onClose,
+}: {
+  place: CrowdPlace;
+  onClose: () => void;
+}) {
+  const { data, isLoading, isError } = useCrowdTransit(place.code);
+  const color = crowdColor(place.level);
+  const range =
+    place.populationMin === place.populationMax
+      ? `${place.populationMax.toLocaleString()}명`
+      : `${place.populationMin.toLocaleString()}~${place.populationMax.toLocaleString()}명`;
+  const time = place.measuredAt?.slice(11, 16);
+  return (
+    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] flex-col gap-[14px] overflow-y-auto rounded-[14px] border-0 bg-white px-[14px] py-[12px] shadow-[0px_4px_16px_rgba(0,0,0,0.18)] max-sm:top-auto max-sm:right-[12px] max-sm:bottom-[68px] max-sm:max-h-[50%] max-sm:w-auto">
+      <div className="flex items-start justify-between gap-[8px]">
+        <div className="flex min-w-0 flex-col gap-[2px]">
+          <div className="flex items-center gap-[6px]">
+            <span className="truncate text-[14px] leading-[20px] font-bold text-[#18181b]">
+              {place.name}
+            </span>
+            <Chip
+              size="sm"
+              className="h-[18px] shrink-0 px-[6px] text-[10px] font-bold"
+              style={{ color, background: crowdBg(place.level) }}
+            >
+              {place.level}
+            </Chip>
+          </div>
+          <span className="text-[12px] leading-[16px] text-[#52525b] tabular-nums">
+            실시간 인구 {range}
+            {time && <span className="ml-[4px] text-[#a1a1aa]">· {time}</span>}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="-mt-[2px] -mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-full text-[#71717a] hover:bg-[#f4f4f5]"
+        >
+          <XIcon className="size-[16px]" />
+        </button>
+      </div>
+      {isLoading ? (
+        <p className="text-[12px] text-[#71717a]">
+          지하철·버스 승하차를 불러오는 중…
+        </p>
+      ) : isError || !data ? (
+        <p className="text-[12px] text-[#71717a]">
+          지하철·버스 승하차를 불러오지 못했어요.
+        </p>
+      ) : (
+        <CrowdTransitSections data={data} />
+      )}
     </Card>
   );
 }

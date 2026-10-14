@@ -224,16 +224,24 @@ function RegionFilter({
             onChange([...others, ...mine]);
           }}
         >
-          <TagGroup.List className="flex flex-wrap gap-[8px]">
-            <Tag id={ALL_DISTRICTS} className={OPTION_TAG}>
-              {current.label} 전체
-            </Tag>
-            {current.districts.map((d) => (
-              <Tag key={d} id={d} className={OPTION_TAG}>
-                {d}
+          {/* 모바일은 구·군이 다섯 줄 넘게 쌓여 지저분해 보여, 두 줄로 놓고 옆으로 밀어 넘긴다(끝은 흐리게). PC는 줄바꿈 그대로. */}
+          <ScrollShadow
+            orientation="horizontal"
+            hideScrollBar
+            size={24}
+            className="max-sm:-mx-[12px] max-sm:px-[12px]"
+          >
+            <TagGroup.List className="flex flex-wrap gap-[8px] max-sm:grid max-sm:w-max max-sm:auto-cols-max max-sm:grid-flow-col max-sm:grid-rows-2 max-sm:pr-[12px]">
+              <Tag id={ALL_DISTRICTS} className={OPTION_TAG}>
+                {current.label} 전체
               </Tag>
-            ))}
-          </TagGroup.List>
+              {current.districts.map((d) => (
+                <Tag key={d} id={d} className={OPTION_TAG}>
+                  {d}
+                </Tag>
+              ))}
+            </TagGroup.List>
+          </ScrollShadow>
         </TagGroup>
         <p className="text-[12px] text-gray-500 max-sm:text-[11px]">
           이동 매체는 운행 지역으로 찾아요. 시·도 전체를 다니는 매체와 전국
@@ -474,9 +482,9 @@ export function MediaFilterPanel({
         {sections
           .filter(({ key }) => !COMPACT_SECTIONS.includes(key))
           .map(renderSection)}
-        {/* 고를 게 적은 항목(매체 타입·판매 유형·설치 장소·매체 형태)은 넓은 PC에서 한 줄에 나란히(각자 내용 폭만),
-            태블릿·좁은 PC는 두 칸씩 두 줄(칸을 맞춰 줄이 어긋나 보이지 않게), 모바일은 한 줄에 하나. */}
-        <div className="flex flex-col gap-[22px] sm:grid sm:grid-cols-2 sm:gap-x-[48px] xl:flex xl:flex-row xl:flex-wrap">
+        {/* 고를 게 적은 항목(매체 타입·판매 유형·설치 장소·매체 형태)은 넓은 PC에서 한 줄을 네 칸으로 똑같이 나눠
+            패널 끝에서 끝까지 채우고, 태블릿·좁은 PC는 두 칸씩 두 줄(칸을 맞춰 줄이 어긋나 보이지 않게), 모바일은 한 줄에 하나. */}
+        <div className="flex flex-col gap-[22px] sm:grid sm:grid-cols-2 sm:gap-x-[48px] xl:grid-cols-4 xl:gap-x-[24px]">
           {sections
             .filter(({ key }) => COMPACT_SECTIONS.includes(key))
             .map(renderSection)}

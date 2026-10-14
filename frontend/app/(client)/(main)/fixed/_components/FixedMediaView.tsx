@@ -14,6 +14,7 @@ import {
   type OperatingArea,
   useMediaDetail,
   useMediaCrowd,
+  useMediaTraffic,
 } from "@/hooks/media";
 
 import {
@@ -140,6 +141,29 @@ function setCrowdGraySetting(on: boolean) {
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
+// "도로 현황"(서울시 실시간 도로 소통 정보) 켜 둔 상태 — 실시간 인구와 같이 이 브라우저에 기억한다. 기본은 끔.
+const TRAFFIC_STORAGE_KEY = "admix.map.traffic";
+
+function useTrafficSetting(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(CROWD_EVENT, onChange);
+      window.addEventListener("storage", onChange);
+      return () => {
+        window.removeEventListener(CROWD_EVENT, onChange);
+        window.removeEventListener("storage", onChange);
+      };
+    },
+    () => window.localStorage.getItem(TRAFFIC_STORAGE_KEY) === "1",
+    () => false,
+  );
+}
+
+function setTrafficSetting(on: boolean) {
+  window.localStorage.setItem(TRAFFIC_STORAGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(CROWD_EVENT));
+}
+
 export function FixedMediaView() {
   const searchParams = useSearchParams();
 
@@ -187,14 +211,29 @@ export function FixedMediaView() {
   // "실시간 인구" — 켜 둔 상태는 이 브라우저에 기억한다. 켰을 때만 서울시 혼잡도를 묻는다.
   const crowdOn = useCrowdSetting();
   const crowdGray = useCrowdGraySetting();
+  const trafficOn = useTrafficSetting();
+  // 지도 영역은 실시간 인구·교통을 켰을 때만 상태로 둔다 — 꺼 둔 채로 지도를 옮기거나 확대·축소할 때마다
+  // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다. 줌 단계만은 버튼을 보일지
+  // 정하는 데 늘 필요해서 따로 두고, 값이 바뀔 때만 다시 그린다.
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
-  const toggleCrowd = setCrowdSetting;
+  const [mapZoom, setMapZoom] = useState<number | null>(null);
+  const toggleCrowd = (on: boolean) => {
+    setCrowdSetting(on);
+    if (on) setCrowdBounds(lastViewportRef.current);
+  };
+  const toggleTraffic = (on: boolean) => {
+    setTrafficSetting(on);
+    if (on) setCrowdBounds(lastViewportRef.current);
+  };
   // 넓게 볼 때(레벨 8 이상)는 버튼·표시를 모두 숨기고 서울시에도 묻지 않는다 — 장소가 너무 많아 겹친다.
-  const crowdZoomOk =
-    crowdBounds != null && crowdBounds.zoom <= CROWD_MAX_LEVEL;
+  const crowdZoomOk = mapZoom != null && mapZoom <= CROWD_MAX_LEVEL;
   const { data: crowdData } = useMediaCrowd(
     crowdBounds,
     crowdOn && crowdZoomOk,
+  );
+  const { data: trafficData } = useMediaTraffic(
+    crowdBounds,
+    trafficOn && crowdZoomOk,
   );
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
@@ -222,7 +261,8 @@ export function FixedMediaView() {
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
       lastViewportRef.current = b;
-      setCrowdBounds(b);
+      setMapZoom(b.zoom);
+      if (crowdOn || trafficOn) setCrowdBounds(b);
       if (b.moveType === "program") {
         const reason = pendingCommitRef.current;
         if (!reason) return;
@@ -254,7 +294,7 @@ export function FixedMediaView() {
       setGroupPopup(null);
       commitViewport(b, false);
     },
-    [commitZoomOnly, commitViewport, searchParams],
+    [commitZoomOnly, commitViewport, searchParams, crowdOn, trafficOn],
   );
 
   const handleRequestMapMove = useCallback(
@@ -444,6 +484,21 @@ export function FixedMediaView() {
                     onToggleGray: setCrowdGraySetting,
                     places: crowdData?.places ?? [],
                     loading: !crowdData || crowdData.pending > 0,
+                  }
+            }
+            traffic={
+              // 실시간 인구와 같은 서울시 주요 장소 기준이라, 넓게 보거나 키가 없으면 같이 숨긴다.
+              !crowdZoomOk || trafficData?.enabled === false
+                ? undefined
+                : {
+                    on: trafficOn,
+                    onToggle: toggleTraffic,
+                    links: trafficData?.links ?? [],
+                    // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.
+                    loading:
+                      !trafficData ||
+                      (trafficData.pending > 0 &&
+                        trafficData.links.length === 0),
                   }
             }
             className="size-full"

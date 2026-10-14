@@ -168,3 +168,32 @@ export const useMediaCrowd = (bounds: CrowdBounds | null, enabled: boolean) => {
       (query.state.data?.pending ?? 0) > 0 ? 3000 : 5 * 60 * 1000,
   });
 };
+
+/**
+ * 매체 찾기 지도 "도로 현황"(서울시 실시간 도로 소통 정보) — 켰을 때만 묻는다. 실시간 인구와 같이 불러오는 구간이 있으면
+ * 3초 뒤, 다 받았으면 5분마다 다시 묻는다.
+ */
+export const useMediaTraffic = (
+  bounds: CrowdBounds | null,
+  enabled: boolean,
+) => {
+  const key = bounds ? roundBounds(bounds) : null;
+  return useQuery({
+    queryKey: mediaKeys.traffic(key),
+    queryFn: () => mediaApi.traffic(key as CrowdBounds),
+    enabled: enabled && !!key,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+    refetchInterval: (query) =>
+      (query.state.data?.pending ?? 0) > 0 ? 3000 : 5 * 60 * 1000,
+  });
+};
+
+/** 실시간 인구 장소를 눌렀을 때 — 그 범위 안 지하철·버스 한 달 승하차(서울시는 한 달에 한 번 갱신). */
+export const useCrowdTransit = (code: string | null) =>
+  useQuery({
+    queryKey: mediaKeys.crowdTransit(code),
+    queryFn: () => mediaApi.crowdTransit(code as string),
+    enabled: !!code,
+    staleTime: 60 * 60 * 1000,
+  });

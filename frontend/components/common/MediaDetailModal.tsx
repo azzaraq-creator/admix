@@ -23,7 +23,9 @@ import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
+  ChevronLeftIcon,
   ChevronRightBoldIcon,
+  ChevronRightIcon,
   CloseMediumIcon,
   FolderAddIcon,
   LayerIcon,
@@ -231,17 +233,28 @@ function MediaDetailBody({
     ...(vm.sizeText ? [["매체 크기", vm.sizeText] as [string, string]] : []),
   ];
 
+  // 모바일 크게 보기 — 연 장 번호(닫혀 있으면 null). PC는 ImageGallery 가 따로 연다.
+  const [mobileLightbox, setMobileLightbox] = useState<number | null>(null);
+
   return (
     <>
       {/* PC(가로 배치)는 이미지 칸을 오른쪽 정보 칸 높이에 맞춰 늘린다 — 위·아래 끝이 나란하다. */}
       <div className="flex flex-col items-center gap-[20px] max-sm:gap-[16px] md:flex-row md:items-stretch">
         <ImageGallery images={vm.images} />
-        {/* 모바일은 크게 보기 대신 목록 카드처럼 끌어서 넘기고, 점으로 장 수를 보여 준다. */}
+        {/* 모바일은 목록 카드처럼 끌어서 넘기고(점으로 장 수), 누르면 PC처럼 크게 보기(보고 있던 장부터). */}
         <MediaImageCarousel
           slides={vm.images.length > 0 ? vm.images : [undefined]}
           sizes="100vw"
           className="h-[200px] w-full shrink-0 rounded-[10px] sm:hidden"
+          onSlideClick={setMobileLightbox}
         />
+        {mobileLightbox != null && (
+          <ImageLightbox
+            images={vm.images}
+            initialIndex={mobileLightbox}
+            onClose={() => setMobileLightbox(null)}
+          />
+        )}
 
         <div className="flex w-full min-w-0 flex-1 flex-col items-start gap-[10px]">
           {/* 칩은 매체명 첫 줄에 맞춘다(매체명이 두 줄이 돼도 가운데로 내려가지 않게). */}
@@ -514,10 +527,69 @@ function DetailActions({
   );
 }
 
+// 썸네일 줄(440px)에 다 들어가는 장 수 — 이보다 많으면 줄을 옆으로 넘길 수 있게(화살표·마우스 휠) 한다.
+const THUMBS_PER_VIEW = 4;
+const THUMB_W = 104;
+const THUMB_GAP = 8;
+
 function ImageGallery({ images }: { images: string[] }) {
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const current = images[index];
+  const slidable = images.length > THUMBS_PER_VIEW;
+  const stripRef = useRef<HTMLDivElement>(null);
+  // 양 끝에 더 넘길 썸네일이 남았는지 — 남은 쪽에만 화살표를 띄운다.
+  const [edge, setEdge] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!slidable || !strip) return;
+    const update = () =>
+      setEdge({
+        left: strip.scrollLeft > 1,
+        right: strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1,
+      });
+    // 마우스 휠(위아래)로도 옆으로 넘긴다 — 썸네일 줄에 스크롤바가 없어 마우스만으로는 넘길 방법이 없다.
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = strip.scrollWidth - strip.clientWidth;
+      const next = Math.max(0, Math.min(max, strip.scrollLeft + e.deltaY));
+      if (next === strip.scrollLeft) return; // 끝에 닿으면 모달 스크롤로 넘긴다
+      e.preventDefault();
+      strip.scrollLeft = next;
+    };
+    update();
+    strip.addEventListener("scroll", update, { passive: true });
+    strip.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("resize", update);
+    return () => {
+      strip.removeEventListener("scroll", update);
+      strip.removeEventListener("wheel", onWheel);
+      window.removeEventListener("resize", update);
+    };
+  }, [slidable]);
+
+  // 고른 장이 줄 밖에 있으면 보이도록 옮긴다(크게 보기에서 넘기고 돌아온 경우 등).
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!slidable || !strip) return;
+    const left = index * (THUMB_W + THUMB_GAP);
+    if (left < strip.scrollLeft) {
+      strip.scrollTo({ left, behavior: "smooth" });
+    } else if (left + THUMB_W > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollTo({
+        left: left + THUMB_W - strip.clientWidth,
+        behavior: "smooth",
+      });
+    }
+  }, [index, slidable]);
+
+  // 화살표 — 한 화면(4장)씩 넘긴다.
+  const slide = (dir: -1 | 1) =>
+    stripRef.current?.scrollBy({
+      left: dir * THUMBS_PER_VIEW * (THUMB_W + THUMB_GAP),
+      behavior: "smooth",
+    });
 
   return (
     <div className="flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden md:w-[440px]">
@@ -543,32 +615,43 @@ function ImageGallery({ images }: { images: string[] }) {
         />
       )}
       {images.length > 1 && (
-        <ScrollShadow
-          orientation="horizontal"
-          hideScrollBar
-          size={24}
-          className="flex h-[60px] items-center gap-[8px]"
-        >
-          {images.map((src, i) => {
-            const selected = i === index;
-            return (
-              <button
-                key={`${src}-${i}`}
-                type="button"
-                aria-label={`${i + 1}번째 이미지`}
-                aria-pressed={selected}
-                onClick={() => setIndex(i)}
-                // 선택 표시는 색 없이 — 고른 장은 그대로, 나머지만 흐리게 둔다(화면에 보라가 많아서).
-                className={cn(
-                  "relative h-[60px] w-[104px] shrink-0 overflow-hidden rounded-[10px] transition-opacity",
-                  selected ? "opacity-100" : "opacity-40 hover:opacity-70",
-                )}
-              >
-                <MediaThumbnail src={src} sizes="104px" className="size-full" />
-              </button>
-            );
-          })}
-        </ScrollShadow>
+        <div className="relative">
+          <div
+            ref={stripRef}
+            className="flex h-[60px] snap-x snap-mandatory items-center gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {images.map((src, i) => {
+              const selected = i === index;
+              return (
+                <button
+                  key={`${src}-${i}`}
+                  type="button"
+                  aria-label={`${i + 1}번째 이미지`}
+                  aria-pressed={selected}
+                  onClick={() => setIndex(i)}
+                  // 선택 표시는 색 없이 — 고른 장은 그대로, 나머지만 흐리게 둔다(화면에 보라가 많아서).
+                  className={cn(
+                    "relative h-[60px] w-[104px] shrink-0 snap-start overflow-hidden rounded-[10px] transition-opacity",
+                    selected ? "opacity-100" : "opacity-40 hover:opacity-70",
+                  )}
+                >
+                  <MediaThumbnail
+                    src={src}
+                    sizes="104px"
+                    className="size-full"
+                  />
+                </button>
+              );
+            })}
+          </div>
+          {/* 5장 이상 — 남은 쪽 끝에 화살표(흰 그라데이션 위). */}
+          {slidable && edge.left && (
+            <StripArrow side="left" onPress={() => slide(-1)} />
+          )}
+          {slidable && edge.right && (
+            <StripArrow side="right" onPress={() => slide(1)} />
+          )}
+        </div>
       )}
 
       {lightboxOpen && (
@@ -578,6 +661,36 @@ function ImageGallery({ images }: { images: string[] }) {
           onClose={() => setLightboxOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** 썸네일 줄 양 끝의 넘기기 화살표 — 끝 쪽을 흰색으로 흐려 썸네일이 더 있다는 것도 함께 보여 준다. */
+function StripArrow({
+  side,
+  onPress,
+}: {
+  side: "left" | "right";
+  onPress: () => void;
+}) {
+  const Icon = side === "left" ? ChevronLeftIcon : ChevronRightIcon;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-y-0 flex w-[48px] items-center from-white via-white/80 to-transparent",
+        side === "left"
+          ? "left-0 justify-start bg-gradient-to-r"
+          : "right-0 justify-end bg-gradient-to-l",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={side === "left" ? "이전 이미지들" : "다음 이미지들"}
+        onClick={onPress}
+        className="pointer-events-auto flex size-[28px] items-center justify-center rounded-full border border-[#ececef] bg-white text-[#3f3f46] shadow-[0px_2px_6px_rgba(0,0,0,0.12)] hover:bg-[#f7f7f8]"
+      >
+        <Icon className="size-[16px]" />
+      </button>
     </div>
   );
 }

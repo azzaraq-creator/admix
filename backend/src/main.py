@@ -24,6 +24,8 @@ from src.routers.oauth import router as oauth_router
 from src.routers.recommend_v2 import router as recommend_v2_router
 from src.routers.recommend_react import router as recommend_react_router
 from src.services.sangwon_sync import start_daily_sync
+from src.services.road_traffic import start_daily_sync as start_road_link_sync
+from src.services.transit_sync import start_daily_sync as start_transit_sync
 
 settings = get_settings()
 
@@ -71,6 +73,10 @@ app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads"
 def _start_background_jobs() -> None:
     # 서울시 상권 유동인구 새 분기 확인(하루 한 번). 키가 없으면 돌지 않는다.
     start_daily_sync()
+    # 서울 지하철·버스 일별 승하차 새 날 확인(6시간마다). 키가 없으면 돌지 않는다.
+    start_transit_sync()
+    # 서울시 도로 링크(도로 현황 지도) — 표가 비었으면 받는다.
+    start_road_link_sync()
 
 
 @app.get("/health")

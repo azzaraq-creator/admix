@@ -336,6 +336,50 @@ export interface CrowdResponse {
   pending: number;
 }
 
+/**
+ * 매체 찾기 지도 "도로 현황" — 서울시 실시간 도로 소통 정보(TOPIS)의 도로 구간(링크) 하나.
+ * level 은 속도로 정한 "원활" · "서행" · "정체", path 는 [위도, 경도] 목록.
+ */
+export interface TrafficLink {
+  id: string;
+  road: string;
+  level: string;
+  speed: number;
+  path: [number, number][];
+}
+
+export interface TrafficResponse {
+  /** 서버에 서울시 키가 없으면 false */
+  enabled: boolean;
+  links: TrafficLink[];
+  /** 아직 불러오는 구간 수 — 0이 될 때까지 잠시 뒤 다시 묻는다 */
+  pending: number;
+}
+
+/** 실시간 인구 장소를 눌렀을 때 — 그 범위 안 지하철역·버스정류장의 하루 승하차 인원(서울시, 공개된 가장 최근 날). */
+export interface CrowdTransit {
+  name: string;
+  subway: {
+    /** "20261010" — 아직 데이터가 없으면 null. 서울시가 사흘쯤 뒤에 공개해 지하철·버스 날짜가 다를 수 있다. */
+    date: string | null;
+    /** 승하차가 많은 순 */
+    stations: {
+      name: string;
+      lines: string[];
+      ride: number;
+      alight: number;
+    }[];
+  };
+  bus: {
+    date: string | null;
+    stopCount: number;
+    ride: number;
+    alight: number;
+    /** 승하차가 많은 정류장(최대 5곳) */
+    top: { name: string; arsNo: string | null; ride: number; alight: number }[];
+  };
+}
+
 export interface CrowdBounds {
   neLat: number;
   swLat: number;
@@ -345,8 +389,14 @@ export interface CrowdBounds {
 
 export const mediaApi = {
   crowd: (b: CrowdBounds) =>
+    api.get<CrowdResponse>("/media/crowd", { params: b }).then((r) => r.data),
+  traffic: (b: CrowdBounds) =>
     api
-      .get<CrowdResponse>("/media/crowd", { params: b })
+      .get<TrafficResponse>("/media/traffic", { params: b })
+      .then((r) => r.data),
+  crowdTransit: (code: string) =>
+    api
+      .get<CrowdTransit>(`/media/crowd/${encodeURIComponent(code)}/transit`)
       .then((r) => r.data),
   list: (params?: MediaListParams) =>
     api.get<MediaListResponse>("/admin/media", { params }).then((r) => r.data),

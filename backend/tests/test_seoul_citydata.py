@@ -188,3 +188,4 @@ def test_crowd_in_bounds_includes_place_when_zoomed_inside_without_center():
         with sc._cache_lock:
             sc._cache.pop(gangnam.code, None)
         assert sc.crowd_in_bounds(**box)["pending"] >= 1
+

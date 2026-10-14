@@ -18,6 +18,9 @@ export const mediaKeys = {
     [...mediaKeys.all, "fixed", "price-histogram", filters ?? {}] as const,
   filterOptions: () => [...mediaKeys.all, "filter-options"] as const,
   crowd: (b: CrowdBounds | null) => [...mediaKeys.all, "crowd", b] as const,
+  traffic: (b: CrowdBounds | null) => [...mediaKeys.all, "traffic", b] as const,
+  crowdTransit: (code: string | null) =>
+    [...mediaKeys.all, "crowd", "transit", code] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,
   adminFieldOptions: () =>
     [...mediaKeys.all, "admin", "field-options"] as const,

@@ -41,6 +41,7 @@ function pill(
   place: CrowdPlace,
   onEnter: () => void,
   onLeave: () => void,
+  onClick: () => void,
 ): HTMLElement {
   const color = crowdColor(place.level);
   const el = document.createElement("div");
@@ -65,12 +66,12 @@ function pill(
   ].join(";");
   el.setAttribute("role", "button");
   el.setAttribute("aria-label", `${place.name} 실시간 인구 ${place.level}`);
-  // 마우스는 올리는 즉시, 터치(모바일)는 누를 때 정보를 띄운다.
+  // 마우스를 올리면 작은 카드, 누르면(모바일도) 지하철·버스 승하차까지 담은 장소 카드를 띄운다.
   el.addEventListener("mouseenter", onEnter);
   el.addEventListener("mouseleave", onLeave);
   el.addEventListener("click", (e) => {
     e.stopPropagation();
-    onEnter();
+    onClick();
   });
 
   const dot = document.createElement("span");
@@ -203,20 +204,25 @@ type Drawn = {
  * 표시는 매체 핀·말풍선보다 아래(zIndex 0)에 깔아 매체 선택을 가리지 않는다.
  * 켜면 장소 범위를 혼잡도 색으로 칠해 두고, 범위 밖은 흑백으로 바꾼다(grayBoard).
  * 판이 아직 없거나 확대·축소 중이면 boardShown=false — MapArea 가 그동안 지도 전체를 흑백으로 둔다.
- * 마우스를 올리면(모바일은 누르면) 정보 카드를 띄울 자리(hoverEl)를 돌려준다
- * — 카드 내용은 MapArea 가 React(HeroUI)로 그려 넣는다.
+ * 마우스를 올리면 정보 카드를 띄울 자리(hoverEl)를 돌려준다 — 카드 내용은 MapArea 가 React(HeroUI)로 그려 넣는다.
+ * 이름표를 누르면 onSelect(장소), 지도 빈 곳을 누르면 onSelect(null) — 고른 장소(selectedCode)는 범위를 강조해 둔다.
  */
 export function useMapCrowd({
   mapRef,
   mapReady,
   places,
   gray = true,
+  selectedCode,
+  onSelect,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   places?: CrowdPlace[] | null;
   /** 범위 밖을 흑백으로(끄면 판을 내린다). */
   gray?: boolean;
+  /** 이름표를 눌러 고른 장소 */
+  selectedCode?: string | null;
+  onSelect?: (place: CrowdPlace | null) => void;
 }) {
   const [hovered, setHovered] = useState<CrowdPlace | null>(null);
   const [hoverEl, setHoverEl] = useState<HTMLDivElement | null>(null);
@@ -227,6 +233,11 @@ export function useMapCrowd({
   const drawnRef = useRef(new Map<string, Drawn>());
   const [boardShown, setBoardShown] = useState(false);
   const refreshBoardRef = useRef<(() => void) | null>(null);
+  // 이름표는 한 번 그려 두고 다시 쓰므로, 누를 때 부를 함수는 늘 최신 것을 쓰게 ref 로 둔다.
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  });
 
   // 표시를 켜면 범위 파일을 받는다(범위를 바로 칠한다).
   useEffect(() => {
@@ -245,7 +256,10 @@ export function useMapCrowd({
     const maps = window.kakao?.maps;
     const map = mapRef.current;
     if (!mapReady || !maps || !map || !active) return;
-    const close = () => setHovered(null);
+    const close = () => {
+      setHovered(null);
+      onSelectRef.current?.(null);
+    };
     maps.event.addListener(map, "click", close);
     return () => maps.event.removeListener(map, "click", close);
   }, [mapReady, mapRef, active]);
@@ -282,6 +296,10 @@ export function useMapCrowd({
           place,
           () => setHovered(latestRef.current.get(place.code) ?? place),
           () => setHovered((h) => (h?.code === place.code ? null : h)),
+          () => {
+            setHovered(null);
+            onSelectRef.current?.(latestRef.current.get(place.code) ?? place);
+          },
         ),
         xAnchor: 0.5,
         yAnchor: 0.5,
@@ -356,9 +374,9 @@ export function useMapCrowd({
 
   const shown = active ? hovered : null;
 
-  // 이름표에 마우스를 올린(모바일은 누른) 장소의 범위를 강조한다. 목록이 새로 와 범위를 다시 그려도
+  // 이름표에 마우스를 올린 장소(없으면 눌러 고른 장소)의 범위를 강조한다. 목록이 새로 와 범위를 다시 그려도
   // 다시 강조되게 places 도 본다.
-  const shownCode = shown?.code;
+  const shownCode = shown?.code ?? (active ? selectedCode : null);
   useEffect(() => {
     if (!shownCode) return;
     const polygons = drawnRef.current.get(shownCode)?.polygons ?? [];
