@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Chip, Switch } from "@heroui/react";
+import { Card, Chip, Drawer, ScrollShadow, Switch } from "@heroui/react";
 import { type CSSProperties, type ReactNode, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -11,6 +11,7 @@ import {
   type TrafficLink,
 } from "@/hooks/media";
 import { XIcon } from "@/components/icons";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -422,7 +423,68 @@ function CrowdPlaceCard({
   place: CrowdPlace;
   onClose: () => void;
 }) {
-  const { data, isLoading, isError } = useCrowdTransit(place.code);
+  const isDesktop = useIsDesktop();
+  if (!isDesktop) return <CrowdPlaceSheet place={place} onClose={onClose} />;
+  return (
+    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] flex-col gap-[14px] overflow-y-auto rounded-[14px] border-0 bg-white px-[14px] py-[12px] shadow-[0px_4px_16px_rgba(0,0,0,0.18)]">
+      <CrowdPlaceHeader place={place} onClose={onClose} />
+      <CrowdPlaceBody code={place.code} />
+    </Card>
+  );
+}
+
+/**
+ * 모바일 — 지도 위 작은 카드 대신 아래에서 올라오는 시트(HeroUI Drawer, 손잡이를 끌어내리거나 바깥을 눌러 닫는다).
+ * 지역명·실시간 인구·닫기는 위에 고정하고, 지하철·버스만 ScrollShadow 안에서 스크롤한다.
+ */
+function CrowdPlaceSheet({
+  place,
+  onClose,
+}: {
+  place: CrowdPlace;
+  onClose: () => void;
+}) {
+  return (
+    <Drawer
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <Drawer.Backdrop>
+        <Drawer.Content placement="bottom">
+          {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — HeroUI 기본 85vh는 모바일 주소창 때문에 위가 잘린다. */}
+          <Drawer.Dialog
+            aria-label={`${place.name} 지하철·버스`}
+            className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-white p-0 pt-[10px]"
+          >
+            <Drawer.Handle />
+            <div className="shrink-0 border-b border-[#f1f1f4] px-[20px] pt-[10px] pb-[14px]">
+              <CrowdPlaceHeader place={place} onClose={onClose} large />
+            </div>
+            <ScrollShadow
+              size={32}
+              className="flex min-h-0 flex-1 flex-col gap-[16px] px-[20px] pt-[16px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+            >
+              <CrowdPlaceBody code={place.code} />
+            </ScrollShadow>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </Drawer>
+  );
+}
+
+/** 장소 카드 머리 — 지역명·혼잡도·실시간 인구·닫기. large: 모바일 시트(조금 크게). */
+function CrowdPlaceHeader({
+  place,
+  onClose,
+  large = false,
+}: {
+  place: CrowdPlace;
+  onClose: () => void;
+  large?: boolean;
+}) {
   const color = crowdColor(place.level);
   const range =
     place.populationMin === place.populationMax
@@ -430,46 +492,70 @@ function CrowdPlaceCard({
       : `${place.populationMin.toLocaleString()}~${place.populationMax.toLocaleString()}명`;
   const time = place.measuredAt?.slice(11, 16);
   return (
-    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] flex-col gap-[14px] overflow-y-auto rounded-[14px] border-0 bg-white px-[14px] py-[12px] shadow-[0px_4px_16px_rgba(0,0,0,0.18)] max-sm:top-auto max-sm:right-[12px] max-sm:bottom-[68px] max-sm:max-h-[50%] max-sm:w-auto">
-      <div className="flex items-start justify-between gap-[8px]">
-        <div className="flex min-w-0 flex-col gap-[2px]">
-          <div className="flex items-center gap-[6px]">
-            <span className="truncate text-[14px] leading-[20px] font-bold text-[#18181b]">
-              {place.name}
-            </span>
-            <Chip
-              size="sm"
-              className="h-[18px] shrink-0 px-[6px] text-[10px] font-bold"
-              style={{ color, background: crowdBg(place.level) }}
-            >
-              {place.level}
-            </Chip>
-          </div>
-          <span className="text-[12px] leading-[16px] text-[#52525b] tabular-nums">
-            실시간 인구 {range}
-            {time && <span className="ml-[4px] text-[#a1a1aa]">· {time}</span>}
+    <div className="flex items-start justify-between gap-[8px]">
+      <div className="flex min-w-0 flex-col gap-[2px]">
+        <div className="flex items-center gap-[6px]">
+          <span
+            className={cn(
+              "truncate font-bold text-[#18181b]",
+              large
+                ? "text-[17px] leading-[24px]"
+                : "text-[14px] leading-[20px]",
+            )}
+          >
+            {place.name}
           </span>
+          <Chip
+            size="sm"
+            className={cn(
+              "shrink-0 font-bold",
+              large
+                ? "h-[20px] px-[7px] text-[11px]"
+                : "h-[18px] px-[6px] text-[10px]",
+            )}
+            style={{ color, background: crowdBg(place.level) }}
+          >
+            {place.level}
+          </Chip>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          className="-mt-[2px] -mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-full text-[#71717a] hover:bg-[#f4f4f5]"
+        <span
+          className={cn(
+            "text-[#52525b] tabular-nums",
+            large ? "text-[13px] leading-[18px]" : "text-[12px] leading-[16px]",
+          )}
         >
-          <XIcon className="size-[16px]" />
-        </button>
+          실시간 인구 {range}
+          {time && <span className="ml-[4px] text-[#a1a1aa]">· {time}</span>}
+        </span>
       </div>
-      {isLoading ? (
-        <p className="text-[12px] text-[#71717a]">
-          지하철·버스 승하차를 불러오는 중…
-        </p>
-      ) : isError || !data ? (
-        <p className="text-[12px] text-[#71717a]">
-          지하철·버스 승하차를 불러오지 못했어요.
-        </p>
-      ) : (
-        <CrowdTransitSections data={data} />
-      )}
-    </Card>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="닫기"
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full text-[#71717a] hover:bg-[#f4f4f5]",
+          large ? "-mr-[6px] size-[32px]" : "-mt-[2px] -mr-[4px] size-[24px]",
+        )}
+      >
+        <XIcon className={large ? "size-[20px]" : "size-[16px]"} />
+      </button>
+    </div>
   );
+}
+
+function CrowdPlaceBody({ code }: { code: string }) {
+  const { data, isLoading, isError } = useCrowdTransit(code);
+  if (isLoading)
+    return (
+      <p className="text-[12px] text-[#71717a]">
+        지하철·버스 승하차를 불러오는 중…
+      </p>
+    );
+  if (isError || !data)
+    return (
+      <p className="text-[12px] text-[#71717a]">
+        지하철·버스 승하차를 불러오지 못했어요.
+      </p>
+    );
+  return <CrowdTransitSections data={data} />;
 }
