@@ -8,12 +8,13 @@ import {
   Tag,
   TagGroup,
 } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import {
   EMPTY_MEDIA_FILTER,
   FILTER_DIMS,
   dimSelectionCount,
+  regionLabel,
   type ChipDimKey,
   type FilterOption,
   type FilterPanelKey,
@@ -21,8 +22,11 @@ import {
   type PriceMeta,
   toChipFilterParams,
 } from "@/components/common/mediaFilter/filterConfig";
-import { PriceRangeFilter } from "@/components/common/mediaFilter/PriceRangeFilter";
-import { RotateLeftIcon } from "@/components/icons";
+import {
+  PriceRangeFilter,
+  priceLabel,
+} from "@/components/common/mediaFilter/PriceRangeFilter";
+import { CloseSmallIcon, RotateLeftIcon } from "@/components/icons";
 import { useFavoriteList, useFavoritePriceHistogram } from "@/hooks/favorites";
 import {
   useMediaFindCount,
@@ -32,10 +36,10 @@ import {
 } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
-/** 시안(02. 매체 찾기 - 필터)의 탭 순서. 지역은 regions 를 넘길 때만 보인다. */
-type TabKey = FilterPanelKey | "region";
+/** 필터 항목 — 한 화면에 위에서부터 이 순서로 쌓는다. 지역은 regions 를 넘길 때만 보인다. */
+type SectionKey = FilterPanelKey | "region";
 
-const TABS: { key: TabKey; label: string }[] = [
+const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: "region", label: "지역" },
   { key: "category", label: "카테고리" },
   { key: "price", label: "가격 범위" },
@@ -45,47 +49,61 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "mediaShape", label: "매체 형태" },
 ];
 
-/** 패널 탭 모양 — 정렬 패널(MediaSortBar)의 Select 트리거도 같은 모양을 쓴다. */
-export const TAB_BASE =
-  "flex h-[38px] shrink-0 items-center gap-[8px] rounded-[16px] px-[20px] text-[14px] max-sm:text-[12px] transition-colors";
-// 선택된 탭의 테두리는 #9aa0b4(= gray-400).
-export const TAB_ACTIVE =
-  "border border-gray-400 bg-white font-bold text-gray-900";
-export const TAB_IDLE =
-  "bg-transparent font-medium text-gray-500 hover:bg-transparent hover:text-gray-900";
+/** 고를 게 적어 PC·태블릿에서 한 줄에 나란히 두는 항목. */
+const COMPACT_SECTIONS: SectionKey[] = [
+  "oohType",
+  "saleType",
+  "exposureType",
+  "mediaShape",
+];
 
-export function TabButton({
+/** 필터 항목 하나 — 제목 옆에 고른 개수를 띄운다. */
+function FilterSection({
   label,
   count,
-  active,
-  disabled,
-  onClick,
+  children,
 }: {
   label: string;
   count: number;
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
+  children: ReactNode;
 }) {
   return (
-    <Button
-      variant="ghost"
-      isDisabled={disabled}
-      onPress={onClick}
-      className={cn(
-        TAB_BASE,
-        active ? TAB_ACTIVE : TAB_IDLE,
-        disabled && "cursor-not-allowed opacity-40 hover:text-gray-500",
-      )}
-    >
+    <section className="flex flex-col gap-[12px] max-sm:gap-[10px]">
+      <h3 className="flex items-center gap-[6px] text-[15px] font-bold text-gray-900 max-sm:text-[13px]">
+        {label}
+        {count > 0 && (
+          <span className="text-[14px] font-semibold text-primary-500 max-sm:text-[12px]">
+            {count}
+          </span>
+        )}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/** 고른 필터 칩 — 글자 + X(누르면 그 값만 뺀다). 목록 위 적용된 필터 줄과 필터 패널 아래쪽에서 같이 쓴다. */
+export function FilterChip({
+  label,
+  onRemove,
+}: {
+  label: ReactNode;
+  onRemove: () => void;
+}) {
+  // 시안 비율 기준(칩 높이 31px): 글자 12px, X 12px, 간격 7px, 좌우 11px, 모서리 11px.
+  // HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 여기서 덮어쓴다.
+  return (
+    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-[#ececef] bg-white px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-[#71717a]">
       {label}
-      {count > 0 && (
-        // 색은 지정하지 않고 탭 글자색(선택·hover 상태 포함)을 그대로 따른다.
-        <span className="text-[13px] max-sm:text-[11px] font-semibold">
-          {count}
-        </span>
-      )}
-    </Button>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="필터 제거"
+        className="cursor-pointer transition-colors hover:text-gray-900"
+      >
+        <CloseSmallIcon className="size-[12px]" />
+      </button>
+    </Chip>
   );
 }
 
@@ -97,7 +115,11 @@ function sameFilter(a: MediaFilterState, b: MediaFilterState): boolean {
     sameRegion &&
     FILTER_DIMS.every((dim) => {
       if (dim.key === "price")
-        return a.priceMin === b.priceMin && a.priceMax === b.priceMax;
+        return (
+          a.priceMin === b.priceMin &&
+          a.priceMax === b.priceMax &&
+          a.excludePriceInquiry === b.excludePriceInquiry
+        );
       const x = [...a[dim.key]].sort().join("\u0000");
       const y = [...b[dim.key]].sort().join("\u0000");
       return x === y;
@@ -263,8 +285,6 @@ export function MediaFilterPanel({
 }) {
   // 패널 안에서만 쓰는 임시 상태 — "결과 보기"를 눌러야 URL(=조회)에 반영된다.
   const [draft, setDraft] = useState<MediaFilterState>(value);
-  // 처음 여는 탭 — 지역 탭이 있으면 지역, 없으면 카테고리.
-  const [tab, setTab] = useState<TabKey>(regions ? "region" : "category");
 
   // 선택이 멈추면 그 조건으로 결과 수를 다시 센다. 적용된 필터와 같으면 목록의 total을 그대로 쓴다.
   const [settledDraft, setSettledDraft] = useState(draft);
@@ -302,6 +322,7 @@ export function MediaFilterPanel({
     ...toChipFilterParams(settledDraft),
     priceMin: null,
     priceMax: null,
+    excludePriceInquiry: false,
     ...draftScope,
   };
   const fixedHistogram = useFixedPriceHistogram(
@@ -317,88 +338,153 @@ export function MediaFilterPanel({
     price?.histogram ??
     [];
 
-  const tabCount = (key: TabKey) => dimSelectionCount(key, draft);
-  const tabs = TABS.filter((t) => t.key !== "region" || regions);
+  const sections = SECTIONS.filter((t) => t.key !== "region" || regions);
+
+  // 패널에서 고른 값 — 아래쪽에 칩으로 늘어놓아 무엇을 골랐는지 한눈에 보이고, X로 하나씩 뺄 수 있다.
+  const picked: { key: string; label: string; remove: () => void }[] = [
+    ...draft.region.map((v) => ({
+      key: `region-${v}`,
+      label: regionLabel(v, regions ?? []),
+      remove: () =>
+        setDraft((prev) => ({
+          ...prev,
+          region: prev.region.filter((x) => x !== v),
+        })),
+    })),
+    ...sections.flatMap(({ key }) => {
+      if (key === "region") return [];
+      if (key === "price") {
+        const out = [];
+        if (draft.priceMin != null || draft.priceMax != null) {
+          const lo = draft.priceMin ?? price?.min;
+          const hi = draft.priceMax ?? price?.max;
+          out.push({
+            key: "price",
+            label:
+              lo != null && hi != null
+                ? `${priceLabel(lo)} ~ ${priceLabel(hi)}`
+                : "가격 범위",
+            remove: () =>
+              setDraft((prev) => ({ ...prev, priceMin: null, priceMax: null })),
+          });
+        }
+        if (draft.excludePriceInquiry)
+          out.push({
+            key: "price-inquiry",
+            label: "별도 협의 제외",
+            remove: () =>
+              setDraft((prev) => ({ ...prev, excludePriceInquiry: false })),
+          });
+        return out;
+      }
+      return draft[key].map((v) => ({
+        key: `${key}-${v}`,
+        label: optionsByKey[key].find((o) => o.value === v)?.label ?? v,
+        remove: () =>
+          setDraft((prev) => ({
+            ...prev,
+            [key]: prev[key].filter((x) => x !== v),
+          })),
+      }));
+    }),
+  ];
+
+  const renderSection = ({
+    key,
+    label,
+  }: {
+    key: SectionKey;
+    label: string;
+  }) => (
+    <FilterSection
+      key={key}
+      label={label}
+      count={dimSelectionCount(key, draft)}
+    >
+      {key === "price" ? (
+        price ? (
+          <PriceRangeFilter
+            min={price.min}
+            max={price.max}
+            histogram={histogram}
+            valueMin={draft.priceMin}
+            valueMax={draft.priceMax}
+            onChange={(lo, hi) =>
+              setDraft((prev) => ({
+                ...prev,
+                priceMin: lo,
+                priceMax: hi,
+              }))
+            }
+            includeInquiry={!draft.excludePriceInquiry}
+            onIncludeInquiryChange={(include) =>
+              setDraft((prev) => ({
+                ...prev,
+                excludePriceInquiry: !include,
+              }))
+            }
+          />
+        ) : (
+          <p className="text-[13px] text-gray-500 max-sm:text-[11px]">
+            가격 정보를 불러오지 못했어요.
+          </p>
+        )
+      ) : key === "region" ? (
+        <RegionFilter
+          regions={regions ?? []}
+          value={draft.region}
+          onChange={(region) => setDraft((prev) => ({ ...prev, region }))}
+        />
+      ) : (
+        <TagGroup
+          aria-label={`${label} 필터`}
+          selectionMode="multiple"
+          selectedKeys={new Set(draft[key])}
+          onSelectionChange={(keys) => {
+            const next =
+              keys === "all"
+                ? optionsByKey[key].map((option) => option.value)
+                : [...keys].map(String);
+            setDraft((prev) => ({ ...prev, [key]: next }));
+          }}
+        >
+          <TagGroup.List className="flex flex-wrap gap-[8px]">
+            {optionsByKey[key].map((option) => (
+              <Tag key={option.value} id={option.value} className={OPTION_TAG}>
+                {option.label}
+              </Tag>
+            ))}
+          </TagGroup.List>
+        </TagGroup>
+      )}
+    </FilterSection>
+  );
 
   // 되돌릴 게 없으면(패널에서 고른 것도, 이미 적용된 것도 없으면) 초기화를 잠근다.
   const resetDisabled = !hasSelection(draft) && !hasSelection(value);
 
   return (
     <div className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
-      {/* 탭 줄 — 모바일처럼 좁아 옆으로 넘치면 넘길 게 남은 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
-          아래 구분선은 바깥 칸에 두어 흐림(마스크)에 같이 지워지지 않게 한다. */}
-      <div className="border-b border-gray-200">
-        <ScrollShadow
-          orientation="horizontal"
-          hideScrollBar
-          size={24}
-          className="flex items-center gap-[4px] px-[16px] py-[12px] max-sm:px-[12px] max-sm:py-[10px]"
-        >
-          {tabs.map(({ key, label }) => (
-            <TabButton
-              key={key}
-              label={label}
-              count={tabCount(key)}
-              active={tab === key}
-              onClick={() => setTab(key)}
-            />
-          ))}
-        </ScrollShadow>
-      </div>
+      {/* 모든 필터를 한 화면에 위에서부터 쌓는다(탭 없이). 길어지면 이 칸만 위아래로 넘긴다. */}
+      <ScrollShadow
+        hideScrollBar
+        size={32}
+        className="flex max-h-[min(560px,calc(100dvh-280px))] flex-col gap-[28px] px-[20px] py-[20px] max-sm:max-h-[calc(100dvh-260px)] max-sm:gap-[22px] max-sm:px-[16px] max-sm:py-[16px]"
+      >
+        {sections
+          .filter(({ key }) => !COMPACT_SECTIONS.includes(key))
+          .map(renderSection)}
+        {/* 고를 게 적은 항목(매체 타입·판매 유형·설치 장소·매체 형태)은 넓은 PC에서 한 줄에 나란히(각자 내용 폭만),
+            태블릿·좁은 PC는 두 칸씩 두 줄(칸을 맞춰 줄이 어긋나 보이지 않게), 모바일은 한 줄에 하나. */}
+        <div className="flex flex-col gap-[22px] sm:grid sm:grid-cols-2 sm:gap-x-[48px] xl:flex xl:flex-row xl:flex-wrap">
+          {sections
+            .filter(({ key }) => COMPACT_SECTIONS.includes(key))
+            .map(renderSection)}
+        </div>
+      </ScrollShadow>
 
-      <div className="min-h-[160px] px-[20px] py-[20px] max-sm:min-h-[120px] max-sm:px-[16px] max-sm:py-[16px]">
-        {tab === "price" ? (
-          price ? (
-            <PriceRangeFilter
-              min={price.min}
-              max={price.max}
-              histogram={histogram}
-              valueMin={draft.priceMin}
-              valueMax={draft.priceMax}
-              onChange={(lo, hi) =>
-                setDraft((prev) => ({ ...prev, priceMin: lo, priceMax: hi }))
-              }
-            />
-          ) : (
-            <p className="text-[13px] max-sm:text-[11px] text-gray-500">
-              가격 정보를 불러오지 못했어요.
-            </p>
-          )
-        ) : tab === "region" ? (
-          <RegionFilter
-            regions={regions ?? []}
-            value={draft.region}
-            onChange={(region) => setDraft((prev) => ({ ...prev, region }))}
-          />
-        ) : (
-          <TagGroup
-            aria-label={`${TABS.find((t) => t.key === tab)?.label ?? ""} 필터`}
-            selectionMode="multiple"
-            selectedKeys={new Set(draft[tab])}
-            onSelectionChange={(keys) => {
-              const next =
-                keys === "all"
-                  ? optionsByKey[tab].map((option) => option.value)
-                  : [...keys].map(String);
-              setDraft((prev) => ({ ...prev, [tab]: next }));
-            }}
-          >
-            <TagGroup.List className="flex flex-wrap gap-[8px]">
-              {optionsByKey[tab].map((option) => (
-                <Tag
-                  key={option.value}
-                  id={option.value}
-                  className={OPTION_TAG}
-                >
-                  {option.label}
-                </Tag>
-              ))}
-            </TagGroup.List>
-          </TagGroup>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between gap-[8px] border-t border-gray-200 px-[20px] py-[16px] max-sm:px-[16px] max-sm:py-[12px]">
+      {/* PC: [초기화] [고른 값 칩] [결과 보기]. 모바일은 폭이 좁아 칩을 버튼 위 한 줄로 올린다. */}
+      <div className="flex items-center justify-between gap-[12px] border-t border-gray-200 px-[20px] py-[16px] max-sm:flex-wrap max-sm:gap-[10px] max-sm:px-[16px] max-sm:py-[12px]">
         <Button
           variant="ghost"
           isDisabled={resetDisabled}
@@ -413,6 +499,21 @@ export function MediaFilterPanel({
           <span className="max-sm:hidden">필터 초기화</span>
           <span className="sm:hidden">초기화</span>
         </Button>
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          size={24}
+          aria-label="고른 필터"
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-[6px]",
+            "max-sm:order-first max-sm:w-full max-sm:flex-none max-sm:basis-full",
+            picked.length === 0 && "max-sm:hidden",
+          )}
+        >
+          {picked.map((p) => (
+            <FilterChip key={p.key} label={p.label} onRemove={p.remove} />
+          ))}
+        </ScrollShadow>
         {/* 모서리는 (높이/2)-3px — 버튼 40px → 17px, 개수 칩 24px → 9px.
             여백 기준은 상하 8px(40px 높이에 24px 칩). 오른쪽은 칩이 자체 여백을 가져
             그대로 8px, 왼쪽은 글자가 바로 붙어 답답해 보여 14px로 조금 넓혔다. */}

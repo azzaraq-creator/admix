@@ -1,6 +1,6 @@
 "use client";
 
-import { Slider } from "@heroui/react";
+import { Slider, Switch } from "@heroui/react";
 import { useState } from "react";
 
 const STEP = 1_000_000; // 백만원 단위 이동
@@ -9,7 +9,7 @@ const THUMB_CLASS =
   "size-[22px]! rounded-full border-2 border-primary bg-white shadow-[0px_2px_6px_rgba(163,59,209,0.35)] after:hidden data-[dragging=true]:scale-110 data-[focus-visible=true]:ring-4 data-[focus-visible=true]:ring-primary/20 max-sm:size-[20px]!";
 
 // 백만원 단위라 "1,200만원", "1억 2,000만원"처럼 만원·억으로 읽기 쉽게 적는다.
-function priceLabel(n: number): string {
+export function priceLabel(n: number): string {
   if (n <= 0) return "0원";
   const man = Math.round(n / 10_000);
   const eok = Math.floor(man / 10_000);
@@ -34,6 +34,8 @@ export function PriceRangeFilter({
   valueMin,
   valueMax,
   onChange,
+  includeInquiry,
+  onIncludeInquiryChange,
 }: {
   min: number;
   max: number;
@@ -41,6 +43,9 @@ export function PriceRangeFilter({
   valueMin: number | null;
   valueMax: number | null;
   onChange: (lo: number, hi: number) => void;
+  /** "별도 협의"(광고비 없는 매체) 포함 여부 — onIncludeInquiryChange 를 넘길 때만 스위치가 보인다. */
+  includeInquiry?: boolean;
+  onIncludeInquiryChange?: (include: boolean) => void;
 }) {
   // 슬라이더 범위를 백만원 경계로 정렬(라벨이 정수 백만원으로 떨어지도록).
   const rmin = Math.floor(min / STEP) * STEP;
@@ -130,6 +135,28 @@ export function PriceRangeFilter({
           <span>{priceLabel(rmax)}</span>
         </div>
       </div>
+
+      {/* 광고비가 없어 가격 범위로 거를 수 없는 매체 — 켜 두면 범위와 상관없이 함께 보인다. */}
+      {onIncludeInquiryChange && (
+        <Switch
+          size="sm"
+          className="self-start [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+          isSelected={includeInquiry ?? true}
+          onChange={onIncludeInquiryChange}
+        >
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb className="bg-white!" />
+            </Switch.Control>
+            <span className="text-[14px] text-gray-900 max-sm:text-[12px]">
+              별도 협의 포함
+              <span className="ms-[6px] text-[12px] text-gray-500 max-sm:text-[11px]">
+                광고비가 정해지지 않은 매체
+              </span>
+            </span>
+          </Switch.Content>
+        </Switch>
+      )}
     </div>
   );
 }

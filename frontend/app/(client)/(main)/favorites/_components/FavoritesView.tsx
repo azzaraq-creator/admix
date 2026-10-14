@@ -19,10 +19,8 @@ import { MediaFindTopBar } from "@/app/(client)/(main)/fixed/_components/MediaFi
 import {
   DEFAULT_MEDIA_SORT,
   FAVORITE_LATEST_LABEL,
-  MediaSortBar,
-  mediaSortLabel,
   type MediaSortKey,
-} from "@/app/(client)/(main)/fixed/_components/MediaSortBar";
+} from "@/app/(client)/(main)/fixed/_components/MediaSortSelect";
 import {
   type AddProposalOptions,
   AddToProposalModal,
@@ -72,9 +70,8 @@ export function FavoritesView({ member }: { member: boolean }) {
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<MediaFilterState>(EMPTY_MEDIA_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
-  // 정렬 — 매체 찾기와 같은 패널. 첫 탭은 최근에 담은 순이라 "최근순"으로 부른다.
+  // 정렬 — 매체 찾기와 같은 Select. 첫 옵션은 최근에 담은 순이라 "최근순"으로 부른다.
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
-  const [sortOpen, setSortOpen] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
   const filterCount = countFilters(filter);
@@ -171,34 +168,17 @@ export function FavoritesView({ member }: { member: boolean }) {
           searchBoxRef={searchBoxRef}
           filterCount={filterCount}
           filterOpen={filterOpen}
-          onToggleFilter={() => {
-            setSortOpen(false);
-            setFilterOpen((v) => !v);
-          }}
+          onToggleFilter={() => setFilterOpen((v) => !v)}
           onReset={handleReset}
           resetDisabled={!searched && !query}
-          sortLabel={mediaSortLabel(sort, FAVORITE_LATEST_LABEL)}
-          sortOpen={sortOpen}
-          onToggleSort={() => {
-            setFilterOpen(false);
-            setSortOpen((v) => !v);
-          }}
+          sort={sort}
+          onSortChange={setSort}
+          sortLatestLabel={FAVORITE_LATEST_LABEL}
+          onSortOpen={() => setFilterOpen(false)}
           mapExpanded={false}
           onToggleMapExpanded={() => {}}
           showMapToggle={false}
         />
-        {sortOpen && (
-          <div className="absolute inset-x-0 top-[calc(100%+10px)]">
-            <MediaSortBar
-              value={sort}
-              latestLabel={FAVORITE_LATEST_LABEL}
-              onChange={(next) => {
-                setSort(next);
-                setSortOpen(false);
-              }}
-            />
-          </div>
-        )}
         {filterOpen && (
           <div className="absolute inset-x-0 top-[calc(100%+10px)]">
             <MediaFilterPanel
@@ -255,6 +235,14 @@ export function FavoritesView({ member }: { member: boolean }) {
                 label="가격 범위"
                 onRemove={() =>
                   setFilter({ ...filter, priceMin: null, priceMax: null })
+                }
+              />
+            )}
+            {filter.excludePriceInquiry && (
+              <FilterChip
+                label="별도 협의 제외"
+                onRemove={() =>
+                  setFilter({ ...filter, excludePriceInquiry: false })
                 }
               />
             )}

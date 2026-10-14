@@ -23,6 +23,8 @@ export type MediaFilterState = {
   mediaShape: string[];
   priceMin: number | null;
   priceMax: number | null;
+  /** 광고비가 없는 "별도 협의"(카드에 "별도 문의") 매체 빼기 — 기본은 포함. */
+  excludePriceInquiry: boolean;
 };
 
 export const EMPTY_MEDIA_FILTER: MediaFilterState = {
@@ -34,6 +36,7 @@ export const EMPTY_MEDIA_FILTER: MediaFilterState = {
   mediaShape: [],
   priceMin: null,
   priceMax: null,
+  excludePriceInquiry: false,
 };
 
 // 코드형 DB 값 → 표시 라벨(Figma 기준). 매핑이 없는 값은 원본 그대로 노출.
@@ -72,7 +75,11 @@ export function dimSelectionCount(
   key: FilterPanelKey | "region",
   f: MediaFilterState,
 ): number {
-  if (key === "price") return f.priceMin != null || f.priceMax != null ? 1 : 0;
+  if (key === "price")
+    return (
+      (f.priceMin != null || f.priceMax != null ? 1 : 0) +
+      (f.excludePriceInquiry ? 1 : 0)
+    );
   return f[key].length;
 }
 
@@ -117,6 +124,7 @@ export function toChipFilterParams(f: MediaFilterState): {
   productMasterType: string[];
   priceMin: number | null;
   priceMax: number | null;
+  excludePriceInquiry: boolean;
 } {
   return {
     region: f.region,
@@ -127,5 +135,6 @@ export function toChipFilterParams(f: MediaFilterState): {
     productMasterType: f.saleType,
     priceMin: f.priceMin,
     priceMax: f.priceMax,
+    excludePriceInquiry: f.excludePriceInquiry,
   };
 }

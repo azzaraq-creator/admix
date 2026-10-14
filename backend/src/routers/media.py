@@ -29,6 +29,8 @@ def list_moving_media(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    # "별도 협의"(광고비 없는 매체) 제외 — 기본은 포함.
+    exclude_price_inquiry: bool = Query(False),
     north_east_latitude: float | None = Query(None),
     south_west_latitude: float | None = Query(None),
     north_east_longitude: float | None = Query(None),
@@ -49,6 +51,7 @@ def list_moving_media(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         ne_lat=north_east_latitude,
         sw_lat=south_west_latitude,
         ne_lng=north_east_longitude,
@@ -128,6 +131,8 @@ def list_fixed_media(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    # "별도 협의"(광고비 없는 매체) 제외 — 기본은 포함.
+    exclude_price_inquiry: bool = Query(False),
     north_east_latitude: float | None = Query(None),
     south_west_latitude: float | None = Query(None),
     north_east_longitude: float | None = Query(None),
@@ -150,6 +155,7 @@ def list_fixed_media(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         ne_lat=north_east_latitude,
         sw_lat=south_west_latitude,
         ne_lng=north_east_longitude,
@@ -175,6 +181,8 @@ def list_fixed_clusters(
     product_master_type: list[str] | None = Query(None),
     price_min: int | None = Query(None, ge=0),
     price_max: int | None = Query(None, ge=0),
+    # "별도 협의"(광고비 없는 매체) 제외 — 기본은 포함.
+    exclude_price_inquiry: bool = Query(False),
     keyword: str | None = Query(None),
     # 지역 — "서울특별시"(시·도 전체) 또는 "서울특별시 강남구". 여러 개면 OR.
     region: list[str] | None = Query(None),
@@ -194,6 +202,7 @@ def list_fixed_clusters(
         product_master_types=product_master_type,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         keyword=keyword,
         regions=region,
     )

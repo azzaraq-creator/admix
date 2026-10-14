@@ -334,6 +334,7 @@ def list_moving_media(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    exclude_price_inquiry: bool = False,
     ne_lat: float | None = None,
     sw_lat: float | None = None,
     ne_lng: float | None = None,
@@ -356,6 +357,7 @@ def list_moving_media(
         product_master_types=product_master_types,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         ne_lat=ne_lat,
         sw_lat=sw_lat,
         ne_lng=ne_lng,
@@ -505,6 +507,7 @@ def _media_base_query(
     product_master_types: list[str] | None,
     price_min: int | None,
     price_max: int | None,
+    exclude_price_inquiry: bool = False,
     ne_lat: float | None = None,
     sw_lat: float | None = None,
     ne_lng: float | None = None,
@@ -558,10 +561,18 @@ def _media_base_query(
         base = base.filter(Media.exposure_type.in_(exposure_types))
     if media_shapes:
         base = base.filter(Media.media_shape.in_(media_shapes))
+    # 광고비가 없는 매체(카드에 "별도 문의")는 가격 범위와 상관없이 "별도 협의" 토글로 넣고 뺀다.
+    fee = Media.min_advertisement_fee_krw
+    price_conds = []
     if price_min is not None:
-        base = base.filter(Media.min_advertisement_fee_krw >= price_min)
+        price_conds.append(fee >= price_min)
     if price_max is not None:
-        base = base.filter(Media.min_advertisement_fee_krw <= price_max)
+        price_conds.append(fee <= price_max)
+    if price_conds:
+        in_range = and_(*price_conds)
+        base = base.filter(in_range if exclude_price_inquiry else or_(in_range, fee.is_(None)))
+    elif exclude_price_inquiry:
+        base = base.filter(fee.isnot(None))
     if product_master_types:
         # 매체판매유형 = 해당 매체 플랜의 product_master_type 집합 기준(조인 IN)
         plan_media_ids = db.query(MediaPlan.media_id).filter(
@@ -751,6 +762,7 @@ def list_fixed_media(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    exclude_price_inquiry: bool = False,
     ne_lat: float | None = None,
     sw_lat: float | None = None,
     ne_lng: float | None = None,
@@ -774,6 +786,7 @@ def list_fixed_media(
         product_master_types=product_master_types,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         ne_lat=ne_lat,
         sw_lat=sw_lat,
         ne_lng=ne_lng,
@@ -885,6 +898,7 @@ def list_fixed_clusters(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    exclude_price_inquiry: bool = False,
     keyword: str | None = None,
     regions: list[str] | None = None,
 ) -> dict:
@@ -902,6 +916,7 @@ def list_fixed_clusters(
         product_master_types=product_master_types,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         ne_lat=ne_lat,
         sw_lat=sw_lat,
         ne_lng=ne_lng,

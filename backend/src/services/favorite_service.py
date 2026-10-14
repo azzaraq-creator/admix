@@ -38,6 +38,7 @@ def list_favorite_cards(
     product_master_types: list[str] | None = None,
     price_min: int | None = None,
     price_max: int | None = None,
+    exclude_price_inquiry: bool = False,
     keyword: str | None = None,
     regions: list[str] | None = None,
     sort: str | None = None,
@@ -56,6 +57,7 @@ def list_favorite_cards(
         product_master_types=product_master_types,
         price_min=price_min,
         price_max=price_max,
+        exclude_price_inquiry=exclude_price_inquiry,
         keyword=keyword,
         regions=regions,
     )

@@ -160,6 +160,8 @@ export interface MediaFilterParams {
   productMasterType?: string[];
   priceMin?: number | null;
   priceMax?: number | null;
+  /** "별도 협의"(광고비 없는 매체) 빼기. 기본(포함)이면 보내지 않는다. */
+  excludePriceInquiry?: boolean;
   neLat?: number | null;
   swLat?: number | null;
   neLng?: number | null;
@@ -240,6 +242,7 @@ function appendFilters(q: URLSearchParams, f?: MediaFilterParams): void {
   f?.productMasterType?.forEach((v) => q.append("product_master_type", v));
   if (f?.priceMin != null) q.set("price_min", String(f.priceMin));
   if (f?.priceMax != null) q.set("price_max", String(f.priceMax));
+  if (f?.excludePriceInquiry) q.set("exclude_price_inquiry", "true");
   if (f?.keyword) q.set("keyword", f.keyword);
   if (f?.sort && f.sort !== "latest") q.set("sort", f.sort);
 }
@@ -291,7 +294,13 @@ function buildMovingQuery(f?: MediaFilterParams): string {
 /** 가격 그래프 쿼리 — 목록과 같은 조건(지도 영역·검색어·필터)에서 가격·정렬만 뺀다. */
 export function buildPriceHistogramQuery(f?: MediaFilterParams): string {
   const q = new URLSearchParams();
-  appendFilters(q, { ...f, priceMin: null, priceMax: null, sort: null });
+  appendFilters(q, {
+    ...f,
+    priceMin: null,
+    priceMax: null,
+    excludePriceInquiry: false,
+    sort: null,
+  });
   appendBounds(q, f);
   if (f?.source) q.set("source", f.source);
   return q.toString();

@@ -9,9 +9,10 @@ import {
   MapOutlineIcon,
   RotateLeftIcon,
   SearchOutlineIcon,
-  SortIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/utils";
+
+import { type MediaSortKey, MediaSortSelect } from "./MediaSortSelect";
 
 /** 시안(02. 매체 찾기)의 상단 바 — 높이 45px, 회색 필 스타일로 통일한다.
  *  모바일은 40px(모서리 40/2-3 = 17px)로 줄인다. */
@@ -35,9 +36,10 @@ export function MediaFindTopBar({
   onToggleFilter,
   onReset,
   resetDisabled,
-  sortLabel,
-  sortOpen,
-  onToggleSort,
+  sort,
+  onSortChange,
+  sortLatestLabel,
+  onSortOpen,
   mapExpanded,
   onToggleMapExpanded,
   showMapToggle = true,
@@ -55,10 +57,12 @@ export function MediaFindTopBar({
   onReset: () => void;
   /** 검색어·장소·필터 중 되돌릴 것이 하나도 없으면 초기화를 잠근다. */
   resetDisabled: boolean;
-  /** 지금 고른 정렬(예: "30대 비율이 높은 순"). */
-  sortLabel: string;
-  sortOpen: boolean;
-  onToggleSort: () => void;
+  sort: MediaSortKey;
+  onSortChange: (next: MediaSortKey) => void;
+  /** "최신순" 대신 쓸 이름 — 관심 매체는 "최근순". */
+  sortLatestLabel?: string;
+  /** 정렬 목록이 열릴 때 — 필터 패널을 닫는다. */
+  onSortOpen: () => void;
   mapExpanded: boolean;
   onToggleMapExpanded: () => void;
   /** 지도 크게 보기 버튼 — 지도가 없는 화면(관심 매체)에선 뺀다. */
@@ -156,25 +160,18 @@ export function MediaFindTopBar({
       </Button>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px]">
-        {/* 정렬 줄(MediaSortBar)은 상단 바 아래로 펼쳐진다 — 필터와 같은 "열리면 배경만 흰색" 규칙. */}
-        <Button
-          variant="ghost"
-          onPress={onToggleSort}
-          aria-expanded={sortOpen}
-          className={cn(
+        <MediaSortSelect
+          value={sort}
+          onChange={onSortChange}
+          latestLabel={sortLatestLabel}
+          onOpenChange={(open) => open && onSortOpen()}
+          triggerClassName={cn(
             PILL,
             PILL_ACTIVE,
-            "shrink-0 gap-[10px] px-[20px] max-sm:min-w-0 max-sm:shrink max-sm:gap-[6px] max-sm:px-[14px]",
-            sortOpen && "bg-white",
+            "gap-[10px] px-[20px] max-sm:min-w-0 max-sm:gap-[6px] max-sm:px-[14px]",
           )}
-        >
-          <SortIcon
-            className={cn(PILL_ICON, "text-[#18181b] max-sm:size-[17px]")}
-          />
-          <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-gray-900 max-sm:truncate">
-            {sortLabel}
-          </span>
-        </Button>
+          iconClassName={cn(PILL_ICON, "text-[#18181b] max-sm:size-[17px]")}
+        />
 
         {/* 모바일은 목록/지도 아래쪽에 뜨는 전환 버튼(MediaFindPanel)을 대신 쓴다. */}
         {showMapToggle && (

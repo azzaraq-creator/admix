@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, ScrollShadow, Tabs } from "@heroui/react";
+import { ScrollShadow, Tabs } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -13,7 +13,7 @@ import {
   type ChipDimKey,
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
-import { CloseSmallIcon, ListIcon, MapOutlineIcon } from "@/components/icons";
+import { ListIcon, MapOutlineIcon } from "@/components/icons";
 import {
   mediaApi,
   useFixedClusters,
@@ -25,16 +25,13 @@ import {
   type OperatingArea,
 } from "@/hooks/media";
 
-import { MediaFilterPanel } from "./MediaFilterPanel";
+import { FilterChip, MediaFilterPanel } from "./MediaFilterPanel";
+
+export { FilterChip };
 import { replaceQuery } from "./replaceQuery";
 import { MediaFindCard, MediaFindCardSkeleton } from "./MediaFindCard";
 import { MediaFindTopBar } from "./MediaFindTopBar";
-import {
-  DEFAULT_MEDIA_SORT,
-  MediaSortBar,
-  type MediaSortKey,
-  mediaSortLabel,
-} from "./MediaSortBar";
+import { DEFAULT_MEDIA_SORT, type MediaSortKey } from "./MediaSortSelect";
 import {
   searchPlaces,
   type KakaoPlace,
@@ -67,6 +64,7 @@ function parseFilter(sp: URLSearchParams): MediaFilterState {
     mediaShape: sp.getAll("mediaShape"),
     priceMin: num("priceMin"),
     priceMax: num("priceMax"),
+    excludePriceInquiry: sp.get("priceInquiry") === "exclude",
   };
 }
 
@@ -123,31 +121,8 @@ export function countFilters(f: MediaFilterState): number {
   return (
     f.region.length +
     CHIP_DIMS.reduce((sum, key) => sum + f[key].length, 0) +
-    (f.priceMin != null || f.priceMax != null ? 1 : 0)
-  );
-}
-
-export function FilterChip({
-  label,
-  onRemove,
-}: {
-  label: ReactNode;
-  onRemove: () => void;
-}) {
-  // 시안 비율 기준(칩 높이 31px): 글자 12px, X 12px, 간격 7px, 좌우 11px, 모서리 11px.
-  // HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 여기서 덮어쓴다.
-  return (
-    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-[#ececef] bg-white px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-[#71717a]">
-      {label}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="필터 제거"
-        className="cursor-pointer transition-colors hover:text-gray-900"
-      >
-        <CloseSmallIcon className="size-[12px]" />
-      </button>
-    </Chip>
+    (f.priceMin != null || f.priceMax != null ? 1 : 0) +
+    (f.excludePriceInquiry ? 1 : 0)
   );
 }
 
@@ -209,7 +184,6 @@ export function MediaFindPanel({
   const [pinnedRow, setPinnedRow] = useState<MediaCardRow | null>(null);
   const [showSug, setShowSug] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [sortOpen, setSortOpen] = useState(false);
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
   const [mapExpanded, setMapExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -415,6 +389,8 @@ export function MediaFindPanel({
       else q.delete("priceMin");
       if (next.priceMax != null) q.set("priceMax", String(next.priceMax));
       else q.delete("priceMax");
+      if (next.excludePriceInquiry) q.set("priceInquiry", "exclude");
+      else q.delete("priceInquiry");
     });
   };
 
@@ -598,16 +574,14 @@ export function MediaFindPanel({
           searchBoxRef={searchBoxRef}
           filterCount={filterCount}
           filterOpen={filterOpen}
-          onToggleFilter={() => {
-            setSortOpen(false);
-            setFilterOpen((v) => !v);
+          onToggleFilter={() => setFilterOpen((v) => !v)}
+          sort={sort}
+          onSortChange={(next) => {
+            setSort(next);
+            // 순서가 바뀌면 처음부터 보이게 목록을 맨 위로 올린다.
+            scrollRef.current?.scrollTo({ top: 0 });
           }}
-          sortLabel={mediaSortLabel(sort)}
-          sortOpen={sortOpen}
-          onToggleSort={() => {
-            setFilterOpen(false);
-            setSortOpen((v) => !v);
-          }}
+          onSortOpen={() => setFilterOpen(false)}
           onReset={handleReset}
           resetDisabled={!searched}
           mapExpanded={mapExpanded}
@@ -663,20 +637,6 @@ export function MediaFindPanel({
             ) : null
           }
         />
-
-        {sortOpen && (
-          <div className="absolute inset-x-0 top-[calc(100%+10px)] z-30">
-            <MediaSortBar
-              value={sort}
-              onChange={(next) => {
-                setSort(next);
-                setSortOpen(false);
-                // 순서가 바뀌면 처음부터 보이게 목록을 맨 위로 올린다.
-                scrollRef.current?.scrollTo({ top: 0 });
-              }}
-            />
-          </div>
-        )}
 
         {filterOpen && (
           <div className="absolute inset-x-0 top-[calc(100%+10px)] z-30">
@@ -766,6 +726,14 @@ export function MediaFindPanel({
               label="가격 범위"
               onRemove={() =>
                 applyFilter({ ...filter, priceMin: null, priceMax: null })
+              }
+            />
+          )}
+          {filter.excludePriceInquiry && (
+            <FilterChip
+              label="별도 협의 제외"
+              onRemove={() =>
+                applyFilter({ ...filter, excludePriceInquiry: false })
               }
             />
           )}
