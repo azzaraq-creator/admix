@@ -13,6 +13,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { formatAdFee } from "@/lib/media";
+import {
+  AgeRankBadge,
+  AgeRankInBar,
+  RANK_IN_BAR_MIN_HEIGHT,
+  ageRanks as getAgeRanks,
+} from "@/components/common/AgeBarChart";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
@@ -729,6 +735,7 @@ function PopulationCard({
   const topAge = population.ageRatios.reduce((top, cur) =>
     cur.value > top.value ? cur : top,
   );
+  const ageRanks = getAgeRanks(population.ageRatios);
   const topGender = population.femalePct > population.malePct ? "여성" : "남성";
   // 비율이 더 높은 쪽만 보라색으로 강조한다(위 칩의 성별과 같은 기준).
   const genders = [
@@ -813,13 +820,21 @@ function PopulationCard({
       <div className="flex h-[139px] flex-col justify-between">
         <p className="text-[13px] font-semibold text-[#18181b]">연령대 비율</p>
         <div className="flex h-[120px] items-end gap-[4px]">
-          {population.ageRatios.map((age) => {
-            const top = age === topAge;
+          {population.ageRatios.map((age, i) => {
+            const rank = ageRanks[i];
+            // 공동 1위도 모두 1위 색으로(흰 순위 글씨가 회색 막대에 묻히지 않게).
+            const top = rank === 1;
+            const height = topAge.value
+              ? Math.round((age.value / topAge.value) * AGE_MAX_BAR_HEIGHT)
+              : 0;
             return (
               <div
                 key={age.label}
                 className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-[4px] text-[11px] leading-[1.3] whitespace-nowrap"
               >
+                {rank != null && height < RANK_IN_BAR_MIN_HEIGHT && (
+                  <AgeRankBadge rank={rank} />
+                )}
                 <span
                   className={
                     top
@@ -831,17 +846,21 @@ function PopulationCard({
                 </span>
                 <div
                   className={cn(
-                    "w-[32px] rounded-t-[6px]",
-                    top ? "bg-primary-500" : "bg-[#f4f4f5]",
+                    "flex w-[32px] justify-center rounded-t-[6px]",
+                    top
+                      ? "bg-primary-500"
+                      : rank === 2
+                        ? "bg-primary-200"
+                        : rank === 3
+                          ? "bg-primary-100"
+                          : "bg-[#f4f4f5]",
                   )}
-                  style={{
-                    height: topAge.value
-                      ? Math.round(
-                          (age.value / topAge.value) * AGE_MAX_BAR_HEIGHT,
-                        )
-                      : 0,
-                  }}
-                />
+                  style={{ height }}
+                >
+                  {rank != null && height >= RANK_IN_BAR_MIN_HEIGHT && (
+                    <AgeRankInBar rank={rank} />
+                  )}
+                </div>
                 <span
                   className={
                     top
