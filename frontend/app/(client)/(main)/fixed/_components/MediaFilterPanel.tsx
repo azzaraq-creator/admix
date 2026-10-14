@@ -146,6 +146,7 @@ const ALL_REGIONS = "__all_regions__";
 /**
  * 지역 — 위 줄에서 시·도를 고르면 아래 줄에 그 안의 구·군이 나온다(여러 개, 시·도를 넘나들어도 된다).
  * 시·도 줄 맨 앞 "전체"는 모든 지역 — 누르면 고른 지역이 모두 풀리고 구·군 줄은 숨는다.
+ * 시·도를 누르면 그 시·도에 고른 게 없을 때 "OO 전체"가 바로 골라진다(구·군을 고르면 전체는 풀린다).
  * 구·군 줄의 "OO 전체"는 그 시·도 전체 — 구·군을 고르면 풀리고, 전체를 고르면 고른 구·군이 풀린다.
  * 값: "서울특별시"(시·도 전체) / "서울특별시 강남구". 모바일은 시·도 줄을 한 줄로 두고 옆으로 밀어 넘긴다.
  */
@@ -191,8 +192,16 @@ function RegionFilter({
         onSelectionChange={(keys) => {
           const next = [...keys][0];
           if (next == null) return;
-          setSido(String(next));
-          if (next === ALL_REGIONS && value.length > 0) onChange([]);
+          const nextSido = String(next);
+          setSido(nextSido);
+          if (nextSido === ALL_REGIONS) {
+            if (value.length > 0) onChange([]);
+          } else if (
+            // 시·도를 누르면 "OO 전체"가 바로 골라진다 — 그 시·도에서 이미 고른 게 있으면 그대로 둔다.
+            !value.some((v) => v === nextSido || v.startsWith(`${nextSido} `))
+          ) {
+            onChange([...value, nextSido]);
+          }
         }}
       >
         {/* 모바일은 시·도가 여러 줄로 쌓여 지저분해 보여, 한 줄로 두고 옆으로 밀어 넘긴다(끝은 흐리게). PC는 줄바꿈 그대로. */}
