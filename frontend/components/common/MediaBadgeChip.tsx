@@ -3,7 +3,7 @@
 import { Chip, Popover, Tooltip } from "@heroui/react";
 
 import { FlameIcon, NewStarIcon } from "@/components/icons";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { useCanHover } from "@/hooks/useCanHover";
 import { cn } from "@/lib/utils";
 
 export type MediaBadge = "popular" | "new";
@@ -47,7 +47,8 @@ const SIZE = {
 
 /**
  * 인기·신규 매체 표시 — 백엔드 badge("popular"/"new") 값을 그대로 받는다.
- * explain: 기준 설명을 붙인다(매체 상세) — PC는 마우스를 올리면 Tooltip, 모바일은 눌러서 Popover.
+ * explain: 기준 설명을 붙인다(매체 상세) — 마우스가 있으면 올려서 Tooltip, 터치 기기(모바일·태블릿)는 눌러서 Popover.
+ * 화면 폭이 아니라 입력 방식으로 나눈다 — 태블릿은 폭이 PC만큼 넓어도 Tooltip이 터치로 열리지 않는다.
  */
 export function MediaBadgeChip({
   badge,
@@ -79,13 +80,13 @@ function ExplainedChip({
   className?: string;
   children: React.ReactNode;
 }) {
-  const isDesktop = useIsDesktop();
+  const canHover = useCanHover();
   const { label, help } = TONE[badge];
   const trigger = cn(
     "inline-flex w-fit shrink-0 cursor-pointer outline-none",
     className,
   );
-  if (isDesktop) {
+  if (canHover) {
     return (
       <Tooltip delay={200} closeDelay={0}>
         <Tooltip.Trigger className={trigger} aria-label={`${label} 매체 기준`}>

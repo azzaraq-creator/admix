@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import {
   Button,
   Card,
@@ -99,7 +101,7 @@ export function SelectToggle({
   );
 }
 
-export function MediaFindCard({
+function MediaFindCardImpl({
   row,
   selected,
   highlighted,
@@ -282,6 +284,23 @@ export function MediaFindCard({
     </Card>
   );
 }
+
+/**
+ * 매체 찾기 목록 카드. 지도를 옮기거나 확대·축소할 때마다 목록이 다시 그려지는데, 내용(row·선택 상태)이
+ * 그대로인 카드는 다시 그리지 않는다 — 카드마다 사진 넘기기·관심 매체 확인이 있어 태블릿에서 지도가 버벅였다.
+ * 콜백(onClick 등)은 매 렌더 새로 만들어지지만 같은 매체에 대해 하는 일은 같아서 비교하지 않는다
+ * (이전 렌더의 콜백이 남아도 같은 동작). 고르기 모드(selection)는 상태가 바뀌므로 늘 다시 그린다.
+ */
+export const MediaFindCard = memo(
+  MediaFindCardImpl,
+  (prev, next) =>
+    !prev.selection &&
+    !next.selection &&
+    prev.row === next.row &&
+    prev.selected === next.selected &&
+    prev.highlighted === next.highlighted &&
+    !prev.onHoverChange === !next.onHoverChange,
+);
 
 /** 목록을 불러오는 동안 카드 자리를 채우는 뼈대 — MediaFindCard와 같은 크기·배치. */
 export function MediaFindCardSkeleton() {
