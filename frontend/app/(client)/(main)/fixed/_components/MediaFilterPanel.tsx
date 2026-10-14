@@ -140,11 +140,14 @@ function hasSelection(f: MediaFilterState): boolean {
 }
 
 const ALL_DISTRICTS = "__all__";
+// 시·도 줄 맨 앞 "전체" — 지역을 가리지 않는다(고른 지역을 모두 푼다).
+const ALL_REGIONS = "__all_regions__";
 
 /**
  * 지역 — 위 줄에서 시·도를 고르면 아래 줄에 그 안의 구·군이 나온다(여러 개, 시·도를 넘나들어도 된다).
- * "전체"는 그 시·도 전체 — 구·군을 고르면 풀리고, 전체를 고르면 고른 구·군이 풀린다.
- * 값: "서울특별시"(시·도 전체) / "서울특별시 강남구".
+ * 시·도 줄 맨 앞 "전체"는 모든 지역 — 누르면 고른 지역이 모두 풀리고 구·군 줄은 숨는다.
+ * 구·군 줄의 "OO 전체"는 그 시·도 전체 — 구·군을 고르면 풀리고, 전체를 고르면 고른 구·군이 풀린다.
+ * 값: "서울특별시"(시·도 전체) / "서울특별시 강남구". 모바일은 시·도 줄을 한 줄로 두고 옆으로 밀어 넘긴다.
  */
 function RegionFilter({
   regions,
@@ -159,12 +162,10 @@ function RegionFilter({
     () =>
       regions.find((r) =>
         value.some((v) => v === r.sido || v.startsWith(`${r.sido} `)),
-      )?.sido ??
-      regions[0]?.sido ??
-      "",
+      )?.sido ?? ALL_REGIONS,
   );
   const current = regions.find((r) => r.sido === sido);
-  if (!current) {
+  if (regions.length === 0) {
     return (
       <p className="text-[13px] text-gray-500 max-sm:text-[11px]">
         지역 정보를 불러오지 못했어요.
@@ -172,6 +173,7 @@ function RegionFilter({
     );
   }
   const prefix = `${sido} `;
+  const allRegions = sido === ALL_REGIONS || !current;
   const whole = value.includes(sido);
   const picked = value
     .filter((v) => v.startsWith(prefix))
@@ -188,50 +190,57 @@ function RegionFilter({
         selectedKeys={new Set([sido])}
         onSelectionChange={(keys) => {
           const next = [...keys][0];
-          if (next != null) setSido(String(next));
+          if (next == null) return;
+          setSido(String(next));
+          if (next === ALL_REGIONS && value.length > 0) onChange([]);
         }}
       >
-        <TagGroup.List className="flex flex-wrap gap-[8px]">
-          {regions.map((r) => (
-            <Tag key={r.sido} id={r.sido} className={OPTION_TAG}>
-              {r.label}
-              {pickCount(r) > 0 && (
-                <span className="ml-[4px] text-primary-500">
-                  {pickCount(r)}
-                </span>
-              )}
-            </Tag>
-          ))}
-        </TagGroup.List>
-      </TagGroup>
-      <div className="flex flex-col gap-[10px] rounded-[16px] bg-gray-50 p-[14px] max-sm:p-[12px]">
-        <TagGroup
-          aria-label={`${current.label} 구·군`}
-          selectionMode="multiple"
-          selectedKeys={new Set(whole ? [ALL_DISTRICTS] : picked)}
-          onSelectionChange={(keys) => {
-            const next =
-              keys === "all" ? [ALL_DISTRICTS] : [...keys].map(String);
-            const others = value.filter(
-              (v) => v !== sido && !v.startsWith(prefix),
-            );
-            const mine =
-              next.includes(ALL_DISTRICTS) && !whole
-                ? [sido]
-                : next
-                    .filter((k) => k !== ALL_DISTRICTS)
-                    .map((d) => `${sido} ${d}`);
-            onChange([...others, ...mine]);
-          }}
+        {/* 모바일은 시·도가 여러 줄로 쌓여 지저분해 보여, 한 줄로 두고 옆으로 밀어 넘긴다(끝은 흐리게). PC는 줄바꿈 그대로. */}
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          size={24}
+          className="max-sm:-mx-[16px] max-sm:px-[16px]"
         >
-          {/* 모바일은 구·군이 다섯 줄 넘게 쌓여 지저분해 보여, 두 줄로 놓고 옆으로 밀어 넘긴다(끝은 흐리게). PC는 줄바꿈 그대로. */}
-          <ScrollShadow
-            orientation="horizontal"
-            hideScrollBar
-            size={24}
-            className="max-sm:-mx-[12px] max-sm:px-[12px]"
+          <TagGroup.List className="flex flex-wrap gap-[8px] max-sm:w-max max-sm:flex-nowrap max-sm:pr-[16px]">
+            <Tag id={ALL_REGIONS} className={OPTION_TAG}>
+              전체
+            </Tag>
+            {regions.map((r) => (
+              <Tag key={r.sido} id={r.sido} className={OPTION_TAG}>
+                {r.label}
+                {pickCount(r) > 0 && (
+                  <span className="ml-[4px] text-primary-500">
+                    {pickCount(r)}
+                  </span>
+                )}
+              </Tag>
+            ))}
+          </TagGroup.List>
+        </ScrollShadow>
+      </TagGroup>
+      {!allRegions && (
+        <div className="flex flex-col gap-[10px] rounded-[16px] bg-gray-50 p-[14px] max-sm:p-[12px]">
+          <TagGroup
+            aria-label={`${current.label} 구·군`}
+            selectionMode="multiple"
+            selectedKeys={new Set(whole ? [ALL_DISTRICTS] : picked)}
+            onSelectionChange={(keys) => {
+              const next =
+                keys === "all" ? [ALL_DISTRICTS] : [...keys].map(String);
+              const others = value.filter(
+                (v) => v !== sido && !v.startsWith(prefix),
+              );
+              const mine =
+                next.includes(ALL_DISTRICTS) && !whole
+                  ? [sido]
+                  : next
+                      .filter((k) => k !== ALL_DISTRICTS)
+                      .map((d) => `${sido} ${d}`);
+              onChange([...others, ...mine]);
+            }}
           >
-            <TagGroup.List className="flex flex-wrap gap-[8px] max-sm:grid max-sm:w-max max-sm:auto-cols-max max-sm:grid-flow-col max-sm:grid-rows-2 max-sm:pr-[12px]">
+            <TagGroup.List className="flex flex-wrap gap-[8px]">
               <Tag id={ALL_DISTRICTS} className={OPTION_TAG}>
                 {current.label} 전체
               </Tag>
@@ -241,13 +250,13 @@ function RegionFilter({
                 </Tag>
               ))}
             </TagGroup.List>
-          </ScrollShadow>
-        </TagGroup>
-        <p className="text-[12px] text-gray-500 max-sm:text-[11px]">
-          이동 매체는 운행 지역으로 찾아요. 시·도 전체를 다니는 매체와 전국
-          매체는 구·군을 골라도 함께 나와요.
-        </p>
-      </div>
+          </TagGroup>
+          <p className="text-[12px] text-gray-500 max-sm:text-[11px]">
+            이동 매체는 운행 지역으로 찾아요. 시·도 전체를 다니는 매체와 전국
+            매체는 구·군을 골라도 함께 나와요.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

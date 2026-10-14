@@ -425,10 +425,18 @@ function CrowdPlaceCard({
 }) {
   const isDesktop = useIsDesktop();
   if (!isDesktop) return <CrowdPlaceSheet place={place} onClose={onClose} />;
+  // PC·태블릿 — 지역명·실시간 인구·닫기는 위에 고정하고, 지하철·버스만 ScrollShadow 안에서 스크롤한다.
   return (
-    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] flex-col gap-[14px] overflow-y-auto rounded-[14px] border-0 bg-white px-[14px] py-[12px] shadow-[0px_4px_16px_rgba(0,0,0,0.18)]">
-      <CrowdPlaceHeader place={place} onClose={onClose} />
-      <CrowdPlaceBody code={place.code} />
+    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)]">
+      <div className="shrink-0 border-b border-[#f1f1f4] px-[14px] pt-[12px] pb-[10px]">
+        <CrowdPlaceHeader place={place} onClose={onClose} />
+      </div>
+      <ScrollShadow
+        size={24}
+        className="flex min-h-0 flex-1 flex-col gap-[14px] px-[14px] pt-[12px] pb-[12px]"
+      >
+        <CrowdPlaceBody code={place.code} />
+      </ScrollShadow>
     </Card>
   );
 }
