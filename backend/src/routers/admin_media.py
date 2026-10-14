@@ -123,7 +123,7 @@ def check_realtime_population(
 ) -> dict:
     """매체 폼의 인구 데이터 탭 — 이 좌표로 서울시 실시간 인구를 가져올 수 있는지 확인한다.
 
-    실시간이 안 되면 sangwon 에 그 매체의 원천 상권 월평균 유동인구(직접 입력이 없을 때 대신 보이는 값)를 담는다.
+    실시간이 안 되면 sangwon 에 그 매체의 서울시 상권 월평균 유동인구(직접 입력이 없을 때 대신 보이는 값)를 담는다.
     """
     result = seoul_citydata.check_realtime(lat, lng)
     result["sangwon"] = (

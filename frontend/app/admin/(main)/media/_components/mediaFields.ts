@@ -281,7 +281,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
     only: "FIXED",
     title: "인구 데이터",
     description:
-      "매체 정보 팝업의 인구 카드와 믹시 추천은 ① 아래에 직접 입력한 월평균 유동인구 ② 원천 상권 데이터의 월평균 유동인구 순으로 먼저 있는 값을 씁니다.",
+      "매체 정보 팝업의 인구 카드와 믹시 추천은 ① 아래에 직접 입력한 월평균 유동인구 ② 서울시 상권 데이터의 월평균 유동인구 순으로 먼저 있는 값을 씁니다.",
     fields: [
       {
         key: "population_count",
@@ -289,7 +289,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         type: "number",
         min: 0,
         placeholder: "예: 450000",
-        help: "비워 두면 직접 입력한 값을 쓰지 않습니다(원천 상권 데이터가 있으면 그 값이 보입니다).",
+        help: "서울시 상권 데이터가 있으면 아래 칸들이 그 값으로 채워집니다. 하나라도 고치면 직접 입력으로 바뀝니다.",
       },
       {
         key: "population_note",
@@ -614,7 +614,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         key: "audience_summary",
         label: "타깃(유동인구) 요약",
         type: "readonly",
-        help: "저장할 때 인구 데이터(직접 입력한 월평균 → 원천 상권 순)로 자동으로 다시 써요. 믹시가 20대·여성 같은 타깃 순위를 매기고 답변에 비율을 말할 때 이 값을 씁니다.",
+        help: "저장할 때 인구 데이터(직접 입력한 월평균 → 서울시 상권 순)로 자동으로 다시 써요. 믹시가 20대·여성 같은 타깃 순위를 매기고 답변에 비율을 말할 때 이 값을 씁니다.",
       },
     ],
   },
@@ -768,6 +768,11 @@ export const READ_ONLY_KEYS: ReadonlySet<string> = new Set(
     s.fields.map((f) => f.key),
   ),
 );
+
+/** 인구 데이터 구역의 칸 — 서울시 상권 값으로 자동 채우고, 고치면 직접 입력으로 바뀐다. */
+export const POPULATION_KEYS: readonly string[] = (
+  MEDIA_SECTIONS.find((s) => s.key === "population")?.fields ?? []
+).map((f) => f.key);
 
 /** 짝(pair)의 둘째 칸 — 첫째 칸과 한 줄로 그리므로 따로 그리지 않는다. */
 export const PAIRED_KEYS: ReadonlySet<string> = new Set(

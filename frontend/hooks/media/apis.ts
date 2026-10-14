@@ -107,7 +107,7 @@ export interface MediaAgeRatio {
  * 매체 정보 팝업의 인구 카드.
  * realtime: 서울시 실시간 도시데이터(주요 121장소) — 매체와 이어진 장소 기준.
  * manual: 어드민에서 직접 입력한 월평균 유동인구(min = max).
- * sangwon: 원천 상권 데이터의 월평균 유동인구(min = max).
+ * sangwon: 서울시 상권 데이터의 월평균 유동인구(min = max).
  */
 export interface MediaPopulation {
   source: "realtime" | "manual" | "sangwon";
@@ -459,12 +459,14 @@ export interface AdminMediaDetail {
     until: string | null;
     days: number;
   };
-  /** 위치·인구 탭 안내 — 원천 상권 월평균 유동인구(직접 입력이 없을 때 팝업에 대신 보이는 값) */
+  /** 위치·인구 탭 안내 — 서울시 상권 월평균 유동인구(직접 입력이 없을 때 팝업에 대신 보이는 값) */
   sangwon_population?: {
     placeName: string;
     populationMax: number;
     femalePct: number;
     malePct: number;
+    /** 10대 이하 → 60대 이상 순 6구간(%) */
+    ageRatios: { label: string; value: number; bound: string | null }[];
   } | null;
   [key: string]: unknown;
 }
@@ -495,7 +497,7 @@ export interface AdminRealtimePopulationCheck {
   population: MediaPopulation | null;
   /** out_of_range일 때 가장 가까운 장소(서울 밖처럼 멀면 null) */
   nearest: { name: string; distanceM: number } | null;
-  /** 실시간이 안 될 때 — 직접 입력이 없으면 대신 보이는 원천 상권 월평균 유동인구 */
+  /** 실시간이 안 될 때 — 직접 입력이 없으면 대신 보이는 서울시 상권 월평균 유동인구 */
   sangwon: MediaPopulation | null;
 }
 

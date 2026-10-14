@@ -20,7 +20,7 @@ export type MediaDetailPlan = {
 };
 
 export type MediaDetailPopulationVM = {
-  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·원천 상권) */
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·서울시 상권) */
   title: string;
   /** 제목 옆 작은 글씨 — "역삼역 · 15:05 기준" / "2025년 3분기" / "OO 상권 · 2025년 4분기" */
   caption: string;

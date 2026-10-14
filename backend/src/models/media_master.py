@@ -34,6 +34,9 @@ class Media(Base):
 
     media_id = Column(String(20), primary_key=True)
     source_detail_id = Column(BigInteger, nullable=True, unique=True)
+    # 이어진 서울 상권(sangwon_area)과 거리(m) — ai_index 동기화가 정한다(원천 연결 → 좌표로 가장 가까운 상권).
+    sangwon_code = Column(String(20), nullable=True)
+    sangwon_distance_m = Column(Integer, nullable=True)
     name = Column(String(300), nullable=True)
     second_name = Column(String(200), nullable=True)
     building_name = Column(String(300), nullable=True)

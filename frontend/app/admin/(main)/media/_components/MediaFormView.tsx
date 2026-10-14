@@ -44,6 +44,7 @@ import {
   MEDIA_SECTIONS,
   OPERATING_AREA_KEYS,
   PAIRED_KEYS,
+  POPULATION_KEYS,
   type MediaFieldDef,
   type MediaFieldSection,
   type MediaFieldType,
@@ -142,6 +143,25 @@ function buildDefaults(detail: AdminMediaDetail | null): MediaFormValues {
   return out;
 }
 
+/** 서울시 상권 월평균 유동인구 → 인구 데이터 칸 값(자동 채우기). */
+function sangwonInputs(
+  s: NonNullable<AdminMediaDetail["sangwon_population"]>,
+): MediaFormValues {
+  const ages = ["10", "20", "30", "40", "50", "60"];
+  return {
+    population_count: String(s.populationMax),
+    population_note: s.placeName,
+    population_male_pct: String(s.malePct),
+    population_female_pct: String(s.femalePct),
+    ...Object.fromEntries(
+      ages.map((age, i) => [
+        `population_age_${age}`,
+        String(s.ageRatios?.[i]?.value ?? 0),
+      ]),
+    ),
+  };
+}
+
 /** "강남구, 서초구" ↔ ["강남구", "서초구"] — district 컬럼은 쉼표 구분 문자열이다. */
 function splitDistricts(value: string): string[] {
   return value
@@ -198,6 +218,16 @@ function MediaForm({
   const [tab, setTab] = useState("basic");
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
+  // 인구 데이터 자동 채우기 — 직접 입력이 비어 있고 서울시 상권 데이터가 있으면 칸에 그 값을 보여 준다.
+  // 칸을 하나라도 고치면 직접 입력으로 바뀌어 보이는 값 그대로 저장되고, 자동인 동안에는 저장하지 않는다(비운 채로 둔다).
+  const sangwon = detail?.sangwon_population ?? null;
+  const [populationAuto, setPopulationAuto] = useState(
+    () =>
+      !!sangwon &&
+      POPULATION_KEYS.every(
+        (key) => detail?.[key] == null || detail[key] === "",
+      ),
+  );
 
   const {
     register,
@@ -207,7 +237,12 @@ function MediaForm({
     getValues,
     control,
     formState: { errors },
-  } = useForm<MediaFormValues>({ defaultValues: buildDefaults(detail) });
+  } = useForm<MediaFormValues>({
+    defaultValues: {
+      ...buildDefaults(detail),
+      ...(populationAuto && sangwon ? sangwonInputs(sangwon) : {}),
+    },
+  });
   // 고른 값에 따라 화면이 바뀌는 칸(고정/이동·OOH·카테고리·운행 지역)과 선택지에 없는 기존 값을 보려고 지켜본다.
   const allValues = useWatch({ control }) as MediaFormValues;
   const {
@@ -362,6 +397,9 @@ function MediaForm({
           payload[f.key] = raw === "" ? null : raw;
         }
       }
+      // 자동으로 채운 서울시 상권 값은 직접 입력으로 저장하지 않는다 — 새 분기·상권 연결이 바뀌면 따라가게.
+      if (populationAuto)
+        for (const key of POPULATION_KEYS) payload[key] = null;
       // 상품 — 광고비·제작비 범위와 제작비 유무는 서버가 이 상품들에서 계산한다.
       payload.plans = toPlanPayload(plans, String(payload.ooh_type ?? ""));
       if (isEdit && id) {
@@ -726,10 +764,13 @@ function MediaForm({
         aria-invalid={invalid}
         disabled={disabled}
         placeholder={f.placeholder}
-        {...register(
-          f.key,
-          f.type === "number" ? numberRules(f) : requiredRules(f),
-        )}
+        {...register(f.key, {
+          ...(f.type === "number" ? numberRules(f) : requiredRules(f)),
+          // 자동으로 채운 인구 칸을 고치면 직접 입력으로 바뀐다.
+          ...(POPULATION_KEYS.includes(f.key) && {
+            onChange: () => setPopulationAuto(false),
+          }),
+        })}
       />
     );
   };
@@ -971,8 +1012,18 @@ function MediaForm({
       return (
         <div className="flex flex-col gap-[20px]">
           <PopulationSourceStatus
+            auto={populationAuto}
             manualCount={allValues.population_count}
-            sangwon={detail?.sangwon_population}
+            sangwon={sangwon}
+            onRevert={() => {
+              const auto = sangwon ? sangwonInputs(sangwon) : {};
+              for (const key of POPULATION_KEYS)
+                setValue(key, auto[key] ?? "", {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              setPopulationAuto(true);
+            }}
           />
           <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
             {section.fields.map((f) => renderField(f))}

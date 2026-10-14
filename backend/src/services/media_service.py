@@ -22,6 +22,7 @@ from sqlalchemy import (
     Float,
     Integer,
     Numeric,
+    String,
     Text,
     and_,
     or_,
@@ -626,13 +627,6 @@ MEDIA_SORT_KEYS = (
 )
 MEDIA_SORT_PATTERN = "^(" + "|".join(MEDIA_SORT_KEYS) + ")$"
 
-_ad_media = table(
-    "ad_media",
-    column("media_id"),
-    column("sangwon_code"),
-    column("sangwon_distance_m"),
-)
-# 상권 유동인구 표 — 아래 _sangwon_population() 함수와 이름이 겹치면 함수가 덮어써 정렬이 깨진다(AttributeError).
 _sangwon_population_table = table(
     "sangwon_population",
     column("sangwon_code"),
@@ -678,28 +672,22 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
             (fee.desc() if sort == "priceDesc" else fee.asc()).nullslast(), Media.media_id
         )
     if sort and sort.startswith("ratio-"):
-        am, sp = _ad_media.c, _sangwon_population_table.c
+        # 매체에 이어진 상권(media.sangwon_code — 원천 연결 또는 좌표로 찾은 상권)의 최신 분기 비율 순.
+        sp = _sangwon_population_table.c
         ratio = (
             select(
-                am.media_id.label("sid"),
-                func.max(_population_ratio(sort.removeprefix("ratio-"))).label("ratio"),
+                sp.sangwon_code.label("code"),
+                _population_ratio(sort.removeprefix("ratio-")).label("ratio"),
             )
-            .select_from(
-                _ad_media.join(
-                    _sangwon_population_table,
-                    and_(
-                        sp.sangwon_code == am.sangwon_code,
-                        # DB의 최신 분기(서울시 상권 유동인구, sangwon_sync 가 채운다)
-                        sp.quarter_code
-                        == select(func.max(_sangwon_latest.c.quarter_code)).scalar_subquery(),
-                    ),
-                )
+            .where(
+                # DB의 최신 분기(서울시 상권 유동인구, sangwon_sync 가 채운다)
+                sp.quarter_code
+                == select(func.max(_sangwon_latest.c.quarter_code)).scalar_subquery()
             )
-            .where(am.sangwon_distance_m <= SANGWON_MAX_DISTANCE_M)
-            .group_by(am.media_id)
             .subquery()
         )
-        return base.outerjoin(ratio, ratio.c.sid == Media.source_detail_id).order_by(
+        # 상권 코드는 환경마다 형식이 달라(운영 정수, 로컬 문자) 문자로 맞춰 잇는다.
+        return base.outerjoin(ratio, cast(ratio.c.code, String) == Media.sangwon_code).order_by(
             ratio.c.ratio.desc().nullslast(), Media.media_id
         )
     return base.order_by(latest_col.desc(), Media.media_id)
@@ -1147,14 +1135,64 @@ def _sangwon_label(name: str | None) -> str:
     return name if name.endswith("상권") else f"{name} 상권"
 
 
-def _sangwon_population(db: Session, source_detail_id: int | None) -> dict | None:
-    """원천 상권 데이터의 월평균 유동인구 — media.source_detail_id → ad_media → 인접 상권(sangwon).
+# 좌표로 상권을 찾을 때의 거리 제한(m) — 원천 연결(최대 3km, 중앙값 약 530m)보다 좁게 잡아, 동네 매체에 먼 번화가 숫자가
+# 붙지 않게 한다. 상권 중심 좌표 기준.
+SANGWON_AUTO_MATCH_M = 1000
+
+
+def match_sangwon(db: Session, m: Media) -> tuple[str | None, int | None]:
+    """매체에 이을 서울 상권(코드, 거리 m) — ① 원천 연결(ad_media, 원천 매체만) ② 좌표에서 가장 가까운 상권
+    (sangwon_area, 유동인구가 있는 상권만, SANGWON_AUTO_MATCH_M 이내). 이동 매체·좌표 없음·서울 밖이면 (None, None).
+    ai_index 동기화(매체 저장 때마다)가 불러 media.sangwon_code 에 저장한다.
+    """
+    if m.media_source == "MOVING":
+        return None, None
+    if m.source_detail_id is not None:
+        row = db.execute(
+            text(
+                """
+                SELECT am.sangwon_code, am.sangwon_distance_m FROM ad_media am
+                WHERE am.media_id = :sid AND am.sangwon_distance_m <= :max_dist
+                """
+            ),
+            {"sid": m.source_detail_id, "max_dist": SANGWON_MAX_DISTANCE_M},
+        ).first()
+        if row is not None:
+            return str(row.sangwon_code), int(row.sangwon_distance_m)
+    if m.latitude is None or m.longitude is None:
+        return None, None
+    lat, lng = float(m.latitude), float(m.longitude)
+    dlat = SANGWON_AUTO_MATCH_M / 110_540
+    dlng = SANGWON_AUTO_MATCH_M / (111_320 * math.cos(math.radians(lat)))
+    rows = db.execute(
+        text(
+            """
+            SELECT sa.sangwon_code, sa.latitude, sa.longitude FROM sangwon_area sa
+            WHERE sa.latitude BETWEEN :lat0 AND :lat1 AND sa.longitude BETWEEN :lng0 AND :lng1
+              AND sa.latitude IS NOT NULL
+              AND EXISTS (SELECT 1 FROM sangwon_population sp
+                          WHERE CAST(sp.sangwon_code AS TEXT) = CAST(sa.sangwon_code AS TEXT)
+                            AND sp.total_foot_traffic > 0)
+            """
+        ),
+        {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
+    ).all()
+    best: tuple[float, str] | None = None
+    for code, alat, alng in rows:
+        d = math.hypot((alat - lat) * 110_540, (alng - lng) * 111_320 * math.cos(math.radians(lat)))
+        if d <= SANGWON_AUTO_MATCH_M and (best is None or d < best[0]):
+            best = (d, str(code))
+    return (best[1], round(best[0])) if best else (None, None)
+
+
+def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
+    """상권의 월평균 유동인구 — media.sangwon_code(match_sangwon 이 정한 상권).
 
     그 상권의 가장 최신 분기(서울시 상권분석서비스, sangwon_sync 가 채운다)를 쓴다 — 새 분기에 빠진
     상권도 직전 분기 값이 보이게. 서울시 값은 분기 합계라 3으로 나눠 월평균으로 보여 준다(비율은 그대로).
-    거리 초과·미매칭·유동량 0이면 None.
+    연결이 없거나 유동량 0이면 None.
     """
-    if source_detail_id is None:
+    if not sangwon_code:
         return None
     row = db.execute(
         text(
@@ -1163,17 +1201,13 @@ def _sangwon_population(db: Session, source_detail_id: int | None) -> dict | Non
                    sp.male_foot, sp.female_foot,
                    sp.age_10_foot, sp.age_20_foot, sp.age_30_foot,
                    sp.age_40_foot, sp.age_50_foot, sp.age_60_foot
-            FROM ad_media am
-            JOIN sangwon_population sp
-              ON sp.sangwon_code = am.sangwon_code
-            WHERE am.media_id = :sid
-              AND am.sangwon_distance_m <= :max_dist
-              AND sp.total_foot_traffic > 0
+            FROM sangwon_population sp
+            WHERE CAST(sp.sangwon_code AS TEXT) = :code AND sp.total_foot_traffic > 0
             ORDER BY sp.quarter_code DESC
             LIMIT 1
             """
         ),
-        {"sid": source_detail_id, "max_dist": SANGWON_MAX_DISTANCE_M},
+        {"code": sangwon_code},
     ).first()
     if row is None or not row.total_foot_traffic:
         return None
@@ -1225,13 +1259,13 @@ def population_fact(pop: dict | None) -> str | None:
 
 
 def sangwon_population_of(db: Session, media_id: str) -> dict | None:
-    """어드민 인구 데이터 탭 안내용 — 매체의 원천 상권 월평균 유동인구."""
+    """어드민 인구 데이터 탭 안내용 — 매체의 서울시 상권 월평균 유동인구."""
     m = db.get(Media, media_id)
-    return _sangwon_population(db, m.source_detail_id) if m else None
+    return _sangwon_population(db, m.sangwon_code) if m else None
 
 
 def media_population(db: Session, m: Media) -> dict | None:
-    """매체 정보 팝업의 인구 — ① 어드민에서 직접 입력한 월평균 유동인구 ② 원천 상권 데이터의 월평균
+    """매체 정보 팝업의 인구 — ① 어드민에서 직접 입력한 월평균 유동인구 ② 서울시 상권 데이터의 월평균
     유동인구 순으로 먼저 있는 것. 이동 매체는 보여 주지 않는다.
 
     2026-10-13부터 서울시 실시간 인구(realtime_population)는 보여 주지 않는다 — 시각마다 바뀌어 매체 비교·
@@ -1239,7 +1273,7 @@ def media_population(db: Session, m: Media) -> dict | None:
     """
     if m.media_source == "MOVING":
         return None
-    return _manual_population(m) or _sangwon_population(db, m.source_detail_id)
+    return _manual_population(m) or _sangwon_population(db, m.sangwon_code)
 
 
 def proposal_slide_facts(m: Media) -> dict:
@@ -1645,8 +1679,8 @@ def get_admin_media(db: Session, media_id: str) -> dict:
     data["popularity"] = popularity.admin_summary(db, media_id)
     # 노출·검색 구역의 "신규 매체" 칸 안내 — 자동 여부·지금 신규인지·자동이면 언제까지.
     data["new_badge"] = new_badge_status(m)
-    # 위치·인구 탭 "인구 데이터" 안내 — 직접 입력이 없을 때 팝업에 대신 보이는 원천 상권 월평균 유동인구.
-    data["sangwon_population"] = _sangwon_population(db, m.source_detail_id)
+    # 위치·인구 탭 "인구 데이터" 안내 — 직접 입력이 없을 때 팝업에 대신 보이는 서울시 상권 월평균 유동인구.
+    data["sangwon_population"] = _sangwon_population(db, m.sangwon_code)
     return data
 
 

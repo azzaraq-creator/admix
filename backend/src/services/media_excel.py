@@ -175,6 +175,8 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
 UNUSED_COLUMNS = frozenset(
     {
         "target_codes",  # 믹시 타깃 — 엑셀이 아니라 어드민 폼에서 고른다(비면 자동)
+        "sangwon_code",  # 서울 상권 연결 — 매체 저장 때 자동으로 정한다(ai_index → media_service.match_sangwon)
+        "sangwon_distance_m",
         "device_type",
         "feature",
         "production_fees_summary",
@@ -451,7 +453,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
     ),
     "operation_start_time": ("DOOH 운영 시작 시각(HH:MM). 매체 타입이 DOOH일 때만 저장합니다.", "06:00"),
     "operation_end_time": ("DOOH 운영 종료 시각(HH:MM, 자정은 24:00).", "24:00"),
-    "population_count": ("월평균 유동인구. 적으면 매체 정보 팝업·믹시 추천에 원천 상권 데이터보다 먼저 쓰입니다. 이동 매체는 쓰지 않습니다.", "450000"),
+    "population_count": ("월평균 유동인구. 적으면 매체 정보 팝업·믹시 추천에 서울시 상권 데이터보다 먼저 쓰입니다. 이동 매체는 쓰지 않습니다.", "450000"),
     "population_note": ("유동인구 수치의 기준(시기·출처). 팝업에 함께 보입니다.", "2025년 3분기"),
     "population_male_pct": ("남성 비율(%). 여성과 합쳐 100.", "48"),
     "population_female_pct": ("여성 비율(%).", "52"),

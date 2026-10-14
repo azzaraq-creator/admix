@@ -171,7 +171,7 @@ class MediaPopulation(BaseModel):
 
     source="realtime": 서울시 실시간 도시데이터(주요 121장소) — 매체와 이어진 장소 기준.
     source="manual": 어드민에서 직접 입력한 월평균 유동인구(min = max).
-    source="sangwon": 원천 상권 데이터의 월평균 유동인구(min = max).
+    source="sangwon": 서울시 상권 데이터의 월평균 유동인구(min = max).
     """
 
     source: Literal["realtime", "manual", "sangwon"]

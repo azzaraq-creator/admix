@@ -48,12 +48,34 @@ def test_sync_new_quarters_adds_until_unpublished():
     db = MagicMock()
     published = {"20261": [ss._to_row(_api_row("1", "20261"))], "20262": [ss._to_row(_api_row("1"))]}
     settings = type("S", (), {"seoul_openapi_key": "k"})()
+    from src.services import ai_index
+
     with patch.object(ss, "get_settings", return_value=settings), patch.object(
         ss, "latest_quarter_in_db", return_value="20254"
-    ), patch.object(ss, "fetch_quarter", side_effect=lambda q, key: published.get(q, [])) as fetch:
+    ), patch.object(ss, "fetch_quarter", side_effect=lambda q, key: published.get(q, [])) as fetch, patch.object(
+        ss, "sync_areas", return_value=1650
+    ) as areas, patch.object(ai_index, "sync_all") as resync:
         assert ss.sync_new_quarters(db) == ["20261", "20262"]
     assert [c.args[0] for c in fetch.call_args_list] == ["20261", "20262", "20263"]
     assert db.commit.call_count == 2
+    # 새 분기가 들어오면 상권 위치도 다시 받고, 매체 연결·인구 요약을 다시 맞춘다.
+    areas.assert_called_once()
+    resync.assert_called_once()
+
+
+def test_sync_new_quarters_fetches_areas_when_empty():
+    """새 분기가 없어도 상권 위치가 비어 있으면(처음 도입) 받고 매체를 다시 맞춘다."""
+    from src.services import ai_index
+
+    settings = type("S", (), {"seoul_openapi_key": "k"})()
+    with patch.object(ss, "get_settings", return_value=settings), patch.object(
+        ss, "latest_quarter_in_db", return_value="20262"
+    ), patch.object(ss, "fetch_quarter", return_value=[]), patch.object(
+        ss, "areas_in_db", return_value=0
+    ), patch.object(ss, "sync_areas", return_value=1650) as areas, patch.object(ai_index, "sync_all") as resync:
+        assert ss.sync_new_quarters(MagicMock()) == []
+    areas.assert_called_once()
+    resync.assert_called_once()
 
 
 def test_sync_new_quarters_without_key_does_nothing():

@@ -28,7 +28,7 @@ function formatDistance(m: number): string {
 /**
  * 인구 데이터 구역 맨 위 — 지금 폼의 좌표로 서울시 실시간 인구를 가져올 수 있는지 보여 준다.
  * 가져올 수 있으면 아래 월평균 유동인구 칸은 비워 둬도 되고, 없으면 직접 입력하라고 안내한다
- * (직접 입력이 없을 때 대신 보일 원천 상권 데이터가 있으면 그것도 알려 준다).
+ * (직접 입력이 없을 때 대신 보일 서울시 상권 데이터가 있으면 그것도 알려 준다).
  */
 export function RealtimePopulationStatus({
   latitude,
@@ -37,7 +37,7 @@ export function RealtimePopulationStatus({
 }: {
   latitude: string | undefined;
   longitude: string | undefined;
-  /** 수정 중인 매체 — 원천 상권 월평균 유동인구를 찾는 데 쓴다(등록 중이면 null). */
+  /** 수정 중인 매체 — 서울시 상권 월평균 유동인구를 찾는 데 쓴다(등록 중이면 null). */
   mediaId: string | null;
 }) {
   const lat = useSettled(toCoord(latitude));
@@ -51,7 +51,7 @@ export function RealtimePopulationStatus({
   );
   // 실시간이 안 될 때 — 직접 입력하지 않으면 팝업에 무엇이 보이는지
   const fallback = data?.sangwon
-    ? `월평균 유동인구를 직접 입력하지 않으면 원천 상권 데이터(${
+    ? `월평균 유동인구를 직접 입력하지 않으면 서울시 상권 데이터(${
         data.sangwon.placeName
       }, ${data.sangwon.populationMax.toLocaleString()}명)가 보입니다.`
     : "월평균 유동인구를 직접 입력하지 않으면 팝업에 인구 카드가 보이지 않습니다.";

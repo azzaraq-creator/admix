@@ -41,7 +41,7 @@ const FEATURES: [string, string][] = [
 ];
 
 export type PopulationData = {
-  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·원천 상권) */
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·서울시 상권) */
   title: string;
   /** 실시간 인구 범위 — "80,000~82,000" */
   populationText: string;
