@@ -77,6 +77,9 @@ export function MapArea({
   crowd?: {
     on: boolean;
     onToggle: (on: boolean) => void;
+    /** 범위 밖 흑백 */
+    gray: boolean;
+    onToggleGray: (on: boolean) => void;
     places: CrowdPlace[];
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
@@ -110,10 +113,15 @@ export function MapArea({
   });
 
   useMapArea({ mapRef, mapReady, area: highlightArea });
-  const { hovered: crowdHovered, hoverEl: crowdHoverEl } = useMapCrowd({
+  const {
+    hovered: crowdHovered,
+    hoverEl: crowdHoverEl,
+    boardShown: crowdBoardShown,
+  } = useMapCrowd({
     mapRef,
     mapReady,
     places: crowd?.on ? crowd.places : null,
+    gray: !!crowd?.gray,
   });
 
   const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
@@ -128,7 +136,18 @@ export function MapArea({
 
   return (
     <div className={cn("relative", className)}>
-      <div ref={containerRef} className="h-full w-full bg-[#e9edf0]" />
+      {/* 모바일은 지도가 좁아 실시간 인구 토글·범례(z-[2])가 매체 정보 팝업을 가린다 —
+          팝업(지도 안에 그려진다)이 열려 있는 동안은 지도째 그 위로 올린다. */}
+      <div
+        ref={containerRef}
+        className={cn(
+          "h-full w-full bg-[#e9edf0]",
+          (popupId || popupPosition) && "max-sm:relative max-sm:z-[3]",
+          // 실시간 인구를 켜면 범위 밖은 흑백 판(useMapCrowd)이 덮는다. 판이 아직 없거나 확대·축소 중엔
+          // 판이 어긋나므로 지도 전체를 흑백으로(globals.css) — 색이 번쩍 돌아오지 않게.
+          crowd?.on && crowd.gray && !crowdBoardShown && "map-crowd-gray",
+        )}
+      />
       {crowdHovered && crowdHoverEl
         ? createPortal(<CrowdHoverCard place={crowdHovered} />, crowdHoverEl)
         : null}
@@ -163,6 +182,29 @@ export function MapArea({
                 </Switch.Control>
               </Switch.Content>
             </Switch>
+            {crowd.on && (
+              <>
+                {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
+                <span
+                  aria-hidden
+                  className="mx-[8px] h-[14px] w-px bg-[#18181b]/15"
+                />
+                <Switch
+                  size="sm"
+                  isSelected={crowd.gray}
+                  onChange={crowd.onToggleGray}
+                  aria-label="범위 밖 흑백으로 보기"
+                  className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                >
+                  <Switch.Content className="gap-[6px] text-[12px] font-semibold text-[#18181b]">
+                    <span>흑백</span>
+                    <Switch.Control>
+                      <Switch.Thumb className="bg-white!" />
+                    </Switch.Control>
+                  </Switch.Content>
+                </Switch>
+              </>
+            )}
           </div>
           {crowd.on && (
             // 범례 — 서울시 실시간 도시데이터 4단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.

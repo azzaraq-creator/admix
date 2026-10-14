@@ -92,6 +92,8 @@ function roundCoord(v: number): string {
 }
 
 const CROWD_STORAGE_KEY = "admix.map.crowd";
+// 실시간 인구를 켰을 때 범위 밖을 흑백으로 — 기본은 켬("0"으로 꺼 둔 경우만 끔).
+const CROWD_GRAY_STORAGE_KEY = "admix.map.crowd-gray";
 // "실시간 인구"를 보여 주는 가장 넓은 지도 레벨(카카오 — 숫자가 클수록 넓게 본다).
 const CROWD_MAX_LEVEL = 7;
 const CROWD_EVENT = "admix:crowd-setting";
@@ -114,6 +116,27 @@ function useCrowdSetting(): boolean {
 
 function setCrowdSetting(on: boolean) {
   window.localStorage.setItem(CROWD_STORAGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(CROWD_EVENT));
+}
+
+/** "흑백" 켜 둔 상태 — 실시간 인구와 같이 이 브라우저에 기억한다. 기본은 켬. */
+function useCrowdGraySetting(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(CROWD_EVENT, onChange);
+      window.addEventListener("storage", onChange);
+      return () => {
+        window.removeEventListener(CROWD_EVENT, onChange);
+        window.removeEventListener("storage", onChange);
+      };
+    },
+    () => window.localStorage.getItem(CROWD_GRAY_STORAGE_KEY) !== "0",
+    () => true,
+  );
+}
+
+function setCrowdGraySetting(on: boolean) {
+  window.localStorage.setItem(CROWD_GRAY_STORAGE_KEY, on ? "1" : "0");
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
@@ -163,6 +186,7 @@ export function FixedMediaView() {
   const lastViewportRef = useRef<MapBoundsPayload | null>(null);
   // "실시간 인구" — 켜 둔 상태는 이 브라우저에 기억한다. 켰을 때만 서울시 혼잡도를 묻는다.
   const crowdOn = useCrowdSetting();
+  const crowdGray = useCrowdGraySetting();
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
   const toggleCrowd = setCrowdSetting;
   // 넓게 볼 때(레벨 8 이상)는 버튼·표시를 모두 숨기고 서울시에도 묻지 않는다 — 장소가 너무 많아 겹친다.
@@ -416,6 +440,8 @@ export function FixedMediaView() {
                 : {
                     on: crowdOn,
                     onToggle: toggleCrowd,
+                    gray: crowdGray,
+                    onToggleGray: setCrowdGraySetting,
                     places: crowdData?.places ?? [],
                     loading: !crowdData || crowdData.pending > 0,
                   }

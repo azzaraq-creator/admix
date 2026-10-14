@@ -224,7 +224,7 @@ def check_realtime(lat: float | None, lng: float | None) -> dict:
 
 
 # ===== 매체 찾기 지도 "지금 붐비는 곳" =====
-# 지도 영역 안의 장소만, 장소별 캐시(CACHE_TTL_S)로. 캐시가 없는 장소는 뒤에서 가져오고 응답에는 "불러오는 중"으로
+# 지도 영역에 걸친 장소만, 장소별 캐시(CACHE_TTL_S)로. 캐시가 없는 장소는 뒤에서 가져오고 응답에는 "불러오는 중"으로
 # 센다(pending) — 지도는 잠시 뒤 다시 묻는다. 지도를 켠 사람이 있을 때만 서울시를 부른다(호출 수 보호).
 _crowd_pool = ThreadPoolExecutor(max_workers=6, thread_name_prefix="citydata")
 _inflight: set[str] = set()
@@ -275,7 +275,7 @@ def _fetch_in_background(code: str) -> None:
 
 
 def crowd_in_bounds(ne_lat: float, sw_lat: float, ne_lng: float, sw_lng: float) -> dict:
-    """지도 영역 안 장소의 실시간 혼잡도 — {"enabled", "places": [...], "pending": 불러오는 중인 장소 수}.
+    """지도 영역에 걸친 장소의 실시간 혼잡도 — {"enabled", "places": [...], "pending": 불러오는 중인 장소 수}.
 
     place: {code, name, lat, lng, level(여유·보통·약간 붐빔·붐빔), populationMin, populationMax, measuredAt}
     """
@@ -286,7 +286,9 @@ def crowd_in_bounds(ne_lat: float, sw_lat: float, ne_lng: float, sw_lng: float) 
     pending = 0
     for p in _places():
         lat, lng = centers[p.code]
-        if not (sw_lat <= lat <= ne_lat and sw_lng <= lng <= ne_lng):
+        # 영역이 지도에 조금이라도 걸치면 넣는다 — 표시 위치(가운데)만 보면 장소 안으로 확대했을 때
+        # 이름표가 화면 밖이라 범위까지 사라졌다.
+        if not (p.min_y <= ne_lat and p.max_y >= sw_lat and p.min_x <= ne_lng and p.max_x >= sw_lng):
             continue
         fresh, row = _cached_row(p.code)
         if not fresh:

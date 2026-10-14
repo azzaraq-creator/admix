@@ -173,3 +173,18 @@ def test_crowd_in_bounds_uses_cache_and_counts_pending():
     with patch.object(sc, "get_settings") as gs:
         gs.return_value.seoul_openapi_key = ""
         assert sc.crowd_in_bounds(**box)["enabled"] is False
+
+
+def test_crowd_in_bounds_includes_place_when_zoomed_inside_without_center():
+    """장소 안쪽으로 확대해 표시 위치(가운데)가 화면 밖이어도 영역이 걸치면 넣는다."""
+    gangnam = next(p for p in sc._places() if p.name == "강남역")
+    lat, _ = sc._place_centers()[gangnam.code]
+    # 영역 서쪽 끝 근처의 아주 작은 화면 — 가운데(경도)는 화면 밖이다.
+    lng = gangnam.min_x + 0.0005
+    box = dict(ne_lat=lat + 0.0003, sw_lat=lat - 0.0003, ne_lng=lng + 0.0003, sw_lng=lng - 0.0003)
+    assert not (box["sw_lng"] <= sc._place_centers()[gangnam.code][1] <= box["ne_lng"])
+    with patch.object(sc, "get_settings") as gs, patch.object(sc, "_fetch_in_background"):
+        gs.return_value.seoul_openapi_key = "k"
+        with sc._cache_lock:
+            sc._cache.pop(gangnam.code, None)
+        assert sc.crowd_in_bounds(**box)["pending"] >= 1

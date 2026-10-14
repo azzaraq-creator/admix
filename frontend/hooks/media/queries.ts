@@ -140,12 +140,16 @@ export const useMediaDetail = (id: string | null) =>
     staleTime: 60 * 1000,
   });
 
-/** 소수 셋째 자리(약 100m)로 맞춘 지도 영역 — 조금 움직일 때마다 다시 묻지 않게. */
+/**
+ * 소수 셋째 자리(약 100m)로 맞춘 지도 영역 — 조금 움직일 때마다 다시 묻지 않게.
+ * 바깥쪽으로 맞춘다 — 반올림하면 크게 확대했을 때(레벨 1·2, 화면 폭 수백 m) 영역이 화면보다 좁아지거나
+ * 한 점으로 줄어 화면에 걸친 장소가 빠졌다.
+ */
 const roundBounds = (b: CrowdBounds): CrowdBounds => ({
-  neLat: Math.round(b.neLat * 1000) / 1000,
-  swLat: Math.round(b.swLat * 1000) / 1000,
-  neLng: Math.round(b.neLng * 1000) / 1000,
-  swLng: Math.round(b.swLng * 1000) / 1000,
+  neLat: Math.ceil(b.neLat * 1000) / 1000,
+  swLat: Math.floor(b.swLat * 1000) / 1000,
+  neLng: Math.ceil(b.neLng * 1000) / 1000,
+  swLng: Math.floor(b.swLng * 1000) / 1000,
 });
 
 /**

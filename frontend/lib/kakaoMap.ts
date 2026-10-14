@@ -30,6 +30,12 @@ export interface KakaoCustomOverlay {
 
 export interface KakaoPolygon {
   setMap: (map: KakaoMap | null) => void;
+  setOptions: (options: {
+    strokeWeight?: number;
+    strokeOpacity?: number;
+    fillOpacity?: number;
+    zIndex?: number;
+  }) => void;
 }
 
 export interface KakaoPoint {
