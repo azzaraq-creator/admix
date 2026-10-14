@@ -204,14 +204,14 @@ function RegionFilter({
           }
         }}
       >
-        {/* 모바일은 시·도가 여러 줄로 쌓여 지저분해 보여, 한 줄로 두고 옆으로 밀어 넘긴다(끝은 흐리게). PC는 줄바꿈 그대로. */}
+        {/* 시·도는 화면 크기와 상관없이(모바일·아이패드·PC) 한 줄로 두고 옆으로 밀어 넘긴다(끝은 흐리게). */}
         <ScrollShadow
           orientation="horizontal"
           hideScrollBar
           size={24}
           className="max-sm:-mx-[16px] max-sm:px-[16px]"
         >
-          <TagGroup.List className="flex flex-wrap gap-[8px] max-sm:w-max max-sm:flex-nowrap max-sm:pr-[16px]">
+          <TagGroup.List className="flex w-max flex-nowrap gap-[8px] pr-[16px]">
             <Tag id={ALL_REGIONS} className={OPTION_TAG}>
               전체
             </Tag>
