@@ -632,7 +632,8 @@ _ad_media = table(
     column("sangwon_code"),
     column("sangwon_distance_m"),
 )
-_sangwon_population = table(
+# 상권 유동인구 표 — 아래 _sangwon_population() 함수와 이름이 겹치면 함수가 덮어써 정렬이 깨진다(AttributeError).
+_sangwon_population_table = table(
     "sangwon_population",
     column("sangwon_code"),
     column("quarter_code"),
@@ -647,12 +648,12 @@ _sangwon_population = table(
     column("age_60_foot"),
 )
 # 최신 분기를 고르는 서브쿼리용 — 같은 표를 정렬 조인과 따로 본다.
-_sangwon_latest = _sangwon_population.alias("sangwon_latest")
+_sangwon_latest = _sangwon_population_table.alias("sangwon_latest")
 
 
 def _population_ratio(target: str):
     """상권 유동인구에서 target(female/male/ageNN)이 차지하는 비율 식. 성별은 남+여 합 기준."""
-    sp = _sangwon_population.c
+    sp = _sangwon_population_table.c
     if target in ("female", "male"):
         num = sp.female_foot if target == "female" else sp.male_foot
         den = func.coalesce(sp.male_foot, 0) + func.coalesce(sp.female_foot, 0)
@@ -677,7 +678,7 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
             (fee.desc() if sort == "priceDesc" else fee.asc()).nullslast(), Media.media_id
         )
     if sort and sort.startswith("ratio-"):
-        am, sp = _ad_media.c, _sangwon_population.c
+        am, sp = _ad_media.c, _sangwon_population_table.c
         ratio = (
             select(
                 am.media_id.label("sid"),
@@ -685,7 +686,7 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
             )
             .select_from(
                 _ad_media.join(
-                    _sangwon_population,
+                    _sangwon_population_table,
                     and_(
                         sp.sangwon_code == am.sangwon_code,
                         # DB의 최신 분기(서울시 상권 유동인구, sangwon_sync 가 채운다)
