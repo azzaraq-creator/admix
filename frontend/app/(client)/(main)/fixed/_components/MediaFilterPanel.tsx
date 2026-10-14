@@ -28,6 +28,7 @@ import {
 } from "@/components/common/mediaFilter/PriceRangeFilter";
 import { CloseSmallIcon, RotateLeftIcon } from "@/components/icons";
 import { useFavoriteList, useFavoritePriceHistogram } from "@/hooks/favorites";
+import { useDragScroll } from "@/hooks/useDragScroll";
 import {
   useMediaFindCount,
   useFixedPriceHistogram,
@@ -166,6 +167,8 @@ function RegionFilter({
       )?.sido ?? ALL_REGIONS,
   );
   const current = regions.find((r) => r.sido === sido);
+  // PC는 시·도 줄을 마우스로 잡고 끌어 넘긴다 — 끌고 손을 뗀 자리의 시·도는 고르지 않는다.
+  const drag = useDragScroll();
   if (regions.length === 0) {
     return (
       <p className="text-[13px] text-gray-500 max-sm:text-[11px]">
@@ -188,8 +191,11 @@ function RegionFilter({
         aria-label="시·도"
         selectionMode="single"
         disallowEmptySelection
+        // 누르는 순간이 아니라 손을 뗄 때 고른다 — 그래야 끌어 넘기려고 누른 시·도가 골라지지 않는다.
+        shouldSelectOnPressUp
         selectedKeys={new Set([sido])}
         onSelectionChange={(keys) => {
+          if (drag.wasDragged()) return;
           const next = [...keys][0];
           if (next == null) return;
           const nextSido = String(next);
@@ -209,7 +215,8 @@ function RegionFilter({
           orientation="horizontal"
           hideScrollBar
           size={24}
-          className="max-sm:-mx-[16px] max-sm:px-[16px]"
+          onPointerDownCapture={drag.onPointerDown}
+          className="max-sm:-mx-[16px] max-sm:px-[16px] [@media(hover:hover)]:cursor-grab"
         >
           <TagGroup.List className="flex w-max flex-nowrap gap-[8px] pr-[16px]">
             <Tag id={ALL_REGIONS} className={OPTION_TAG}>
