@@ -12,7 +12,7 @@
   - 타깃(TGT): 인구(직접 입력한 월평균 → 서울시 상권 순, 실시간은 쓰지 않음)에서 비율이 가장 높은
     연령대 1개 + 한쪽 성별이 55% 이상이면 그 성별, 그리고 장소(카테고리·매체명) 규칙
 - 제품(PRD)·목적(OBJ)은 광고주 쪽 정보라 자동으로 만들지 않는다(엑셀에서 온 값만).
-- 상권 연결(media.sangwon_code): media_service.match_sangwon — 원천 연결, 없으면 좌표로 가장 가까운 서울 상권.
+- 상권 연결(media.sangwon_code): media_service.match_sangwon — 반경 500m 안에서 유동인구가 가장 많은 서울 상권, 없으면 원천 연결·가장 가까운 상권.
 - 인구 요약(media.audience_summary): 타깃 태그와 같은 인구로 다시 써 둔다 — 믹시가 연령·성별 순위와
   답변 숫자에 쓴다(format_audience_summary / parse_audience_profile). 원천에서 온 예전 요약 글은 출처·시기가
   달라 지금 데이터와 맞지 않았다(2026-10-13, 강남역 매체가 "여성 45%"로 안내된 일).
@@ -277,7 +277,7 @@ def _image_urls(m: Media) -> list[str]:
 
 def sync_media_item(db: Session, m: Media, dictionary=None) -> None:
     """매체 한 건의 검색 표 줄을 맞춘다(없으면 만든다). 커밋은 부르는 쪽에서."""
-    # 서울 상권 연결 — 원천 연결이 없어도 좌표로 가장 가까운 상권을 찾는다(어드민·엑셀로 만든 매체도 유동인구가 생긴다).
+    # 서울 상권 연결 — 좌표 주변에서 가장 붐비는 상권을 찾는다(어드민·엑셀로 만든 매체도 유동인구가 생긴다).
     # 아래 타깃 태그·인구 요약이 이 연결의 인구를 쓰므로 먼저 정한다.
     from src.services import media_service as ms
 

@@ -35,6 +35,15 @@ import {
   HeroTagMulti,
 } from "./heroFields";
 import { AiTagsPreview, AutoTargets } from "./AiTagsPreview";
+import { GradeSurvey } from "./GradeSurvey";
+import {
+  computeSurveyScore,
+  parseSurvey,
+  pruneSurvey,
+  scoreEvidence,
+  type SurveyMediaKind,
+  type SurveyScore,
+} from "./gradeSurveyQuestions";
 import { PopularityScore } from "./PopularityScore";
 import {
   ADDRESS_KEYS,
@@ -241,6 +250,8 @@ function MediaForm({
     defaultValues: {
       ...buildDefaults(detail),
       ...(populationAuto && sangwon ? sangwonInputs(sangwon) : {}),
+      // 최종 등급 — 직접 고른 등급만 칸에 보이고, 자동이면 비운다("자동 (B)"로 보인다).
+      ...(detail && !detail.final_grade_manual ? { final_grade: "" } : {}),
     },
   });
   // 고른 값에 따라 화면이 바뀌는 칸(고정/이동·OOH·카테고리·운행 지역)과 선택지에 없는 기존 값을 보려고 지켜본다.
@@ -255,6 +266,25 @@ function MediaForm({
   const districtValue = allValues[OPERATING_AREA_KEYS.district] ?? "";
   const isMoving = mediaSource === "MOVING";
   const isDooh = oohType === "DOOH";
+  // 서버가 유동인구 단계를 매겼는지(저장된 값 기준) — 못 매긴 고정 매체는 설문이 주변 유동인구를 대신 묻는다.
+  const populationTier = detail?.population_tier?.tier ?? null;
+  const hasPopulationTier = populationTier != null;
+  /** 등급 설문 질문을 고르는 매체 값 — 화면(지금 고른 값)과 저장(제출 값)이 같은 규칙을 쓴다. */
+  const surveyKindOf = (v: MediaFormValues): SurveyMediaKind => ({
+    mediaSource: v.media_source ?? "",
+    exposureType: v.exposure_type ?? "",
+    oohType: v.ooh_type ?? "",
+    categorySmall: v.category_small ?? "",
+    hasPopulationTier,
+  });
+  // 품질 점수 — 설문 답으로 바로 다시 계산해 보여 준다(저장할 때 같은 값을 저장).
+  const surveyScore = computeSurveyScore(
+    surveyKindOf(allValues),
+    parseSurvey(allValues.grade_survey ?? ""),
+    populationTier,
+  );
+  // 자동 최종 등급 — 설문 점수가 없으면(설문 전) 지금 저장된 등급을 그대로 둔다.
+  const autoGrade = surveyScore?.grade ?? detail?.final_grade ?? null;
   // 가격·판매 요약(보기 전용) — 서버가 저장할 때 상품에서 계산하는 값과 같다.
   const planSummary = summarizePlans(plans, isDooh);
   const changePlans = (next: PlanDraft[]) => {
@@ -400,6 +430,22 @@ function MediaForm({
       // 자동으로 채운 서울시 상권 값은 직접 입력으로 저장하지 않는다 — 새 분기·상권 연결이 바뀌면 따라가게.
       if (populationAuto)
         for (const key of POPULATION_KEYS) payload[key] = null;
+      // 등급 설문 — 매체 종류를 바꿔 지금 질문에 없는 답은 뺀다.
+      const kind = surveyKindOf(values);
+      const answers = pruneSurvey(parseSurvey(values.grade_survey ?? ""), kind);
+      payload.grade_survey = answers;
+      // 품질 점수·등급 근거 — 설문 점수가 있을 때만 바꾼다(설문 전에는 원천 데이터 값을 그대로 둔다).
+      const score = computeSurveyScore(kind, answers ?? {}, populationTier);
+      if (score) {
+        payload.quality_score = score.score;
+        payload.grade_evidence = scoreEvidence(score);
+      }
+      // 최종 등급 — 직접 고르면 그 등급, 자동이면 설문 점수의 등급(없으면 지금 값 그대로).
+      const pickedGrade = (values.final_grade ?? "").trim();
+      payload.final_grade_manual = !!pickedGrade;
+      if (pickedGrade) payload.final_grade = pickedGrade;
+      else if (score) payload.final_grade = score.grade;
+      else delete payload.final_grade;
       // 상품 — 광고비·제작비 범위와 제작비 유무는 서버가 이 상품들에서 계산한다.
       payload.plans = toPlanPayload(plans, String(payload.ooh_type ?? ""));
       if (isEdit && id) {
@@ -675,6 +721,50 @@ function MediaForm({
     if (f.key === "ai_auto_targets") {
       return <AutoTargets text={detail?.ai_preview?.auto_targets} />;
     }
+    if (f.key === "quality_score") {
+      return (
+        <QualityScoreStatus score={surveyScore} saved={detail?.quality_score} />
+      );
+    }
+    if (f.key === "final_grade") {
+      return (
+        <Controller
+          name={f.key}
+          control={control}
+          render={({ field }) => (
+            <HeroSelect
+              ariaLabel={f.label}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              options={f.options ?? []}
+              emptyLabel={
+                autoGrade
+                  ? `자동 (${autoGrade}${surveyScore ? "" : " · 설문 전"})`
+                  : "자동 (설문 전)"
+              }
+            />
+          )}
+        />
+      );
+    }
+    if (f.key === "grade_survey") {
+      // 답은 폼 안에서 JSON 문자열로 들고 있다(저장할 때 pruneSurvey).
+      return (
+        <Controller
+          name={f.key}
+          control={control}
+          render={({ field }) => (
+            <GradeSurvey
+              kind={surveyKindOf(allValues)}
+              answers={parseSurvey(field.value ?? "")}
+              onChange={(next) => field.onChange(JSON.stringify(next))}
+              populationTier={detail?.population_tier}
+            />
+          )}
+        />
+      );
+    }
     if (f.type === "readonly") {
       const shown =
         f.key in planSummary ? planSummary[f.key] || "-" : imageCount || "-";
@@ -850,7 +940,7 @@ function MediaForm({
           f.type === "multiselect" ||
           f.key === "ai_tags_preview" ||
           f.key === "popularity_summary" ||
-          f.key === "audience_summary"
+          f.key === "grade_survey"
         }
       >
         {f.pair
@@ -1242,5 +1332,47 @@ function NewBadgeStatus({
     >
       {text}
     </p>
+  );
+}
+
+/** "품질 점수" 칸 — 설문 답으로 계산한 점수(바로 바뀜), 설문 전이면 저장된(원천) 값. */
+function QualityScoreStatus({
+  score,
+  saved,
+}: {
+  score: SurveyScore | null;
+  saved: unknown;
+}) {
+  const savedText =
+    saved == null || saved === "" ? null : `${Math.round(Number(saved))}점`;
+  const value = score ? `${score.score}점` : (savedText ?? "-");
+  const note = score
+    ? score.provisional
+      ? `임시 · ${score.total}문항 중 ${score.answered}개 답함 — 답한 것만으로 계산했어요.`
+      : "설문 답으로 계산했어요."
+    : savedText
+      ? "원천 데이터 값이에요. 설문의 절반 이상 답하면 자동으로 바뀌어요."
+      : "설문의 절반 이상 답하면 매겨져요.";
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <Input
+        variant="secondary"
+        fullWidth
+        readOnly
+        disabled
+        aria-label="품질 점수"
+        value={value}
+      />
+      <p
+        className={cn(
+          "w-fit rounded-full px-[10px] py-[3px] text-[12px] font-semibold",
+          score && !score.provisional
+            ? "bg-[#eff6ff] text-[#2e90fa]"
+            : "bg-[#f5f6fb] text-[#9aa0b4]",
+        )}
+      >
+        {note}
+      </p>
+    </div>
   );
 }

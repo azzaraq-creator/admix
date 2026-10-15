@@ -132,8 +132,6 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
         [
             ("final_grade", "최종 등급", None),
             ("quality_score", "품질 점수", None),
-            ("gangnam_dong_grade", "강남 동별 등급", None),
-            ("grade_method", "등급 산정 방식", None),
             ("audience_summary", "타깃(유동인구) 요약", None),
         ],
     ),
@@ -188,6 +186,10 @@ UNUSED_COLUMNS = frozenset(
         "thumbnail_url",
         "image_count",
         "gangnam_grade_reason",
+        "gangnam_dong_grade",  # 등급 설문으로 대체
+        "grade_method",
+        "grade_survey",  # 등급 설문 답 — 어드민 폼에서만 답한다
+        "final_grade_manual",  # 최종 등급 직접 지정 여부 — 어드민 폼에서만
         "grade_evidence",
         "area_evidence",
         "ind_evidence",
@@ -416,7 +418,6 @@ _CHOICES: dict[str, list[str]] = {
     "ooh_type": ["OOH", "DOOH"],
     "execution_status": ["가능", "확인 필요", "불가"],
     "final_grade": _GRADES,
-    "gangnam_dong_grade": _GRADES,
 }
 
 # 작성 안내 — (칸, 입력 방법, 예시)

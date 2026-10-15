@@ -470,6 +470,15 @@ export interface AdminMediaPlan {
   default_surface_quantity: number | null;
 }
 
+/** 유동인구 단계 — tier 는 1~5(높을수록 붐빔), 매기지 않으면 excluded 에 이유. tiers 는 단계 기준표(높은 단계부터). */
+export interface PopulationTier {
+  tier: number | null;
+  monthly: number | null;
+  place: string | null;
+  excluded: string | null;
+  tiers: { tier: number; min: number; max: number | null }[];
+}
+
 export interface AdminMediaDetail {
   media_id: string;
   thumbnail_url: string | null;
@@ -518,6 +527,8 @@ export interface AdminMediaDetail {
     /** 10대 이하 → 60대 이상 순 6구간(%) */
     ageRatios: { label: string; value: number; bound: string | null }[];
   } | null;
+  /** 등급·추천 탭 "유동인구 단계" — 서울 고정 매체(야립 제외)의 월평균 유동인구로 자동(백엔드 population_tier) */
+  population_tier?: PopulationTier;
   [key: string]: unknown;
 }
 

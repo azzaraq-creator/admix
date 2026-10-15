@@ -85,7 +85,7 @@
   - **`population`이 있을 때만 노출**(없으면 섹션 숨김).
   - **성별 비율**: `malePct`/`femalePct` 도넛(`GenderDonut`).
   - **연령대 비율**: `ageRatios` 막대(`AgeBarChart`, 최대 막대 높이 240). 각 구간 라벨과 `bound`(`under`/`over`, 예: "10대 이하", "60대 이상")로 표기.
-  - 출처: 서울시 실시간 도시데이터(주요 121장소, `citydata_ppltn`). 백엔드(`services/seoul_citydata.py`)가 매체 좌표로 장소를 찾는다 — 장소 영역 안이면 가장 좁은 영역, 아니면 영역에서 1km 이내의 가장 가까운 장소. 장소별 응답은 5분 캐시. 실시간을 가져올 수 없으면(좌표 없음·121장소 밖·키 없음·호출 실패) ② 어드민 "위치·인구" 탭에서 직접 입력한 월평균 유동인구(`source="manual"`, 인구수가 있을 때만) ③ 서울시 상권분석서비스 길단위인구의 월평균 유동인구(`source="sangwon"`, `source_detail_id` → 인접 상권(`SANGWON_MAX_DISTANCE_M` 이내)의 가장 최신 분기, 서울시 값은 분기 합계라 ÷3. `services/sangwon_sync.py`가 서울시 OpenAPI `VwsmTrdarFlpopQq`로 새 분기를 하루 한 번 확인해 `sangwon_population`에 넣는다) 순으로 쓴다. 모두 없거나 이동 매체면 `population = null` → 3.2/3.7 모두 숨김.
+  - 출처: 서울시 실시간 도시데이터(주요 121장소, `citydata_ppltn`). 백엔드(`services/seoul_citydata.py`)가 매체 좌표로 장소를 찾는다 — 장소 영역 안이면 가장 좁은 영역, 아니면 영역에서 1km 이내의 가장 가까운 장소. 장소별 응답은 5분 캐시. 실시간을 가져올 수 없으면(좌표 없음·121장소 밖·키 없음·호출 실패) ② 어드민 "위치·인구" 탭에서 직접 입력한 월평균 유동인구(`source="manual"`, 인구수가 있을 때만) ③ 서울시 상권분석서비스 길단위인구의 월평균 유동인구(`source="sangwon"`, `media.sangwon_code` — 좌표 반경 500m 안에서 유동인구가 가장 많은 상권, 없으면 원천 연결(`SANGWON_MAX_DISTANCE_M` 이내)·1km 안 가장 가까운 상권(`media_service.match_sangwon`)의 가장 최신 분기, 서울시 값은 분기 합계라 ÷3. `services/sangwon_sync.py`가 서울시 OpenAPI `VwsmTrdarFlpopQq`로 새 분기를 하루 한 번 확인해 `sangwon_population`에 넣는다) 순으로 쓴다. 모두 없거나 이동 매체면 `population = null` → 3.2/3.7 모두 숨김.
   - 출처에 따라 제목이 다르다: 실시간은 "실시간 인구"(제목 옆 "장소 · 시:분 기준", 혼잡도 칩), 월평균(직접 입력·상권)은 "월평균 유동인구"(제목 옆 직접 입력한 기준 또는 "OO 상권 · 2025년 4분기", 혼잡도 없음).
   - 연령대: 서울시 0·10대를 "10대 이하", 60·70대를 "60대 이상"으로 합친다. 성별은 남+여 합 기준 백분율.
   - 매체 정보 팝업 카드는 장소 이름·서울시 기준 시각("역삼역 · 15:15 기준")과 혼잡도 칩(여유/보통/약간 붐빔/붐빔)을 함께 보여 준다.

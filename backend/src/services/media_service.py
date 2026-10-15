@@ -672,7 +672,7 @@ def _apply_media_sort(base, sort: str | None, *, latest=None):
             (fee.desc() if sort == "priceDesc" else fee.asc()).nullslast(), Media.media_id
         )
     if sort and sort.startswith("ratio-"):
-        # 매체에 이어진 상권(media.sangwon_code — 원천 연결 또는 좌표로 찾은 상권)의 최신 분기 비율 순.
+        # 매체에 이어진 상권(media.sangwon_code — match_sangwon 이 좌표·원천 연결로 정한 상권)의 최신 분기 비율 순.
         sp = _sangwon_population_table.c
         ratio = (
             select(
@@ -1135,18 +1135,51 @@ def _sangwon_label(name: str | None) -> str:
     return name if name.endswith("상권") else f"{name} 상권"
 
 
-# 좌표로 상권을 찾을 때의 거리 제한(m) — 원천 연결(최대 3km, 중앙값 약 530m)보다 좁게 잡아, 동네 매체에 먼 번화가 숫자가
-# 붙지 않게 한다. 상권 중심 좌표 기준.
+# 매체 주변 유동인구를 볼 반경(m) — 이 안에 중심이 있는 상권 중 유동인구가 가장 많은 상권에 잇는다.
+# 서울시 상권 유동인구는 상권 구역 크기를 따라가서, 가장 가까운 상권이 작은 전통시장·골목 구역이면 번화가 매체도
+# 숫자가 작게 나온다(예: 홍대입구역 매체가 "홍대 걷고싶은 거리" 월 20만 — 옆 "연남동(홍대)"은 월 168만).
+SANGWON_BUSIEST_RADIUS_M = 500
+# 반경 안에 상권이 없을 때 좌표로 가장 가까운 상권을 찾는 거리 제한(m) — 원천 연결(최대 3km)보다 좁게 잡아,
+# 동네 매체에 먼 번화가 숫자가 붙지 않게 한다. 상권 중심 좌표 기준.
 SANGWON_AUTO_MATCH_M = 1000
 
 
 def match_sangwon(db: Session, m: Media) -> tuple[str | None, int | None]:
-    """매체에 이을 서울 상권(코드, 거리 m) — ① 원천 연결(ad_media, 원천 매체만) ② 좌표에서 가장 가까운 상권
-    (sangwon_area, 유동인구가 있는 상권만, SANGWON_AUTO_MATCH_M 이내). 이동 매체·좌표 없음·서울 밖이면 (None, None).
+    """매체에 이을 서울 상권(코드, 거리 m) — ① 반경 SANGWON_BUSIEST_RADIUS_M 안에서 최신 분기 유동인구가 가장 많은 상권
+    ② 원천 연결(ad_media, 원천 매체만) ③ 좌표에서 가장 가까운 상권(SANGWON_AUTO_MATCH_M 이내).
+    유동인구가 있는 상권만 본다. 이동 매체·좌표와 원천 연결이 모두 없음·서울 밖이면 (None, None).
     ai_index 동기화(매체 저장 때마다)가 불러 media.sangwon_code 에 저장한다.
     """
     if m.media_source == "MOVING":
         return None, None
+    nearby: list[tuple[float, str, float]] = []  # (거리, 상권 코드, 최신 분기 유동인구)
+    if m.latitude is not None and m.longitude is not None:
+        lat, lng = float(m.latitude), float(m.longitude)
+        dlat = SANGWON_AUTO_MATCH_M / 110_540
+        dlng = SANGWON_AUTO_MATCH_M / (111_320 * math.cos(math.radians(lat)))
+        rows = db.execute(
+            text(
+                """
+                SELECT * FROM (
+                    SELECT sa.sangwon_code, sa.latitude, sa.longitude,
+                           (SELECT sp.total_foot_traffic FROM sangwon_population sp
+                            WHERE CAST(sp.sangwon_code AS TEXT) = CAST(sa.sangwon_code AS TEXT)
+                              AND sp.total_foot_traffic > 0
+                            ORDER BY sp.quarter_code DESC LIMIT 1) AS foot
+                    FROM sangwon_area sa
+                    WHERE sa.latitude BETWEEN :lat0 AND :lat1 AND sa.longitude BETWEEN :lng0 AND :lng1
+                ) t WHERE t.foot IS NOT NULL
+                """
+            ),
+            {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
+        ).all()
+        for code, alat, alng, foot in rows:
+            d = math.hypot((alat - lat) * 110_540, (alng - lng) * 111_320 * math.cos(math.radians(lat)))
+            if d <= SANGWON_AUTO_MATCH_M:
+                nearby.append((d, str(code), float(foot)))
+    busiest = max((n for n in nearby if n[0] <= SANGWON_BUSIEST_RADIUS_M), key=lambda n: n[2], default=None)
+    if busiest is not None:
+        return busiest[1], round(busiest[0])
     if m.source_detail_id is not None:
         row = db.execute(
             text(
@@ -1159,30 +1192,8 @@ def match_sangwon(db: Session, m: Media) -> tuple[str | None, int | None]:
         ).first()
         if row is not None:
             return str(row.sangwon_code), int(row.sangwon_distance_m)
-    if m.latitude is None or m.longitude is None:
-        return None, None
-    lat, lng = float(m.latitude), float(m.longitude)
-    dlat = SANGWON_AUTO_MATCH_M / 110_540
-    dlng = SANGWON_AUTO_MATCH_M / (111_320 * math.cos(math.radians(lat)))
-    rows = db.execute(
-        text(
-            """
-            SELECT sa.sangwon_code, sa.latitude, sa.longitude FROM sangwon_area sa
-            WHERE sa.latitude BETWEEN :lat0 AND :lat1 AND sa.longitude BETWEEN :lng0 AND :lng1
-              AND sa.latitude IS NOT NULL
-              AND EXISTS (SELECT 1 FROM sangwon_population sp
-                          WHERE CAST(sp.sangwon_code AS TEXT) = CAST(sa.sangwon_code AS TEXT)
-                            AND sp.total_foot_traffic > 0)
-            """
-        ),
-        {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
-    ).all()
-    best: tuple[float, str] | None = None
-    for code, alat, alng in rows:
-        d = math.hypot((alat - lat) * 110_540, (alng - lng) * 111_320 * math.cos(math.radians(lat)))
-        if d <= SANGWON_AUTO_MATCH_M and (best is None or d < best[0]):
-            best = (d, str(code))
-    return (best[1], round(best[0])) if best else (None, None)
+    nearest = min(nearby, default=None)
+    return (nearest[1], round(nearest[0])) if nearest else (None, None)
 
 
 def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
@@ -1670,6 +1681,41 @@ def _get_media_or_404(db: Session, media_id: str) -> Media:
     return m
 
 
+# 유동인구 단계 — (단계, 월평균 하한). 서울 고정 매체(야립 제외)의 월평균 유동인구로 자동으로 매긴다.
+# 2026-10-15 운영 서울 고정 매체 536개 분포에서 매체 수가 고르게 나뉘게 정했다(5→1단계 14·16·21·31·18%).
+POPULATION_TIERS: tuple[tuple[int, int], ...] = ((5, 2_000_000), (4, 1_000_000), (3, 700_000), (2, 400_000), (1, 0))
+# 유동인구 대신 차량 교통량으로 평가할 매체(소분류) — 교통량 데이터는 아직 없다.
+_VEHICLE_AUDIENCE_CATEGORIES = {"야립빌보드"}
+
+
+def population_tier(db: Session, m: Media) -> dict:
+    """어드민 등급 설문 위 "유동인구 단계" — 단계(1~5, 없으면 None)·월평균·기준 장소, 매기지 않는 이유, 단계 기준표.
+    월평균은 매체 정보 팝업과 같은 값(직접 입력 → 서울시 상권)이다.
+    """
+    tiers = [
+        dict(tier=tier, min=low, max=POPULATION_TIERS[i - 1][1] if i else None)
+        for i, (tier, low) in enumerate(POPULATION_TIERS)
+    ]
+    if m.media_source == "MOVING":
+        excluded = "이동 매체는 유동인구 단계를 매기지 않아요."
+    elif not (m.city or "").startswith("서울"):
+        excluded = "지금은 서울 매체만 데이터로 매겨요. 아래 '주변 유동인구' 질문으로 대신 점수를 매겨요."
+    elif m.category_small in _VEHICLE_AUDIENCE_CATEGORIES:
+        excluded = "야립 광고는 유동인구 대신 아래 '차량 통행량' 질문으로 점수를 매겨요(교통량 데이터가 생기면 자동으로)."
+    else:
+        excluded = None
+    pop = None if excluded else (_manual_population(m) or _sangwon_population(db, m.sangwon_code))
+    monthly = pop["populationMax"] if pop else None
+    tier = next(t for t, low in POPULATION_TIERS if monthly >= low) if monthly is not None else None
+    return dict(
+        tier=tier,
+        monthly=monthly,
+        place=pop["placeName"] if pop else None,
+        excluded=excluded,
+        tiers=tiers,
+    )
+
+
 def get_admin_media(db: Session, media_id: str) -> dict:
     m = _get_media_or_404(db, media_id)
     data = _serialize_media(m)
@@ -1681,6 +1727,8 @@ def get_admin_media(db: Session, media_id: str) -> dict:
     data["new_badge"] = new_badge_status(m)
     # 위치·인구 탭 "인구 데이터" 안내 — 직접 입력이 없을 때 팝업에 대신 보이는 서울시 상권 월평균 유동인구.
     data["sangwon_population"] = _sangwon_population(db, m.sangwon_code)
+    # 등급·추천 탭 "유동인구 단계" — 저장된 값 기준으로 자동.
+    data["population_tier"] = population_tier(db, m)
     return data
 
 

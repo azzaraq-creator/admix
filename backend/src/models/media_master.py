@@ -34,7 +34,7 @@ class Media(Base):
 
     media_id = Column(String(20), primary_key=True)
     source_detail_id = Column(BigInteger, nullable=True, unique=True)
-    # 이어진 서울 상권(sangwon_area)과 거리(m) — ai_index 동기화가 정한다(원천 연결 → 좌표로 가장 가까운 상권).
+    # 이어진 서울 상권(sangwon_area)과 거리(m) — ai_index 동기화가 정한다(match_sangwon — 반경 500m 안 가장 붐비는 상권 → 원천 연결 → 가장 가까운 상권).
     sangwon_code = Column(String(20), nullable=True)
     sangwon_distance_m = Column(Integer, nullable=True)
     name = Column(String(300), nullable=True)
@@ -110,6 +110,10 @@ class Media(Base):
     gangnam_dong_grade = Column(String(1), nullable=True)
     gangnam_grade_reason = Column(Text, nullable=True)
     grade_method = Column(String(100), nullable=True)
+    # 등급 설문 답 — {질문 ID: 고른 답 값}. 질문은 프론트 gradeSurveyQuestions.ts(매체 종류마다 다르다).
+    grade_survey = Column(JSONB(none_as_null=True), nullable=True)
+    # 최종 등급을 관리자가 직접 골랐는지 — false 면 어드민 폼이 등급 설문 점수로 자동으로 정한다.
+    final_grade_manual = Column(Boolean, nullable=False, default=False, server_default="false")
     grade_evidence = Column(Text, nullable=True)
     area_evidence = Column(Text, nullable=True)
     ind_evidence = Column(Text, nullable=True)
