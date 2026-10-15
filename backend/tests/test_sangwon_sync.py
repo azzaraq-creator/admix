@@ -93,3 +93,50 @@ def test_population_fact():
                    populationMax=2477865, malePct=47, femalePct=53)
     assert ms.population_fact(monthly) == "월평균 유동인구(강남역 상권 · 2026년 2분기): 2,477,865명, 남 47% / 여 53%"
     assert ms.population_fact(None) is None
+
+
+def test_to_row_keeps_weekday_and_hour():
+    api = _api_row("1") | {
+        "TMZON_00_06_FLPOP_CO": 50.0, "TMZON_21_24_FLPOP_CO": 30.0,
+        "MON_FLPOP_CO": 40.0, "TUES_FLPOP_CO": 41.0, "THUR_FLPOP_CO": 43.0, "SUN_FLPOP_CO": 46.0,
+    }
+    r = ss._to_row(api)
+    assert (r["hour_00_06"], r["hour_21_24"]) == (50, 30)
+    assert (r["mon_foot"], r["tue_foot"], r["thu_foot"], r["sun_foot"]) == (40, 41, 43, 46)
+    assert r["wed_foot"] is None  # 원천에 없으면 비운다
+
+
+def test_refill_quarters_overwrites_given_quarters():
+    db = MagicMock()
+    settings = type("S", (), {"seoul_openapi_key": "k"})()
+    rows = {"20261": [ss._to_row(_api_row("1", "20261"))], "20262": []}
+    with patch.object(ss, "get_settings", return_value=settings), patch.object(
+        ss, "fetch_quarter", side_effect=lambda q, key: rows[q]
+    ):
+        assert ss.refill_quarters(db, ["20261", "20262"]) == {"20261": 1, "20262": 0}
+    assert db.execute.call_count == 1 and db.commit.call_count == 1
+
+
+def test_weekday_counts_in_quarter():
+    # 2026년 2분기는 91일(딱 13주), 2025년 4분기는 92일(10/1 수 ~ 12/31 수 — 수요일만 14번).
+    assert ms._weekday_counts("20262") == [13] * 7
+    assert ms._weekday_counts("20254") == [13, 13, 14, 13, 13, 13, 13]
+    assert ms._weekday_counts("2026") is None
+
+
+def test_weekday_daily_divides_by_weekday_count():
+    row = type("R", (), dict(
+        mon_foot=1300, tue_foot=1300, wed_foot=1400, thu_foot=1300,
+        fri_foot=1300, sat_foot=2600, sun_foot=650,
+    ))()
+    daily = ms._weekday_daily(row, "20254")
+    assert [d["label"] for d in daily] == ["월", "화", "수", "목", "금", "토", "일"]
+    assert [d["value"] for d in daily] == [100, 100, 100, 100, 100, 200, 50]
+
+
+def test_weekday_daily_none_when_columns_empty():
+    row = type("R", (), dict(
+        mon_foot=None, tue_foot=None, wed_foot=None, thu_foot=None,
+        fri_foot=None, sat_foot=None, sun_foot=None,
+    ))()
+    assert ms._weekday_daily(row, "20262") is None

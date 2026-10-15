@@ -32,6 +32,8 @@ export type MediaDetailPopulationVM = {
   ageRatios: MediaDetailAgeRatio[];
   mainAudience: { gender: string; age: string }[];
   genderRatio: { male: number; female: number };
+  /** 월~일 하루 평균 유동인구 — 서울시 상권 값에 요일 값이 있을 때만. */
+  weekdayDaily: { label: string; value: number }[] | null;
 };
 
 export type MediaDetailViewModel = {
@@ -138,6 +140,7 @@ export function toMediaDetailViewModel(
             },
           ],
           genderRatio: { male: pop.malePct, female: pop.femalePct },
+          weekdayDaily: pop.weekdayDaily?.length ? pop.weekdayDaily : null,
         }
       : null,
   };

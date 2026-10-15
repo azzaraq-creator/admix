@@ -2,7 +2,8 @@
 
 - 서울 열린데이터광장 OpenAPI `VwsmTrdarFlpopQq`(상권 약 1,650곳, 분기마다 공개). 키는 실시간 인구와 같다.
 - DB에 있는 마지막 분기 다음 분기부터 차례로 받아, 서울시가 아직 공개하지 않은 분기를 만나면 멈춘다.
-- 값은 분기 합계다(요일별·시간대별 값을 더하면 총 유동인구와 같다). 화면의 월평균은 3으로 나눠 보여 준다.
+- 값은 분기 합계다(요일별·시간대별 값을 더하면 총 유동인구와 같다). 화면의 월평균은 3으로 나눠 보여 주고,
+  요일별은 분기 안 그 요일 수로 나눠 하루 평균으로 보여 준다.
 - 매체 정보 팝업은 그 상권의 가장 최신 분기, 매체 정렬(비율순)은 DB 전체의 최신 분기를 쓴다.
 
 백엔드가 켜져 있는 동안 하루 한 번 start_daily_sync() 스레드가 sync_new_quarters()를 부른다.
@@ -37,11 +38,15 @@ _UPSERT = text(
     INSERT INTO sangwon_population (
         sangwon_code, quarter_code, sangwon_name, total_foot_traffic,
         male_foot, female_foot,
-        age_10_foot, age_20_foot, age_30_foot, age_40_foot, age_50_foot, age_60_foot
+        age_10_foot, age_20_foot, age_30_foot, age_40_foot, age_50_foot, age_60_foot,
+        hour_00_06, hour_06_11, hour_11_14, hour_14_17, hour_17_21, hour_21_24,
+        mon_foot, tue_foot, wed_foot, thu_foot, fri_foot, sat_foot, sun_foot
     ) VALUES (
         :sangwon_code, :quarter_code, :sangwon_name, :total_foot_traffic,
         :male_foot, :female_foot,
-        :age_10_foot, :age_20_foot, :age_30_foot, :age_40_foot, :age_50_foot, :age_60_foot
+        :age_10_foot, :age_20_foot, :age_30_foot, :age_40_foot, :age_50_foot, :age_60_foot,
+        :hour_00_06, :hour_06_11, :hour_11_14, :hour_14_17, :hour_17_21, :hour_21_24,
+        :mon_foot, :tue_foot, :wed_foot, :thu_foot, :fri_foot, :sat_foot, :sun_foot
     )
     ON CONFLICT (sangwon_code, quarter_code) DO UPDATE SET
         sangwon_name = EXCLUDED.sangwon_name,
@@ -53,7 +58,20 @@ _UPSERT = text(
         age_30_foot = EXCLUDED.age_30_foot,
         age_40_foot = EXCLUDED.age_40_foot,
         age_50_foot = EXCLUDED.age_50_foot,
-        age_60_foot = EXCLUDED.age_60_foot
+        age_60_foot = EXCLUDED.age_60_foot,
+        hour_00_06 = EXCLUDED.hour_00_06,
+        hour_06_11 = EXCLUDED.hour_06_11,
+        hour_11_14 = EXCLUDED.hour_11_14,
+        hour_14_17 = EXCLUDED.hour_14_17,
+        hour_17_21 = EXCLUDED.hour_17_21,
+        hour_21_24 = EXCLUDED.hour_21_24,
+        mon_foot = EXCLUDED.mon_foot,
+        tue_foot = EXCLUDED.tue_foot,
+        wed_foot = EXCLUDED.wed_foot,
+        thu_foot = EXCLUDED.thu_foot,
+        fri_foot = EXCLUDED.fri_foot,
+        sat_foot = EXCLUDED.sat_foot,
+        sun_foot = EXCLUDED.sun_foot
     """
 )
 
@@ -217,6 +235,19 @@ def _to_row(r: dict) -> dict:
         age_40_foot=_int(r.get("AGRDE_40_FLPOP_CO")),
         age_50_foot=_int(r.get("AGRDE_50_FLPOP_CO")),
         age_60_foot=_int(r.get("AGRDE_60_ABOVE_FLPOP_CO")),
+        hour_00_06=_int(r.get("TMZON_00_06_FLPOP_CO")),
+        hour_06_11=_int(r.get("TMZON_06_11_FLPOP_CO")),
+        hour_11_14=_int(r.get("TMZON_11_14_FLPOP_CO")),
+        hour_14_17=_int(r.get("TMZON_14_17_FLPOP_CO")),
+        hour_17_21=_int(r.get("TMZON_17_21_FLPOP_CO")),
+        hour_21_24=_int(r.get("TMZON_21_24_FLPOP_CO")),
+        mon_foot=_int(r.get("MON_FLPOP_CO")),
+        tue_foot=_int(r.get("TUES_FLPOP_CO")),
+        wed_foot=_int(r.get("WED_FLPOP_CO")),
+        thu_foot=_int(r.get("THUR_FLPOP_CO")),
+        fri_foot=_int(r.get("FRI_FLPOP_CO")),
+        sat_foot=_int(r.get("SAT_FLPOP_CO")),
+        sun_foot=_int(r.get("SUN_FLPOP_CO")),
     )
 
 
@@ -237,6 +268,21 @@ def fetch_quarter(quarter: str, key: str) -> list[dict]:
         start += PAGE_SIZE
         if not page or start > total:
             return rows
+
+
+def refill_quarters(db: Session, quarters: list[str]) -> dict[str, int]:
+    """이미 있는 분기를 서울시에서 다시 받아 덮어쓴다(빠졌던 칸 채우기용). 분기 → 넣은 상권 수."""
+    key = get_settings().seoul_openapi_key
+    if not key:
+        return {}
+    done: dict[str, int] = {}
+    for quarter in quarters:
+        rows = fetch_quarter(quarter, key)
+        if rows:
+            db.execute(_UPSERT, rows)
+            db.commit()
+        done[quarter] = len(rows)
+    return done
 
 
 def latest_quarter_in_db(db: Session) -> str | None:

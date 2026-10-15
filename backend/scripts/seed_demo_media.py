@@ -349,6 +349,14 @@ def _area(address: str) -> str:
     return f"{gu} {dong}".strip()
 
 
+# 요일 분포(월~일, 합 100) — 오피스가(평일 많음)·번화가(주말 많음)·고른 곳.
+WEEKDAY_PROFILES = [
+    [16, 16, 16, 16, 16, 10, 10],
+    [12, 12, 13, 13, 16, 18, 16],
+    [14, 14, 14, 14, 15, 15, 14],
+]
+
+
 def _population(i: int) -> tuple[int, int, list[int]]:
     if i in POPULATION:
         return POPULATION[i]
@@ -582,6 +590,13 @@ def _ensure_population_tables(db) -> None:
             age_40_foot        bigint,
             age_50_foot        bigint,
             age_60_foot        bigint,
+            mon_foot           bigint,
+            tue_foot           bigint,
+            wed_foot           bigint,
+            thu_foot           bigint,
+            fri_foot           bigint,
+            sat_foot           bigint,
+            sun_foot           bigint,
             PRIMARY KEY (sangwon_code, quarter_code)
         )
         """
@@ -611,9 +626,11 @@ def _seed_population(
             INSERT INTO sangwon_population (
                 sangwon_code, quarter_code, sangwon_name, total_foot_traffic,
                 male_foot, female_foot,
-                age_10_foot, age_20_foot, age_30_foot, age_40_foot, age_50_foot, age_60_foot
+                age_10_foot, age_20_foot, age_30_foot, age_40_foot, age_50_foot, age_60_foot,
+                mon_foot, tue_foot, wed_foot, thu_foot, fri_foot, sat_foot, sun_foot
             ) VALUES (
-                :code, :q, :name, :total, :male, :female, :a10, :a20, :a30, :a40, :a50, :a60
+                :code, :q, :name, :total, :male, :female, :a10, :a20, :a30, :a40, :a50, :a60,
+                :d0, :d1, :d2, :d3, :d4, :d5, :d6
             )
             """
         ),
@@ -622,6 +639,7 @@ def _seed_population(
             "male": total - female, "female": female,
             "a10": age_foot[0], "a20": age_foot[1], "a30": age_foot[2],
             "a40": age_foot[3], "a50": age_foot[4], "a60": age_foot[5],
+            **{f"d{i}": round(total * pct / 100) for i, pct in enumerate(WEEKDAY_PROFILES[loc % 3])},
         },
     )
 

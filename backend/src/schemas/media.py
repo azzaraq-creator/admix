@@ -166,6 +166,11 @@ class MediaAgeRatio(BaseModel):
     bound: str | None = None
 
 
+class MediaWeekdayPopulation(BaseModel):
+    label: str  # 월 ~ 일
+    value: int  # 그 요일 하루 평균 유동인구(명)
+
+
 class MediaPopulation(BaseModel):
     """매체 정보 팝업의 인구 카드.
 
@@ -184,6 +189,8 @@ class MediaPopulation(BaseModel):
     femalePct: int
     ageRatios: list[MediaAgeRatio]
     measuredAt: str | None  # 서울시 기준 시각 "YYYY-MM-DD HH:MM"
+    # sangwon 만: 월~일 하루 평균(같은 분기). 요일 값이 없는 분기·직접 입력·실시간은 None.
+    weekdayDaily: list[MediaWeekdayPopulation] | None = None
 
 
 class MediaDetail(BaseModel):

@@ -122,6 +122,8 @@ export interface MediaPopulation {
   ageRatios: MediaAgeRatio[];
   /** 서울시 기준 시각 "YYYY-MM-DD HH:MM" */
   measuredAt: string | null;
+  /** sangwon 만 — 월~일 하루 평균 유동인구(같은 분기). 요일 값이 없으면 null. */
+  weekdayDaily?: { label: string; value: number }[] | null;
 }
 
 export interface MediaDetail {

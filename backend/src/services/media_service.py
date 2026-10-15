@@ -8,7 +8,7 @@ import json
 import math
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -1194,11 +1194,44 @@ def match_sangwon(db: Session, m: Media) -> tuple[str | None, int | None]:
     return (nearest[1], round(nearest[0])) if nearest else (None, None)
 
 
+_WEEKDAYS = [
+    ("월", "mon_foot"), ("화", "tue_foot"), ("수", "wed_foot"), ("목", "thu_foot"),
+    ("금", "fri_foot"), ("토", "sat_foot"), ("일", "sun_foot"),
+]
+
+
+def _weekday_counts(quarter_code: str) -> list[int] | None:
+    """분기 안 월~일 각각의 날 수 — "20262" → 2026-04-01 ~ 06-30. 형식이 다르면 None."""
+    if len(quarter_code) != 5 or not quarter_code.isdigit() or not 1 <= int(quarter_code[4]) <= 4:
+        return None
+    year, q = int(quarter_code[:4]), int(quarter_code[4])
+    start = date(year, 3 * q - 2, 1)
+    end = date(year + 1, 1, 1) if q == 4 else date(year, 3 * q + 1, 1)
+    counts = [0] * 7
+    for i in range((end - start).days):
+        counts[(start + timedelta(days=i)).weekday()] += 1
+    return counts
+
+
+def _weekday_daily(row, quarter_code: str) -> list[dict] | None:
+    """요일별 하루 평균 유동인구 — 서울시 요일 값은 분기 동안 그 요일 합계라 그 요일 수로 나눈다.
+    요일 칸이 비어 있으면(예전 동기화로 들어온 분기) None."""
+    counts = _weekday_counts(quarter_code)
+    values = [getattr(row, col, None) for _, col in _WEEKDAYS]
+    if counts is None or any(v is None for v in values) or not any(values):
+        return None
+    return [
+        dict(label=label, value=round(v / n))
+        for (label, _), v, n in zip(_WEEKDAYS, values, counts)
+    ]
+
+
 def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
     """상권의 월평균 유동인구 — media.sangwon_code(match_sangwon 이 정한 상권).
 
     그 상권의 가장 최신 분기(서울시 상권분석서비스, sangwon_sync 가 채운다)를 쓴다 — 새 분기에 빠진
     상권도 직전 분기 값이 보이게. 서울시 값은 분기 합계라 3으로 나눠 월평균으로 보여 준다(비율은 그대로).
+    요일별은 하루 평균(weekdayDaily, _weekday_daily).
     연결이 없거나 유동량 0이면 None.
     """
     if not sangwon_code:
@@ -1209,7 +1242,9 @@ def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
             SELECT sp.quarter_code, sp.sangwon_name, sp.total_foot_traffic,
                    sp.male_foot, sp.female_foot,
                    sp.age_10_foot, sp.age_20_foot, sp.age_30_foot,
-                   sp.age_40_foot, sp.age_50_foot, sp.age_60_foot
+                   sp.age_40_foot, sp.age_50_foot, sp.age_60_foot,
+                   sp.mon_foot, sp.tue_foot, sp.wed_foot, sp.thu_foot,
+                   sp.fri_foot, sp.sat_foot, sp.sun_foot
             FROM sangwon_population sp
             WHERE CAST(sp.sangwon_code AS TEXT) = :code AND sp.total_foot_traffic > 0
             ORDER BY sp.quarter_code DESC
@@ -1249,6 +1284,7 @@ def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
             for label, val, bound in age_buckets
         ],
         measuredAt=None,
+        weekdayDaily=_weekday_daily(row, row.quarter_code),
     )
 
 

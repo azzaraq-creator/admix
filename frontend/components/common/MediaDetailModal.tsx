@@ -10,6 +10,7 @@ import {
   Tabs,
   ToggleButton,
 } from "@heroui/react";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
 import { formatAdFee } from "@/lib/media";
@@ -832,6 +833,12 @@ function Description({ text }: { text: string }) {
 
 const AGE_MAX_BAR_HEIGHT = 76;
 
+// 차트 라이브러리(Recharts)는 "요일별 보기"를 눌러 그래프를 그릴 때만 불러온다.
+const WeekdayPopulationChart = dynamic(
+  () => import("@/components/common/WeekdayPopulationChart"),
+  { ssr: false, loading: () => <div className="h-[120px]" /> },
+);
+
 /** 서울시 혼잡도 4단계 → 칩 색. */
 const CONGEST_CHIP: Record<string, string> = {
   여유: "bg-success-bg text-success",
@@ -870,9 +877,17 @@ function PopulationCard({
               </p>
             )}
           </div>
-          <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
-            {population.populationText}명
-          </p>
+          <div className="flex items-baseline gap-[8px]">
+            <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
+              {population.populationText}명
+            </p>
+            {population.weekdayDaily && (
+              <WeekdayPopover
+                data={population.weekdayDaily}
+                caption={population.caption}
+              />
+            )}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-[4px]">
           {population.congestLevel && (
@@ -989,5 +1004,50 @@ function PopulationCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 인구 카드의 "요일별 보기" — 누르면 월~일 하루 평균 막대를 작은 팝업(HeroUI Popover)으로 띄운다.
+ * 바깥 클릭·Esc로 닫힌다. 카드 크기는 그대로 둔다.
+ */
+function WeekdayPopover({
+  data,
+  caption,
+}: {
+  data: { label: string; value: number }[];
+  caption: string;
+}) {
+  return (
+    <Popover>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto min-w-0 gap-[2px] p-0 text-[12px] font-medium text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+      >
+        요일별 보기
+      </Button>
+      <Popover.Content
+        placement="bottom start"
+        className="w-[340px] max-w-[calc(100vw-32px)] rounded-[16px]"
+      >
+        {/* "요일별 보기" 버튼을 가리키는 꼬리. */}
+        <Popover.Arrow />
+        <Popover.Dialog className="flex flex-col gap-[8px] px-[16px] pt-[14px] pb-[10px]">
+          <div className="flex flex-col gap-[2px]">
+            <Popover.Heading className="text-[13px] font-semibold text-[#18181b]">
+              요일별 유동인구
+              <Chip className="ml-[6px] rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] align-middle text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
+                하루 평균
+              </Chip>
+            </Popover.Heading>
+            <p className="text-[11px] leading-[1.4] font-medium text-gray-400">
+              {caption}
+            </p>
+          </div>
+          <WeekdayPopulationChart data={data} height={150} />
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
   );
 }
