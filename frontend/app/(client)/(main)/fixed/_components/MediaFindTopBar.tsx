@@ -76,11 +76,12 @@ export function MediaFindTopBar({
   };
 
   return (
-    // 모바일은 검색창을 첫 줄 전체에 두고, 필터·초기화·정렬을 둘째 줄로 내린다.
-    <div className="flex items-center gap-[10px] max-sm:flex-wrap max-sm:gap-[8px]">
+    // 모바일·태블릿은 검색창을 첫 줄 전체에 두고, 필터·초기화·정렬을 둘째 줄로 내린다
+    // (태블릿 폭에서 한 줄에 두면 정렬·지도 버튼이 필터 위로 겹친다).
+    <div className="flex items-center gap-[10px] max-lg:flex-wrap max-sm:gap-[8px]">
       <div
         ref={searchBoxRef}
-        className="relative min-w-0 flex-1 max-sm:basis-full sm:max-w-[594px]"
+        className="relative min-w-0 flex-1 max-lg:basis-full lg:max-w-[594px]"
       >
         {/* 돋보기의 좌측 여백은 상하 여백과 같아야 한다 — 테두리 1px을 뺀 안쪽
             높이 43px에서 20px 아이콘이 가운데 서면 위아래가 11.5px씩이다. */}
