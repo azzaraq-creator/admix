@@ -246,10 +246,35 @@ def _save(db: Session, kind: str, day: str, rows: list[dict]) -> None:
     logger.info("%s 승하차 %s %d곳 저장", "지하철" if kind == "subway" else "버스", day, len(rows))
 
 
+def earliest_day_in_db(db: Session, kind: str) -> str | None:
+    return db.execute(
+        text("SELECT min(use_date) FROM transit_ridership WHERE kind = :kind"), {"kind": kind}
+    ).scalar()
+
+
+def backfill_days(db: Session, kind: str, key: str) -> list[str]:
+    """DB 가장 오래된 날 앞으로 KEEP_DAYS 안쪽 날들을 거슬러 받아 넣는다(이미 채워졌으면 아무것도 안 함)."""
+    earliest = earliest_day_in_db(db, kind)
+    if earliest is None:
+        return []
+    cutoff = (dt.datetime.strptime(_today(), "%Y%m%d") - dt.timedelta(days=KEEP_DAYS)).strftime("%Y%m%d")
+    added: list[str] = []
+    day = prev_day(earliest)
+    while day >= cutoff:
+        rows = fetch_day(kind, day, key)
+        if not rows:
+            break
+        _save(db, kind, day, rows)
+        added.append(f"{kind}:{day}")
+        day = prev_day(day)
+    return added
+
+
 def sync_new_days(db: Session) -> list[str]:
     """종류마다 DB 마지막 날 다음 날부터 어제까지 공개된 날을 받아 넣는다. 넣은 "subway:20261011" 같은 목록을 돌려준다.
 
     DB가 비어 있으면 어제부터 FIRST_LOOKBACK_DAYS 일 거슬러 공개된 가장 최근 하루만 받는다(처음에 오래 걸리지 않게).
+    지하철은 이어서 KEEP_DAYS 안쪽 지난 날들도 거슬러 채운다(backfill_days).
     """
     key = get_settings().seoul_openapi_key
     if not key:
@@ -279,6 +304,8 @@ def sync_new_days(db: Session) -> list[str]:
             _save(db, kind, day, rows)
             added.append(f"{kind}:{day}")
             day = next_day(day)
+    # 지하철은 KEEP_DAYS 동안을 채워 둔다 — 지하철역 안 매체의 월평균·요일별 승하차(media_service._station_population).
+    added += backfill_days(db, "subway", key)
     if added:
         cutoff = (dt.date.today() - dt.timedelta(days=KEEP_DAYS)).strftime("%Y%m%d")
         db.execute(text("DELETE FROM transit_ridership WHERE use_date < :cutoff"), {"cutoff": cutoff})

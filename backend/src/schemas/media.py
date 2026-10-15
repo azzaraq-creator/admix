@@ -177,9 +177,10 @@ class MediaPopulation(BaseModel):
     source="realtime": 서울시 실시간 도시데이터(주요 121장소) — 매체와 이어진 장소 기준.
     source="manual": 어드민에서 직접 입력한 월평균 유동인구(min = max).
     source="sangwon": 서울시 상권 데이터의 월평균 유동인구(min = max).
+    source="station": 지하철역 안 매체 — 그 역의 월평균 승하차(min = max). 성별·연령은 상권 값.
     """
 
-    source: Literal["realtime", "manual", "sangwon"]
+    source: Literal["realtime", "manual", "sangwon", "station"]
     # realtime: 장소 이름, manual: 입력한 기준(예: "2025년 3분기"), sangwon: "OO 상권 · 2025년 4분기"
     placeName: str
     congestLevel: str | None  # 여유 / 보통 / 약간 붐빔 / 붐빔
@@ -189,7 +190,7 @@ class MediaPopulation(BaseModel):
     femalePct: int
     ageRatios: list[MediaAgeRatio]
     measuredAt: str | None  # 서울시 기준 시각 "YYYY-MM-DD HH:MM"
-    # sangwon 만: 월~일 하루 평균(같은 분기). 요일 값이 없는 분기·직접 입력·실시간은 None.
+    # sangwon: 월~일 하루 평균(같은 분기), station: 같은 요일 날들의 하루 평균 승하차. 그 밖은 None.
     weekdayDaily: list[MediaWeekdayPopulation] | None = None
 
 

@@ -108,9 +108,10 @@ export interface MediaAgeRatio {
  * realtime: 서울시 실시간 도시데이터(주요 121장소) — 매체와 이어진 장소 기준.
  * manual: 어드민에서 직접 입력한 월평균 유동인구(min = max).
  * sangwon: 서울시 상권 데이터의 월평균 유동인구(min = max).
+ * station: 지하철역 안 매체 — 그 역의 월평균 승하차(min = max). 성별·연령은 상권 값.
  */
 export interface MediaPopulation {
-  source: "realtime" | "manual" | "sangwon";
+  source: "realtime" | "manual" | "sangwon" | "station";
   /** realtime: 장소 이름, manual: 입력한 기준(예: "2025년 3분기"), sangwon: "OO 상권 · 2025년 4분기" */
   placeName: string;
   /** 여유 / 보통 / 약간 붐빔 / 붐빔 */
@@ -122,7 +123,7 @@ export interface MediaPopulation {
   ageRatios: MediaAgeRatio[];
   /** 서울시 기준 시각 "YYYY-MM-DD HH:MM" */
   measuredAt: string | null;
-  /** sangwon 만 — 월~일 하루 평균 유동인구(같은 분기). 요일 값이 없으면 null. */
+  /** 월~일 하루 평균 — sangwon: 같은 분기 유동인구, station: 같은 요일 날들의 승하차. 없으면 null. */
   weekdayDaily?: { label: string; value: number }[] | null;
 }
 

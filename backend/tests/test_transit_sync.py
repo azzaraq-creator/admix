@@ -58,7 +58,9 @@ def test_sync_new_days_stops_at_unpublished_and_before_today():
         ts, "stations_in_db", return_value=10
     ), patch.object(ts, "_today", return_value="20261014"), patch.object(
         ts, "latest_day_in_db", side_effect=lambda db, kind: {"subway": "20261009", "bus": "20261010"}[kind]
-    ), patch.object(ts, "fetch_day", side_effect=fetch) as fetched, patch.object(ts, "_save") as save:
+    ), patch.object(ts, "fetch_day", side_effect=fetch) as fetched, patch.object(ts, "_save") as save, patch.object(
+        ts, "backfill_days", return_value=[]
+    ):
         added = ts.sync_new_days(db)
     assert added == ["subway:20261010", "subway:20261011", "bus:20261011"]
     # 공개 안 된 날(12일)에서 멈추고 오늘(14일)은 묻지 않는다.
@@ -76,7 +78,7 @@ def test_sync_new_days_first_run_takes_latest_published():
         ts, "latest_day_in_db", return_value=None
     ), patch.object(
         ts, "fetch_day", side_effect=lambda kind, day, key: [{}] if day == "20261011" else []
-    ), patch.object(ts, "_save"):
+    ), patch.object(ts, "_save"), patch.object(ts, "backfill_days", return_value=[]):
         assert ts.sync_new_days(db) == ["subway:20261011", "bus:20261011"]
 
 
@@ -99,3 +101,25 @@ def test_get_json_retries_bad_response():
     good.json.return_value = {"ok": 1}
     with patch.object(ts.httpx, "get", side_effect=[bad, good]), patch.object(ts.time, "sleep"):
         assert ts._get_json("u") == {"ok": 1}
+
+
+def test_backfill_days_goes_back_to_keep_days():
+    db = MagicMock()
+    with patch.object(ts, "_today", return_value="20261015"), patch.object(
+        ts, "earliest_day_in_db", return_value="20260916"
+    ), patch.object(ts, "fetch_day", return_value=[{"station_id": "x"}]) as fetched, patch.object(ts, "_save"):
+        added = ts.backfill_days(db, "subway", "k")
+    # 오늘(15일)에서 KEEP_DAYS(31일) 전인 9월 14일까지만 거슬러 받는다.
+    assert added == ["subway:20260915", "subway:20260914"]
+    assert fetched.call_count == 2
+
+
+def test_backfill_days_nothing_when_empty_or_unpublished():
+    db = MagicMock()
+    with patch.object(ts, "earliest_day_in_db", return_value=None):
+        assert ts.backfill_days(db, "subway", "k") == []
+    with patch.object(ts, "_today", return_value="20261015"), patch.object(
+        ts, "earliest_day_in_db", return_value="20261010"
+    ), patch.object(ts, "fetch_day", return_value=[]), patch.object(ts, "_save") as save:
+        assert ts.backfill_days(db, "subway", "k") == []
+    save.assert_not_called()

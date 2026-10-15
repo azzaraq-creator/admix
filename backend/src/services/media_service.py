@@ -1288,6 +1288,87 @@ def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
     )
 
 
+# 지하철역 안 매체 — 분류가 지하철이고 이 거리(m) 안에 서울 지하철역이 있으면 그 역의 승하차 수를 쓴다.
+STATION_MEDIA_CATEGORY = "지하철"
+STATION_MEDIA_MAX_M = 300
+# 승하차가 이만큼 쌓인 역만 쓴다(그 전엔 상권 값) — 요일이 한 번씩은 들어가게.
+STATION_MIN_DAYS = 7
+_DAYS_PER_MONTH = 365 / 12
+_WEEKDAY_LABELS = [label for label, _ in _WEEKDAYS]
+
+
+def _nearest_subway_station(db: Session, m: Media) -> tuple[str, str] | None:
+    """매체 좌표에서 STATION_MEDIA_MAX_M 안 가장 가까운 서울 지하철역 (station_id, 이름)."""
+    if m.latitude is None or m.longitude is None:
+        return None
+    lat, lng = float(m.latitude), float(m.longitude)
+    dlat = STATION_MEDIA_MAX_M / 110_540
+    dlng = STATION_MEDIA_MAX_M / (111_320 * math.cos(math.radians(lat)))
+    rows = db.execute(
+        text(
+            """
+            SELECT station_id, name, latitude, longitude FROM transit_station
+            WHERE kind = 'subway'
+              AND latitude BETWEEN :lat0 AND :lat1 AND longitude BETWEEN :lng0 AND :lng1
+            """
+        ),
+        {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
+    ).all()
+    best = None
+    for sid, name, slat, slng in rows:
+        d = math.hypot((slat - lat) * 110_540, (slng - lng) * 111_320 * math.cos(math.radians(lat)))
+        if d <= STATION_MEDIA_MAX_M and (best is None or d < best[0]):
+            best = (d, sid, name)
+    return (best[1], best[2]) if best else None
+
+
+def _station_population(db: Session, m: Media) -> dict | None:
+    """지하철역 안 매체의 월평균 승하차 — 그 역의 최근 날들(transit_ridership, 최대 약 한 달) 하루 평균 × 한 달.
+
+    서울시 상권 유동인구는 땅 위 길거리만 세서 역·지하상가가 붐비는 곳(고속터미널 등)이 실제보다 훨씬 적게 나온다.
+    승하차에는 성별·연령이 없어 비율은 그 매체의 상권 값을 쓴다(상권이 없으면 None — 상권 값도 없는 매체).
+    요일별은 같은 요일 날들의 평균.
+    """
+    if m.category_large != STATION_MEDIA_CATEGORY:
+        return None
+    station = _nearest_subway_station(db, m)
+    if station is None:
+        return None
+    rows = db.execute(
+        text(
+            """
+            SELECT use_date, ride_count + alight_count AS total FROM transit_ridership
+            WHERE station_id = :sid ORDER BY use_date
+            """
+        ),
+        {"sid": station[0]},
+    ).all()
+    if len(rows) < STATION_MIN_DAYS:
+        return None
+    sangwon = _sangwon_population(db, m.sangwon_code)
+    if sangwon is None:
+        return None
+    daily = sum(r.total for r in rows) / len(rows)
+    monthly = round(daily * _DAYS_PER_MONTH)
+    by_weekday: list[list[int]] = [[] for _ in range(7)]
+    for r in rows:
+        by_weekday[datetime.strptime(r.use_date, "%Y%m%d").weekday()].append(r.total)
+    weekday = (
+        [dict(label=label, value=round(sum(v) / len(v))) for label, v in zip(_WEEKDAY_LABELS, by_weekday)]
+        if all(by_weekday)
+        else None
+    )
+    name = station[1] if station[1].endswith("역") else f"{station[1]}역"
+    return dict(
+        sangwon,
+        source="station",
+        placeName=f"{name} · 최근 {len(rows)}일",
+        populationMin=monthly,
+        populationMax=monthly,
+        weekdayDaily=weekday,
+    )
+
+
 def population_fact(pop: dict | None) -> str | None:
     """믹시 매체 설명용 한 줄 — 매체 상세 응답의 population(실시간·월평균)을 글로."""
     if not pop or not pop.get("populationMax"):
@@ -1300,7 +1381,8 @@ def population_fact(pop: dict | None) -> str | None:
         congest = f", 혼잡도 {pop['congestLevel']}" if pop.get("congestLevel") else ""
         return f"실시간 인구({pop.get('placeName')}{when}): {count}{congest}, {gender}"
     basis = f"({pop['placeName']})" if pop.get("placeName") else ""
-    return f"월평균 유동인구{basis}: {pop['populationMax']:,}명, {gender}"
+    title = "월평균 역 승하차" if pop.get("source") == "station" else "월평균 유동인구"
+    return f"{title}{basis}: {pop['populationMax']:,}명, {gender}"
 
 
 def sangwon_population_of(db: Session, media_id: str) -> dict | None:
@@ -1310,15 +1392,20 @@ def sangwon_population_of(db: Session, media_id: str) -> dict | None:
 
 
 def media_population(db: Session, m: Media) -> dict | None:
-    """매체 정보 팝업의 인구 — ① 어드민에서 직접 입력한 월평균 유동인구 ② 서울시 상권 데이터의 월평균
-    유동인구 순으로 먼저 있는 것. 이동 매체는 보여 주지 않는다.
+    """매체 정보 팝업의 인구 — ① 어드민에서 직접 입력한 월평균 유동인구 ② 지하철역 안 매체면 그 역의 월평균
+    승하차(_station_population) ③ 서울시 상권 데이터의 월평균 유동인구 순으로 먼저 있는 것.
+    이동 매체는 보여 주지 않는다.
 
     2026-10-13부터 서울시 실시간 인구(realtime_population)는 보여 주지 않는다 — 시각마다 바뀌어 매체 비교·
     믹시 추천(상권 월평균 기준)과 숫자가 어긋났다. 실시간을 어디에 쓸지는 따로 정한다(함수는 남겨 둔다).
     """
     if m.media_source == "MOVING":
         return None
-    return _manual_population(m) or _sangwon_population(db, m.sangwon_code)
+    return (
+        _manual_population(m)
+        or _station_population(db, m)
+        or _sangwon_population(db, m.sangwon_code)
+    )
 
 
 def proposal_slide_facts(m: Media) -> dict:
@@ -1724,7 +1811,7 @@ _VEHICLE_AUDIENCE_CATEGORIES = {"야립빌보드"}
 
 def population_tier(db: Session, m: Media) -> dict:
     """어드민 등급 설문 위 "유동인구 단계" — 단계(1~5, 없으면 None)·월평균·기준 장소, 매기지 않는 이유, 단계 기준표.
-    월평균은 매체 정보 팝업과 같은 값(직접 입력 → 서울시 상권)이다.
+    월평균은 매체 정보 팝업과 같은 값(직접 입력 → 지하철역 승하차 → 서울시 상권)이다.
     """
     tiers = [
         dict(tier=tier, min=low, max=POPULATION_TIERS[i - 1][1] if i else None)
@@ -1738,7 +1825,7 @@ def population_tier(db: Session, m: Media) -> dict:
         excluded = "야립 광고는 유동인구 대신 아래 '차량 통행량' 질문으로 점수를 매겨요(교통량 데이터가 생기면 자동으로)."
     else:
         excluded = None
-    pop = None if excluded else (_manual_population(m) or _sangwon_population(db, m.sangwon_code))
+    pop = None if excluded else media_population(db, m)
     monthly = pop["populationMax"] if pop else None
     tier = next(t for t, low in POPULATION_TIERS if monthly >= low) if monthly is not None else None
     return dict(

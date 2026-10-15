@@ -140,3 +140,56 @@ def test_weekday_daily_none_when_columns_empty():
         fri_foot=None, sat_foot=None, sun_foot=None,
     ))()
     assert ms._weekday_daily(row, "20262") is None
+
+
+def _station_media(**kw):
+    base = dict(category_large="지하철", latitude=37.5, longitude=127.0, sangwon_code="1")
+    return type("M", (), base | kw)()
+
+
+def _ridership(totals: dict[str, int]):
+    return [type("R", (), dict(use_date=d, total=t))() for d, t in totals.items()]
+
+
+def test_station_population_monthly_and_weekday():
+    # 2026-10-05(월) ~ 10-11(일) 일주일, 하루 1만~1.6만.
+    days = {f"202610{d:02d}": 10_000 + (d - 5) * 1_000 for d in range(5, 12)}
+    db = MagicMock()
+    db.execute.return_value.all.return_value = _ridership(days)
+    sangwon = {"source": "sangwon", "placeName": "상권", "malePct": 40, "femalePct": 60, "ageRatios": [], "weekdayDaily": None}
+    with patch.object(ms, "_nearest_subway_station", return_value=("subway:고속터미널", "고속터미널")), patch.object(
+        ms, "_sangwon_population", return_value=sangwon
+    ):
+        pop = ms._station_population(db, _station_media())
+    assert pop["source"] == "station"
+    assert pop["placeName"] == "고속터미널역 · 최근 7일"
+    assert pop["populationMax"] == round(13_000 * 365 / 12)
+    assert (pop["malePct"], pop["femalePct"]) == (40, 60)  # 비율은 상권 값
+    assert [d["value"] for d in pop["weekdayDaily"]] == [10_000 + i * 1_000 for i in range(7)]
+
+
+def test_station_population_none_cases():
+    db = MagicMock()
+    # 지하철 매체가 아니면 역을 찾지 않는다.
+    with patch.object(ms, "_nearest_subway_station") as near:
+        assert ms._station_population(db, _station_media(category_large="전광판")) is None
+    near.assert_not_called()
+    # 근처에 역이 없거나, 쌓인 날이 일주일이 안 되면 상권 값으로.
+    with patch.object(ms, "_nearest_subway_station", return_value=None):
+        assert ms._station_population(db, _station_media()) is None
+    db.execute.return_value.all.return_value = _ridership({"20261010": 1, "20261011": 2})
+    with patch.object(ms, "_nearest_subway_station", return_value=("subway:a", "a")):
+        assert ms._station_population(db, _station_media()) is None
+
+
+def test_media_population_prefers_station_over_sangwon():
+    m = _station_media(media_source="FIXED")
+    with patch.object(ms, "_manual_population", return_value=None), patch.object(
+        ms, "_station_population", return_value={"source": "station"}
+    ), patch.object(ms, "_sangwon_population", return_value={"source": "sangwon"}):
+        assert ms.media_population(MagicMock(), m)["source"] == "station"
+
+
+def test_population_fact_station_title():
+    pop = {"source": "station", "placeName": "고속터미널역 · 최근 28일", "populationMax": 5_700_000, "malePct": 45, "femalePct": 55}
+    assert ms.population_fact(pop).startswith("월평균 역 승하차(고속터미널역 · 최근 28일): 5,700,000명")

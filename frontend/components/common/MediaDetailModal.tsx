@@ -884,6 +884,7 @@ function PopulationCard({
             {population.weekdayDaily && (
               <WeekdayPopover
                 data={population.weekdayDaily}
+                heading={population.title.replace("월평균", "요일별")}
                 caption={population.caption}
               />
             )}
@@ -1013,9 +1014,12 @@ function PopulationCard({
  */
 function WeekdayPopover({
   data,
+  heading,
   caption,
 }: {
   data: { label: string; value: number }[];
+  /** "요일별 유동인구" / "요일별 역 승하차" */
+  heading: string;
   caption: string;
 }) {
   return (
@@ -1036,7 +1040,7 @@ function WeekdayPopover({
         <Popover.Dialog className="flex flex-col gap-[8px] px-[16px] pt-[14px] pb-[10px]">
           <div className="flex flex-col gap-[2px]">
             <Popover.Heading className="text-[13px] font-semibold text-[#18181b]">
-              요일별 유동인구
+              {heading}
               <Chip className="ml-[6px] rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] align-middle text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
                 하루 평균
               </Chip>

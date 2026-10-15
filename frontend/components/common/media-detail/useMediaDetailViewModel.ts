@@ -20,7 +20,7 @@ export type MediaDetailPlan = {
 };
 
 export type MediaDetailPopulationVM = {
-  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·서울시 상권) */
+  /** "실시간 인구"(서울시) / "월평균 유동인구"(직접 입력·서울시 상권) / "월평균 역 승하차"(지하철역 안 매체) */
   title: string;
   /** 제목 옆 작은 글씨 — "역삼역 · 15:05 기준" / "2025년 3분기" / "OO 상권 · 2025년 4분기" */
   caption: string;
@@ -32,7 +32,7 @@ export type MediaDetailPopulationVM = {
   ageRatios: MediaDetailAgeRatio[];
   mainAudience: { gender: string; age: string }[];
   genderRatio: { male: number; female: number };
-  /** 월~일 하루 평균 유동인구 — 서울시 상권 값에 요일 값이 있을 때만. */
+  /** 월~일 하루 평균 — 서울시 상권(요일 값이 있을 때)·지하철역 승하차. */
   weekdayDaily: { label: string; value: number }[] | null;
 };
 
@@ -65,6 +65,14 @@ export function formatFee(krw: number | null): string {
   if (krw == null) return "최소집행금액 협의";
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
 }
+
+/** 인구 카드 제목 — 지하철역 안 매체는 그 역의 승하차 수라 따로 부른다. */
+const POPULATION_TITLE: Record<MediaPopulation["source"], string> = {
+  realtime: "실시간 인구",
+  manual: "월평균 유동인구",
+  sangwon: "월평균 유동인구",
+  station: "월평균 역 승하차",
+};
 
 /** 인구 카드 제목 옆 설명 — 실시간은 "장소 · 시:분 기준", 월평균은 기준(시기·상권). */
 function populationCaption(pop: MediaPopulation): string {
@@ -121,7 +129,7 @@ export function toMediaDetailViewModel(
             pop.populationMin,
             pop.populationMax,
           ),
-          title: pop.source === "realtime" ? "실시간 인구" : "월평균 유동인구",
+          title: POPULATION_TITLE[pop.source],
           caption: populationCaption(pop),
           congestLevel: pop.congestLevel,
           malePct: pop.malePct,
