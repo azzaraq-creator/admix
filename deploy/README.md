@@ -163,9 +163,10 @@ git pull 이 아니라 로컬 코드를 통째로 EC2 에 동기화한 뒤 컨�
 설정되어 있지 않은 환경에서도 동작해야 하고, 로컬 검증 결과(`docker compose`
 로 돌려본 그 코드 그대로)를 그대로 띄우는 게 가장 안전하기 때문.
 
-**한 줄 흐름**: 로컬 코드 → `rsync` → EC2 → `docker compose up --build` → `alembic upgrade head` → `/health` 확인.
+**한 줄 흐름**: 커밋된 HEAD → `rsync`(삭제 없음) → EC2 → `docker compose build` → `alembic upgrade head` → `up -d` → `/health` 확인.
 
-이 4단계가 `deploy/redeploy.sh` 한 스크립트로 묶여 있다.
+이 단계들이 `deploy/redeploy.sh` 한 스크립트로 묶여 있다. 바뀌는 파일 목록을 보여 주고 확인을 받은 뒤 진행하며,
+끝에 **단계별 걸린 시간**을 찍는다(배포가 어디서 오래 걸리는지 보려고).
 
 ```bash
 bash deploy/redeploy.sh
@@ -178,36 +179,18 @@ bash deploy/redeploy.sh
 | `EC2_HOST` | `ubuntu@43.201.172.34` | EC2 SSH target (신 계정 admix-backend) |
 | `SSH_KEY` | `~/.ssh/admix-key.pem` | SSH 키 위치 |
 | `REPO_DIR` | `/home/ubuntu/ooh-recommend` | EC2 의 monorepo 루트 |
+| `ASSUME_YES` | `0` | `1` 이면 바뀌는 파일 확인을 묻지 않음 |
 
-스크립트가 안에서 실행하는 명령은 아래와 같다 (참고용 — 디버깅 시 수동 실행).
+지킬 것:
 
-```bash
-# 1) 로컬 → EC2 코드 동기화 (.git, node_modules, .env, macOS 메타파일 제외)
-#    ⚠️ 소스는 반드시 monorepo 루트의 **절대경로**. 상대경로 `./` 는 셸 작업디렉토리가
-#    하위폴더면 --delete 가 EC2 레포를 통째로 덮어쓴다(사고 이력). redeploy.sh 는 $ROOT 절대경로 사용.
-#    ⚠️ backend/secrets/(GA4 키)·backend/.env.bak*·seed/ 는 서버 전용이라 배포자 로컬에 없을 수 있다.
-#    exclude 를 빼면 --delete 가 운영 GA4 키를 지운다. 먼저 `-n`(dry-run)으로 삭제 목록을 확인할 것.
-rsync -az --delete \
-  --exclude='.git/' --exclude='node_modules/' --exclude='.next/' \
-  --exclude='*.tsbuildinfo' --exclude='__pycache__/' --exclude='.pytest_cache/' \
-  --exclude='.venv/' --exclude='venv/' \
-  --exclude='.DS_Store' --exclude='._*' \
-  --exclude='.omc/' --exclude='.claude/' \
-  --exclude='backend/.env' --exclude='.env' --exclude='.env.local' \
-  --exclude='backend/secrets/' --exclude='backend/.env.bak*' --exclude='seed/' \
-  -e "ssh -i ~/.ssh/admix-key.pem" \
-  /ABS/PATH/ooh-recommend/ ubuntu@43.201.172.34:/home/ubuntu/ooh-recommend/
-
-# 2) EC2 에서 backend rebuild + 마이그  (newacct override 필수 — RDS 연결)
-ssh -i ~/.ssh/admix-key.pem ubuntu@43.201.172.34 '
-  cd ~/ooh-recommend && \
-  docker compose --env-file backend/.env \
-    -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.newacct.yml \
-    up -d --build backend && \
-  docker exec ooh-backend alembic upgrade head && \
-  curl -s http://127.0.0.1:8000/health
-'
-```
+- **`--delete` 를 쓰지 않는다.** EC2 에는 로컬에 없는 서버 전용 파일(docs·자료, `backend/secrets/` GA4 키,
+  `backend/.env.bak*`, `seed/`, `backups/` 등)이 있다.
+- **커밋된 HEAD 만 보낸다**(`git archive HEAD` 로 임시 폴더에 꺼냄). 작업 트리·스테이징의 커밋 안 된 변경은 섞이지 않는다.
+  꺼낸 파일은 시각이 바뀌므로 rsync 는 `-c`(내용 비교)로 바뀐 파일만 보낸다.
+- 데모 시드 스크립트(`backend/scripts/seed_demo_*.py`)·`scripts/dev-up.sh`·`frontend/next-env.d.ts` 는 보내지 않는다.
+- **마이그레이션은 새 코드가 뜨기 전에** 일회용 컨테이너(`compose run --rm --no-deps backend alembic upgrade head`)로
+  먼저 돌린다. 새 코드가 먼저 뜨면 없는 칸을 찾다 500 이 난다.
+- compose 에는 `-f docker-compose.newacct.yml` 이 꼭 들어가야 한다(RDS 연결, postgres 컨테이너 미기동).
 
 ### AI 추천(챗봇) 재배포 — **Lambda `admix-ai-agent`**
 
