@@ -300,12 +300,11 @@ def _operating_area(m: Media) -> dict | None:
 
 def _media_card(m: Media) -> dict:
     name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
-    # 카드 이미지: 썸네일 우선 → media_image(sort_order) 순, 중복 제거 후 최대 3장.
+    # 카드 이미지: 썸네일 우선 → media_image(sort_order) 순, 중복 제거 — 등록한 사진 전부.
     images: list[str] = []
     for url in (img.image_url for img in m.images):
         if url and url not in images:
             images.append(url)
-    images = images[:3]
     return dict(
         id=m.media_id,
         name=name or "-",
@@ -850,12 +849,11 @@ def _marker_from_row(
         badge = "new"
     else:
         badge = None
-    # 카드 이미지: 썸네일 우선 → media_image(sort_order), 중복 제거 최대 3장 — 검색 리스트(_media_card)와 동일.
+    # 카드 이미지: 썸네일 우선 → media_image(sort_order), 중복 제거 — 검색 리스트(_media_card)와 동일.
     images: list[str] = []
     for url in img_map.get(r.media_id, []):
         if url and url not in images:
             images.append(url)
-    images = images[:3]
     return dict(
         id=r.media_id,
         lat=lat,
