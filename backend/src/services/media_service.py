@@ -41,7 +41,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, object_session, selectinload
 
 from src.config import get_settings
-from src.services import ai_index, popularity
+from src.services import ai_index, grade_suggest, popularity
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
@@ -1856,6 +1856,42 @@ def population_tier(db: Session, m: Media) -> dict:
     )
 
 
+# 저장 전 미리보기가 보는 칸 — 상권 연결·인구·유동인구 단계·등급 설문 추천이 쓰는 값.
+_PREVIEW_COLS = (
+    "media_source", "city", "latitude", "longitude", "category_large", "category_small", "exposure_type",
+    "name", "second_name", "description", "feature",
+    "population_count", "population_note", "population_male_pct", "population_female_pct",
+    *(f"population_age_{age}" for age in (10, 20, 30, 40, 50, 60)),
+)
+
+
+def preview_admin_media(db: Session, payload: dict, media_id: str | None = None) -> dict:
+    """어드민 폼에서 저장하기 전 — 지금 입력한 값으로 상권 인구·유동인구 단계·등급 설문 추천을 미리 계산한다.
+
+    주소를 검색하자마자 인구 칸을 채우고, 등급·추천 탭을 열면 추천 답을 넣으려고 쓴다. 아무것도 저장하지 않는다
+    (세션에 넣지 않는 임시 매체로 계산). 고치는 매체면 저장된 값에 입력 값을 덮어쓴다(원천 연결 등은 저장된 값).
+    값이 형식에 안 맞으면(입력 중인 위도 등) 비운 것으로 본다.
+    """
+    values: dict = {}
+    if media_id:
+        saved = _get_media_or_404(db, media_id)
+        values = {col: getattr(saved, col) for col in _media_columns() if col != "media_id"}
+    columns = sa_inspect(Media).columns
+    for col in _PREVIEW_COLS:
+        if col in payload:
+            try:
+                values[col] = _coerce_import_value(columns[col], payload[col])
+            except (ValueError, TypeError):
+                values[col] = None
+    m = Media(**values)
+    m.sangwon_code, _ = match_sangwon(db, m)
+    return dict(
+        sangwon_population=_sangwon_population(db, m.sangwon_code),
+        population_tier=population_tier(db, m),
+        grade_suggestions=grade_suggest.suggest(db, m),
+    )
+
+
 def get_admin_media(db: Session, media_id: str) -> dict:
     m = _get_media_or_404(db, media_id)
     data = _serialize_media(m)
@@ -1869,6 +1905,8 @@ def get_admin_media(db: Session, media_id: str) -> dict:
     data["sangwon_population"] = _sangwon_population(db, m.sangwon_code)
     # 등급·추천 탭 "유동인구 단계" — 저장된 값 기준으로 자동.
     data["population_tier"] = population_tier(db, m)
+    # 등급·추천 탭 "자동 추천" — 도로 데이터·설명글로 고른 설문 추천 답과 근거(담당자가 넣어야 답이 된다).
+    data["grade_suggestions"] = grade_suggest.suggest(db, m)
     return data
 
 

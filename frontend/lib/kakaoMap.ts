@@ -17,7 +17,7 @@ export interface KakaoMarkerImage {
 }
 
 export interface KakaoMarker {
-  setMap: (map: KakaoMap | null) => void;
+  setMap: (map: KakaoMap | KakaoRoadview | null) => void;
   setImage: (image: KakaoMarkerImage) => void;
   setZIndex: (zIndex: number) => void;
 }
@@ -57,6 +57,26 @@ export interface KakaoMap {
   setBounds: (bounds: KakaoLatLngBounds) => void;
   getBounds: () => KakaoLatLngBounds;
   getProjection: () => KakaoProjection;
+}
+
+/** 로드뷰 — 지도 SDK 기본에 들어 있다(따로 libraries 필요 없음). */
+export interface KakaoRoadview {
+  setPanoId: (panoId: number, position: KakaoLatLng) => void;
+  getPosition: () => KakaoLatLng;
+  setViewpoint: (viewpoint: {
+    pan: number;
+    tilt: number;
+    zoom: number;
+  }) => void;
+  relayout: () => void;
+}
+
+export interface KakaoRoadviewClient {
+  getNearestPanoId: (
+    position: KakaoLatLng,
+    radius: number,
+    callback: (panoId: number | null) => void,
+  ) => void;
 }
 
 export interface KakaoPolyline {
@@ -100,6 +120,8 @@ export interface KakaoMaps {
   ) => KakaoMap;
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
   LatLngBounds: new () => KakaoLatLngBounds;
+  Roadview: new (container: HTMLElement) => KakaoRoadview;
+  RoadviewClient: new () => KakaoRoadviewClient;
   Marker: new (options: {
     position: KakaoLatLng;
     image?: KakaoMarkerImage;

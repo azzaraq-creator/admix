@@ -532,8 +532,23 @@ export interface AdminMediaDetail {
   } | null;
   /** 등급·추천 탭 "유동인구 단계" — 서울 고정 매체(야립 제외)의 월평균 유동인구로 자동(백엔드 population_tier) */
   population_tier?: PopulationTier;
+  /** 등급·추천 탭 "자동 추천" — 질문 ID → 추천 답·근거(도로 데이터·설명글, 백엔드 grade_suggest). 등급·추천 탭을 열면 빈 질문에 넣는다. */
+  grade_suggestions?: GradeSuggestions;
   [key: string]: unknown;
 }
+
+export type GradeSuggestions = Record<
+  string,
+  { value: string; reason: string }
+>;
+
+/** 어드민 매체 폼 저장 전 미리보기 — 지금 입력한 값으로 계산(백엔드 preview_admin_media). */
+export type AdminMediaPreview = Required<
+  Pick<
+    AdminMediaDetail,
+    "sangwon_population" | "population_tier" | "grade_suggestions"
+  >
+>;
 
 export type AdminMediaPayload = Record<string, unknown>;
 
@@ -594,6 +609,12 @@ export const adminMediaApi = {
           ...(lat != null && lng != null ? { lat, lng } : {}),
           ...(mediaId ? { media_id: mediaId } : {}),
         },
+      })
+      .then((r) => r.data),
+  preview: (values: Record<string, string>, mediaId: string | null) =>
+    api
+      .post<AdminMediaPreview>("/admin/media/preview", values, {
+        params: mediaId ? { media_id: mediaId } : {},
       })
       .then((r) => r.data),
   setThumbnail: (id: string, imageId: string) =>

@@ -1,8 +1,9 @@
 "use client";
 
 import { Button, Chip, Input, Tabs, TextArea } from "@heroui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Controller,
   useForm,
@@ -12,8 +13,10 @@ import {
 } from "react-hook-form";
 
 import {
+  adminMediaPreviewQuery,
   useAdminMediaDetail,
   useAdminMediaFieldOptions,
+  useAdminMediaPreview,
   useCreateMedia,
   useDeleteMedia,
   useUpdateMedia,
@@ -38,9 +41,11 @@ import { AiTagsPreview, AutoTargets } from "./AiTagsPreview";
 import { GradeSurvey } from "./GradeSurvey";
 import {
   computeSurveyScore,
+  isVehicleAudience,
   parseSurvey,
   pruneSurvey,
   scoreEvidence,
+  surveyGroupsFor,
   type SurveyMediaKind,
   type SurveyScore,
 } from "./gradeSurveyQuestions";
@@ -60,6 +65,7 @@ import {
 } from "./mediaFields";
 import { MediaPhotoSection } from "./MediaPhotoSection";
 import { PopulationSourceStatus } from "./PopulationSourceStatus";
+import { RoadviewPanel } from "./RoadviewPanel";
 import {
   MediaPlansEditor,
   newPlanDraft,
@@ -87,6 +93,30 @@ const CITY_OPTIONS = [
 // 탭 — 사진은 첫 탭, 위치(고정)·운행 지역(이동)은 같은 자리("place")를 쓴다.
 /** 구역이 들어가는 탭 — 묶음(tab)이 있으면 그 탭, 없으면 구역 하나가 한 탭. */
 const tabIdOf = (section: MediaFieldSection) => section.tab ?? section.key;
+
+// 저장 전 미리보기(상권 인구·유동인구 단계·등급 설문 추천)에 보내는 칸 — 인구 칸은 직접 입력일 때만 값을 보낸다.
+const PREVIEW_KEYS = [
+  "media_source",
+  ADDRESS_KEYS.city,
+  ADDRESS_KEYS.latitude,
+  ADDRESS_KEYS.longitude,
+  "category_large",
+  "category_small",
+  "exposure_type",
+  "name",
+  "second_name",
+  "description",
+  "feature",
+];
+// 입력이 멈추고 이만큼(ms) 지나면 미리보기를 다시 불러온다.
+const PREVIEW_DEBOUNCE_MS = 400;
+const NO_SUGGESTIONS: NonNullable<AdminMediaDetail["grade_suggestions"]> = {};
+const GRADE_SECTION = MEDIA_SECTIONS.find((s) => s.key === "grade");
+const GRADE_TAB = GRADE_SECTION ? tabIdOf(GRADE_SECTION) : "grade";
+
+/** 상권 값이 바뀌었는지 보는 열쇠 — 장소·인구수가 같으면 같은 값으로 본다. */
+const sangwonKeyOf = (s: AdminMediaDetail["sangwon_population"]) =>
+  s ? `${s.placeName}|${s.populationMax}` : "";
 
 /** "패션, 화장품|가구" → ["패션", "화장품", "가구"] — 쉼표(원천은 |)로 나누고 빈 값·중복을 뺀다. */
 function splitTags(value: string): string[] {
@@ -226,13 +256,16 @@ function MediaForm({
   // 지금 보이는 탭 — 저장할 때 오류가 있으면 첫 오류가 있는 탭으로 옮긴다.
   const [tab, setTab] = useState("basic");
   const [locating, setLocating] = useState(false);
+  // 등급·추천 탭 로드뷰 펼침 — 처음엔 접어 두고, 다른 탭에 다녀와도 그대로.
+  const [roadviewOpen, setRoadviewOpen] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   // 인구 데이터 자동 채우기 — 직접 입력이 비어 있고 서울시 상권 데이터가 있으면 칸에 그 값을 보여 준다.
   // 칸을 하나라도 고치면 직접 입력으로 바뀌어 보이는 값 그대로 저장되고, 자동인 동안에는 저장하지 않는다(비운 채로 둔다).
-  const sangwon = detail?.sangwon_population ?? null;
+  // 상권은 저장 전 미리보기(지금 입력한 주소 기준)가 오면 그 값을, 그 전에는 저장된 값을 쓴다.
+  const savedSangwon = detail?.sangwon_population ?? null;
   const [populationAuto, setPopulationAuto] = useState(
     () =>
-      !!sangwon &&
+      !!savedSangwon &&
       POPULATION_KEYS.every(
         (key) => detail?.[key] == null || detail[key] === "",
       ),
@@ -249,7 +282,7 @@ function MediaForm({
   } = useForm<MediaFormValues>({
     defaultValues: {
       ...buildDefaults(detail),
-      ...(populationAuto && sangwon ? sangwonInputs(sangwon) : {}),
+      ...(populationAuto && savedSangwon ? sangwonInputs(savedSangwon) : {}),
       // 최종 등급 — 직접 고른 등급만 칸에 보이고, 자동이면 비운다("자동 (B)"로 보인다).
       ...(detail && !detail.final_grade_manual ? { final_grade: "" } : {}),
     },
@@ -266,8 +299,68 @@ function MediaForm({
   const districtValue = allValues[OPERATING_AREA_KEYS.district] ?? "";
   const isMoving = mediaSource === "MOVING";
   const isDooh = oohType === "DOOH";
-  // 서버가 유동인구 단계를 매겼는지(저장된 값 기준) — 못 매긴 고정 매체는 설문이 주변 유동인구를 대신 묻는다.
-  const populationTier = detail?.population_tier?.tier ?? null;
+  // 저장 전 미리보기 — 주소·분류·설명을 고치면 잠시 뒤 다시 계산한다(저장하지 않아도 인구·등급 추천이 따라온다).
+  const previewInput = Object.fromEntries([
+    ...PREVIEW_KEYS.map((key) => [key, allValues[key] ?? ""]),
+    ...POPULATION_KEYS.map((key) => [
+      key,
+      populationAuto ? "" : (allValues[key] ?? ""),
+    ]),
+  ]) as MediaFormValues;
+  const previewInputKey = JSON.stringify(previewInput);
+  const [previewQuery, setPreviewQuery] = useState<MediaFormValues | null>(
+    null,
+  );
+  // 주소를 바꿔 상권이 달라지면 인구 칸을 그 상권 값으로 다시 채운다 — 자동이거나 칸이 비어 있을 때만
+  // (직접 입력한 값은 그대로 둔다). 서울 밖 등 상권이 없어지면 자동으로 채운 값을 비운다.
+  const queryClient = useQueryClient();
+  const appliedSangwon = useRef(sangwonKeyOf(savedSangwon));
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const values = JSON.parse(previewInputKey) as MediaFormValues;
+      setPreviewQuery(values);
+      let next: AdminMediaDetail["sangwon_population"];
+      try {
+        next = (
+          await queryClient.fetchQuery(adminMediaPreviewQuery(values, id))
+        ).sangwon_population;
+      } catch {
+        return;
+      }
+      const key = sangwonKeyOf(next);
+      if (cancelled || key === appliedSangwon.current) return;
+      appliedSangwon.current = key;
+      const empty = POPULATION_KEYS.every((k) => !(getValues(k) ?? "").trim());
+      if (!populationAuto && !empty) return;
+      const auto = next ? sangwonInputs(next) : {};
+      for (const k of POPULATION_KEYS)
+        setValue(k, auto[k] ?? "", { shouldDirty: true, shouldValidate: true });
+      setPopulationAuto(!!next);
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [previewInputKey, populationAuto, id, queryClient, getValues, setValue]);
+  const {
+    data: preview,
+    isFetching: previewFetching,
+    isPlaceholderData: previewStale,
+  } = useAdminMediaPreview(previewQuery, id);
+  // 미리보기가 지금 입력한 값으로 계산된 것인지 — 등급 설문 추천은 이때만 넣는다.
+  const previewReady =
+    !!preview &&
+    !previewFetching &&
+    !previewStale &&
+    JSON.stringify(previewQuery) === previewInputKey;
+  const sangwon = preview ? preview.sangwon_population : savedSangwon;
+  const gradeSuggestions =
+    preview?.grade_suggestions ?? detail?.grade_suggestions ?? NO_SUGGESTIONS;
+  // 서버가 유동인구 단계를 매겼는지 — 못 매긴 고정 매체는 설문이 주변 유동인구를 대신 묻는다.
+  const populationTierInfo =
+    preview?.population_tier ?? detail?.population_tier;
+  const populationTier = populationTierInfo?.tier ?? null;
   const hasPopulationTier = populationTier != null;
   /** 등급 설문 질문을 고르는 매체 값 — 화면(지금 고른 값)과 저장(제출 값)이 같은 규칙을 쓴다. */
   const surveyKindOf = (v: MediaFormValues): SurveyMediaKind => ({
@@ -277,6 +370,34 @@ function MediaForm({
     categorySmall: v.category_small ?? "",
     hasPopulationTier,
   });
+  // 등급·추천 탭을 열면 추천 답을 아직 답하지 않은 질문에 넣는다. 자동으로 넣은 답은 기억해 두고
+  // 앞 탭 값을 고쳐 추천이 바뀌면 함께 바꾼다 — 담당자가 고르거나 지운 답은 건드리지 않는다.
+  const autoAnswers = useRef<Record<string, string>>({});
+  const surveyKindKey = JSON.stringify(surveyKindOf(allValues));
+  useEffect(() => {
+    if (tab !== GRADE_TAB || !previewReady) return;
+    const answers = parseSurvey(getValues("grade_survey") ?? "");
+    const next = { ...answers };
+    const kind = JSON.parse(surveyKindKey) as SurveyMediaKind;
+    for (const q of surveyGroupsFor(kind).flatMap((g) => g.questions)) {
+      const sug = gradeSuggestions[q.id]?.value;
+      const value = q.options.some((o) => o.value === sug) ? sug : undefined;
+      const prev = autoAnswers.current[q.id];
+      const untouched =
+        next[q.id] === undefined ? prev === undefined : next[q.id] === prev;
+      if (!untouched) continue;
+      if (value) {
+        next[q.id] = value;
+        autoAnswers.current[q.id] = value;
+      } else {
+        delete next[q.id];
+        delete autoAnswers.current[q.id];
+      }
+    }
+    if (JSON.stringify(next) !== JSON.stringify(answers))
+      setValue("grade_survey", JSON.stringify(next), { shouldDirty: true });
+  }, [tab, previewReady, gradeSuggestions, surveyKindKey, getValues, setValue]);
+
   // 품질 점수 — 설문 답으로 바로 다시 계산해 보여 준다(저장할 때 같은 값을 저장).
   const surveyScore = computeSurveyScore(
     surveyKindOf(allValues),
@@ -750,19 +871,42 @@ function MediaForm({
     }
     if (f.key === "grade_survey") {
       // 답은 폼 안에서 JSON 문자열로 들고 있다(저장할 때 pruneSurvey).
+      // 길에서 보는 매체(실외·야립)는 위치를 넣었으면 로드뷰를 위에 띄운다 — 현장에 가지 않고 가시거리·가림 등을 답하게.
+      // 실내 매체는 로드뷰에 안 보여서 띄우지 않는다.
+      const lat = Number(allValues[ADDRESS_KEYS.latitude]);
+      const lng = Number(allValues[ADDRESS_KEYS.longitude]);
+      const hasCoords =
+        !isMoving &&
+        (allValues.exposure_type === "OUTSIDE" ||
+          isVehicleAudience(allValues.category_small ?? "")) &&
+        allValues[ADDRESS_KEYS.latitude] !== "" &&
+        allValues[ADDRESS_KEYS.longitude] !== "" &&
+        Number.isFinite(lat) &&
+        Number.isFinite(lng);
       return (
-        <Controller
-          name={f.key}
-          control={control}
-          render={({ field }) => (
-            <GradeSurvey
-              kind={surveyKindOf(allValues)}
-              answers={parseSurvey(field.value ?? "")}
-              onChange={(next) => field.onChange(JSON.stringify(next))}
-              populationTier={detail?.population_tier}
+        <div className="flex flex-col gap-[16px]">
+          {hasCoords && (
+            <RoadviewPanel
+              lat={lat}
+              lng={lng}
+              open={roadviewOpen}
+              onToggle={() => setRoadviewOpen((v) => !v)}
             />
           )}
-        />
+          <Controller
+            name={f.key}
+            control={control}
+            render={({ field }) => (
+              <GradeSurvey
+                kind={surveyKindOf(allValues)}
+                answers={parseSurvey(field.value ?? "")}
+                onChange={(next) => field.onChange(JSON.stringify(next))}
+                populationTier={populationTierInfo}
+                suggestions={gradeSuggestions}
+              />
+            )}
+          />
+        </div>
       );
     }
     if (f.type === "readonly") {

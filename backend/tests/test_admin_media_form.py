@@ -280,3 +280,32 @@ def test_operation_time_and_formats_validation(db):
     created.append(night["media_id"])
     detail = ms.get_media_detail(s, night["media_id"])
     assert {"label": "운영 시간", "value": "18:00 ~ 02:30 (8시간 30분)"} in detail["features"]
+
+
+def test_preview_uses_form_values_without_saving(db):
+    s, _ = db
+    before = s.query(Media).count()
+    # 강남역 근처 좌표 — 저장하지 않은 입력 값만으로 상권 인구·유동인구 단계를 매긴다.
+    out = ms.preview_admin_media(
+        s,
+        {"media_source": "FIXED", "city": "서울특별시", "latitude": "37.4979", "longitude": "127.0276",
+         "exposure_type": "OUTSIDE", "name": "미리보기", "description": "야간 조명"},
+    )
+    assert s.query(Media).count() == before
+    if out["sangwon_population"] is not None:
+        assert out["population_tier"]["tier"] is not None
+    assert out["grade_suggestions"]["night_light"]["value"] == "yes"
+
+    # 입력 중인 잘못된 위도는 비운 것으로 본다.
+    out = ms.preview_admin_media(s, {"media_source": "FIXED", "latitude": "37.", "longitude": "abc"})
+    assert out["sangwon_population"] is None
+
+
+def test_preview_overlays_saved_media(db):
+    s, created = db
+    m = ms.create_media(s, {"name": "미리보기 저장", "media_source": "FIXED", "city": "부산광역시"})
+    created.append(m["media_id"])
+    out = ms.preview_admin_media(s, {"city": "부산광역시"}, m["media_id"])
+    assert out["population_tier"]["excluded"]
+    s.refresh(s.get(Media, m["media_id"]))
+    assert s.get(Media, m["media_id"]).name == "미리보기 저장"

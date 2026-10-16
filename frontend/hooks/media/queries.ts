@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  queryOptions,
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
@@ -28,6 +29,28 @@ export const useAdminMediaDetail = (id: string | null) =>
     queryKey: mediaKeys.adminDetail(id ?? ""),
     queryFn: () => adminMediaApi.get(id as string),
     enabled: !!id,
+  });
+
+/** 어드민 매체 폼 저장 전 미리보기 — 상권 인구·유동인구 단계·등급 설문 추천(폼이 직접 불러올 때도 같은 캐시). */
+export const adminMediaPreviewQuery = (
+  values: Record<string, string>,
+  mediaId: string | null,
+) =>
+  queryOptions({
+    queryKey: mediaKeys.adminPreview(values, mediaId),
+    queryFn: () => adminMediaApi.preview(values, mediaId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+/** 값이 바뀌는 동안 이전 결과를 둔다. values 가 없으면 불러오지 않는다. */
+export const useAdminMediaPreview = (
+  values: Record<string, string> | null,
+  mediaId: string | null,
+) =>
+  useQuery({
+    ...adminMediaPreviewQuery(values ?? {}, mediaId),
+    enabled: !!values,
+    placeholderData: keepPreviousData,
   });
 
 export const useMovingMediaList = (filters?: MediaFilterParams) =>

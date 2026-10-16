@@ -37,6 +37,8 @@ export const mediaKeys = {
       lng,
       mediaId,
     ] as const,
+  adminPreview: (values: Record<string, string>, mediaId: string | null) =>
+    [...mediaKeys.all, "admin", "preview", values, mediaId] as const,
   adminDetail: (id: string) =>
     [...mediaKeys.all, "admin", "detail", id] as const,
 };

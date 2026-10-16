@@ -134,6 +134,18 @@ def check_realtime_population(
     return result
 
 
+@router.post("/preview")
+def preview_media(
+    payload: dict = Body(...),
+    media_id: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """매체 폼 저장 전 미리보기 — 지금 입력한 위치·분류·설명으로 상권 인구·유동인구 단계·등급 설문 추천.
+    아무것도 저장하지 않는다. 고치는 매체면 media_id 로 저장된 값(원천 연결 등)을 바탕으로 쓴다."""
+    return media_service.preview_admin_media(db, payload, media_id)
+
+
 @router.get("/{media_id}")
 def get_media(
     media_id: str,

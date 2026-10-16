@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { PopulationTier } from "@/hooks/media";
+import type { GradeSuggestions, PopulationTier } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
 import {
@@ -23,17 +23,21 @@ import {
  * 어드민 매체 상세 "등급 설문" — 매체 종류(실외·실내·이동, DOOH)에 맞는 질문에 답한다.
  * 고른 답을 다시 누르면 답을 지운다. 점수는 아직 매기지 않는다.
  * 맨 위 "유동인구 단계"는 서버가 월평균 유동인구로 자동으로 매긴 값이다(묻지 않는다).
+ * 서버가 도로 데이터·설명글로 고른 추천 답(suggestions)은 이 탭을 열 때 폼(MediaFormView)이 빈 질문에 넣어 둔다.
+ * 추천 답에는 "자동" 표시와 근거를 붙이고, 담당자가 다른 답을 골라 지운 추천은 점선 칩으로 남긴다.
  */
 export function GradeSurvey({
   kind,
   answers,
   onChange,
   populationTier,
+  suggestions = {},
 }: {
   kind: SurveyMediaKind;
   answers: SurveyAnswers;
   onChange: (next: SurveyAnswers) => void;
   populationTier?: PopulationTier;
+  suggestions?: GradeSuggestions;
 }) {
   const groups = surveyGroupsFor(kind);
   const tierBox =
@@ -79,47 +83,67 @@ export function GradeSurvey({
           className="flex flex-col gap-[14px] rounded-[12px] border border-stroke p-[16px]"
         >
           <h3 className="text-[15px] font-bold text-black">{group.title}</h3>
-          {group.questions.map((q) => (
-            <div
-              key={q.id}
-              className="grid grid-cols-[180px_1fr] items-start gap-[12px] max-sm:grid-cols-1"
-            >
-              <div className="flex flex-col gap-[2px] pt-[6px]">
-                <p className="text-[13px] font-semibold text-[#161a2e]">
-                  {q.label}
-                </p>
-                {q.help && (
-                  <p className="text-[12px] text-[#9aa0b4]">{q.help}</p>
-                )}
-              </div>
+          {group.questions.map((q) => {
+            const sug = suggestions[q.id];
+            const sugValue = q.options.some((o) => o.value === sug?.value)
+              ? sug?.value
+              : undefined;
+            return (
               <div
-                role="radiogroup"
-                aria-label={q.label}
-                className="flex flex-wrap gap-[6px]"
+                key={q.id}
+                className="grid grid-cols-[180px_1fr] items-start gap-[12px] max-sm:grid-cols-1"
               >
-                {q.options.map((o) => {
-                  const on = answers[q.id] === o.value;
-                  return (
-                    <button
-                      key={o.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => set(q.id, on ? "" : o.value)}
-                      className={cn(
-                        "rounded-full border px-[12px] py-[6px] text-[13px] font-medium transition-colors",
-                        on
-                          ? "border-primary-600 bg-primary-50 text-primary-600"
-                          : "border-stroke bg-white text-[#555b73] hover:bg-[#f5f6fb]",
-                      )}
-                    >
-                      {o.label}
-                    </button>
-                  );
-                })}
+                <div className="flex flex-col gap-[2px] pt-[6px]">
+                  <p className="text-[13px] font-semibold text-[#161a2e]">
+                    {q.label}
+                  </p>
+                  {q.help && (
+                    <p className="text-[12px] text-[#9aa0b4]">{q.help}</p>
+                  )}
+                  {sugValue && (
+                    <p className="text-[12px] text-primary-500">
+                      자동 · {sug?.reason}
+                    </p>
+                  )}
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label={q.label}
+                  className="flex flex-wrap gap-[6px]"
+                >
+                  {q.options.map((o) => {
+                    const on = answers[q.id] === o.value;
+                    // 추천 답 — "자동" 표시. 고르지 않은 추천(담당자가 바꾼 답)은 점선 테두리.
+                    const suggested = o.value === sugValue;
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => set(q.id, on ? "" : o.value)}
+                        className={cn(
+                          "flex items-center gap-[4px] rounded-full border px-[12px] py-[6px] text-[13px] font-medium transition-colors",
+                          on
+                            ? "border-primary-600 bg-primary-50 text-primary-600"
+                            : suggested
+                              ? "border-dashed border-primary-400 bg-white text-primary-600 hover:bg-primary-50"
+                              : "border-stroke bg-white text-[#555b73] hover:bg-[#f5f6fb]",
+                        )}
+                      >
+                        {o.label}
+                        {suggested && (
+                          <span className="text-[11px] font-semibold text-primary-400">
+                            자동
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ))}
 
