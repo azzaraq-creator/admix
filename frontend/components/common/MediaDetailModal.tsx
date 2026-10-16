@@ -925,7 +925,7 @@ function PopulationCard({
               {population.congestLevel}
             </Chip>
           )}
-          <Chip className="gap-[4px] rounded-[20px] bg-primary-50 px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold text-primary-500">
+          <Chip className="gap-[4px] rounded-[20px] border border-[#e4e4e7] bg-white px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-[#18181b]">
             <TrendingUpIcon className="size-[10px]" />
             {ageLabel(topAge)} {topGender}
           </Chip>
