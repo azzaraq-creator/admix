@@ -143,7 +143,7 @@ def test_weekday_daily_none_when_columns_empty():
 
 
 def _station_media(**kw):
-    base = dict(category_large="지하철", latitude=37.5, longitude=127.0, sangwon_code="1")
+    base = dict(category_large="지하철", latitude=37.5, longitude=127.0, sangwon_code="1", name="", second_name=None)
     return type("M", (), base | kw)()
 
 
@@ -163,7 +163,7 @@ def test_station_population_monthly_and_weekday():
         pop = ms._station_population(db, _station_media())
     assert pop["source"] == "station"
     assert pop["placeName"] == "고속터미널역 · 최근 7일"
-    assert pop["populationMax"] == round(13_000 * 365 / 12)
+    assert pop["populationMax"] == round(13_000 * 365 / 12)  # 하루 평균 1.3만을 한 달로
     assert (pop["malePct"], pop["femalePct"]) == (40, 60)  # 비율은 상권 값
     assert [d["value"] for d in pop["weekdayDaily"]] == [10_000 + i * 1_000 for i in range(7)]
 
@@ -193,3 +193,36 @@ def test_media_population_prefers_station_over_sangwon():
 def test_population_fact_station_title():
     pop = {"source": "station", "placeName": "고속터미널역 · 최근 28일", "populationMax": 5_700_000, "malePct": 45, "femalePct": 55}
     assert ms.population_fact(pop).startswith("월평균 역 승하차(고속터미널역 · 최근 28일): 5,700,000명")
+
+
+def _stations_db(rows):
+    db = MagicMock()
+    db.execute.return_value.all.return_value = rows
+    return db
+
+
+def test_nearest_station_prefers_name_over_coordinates():
+    # 좌표는 노들역(100m)이 더 가깝지만 이름에 "노량진역"이 있으면 600m 떨어진 노량진역.
+    m = _station_media(name="Canvas 9", second_name="노량진역", latitude=37.5, longitude=127.0)
+    rows = [
+        ("subway:노들", "노들", 37.5 + 100 / 110_540, 127.0),
+        ("subway:노량진", "노량진", 37.5 + 600 / 110_540, 127.0),
+    ]
+    assert ms._nearest_subway_station(_stations_db(rows), m) == ("subway:노량진", "노량진")
+
+
+def test_nearest_station_name_match_longest_and_exact():
+    m = _station_media(name="서울역 1호선 PSD", second_name=None, latitude=37.5, longitude=127.0)
+    rows = [
+        ("subway:서울", "서울", 37.5, 127.0),  # GTX — "서울역"으로도 맞지만 이름이 짧다
+        ("subway:서울역", "서울역", 37.5 + 50 / 110_540, 127.0),
+    ]
+    assert ms._nearest_subway_station(_stations_db(rows), m)[0] == "subway:서울역"
+
+
+def test_nearest_station_falls_back_to_300m_and_ignores_far_name():
+    m = _station_media(name="강남역 PSD", second_name=None, latitude=37.5, longitude=127.0)
+    far = [("subway:강남", "강남", 37.5 + 2_000 / 110_540, 127.0)]  # 이름은 맞지만 2km
+    assert ms._nearest_subway_station(_stations_db(far), m) is None
+    near = [("subway:역삼", "역삼", 37.5 + 200 / 110_540, 127.0)]
+    assert ms._nearest_subway_station(_stations_db(near), m) == ("subway:역삼", "역삼")

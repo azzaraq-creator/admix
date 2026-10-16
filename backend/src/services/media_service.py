@@ -1299,6 +1299,8 @@ def _sangwon_population(db: Session, sangwon_code: str | None) -> dict | None:
 # 지하철역 안 매체 — 분류가 지하철이고 이 거리(m) 안에 서울 지하철역이 있으면 그 역의 승하차 수를 쓴다.
 STATION_MEDIA_CATEGORY = "지하철"
 STATION_MEDIA_MAX_M = 300
+# 매체 이름에 역 이름이 있으면 이 거리(m) 안까지 그 역으로 본다(좌표가 어긋난 매체).
+STATION_NAME_MAX_M = 1500
 # 승하차가 이만큼 쌓인 역만 쓴다(그 전엔 상권 값) — 요일이 한 번씩은 들어가게.
 STATION_MIN_DAYS = 7
 _DAYS_PER_MONTH = 365 / 12
@@ -1306,32 +1308,46 @@ _WEEKDAY_LABELS = [label for label, _ in _WEEKDAYS]
 
 
 def _nearest_subway_station(db: Session, m: Media) -> tuple[str, str] | None:
-    """매체 좌표에서 STATION_MEDIA_MAX_M 안 가장 가까운 서울 지하철역 (station_id, 이름)."""
+    """지하철역 안 매체의 역 (station_id, 이름) — ① 이름·부제목에 "OO역"이 있고 그 역이 STATION_NAME_MAX_M 안
+    ② 좌표에서 STATION_MEDIA_MAX_M 안 가장 가까운 서울 지하철역. 좌표가 역에서 멀리 찍힌 매체가 있어
+    (예: Canvas 9 노량진역 — 역에서 약 600m) 이름을 먼저 본다. 거리 제한은 다른 지역 같은 이름 역을 막으려고.
+    승하차가 쌓인 역만 본다(GTX "서울"처럼 승하차 데이터가 없는 역 제외)."""
     if m.latitude is None or m.longitude is None:
         return None
     lat, lng = float(m.latitude), float(m.longitude)
-    dlat = STATION_MEDIA_MAX_M / 110_540
-    dlng = STATION_MEDIA_MAX_M / (111_320 * math.cos(math.radians(lat)))
+    reach = max(STATION_MEDIA_MAX_M, STATION_NAME_MAX_M)
+    dlat = reach / 110_540
+    dlng = reach / (111_320 * math.cos(math.radians(lat)))
     rows = db.execute(
         text(
             """
-            SELECT station_id, name, latitude, longitude FROM transit_station
-            WHERE kind = 'subway'
-              AND latitude BETWEEN :lat0 AND :lat1 AND longitude BETWEEN :lng0 AND :lng1
+            SELECT s.station_id, s.name, s.latitude, s.longitude FROM transit_station s
+            WHERE s.kind = 'subway'
+              AND s.latitude BETWEEN :lat0 AND :lat1 AND s.longitude BETWEEN :lng0 AND :lng1
+              AND EXISTS (SELECT 1 FROM transit_ridership r WHERE r.station_id = s.station_id)
             """
         ),
         {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
     ).all()
-    best = None
+    label = " ".join(p for p in [m.name, m.second_name] if p)
+    by_name = None
+    nearest = None
     for sid, name, slat, slng in rows:
         d = math.hypot((slat - lat) * 110_540, (slng - lng) * 111_320 * math.cos(math.radians(lat)))
-        if d <= STATION_MEDIA_MAX_M and (best is None or d < best[0]):
-            best = (d, sid, name)
+        # "OO역"으로 찾아 "서울"이 "서울버스"에 걸리지 않게(이름이 이미 "서울역"이면 그대로).
+        # 이름이 긴 역을 먼저 — "강남구청역"이 "강남역"보다, 승하차 이름 "서울역"이 GTX "서울"보다.
+        key = name if name and name.endswith("역") else f"{name}역"
+        if name and d <= STATION_NAME_MAX_M and key in label and (by_name is None or len(name) > len(by_name[2])):
+            by_name = (d, sid, name)
+        if d <= STATION_MEDIA_MAX_M and (nearest is None or d < nearest[0]):
+            nearest = (d, sid, name)
+    best = by_name or nearest
     return (best[1], best[2]) if best else None
 
 
 def _station_population(db: Session, m: Media) -> dict | None:
-    """지하철역 안 매체의 월평균 승하차 — 그 역의 최근 날들(transit_ridership, 최대 약 한 달) 하루 평균 × 한 달.
+    """지하철역 안 매체의 월평균 승하차 — 그 역의 최근 날들(transit_ridership, 최대 약 한 달)의 하루 평균을
+    한 달(365/12일)로 환산한다. 상권 유동인구와 같은 "월평균"으로 비교되게.
 
     서울시 상권 유동인구는 땅 위 길거리만 세서 역·지하상가가 붐비는 곳(고속터미널 등)이 실제보다 훨씬 적게 나온다.
     승하차에는 성별·연령이 없어 비율은 그 매체의 상권 값을 쓴다(상권이 없으면 None — 상권 값도 없는 매체).
@@ -1356,8 +1372,7 @@ def _station_population(db: Session, m: Media) -> dict | None:
     sangwon = _sangwon_population(db, m.sangwon_code)
     if sangwon is None:
         return None
-    daily = sum(r.total for r in rows) / len(rows)
-    monthly = round(daily * _DAYS_PER_MONTH)
+    monthly = round(sum(r.total for r in rows) / len(rows) * _DAYS_PER_MONTH)
     by_weekday: list[list[int]] = [[] for _ in range(7)]
     for r in rows:
         by_weekday[datetime.strptime(r.use_date, "%Y%m%d").weekday()].append(r.total)
