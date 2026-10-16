@@ -28,7 +28,6 @@ import {
   ChevronRightIcon,
   CloseMediumIcon,
   FolderAddIcon,
-  LayerIcon,
   LocationFilledIcon,
   Logo,
   LoveIcon,
@@ -39,6 +38,7 @@ import { useFavorite } from "@/hooks/favorites";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 import { MovingChip } from "@/components/common/MovingChip";
+import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
 import {
   DEFAULT_MEDIA_OPTIONS,
@@ -299,10 +299,10 @@ function MediaDetailBody({
                 </Chip>
               )}
               {vm.salesType && (
-                <Chip className="gap-[3px] rounded-[10px] bg-[#f0f5fe] py-[3px] leading-[18px] font-normal text-[#7ba7e8]">
-                  <LayerIcon className="size-[16px] shrink-0" />
-                  {vm.salesType}
-                </Chip>
+                <SalesTypeChip
+                  salesType={vm.salesType}
+                  className="rounded-[10px]"
+                />
               )}
             </div>
           )}

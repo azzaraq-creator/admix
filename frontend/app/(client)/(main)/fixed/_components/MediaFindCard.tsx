@@ -17,7 +17,6 @@ import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
   ChevronRightBoldIcon,
   FolderAddIcon,
-  LayerIcon,
   LocationFilledIcon,
   LoveIcon,
 } from "@/components/icons";
@@ -26,6 +25,7 @@ import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 import { MovingChip } from "@/components/common/MovingChip";
+import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
 // 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
 const formatKrw = formatAdFee;
@@ -254,10 +254,10 @@ function MediaFindCardImpl({
             <span />
           )}
           {row.salesType && (
-            <Chip className="gap-[3px] rounded-[8px] bg-[#f0f5fe] py-[3px] leading-[18px] font-normal text-[#7ba7e8] max-sm:text-[11px]">
-              <LayerIcon className="size-[16px] shrink-0" />
-              {row.salesType}
-            </Chip>
+            <SalesTypeChip
+              salesType={row.salesType}
+              className="rounded-[8px] max-sm:text-[11px]"
+            />
           )}
         </div>
       </div>
