@@ -64,6 +64,13 @@ function ageLabel(age: MediaDetailAgeRatio): string {
   return age.label;
 }
 
+/** 인구 카드 제목 — 요일별 그래프가 메인이면 "요일별 유동인구"/"요일별 역 승하차", 아니면 그대로(모바일 탭 이름도 같게). */
+function populationHeading(population: MediaDetailPopulationVM): string {
+  return population.weekdayDaily
+    ? population.title.replace(/^[월일]평균/, "요일별")
+    : population.title;
+}
+
 // 카테고리·판매 유형·매체 유형은 상단 칩/태그로 따로 보여주므로 스펙 칸에서는 뺀다.
 // 고정/이동은 매체 찾기의 고정·이동 탭으로 이미 나뉘어 있어 굳이 보여 주지 않는다.
 const SPEC_EXCLUDED_LABELS = new Set([
@@ -421,7 +428,7 @@ function MobileDetailTabs({
   const tabs = [
     ...(vm.description ? [{ key: "description", label: "매체 설명" }] : []),
     ...(vm.population
-      ? [{ key: "population", label: vm.population.title }]
+      ? [{ key: "population", label: populationHeading(vm.population) }]
       : []),
     { key: "specs", label: "매체 정보" },
   ];
@@ -866,17 +873,18 @@ function PopulationCard({
       <div className="flex items-start justify-between gap-[8px]">
         {weekday ? (
           <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
-            <div className="flex min-w-0 items-center gap-[6px]">
+            {/* 모바일은 탭 이름이 이미 "요일별 …"이라 제목·칩을 빼고, 기준(상권·분기) 아래에 월평균 버튼. */}
+            <div className="flex min-w-0 items-center gap-[6px] max-sm:hidden">
               <p className="text-[14px] leading-[1.4] font-semibold text-[#18181b]">
-                {population.title.replace(/^[월일]평균/, "요일별")}
+                {populationHeading(population)}
               </p>
               <Chip className="rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
                 하루 평균
               </Chip>
             </div>
-            <div className="flex min-w-0 items-baseline gap-[6px]">
+            <div className="flex min-w-0 items-baseline gap-[6px] max-sm:flex-col max-sm:items-start max-sm:gap-[4px]">
               {population.caption && (
-                <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
+                <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400 max-sm:max-w-full">
                   {population.caption}
                 </p>
               )}
