@@ -76,6 +76,7 @@ export function AiSearchBox({
     // 여백은 대화 입력바(HomeChat)와 같게 — 모바일 상하좌우 12px, PC는 탭·전송 버튼이
     // 테두리에서 8px, 글자는 왼쪽 16px·위 15px(오른쪽도 16px이 되게 textarea에 8px 더함).
     <div
+      data-tour="home-input"
       className="admix-ai-border w-full max-w-[860px] max-sm:flex max-sm:flex-col"
       data-mode={isSearch ? "search" : undefined}
     >

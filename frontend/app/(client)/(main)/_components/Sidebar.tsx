@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CollectionIcon,
+  GuideIcon,
   FileTextIcon,
   LocationIcon,
   LoginDoorIcon,
@@ -20,6 +21,7 @@ import {
   ProfileAvatarIcon,
   ProfileFilledIcon,
 } from "@/components/icons";
+import { openPageTour, useHasPageTour } from "@/components/common/PageTour";
 import { useHasUserToken, useLogout, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
@@ -105,6 +107,8 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   const router = useRouter();
 
   const { panelOpen, setPanelOpen } = useMixieChat();
+  // 지금 페이지에 가이드가 있을 때만 버튼을 둔다.
+  const hasTour = useHasPageTour();
 
   const { data: me, isError: meError } = useMe();
   // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다.
@@ -196,6 +200,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                   type="button"
                   // 패널의 바깥 클릭 닫기에서 제외(이 버튼은 스스로 여닫는다).
                   data-mixie-toggle
+                  data-tour="mixie-panel"
                   aria-expanded={panelOpen}
                   aria-label="AI 믹시"
                   title={collapsed ? "AI 믹시" : undefined}
@@ -273,6 +278,31 @@ export function Sidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
+            {/* 지금 페이지 가이드 — 현재 기획안 카드 바로 위. 모바일은 상단바의 아이콘 버튼을 쓴다.
+                메뉴보다 한 단계 옅은 보조 줄(높이 32px → 곡률 13px). 아이콘 가운데는 메뉴 아이콘 열(x=39px). */}
+            {hasTour && (
+              <button
+                type="button"
+                aria-label="가이드"
+                title={collapsed ? "가이드" : undefined}
+                onClick={() => {
+                  setPanelOpen(false);
+                  openPageTour();
+                }}
+                // 좌우 여백은 아래 기획안 카드 내용과 같게(테두리 1 + 여백 12 = 13px). 접히면 안쪽 폭(58px)
+                // 가운데에 아이콘이 오도록 왼쪽 20px — 기획안 카드도 접히면 아이콘만 가운데에 둔다.
+                className={cn(
+                  "mb-[8px] flex h-[32px] w-full items-center gap-[9px] overflow-hidden rounded-[13px] text-[13px] font-medium text-gray-500 transition-[padding,background-color,color] duration-300 ease-in-out hover:bg-gray-50 hover:text-gray-900 max-sm:hidden",
+                  collapsed ? "pr-0 pl-[20px]" : "px-[13px]",
+                )}
+              >
+                {/* 원본 22×20 비율로 폭 18px — 글자색을 따른다. */}
+                <GuideIcon aria-hidden className="h-[16px] w-[18px] shrink-0" />
+                <span className={cn("whitespace-nowrap", fadeLabel(collapsed))}>
+                  가이드
+                </span>
+              </button>
+            )}
             {/* 현재 기획안 요약 카드 — 로그인 정보 바로 위. 모바일은 헤더 오른쪽 버튼을 쓴다. */}
             <div className="mb-[12px] max-sm:hidden">
               <CurrentProposalButton variant="sidebar" collapsed={collapsed} />

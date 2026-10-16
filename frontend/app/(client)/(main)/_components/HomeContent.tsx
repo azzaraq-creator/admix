@@ -10,6 +10,7 @@ import {
   ScrollMouseIcon,
   SearchDuotoneIcon,
 } from "@/components/icons";
+import { usePageTour, type TourStep } from "@/components/common/PageTour";
 import { cn } from "@/lib/utils";
 
 import { AiSearchBox } from "./AiSearchBox";
@@ -91,6 +92,31 @@ const SUBTITLE: Record<Mode, string> = {
   search: "원하는 옥외광고 매체를 검색해 보세요",
 };
 
+// 대시보드 온보딩 — AI로 묻기 → 패널에서 이어 묻기 → 검색으로 매체 찾기.
+// 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
+const TOUR_STEPS: TourStep[] = [
+  {
+    target: "home-input",
+    title: "AI 믹시에게 물어보기",
+    body: "지역·예산·타겟을 입력하면 믹시가 매체를 추천해 줘요.",
+    radius: 33,
+  },
+  {
+    // PC는 LNB의 AI 믹시 버튼, 모바일은 그 버튼이 든 메뉴(상단바 왼쪽).
+    target: ["mixie-panel", "mobile-menu"],
+    title: "어디서든 이어서 대화",
+    body: "AI 믹시 패널에서 다른 화면을 보면서도 대화를 이어가요.",
+    mobileBody: "메뉴의 AI 믹시에서 언제든 대화를 이어가요.",
+    radius: 22,
+  },
+  {
+    target: "mode-toggle",
+    title: "검색으로 바로 찾기",
+    body: "검색으로 바꿔 입력하면 매체 찾기에서 결과를 보여 줘요.",
+    radius: 23,
+  },
+];
+
 const TITLE_CLASS =
   "text-left text-[18px] leading-[26px] font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]";
 
@@ -147,6 +173,8 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
   // 대화는 이 화면에서 이어진다(시안 "01-1. 믹시 대화"). 대화 상태는 레이아웃에
   // 한 벌만 있어(useMixieChat) 다른 메뉴에 다녀와도, LNB 패널에서 이어 말해도 그대로다.
   const { chat } = useMixieChat();
+  // 첫 단계가 AI 입력바라 AI 모드로 돌려 두고 시작한다.
+  usePageTour("dashboard", TOUR_STEPS, () => setMode("ai"));
   // 대화 중에도 입력바의 전환 탭으로 검색 화면에 갈 수 있고, AI로 돌아오면 대화가 다시 보인다.
   const hasConversation = mode === "ai" && chat.messages.length > 0;
   // 서버·첫 하이드레이션에선 쿠키만 보고(둘이 같아야 화면이 어긋나지 않는다), 그 뒤엔 복원이 끝날 때까지.

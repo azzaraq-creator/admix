@@ -18,6 +18,7 @@ export { FolderPlusIcon } from "./FolderPlusIcon";
 export { HeadsetIcon } from "./HeadsetIcon";
 export { CircleAlertIcon } from "./CircleAlertIcon";
 export { CircleQuestionIcon } from "./CircleQuestionIcon";
+export { GuideIcon } from "./GuideIcon";
 export { LogInIcon } from "./LogInIcon";
 export { SearchIcon } from "./SearchIcon";
 export { SparkleIcon } from "./SparkleIcon";

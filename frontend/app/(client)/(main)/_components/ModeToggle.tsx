@@ -74,6 +74,7 @@ export function ModeToggle({
   return (
     <div
       ref={tabsRef}
+      data-tour="mode-toggle"
       className="relative isolate"
       data-pill-ready={pill ? "" : undefined}
     >

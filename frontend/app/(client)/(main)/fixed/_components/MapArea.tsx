@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import {
   useCrowdTransit,
   type CrowdPlace,
+  type CrowdTransit,
   type OperatingArea,
   type TrafficLink,
 } from "@/hooks/media";
@@ -47,7 +48,8 @@ const POPUP_ARROW_MAX_OFFSET = 150;
 const TOGGLE_STACK =
   "sm:@max-[400px]:h-auto sm:@max-[400px]:flex-col sm:@max-[400px]:items-stretch sm:@max-[400px]:gap-[8px] sm:@max-[400px]:rounded-[12px] sm:@max-[400px]:px-[10px] sm:@max-[400px]:py-[8px]";
 const TOGGLE_STACK_SEP = "sm:@max-[400px]:hidden";
-const TOGGLE_STACK_ITEM = "sm:@max-[400px]:w-full sm:@max-[400px]:justify-between";
+const TOGGLE_STACK_ITEM =
+  "sm:@max-[400px]:w-full sm:@max-[400px]:justify-between";
 
 export function MapArea({
   className,
@@ -70,6 +72,7 @@ export function MapArea({
   highlightArea,
   crowd,
   traffic,
+  demoPlace,
 }: {
   className?: string;
   markers?: MapMarker[];
@@ -109,6 +112,8 @@ export function MapArea({
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
   };
+  /** 가이드 — 이 장소를 고른 것처럼 장소 카드를 띄운다(예시 지하철·버스 데이터, 불러오지 않는다). */
+  demoPlace?: { place: CrowdPlace; transit: CrowdTransit } | null;
 }) {
   const markerObjsRef = useRef<MarkerEntry[]>([]);
 
@@ -147,8 +152,9 @@ export function MapArea({
 
   // 실시간 인구 장소 이름표를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
   const [pickedPlace, setPickedPlace] = useState<CrowdPlace | null>(null);
-  const picked =
-    crowd?.on && pickedPlace
+  const picked = demoPlace
+    ? demoPlace.place
+    : crowd?.on && pickedPlace
       ? (crowd.places.find((p) => p.code === pickedPlace.code) ?? pickedPlace)
       : null;
 
@@ -196,7 +202,14 @@ export function MapArea({
         // 스위치형 — [아이콘 · 실시간 인구 · 스위치 | 흑백 | 도로 현황]. 켜면 스위치만 서비스 색(보라)으로 바뀐다
         // (혼잡도 "붐빔" 빨강과 헷갈리지 않게). 바탕은 반투명 유리(뒤 지도가 흐리게 비친다).
         // 태블릿처럼 지도 폭이 좁으면(400px 미만) 한 줄에 다 안 들어가 스위치를 한 줄에 하나씩 쌓는다.
-        <div className={cn("absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]", TOGGLE_STACK)}>
+        // data-tour — 매체 찾기 가이드가 밝히는 자리.
+        <div
+          data-tour="map-layers"
+          className={cn(
+            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]",
+            TOGGLE_STACK,
+          )}
+        >
           {crowd && (
             <Switch
               size="sm"
@@ -205,7 +218,12 @@ export function MapArea({
               aria-label="실시간 인구 보기"
               className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
             >
-              <Switch.Content className={cn("gap-[6px] text-[12px] font-semibold text-[#18181b]", TOGGLE_STACK_ITEM)}>
+              <Switch.Content
+                className={cn(
+                  "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                  TOGGLE_STACK_ITEM,
+                )}
+              >
                 {/* 아이콘 모양은 public/icons/group.svg */}
                 <span
                   aria-hidden
@@ -230,7 +248,10 @@ export function MapArea({
               {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
               <span
                 aria-hidden
-                className={cn("mx-[8px] h-[14px] w-px bg-[#18181b]/15", TOGGLE_STACK_SEP)}
+                className={cn(
+                  "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
+                  TOGGLE_STACK_SEP,
+                )}
               />
               <Switch
                 size="sm"
@@ -239,7 +260,12 @@ export function MapArea({
                 aria-label="범위 밖 흑백으로 보기"
                 className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
               >
-                <Switch.Content className={cn("gap-[6px] text-[12px] font-semibold text-[#18181b]", TOGGLE_STACK_ITEM)}>
+                <Switch.Content
+                  className={cn(
+                    "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                    TOGGLE_STACK_ITEM,
+                  )}
+                >
                   <span>흑백</span>
                   <Switch.Control>
                     <Switch.Thumb className="bg-white!" />
@@ -251,7 +277,10 @@ export function MapArea({
           {crowd && traffic && (
             <span
               aria-hidden
-              className={cn("mx-[8px] h-[14px] w-px bg-[#18181b]/15", TOGGLE_STACK_SEP)}
+              className={cn(
+                "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
+                TOGGLE_STACK_SEP,
+              )}
             />
           )}
           {traffic && (
@@ -263,7 +292,12 @@ export function MapArea({
               aria-label="도로 현황 보기"
               className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
             >
-              <Switch.Content className={cn("gap-[6px] text-[12px] font-semibold text-[#18181b]", TOGGLE_STACK_ITEM)}>
+              <Switch.Content
+                className={cn(
+                  "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                  TOGGLE_STACK_ITEM,
+                )}
+              >
                 <span>도로 현황</span>
                 <Switch.Control>
                   <Switch.Thumb className="bg-white!" />
@@ -304,7 +338,11 @@ export function MapArea({
         </div>
       )}
       {picked && (
-        <CrowdPlaceCard place={picked} onClose={() => setPickedPlace(null)} />
+        <CrowdPlaceCard
+          place={picked}
+          transit={demoPlace?.transit}
+          onClose={() => setPickedPlace(null)}
+        />
       )}
       {(popupId || popupPosition) && popupEl
         ? createPortal(
@@ -426,18 +464,25 @@ function LegendRow({
  */
 function CrowdPlaceCard({
   place,
+  transit,
   onClose,
 }: {
   place: CrowdPlace;
+  /** 가이드 예시 — 주면 불러오지 않고 이 값을 보여 주고, 모바일도 시트 대신 지도 위 카드로 띄운다. */
+  transit?: CrowdTransit;
   onClose: () => void;
 }) {
   const isDesktop = useIsDesktop();
-  if (!isDesktop) return <CrowdPlaceSheet place={place} onClose={onClose} />;
+  if (!isDesktop && !transit)
+    return <CrowdPlaceSheet place={place} onClose={onClose} />;
   // PC·태블릿 — 지역명·실시간 인구·닫기는 위에 고정하고, 지하철·버스만 ScrollShadow 안에서 스크롤한다.
   // 지도 폭이 좁으면(400px 미만, 태블릿) 320px 카드가 오른쪽으로 잘리고 세로로 쌓인 스위치와도 겹쳐서,
   // 지도 폭에 맞춰 아래쪽에 붙인다(범례 위를 덮는다).
   return (
-    <Card className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)]">
+    <Card
+      data-tour="crowd-place"
+      className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)]"
+    >
       <div className="shrink-0 border-b border-[#f1f1f4] px-[14px] pt-[12px] pb-[10px]">
         <CrowdPlaceHeader place={place} onClose={onClose} />
       </div>
@@ -445,7 +490,11 @@ function CrowdPlaceCard({
         size={24}
         className="flex min-h-0 flex-1 flex-col gap-[14px] px-[14px] pt-[12px] pb-[12px]"
       >
-        <CrowdPlaceBody code={place.code} />
+        {transit ? (
+          <CrowdTransitSections data={transit} />
+        ) : (
+          <CrowdPlaceBody code={place.code} />
+        )}
       </ScrollShadow>
     </Card>
   );

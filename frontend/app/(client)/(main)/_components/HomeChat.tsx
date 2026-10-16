@@ -362,6 +362,7 @@ export function HomeChat({
             textarea는 글자 칸만 차지하고 버튼 줄은 wrapper 여백에 둔다.
             여백은 테두리 1px을 더해 상하좌우 12px(11 + 1), 아래는 버튼 36 + 틈 10 + 11 = 57. */}
         <div
+          data-tour={isPanel ? undefined : "home-input"}
           className={
             isPanel
               ? "relative"

@@ -5,6 +5,7 @@ import { CurrentProposalPanel } from "./CurrentProposalPanel";
 import { LoginModal } from "./LoginModal";
 import { MixieChatPanel } from "./MixieChatPanel";
 import { MobileTopNav } from "./MobileTopNav";
+import { PageTourHost } from "@/components/common/PageTour";
 import { USER_TOKEN_COOKIE } from "@/lib/userToken";
 
 import { LNB_COLLAPSED_COOKIE } from "./lnbCookie";
@@ -37,6 +38,7 @@ export async function ClientShell({ children }: { children: ReactNode }) {
           </div>
           <LoginModal />
           <CurrentProposalPanel />
+          <PageTourHost />
         </div>
       </MixieChatProvider>
     </LnbProvider>

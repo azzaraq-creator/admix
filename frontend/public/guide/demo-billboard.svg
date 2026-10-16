@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 400" width="840" height="400">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c9d8ff"/>
+      <stop offset="1" stop-color="#f3eaff"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="0.5" stop-color="#7a3fe0"/>
+      <stop offset="1" stop-color="#e65ca8"/>
+    </linearGradient>
+  </defs>
+  <rect width="840" height="400" fill="url(#sky)"/>
+  <g fill="#b7c0d8">
+    <rect x="0" y="210" width="90" height="190"/>
+    <rect x="70" y="160" width="80" height="240"/>
+    <rect x="690" y="180" width="70" height="220"/>
+    <rect x="745" y="230" width="95" height="170"/>
+  </g>
+  <g fill="#9aa5c4">
+    <rect x="140" y="230" width="70" height="170"/>
+    <rect x="630" y="240" width="70" height="160"/>
+  </g>
+  <rect x="230" y="70" width="380" height="330" fill="#7c86a6"/>
+  <g fill="#aab3cc">
+    <rect x="250" y="300" width="40" height="22"/><rect x="310" y="300" width="40" height="22"/>
+    <rect x="370" y="300" width="40" height="22"/><rect x="430" y="300" width="40" height="22"/>
+    <rect x="490" y="300" width="40" height="22"/><rect x="550" y="300" width="40" height="22"/>
+    <rect x="250" y="340" width="40" height="22"/><rect x="310" y="340" width="40" height="22"/>
+    <rect x="370" y="340" width="40" height="22"/><rect x="430" y="340" width="40" height="22"/>
+    <rect x="490" y="340" width="40" height="22"/><rect x="550" y="340" width="40" height="22"/>
+  </g>
+  <rect x="252" y="92" width="336" height="182" rx="6" fill="#2a2f45"/>
+  <rect x="262" y="102" width="316" height="162" rx="3" fill="url(#screen)"/>
+  <text x="420" y="180" text-anchor="middle" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="46" font-weight="800" fill="#fff">ADMIX</text>
+  <text x="420" y="222" text-anchor="middle" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="20" font-weight="600" fill="#fff" fill-opacity="0.85">가이드용 예시 매체</text>
+  <rect x="0" y="388" width="840" height="12" fill="#8b93ad"/>
+</svg>

@@ -1,14 +1,28 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   type AddProposalOptions,
   AddToProposalModal,
 } from "@/components/common/AddToProposalModal";
-import { MediaDetailModal } from "@/components/common/MediaDetailModal";
+import {
+  MediaDetailModal,
+  MediaDetailPreview,
+} from "@/components/common/MediaDetailModal";
 import type { MediaItemData } from "@/components/common/MediaItem";
+import {
+  type TourStep,
+  useActivePageTourStep,
+  usePageTour,
+} from "@/components/common/PageTour";
 import {
   type MediaCardRow,
   type OperatingArea,
@@ -16,6 +30,7 @@ import {
   useMediaCrowd,
   useMediaTraffic,
 } from "@/hooks/media";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 import {
   MapArea,
@@ -24,6 +39,12 @@ import {
   type MapMarker,
   type MoveTarget,
 } from "./MapArea";
+import {
+  GUIDE_DEMO_DETAIL,
+  GUIDE_DEMO_ROW,
+  guideDemoPlace,
+  guideDemoTransit,
+} from "./guideDemo";
 import { MarkerMediaPopup } from "./MarkerMediaPopup";
 import { MediaFindPanel } from "./MediaFindPanel";
 import { replaceQuery } from "./replaceQuery";
@@ -164,8 +185,62 @@ function setTrafficSetting(on: boolean) {
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
+// 매체 찾기 가이드 — 단계 id에 맞춰 예시 카드·지도 장소 카드·매체 정보 창을 띄운다(guideDemo).
+// 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: "search",
+    target: ["find-search", "find-tabs"],
+    targetAll: true,
+    title: "검색·필터·정렬",
+    body: "검색과 필터로 매체를 좁히고, 탭으로 고정·이동 매체를 나눠 봐요.",
+    radius: 26,
+  },
+  {
+    id: "map-layers",
+    target: "map-layers",
+    title: "실시간 인구·흑백·도로 현황",
+    body: "장소별 혼잡도와 도로 소통 상태를 지도에서 봐요. 흑백은 붐비는 곳을 돋보이게 해요.",
+    radius: 21,
+  },
+  {
+    id: "crowd-place",
+    target: "crowd-place",
+    title: "지역별 인구·교통",
+    body: "지역을 누르면 실시간 인구와 지하철·버스 승하차가 보여요.",
+    radius: 20,
+  },
+  {
+    id: "card",
+    target: "find-card-demo",
+    title: "기획안 담기·관심 매체",
+    body: "기획안에 바로 담거나, 하트로 관심 매체에 저장해요.",
+    radius: 22,
+  },
+  {
+    id: "options",
+    target: "detail-options",
+    title: "상품·기간·제작 수",
+    body: "상품과 개월 수, 제작 개수를 고르면 예상 비용이 바로 나와요.",
+    radius: 18,
+  },
+  {
+    id: "info",
+    target: "detail-info",
+    title: "매체 정보",
+    body: "유동인구와 매체 상세 정보를 한눈에 확인해요.",
+    mobileBody: "탭을 넘기며 유동인구와 매체 정보를 확인해요.",
+    radius: 16,
+  },
+];
+
+const MAP_STEPS = new Set(["map-layers", "crowd-place"]);
+const DETAIL_STEPS = new Set(["options", "info"]);
+const noop = () => {};
+
 export function FixedMediaView() {
   const searchParams = useSearchParams();
+  const isDesktop = useIsDesktop();
 
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(
     null,
@@ -413,9 +488,43 @@ export function FixedMediaView() {
     setSelectedMedia(null);
   };
 
+  // 가이드 — 열 때 떠 있던 팝업·창은 닫고, 단계마다 예시 데이터를 띄운다.
+  usePageTour("media-find", TOUR_STEPS, () => {
+    setSelectedMedia(null);
+    setAddProposal(null);
+    closePopup();
+  });
+  const tourStep = useActivePageTourStep();
+  const touring = tourStep != null;
+  const mapStep = touring && MAP_STEPS.has(tourStep);
+  // 예시 장소는 가이드를 열 때 한 번 만든다(기준 시각 = 지금).
+  const demoPlace = useMemo(
+    () =>
+      touring ? { place: guideDemoPlace(), transit: guideDemoTransit() } : null,
+    [touring],
+  );
+  const demoCrowd = demoPlace && {
+    on: true,
+    onToggle: noop,
+    gray: true,
+    onToggleGray: noop,
+    places: [demoPlace.place],
+    loading: false,
+  };
+  const demoTraffic = { on: false, onToggle: noop, links: [], loading: false };
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-[16px]">
       <MediaFindPanel
+        // 모바일은 목록·지도를 한 번에 하나만 보여서 지도 단계에선 지도로 바꾼다.
+        demo={
+          touring
+            ? {
+                row: GUIDE_DEMO_ROW,
+                view: mapStep && !isDesktop ? "map" : "list",
+              }
+            : null
+        }
         selectedId={selectedMedia?.id}
         onSelectMedia={setSelectedMedia}
         onFocusMedia={(id) => {
@@ -473,38 +582,47 @@ export function FixedMediaView() {
             }
             onPopupClose={closePopup}
             highlightArea={hoverArea}
+            demoPlace={tourStep === "crowd-place" ? demoPlace : null}
             crowd={
-              // 넓게 보거나(레벨 8 이상) 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
-              !crowdZoomOk || crowdData?.enabled === false
-                ? undefined
-                : {
-                    on: crowdOn,
-                    onToggle: toggleCrowd,
-                    gray: crowdGray,
-                    onToggleGray: setCrowdGraySetting,
-                    places: crowdData?.places ?? [],
-                    loading: !crowdData || crowdData.pending > 0,
-                  }
+              mapStep && demoCrowd
+                ? demoCrowd
+                : // 넓게 보거나(레벨 8 이상) 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
+                  !crowdZoomOk || crowdData?.enabled === false
+                  ? undefined
+                  : {
+                      on: crowdOn,
+                      onToggle: toggleCrowd,
+                      gray: crowdGray,
+                      onToggleGray: setCrowdGraySetting,
+                      places: crowdData?.places ?? [],
+                      loading: !crowdData || crowdData.pending > 0,
+                    }
             }
             traffic={
-              // 실시간 인구와 같은 서울시 주요 장소 기준이라, 넓게 보거나 키가 없으면 같이 숨긴다.
-              !crowdZoomOk || trafficData?.enabled === false
-                ? undefined
-                : {
-                    on: trafficOn,
-                    onToggle: toggleTraffic,
-                    links: trafficData?.links ?? [],
-                    // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.
-                    loading:
-                      !trafficData ||
-                      (trafficData.pending > 0 &&
-                        trafficData.links.length === 0),
-                  }
+              mapStep
+                ? demoTraffic
+                : // 실시간 인구와 같은 서울시 주요 장소 기준이라, 넓게 보거나 키가 없으면 같이 숨긴다.
+                  !crowdZoomOk || trafficData?.enabled === false
+                  ? undefined
+                  : {
+                      on: trafficOn,
+                      onToggle: toggleTraffic,
+                      links: trafficData?.links ?? [],
+                      // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.
+                      loading:
+                        !trafficData ||
+                        (trafficData.pending > 0 &&
+                          trafficData.links.length === 0),
+                    }
             }
             className="size-full"
           />
         }
       />
+
+      {touring && DETAIL_STEPS.has(tourStep) && (
+        <MediaDetailPreview vm={GUIDE_DEMO_DETAIL} />
+      )}
 
       {selectedMedia && (
         <MediaDetailModal

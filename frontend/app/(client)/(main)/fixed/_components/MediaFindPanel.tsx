@@ -136,6 +136,7 @@ export function MediaFindPanel({
   onRequestMapMove,
   getViewport,
   onHoverArea,
+  demo,
 }: {
   /** 지도 영역 — 데이터는 onMapData로 올려보내고 엘리먼트는 부모가 내려준다. */
   mapSlot: ReactNode;
@@ -161,6 +162,11 @@ export function MediaFindPanel({
   } | null;
   /** 이동매체 카드에 마우스를 올리면 그 운행 지역, 떼면 null — 지도에 영역으로 그린다. */
   onHoverArea?: (area: OperatingArea | null) => void;
+  /**
+   * 가이드 — 예시 매체 카드를 목록 맨 위에 두고, view를 주면 목록/지도 보기를 그쪽으로 맞춘다
+   * (모바일은 한 번에 하나만 보여서 지도 단계에선 지도로). 가이드가 끝나면 원래 보기로 돌아간다.
+   */
+  demo?: { row: MediaCardRow; view?: "map" | "list" } | null;
 }) {
   const searchParams = useSearchParams();
   const sp = new URLSearchParams(searchParams.toString());
@@ -185,7 +191,8 @@ export function MediaFindPanel({
   const [showSug, setShowSug] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
-  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapExpandedState, setMapExpanded] = useState(false);
+  const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -562,7 +569,7 @@ export function MediaFindPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-[10px]">
-      <div className="relative z-30 shrink-0">
+      <div data-tour="find-search" className="relative z-30 shrink-0">
         <MediaFindTopBar
           keyword={location}
           onKeywordChange={(v) => {
@@ -658,7 +665,10 @@ export function MediaFindPanel({
       {/* 아래 리스트가 카드 그림자 자리를 만드느라 -mt-[30px]로 이 줄 위까지 박스를
           끌어올린다. 그대로 두면 나중에 그려지는 리스트가 칩을 덮어 X가 눌리지 않으므로
           칩 줄을 z-20으로 띄운다(필터 패널 z-30보다는 아래). */}
-      <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-[12px]">
+      <div
+        data-tour="find-tabs"
+        className="relative z-20 flex shrink-0 flex-wrap items-center gap-[12px]"
+      >
         {/* 매체 찾기 탭 — 숫자는 탭과 무관하게 같은 조건(지도 영역·검색어·필터)으로 센다.
             곡률·크기는 기획안 목록 탭과 같다. */}
         <Tabs
@@ -760,6 +770,12 @@ export function MediaFindPanel({
             // 좌우 패딩 40px을 더하고 간격 20px의 절반을 빼면 (100% - 20px) / 2 + 40px.
             className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[calc(50%+30px)] lg:w-[460px]"
           >
+            {demo && (
+              // 가이드 예시 카드 — 기획안 담기·관심 매체 버튼을 밝힌다(가이드 판이 막고 있어 눌리지 않는다).
+              <div data-tour="find-card-demo" className="shrink-0">
+                <MediaFindCard row={demo.row} />
+              </div>
+            )}
             {pinned && (
               <MediaFindCard
                 key={`pin-${pinned.id}`}

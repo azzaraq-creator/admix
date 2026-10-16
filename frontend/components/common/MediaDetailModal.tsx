@@ -180,6 +180,50 @@ export function MediaDetailModal({
 }
 
 /**
+ * 가이드용 매체 정보 창 — 예시 데이터(vm)를 팝업과 똑같은 모양으로 띄운다. 데이터를 불러오지 않고,
+ * 모달이 아니라서(포커스 가두기·바깥 클릭 닫기 없음) 가이드 판 아래에 보여 주기만 한다.
+ * 가이드 판(z-70)보다 아래, 화면(LNB z-40·AI 믹시 패널 z-50)보다 위.
+ */
+export function MediaDetailPreview({ vm }: { vm: MediaDetailViewModel }) {
+  const [options, setOptions] = useState<MediaOptionsValue>({
+    ...DEFAULT_MEDIA_OPTIONS,
+    months: 3,
+    productionCount: 2,
+  });
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-0 z-[60] flex items-center justify-center p-[20px] max-sm:p-[12px]"
+    >
+      <div className="flex max-h-full w-full max-w-[940px] flex-col gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]">
+        <div className="flex h-[39px] shrink-0 items-center gap-[8px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
+          <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
+            매체 정보
+          </p>
+          <p className="truncate text-[12px] text-[#888] max-sm:hidden">
+            매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
+          </p>
+        </div>
+        <div className="flex min-h-0 flex-col gap-[10px] overflow-y-auto">
+          <MediaDetailBody
+            vm={vm}
+            options={{ value: options, onChange: setOptions }}
+          />
+        </div>
+        <div className="flex shrink-0 justify-end gap-[8px]">
+          <DetailActions
+            liked={false}
+            onLikedChange={() => {}}
+            onClose={() => {}}
+            onAddProposal={() => {}}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * 매체 정보 본문만 — 팝업 틀 없이 다른 화면(기획안 상세의 매체 슬라이드 자리 등)에 끼워 쓴다.
  * 사진·이름·주소·칩·가격·설명·유동인구·스펙(모바일은 탭)을 팝업과 똑같이 보여 준다.
  */
@@ -316,11 +360,14 @@ function MediaDetailBody({
 
           {/* 팝업은 가격 칸 안에서 상품·개월 수·제작 수를 고른다(PC·모바일 같음). */}
           {options ? (
-            <MediaOptionsPriceBox
-              vm={vm}
-              value={options.value}
-              onChange={options.onChange}
-            />
+            // data-tour — 매체 찾기 가이드가 상품·개월 수·제작 수를 밝히는 자리.
+            <div data-tour="detail-options" className="w-full">
+              <MediaOptionsPriceBox
+                vm={vm}
+                value={options.value}
+                onChange={options.onChange}
+              />
+            </div>
           ) : (
             <PriceBox vm={vm} />
           )}
@@ -335,7 +382,11 @@ function MediaDetailBody({
 
       <MobileDetailTabs vm={vm} specs={specs} />
 
-      <div className="flex flex-col gap-[10px] pb-[10px] max-sm:hidden md:flex-row md:items-start">
+      {/* data-tour — 매체 찾기 가이드가 유동인구·매체 정보를 밝히는 자리(모바일은 위 탭). */}
+      <div
+        data-tour="detail-info"
+        className="flex flex-col gap-[10px] pb-[10px] max-sm:hidden md:flex-row md:items-start"
+      >
         {vm.population && <PopulationCard population={vm.population} />}
 
         {/* 인구 카드가 있으면 오른쪽을 카드 높이(315px)에 맞추고, 넘치는 항목은 안에서 스크롤한다. */}
@@ -436,6 +487,7 @@ function MobileDetailTabs({
 
   return (
     <Tabs
+      data-tour="detail-info"
       selectedKey={tab}
       onSelectionChange={(key) => setTab(String(key))}
       className="w-full gap-0 sm:hidden"
