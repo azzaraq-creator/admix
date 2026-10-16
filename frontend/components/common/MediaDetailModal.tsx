@@ -16,7 +16,6 @@ import { useEffect, useRef, useState } from "react";
 import { formatAdFee } from "@/lib/media";
 import {
   AgeRankBadge,
-  AgeRankInBar,
   RANK_IN_BAR_MIN_HEIGHT,
   ageRanks as getAgeRanks,
 } from "@/components/common/AgeBarChart";
@@ -831,12 +830,12 @@ function Description({ text }: { text: string }) {
   );
 }
 
-const AGE_MAX_BAR_HEIGHT = 76;
+const AGE_MAX_BAR_HEIGHT = 40;
 
-// 차트 라이브러리(Recharts)는 "요일별 보기"를 눌러 그래프를 그릴 때만 불러온다.
+// 차트 라이브러리(Recharts)는 요일별 값이 있는 매체를 열 때만 불러온다.
 const WeekdayPopulationChart = dynamic(
   () => import("@/components/common/WeekdayPopulationChart"),
-  { ssr: false, loading: () => <div className="h-[120px]" /> },
+  { ssr: false, loading: () => <div className="h-[88px]" /> },
 );
 
 /** 서울시 혼잡도 4단계 → 칩 색. */
@@ -847,6 +846,10 @@ const CONGEST_CHIP: Record<string, string> = {
   붐빔: "bg-error-bg text-error",
 };
 
+/**
+ * 인구 카드 — 요일별 값이 있으면 요일별 하루 평균 그래프를 크게 보이고 월평균은 버튼 팝업으로,
+ * 없으면 예전처럼 인구수를 크게. 아래에 성별·연령대 비율을 좌우로, 맨 아래에 출처.
+ */
 function PopulationCard({
   population,
 }: {
@@ -855,41 +858,53 @@ function PopulationCard({
   const topAge = population.ageRatios.reduce((top, cur) =>
     cur.value > top.value ? cur : top,
   );
-  const ageRanks = getAgeRanks(population.ageRatios);
   const topGender = population.femalePct > population.malePct ? "여성" : "남성";
-  // 비율이 더 높은 쪽만 보라색으로 강조한다(위 칩의 성별과 같은 기준).
-  const genders = [
-    { label: "여성", pct: population.femalePct },
-    { label: "남성", pct: population.malePct },
-  ].map((g) => ({ ...g, top: g.label === topGender }));
+  const weekday = population.weekdayDaily;
 
   return (
-    <div className="flex h-[315px] w-full shrink-0 flex-col justify-between rounded-[16px] border border-[#f1f1f4] bg-white px-[20px] py-[16px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
+    <div className="flex h-[315px] w-full shrink-0 flex-col justify-between gap-[6px] rounded-[16px] border border-[#f1f1f4] bg-white px-[20px] py-[12px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
       <div className="flex items-start justify-between gap-[8px]">
-        <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
-          <div className="flex min-w-0 items-baseline gap-[6px]">
-            <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
-              {population.title}
-            </p>
-            {population.caption && (
-              <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
-                {population.caption}
+        {weekday ? (
+          <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
+            <div className="flex min-w-0 items-center gap-[6px]">
+              <p className="text-[14px] leading-[1.4] font-semibold text-[#18181b]">
+                {population.title.replace(/^[월일]평균/, "요일별")}
               </p>
-            )}
+              <Chip className="rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
+                하루 평균
+              </Chip>
+            </div>
+            <div className="flex min-w-0 items-baseline gap-[6px]">
+              {population.caption && (
+                <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
+                  {population.caption}
+                </p>
+              )}
+              <PopulationTotalPopover population={population} />
+            </div>
           </div>
-          <div className="flex items-baseline gap-[8px]">
+        ) : (
+          <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
+            <div className="flex min-w-0 items-baseline gap-[6px]">
+              <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
+                {population.title}
+              </p>
+              {population.caption && (
+                <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
+                  {population.caption}
+                </p>
+              )}
+            </div>
             <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
               {population.populationText}명
             </p>
-            {population.weekdayDaily && (
-              <WeekdayPopover
-                data={population.weekdayDaily}
-                heading={population.title.replace("월평균", "요일별")}
-                caption={population.caption}
-              />
+            {population.note && (
+              <p className="truncate text-[11px] leading-[1.4] font-medium text-gray-400">
+                {population.note}
+              </p>
             )}
           </div>
-        </div>
+        )}
         <div className="flex shrink-0 items-center gap-[4px]">
           {population.congestLevel && (
             <Chip
@@ -909,147 +924,236 @@ function PopulationCard({
         </div>
       </div>
 
-      <div className="h-px w-full bg-[#f1f1f4]" />
+      {weekday && <WeekdayPopulationChart data={weekday} height={88} />}
 
-      <div className="flex flex-col gap-[8px]">
-        <p className="text-[13px] font-semibold text-[#18181b]">성별 비율</p>
-        <div className="flex flex-col gap-[6px]">
-          {genders.map((g) => (
-            <div key={g.label} className="flex items-center gap-[12px]">
-              <div className="flex items-center gap-[8px]">
-                <ProfileFilledIcon
-                  className={cn(
-                    "size-[14px] shrink-0",
-                    g.top ? "text-primary-500" : "text-[#71717a]",
-                  )}
-                />
-                <span className="text-[12px] leading-[1.4] font-medium whitespace-nowrap text-[#18181b]">
-                  {g.label}
-                </span>
-              </div>
-              <div className="relative h-[8px] flex-1 overflow-hidden rounded-[4px] bg-[#f4f4f5]">
-                <div
-                  className={cn(
-                    "absolute inset-y-0 left-0 rounded-[4px]",
-                    g.top ? "bg-primary-500" : "bg-[#71717a]",
-                  )}
-                  style={{ width: `${g.pct}%` }}
-                />
-              </div>
-              <span className="w-[32px] text-right text-[13px] leading-[1.4] font-semibold text-[#18181b]">
-                {g.pct}%
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className="h-px w-full shrink-0 bg-[#f1f1f4]" />
+
+      <div className="grid grid-cols-[2fr_3fr] gap-[16px]">
+        <GenderRatio population={population} topGender={topGender} />
+        <AgeRatio ageRatios={population.ageRatios} topAge={topAge} />
       </div>
 
-      <div className="h-px w-full bg-[#f1f1f4]" />
+      <PopulationSources sources={population.sources} />
+    </div>
+  );
+}
 
-      <div className="flex h-[139px] flex-col justify-between">
-        <p className="text-[13px] font-semibold text-[#18181b]">연령대 비율</p>
-        <div className="flex h-[120px] items-end gap-[4px]">
-          {population.ageRatios.map((age, i) => {
-            const rank = ageRanks[i];
-            // 공동 1위도 모두 1위 색으로(흰 순위 글씨가 회색 막대에 묻히지 않게).
-            const top = rank === 1;
-            const height = topAge.value
-              ? Math.round((age.value / topAge.value) * AGE_MAX_BAR_HEIGHT)
-              : 0;
-            return (
+/** 성별 색 — 비율이 높은 쪽만 성별 색, 낮은 쪽은 회색. 분홍은 흰 바탕 대비가 낮아 옆에 글자·%를 꼭 둔다. */
+const GENDER_COLOR: Record<string, string> = {
+  여성: "#e87ba4",
+  남성: "#2a78d6",
+};
+
+const GENDER_MUTED = "#a1a1aa";
+
+/** 연령대 1~3위 막대 색 — 남색 한 색의 진하기로(1위가 가장 진하게). 4위 아래는 회색. */
+const AGE_RANK_BAR: Record<number, string> = {
+  1: "bg-[#3b45b0]",
+  2: "bg-[#8d95dc]",
+  3: "bg-[#d3d7f4]",
+};
+
+/** 성별 비율 — 비율이 더 높은 쪽만 성별 색·진한 글씨, 낮은 쪽은 회색(위 칩의 성별과 같은 기준). */
+function GenderRatio({
+  population,
+  topGender,
+}: {
+  population: MediaDetailPopulationVM;
+  topGender: string;
+}) {
+  const genders = [
+    { label: "여성", pct: population.femalePct },
+    { label: "남성", pct: population.malePct },
+  ].map((g) => ({ ...g, top: g.label === topGender }));
+
+  return (
+    <div className="flex min-w-0 flex-col gap-[8px]">
+      <p className="text-[13px] font-semibold text-[#18181b]">성별 비율</p>
+      <div className="flex flex-1 flex-col justify-center gap-[10px]">
+        {genders.map((g) => (
+          <div
+            key={g.label}
+            className="flex items-center gap-[6px] max-sm:gap-[4px]"
+          >
+            {/* 좁은 모바일에선 막대 자리를 위해 아이콘을 뺀다. */}
+            <ProfileFilledIcon
+              className="size-[12px] shrink-0 max-sm:hidden"
+              style={{ color: g.top ? GENDER_COLOR[g.label] : GENDER_MUTED }}
+            />
+            <span className="text-[11px] leading-[1.4] font-medium whitespace-nowrap text-[#18181b]">
+              {g.label}
+            </span>
+            <div className="relative h-[6px] min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#f4f4f5]">
               <div
-                key={age.label}
-                className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-[4px] text-[11px] leading-[1.3] whitespace-nowrap"
-              >
-                {rank != null && height < RANK_IN_BAR_MIN_HEIGHT && (
-                  <AgeRankBadge rank={rank} />
-                )}
-                <span
-                  className={
-                    top
-                      ? "font-bold text-primary-500"
-                      : "font-medium text-[#71717a]"
-                  }
-                >
-                  {Math.round(age.value)}%
-                </span>
-                <div
-                  className={cn(
-                    "flex w-[32px] justify-center rounded-t-[6px]",
-                    top
-                      ? "bg-primary-500"
-                      : rank === 2
-                        ? "bg-primary-200"
-                        : rank === 3
-                          ? "bg-primary-100"
-                          : "bg-[#f4f4f5]",
-                  )}
-                  style={{ height }}
-                >
-                  {rank != null && height >= RANK_IN_BAR_MIN_HEIGHT && (
-                    <AgeRankInBar rank={rank} />
-                  )}
-                </div>
-                <span
-                  className={
-                    top
-                      ? "font-semibold text-[#18181b]"
-                      : "font-medium text-[#71717a]"
-                  }
-                >
-                  {ageLabel(age)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                className="absolute inset-y-0 left-0 rounded-[3px]"
+                style={{
+                  width: `${g.pct}%`,
+                  background: g.top ? GENDER_COLOR[g.label] : GENDER_MUTED,
+                }}
+              />
+            </div>
+            <span
+              className={cn(
+                "w-[28px] text-right text-[12px] leading-[1.4]",
+                g.top
+                  ? "font-bold text-[#18181b]"
+                  : "font-medium text-[#71717a]",
+              )}
+            >
+              {g.pct}%
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-/**
- * 인구 카드의 "요일별 보기" — 누르면 월~일 하루 평균 막대를 작은 팝업(HeroUI Popover)으로 띄운다.
- * 바깥 클릭·Esc로 닫힌다. 카드 크기는 그대로 둔다.
- */
-function WeekdayPopover({
-  data,
-  heading,
-  caption,
+/** 연령대 비율 막대 — 1~3위는 남색 단계로, 순위는 막대 안(짧으면 위)에. */
+function AgeRatio({
+  ageRatios,
+  topAge,
 }: {
-  data: { label: string; value: number }[];
-  /** "요일별 유동인구" / "요일별 역 승하차" */
-  heading: string;
-  caption: string;
+  ageRatios: MediaDetailAgeRatio[];
+  topAge: MediaDetailAgeRatio;
+}) {
+  const ageRanks = getAgeRanks(ageRatios);
+  return (
+    <div className="flex min-w-0 flex-col gap-[4px]">
+      <p className="text-[13px] font-semibold text-[#18181b]">연령대 비율</p>
+      <div className="flex h-[80px] items-end gap-[3px] max-sm:gap-[1px]">
+        {ageRatios.map((age, i) => {
+          const rank = ageRanks[i];
+          // 공동 1위도 모두 1위 색으로(흰 순위 글씨가 회색 막대에 묻히지 않게).
+          const top = rank === 1;
+          const height = topAge.value
+            ? Math.round((age.value / topAge.value) * AGE_MAX_BAR_HEIGHT)
+            : 0;
+          return (
+            <div
+              key={age.label}
+              className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-[2px] text-[10px] leading-[1.3] whitespace-nowrap max-sm:text-[9px] max-sm:tracking-[-0.03em]"
+            >
+              {rank != null && height < RANK_IN_BAR_MIN_HEIGHT && (
+                <AgeRankBadge
+                  rank={rank}
+                  className={
+                    rank === 1
+                      ? "bg-[#3b45b0] text-white"
+                      : "bg-[#e8eaf8] text-[#232a78]"
+                  }
+                />
+              )}
+              <span
+                className={
+                  top
+                    ? "font-bold text-[#18181b]"
+                    : "font-medium text-[#71717a]"
+                }
+              >
+                {Math.round(age.value)}%
+              </span>
+              <div
+                className={cn(
+                  "flex w-full max-w-[24px] justify-center rounded-t-[4px]",
+                  (rank != null && AGE_RANK_BAR[rank]) || "bg-[#f4f4f5]",
+                )}
+                style={{ height }}
+              >
+                {rank != null && height >= RANK_IN_BAR_MIN_HEIGHT && (
+                  <span
+                    className={cn(
+                      "pt-[4px] text-[10px] leading-[14px] font-bold whitespace-nowrap",
+                      rank === 1 ? "text-white" : "text-[#232a78]",
+                    )}
+                  >
+                    {rank}위
+                  </span>
+                )}
+              </div>
+              <span
+                className={
+                  top
+                    ? "font-semibold text-[#18181b]"
+                    : "font-medium text-[#71717a]"
+                }
+              >
+                {ageLabel(age)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** 출처 — 인구수와 성별·연령 출처가 같으면 한 줄로, 다르면(지하철역) 항목별로. 직접 입력이면 안 보인다. */
+function PopulationSources({
+  sources,
+}: {
+  sources: MediaDetailPopulationVM["sources"];
+}) {
+  const { traffic, demographic } = sources;
+  if (!traffic && !demographic) return null;
+  const lines =
+    traffic === demographic
+      ? [`출처: ${traffic}`]
+      : [
+          traffic && `승하차 출처: ${traffic}`,
+          demographic && `성별·연령 출처: ${demographic}`,
+        ].filter((line): line is string => !!line);
+  return (
+    <div className="flex shrink-0 flex-col text-[10px] leading-[1.4] font-medium text-gray-400">
+      {lines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 요일별 그래프가 있는 카드의 "월평균 유동인구"(역은 "월평균 역 승하차") 버튼 — 누르면 인구수를
+ * 작은 어두운 팝업(HeroUI Popover)으로 띄운다 — 흰 카드·팝업 위에서 떠 보이게. 바깥 클릭·Esc로 닫힌다.
+ */
+function PopulationTotalPopover({
+  population,
+}: {
+  population: MediaDetailPopulationVM;
 }) {
   return (
     <Popover>
       <Button
         variant="ghost"
         size="sm"
-        className="h-auto min-w-0 gap-[2px] p-0 text-[12px] font-medium text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+        className="h-auto min-w-0 shrink-0 p-0 text-[11px] font-medium text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
       >
-        요일별 보기
+        {population.title}
       </Button>
+      {/* --overlay 를 바꿔 바탕과 꼬리(popover-overlay-arrow)를 함께 어둡게. */}
       <Popover.Content
         placement="bottom start"
-        className="w-[340px] max-w-[calc(100vw-32px)] rounded-[16px]"
+        className="max-w-[min(300px,calc(100vw-32px))] rounded-[16px] bg-[#27272a] [--overlay:#27272a]"
       >
-        {/* "요일별 보기" 버튼을 가리키는 꼬리. */}
+        {/* 버튼을 가리키는 꼬리. */}
         <Popover.Arrow />
-        <Popover.Dialog className="flex flex-col gap-[8px] px-[16px] pt-[14px] pb-[10px]">
-          <div className="flex flex-col gap-[2px]">
-            <Popover.Heading className="text-[13px] font-semibold text-[#18181b]">
-              {heading}
-              <Chip className="ml-[6px] rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] align-middle text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
-                하루 평균
-              </Chip>
-            </Popover.Heading>
-            <p className="text-[11px] leading-[1.4] font-medium text-gray-400">
-              {caption}
+        <Popover.Dialog className="flex flex-col gap-[2px] px-[16px] py-[12px]">
+          <Popover.Heading className="text-[13px] font-semibold text-white/60">
+            {population.title}
+          </Popover.Heading>
+          <p className="text-[22px] leading-[1.2] font-bold whitespace-nowrap text-white">
+            {population.populationText}명
+          </p>
+          {population.caption && (
+            <p className="text-[11px] leading-[1.4] font-medium text-white/50">
+              {population.caption}
             </p>
-          </div>
-          <WeekdayPopulationChart data={data} height={150} />
+          )}
+          {population.note && (
+            <p className="mt-[6px] border-t border-white/10 pt-[8px] text-[11px] leading-[1.5] font-medium text-white/80">
+              {population.note}
+            </p>
+          )}
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

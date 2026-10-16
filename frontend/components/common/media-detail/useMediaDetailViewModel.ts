@@ -34,6 +34,10 @@ export type MediaDetailPopulationVM = {
   genderRatio: { male: number; female: number };
   /** 월~일 하루 평균 — 서울시 상권(요일 값이 있을 때)·지하철역 승하차. */
   weekdayDaily: { label: string; value: number }[] | null;
+  /** 숫자를 어떻게 셌는지 — 지하철역 승하차만(교통카드 기준). 없으면 null. */
+  note: string | null;
+  /** 출처 — 인구수·요일별(traffic)과 성별·연령(demographic). 직접 입력은 알 수 없어 null. */
+  sources: { traffic: string | null; demographic: string | null };
 };
 
 export type MediaDetailViewModel = {
@@ -66,12 +70,35 @@ export function formatFee(krw: number | null): string {
   return `최소집행금액 ${Math.round(krw / 10000).toLocaleString()}만원`;
 }
 
-/** 인구 카드 제목 — 지하철역 안 매체는 그 역의 승하차 수라 따로 부른다. */
+/** 인구 카드 제목 — 지하철역 안 매체는 그 역의 승하차(한 달 환산)라 따로 부른다. */
 const POPULATION_TITLE: Record<MediaPopulation["source"], string> = {
   realtime: "실시간 인구",
   manual: "월평균 유동인구",
   sangwon: "월평균 유동인구",
   station: "월평균 역 승하차",
+};
+
+const SANGWON_SOURCE = "서울시 상권분석서비스";
+
+/** 지하철 승하차 집계 기준(서울시 교통카드 데이터) — 역 안에서 갈아타는 환승은 찍지 않아 빠진다. */
+const STATION_NOTE =
+  "교통카드를 찍고 타고 내린 사람만 세요. 환승은 세지 않아요.";
+
+/** 인구 카드 출처 — 지하철역은 승하차에 성별·연령이 없어 비율만 상권 값을 쓴다. */
+const POPULATION_SOURCES: Record<
+  MediaPopulation["source"],
+  MediaDetailPopulationVM["sources"]
+> = {
+  realtime: {
+    traffic: "서울시 실시간 도시데이터",
+    demographic: "서울시 실시간 도시데이터",
+  },
+  manual: { traffic: null, demographic: null },
+  sangwon: { traffic: SANGWON_SOURCE, demographic: SANGWON_SOURCE },
+  station: {
+    traffic: "서울시 지하철 역별 승하차 인원",
+    demographic: SANGWON_SOURCE,
+  },
 };
 
 /** 인구 카드 제목 옆 설명 — 실시간은 "장소 · 시:분 기준", 월평균은 기준(시기·상권). */
@@ -149,6 +176,8 @@ export function toMediaDetailViewModel(
           ],
           genderRatio: { male: pop.malePct, female: pop.femalePct },
           weekdayDaily: pop.weekdayDaily?.length ? pop.weekdayDaily : null,
+          note: pop.source === "station" ? STATION_NOTE : null,
+          sources: POPULATION_SOURCES[pop.source],
         }
       : null,
   };

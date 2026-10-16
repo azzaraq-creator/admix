@@ -17,7 +17,8 @@ import type {
 
 export type WeekdayPopulation = { label: string; value: number };
 
-const PRIMARY = "var(--color-primary-500)";
+/** 선 색 — 인구 카드가 보라 일색이 되지 않게 파랑(성별 분홍·파랑, 연령 남색과 함께 색각 검증함). */
+const LINE = "#2a78d6";
 
 /** 점 위 숫자 — 1만 이상은 "2.7만", 그 아래는 "8,400". */
 function compact(value: number): string {
@@ -46,9 +47,9 @@ function DarkTooltip({
 }
 
 /**
- * 요일별 하루 평균 유동인구 선 그래프 — 가장 많은 요일(공동 포함)의 점만 보라로 채우고 크게.
+ * 요일별 하루 평균 유동인구 선 그래프 — 가장 많은 요일(공동 포함)의 점만 파랑으로 채우고 크게.
  * 마우스를 올리면 정확한 숫자를 띄운다. 누를 것이 없어 클릭·키보드 포커스(보라 테두리)는 끈다.
- * 매체 정보 팝업의 "요일별 보기"가 누를 때만 불러온다(지연 로드).
+ * 매체 정보 팝업의 인구 카드가 요일별 값이 있을 때만 불러온다(지연 로드).
  */
 export default function WeekdayPopulationChart({
   data,
@@ -86,7 +87,7 @@ export default function WeekdayPopulationChart({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={PRIMARY}
+            stroke={LINE}
             strokeWidth={2}
             isAnimationActive={false}
             dot={({ cx, cy, payload }) => {
@@ -97,13 +98,13 @@ export default function WeekdayPopulationChart({
                   cx={cx}
                   cy={cy}
                   r={top ? 5 : 3.5}
-                  fill={top ? PRIMARY : "#fff"}
-                  stroke={PRIMARY}
+                  fill={top ? LINE : "#fff"}
+                  stroke={LINE}
                   strokeWidth={2}
                 />
               );
             }}
-            activeDot={{ r: 5, fill: PRIMARY, stroke: "#fff", strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: LINE, stroke: "#fff", strokeWidth: 2 }}
           >
             <LabelList
               dataKey="value"
