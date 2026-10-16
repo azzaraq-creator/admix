@@ -298,6 +298,12 @@ def _operating_area(m: Media) -> dict | None:
     )
 
 
+def _display_address(m) -> str | None:
+    """보여 줄 주소 — 정확한 주소 → 주소 → 지번 주소 순으로 먼저 있는 것.
+    묶음 매체는 주소(address) 칸이 비고 지번 주소만 있는 경우가 많다(목록·지도·상세 모두 같은 값)."""
+    return m.accurate_address or m.address or m.full_address_jibun or None
+
+
 def _media_card(m: Media) -> dict:
     name = " ".join(p for p in [(m.name or "").strip(), (m.second_name or "").strip()] if p)
     # 카드 이미지: 썸네일 우선 → media_image(sort_order) 순, 중복 제거 — 등록한 사진 전부.
@@ -310,7 +316,7 @@ def _media_card(m: Media) -> dict:
         name=name or "-",
         minAdvertisementFeeKrw=m.min_advertisement_fee_krw,
         minProductionFeeKrw=m.min_production_fee_krw,
-        address=m.address,
+        address=_display_address(m),
         categoryLarge=m.category_large,
         categorySmall=m.category_small,
         salesType=_SALE_TYPE.get(m.sales_type, m.sales_type),
@@ -861,7 +867,7 @@ def _marker_from_row(
         name=name or "-",
         categoryLarge=r.category_large,
         categorySmall=r.category_small,
-        address=r.address,
+        address=_display_address(r),
         minAdvertisementFeeKrw=r.min_advertisement_fee_krw,
         minProductionFeeKrw=r.min_production_fee_krw,
         thumbnailUrl=images[0] if images else None,
@@ -917,7 +923,9 @@ def list_fixed_clusters(
         Media.second_name,
         Media.category_large,
         Media.category_small,
+        Media.accurate_address,
         Media.address,
+        Media.full_address_jibun,
         Media.latitude,
         Media.longitude,
         Media.min_advertisement_fee_krw,
@@ -1507,11 +1515,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         oohType=m.ooh_type,
         description=m.description,
         # 이동매체는 정해진 위치가 없어 운행 지역을 위치 자리에 보여 준다.
-        address=(
-            area["label"]
-            if area
-            else (m.accurate_address or m.address or m.full_address_jibun or None)
-        ),
+        address=area["label"] if area else _display_address(m),
         thumbnailUrl=m.thumbnail_url,
         imageUrls=[img.image_url for img in m.images],
         sizeText=_size_text(m),
