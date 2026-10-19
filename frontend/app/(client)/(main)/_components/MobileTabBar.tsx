@@ -37,7 +37,7 @@ function TabLink({ item, pathname }: { item: MenuItem; pathname: string }) {
 }
 
 /**
- * 모바일 하단 탭 바 — 화면 아래에 떠 있는 반투명 남색 캡슐("지도 보기" 버튼과 같은 남색 82%, 유리처럼 뒤 본문이
+ * 모바일 하단 탭 바 — 화면 아래에 떠 있는 반투명 남색 캡슐("지도 보기" 버튼과 같은 남색 68%, 유리처럼 뒤 본문이
  * 흐리게 비친다). 사이드 메뉴의 메뉴 넷(매체 찾기·기획안 | 관심 매체·
  * 문의하기)과 가운데 AI 믹시(회색 칸 속 믹시 심볼 + 글자, 누르면 어느 화면에서든 믹시 채팅 시트를 연다).
  * 본문 위에 떠 있어 스크롤하는 내용이 캡슐 뒤로 흐리게 비쳐 지나간다. 가리는 높이는 --tabbar-space(ClientShell)로
@@ -45,9 +45,7 @@ function TabLink({ item, pathname }: { item: MenuItem; pathname: string }) {
  */
 export function MobileTabBar() {
   const pathname = usePathname() ?? "";
-  const { panelOpen, setPanelOpen, panelPreview } = useMixieChat();
-  // 시트가 열렸거나(가이드 예시 포함) 홈(믹시 대화)이면 켜진 글자.
-  const mixieActive = pathname === "/" || panelOpen || panelPreview === "shown";
+  const { panelOpen, setPanelOpen } = useMixieChat();
   const [left, right] = [MENU_ITEMS.slice(0, 2), MENU_ITEMS.slice(2)];
 
   return (
@@ -57,8 +55,8 @@ export function MobileTabBar() {
       aria-label="하단 메뉴"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[35] px-[12px] pb-[calc(8px+env(safe-area-inset-bottom))] sm:hidden"
     >
-      {/* 캡슐 56px → 곡률 (56/2)-3 = 25px. 바탕이 흐리게 비치는 남색(gray-800 #252836, 82%) 유리. */}
-      <div className="pointer-events-auto flex h-[56px] items-stretch rounded-[25px] bg-[rgba(37,40,54,0.82)] px-[6px] shadow-[0px_6px_18px_rgba(0,0,0,0.18)] backdrop-blur-[12px] backdrop-saturate-[1.6]">
+      {/* 캡슐 56px → 곡률 (56/2)-3 = 25px. 바탕이 흐리게 비치는 남색(gray-800 #252836, 68%) 유리. */}
+      <div className="pointer-events-auto flex h-[56px] items-stretch rounded-[25px] bg-[rgba(37,40,54,0.68)] px-[6px] shadow-[0px_6px_18px_rgba(0,0,0,0.18)] backdrop-blur-[12px] backdrop-saturate-[1.6]">
         {left.map((item) => (
           <TabLink key={item.key} item={item} pathname={pathname} />
         ))}
@@ -70,19 +68,16 @@ export function MobileTabBar() {
           onClick={() => setPanelOpen(true)}
           className="flex min-w-0 flex-1 items-center justify-center"
         >
-          {/* 아이콘과 글자를 옅은 칸 하나에 담아 가운데를 구분하고, 둘만 연보라로 색 포인트를 준다
-              (남색 위에서 또렷하게 — 믹시 보라보다 밝은 톤). 46px → 곡률 (46/2)-3 = 20px.
-              시트가 열렸거나 홈이면 칸이 조금 더 밝아진다. */}
+          {/* 칸은 살짝 어두운 남색으로 깔아 가운데를 구분하고, 아이콘·글자만 선명한 연보라로 색 포인트를 준다 —
+              밝은 칸 위의 연보라는 대비가 낮아 흐려 보여서(약 2.7:1), 칸을 어둡게 해 또렷하게 한다(약 6:1).
+              46px → 곡률 (46/2)-3 = 20px. 켜진 상태는 따로 두지 않는다. */}
           <span
             data-tour={MIXIE_TAB_STEP_ID}
-            className={cn(
-              "flex h-[46px] w-full max-w-[60px] flex-col items-center justify-center gap-[3px] rounded-[20px] text-[10px] leading-none font-bold text-[#c9b8f7]",
-              mixieActive ? "bg-white/20" : "bg-white/12",
-            )}
+            className="flex h-[46px] w-full max-w-[60px] flex-col items-center justify-center gap-[3px] rounded-[20px] bg-[rgba(16,18,28,0.38)] text-[10px] leading-none font-bold text-[#d6c6ff]"
           >
             <MixieIcon
               aria-hidden
-              className="size-[18px] shrink-0 [&_path]:fill-[#c2adf8]"
+              className="size-[18px] shrink-0 [&_path]:fill-[#cbb6ff]"
             />
             <span className="truncate">AI 믹시</span>
           </span>

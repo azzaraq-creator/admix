@@ -171,8 +171,9 @@ export function CurrentProposalButton({
           title={CURRENT_PROPOSAL_LABEL}
           onClick={toggle}
           className={cn(
-            // 아이콘은 메뉴 아이콘과 같은 짙은 색 — 보라 배지와 겹쳐 보이지 않게.
-            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-gray-900 transition-colors",
+            // 아이콘은 메인 색(보라) — 펼친 카드의 "현재 기획안" 이름표와 같은 색으로, 접혀도 같은 버튼으로 읽히게.
+            // (PC 사이드바 전용 — 모바일 상단바는 variant="header"로 따로 그린다.)
+            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-primary transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",

@@ -363,19 +363,16 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                 fullWidth
                 aria-label="로그인 / 회원가입"
                 onPress={openLoginModal}
-                // 배지(32px)의 가운데를 아이콘 열(x=39px)에 맞춘다 → 왼쪽 여백 13px.
-                // 오른쪽 7px로 줄여 라벨(96px) 자리는 그대로 확보한다.
-                className="h-auto justify-start gap-[8px] overflow-hidden rounded-2xl py-2.5 pr-[7px] pl-[13px] data-[hovered=true]:border-primary-200"
+                // 아이콘 + 글자를 가운데로. 접히면(78px) 글자가 투명해져도 자리를 차지해 아이콘이 왼쪽
+                // 밖으로 밀려 잘리므로, 접힌 동안엔 글자를 빼서 아이콘만 가운데에 둔다.
+                className="h-auto justify-center gap-[8px] overflow-hidden rounded-2xl px-[10px] py-2.5 data-[hovered=true]:border-primary-200"
               >
-                {/* 배지 자리(32px)는 그대로 두어 아이콘 열(x=39px)에 맞추고, 배경 없이 검정 아이콘만 —
-                    화면에 보라가 많아 무채색으로 둔다(모바일 상단바와 같은 모양). */}
-                <span className="flex size-8 shrink-0 items-center justify-center text-gray-900">
-                  <LoginDoorIcon className="h-[18px] w-[16px]" />
-                </span>
+                <LoginDoorIcon className="h-[18px] w-[16px] shrink-0" />
                 <span
                   className={cn(
                     "text-sm font-medium whitespace-nowrap text-foreground",
                     fadeLabel(collapsed),
+                    collapsed && "sm:hidden",
                   )}
                 >
                   로그인 / 회원가입
