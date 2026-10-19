@@ -354,9 +354,7 @@ export function AddFromFavoritesModal({
                   "min-w-[150px] bg-primary-500 font-bold text-white",
                 )}
               >
-                {!addItems.isPending && (
-                  <FolderAddIcon className="size-[14px] shrink-0" />
-                )}
+                {!addItems.isPending && <FolderAddIcon className="shrink-0" />}
                 {selected.length > 0
                   ? `${selected.length}개 추가하기`
                   : "추가하기"}
@@ -507,7 +505,7 @@ export function FavoritesPickPreview({
               "flex min-w-[150px] items-center justify-center bg-primary-500 font-bold text-white",
             )}
           >
-            <FolderAddIcon className="size-[14px] shrink-0" />
+            <FolderAddIcon className="shrink-0" />
             {selectedIds.length > 0
               ? `${selectedIds.length}개 추가하기`
               : "추가하기"}

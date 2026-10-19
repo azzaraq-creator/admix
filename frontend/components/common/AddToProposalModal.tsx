@@ -293,8 +293,7 @@ export function AddToProposalModal({
                     onPress={() => setCreating(true)}
                     className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-[13px] font-medium text-[#52525b] data-[hovered=true]:bg-[#fafafa]"
                   >
-                    <FolderAddIcon className="size-[16px] shrink-0" />새 기획안
-                    만들기
+                    <FolderAddIcon className="shrink-0" />새 기획안 만들기
                   </Button>
                 )}
 
@@ -400,7 +399,7 @@ export function AddToProposalModal({
                   )}
                 >
                   {!submitting && (
-                    <FolderAddIcon className="my-0 size-[16px] shrink-0 text-[#fafafa]" />
+                    <FolderAddIcon className="my-0 shrink-0 text-[#fafafa]" />
                   )}
                   {submitting
                     ? "담는 중..."

@@ -9,7 +9,7 @@ import {
   ChatIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  CollectionIcon,
+  FolderFilledIcon,
   GuideIcon,
   FileTextIcon,
   LocationIcon,
@@ -43,6 +43,8 @@ type MenuItem = {
   href: string;
   /** href 외에 이 메뉴가 활성으로 잡아야 할 경로들 */
   alsoActiveOn?: string[];
+  /** 아이콘 칸(18px) 안에서 그림 크기를 줄일 때 — 칸은 그대로라 글자 위치가 다른 메뉴와 같다. */
+  iconClassName?: string;
 };
 
 // Figma "01. 대시보드 - 배경 없음 (AI 믹시)" 기준 메뉴 구성.
@@ -59,8 +61,10 @@ const MENU_ITEMS: MenuItem[] = [
   {
     key: "proposals",
     label: "기획안",
-    Icon: CollectionIcon,
+    Icon: FolderFilledIcon,
     href: "/proposals",
+    // 채워진 폴더가 다른 아이콘보다 커 보여 그림만 2px 줄인다(가로 18 → 16px).
+    iconClassName: "p-[1px]",
   },
   {
     key: "favorites",
@@ -242,40 +246,44 @@ export function Sidebar({ member = false }: { member?: boolean }) {
             <hr className="my-[15px] border-t border-gray-200" />
 
             <ul className="flex flex-col gap-[3px]">
-              {MENU_ITEMS.map(({ key, label, Icon, href, alsoActiveOn }) => {
-                const active = [href, ...(alsoActiveOn ?? [])].some(
-                  (path) => pathname?.startsWith(path) ?? false,
-                );
-                return (
-                  <li key={key}>
-                    <Link
-                      href={href}
-                      onClick={handleNavClick}
-                      aria-current={active ? "page" : undefined}
-                      // 접히면 글자가 숨으므로 이름은 aria-label로, 마우스를 올리면 title로 알린다.
-                      aria-label={label}
-                      title={collapsed ? label : undefined}
-                      className={cn(
-                        NAV_ROW,
-                        active
-                          ? "bg-primary-100 font-bold text-primary"
-                          : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
-                      )}
-                    >
-                      {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
-                      <Icon className="size-[18px] shrink-0" />
-                      <span
+              {MENU_ITEMS.map(
+                ({ key, label, Icon, href, alsoActiveOn, iconClassName }) => {
+                  const active = [href, ...(alsoActiveOn ?? [])].some(
+                    (path) => pathname?.startsWith(path) ?? false,
+                  );
+                  return (
+                    <li key={key}>
+                      <Link
+                        href={href}
+                        onClick={handleNavClick}
+                        aria-current={active ? "page" : undefined}
+                        // 접히면 글자가 숨으므로 이름은 aria-label로, 마우스를 올리면 title로 알린다.
+                        aria-label={label}
+                        title={collapsed ? label : undefined}
                         className={cn(
-                          "text-sm whitespace-nowrap",
-                          fadeLabel(collapsed),
+                          NAV_ROW,
+                          active
+                            ? "bg-primary-100 font-bold text-primary"
+                            : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
                         )}
                       >
-                        {label}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+                        {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
+                        <Icon
+                          className={cn("size-[18px] shrink-0", iconClassName)}
+                        />
+                        <span
+                          className={cn(
+                            "text-sm whitespace-nowrap",
+                            fadeLabel(collapsed),
+                          )}
+                        >
+                          {label}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                },
+              )}
             </ul>
           </div>
 

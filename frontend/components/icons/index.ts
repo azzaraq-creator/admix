@@ -95,6 +95,7 @@ export { CopyLineIcon } from "./CopyLineIcon";
 export { CircleMinusIcon } from "./CircleMinusIcon";
 export { CirclePlusIcon } from "./CirclePlusIcon";
 export { OpenFolderIcon } from "./OpenFolderIcon";
+export { FolderFilledIcon } from "./FolderFilledIcon";
 export { CircleXIcon } from "./CircleXIcon";
 export { FlameIcon } from "./FlameIcon";
 export { NewStarIcon } from "./NewStarIcon";

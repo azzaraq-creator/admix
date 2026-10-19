@@ -170,7 +170,7 @@ function MediaFindCardImpl({
               onPress={() => onAddProposal?.()}
               className="absolute top-[11px] left-[11px] h-[30px] gap-[6px] rounded-[12px] bg-white px-[12px] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
             >
-              <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
+              <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
               <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
                 기획안 담기
               </span>

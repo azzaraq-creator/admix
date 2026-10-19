@@ -589,7 +589,7 @@ function DetailActions({
           "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
         )}
       >
-        <FolderAddIcon className="size-[16px] shrink-0 text-[#fafafa] max-sm:size-[14px]" />
+        <FolderAddIcon className="shrink-0 text-[#fafafa]" />
         기획안 담기
       </Button>
     </>

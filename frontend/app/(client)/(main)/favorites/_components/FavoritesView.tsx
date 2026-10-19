@@ -595,7 +595,7 @@ function DesktopSelectionBar({
           onPress={onAddProposal}
           className={cn(BAR_BUTTON_CLASS, "bg-primary-500 font-bold")}
         >
-          <FolderAddIcon className="size-[16px] shrink-0" />
+          <FolderAddIcon className="shrink-0" />
           기획안에 담기
         </Button>
       </div>
@@ -683,7 +683,7 @@ function MobileSelectionSheet({
                 onPress={run(onAddProposal)}
                 className={SHEET_PRIMARY_CLASS}
               >
-                <FolderAddIcon className="size-[18px] shrink-0" />
+                <FolderAddIcon className="shrink-0" />
                 기획안에 담기
               </Button>
               <div className="flex w-full gap-[8px]">

@@ -272,7 +272,7 @@ export function MediaPopupCard({
               onPress={() => onAddProposal?.()}
               className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-gray-200 px-[10px]"
             >
-              <FolderAddIcon className="size-[14px] shrink-0 text-primary" />
+              <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
               <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
                 기획안 담기
               </span>
