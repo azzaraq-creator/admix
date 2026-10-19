@@ -83,7 +83,7 @@ export function MovingView() {
           optionsByKey={optionsByKey}
           price={price}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div data-tabbar-pad className="flex-1 overflow-y-auto">
           {!isLoading && mediaList.length === 0 ? (
             <MediaEmptyResults
               onReset={
@@ -115,6 +115,7 @@ export function MovingView() {
       </div>
 
       <div
+        data-tabbar-pad
         className={`min-w-0 flex-1 overflow-y-auto sm:block ${
           detailOpen ? "block" : "hidden"
         }`}

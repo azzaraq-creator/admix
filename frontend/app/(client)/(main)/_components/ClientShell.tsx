@@ -31,9 +31,14 @@ export async function ClientShell({ children }: { children: ReactNode }) {
         <div className="flex h-dvh w-full bg-white">
           <Sidebar member={member} />
           <MixieChatPanel />
-          <div className="flex min-w-0 flex-1 flex-col">
+          {/* --tabbar-space: 모바일 하단 탭 바가 본문 위에 떠서 가리는 높이(캡슐 56 + 아래 여백 8 + 안전 영역).
+              화면들은 스크롤 끝·아래 버튼을 이만큼 올려 탭 바에 가리지 않게 한다(globals.css의 [data-shell-content]). */}
+          <div className="relative flex min-w-0 flex-1 flex-col [--tabbar-space:calc(64px+env(safe-area-inset-bottom))] sm:[--tabbar-space:0px]">
             <MobileTopNav member={member} />
-            <div className="relative flex min-h-0 flex-1 flex-col">
+            <div
+              data-shell-content
+              className="relative flex min-h-0 flex-1 flex-col"
+            >
               {children}
             </div>
             <MobileTabBar />

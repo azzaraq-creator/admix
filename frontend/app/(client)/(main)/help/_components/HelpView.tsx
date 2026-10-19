@@ -158,7 +158,7 @@ export function HelpView() {
   };
 
   return (
-    <div className="min-w-0 flex-1 overflow-y-auto bg-gray-50">
+    <div data-tabbar-pad className="min-w-0 flex-1 overflow-y-auto bg-gray-50">
       <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[40px]">
         <header className="flex flex-col gap-[6px]">
           <h1 className="text-[18px] leading-[26px] font-bold text-gray-900 sm:text-[26px] sm:leading-[34px]">

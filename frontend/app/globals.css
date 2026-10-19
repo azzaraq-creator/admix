@@ -383,3 +383,13 @@
     filter: grayscale(1);
   }
 }
+
+/* 모바일 하단 탭 바(MobileTabBar)는 본문 위에 떠 있다 — 각 화면의 스크롤 영역(<main>, 또는 data-tabbar-pad를
+   단 스크롤 칸) 끝에 탭 바 높이(--tabbar-space, ClientShell에서 모바일만 값이 있다)만큼 여백을 둬,
+   스크롤하는 동안엔 내용이 탭 바 뒤로 비쳐 지나가고 끝까지 내리면 마지막 내용이 탭 바 위에서 멈춘다. */
+@layer components {
+  [data-shell-content] main,
+  [data-shell-content] [data-tabbar-pad] {
+    padding-bottom: var(--tabbar-space, 0px);
+  }
+}

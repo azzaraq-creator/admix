@@ -520,7 +520,7 @@ export function FixedMediaView() {
   const demoTraffic = { on: false, onToggle: noop, links: [], loading: false };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-[16px]">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-0">
       <MediaFindPanel
         // 모바일은 목록·지도를 한 번에 하나만 보여서 지도 단계에선 지도로 바꾼다.
         demo={

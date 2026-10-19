@@ -632,7 +632,11 @@ function MobileSelectionSheet({
       <Drawer.Trigger
         aria-label="선택한 매체 자세히 보기"
         data-tour="favorites-bar"
-        className={cn(BAR_CLASS, "w-full cursor-pointer text-left sm:hidden")}
+        // 모바일은 하단 탭 바 위에 붙는다.
+        className={cn(
+          BAR_CLASS,
+          "w-full cursor-pointer text-left max-sm:bottom-[calc(var(--tabbar-space)+12px)] sm:hidden",
+        )}
       >
         <SelectionCount count={count} />
         {/* 누르면 할 일을 알려 준다 — 고른 게 있으면 "담기 · 취소 ⌃"(시트에서 기획안에 담기·관심 취소),

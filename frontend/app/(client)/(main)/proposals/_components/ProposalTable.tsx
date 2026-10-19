@@ -528,7 +528,10 @@ export function ProposalTable({
     const measure = () => {
       // 표 영역이 차지할 높이(내용과 무관) = 보이는 높이 − 표 밖 요소 높이.
       const available =
-        scroller.clientHeight - (page.offsetHeight - area.offsetHeight);
+        scroller.clientHeight -
+        // 모바일은 스크롤 끝에 하단 탭 바 자리(아래 패딩)를 둔다 — 그만큼은 표가 차지하지 않는다.
+        parseFloat(getComputedStyle(scroller).paddingBottom) -
+        (page.offsetHeight - area.offsetHeight);
       if (isEmpty) {
         const header = area.querySelector("thead");
         // HeroUI 기본(primary) 표는 아래에 4px 여백이 있다. 1px 더 빼 스크롤바가 생기지 않게 한다.

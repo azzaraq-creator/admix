@@ -762,14 +762,14 @@ export function MediaFindPanel({
             // 만들고 같은 크기의 음수 마진으로 되돌린다(카드 폭·지도와의 간격은 그대로).
             // 위아래는 같은 방법을 쓰면 그만큼 스크롤 영역이 넓어져 카드가 지도 위/아래로
             // 넘어오므로, 지도와 높이를 맞추기 위해 그림자가 잘리는 쪽을 택했다.
-            // 모바일은 화면 여백이 16px이라 같은 값으로 맞추고, 아래에 뜨는 지도 전환 버튼이
-            // 마지막 카드를 가리지 않게 아래 여백을 둔다.
+            // 모바일은 화면 여백이 16px이라 같은 값으로 맞추고, 목록은 하단 탭 바 밑까지 이어지되
+            // 탭 바와 그 위에 뜨는 지도 전환 버튼이 마지막 카드를 가리지 않게 아래 여백을 둔다.
             // Chrome은 흐림을 스크롤 연동 애니메이션으로 그리는데, 끝까지 내린 뒤 목록이 짧아져
             // 스크롤이 사라지면 위쪽 흐림 값이 그대로 남는다. HeroUI가 함께 달아 주는
             // data-top-scroll·data-bottom-scroll이 둘 다 false(넘칠 게 없음)면 흐림을 끈다.
             // 태블릿(sm~lg)은 460px 고정이면 지도가 쪼그라들어 목록과 지도를 반씩 나눈다 —
             // 좌우 패딩 40px을 더하고 간격 20px의 절반을 빼면 (100% - 20px) / 2 + 40px.
-            className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[64px] sm:w-[calc(50%+30px)] lg:w-[460px]"
+            className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[calc(var(--tabbar-space)+72px)] sm:w-[calc(50%+30px)] lg:w-[460px]"
           >
             {demo && (
               // 가이드 예시 카드 — 기획안 담기·관심 매체 버튼을 밝힌다(가이드 판이 막고 있어 눌리지 않는다).
@@ -831,18 +831,19 @@ export function MediaFindPanel({
         )}
 
         <div
-          className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-[#eee] ${
+          // 모바일 지도는 하단 탭 바 위에서 끝낸다 — 탭 바 밑으로 이어지면 왼쪽 아래 카카오 로고가 가린다.
+          className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-[#eee] max-sm:mb-[calc(var(--tabbar-space)+8px)] ${
             mapExpanded ? "block" : "hidden sm:block"
           }`}
         >
           {mapSlot}
         </div>
 
-        {/* 모바일은 목록과 지도를 한 화면씩 보여 주므로, 아래 가운데에 전환 버튼을 띄운다. */}
+        {/* 모바일은 목록과 지도를 한 화면씩 보여 주므로, 아래 가운데(하단 탭 바 위)에 전환 버튼을 띄운다. */}
         <button
           type="button"
           onClick={() => setMapExpanded((v) => !v)}
-          className="absolute bottom-[16px] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-gray-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-gray-900 sm:hidden"
+          className="absolute bottom-[calc(var(--tabbar-space)+20px)] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-gray-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-gray-900 sm:hidden"
         >
           {mapExpanded ? (
             <ListIcon className="size-[18px] shrink-0" />
