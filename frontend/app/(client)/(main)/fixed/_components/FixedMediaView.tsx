@@ -81,7 +81,7 @@ function cardRowToItem(row: MediaCardRow): MediaItemData {
 }
 
 // 진입 시 지도 기본 위치 — 강남역. 리스트는 스코프하지 않고 지도 시야만 잡는다.
-const DEFAULT_CENTER = { lat: 37.497942, lng: 127.027621, level: 5 };
+const DEFAULT_CENTER = { lat: 37.497942, lng: 127.027621, level: 4 };
 
 // URL 조회 영역(bbox) — 네 값이 모두 있어야 유효하다.
 function parseUrlBounds(sp: URLSearchParams) {

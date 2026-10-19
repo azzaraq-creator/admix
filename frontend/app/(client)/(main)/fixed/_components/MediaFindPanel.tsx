@@ -70,7 +70,8 @@ function parseFilter(sp: URLSearchParams): MediaFilterState {
 
 function parseZoom(sp: URLSearchParams): number {
   const v = sp.get("zoom");
-  return v != null && v !== "" ? Number(v) : 5;
+  // 첫 진입(지도 기본 위치 FixedMediaView DEFAULT_CENTER)과 같은 레벨.
+  return v != null && v !== "" ? Number(v) : 4;
 }
 
 // 조회 영역(bbox) — URL의 neLat/swLat/neLng/swLng. 지도를 옮기면 지금 보이는 영역으로,
