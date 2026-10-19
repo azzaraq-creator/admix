@@ -14,6 +14,7 @@ import { MixieIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
+import { useLnbExpanded } from "./useLnb";
 import { useMixieChat } from "./useMixieChat";
 
 /** 벽에 붙은 탭의 벽을 따라가는 길이(끄는 동안엔 이 크기의 네모). */
@@ -147,13 +148,15 @@ function loadSpot(): Spot {
  * 모바일 전용 — 화면 벽에 붙어 있는 AI 믹시 탭. 누르면 믹시 패널을 열고, 끌어서 옮기면 놓은 자리에서
  * 가장 가까운 벽(위·아래·왼쪽·오른쪽)에 붙는다(벽 쪽은 각지고 반대쪽만 둥근 반쪽 모양). 놓은 자리는 기억해 둔다.
  * 홈은 믹시 대화가 본문이라 띄우지 않고(대시보드 가이드가 이 버튼을 밝히는 동안만 띄운다),
- * 패널이 열려 있는 동안엔 숨긴다.
+ * 패널·사이드 메뉴가 열려 있는 동안엔 숨긴다.
  */
 export function MixieFloatingButton() {
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
   const { panelOpen, setPanelOpen } = useMixieChat();
   const tourStep = useActivePageTourStep();
+  // 모바일 사이드 메뉴(LNB)가 열리면 메뉴 위에 뜨지 않게 숨긴다.
+  const lnbOpen = useLnbExpanded();
 
   const viewport = useViewport();
   const [spot, setSpot] = useState<Spot>(loadSpot);
@@ -246,7 +249,7 @@ export function MixieFloatingButton() {
         // 놓으면 벽으로 미끄러져 붙는다. 끄는 동안엔 손가락을 바로 따라간다.
         !dragXY &&
           "transition-[translate,width,height,border-radius,opacity] duration-200 ease-out motion-reduce:transition-none",
-        panelOpen && "pointer-events-none opacity-0",
+        (panelOpen || lnbOpen) && "pointer-events-none opacity-0",
       )}
       style={{
         width: box.w,
@@ -256,7 +259,8 @@ export function MixieFloatingButton() {
         ...(dragXY ? null : WALL_BORDER[spot.edge]),
       }}
     >
-      <MixieIcon aria-hidden className="size-[20px]" />
+      {/* 심볼도 바탕처럼 반투명하게 — 뒤 화면 위에서 튀지 않게. */}
+      <MixieIcon aria-hidden className="size-[20px] opacity-60" />
     </button>
   );
 }
