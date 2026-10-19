@@ -138,18 +138,29 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-// 모바일 — 패널 단계 다음에 화면에 떠 있는 AI 믹시 버튼(MixieFloatingButton)을 알려 준다.
-// 홈에선 평소 숨는 버튼이라 이 단계 동안만 띄운다. 곡률은 버튼(17px) + 여백(6px).
+// 모바일 — 입력바 다음에 화면 벽에 붙은 AI 믹시 버튼(MixieFloatingButton)을 먼저 알려 주고,
+// 그 버튼으로 여는 시트(예시 대화)를 보여 준다. 홈에선 평소 숨는 버튼이라 버튼 단계 동안만 띄운다.
+// 버튼 곡률은 버튼(23px) + 여백(6px).
 const MOBILE_TOUR_STEPS: TourStep[] = [
-  ...TOUR_STEPS.slice(0, 2),
+  TOUR_STEPS[0],
   {
     id: MIXIE_FAB_STEP_ID,
     target: MIXIE_FAB_STEP_ID,
     title: "AI 믹시 버튼",
     body: "이 버튼을 누르면 AI 믹시 채팅이 열려요. 끌어서 원하는 자리로 옮길 수도 있어요.",
-    radius: 23,
+    radius: 29,
   },
-  ...TOUR_STEPS.slice(2),
+  {
+    ...TOUR_STEPS[1],
+    // 모바일은 아래에서 올라온 예시 시트만 밝힌다(화면 전체). 카드는 시트 머리말(손잡이 + 제목 줄,
+    // 72px) 바로 아래에 겹쳐 띄운다.
+    target: "mixie-panel-demo",
+    targetAll: false,
+    mobileBody: "어느 화면에서든 아래에서 올라오는 창으로 대화를 이어가요.",
+    radius: 20,
+    overlayCardTop: 84,
+  },
+  TOUR_STEPS[2],
 ];
 
 const TITLE_CLASS =

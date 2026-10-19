@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 import { useMixieChat } from "./useMixieChat";
 
 /** 벽에 붙은 탭의 벽을 따라가는 길이(끄는 동안엔 이 크기의 네모). */
-const LONG = 40;
+const LONG = 52;
 /** 벽에서 튀어나온 깊이. */
-const DEPTH = 32;
+const DEPTH = 40;
 /** 모서리 — (높이/2)-3px. */
 const RADIUS = LONG / 2 - 3;
 /** 탭이 벽을 따라 모서리(화면 끝)에서 띄우는 거리 */
@@ -256,7 +256,7 @@ export function MixieFloatingButton() {
         ...(dragXY ? null : WALL_BORDER[spot.edge]),
       }}
     >
-      <MixieIcon aria-hidden className="size-[16px]" />
+      <MixieIcon aria-hidden className="size-[20px]" />
     </button>
   );
 }

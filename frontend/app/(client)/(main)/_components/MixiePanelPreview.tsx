@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
-import { ArrowUpIcon, ChevronLeftIcon, MixieIcon } from "@/components/icons";
+import {
+  ArrowUpIcon,
+  ChevronLeftIcon,
+  MixieIcon,
+  XIcon,
+} from "@/components/icons";
 import type { V2Message } from "@/hooks/adRecommendReact";
 import { cn } from "@/lib/utils";
 
@@ -80,7 +85,8 @@ function DemoUserBubble({ content }: { content: string }) {
  * 대시보드 가이드의 "AI 믹시 패널" 단계 — 패널이 열린 것처럼 예시 대화를 띄운다.
  * 실제 패널(MixieChatPanel)과 같은 자리·층·머리말·말풍선이지만, 대화를 불러오거나 보내지 않는다.
  * PC는 실제 패널처럼 LNB(z-40) 아래(z-35)라 LNB 접기 버튼이 패널 위로 올라온다.
- * 모바일은 실제 패널처럼 화면 전체를 덮고, 설명 카드는 머리말 아래에 겹쳐 뜬다(TourStep.overlayCardTop).
+ * 모바일은 실제 시트(MobileMixieSheet)처럼 아래에서 올라와 화면을 다 채우고(손잡이·위 모서리 둥글게),
+ * 설명 카드는 머리말 아래에 겹쳐 뜬다(TourStep.overlayCardTop).
  */
 export function MixiePanelPreview({ visible }: { visible: boolean }) {
   const lnbCollapsed = useLnbCollapsed();
@@ -91,12 +97,16 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
       aria-hidden
       data-tour="mixie-panel-demo"
       className={cn(
-        "fixed inset-0 z-50 flex flex-col overflow-hidden bg-white transition-opacity duration-300 ease-out motion-reduce:transition-none sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
+        "fixed inset-0 z-50 flex flex-col overflow-hidden bg-white duration-300 ease-out motion-reduce:transition-none max-sm:rounded-t-[20px] max-sm:pt-[8px] max-sm:transition-[translate] sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)] sm:transition-opacity",
         lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
-        !visible && "opacity-0",
+        !visible && "max-sm:translate-y-full sm:opacity-0",
       )}
     >
-      <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px]">
+      {/* 모바일 시트 손잡이(HeroUI Drawer.Handle과 같은 모양). */}
+      <div className="flex shrink-0 justify-center pb-[8px] sm:hidden">
+        <span className="h-[4px] w-[36px] rounded-[2px] bg-separator" />
+      </div>
+      <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px] max-sm:h-[52px]">
         <div className="flex items-center gap-[8px]">
           <MixieIcon className="size-[18px] shrink-0" />
           <span className="text-[15px] font-semibold text-gray-900">
@@ -104,7 +114,9 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
           </span>
         </div>
         <span className="flex size-[28px] items-center justify-center text-gray-500">
-          <ChevronLeftIcon className="size-[16px]" />
+          {/* 실제 패널처럼 PC는 왼쪽 화살표, 모바일 시트는 X. */}
+          <XIcon className="size-[16px] sm:hidden" />
+          <ChevronLeftIcon className="hidden size-[16px] sm:block" />
         </span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50 px-[16px] pt-[16px]">

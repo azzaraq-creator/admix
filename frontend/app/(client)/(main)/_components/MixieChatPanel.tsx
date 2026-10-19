@@ -43,7 +43,7 @@ export function MixieChatPanel() {
   // 데스크톱에서 LNB가 접히면(78px) 패널도 그 오른쪽에 붙는다.
   const lnbCollapsed = useLnbCollapsed();
   const isDesktop = useIsDesktop();
-  // 뒤로가기 — 페이지를 옮기지 않고 패널을 닫는다(태블릿). 모바일 시트는 Drawer라 BackCloseOverlays가 맡는다.
+  // 뒤로가기 — 페이지를 옮기지 않고 패널을 닫는다(안드로이드 태블릿). 모바일 시트는 Drawer라 BackCloseOverlays가 맡는다.
   useCloseOnBack(panelOpen && isDesktop, () => setPanelOpen(false));
 
   // 닫혀 있을 땐 LNB 뒤에 가려진 채로 남지 않게 display: none으로 숨긴다. 애니메이션은 살린다:

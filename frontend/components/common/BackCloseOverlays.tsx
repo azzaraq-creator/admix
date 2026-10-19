@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { isTouchDevice } from "@/hooks/useCloseOnBack";
+import { hasBackButton } from "@/hooks/useCloseOnBack";
 import { registerBackClose } from "@/lib/backClose";
 
 /** HeroUI Drawer·Modal(AlertDialog 포함)의 바깥 판 — 화면에 붙은 것을 열린 팝업으로 본다. */
@@ -31,12 +31,12 @@ const isClosing = (el: Element) =>
   !el.isConnected || el.hasAttribute("data-exiting");
 
 /**
- * 화면 틀에 한 번 둔다 — 휴대폰에서 Drawer·Modal이 열려 있을 때 뒤로가기를 누르면 페이지를 옮기지 않고
+ * 화면 틀에 한 번 둔다 — 안드로이드 휴대폰에서 Drawer·Modal이 열려 있을 때 뒤로가기를 누르면 페이지를 옮기지 않고
  * 맨 위 팝업을 닫는다. 팝업이 화면에 붙고 떨어지는 것을 지켜보므로 팝업 쪽은 고칠 필요가 없다.
  */
 export function BackCloseOverlays() {
   useEffect(() => {
-    if (!isTouchDevice()) return;
+    if (!hasBackButton()) return;
     const opened = new Map<Element, () => void>();
 
     const sync = () => {
