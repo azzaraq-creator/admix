@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { useActivePageTourStep } from "@/components/common/PageTour";
 import { MixieIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,8 @@ const TOP_NAV = 48;
 /** 이만큼 움직여야 끌기로 본다(그보다 적으면 누름). */
 const DRAG_THRESHOLD = 6;
 const STORAGE_KEY = "admix-mixie-fab";
+/** 대시보드 가이드에서 이 버튼을 밝히는 단계 id(= data-tour 값). */
+export const MIXIE_FAB_STEP_ID = "mixie-fab";
 
 type Edge = "left" | "right" | "top" | "bottom";
 /** 붙은 벽과, 그 벽을 따라 어디쯤인지(0~1) — 화면 크기가 바뀌어도 같은 자리 비율로 둔다. */
@@ -103,12 +106,14 @@ function loadSpot(): Spot {
 /**
  * 모바일 전용 — 화면에 떠 있는 AI 믹시 버튼. 누르면 믹시 패널을 열고, 끌어서 옮기면 놓은 자리에서
  * 가장 가까운 벽(위·아래·왼쪽·오른쪽)에 붙는다. 놓은 자리는 기억해 둔다.
- * 홈은 믹시 대화가 본문이라 띄우지 않고, 패널이 열려 있는 동안엔 숨긴다.
+ * 홈은 믹시 대화가 본문이라 띄우지 않고(대시보드 가이드가 이 버튼을 밝히는 동안만 띄운다),
+ * 패널이 열려 있는 동안엔 숨긴다.
  */
 export function MixieFloatingButton() {
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
   const { panelOpen, setPanelOpen } = useMixieChat();
+  const tourStep = useActivePageTourStep();
 
   const viewport = useViewport();
   const [spot, setSpot] = useState<Spot>(loadSpot);
@@ -125,7 +130,12 @@ export function MixieFloatingButton() {
   /** 끌기로 끝난 누름은 패널을 열지 않는다. */
   const suppressClickRef = useRef(false);
 
-  if (isDesktop || pathname === "/" || !viewport) return null;
+  if (
+    isDesktop ||
+    (pathname === "/" && tourStep !== MIXIE_FAB_STEP_ID) ||
+    !viewport
+  )
+    return null;
 
   const { x, y } = dragXY ?? spotToXY(spot, viewport.w, viewport.h);
 
@@ -174,6 +184,7 @@ export function MixieFloatingButton() {
       type="button"
       aria-label="AI 믹시"
       data-mixie-toggle
+      data-tour={MIXIE_FAB_STEP_ID}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
@@ -188,7 +199,8 @@ export function MixieFloatingButton() {
       // z-40: 본문(매체 찾기 검색바 z-30)보다 위, 믹시 패널(z-50)·팝업·가이드보다 아래.
       // touch-none: 끄는 동안 화면이 같이 스크롤되지 않게.
       className={cn(
-        "fixed top-0 left-0 z-40 flex touch-none items-center justify-center rounded-full border border-gray-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.16)] select-none sm:hidden",
+        // 모서리는 (높이/2)-3px. 보라 그라데이션(믹시 심볼과 같은 색) 위에 흰 심볼.
+        "fixed top-0 left-0 z-40 flex touch-none items-center justify-center rounded-[23px] bg-linear-to-br from-[#B7A3F2] to-[#7A3FE0] shadow-[0px_6px_16px_rgba(122,63,224,0.35)] select-none sm:hidden",
         // 놓으면 벽으로 미끄러져 붙는다. 끄는 동안엔 손가락을 바로 따라간다.
         !dragXY &&
           "transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none",
@@ -196,7 +208,7 @@ export function MixieFloatingButton() {
       )}
       style={{ width: SIZE, height: SIZE, translate: `${x}px ${y}px` }}
     >
-      <MixieIcon aria-hidden className="size-[24px]" />
+      <MixieIcon aria-hidden className="size-[24px] [&_path]:fill-white" />
     </button>
   );
 }

@@ -21,10 +21,12 @@ import {
   useShownPageTourStep,
   type TourStep,
 } from "@/components/common/PageTour";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
 import { AiSearchBox } from "./AiSearchBox";
 import { HomeChat } from "./HomeChat";
+import { MIXIE_FAB_STEP_ID } from "./MixieFloatingButton";
 import { ModeToggle, type Mode } from "./ModeToggle";
 import { NewChatButton } from "./NewChatButton";
 import { useMixieChat } from "./useMixieChat";
@@ -136,6 +138,20 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
+// 모바일 — 패널 단계 다음에 화면에 떠 있는 AI 믹시 버튼(MixieFloatingButton)을 알려 준다.
+// 홈에선 평소 숨는 버튼이라 이 단계 동안만 띄운다. 곡률은 버튼(23px) + 여백(6px).
+const MOBILE_TOUR_STEPS: TourStep[] = [
+  ...TOUR_STEPS.slice(0, 2),
+  {
+    id: MIXIE_FAB_STEP_ID,
+    target: MIXIE_FAB_STEP_ID,
+    title: "AI 믹시 버튼",
+    body: "이 버튼을 누르면 AI 믹시 채팅이 열려요. 끌어서 원하는 자리로 옮길 수도 있어요.",
+    radius: 29,
+  },
+  ...TOUR_STEPS.slice(2),
+];
+
 const TITLE_CLASS =
   "text-left text-[18px] leading-[26px] font-bold text-black sm:mt-[16px] sm:text-center sm:text-[36px] sm:leading-[1.5]";
 
@@ -193,7 +209,10 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
   // 한 벌만 있어(useMixieChat) 다른 메뉴에 다녀와도, LNB 패널에서 이어 말해도 그대로다.
   const { chat, setPanelPreview } = useMixieChat();
   // 첫 단계가 AI 입력바라 AI 모드로 돌려 두고 시작한다.
-  usePageTour("dashboard", TOUR_STEPS, { onStart: () => setMode("ai") });
+  const isDesktop = useIsDesktop();
+  usePageTour("dashboard", isDesktop ? TOUR_STEPS : MOBILE_TOUR_STEPS, {
+    onStart: () => setMode("ai"),
+  });
   const tourStep = useActivePageTourStep();
   // 예시 화면(패널·검색 탭)은 밝힌 자리가 옮겨 갈 때(보이는 단계) 바꾼다.
   const shownStep = useShownPageTourStep();
