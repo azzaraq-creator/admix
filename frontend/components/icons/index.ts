@@ -94,7 +94,7 @@ export { EmailIcon } from "./EmailIcon";
 export { CopyLineIcon } from "./CopyLineIcon";
 export { CircleMinusIcon } from "./CircleMinusIcon";
 export { CirclePlusIcon } from "./CirclePlusIcon";
-export { BagIcon } from "./BagIcon";
+export { OpenFolderIcon } from "./OpenFolderIcon";
 export { CircleXIcon } from "./CircleXIcon";
 export { FlameIcon } from "./FlameIcon";
 export { NewStarIcon } from "./NewStarIcon";

@@ -3,7 +3,7 @@
 import { Popover, Spinner } from "@heroui/react";
 import { type RefObject, useRef } from "react";
 
-import { BagIcon, ChevronRightIcon } from "@/components/icons";
+import { OpenFolderIcon, ChevronRightIcon } from "@/components/icons";
 import {
   hideProposalCallout,
   setCurrentProposalPanelOpen,
@@ -60,7 +60,7 @@ function ProposalCallout({
             className="flex w-full items-start gap-[8px] px-[16px] py-[12px] text-left outline-none"
           >
             {/* 아이콘은 토스트 성공 색(밝은 초록)과 같다. */}
-            <BagIcon className="mt-[2px] size-[16px] shrink-0 text-[#4ade80]" />
+            <OpenFolderIcon className="mt-[2px] size-[16px] shrink-0 text-[#4ade80]" />
             <span className="flex min-w-0 flex-col gap-[2px]">
               <span className="text-[14px] font-medium break-keep text-white">
                 {callout.title}
@@ -108,7 +108,7 @@ function CountBadge({
  * - sidebar: PC 사이드바 로그인 정보 위의 요약 카드 — 기획안명·매체 수·총 예상 비용이 보여 열지 않아도
  *   지금 상태를 안다. 사이드바가 접히면 아이콘 + 배지만 남는다.
  * - header: 모바일 헤더 오른쪽 아이콘 버튼.
- * 아이콘은 사이드바 "기획안" 메뉴와 겹치지 않게 쇼핑백(BagIcon).
+ * 아이콘은 사이드바 "기획안" 메뉴와 겹치지 않게 열린 폴더(OpenFolderIcon).
  */
 export function CurrentProposalButton({
   variant,
@@ -142,7 +142,7 @@ export function CurrentProposalButton({
           className="flex h-full w-[48px] shrink-0 items-center justify-center text-gray-900"
         >
           <span className="relative">
-            <BagIcon className="size-[20px]" />
+            <OpenFolderIcon className="size-[20px]" />
             <CountBadge count={count} corner />
           </span>
         </button>
@@ -179,7 +179,7 @@ export function CurrentProposalButton({
           )}
         >
           <span className="relative">
-            <BagIcon className="size-[18px]" />
+            <OpenFolderIcon className="size-[18px]" />
             <CountBadge count={count} corner />
           </span>
         </button>
@@ -202,7 +202,7 @@ export function CurrentProposalButton({
               좁은 폭에서 글자가 먼저 줄바꿈돼 틀어져 보이지 않게(넘치는 부분은 카드가 잘라 낸다). */}
           <span className="flex w-[134px] shrink-0 animate-[admix-fade-in_300ms_ease-in-out] flex-col gap-[6px] motion-reduce:animate-none">
             <span className="flex items-center gap-[5px] text-[11px] font-semibold text-primary">
-              <BagIcon className="size-[13px] shrink-0" />
+              <OpenFolderIcon className="size-[13px] shrink-0" />
               {CURRENT_PROPOSAL_LABEL}
               <ChevronRightIcon className="ml-auto size-[14px] shrink-0 text-gray-400" />
             </span>

@@ -18,7 +18,7 @@ import {
 } from "@/components/common/media-detail/MediaOptions";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
-  BagIcon,
+  OpenFolderIcon,
   ChevronRightIcon,
   CloseMediumIcon,
   CollectionIcon,
@@ -82,7 +82,7 @@ function CurrentProposalContent({
         className={`flex shrink-0 items-center justify-between gap-[8px] px-[20px] pb-[12px] ${headerClassName}`}
       >
         <p className="flex items-center gap-[6px] text-[16px] font-semibold text-black">
-          <BagIcon className="size-[18px] text-gray-900" />
+          <OpenFolderIcon className="size-[18px] text-gray-900" />
           {CURRENT_PROPOSAL_LABEL}
         </p>
         <Button
@@ -276,7 +276,7 @@ function ProposalBody({
         >
           {/* 칸 44px → 곡률 19px(기획안 담기 창 입력칸과 같다). */}
           <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-[#ececef] bg-[#f7f7f8] ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-white">
-            {/* 기획안 아이콘 — 위 "현재 기획안" 쇼핑백(보라)과 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
+            {/* 기획안 아이콘 — 위 "현재 기획안" 열린 폴더(보라)와 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
             <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-gray-700">
               <CollectionIcon className="size-[15px]" />
             </span>
@@ -564,7 +564,7 @@ function EmptyMessage({
     <div className="flex flex-1 flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center">
       {/* 빈 상태 아이콘 — 보라 대신 차분한 회색(회색 칸 + 회색 아이콘). */}
       <span className="mb-[4px] flex size-[48px] items-center justify-center rounded-[21px] bg-[#f4f4f5] text-[#71717a]">
-        <BagIcon className="size-[24px]" />
+        <OpenFolderIcon className="size-[24px]" />
       </span>
       <p className="text-[15px] font-semibold text-[#18181b]">{title}</p>
       <p className="text-[13px] leading-[1.6] break-keep text-[#8c8c94]">
