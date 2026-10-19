@@ -176,6 +176,29 @@ export function MixieChatPanel() {
  * 모바일 — 아래에서 올라와 화면을 다 채우는 시트. 손잡이·제목 줄을 끌어내리면 닫힌다
  * (대화 영역은 Drawer.Body라 끌어도 닫히지 않고 위아래로 스크롤만 된다).
  */
+/**
+ * 열려 있는 동안 실제로 보이는 영역(visual viewport)이 위에서 얼마나 내려와 있는지를 --mixie-vv-top으로 둔다.
+ * 아이폰은 입력창을 눌러 키보드가 올라오면 화면을 위로 밀어 올리는데(offsetTop), HeroUI 드로어 자리는 높이만
+ * 보이는 영역(--visual-viewport-height)에 맞추고 위치는 화면 맨 위에 둬서 아래 틈으로 뒤 화면이 보였다.
+ */
+function useVisualViewportTop(active: boolean) {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!active || !vv) return;
+    const root = document.documentElement;
+    const update = () =>
+      root.style.setProperty("--mixie-vv-top", `${vv.offsetTop}px`);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      root.style.removeProperty("--mixie-vv-top");
+    };
+  }, [active]);
+}
+
 function MobileMixieSheet({
   open,
   onClose,
@@ -184,6 +207,9 @@ function MobileMixieSheet({
   onClose: () => void;
 }) {
   const { chat } = useMixieChat();
+  // 입력창을 눌러 키보드가 올라와도 시트가 보이는 영역을 꽉 채우게(뒤 화면이 틈으로 보이지 않게) —
+  // 시트 자리를 보이는 영역의 위치에 맞춘다(높이는 HeroUI가 보이는 영역 높이로 맞춘다).
+  useVisualViewportTop(open);
   return (
     <Drawer
       isOpen={open}
@@ -192,11 +218,11 @@ function MobileMixieSheet({
       }}
     >
       <Drawer.Backdrop>
-        <Drawer.Content placement="bottom">
-          {/* 높이는 보이는 화면(dvh) 전체 — HeroUI 기본 85vh 제한을 푼다. */}
+        <Drawer.Content placement="bottom" className="top-(--mixie-vv-top,0px)">
+          {/* 높이는 보이는 영역 전체(키보드가 있으면 그 위까지) — HeroUI 기본 85vh 제한을 푼다. */}
           <Drawer.Dialog
             aria-label="AI 믹시 대화"
-            className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[20px] bg-white p-0 pt-[8px]"
+            className="flex h-full max-h-full w-full flex-col gap-0 rounded-t-[20px] bg-white p-0 pt-[8px]"
           >
             <Drawer.Handle />
             <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-gray-200 px-[16px]">
