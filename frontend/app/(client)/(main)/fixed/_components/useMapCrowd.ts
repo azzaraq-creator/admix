@@ -41,7 +41,6 @@ function pill(
   place: CrowdPlace,
   onEnter: () => void,
   onLeave: () => void,
-  onClick: () => void,
 ): HTMLElement {
   const color = crowdColor(place.level);
   const el = document.createElement("div");
@@ -62,17 +61,13 @@ function pill(
     "font-weight:600",
     "color:#18181b",
     "white-space:nowrap",
-    "cursor:pointer",
   ].join(";");
-  el.setAttribute("role", "button");
   el.setAttribute("aria-label", `${place.name} 실시간 인구 ${place.level}`);
-  // 마우스를 올리면 작은 카드, 누르면(모바일도) 지하철·버스 승하차까지 담은 장소 카드를 띄운다.
+  // 마우스를 올리면 작은 카드. 지하철·버스 승하차 카드는 이름표가 아니라 범위를 눌러 띄운다 —
+  // 이름표를 눌러도 지도 빈 곳처럼 카드를 닫지는 않는다.
   el.addEventListener("mouseenter", onEnter);
   el.addEventListener("mouseleave", onLeave);
-  el.addEventListener("click", (e) => {
-    e.stopPropagation();
-    onClick();
-  });
+  el.addEventListener("click", (e) => e.stopPropagation());
 
   const dot = document.createElement("span");
   dot.style.cssText = `width:8px;height:8px;border-radius:999px;background:${color};flex-shrink:0`;
@@ -205,7 +200,7 @@ type Drawn = {
  * 켜면 장소 범위를 혼잡도 색으로 칠해 두고, 범위 밖은 흑백으로 바꾼다(grayBoard).
  * 판이 아직 없거나 확대·축소 중이면 boardShown=false — MapArea 가 그동안 지도 전체를 흑백으로 둔다.
  * 마우스를 올리면 정보 카드를 띄울 자리(hoverEl)를 돌려준다 — 카드 내용은 MapArea 가 React(HeroUI)로 그려 넣는다.
- * 이름표를 누르면 onSelect(장소), 지도 빈 곳을 누르면 onSelect(null) — 고른 장소(selectedCode)는 범위를 강조해 둔다.
+ * 범위를 누르면 onSelect(장소), 지도 빈 곳을 누르면 onSelect(null) — 고른 장소(selectedCode)는 범위를 강조해 둔다.
  */
 export function useMapCrowd({
   mapRef,
@@ -220,7 +215,7 @@ export function useMapCrowd({
   places?: CrowdPlace[] | null;
   /** 범위 밖을 흑백으로(끄면 판을 내린다). */
   gray?: boolean;
-  /** 이름표를 눌러 고른 장소 */
+  /** 범위를 눌러 고른 장소 */
   selectedCode?: string | null;
   onSelect?: (place: CrowdPlace | null) => void;
 }) {
@@ -251,12 +246,16 @@ export function useMapCrowd({
     };
   }, [active, rings]);
 
+  // 범위를 누른 때 — 같은 누름이 지도 클릭으로도 들어와 카드를 바로 닫지 않게.
+  const rangeClickedAtRef = useRef(0);
+
   // 지도 빈 곳을 누르면(모바일) 정보 카드를 닫는다.
   useEffect(() => {
     const maps = window.kakao?.maps;
     const map = mapRef.current;
     if (!mapReady || !maps || !map || !active) return;
     const close = () => {
+      if (Date.now() - rangeClickedAtRef.current < 300) return;
       setHovered(null);
       onSelectRef.current?.(null);
     };
@@ -290,17 +289,18 @@ export function useMapCrowd({
         cur.overlay.setMap(null);
         cur.polygons.forEach((polygon) => polygon.setMap(null));
       }
+      const enter = () =>
+        setHovered(latestRef.current.get(place.code) ?? place);
+      const leave = () =>
+        setHovered((h) => (h?.code === place.code ? null : h));
+      const select = () => {
+        rangeClickedAtRef.current = Date.now();
+        setHovered(null);
+        onSelectRef.current?.(latestRef.current.get(place.code) ?? place);
+      };
       const overlay = new maps.CustomOverlay({
         position: new maps.LatLng(place.lat, place.lng),
-        content: pill(
-          place,
-          () => setHovered(latestRef.current.get(place.code) ?? place),
-          () => setHovered((h) => (h?.code === place.code ? null : h)),
-          () => {
-            setHovered(null);
-            onSelectRef.current?.(latestRef.current.get(place.code) ?? place);
-          },
-        ),
+        content: pill(place, enter, leave),
         xAnchor: 0.5,
         yAnchor: 0.5,
         zIndex: 0,
@@ -314,6 +314,10 @@ export function useMapCrowd({
           fillColor: color,
         });
         polygon.setMap(map);
+        // 범위에 마우스를 올리면 작은 카드, 누르면(모바일도) 지하철·버스 승하차까지 담은 장소 카드.
+        maps.event.addListener(polygon, "mouseover", enter);
+        maps.event.addListener(polygon, "mouseout", leave);
+        maps.event.addListener(polygon, "click", select);
         return polygon;
       });
       drawn.set(place.code, {
@@ -374,7 +378,7 @@ export function useMapCrowd({
 
   const shown = active ? hovered : null;
 
-  // 이름표에 마우스를 올린 장소(없으면 눌러 고른 장소)의 범위를 강조한다. 목록이 새로 와 범위를 다시 그려도
+  // 이름표·범위에 마우스를 올린 장소(없으면 눌러 고른 장소)의 범위를 강조한다. 목록이 새로 와 범위를 다시 그려도
   // 다시 강조되게 places 도 본다.
   const shownCode = shown?.code ?? (active ? selectedCode : null);
   useEffect(() => {

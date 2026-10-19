@@ -2,6 +2,8 @@ import { Suspense, type ReactNode } from "react";
 
 import { GoogleAnalytics } from "@next/third-parties/google";
 
+import { BackCloseOverlays } from "@/components/common/BackCloseOverlays";
+
 import { GaPageView } from "./_components/GaPageView";
 
 // 사용자(client) 화면에만 GA4 로드. admin/deck 제외.
@@ -12,6 +14,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
+      {/* 휴대폰 뒤로가기로 Drawer·Modal 닫기 */}
+      <BackCloseOverlays />
       {GA_ID && (
         <>
           <GoogleAnalytics gaId={GA_ID} />

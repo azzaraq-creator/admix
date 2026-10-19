@@ -8,7 +8,7 @@ import {
   Tag,
   TagGroup,
 } from "@heroui/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
   EMPTY_MEDIA_FILTER,
@@ -28,6 +28,7 @@ import {
 } from "@/components/common/mediaFilter/PriceRangeFilter";
 import { CloseSmallIcon, RotateLeftIcon } from "@/components/icons";
 import { useFavoriteList, useFavoritePriceHistogram } from "@/hooks/favorites";
+import { useCloseOnBack } from "@/hooks/useCloseOnBack";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import {
   useMediaFindCount,
@@ -319,6 +320,31 @@ export function MediaFilterPanel({
   // 패널 안에서만 쓰는 임시 상태 — "결과 보기"를 눌러야 URL(=조회)에 반영된다.
   const [draft, setDraft] = useState<MediaFilterState>(value);
 
+  // 패널 바깥을 누르면 닫는다(고르던 값은 적용하지 않는다). 필터 버튼(스스로 열고 닫는다)과
+  // 패널 위에 뜬 다른 팝업·가이드를 누른 것은 빼 둔다.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.isConnected || panelRef.current?.contains(target)) return;
+      if (
+        target.closest(
+          '[data-filter-toggle], [data-page-tour], [data-slot$="backdrop"], [data-slot$="popover"]',
+        )
+      )
+        return;
+      onCloseRef.current();
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, []);
+  // 휴대폰 뒤로가기도 바깥 누름처럼 닫는다 — 패널은 열려 있는 동안만 붙어 있다.
+  useCloseOnBack(true, onClose);
+
   // 선택이 멈추면 그 조건으로 결과 수를 다시 센다. 적용된 필터와 같으면 목록의 total을 그대로 쓴다.
   const [settledDraft, setSettledDraft] = useState(draft);
   useEffect(() => {
@@ -497,7 +523,10 @@ export function MediaFilterPanel({
   const resetDisabled = !hasSelection(draft) && !hasSelection(value);
 
   return (
-    <div className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
+    <div
+      ref={panelRef}
+      className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]"
+    >
       {/* 모든 필터를 한 화면에 위에서부터 쌓는다(탭 없이). 길어지면 이 칸만 위아래로 넘긴다. */}
       <ScrollShadow
         hideScrollBar

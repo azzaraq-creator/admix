@@ -552,8 +552,14 @@ export function ProposalTable({
       >
         {/* 표가 화면보다 넓으면(모바일·태블릿, 사이드바를 펼친 좁은 PC) 옆으로 넘겨 보는데, 아래 둥근 모서리는
             맨 끝 칸(또는 채움 칸의 양 끝)에만 걸려 있어 넘기면 화면 가장자리의 아래 모서리가 각져 보인다.
-            모든 화면에서 스크롤 틀 자체의 아래 모서리를 같은 곡률로 깎는다. */}
-        <Table.ScrollContainer className="rounded-b-[min(32px,var(--radius-2xl))]">
+            모든 화면에서 스크롤 틀 자체의 아래 모서리를 같은 곡률로 깎는다.
+            옆으로 넘길 게 남은 쪽 가장자리는 ScrollShadow로 흐리게 — 표가 옆으로 넘어간다는 걸 알린다. */}
+        <ScrollShadow
+          orientation="horizontal"
+          size={40}
+          // 흐림은 가로 스크롤바 자리(아래 10px)까지 — 빼 두면 표 아래에 흐려지지 않은 띠가 남는다.
+          className="table__scroll-container rounded-b-[min(32px,var(--radius-2xl))] [--scroll-shadow-scrollbar-size:0px]"
+        >
           <Table.Content
             aria-label="내 기획안"
             sortDescriptor={sortDescriptor}
@@ -762,7 +768,7 @@ export function ProposalTable({
               style={{ height: fillHeight }}
             />
           )}
-        </Table.ScrollContainer>
+        </ScrollShadow>
         {/* 행이 적을 때 마지막 행 아래를 본문과 같은 흰색으로 채운다(비어 있을 때의 흰 상자와 같은 모습).
             모서리는 HeroUI 본문 모서리 값 그대로. */}
         {/* 불러오는 중 — 헤더 아래 남는 칸 전체를 흰 본문 모양으로 채우고 가운데에 스피너(비어 있을 때의 흰 상자와 같은 모습). */}

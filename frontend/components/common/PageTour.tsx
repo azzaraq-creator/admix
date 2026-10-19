@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
 import { XIcon } from "@/components/icons";
+import { useCloseOnBack } from "@/hooks/useCloseOnBack";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -329,6 +330,8 @@ function TourOverlay({
   onClose: () => void;
 }) {
   const router = useRouter();
+  // 휴대폰 뒤로가기 — 페이지를 옮기지 않고 가이드를 닫는다.
+  useCloseOnBack(true, onClose);
   const [index, setIndex] = useState(0);
   // 화면에 보이는 단계 — 단계를 바꾸면 새 대상(예시 창·툴팁 등)이 자리를 잡을 때까지 이전 자리·카드를
   // 그대로 두었다가 한 번에 옮긴다(늦게 생기는 대상 때문에 두 번 움직이거나 글만 먼저 바뀌지 않게).
@@ -505,6 +508,7 @@ function TourOverlay({
   return (
     // z-70: LNB(z-40)·AI 믹시 패널(z-50)보다 위. 뒤 화면은 누르지 못하게 판 전체가 막는다.
     <div
+      data-page-tour
       className="fixed inset-0 z-[70]"
       onClick={(event) => event.stopPropagation()}
     >

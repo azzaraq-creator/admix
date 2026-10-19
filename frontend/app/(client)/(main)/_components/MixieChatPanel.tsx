@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { ChevronLeftIcon, MixieIcon, XIcon } from "@/components/icons";
+import { useCloseOnBack } from "@/hooks/useCloseOnBack";
 
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,8 @@ export function MixieChatPanel() {
   const panelRef = useRef<HTMLElement>(null);
   // 데스크톱에서 LNB가 접히면(78px) 패널도 그 오른쪽에 붙는다.
   const lnbCollapsed = useLnbCollapsed();
+  // 휴대폰 뒤로가기 — 페이지를 옮기지 않고 패널을 닫는다.
+  useCloseOnBack(panelOpen, () => setPanelOpen(false));
 
   // 닫혀 있을 땐 LNB 뒤에 가려진 채로 남지 않게 display: none으로 숨긴다. 애니메이션은 살린다:
   // - 열 때: 먼저 보이게(shown) 한 뒤 다음 프레임에 열린 모양(entered)으로 바꿔 미끄러져 나오게.

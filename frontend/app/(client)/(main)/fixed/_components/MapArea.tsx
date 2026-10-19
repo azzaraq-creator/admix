@@ -11,7 +11,7 @@ import {
   type OperatingArea,
   type TrafficLink,
 } from "@/hooks/media";
-import { XIcon } from "@/components/icons";
+import { ChevronDownIcon, XIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -155,7 +155,7 @@ export function MapArea({
     links: traffic?.on ? traffic.links : null,
   });
 
-  // 실시간 인구 장소 이름표를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
+  // 실시간 인구 장소 범위를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
   const [pickedPlace, setPickedPlace] = useState<CrowdPlace | null>(null);
   const picked = demoPlace
     ? demoPlace.place
@@ -175,6 +175,10 @@ export function MapArea({
     selectedCode: picked?.code,
     onSelect: setPickedPlace,
   });
+
+  // 모바일 범례 — 지도가 좁아 평소엔 색 점만 담은 작은 버튼으로 접어 두고, 누르면 펼친다.
+  const isDesktop = useIsDesktop();
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
     mapRef,
@@ -312,10 +316,38 @@ export function MapArea({
           )}
         </div>
       )}
-      {(crowd?.on || traffic?.on) && (
+      {(crowd?.on || traffic?.on) && !isDesktop && !legendOpen && (
+        // 모바일 접힌 범례 — 등급 색 점(도로 현황은 짧은 선)만. 누르면 등급 이름·안내까지 펼친다.
+        <button
+          type="button"
+          aria-label="범례 펼치기"
+          aria-expanded={false}
+          onClick={() => setLegendOpen(true)}
+          className="absolute top-[50px] left-[12px] z-[2] flex h-[24px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[6px] pl-[9px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
+        >
+          {crowd?.on && <LegendDots levels={CROWD_LEVELS} />}
+          {crowd?.on && traffic?.on && (
+            <span aria-hidden className="h-[10px] w-px bg-[#18181b]/15" />
+          )}
+          {traffic?.on && <LegendDots levels={TRAFFIC_LEVELS} line />}
+          <ChevronDownIcon className="size-[12px] text-[#3f3f46]" />
+        </button>
+      )}
+      {(crowd?.on || traffic?.on) && (isDesktop || legendOpen) && (
         // 범례 — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
-        // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 둔다.
-        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[50px] max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)]">
+        // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 두고, 오른쪽 위 버튼으로 다시 접는다.
+        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[50px] max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)] max-sm:pr-[30px]">
+          {!isDesktop && (
+            <button
+              type="button"
+              aria-label="범례 접기"
+              aria-expanded
+              onClick={() => setLegendOpen(false)}
+              className="absolute top-[4px] right-[4px] flex size-[22px] items-center justify-center rounded-full text-[#3f3f46]"
+            >
+              <ChevronDownIcon className="size-[12px] rotate-180" />
+            </button>
+          )}
           {crowd?.on && (
             <>
               <LegendRow levels={CROWD_LEVELS} />
@@ -464,8 +496,32 @@ function LegendRow({
   );
 }
 
+/** 모바일 접힌 범례 — 등급 이름 없이 색 점(도로 현황은 짧은 선)만. */
+function LegendDots({
+  levels,
+  line = false,
+}: {
+  levels: { level: string; color: string }[];
+  line?: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-[3px]">
+      {levels.map(({ level, color }) => (
+        <span
+          key={level}
+          className={cn(
+            "rounded-full",
+            line ? "h-[3px] w-[10px]" : "size-[8px]",
+          )}
+          style={{ background: color }}
+        />
+      ))}
+    </span>
+  );
+}
+
 /**
- * 실시간 인구 장소 이름표를 눌렀을 때 — 실시간 인구와, 그 범위 안 지하철역·버스정류장의 하루 승하차 인원.
+ * 실시간 인구 장소 범위를 눌렀을 때 — 실시간 인구와, 그 범위 안 지하철역·버스정류장의 하루 승하차 인원.
  * 지도 왼쪽 위(토글 아래)에 띄우고, 닫기·지도 빈 곳·실시간 인구 끄기로 닫는다. 모바일은 아래쪽("목록 보기" 버튼 위).
  */
 function CrowdPlaceCard({

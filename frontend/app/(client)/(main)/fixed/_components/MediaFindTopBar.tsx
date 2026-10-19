@@ -123,6 +123,8 @@ export function MediaFindTopBar({
         variant="ghost"
         onPress={onToggleFilter}
         aria-expanded={filterOpen}
+        // 필터 패널이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
+        data-filter-toggle
         className={cn(
           PILL,
           PILL_ACTIVE,

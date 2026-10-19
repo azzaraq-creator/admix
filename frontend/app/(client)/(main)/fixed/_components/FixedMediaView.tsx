@@ -208,7 +208,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "crowd-place",
     target: "crowd-place",
     title: "지역별 인구·교통",
-    body: "지역을 누르면 실시간 인구와 지하철·버스 승하차가 보여요.",
+    body: "색칠된 지역 범위를 누르면 실시간 인구와 지하철·버스 승하차가 보여요.",
     radius: 20,
   },
   {
