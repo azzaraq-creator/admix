@@ -44,6 +44,11 @@ export type TourStep = {
   touchBody?: ReactNode;
   /** 밝힌 자리의 곡률 — 대상의 곡률 + 여백(PADDING)에 맞춘다. */
   radius?: number;
+  /**
+   * 대상 바깥에 카드 자리가 없을 때(화면을 다 덮는 대상) 카드를 화면 위에서 이만큼(px) 띄워 겹쳐 둔다.
+   * 없으면 아래쪽에 겹쳐 둔다 — 아래쪽 입력바 등을 가리면 안 될 때 쓴다.
+   */
+  overlayCardTop?: number;
 };
 
 const STORAGE_PREFIX = "admix-tour:";
@@ -482,7 +487,9 @@ function TourOverlay({
       cardStyle = { top: sideTop, left: leftSide, width: cardWidth };
     else
       cardStyle = {
-        top: Math.max(EDGE, viewport.h - EDGE - cardHeight),
+        top:
+          shownStep.overlayCardTop ??
+          Math.max(EDGE, viewport.h - EDGE - cardHeight),
         left: centeredLeft,
         width: cardWidth,
       };

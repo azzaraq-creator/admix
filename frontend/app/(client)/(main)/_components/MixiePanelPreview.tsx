@@ -80,7 +80,7 @@ function DemoUserBubble({ content }: { content: string }) {
  * 대시보드 가이드의 "AI 믹시 패널" 단계 — 패널이 열린 것처럼 예시 대화를 띄운다.
  * 실제 패널(MixieChatPanel)과 같은 자리·층·머리말·말풍선이지만, 대화를 불러오거나 보내지 않는다.
  * PC는 실제 패널처럼 LNB(z-40) 아래(z-35)라 LNB 접기 버튼이 패널 위로 올라온다.
- * 모바일은 실제로는 화면 전체를 덮지만, 설명 카드가 아래에 들어가도록 위쪽만 차지한다.
+ * 모바일은 실제 패널처럼 화면 전체를 덮고, 설명 카드는 머리말 아래에 겹쳐 뜬다(TourStep.overlayCardTop).
  */
 export function MixiePanelPreview({ visible }: { visible: boolean }) {
   const lnbCollapsed = useLnbCollapsed();
@@ -91,7 +91,7 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
       aria-hidden
       data-tour="mixie-panel-demo"
       className={cn(
-        "fixed inset-x-0 top-0 z-50 flex transition-opacity duration-300 ease-out motion-reduce:transition-none h-[62dvh] flex-col overflow-hidden rounded-b-[20px] bg-white sm:inset-y-0 sm:right-auto sm:z-[35] sm:h-auto sm:w-[400px] sm:rounded-none sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
+        "fixed inset-0 z-50 flex flex-col overflow-hidden bg-white transition-opacity duration-300 ease-out motion-reduce:transition-none sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
         lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
         !visible && "opacity-0",
       )}

@@ -88,8 +88,7 @@ const TOUR_STEPS: TourStep[] = [
     title: "담긴 매체 미리보기",
     body: "기획안명에 마우스를 올리면 담긴 매체와 금액을 볼 수 있어요.",
     touchBody: "기획안명을 누르면 담긴 매체와 금액을 볼 수 있어요.",
-    mobileBody:
-      "기획안명을 누르면 담긴 매체를 볼 수 있어요. 수정은 PC에서만 할 수 있어요.",
+    mobileBody: "기획안명을 누르면 담긴 매체를 볼 수 있어요.",
     radius: 14,
   },
   {
@@ -156,14 +155,19 @@ export function ProposalsView() {
   // 예시 요약은 먼저 열어 자리를 재고, 밝힌 자리가 옮겨 갈 때(보이는 단계) 드러낸다.
   const shownStep = useShownPageTourStep();
   const touring = tourStep != null;
-  // 표가 화면보다 넓으면(모바일) PPT·삭제 단계에서 오른쪽으로 넘어간다 — 다른 단계에선 기획안명이
-  // 보이게 처음(왼쪽)으로 되돌린다.
+  // 표가 화면보다 넓으면(모바일) PPT·삭제 단계에선 맨 오른쪽(PPT·삭제 칸)으로, 다른 단계에선 기획안명이
+  // 보이게 처음(왼쪽)으로 넘긴다. 가이드의 scrollIntoView에만 맡기면 모바일 브라우저(사파리 등)에서
+  // 표 안 가로 스크롤이 움직이지 않아 밝힌 자리가 화면 밖에 남는다 — 표 스크롤 칸을 직접 옮긴다.
   useEffect(() => {
-    if (!tourStep || tourStep === "actions") return;
-    document
+    if (!tourStep) return;
+    const scroller = document
       .querySelector('[data-tour="proposal-row"]')
-      ?.closest("table")
-      ?.parentElement?.scrollTo({ left: 0, behavior: "smooth" });
+      ?.closest("table")?.parentElement;
+    if (!scroller) return;
+    scroller.scrollTo({
+      left: tourStep === "actions" ? scroller.scrollWidth : 0,
+      behavior: "smooth",
+    });
   }, [tourStep]);
 
   const myProposals = useMemo(() => (data ?? []).map(toView), [data]);
