@@ -184,7 +184,14 @@ export function MediaDetailModal({
  * 모달이 아니라서(포커스 가두기·바깥 클릭 닫기 없음) 가이드 판 아래에 보여 주기만 한다.
  * 가이드 판(z-70)보다 아래, 화면(LNB z-40·AI 믹시 패널 z-50)보다 위.
  */
-export function MediaDetailPreview({ vm }: { vm: MediaDetailViewModel }) {
+export function MediaDetailPreview({
+  vm,
+  visible,
+}: {
+  vm: MediaDetailViewModel;
+  /** 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때 드러낸다. */
+  visible: boolean;
+}) {
   const [options, setOptions] = useState<MediaOptionsValue>({
     ...DEFAULT_MEDIA_OPTIONS,
     months: 3,
@@ -193,7 +200,10 @@ export function MediaDetailPreview({ vm }: { vm: MediaDetailViewModel }) {
   return (
     <div
       aria-hidden
-      className="fixed inset-0 z-[60] flex items-center justify-center p-[20px] max-sm:p-[12px]"
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center p-[20px] transition-opacity duration-300 ease-out max-sm:p-[12px] motion-reduce:transition-none",
+        !visible && "opacity-0",
+      )}
     >
       <div className="flex max-h-full w-full max-w-[940px] flex-col gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]">
         <div className="flex h-[39px] shrink-0 items-center gap-[8px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">

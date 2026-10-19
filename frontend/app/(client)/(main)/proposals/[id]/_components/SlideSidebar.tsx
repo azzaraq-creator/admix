@@ -70,6 +70,8 @@ export function SlideSidebar({
                 <div className="h-px w-full shrink-0 bg-[#dde0ea]" />
               )}
               <div
+                // 가이드가 매체 슬라이드 부분만 밝힌다.
+                data-tour={isFixed ? undefined : "detail-media-slides"}
                 draggable={canEdit && armed === index}
                 onDragStart={(event) => {
                   if (!canEdit || armed !== index) {

@@ -1,7 +1,12 @@
 "use client";
 
 import { Breadcrumbs, Button, ScrollShadow, Spinner } from "@heroui/react";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 import {
   ChevronDoubleDownIcon,
@@ -10,7 +15,12 @@ import {
   ScrollMouseIcon,
   SearchDuotoneIcon,
 } from "@/components/icons";
-import { usePageTour, type TourStep } from "@/components/common/PageTour";
+import {
+  useActivePageTourStep,
+  usePageTour,
+  useShownPageTourStep,
+  type TourStep,
+} from "@/components/common/PageTour";
 import { cn } from "@/lib/utils";
 
 import { AiSearchBox } from "./AiSearchBox";
@@ -96,20 +106,26 @@ const SUBTITLE: Record<Mode, string> = {
 // 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
 const TOUR_STEPS: TourStep[] = [
   {
+    id: "input",
     target: "home-input",
     title: "AI 믹시에게 물어보기",
     body: "지역·예산·타겟을 입력하면 믹시가 매체를 추천해 줘요.",
     radius: 33,
   },
   {
+    // 패널이 열린 것처럼 예시 대화(MixiePanelPreview)를 띄우고, 여는 버튼과 함께 밝힌다.
     // PC는 LNB의 AI 믹시 버튼, 모바일은 그 버튼이 든 메뉴(상단바 왼쪽).
-    target: ["mixie-panel", "mobile-menu"],
+    id: "panel",
+    target: ["mixie-panel", "mobile-menu", "mixie-panel-demo"],
+    targetAll: true,
     title: "어디서든 이어서 대화",
     body: "AI 믹시 패널에서 다른 화면을 보면서도 대화를 이어가요.",
     mobileBody: "메뉴의 AI 믹시에서 언제든 대화를 이어가요.",
     radius: 22,
   },
   {
+    // 검색 탭으로 바꿔 둔 채 보여 준다(가이드가 끝나면 원래 탭으로).
+    id: "search",
     target: "mode-toggle",
     title: "검색으로 바로 찾기",
     body: "검색으로 바꿔 입력하면 매체 찾기에서 결과를 보여 줘요.",
@@ -169,12 +185,26 @@ const noopSubscribe = () => () => {};
  */
 export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<Mode>("ai");
+  const [selectedMode, setMode] = useState<Mode>("ai");
   // 대화는 이 화면에서 이어진다(시안 "01-1. 믹시 대화"). 대화 상태는 레이아웃에
   // 한 벌만 있어(useMixieChat) 다른 메뉴에 다녀와도, LNB 패널에서 이어 말해도 그대로다.
-  const { chat } = useMixieChat();
+  const { chat, setPanelPreview } = useMixieChat();
   // 첫 단계가 AI 입력바라 AI 모드로 돌려 두고 시작한다.
-  usePageTour("dashboard", TOUR_STEPS, () => setMode("ai"));
+  usePageTour("dashboard", TOUR_STEPS, { onStart: () => setMode("ai") });
+  const tourStep = useActivePageTourStep();
+  // 예시 화면(패널·검색 탭)은 밝힌 자리가 옮겨 갈 때(보이는 단계) 바꾼다.
+  const shownStep = useShownPageTourStep();
+  // 가이드 중엔 단계에 맞춘 탭을 보여 준다 — 3단계(검색)는 검색, 나머지는 AI. 고른 탭은 그대로 둔다.
+  const mode: Mode =
+    shownStep === "search" ? "search" : tourStep ? "ai" : selectedMode;
+  // 2단계(AI 믹시 패널)에선 패널이 열린 것처럼 예시 대화를 띄운다(MixieChatPanel이 그린다).
+  const previewPanel = tourStep === "panel";
+  useEffect(() => {
+    setPanelPreview(
+      previewPanel ? (shownStep === "panel" ? "shown" : "hidden") : null,
+    );
+    return () => setPanelPreview(null);
+  }, [previewPanel, shownStep, setPanelPreview]);
   // 대화 중에도 입력바의 전환 탭으로 검색 화면에 갈 수 있고, AI로 돌아오면 대화가 다시 보인다.
   const hasConversation = mode === "ai" && chat.messages.length > 0;
   // 서버·첫 하이드레이션에선 쿠키만 보고(둘이 같아야 화면이 어긋나지 않는다), 그 뒤엔 복원이 끝날 때까지.

@@ -9,7 +9,7 @@ import {
 } from "@heroui/react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SortDescriptor } from "react-aria-components";
 
 import {
@@ -28,12 +28,24 @@ import {
   useMyProposals,
   useProposalLimitDialog,
 } from "@/hooks/proposals";
+import {
+  type TourStep,
+  useActivePageTourStep,
+  usePageTour,
+  useShownPageTourStep,
+} from "@/components/common/PageTour";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useModalConfirm } from "@/hooks/useModalConfirm";
 import { useSonner } from "@/hooks/useSonner";
 
+import { GUIDE_DEMO_DETAIL_ID, GUIDE_DEMO_PROPOSALS } from "./guideDemo";
 import { NewProposalModal } from "./NewProposalModal";
-import { ProposalTable, type ProposalSortKey } from "./ProposalTable";
+import {
+  MobileSummarySheetPreview,
+  ProposalTable,
+  type ProposalSortKey,
+} from "./ProposalTable";
 import { type Proposal, type Status, TABS, toView } from "./proposalTypes";
 
 const PAGE_SIZE = 10;
@@ -51,6 +63,51 @@ const TAB_EMPTY_TITLE: Record<Status, string> = {
   "맞춤 제안": "맞춤 제안 중인 기획안이 없어요",
   "계약 완료": "계약 완료 된 기획안이 없어요",
 };
+
+// 기획안 가이드 — 1단계는 빈 표, 2단계(상태별 보기·검색)부터 예시 기획안(guideDemo)을 보여 준다.
+// 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: "create",
+    target: "proposal-new",
+    title: "새 기획안 만들기",
+    body: "새 기획안을 만들고, 매체 찾기·AI 믹시에서 매체를 담아요.",
+    radius: 21,
+  },
+  {
+    id: "filters",
+    target: "proposal-filters",
+    title: "상태별로 보기·검색",
+    body: "작성 중·제출 완료 등 상태별로 나눠 보고, 기획안명으로 찾아요.",
+    radius: 23,
+  },
+  {
+    id: "summary",
+    target: ["proposal-title", "proposal-summary"],
+    targetAll: true,
+    title: "담긴 매체 미리보기",
+    body: "기획안명에 마우스를 올리면 담긴 매체와 금액을 볼 수 있어요.",
+    mobileBody:
+      "기획안명을 누르면 담긴 매체를 볼 수 있어요. 수정은 PC에서만 할 수 있어요.",
+    radius: 14,
+  },
+  {
+    id: "actions",
+    target: "proposal-actions",
+    targetAll: true,
+    title: "PPT 다운로드·삭제",
+    body: "기획안을 PPT로 내려받거나 삭제할 수 있어요.",
+    radius: 16,
+  },
+  {
+    id: "open",
+    target: "proposal-row",
+    title: "기획안 열어서 편집·제출",
+    body: "행을 누르면 슬라이드 순서·상품을 고치고, 제출해 맞춤 제안을 받을 수 있어요.",
+    mobileBody: "기획안 편집과 제출은 PC에서 할 수 있어요.",
+    radius: 22,
+  },
+];
 
 function compare(a: Proposal, b: Proposal, key: ProposalSortKey): number {
   if (key === "title") return a.title.localeCompare(b.title, "ko");
@@ -77,9 +134,49 @@ export function ProposalsView() {
   const { showLimitDialog, limitDialog } = useProposalLimitDialog();
   const { error: toastError, deleted } = useSonner();
 
-  const proposals = useMemo(() => (data ?? []).map(toView), [data]);
+  const isDesktop = useIsDesktop();
+  // 가이드 — 열 때 새 기획안 창은 닫는다. 가이드 중엔 내 기획안 대신 빈 표·예시 기획안을 보여 준다.
+  usePageTour("proposals", TOUR_STEPS, {
+    onStart: () => {
+      setCreateOpen(false);
+      // 상세 가이드로 이어 가면 끝난 뒤 목록으로 돌아오게(예전 기획안 주소가 남아 있지 않게) 지운다.
+      sessionStorage.removeItem("admix-tour:proposal-detail-return");
+    },
+    // 기획안 상세는 PC 전용이라 PC에서만 예시 기획안 상세의 가이드로 이어 간다.
+    next: isDesktop
+      ? {
+          label: "상세 화면 보기",
+          href: `/proposals/${GUIDE_DEMO_DETAIL_ID}`,
+          tourId: "proposal-detail",
+        }
+      : null,
+  });
+  const tourStep = useActivePageTourStep();
+  // 예시 요약은 먼저 열어 자리를 재고, 밝힌 자리가 옮겨 갈 때(보이는 단계) 드러낸다.
+  const shownStep = useShownPageTourStep();
+  const touring = tourStep != null;
+  // 표가 화면보다 넓으면(모바일) PPT·삭제 단계에서 오른쪽으로 넘어간다 — 다른 단계에선 기획안명이
+  // 보이게 처음(왼쪽)으로 되돌린다.
+  useEffect(() => {
+    if (!tourStep || tourStep === "actions") return;
+    document
+      .querySelector('[data-tour="proposal-row"]')
+      ?.closest("table")
+      ?.parentElement?.scrollTo({ left: 0, behavior: "smooth" });
+  }, [tourStep]);
+
+  const myProposals = useMemo(() => (data ?? []).map(toView), [data]);
+  const proposals = useMemo(
+    () =>
+      touring
+        ? tourStep === "create"
+          ? []
+          : GUIDE_DEMO_PROPOSALS
+        : myProposals,
+    [touring, tourStep, myProposals],
+  );
   const keyword = query.trim();
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const key = sort.column as ProposalSortKey;
     const sign = sort.direction === "ascending" ? 1 : -1;
     return proposals
@@ -90,6 +187,8 @@ export function ProposalsView() {
       )
       .sort((a, b) => compare(a, b, key) * sign);
   }, [proposals, activeTab, keyword, sort]);
+  // 가이드 중엔 탭·검색과 상관없이 보여 준다(예시가 걸러지지 않게).
+  const filtered = touring ? proposals : searched;
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -174,10 +273,11 @@ export function ProposalsView() {
 
   // 처음 불러올 때와 만들기·삭제 뒤 목록을 다시 받는 동안은 표 본문에 스피너를 보인다.
   const listLoading =
-    isLoading || createMutation.isPending || deleteMutation.isPending;
+    !touring &&
+    (isLoading || createMutation.isPending || deleteMutation.isPending);
 
   const emptyState =
-    activeTab !== "전체" && !keyword ? (
+    activeTab !== "전체" && !keyword && !touring ? (
       <EmptyStateBox
         icon={<CollectionIcon className="size-[24px]" />}
         title={TAB_EMPTY_TITLE[activeTab]}
@@ -228,6 +328,7 @@ export function ProposalsView() {
         {/* HeroUI 기본 primary 버튼(기본 크기 md) 그대로. 아이콘 크기도 HeroUI가 맞춘다.
             곡률만 규칙(높이/2 - 3px)대로 — 높이가 모바일 40px·PC(md 이상) 36px이라 17px·15px. */}
         <Button
+          data-tour="proposal-new"
           variant="primary"
           onPress={() => setCreateOpen(true)}
           className="shrink-0 rounded-[17px] md:rounded-[15px]"
@@ -236,7 +337,10 @@ export function ProposalsView() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
+      <div
+        data-tour="proposal-filters"
+        className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between"
+      >
         {/* HeroUI Tabs 기본 스타일 그대로.
             - Tabs.Indicator: 선택이 바뀌면 미끄러지듯 옮겨 가는 표시
             - Tabs.ListContainer: 폭이 모자라면 가로 스크롤 + 양쪽 화살표(넘칠 때만 보임) */}
@@ -314,7 +418,19 @@ export function ProposalsView() {
         onDownload={handleDownload}
         onDelete={handleDelete}
         downloadingId={downloadingId}
+        demoSummaryId={
+          tourStep === "summary" && isDesktop
+            ? GUIDE_DEMO_PROPOSALS[0].id
+            : null
+        }
+        demoSummaryVisible={shownStep === "summary"}
       />
+      {tourStep === "summary" && !isDesktop && (
+        <MobileSummarySheetPreview
+          proposal={GUIDE_DEMO_PROPOSALS[0]}
+          visible={shownStep === "summary"}
+        />
+      )}
 
       <Pagination className="gap-[12px]">
         <Pagination.Summary className="text-[12px] text-[#8c8c94]">

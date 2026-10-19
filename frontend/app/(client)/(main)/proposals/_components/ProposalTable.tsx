@@ -173,10 +173,20 @@ function SummaryPopover({ proposal }: { proposal: Proposal }) {
  * 머리: 기획안명·매체 수·최근 수정 / 본문: 담긴 매체(썸네일·이름·주소·광고비·제작비, 많으면 스크롤)
  * / 바닥: 광고비·제작비 합계 + 닫기. 모양은 관심 매체의 "선택한 매체" 시트와 같다.
  */
-function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
+function MobileSummaryDrawer({
+  proposal,
+  tourAnchor,
+}: {
+  proposal: Proposal;
+  /** 가이드가 밝히는 첫 행이면 data-tour를 단다. */
+  tourAnchor?: boolean;
+}) {
   return (
     <Drawer>
-      <Drawer.Trigger className="flex w-full min-w-0 justify-start text-left outline-none sm:hidden">
+      <Drawer.Trigger
+        data-tour={tourAnchor ? "proposal-title" : undefined}
+        className="flex w-full min-w-0 justify-start text-left outline-none sm:hidden"
+      >
         <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
           {proposal.title}
         </span>
@@ -204,84 +214,10 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
                 {/* 본문은 넘침을 막고 안쪽 ScrollShadow가 스크롤한다 — 매체가 많으면 위아래 가장자리를
                     흐리게 해 더 있음을 알린다. Drawer.Body 안에 두어야 목록을 끌 때 시트가 같이 끌려 내려가지 않는다. */}
                 <Drawer.Body className="mt-[14px] flex flex-col overflow-hidden p-0">
-                  {proposal.previews.length === 0 ? (
-                    <p className="rounded-[12px] bg-[#f7f7f8] py-[28px] text-center text-[13px] text-[#8c8c94]">
-                      아직 담긴 매체가 없어요.
-                    </p>
-                  ) : (
-                    <ScrollShadow
-                      size={32}
-                      hideScrollBar
-                      className="min-h-0 flex-1 overscroll-contain"
-                    >
-                      <ul className="flex flex-col gap-[8px]">
-                        {proposal.previews.map((item) => (
-                          <li
-                            key={item.media_id}
-                            className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
-                          >
-                            <MediaThumbnail
-                              src={item.thumbnail_url ?? undefined}
-                              sizes="56px"
-                              className="size-[56px] shrink-0 rounded-[12px]"
-                              fallback={
-                                <Logo className="size-[18px] opacity-30" />
-                              }
-                            />
-                            <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                              <p className="truncate text-[14px] font-semibold text-[#18181b]">
-                                {item.name}
-                              </p>
-                              <p className="truncate text-[12px] text-[#8c8c94]">
-                                {item.address ?? "-"}
-                              </p>
-                              <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
-                                <span>
-                                  광고비{" "}
-                                  <span className="font-semibold text-[#18181b]">
-                                    {formatAdFee(item.advertisement_fee)}
-                                  </span>
-                                </span>
-                                {item.production_fee != null && (
-                                  <span>
-                                    제작비{" "}
-                                    <span className="font-semibold text-[#18181b]">
-                                      {won(item.production_fee)}
-                                    </span>
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </ScrollShadow>
-                  )}
+                  <MobileSummaryList proposal={proposal} />
                 </Drawer.Body>
                 <Drawer.Footer className="mt-[16px] flex flex-col gap-[12px] p-0">
-                  {/* 합계 — 관심 매체 시트와 같은 회색 상자. */}
-                  <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-[#71717a]">
-                        광고비 합계
-                      </span>
-                      <span className="text-[16px] font-bold text-[#18181b]">
-                        {formatTotalWithInquiry(
-                          proposal.advertisementAmount,
-                          hasAdInquiry(proposal.previews),
-                        )}
-                      </span>
-                    </div>
-                    <div className="h-px bg-[#ececef]" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-[#71717a]">
-                        제작비 합계
-                      </span>
-                      <span className="text-[16px] font-bold text-[#18181b]">
-                        {won(proposal.productionAmount)}
-                      </span>
-                    </div>
-                  </div>
+                  <MobileSummaryTotals proposal={proposal} />
                   {/* 버튼 44px → 곡률 19px. */}
                   <Button
                     variant="ghost"
@@ -297,6 +233,187 @@ function MobileSummaryDrawer({ proposal }: { proposal: Proposal }) {
         </Drawer.Content>
       </Drawer.Backdrop>
     </Drawer>
+  );
+}
+
+/** 모바일 요약 시트 본문 — 담긴 매체 목록(시트와 가이드 예시 시트가 같이 쓴다). */
+function MobileSummaryList({ proposal }: { proposal: Proposal }) {
+  return (
+    <>
+      {proposal.previews.length === 0 ? (
+        <p className="rounded-[12px] bg-[#f7f7f8] py-[28px] text-center text-[13px] text-[#8c8c94]">
+          아직 담긴 매체가 없어요.
+        </p>
+      ) : (
+        <ScrollShadow
+          size={32}
+          hideScrollBar
+          className="min-h-0 flex-1 overscroll-contain"
+        >
+          <ul className="flex flex-col gap-[8px]">
+            {proposal.previews.map((item) => (
+              <li
+                key={item.media_id}
+                className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
+              >
+                <MediaThumbnail
+                  src={item.thumbnail_url ?? undefined}
+                  sizes="56px"
+                  className="size-[56px] shrink-0 rounded-[12px]"
+                  fallback={<Logo className="size-[18px] opacity-30" />}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                  <p className="truncate text-[14px] font-semibold text-[#18181b]">
+                    {item.name}
+                  </p>
+                  <p className="truncate text-[12px] text-[#8c8c94]">
+                    {item.address ?? "-"}
+                  </p>
+                  <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
+                    <span>
+                      광고비{" "}
+                      <span className="font-semibold text-[#18181b]">
+                        {formatAdFee(item.advertisement_fee)}
+                      </span>
+                    </span>
+                    {item.production_fee != null && (
+                      <span>
+                        제작비{" "}
+                        <span className="font-semibold text-[#18181b]">
+                          {won(item.production_fee)}
+                        </span>
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </ScrollShadow>
+      )}
+    </>
+  );
+}
+
+/** 모바일 요약 시트 바닥 — 광고비·제작비 합계. */
+function MobileSummaryTotals({ proposal }: { proposal: Proposal }) {
+  // 합계 — 관심 매체 시트와 같은 회색 상자.
+  return (
+    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-medium text-[#71717a]">
+          광고비 합계
+        </span>
+        <span className="text-[16px] font-bold text-[#18181b]">
+          {formatTotalWithInquiry(
+            proposal.advertisementAmount,
+            hasAdInquiry(proposal.previews),
+          )}
+        </span>
+      </div>
+      <div className="h-px bg-[#ececef]" />
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-medium text-[#71717a]">
+          제작비 합계
+        </span>
+        <span className="text-[16px] font-bold text-[#18181b]">
+          {won(proposal.productionAmount)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 가이드용 모바일 요약 시트 — 기획안명을 누른 것처럼 아래에 시트를 띄운다. 모달이 아니라서
+ * (포커스 가두기·바깥 클릭 닫기 없음) 가이드 판 아래에 보여 주기만 한다(z-60, 가이드 판 z-70 아래).
+ */
+export function MobileSummarySheetPreview({
+  proposal,
+  visible,
+}: {
+  proposal: Proposal;
+  /** 밝힌 자리가 옮겨 갈 때 드러낸다(그 전엔 자리만 재게 투명하게). */
+  visible: boolean;
+}) {
+  return (
+    <div
+      aria-hidden
+      data-tour="proposal-summary"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-[60] flex max-h-[62dvh] flex-col rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        !visible && "opacity-0",
+      )}
+    >
+      <span className="mx-auto h-[4px] w-[36px] shrink-0 rounded-full bg-gray-300" />
+      <div className="mt-[12px] flex shrink-0 flex-col gap-[2px]">
+        <p className="text-[17px] leading-[1.4] font-bold break-keep text-black">
+          {proposal.title}
+        </p>
+        <p className="text-[12px] text-[#8c8c94]">
+          매체 {proposal.mediaCount}개 · 최근 수정 {proposal.updatedAt}
+        </p>
+      </div>
+      <div className="mt-[14px] flex min-h-0 flex-col overflow-hidden">
+        <MobileSummaryList proposal={proposal} />
+      </div>
+      <div className="mt-[16px] shrink-0">
+        <MobileSummaryTotals proposal={proposal} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PC 기획안명 툴팁 — 시안 "03. 제안서 - tooltip": 기획안명(밑줄)에 올리면 기획안 요약이 뜬다.
+ * 마우스로 쓰는 PC에서만 — 터치 화면(iPad 등)은 hover가 없어 SummaryPopover로 연다.
+ * forceOpen: 가이드가 마우스를 올린 것처럼 열어 둔다.
+ */
+function TitleTooltip({
+  proposal,
+  tourAnchor,
+  forceOpen = false,
+  forceVisible = true,
+}: {
+  proposal: Proposal;
+  tourAnchor?: boolean;
+  forceOpen?: boolean;
+  /** 가이드 — 열어 둔 채 자리를 잰 뒤, 밝힌 자리가 옮겨 갈 때 드러낸다. */
+  forceVisible?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip
+      delay={200}
+      closeDelay={100}
+      isOpen={forceOpen || open}
+      onOpenChange={setOpen}
+    >
+      <Tooltip.Trigger
+        data-tour={tourAnchor ? "proposal-title" : undefined}
+        className="max-w-full max-sm:hidden pointer-coarse:hidden"
+      >
+        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
+          {proposal.title}
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content
+        data-tour={forceOpen ? "proposal-summary" : undefined}
+        showArrow
+        placement="bottom start"
+        className={cn(
+          "w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]",
+          // 가이드가 연 요약은 기본 등장 효과(커지며 나타남)를 끄고 밝힌 자리와 함께 서서히 드러낸다
+          // — 효과가 끝날 때까지 자리를 못 잡아 가이드가 늦게 움직였다.
+          forceOpen &&
+            "transition-opacity duration-300 ease-out data-[entering=true]:animate-none! motion-reduce:transition-none",
+          forceOpen && !forceVisible && "opacity-0",
+        )}
+      >
+        <Tooltip.Arrow />
+        <SummaryTooltipBody proposal={proposal} />
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
 
@@ -340,6 +457,8 @@ export function ProposalTable({
   onDownload,
   onDelete,
   downloadingId,
+  demoSummaryId,
+  demoSummaryVisible = true,
 }: {
   items: Proposal[];
   /** 처음 불러오거나 만들기·삭제 뒤 목록을 다시 받는 중 — 행 대신 본문 가운데에 스피너를 보인다. */
@@ -352,7 +471,13 @@ export function ProposalTable({
   onDownload: (proposal: Proposal) => void;
   onDelete: (proposal: Proposal) => void;
   downloadingId: string | null;
+  /** 가이드 — 이 기획안의 요약 툴팁을 열어 둔다(PC). */
+  demoSummaryId?: string | null;
+  /** 가이드 — 열어 둔 요약을 드러낼지(밝힌 자리가 옮겨 갈 때). */
+  demoSummaryVisible?: boolean;
 }) {
+  // 가이드가 밝히는 행 — 첫 행의 기획안명·PPT·삭제 버튼에 data-tour를 단다.
+  const anchorId = items[0]?.id;
   // 빈 상태는 표 본문 칸(td)을 HeroUI가 만들어 높이를 CSS로 물려받기 어렵다.
   // 그래서 높이를 재서 준다. 표 영역 자신의 높이를 재면, 창을 줄일 때 빈 상태가 표를 밀어 늘린 채로
   // 다시 재여 1px씩 줄어드는(애니메이션처럼 보이는) 되먹임이 생긴다. 그래서 내용과 무관한 값으로 잰다:
@@ -478,7 +603,13 @@ export function ProposalTable({
               items={loading ? [] : items}
               // react-aria는 items가 그대로면 행을 다시 그리지 않는다 — 받는 중인 기획안이 바뀌면
               // PPT 버튼(스피너·비활성)이 반영되도록 다시 그리게 한다.
-              dependencies={[downloadingId, loading]}
+              dependencies={[
+                downloadingId,
+                loading,
+                demoSummaryId,
+                demoSummaryVisible,
+                anchorId,
+              ]}
               renderEmptyState={() =>
                 loading ? null : (
                   <div className="flex" style={{ height: emptyHeight }}>
@@ -488,7 +619,12 @@ export function ProposalTable({
               }
             >
               {(proposal) => (
-                <Table.Row id={proposal.id}>
+                <Table.Row
+                  id={proposal.id}
+                  data-tour={
+                    proposal.id === anchorId ? "proposal-row" : undefined
+                  }
+                >
                   <Table.Cell>
                     <Cover year={proposal.year} />
                   </Table.Cell>
@@ -496,30 +632,22 @@ export function ProposalTable({
                     <StatusBadge status={proposal.status} />
                   </Table.Cell>
                   <Table.Cell>
-                    {/* 시안 "03. 제안서 - tooltip": 기획안명(밑줄)에 올리면 기획안 요약이 뜬다.
-                        마우스로 쓰는 PC에서만 — 터치 화면(iPad 등)은 hover가 없어 아래 Popover로 연다. */}
-                    <Tooltip delay={200} closeDelay={100}>
-                      <Tooltip.Trigger className="max-w-full max-sm:hidden pointer-coarse:hidden">
-                        <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
-                          {proposal.title}
-                        </span>
-                      </Tooltip.Trigger>
-                      <Tooltip.Content
-                        showArrow
-                        placement="bottom start"
-                        className="w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
-                      >
-                        <Tooltip.Arrow />
-                        <SummaryTooltipBody proposal={proposal} />
-                      </Tooltip.Content>
-                    </Tooltip>
+                    <TitleTooltip
+                      proposal={proposal}
+                      tourAnchor={proposal.id === anchorId}
+                      forceOpen={proposal.id === demoSummaryId}
+                      forceVisible={demoSummaryVisible}
+                    />
                     {/* 태블릿(sm 이상 터치 화면)은 기획안명을 누르면 같은 요약을 Popover로 띄운다.
                         버튼이라 눌러도 행 동작(기획안 열기)으로 번지지 않는다. */}
                     <SummaryPopover proposal={proposal} />
                     {/* 모바일은 hover가 없어, 기획안명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
                         담긴 매체를 크게 보여 준다(기획안은 열지 않는다). 기획안명 칸 전체가 버튼이라
                         짧은 기획안명 옆 빈 곳을 눌러도 시트만 뜬다. */}
-                    <MobileSummaryDrawer proposal={proposal} />
+                    <MobileSummaryDrawer
+                      proposal={proposal}
+                      tourAnchor={proposal.id === anchorId}
+                    />
                   </Table.Cell>
                   <Table.Cell>{proposal.mediaCount}</Table.Cell>
                   <Table.Cell>
@@ -566,6 +694,11 @@ export function ProposalTable({
                         downloadingId !== null && downloadingId !== proposal.id
                       }
                       onPress={() => onDownload(proposal)}
+                      data-tour={
+                        proposal.id === anchorId
+                          ? "proposal-actions"
+                          : undefined
+                      }
                       aria-label={`${proposal.title} PPT 다운로드`}
                       className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-[#ececef] bg-white px-0 text-[12px] font-semibold text-black"
                     >
@@ -589,6 +722,11 @@ export function ProposalTable({
                       variant="outline"
                       size="sm"
                       onPress={() => onDelete(proposal)}
+                      data-tour={
+                        proposal.id === anchorId
+                          ? "proposal-actions"
+                          : undefined
+                      }
                       aria-label={`${proposal.title} 삭제`}
                       className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-[#ececef] bg-white p-0 text-[#dc2626]"
                     >

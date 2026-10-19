@@ -7,6 +7,7 @@ import { ChevronLeftIcon, MixieIcon, XIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import { HomeChat } from "./HomeChat";
+import { MixiePanelPreview } from "./MixiePanelPreview";
 import { NewChatButton } from "./NewChatButton";
 import { useLnbCollapsed } from "./useLnb";
 import { useMixieChat } from "./useMixieChat";
@@ -34,7 +35,7 @@ const PANEL_PART_SELECTOR = [
 ].join(", ");
 
 export function MixieChatPanel() {
-  const { chat, panelOpen, setPanelOpen } = useMixieChat();
+  const { chat, panelOpen, setPanelOpen, panelPreview } = useMixieChat();
   const panelRef = useRef<HTMLElement>(null);
   // 데스크톱에서 LNB가 접히면(78px) 패널도 그 오른쪽에 붙는다.
   const lnbCollapsed = useLnbCollapsed();
@@ -97,52 +98,56 @@ export function MixieChatPanel() {
   }, [panelOpen, setPanelOpen]);
 
   return (
-    <aside
-      ref={panelRef}
-      aria-label="AI 믹시 대화"
-      aria-hidden={!panelOpen}
-      inert={!panelOpen}
-      // 모바일은 화면 전체를 덮고(페이드), 데스크톱은 LNB 뒤에서 미끄러져 나와 본문 위에
-      // 뜬다 — 본문 폭은 그대로라 열고 닫아도 화면이 밀리지 않는다.
-      // 데스크톱 z-35: 본문의 가장 높은 층(매체 찾기 검색바 z-30)보다 위, 그 뒤로 미끄러져
-      // 나오는 LNB(z-40)보다는 아래.
-      className={cn(
-        "fixed inset-0 z-50 flex flex-col bg-white transition-[opacity,translate,left] duration-300 ease-in-out sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:opacity-100 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
-        lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
-        entered
-          ? "opacity-100 sm:translate-x-0"
-          : "pointer-events-none opacity-0 sm:-translate-x-full sm:shadow-none",
-        !shown && "hidden",
-      )}
-    >
-      <div className="flex h-full w-full min-h-0 flex-col">
-        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px]">
-          <div className="flex items-center gap-[8px]">
-            <MixieIcon className="size-[18px] shrink-0" />
-            {/* 패널 안은 보라가 이미 많아 제목은 그라데이션 없이 기본 글자색 단색으로 둔다. */}
-            <span className="text-[15px] font-semibold text-gray-900">
-              AI 믹시
-            </span>
+    <>
+      {/* 대시보드 가이드의 예시 패널 — 실제 패널과 같은 자리·층(LNB 아래)에 띄운다. */}
+      {panelPreview && <MixiePanelPreview visible={panelPreview === "shown"} />}
+      <aside
+        ref={panelRef}
+        aria-label="AI 믹시 대화"
+        aria-hidden={!panelOpen}
+        inert={!panelOpen}
+        // 모바일은 화면 전체를 덮고(페이드), 데스크톱은 LNB 뒤에서 미끄러져 나와 본문 위에
+        // 뜬다 — 본문 폭은 그대로라 열고 닫아도 화면이 밀리지 않는다.
+        // 데스크톱 z-35: 본문의 가장 높은 층(매체 찾기 검색바 z-30)보다 위, 그 뒤로 미끄러져
+        // 나오는 LNB(z-40)보다는 아래.
+        className={cn(
+          "fixed inset-0 z-50 flex flex-col bg-white transition-[opacity,translate,left] duration-300 ease-in-out sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:opacity-100 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
+          lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
+          entered
+            ? "opacity-100 sm:translate-x-0"
+            : "pointer-events-none opacity-0 sm:-translate-x-full sm:shadow-none",
+          !shown && "hidden",
+        )}
+      >
+        <div className="flex h-full w-full min-h-0 flex-col">
+          <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px]">
+            <div className="flex items-center gap-[8px]">
+              <MixieIcon className="size-[18px] shrink-0" />
+              {/* 패널 안은 보라가 이미 많아 제목은 그라데이션 없이 기본 글자색 단색으로 둔다. */}
+              <span className="text-[15px] font-semibold text-gray-900">
+                AI 믹시
+              </span>
+            </div>
+            <div className="flex items-center gap-[12px]">
+              {chat.messages.length > 0 && <NewChatButton />}
+              <button
+                type="button"
+                aria-label="AI 믹시 닫기"
+                onClick={() => setPanelOpen(false)}
+                className="flex size-[28px] items-center justify-center rounded-[8px] text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
+              >
+                {/* PC는 패널이 LNB 쪽(왼쪽)으로 미끄러져 들어가므로 왼쪽 화살표, 모바일은 화면을 덮는 창이라 X. */}
+                <XIcon className="size-[16px] sm:hidden" />
+                <ChevronLeftIcon className="hidden size-[16px] sm:block" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-[12px]">
-            {chat.messages.length > 0 && <NewChatButton />}
-            <button
-              type="button"
-              aria-label="AI 믹시 닫기"
-              onClick={() => setPanelOpen(false)}
-              className="flex size-[28px] items-center justify-center rounded-[8px] text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
-            >
-              {/* PC는 패널이 LNB 쪽(왼쪽)으로 미끄러져 들어가므로 왼쪽 화살표, 모바일은 화면을 덮는 창이라 X. */}
-              <XIcon className="size-[16px] sm:hidden" />
-              <ChevronLeftIcon className="hidden size-[16px] sm:block" />
-            </button>
+          {/* 대화 영역은 옅은 회색으로 깔아 흰 말풍선이 떠 보이게 한다. */}
+          <div className="flex min-h-0 flex-1 flex-col bg-gray-50 pt-[16px]">
+            <HomeChat variant="panel" />
           </div>
         </div>
-        {/* 대화 영역은 옅은 회색으로 깔아 흰 말풍선이 떠 보이게 한다. */}
-        <div className="flex min-h-0 flex-1 flex-col bg-gray-50 pt-[16px]">
-          <HomeChat variant="panel" />
-        </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

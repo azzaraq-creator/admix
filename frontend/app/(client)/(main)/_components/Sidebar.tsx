@@ -106,7 +106,9 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { panelOpen, setPanelOpen } = useMixieChat();
+  const { panelOpen, setPanelOpen, panelPreview } = useMixieChat();
+  // 가이드가 예시 패널을 띄운 동안에도 열림 모양으로 보인다.
+  const mixieActive = panelOpen || panelPreview === "shown";
   // 지금 페이지에 가이드가 있을 때만 버튼을 둔다.
   const hasTour = useHasPageTour();
 
@@ -214,20 +216,20 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                   // (닫히는 동안 잠깐 번쩍일 뿐이라) sm: 에만 건다.
                   className={cn(
                     NAV_ROW,
-                    panelOpen
+                    mixieActive
                       ? "max-sm:hover:bg-[#f7f3fe] sm:bg-gradient-to-r sm:from-primary-500 sm:to-primary-700 sm:shadow-[0_4px_12px_0_rgba(163,59,209,0.35)]"
                       : "hover:bg-[#f7f3fe]",
                   )}
                 >
                   {/* 아이콘의 그라데이션 fill은 속성값이라 CSS fill로 덮어 흰색으로 바꾼다. */}
                   <MixieIcon
-                    className={`size-[18px] shrink-0 ${panelOpen ? "sm:[&_path]:fill-white" : ""}`}
+                    className={`size-[18px] shrink-0 ${mixieActive ? "sm:[&_path]:fill-white" : ""}`}
                   />
                   <span
                     className={cn(
                       "text-sm font-semibold whitespace-nowrap",
                       "bg-gradient-to-r from-primary-300 to-primary-800 bg-clip-text text-transparent",
-                      panelOpen && "sm:bg-none sm:text-white",
+                      mixieActive && "sm:bg-none sm:text-white",
                       fadeLabel(collapsed),
                     )}
                   >

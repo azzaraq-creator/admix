@@ -12,6 +12,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  continuePageTour,
+  type TourStep,
+  useActivePageTourStep,
+  usePageTour,
+  useShownPageTourStep,
+} from "@/components/common/PageTour";
 import { useMe } from "@/hooks/auth";
 import {
   CircleAlertIcon,
@@ -51,14 +58,80 @@ import {
 } from "@/components/proposals/ThanksTemplate";
 
 import { openLoginModal } from "../../../_components/useLoginModal";
+import {
+  GUIDE_DEMO_DETAIL_ID,
+  GUIDE_DEMO_FAVORITES,
+  GUIDE_DEMO_PROPOSAL_DETAIL,
+  isGuideDemoProposal,
+} from "../../_components/guideDemo";
 import { StatusBadge } from "../../_components/ProposalTable";
 import { toStatus } from "../../_components/proposalTypes";
-import { AddFromFavoritesModal } from "./AddFromFavoritesModal";
+import {
+  AddFromFavoritesModal,
+  FavoritesPickPreview,
+} from "./AddFromFavoritesModal";
 import { CounterProposalDeckView } from "./CounterProposalDeckView";
 import { type Slide } from "./SlideLightbox";
 import { SlideSidebar } from "./SlideSidebar";
 
 const SUMMARY_PAGE_SIZE = 5;
+/** 실제 기획안에서 가이드를 열었을 때, 예시 기획안 가이드가 끝나면 돌아갈 주소. */
+const TOUR_RETURN_KEY = "admix-tour:proposal-detail-return";
+
+// 기획안 상세 가이드 — 예시 기획안(guideDemo, PC 전용 화면)에서만 연다. 단계에 맞춰 서머리·매체 슬라이드를
+// 고르고, 관심 매체 추가 창(예시 관심 매체)을 띄운다. 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: "rename",
+    target: "detail-title",
+    title: "이름 수정",
+    body: "연필 아이콘을 눌러 기획안 이름을 바꿔요.",
+    radius: 16,
+  },
+  {
+    id: "tools",
+    target: "detail-tools",
+    title: "PPT 다운로드·삭제",
+    body: "기획안을 PPT로 내려받거나 삭제해요.",
+    radius: 21,
+  },
+  {
+    id: "summary",
+    target: "detail-preview",
+    title: "서머리에서 바로 수정",
+    body: "상품명, 개월 수, 집행 기간을 표에서 바로 고쳐요. 집행 기간은 비워 둬도 돼요.",
+    radius: 6,
+  },
+  {
+    id: "slides",
+    target: "detail-media-slides",
+    targetAll: true,
+    title: "슬라이드 편집",
+    body: "매체 순서를 끌어서 바꾸고 휴지통으로 빼요. 매체 슬라이드에서도 상품을 고를 수 있어요.",
+    radius: 14,
+  },
+  {
+    id: "favorites",
+    target: "detail-favorites",
+    title: "관심 매체에서 추가",
+    body: "관심 매체에 담아 둔 매체를 골라 바로 추가해요.",
+    radius: 30,
+  },
+  {
+    id: "save",
+    target: "detail-save",
+    title: "자동 저장",
+    body: "고친 내용은 2초 뒤 자동으로 저장돼요. 저장 아이콘으로 바로 저장할 수도 있어요.",
+    radius: 14,
+  },
+  {
+    id: "submit",
+    target: "detail-submit",
+    title: "제출하기",
+    body: "다 되면 제출해요. 검토 후 맞춤 제안이나 집행 가능 여부를 알려 드려요.",
+    radius: 21,
+  },
+];
 // 자동 저장 — 마지막으로 바꾼 뒤 이만큼 더 바꾸지 않으면 저장한다.
 const AUTOSAVE_DELAY_MS = 2000;
 // "저장 중..."이 너무 빨리 사라져 깜빡이지 않게, 저장이 끝난 뒤에도 잠깐 더 보여 준다.
@@ -82,7 +155,15 @@ export function ProposalDetailView({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const { error } = useSonner();
   const { data: me } = useMe();
-  const { data: proposal, isLoading, isError } = useProposalDetail(id);
+  // 가이드의 예시 기획안은 서버에 묻지 않고 예시 데이터를 쓴다.
+  const {
+    data: proposal,
+    isLoading,
+    isError,
+  } = useProposalDetail(
+    id,
+    isGuideDemoProposal(id) ? GUIDE_DEMO_PROPOSAL_DETAIL : null,
+  );
 
   // 로그인/계정 전환 후 이 기획안을 회원 토큰으로 재조회 (detail 키가 정적이라 수동 무효화).
   useEffect(() => {
@@ -143,7 +224,11 @@ function ProposalEditorView({ id }: { id: string }) {
   const { confirm, confirmDialog } = useModalConfirm();
   const { success, error, deleted } = useSonner();
 
-  const { data: proposal } = useProposalDetail(id);
+  const isDemo = isGuideDemoProposal(id);
+  const { data: proposal } = useProposalDetail(
+    id,
+    isDemo ? GUIDE_DEMO_PROPOSAL_DETAIL : null,
+  );
   const renameMutation = useRenameProposal();
   const deleteMutation = useDeleteProposal();
   const [deleting, setDeleting] = useState(false);
@@ -156,9 +241,37 @@ function ProposalEditorView({ id }: { id: string }) {
   const [renameError, setRenameError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [draft, setDraft] = useState("");
-  const [selectedId, setSelectedId] = useState("cover");
+  const [selectedSlideId, setSelectedId] = useState("cover");
   const [mediaOrder, setMediaOrder] = useState<string[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  // 가이드 — 예시 기획안에서만 연다. 실제 기획안에서 가이드 버튼을 누르면 예시 기획안으로 옮겨 가서 연다.
+  // 닫으면 내 기획안 목록으로 돌아간다(예시 기획안에 남아 고치지 않게).
+  usePageTour("proposal-detail", TOUR_STEPS, {
+    autoOpen: isDemo ? "always" : false,
+    onStart: () => {
+      if (isDemo) {
+        setAddOpen(false);
+        return;
+      }
+      // 끝나면 이 기획안으로 돌아오게 적어 둔다.
+      sessionStorage.setItem(TOUR_RETURN_KEY, `/proposals/${id}`);
+      continuePageTour("proposal-detail");
+      router.push(`/proposals/${GUIDE_DEMO_DETAIL_ID}`);
+      return false;
+    },
+    // 실제 기획안에서 열었으면 그 기획안으로, 기획안 목록 가이드에서 이어 왔으면 목록으로 돌아간다.
+    onClose: isDemo
+      ? () => {
+          const back = sessionStorage.getItem(TOUR_RETURN_KEY);
+          sessionStorage.removeItem(TOUR_RETURN_KEY);
+          router.push(back ?? "/proposals");
+        }
+      : undefined,
+  });
+  const tourStep = useActivePageTourStep();
+  // 예시 화면은 밝힌 자리가 옮겨 갈 때(보이는 단계) 같이 바꾼다.
+  const shownStep = useShownPageTourStep();
   // 저장 전 편집 — 매체별 상품(플랜)·시작일/종료일·개월 수. 자동 저장(또는 저장 아이콘)으로 한꺼번에 저장한다.
   // 종료일은 직접 고르지 않고 시작일·개월 수가 바뀔 때 함께 계산해 넣는다.
   const [selectedPlans, setSelectedPlans] = useState<Record<string, number>>(
@@ -313,6 +426,13 @@ function ProposalEditorView({ id }: { id: string }) {
     slideId.startsWith("summary-")
       ? Number(slideId.slice("summary-".length))
       : null;
+  // 가이드 중엔 단계에 맞춘 슬라이드를 보여 준다 — 서머리 단계는 서머리, 슬라이드 단계는 첫 매체.
+  const selectedId =
+    shownStep === "summary"
+      ? "summary-0"
+      : shownStep === "slides" && orderedItems[0]
+        ? orderedItems[0].media_id
+        : selectedSlideId;
   const selectedSummaryPage = parseSummaryPage(selectedId);
   const selectedMediaItem =
     orderedItems.find((item) => item.media_id === selectedId) ?? null;
@@ -505,13 +625,14 @@ function ProposalEditorView({ id }: { id: string }) {
   // (지금 저장하면 1로 바뀌어 입력 중인 칸이 튄다). 실패하면 다음 변경이나 저장 아이콘으로 다시 시도.
   const hasEmptyMonths = Object.values(selectedMonths).some((m) => m == null);
   useEffect(() => {
-    if (locked || !dirty || saving || hasEmptyMonths) return;
+    if (isDemo || locked || !dirty || saving || hasEmptyMonths) return;
     const timer = window.setTimeout(
       () => void saveRef.current(),
       AUTOSAVE_DELAY_MS,
     );
     return () => window.clearTimeout(timer);
   }, [
+    isDemo,
     locked,
     dirty,
     saving,
@@ -676,7 +797,10 @@ function ProposalEditorView({ id }: { id: string }) {
       <header className="flex shrink-0 items-center justify-between gap-[20px]">
         <div className="flex min-w-0 flex-col gap-[10px]">
           {/* 제목 줄 높이 고정 — 제목 ↔ 이름 수정칸을 오가도 아래 줄이 움직이지 않는다. */}
-          <div className="flex h-[34px] min-w-0 items-center gap-[10px]">
+          <div
+            data-tour="detail-title"
+            className="flex h-[34px] min-w-0 items-center gap-[10px]"
+          >
             <button
               type="button"
               onClick={() => leave("/proposals")}
@@ -774,7 +898,10 @@ function ProposalEditorView({ id }: { id: string }) {
               {renameError}
             </p>
           ) : (
-            <div className="flex items-center gap-[10px]">
+            <div
+              data-tour="detail-save"
+              className="flex items-center gap-[10px]"
+            >
               <StatusBadge status={toStatus(proposal?.status ?? "new")} />
               {!locked && savingVisible ? (
                 <p
@@ -833,6 +960,7 @@ function ProposalEditorView({ id }: { id: string }) {
         ) : !locked ? (
           // 제출하기 — 45px → 곡률 15px(시안 값), 보라 그림자.
           <HeroButton
+            data-tour="detail-submit"
             variant="primary"
             onPress={handleSubmit}
             isPending={submitMutation.isPending}
@@ -861,7 +989,10 @@ function ProposalEditorView({ id }: { id: string }) {
               선택된 매체 {orderedItems.length}개
             </span>
           </p>
-          <div className="flex items-center gap-[10px]">
+          <div
+            data-tour="detail-tools"
+            className="flex items-center gap-[10px]"
+          >
             {/* 도구 버튼 35px → 곡률 15px(시안 값). */}
             <HeroButton
               variant="ghost"
@@ -900,7 +1031,7 @@ function ProposalEditorView({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div data-tour="detail-slides" className="flex min-h-0 flex-1">
           <SlideSidebar
             slides={slides}
             firstMediaIndex={firstMediaIndex}
@@ -916,7 +1047,10 @@ function ProposalEditorView({ id }: { id: string }) {
           {/* 미리보기 — 회색 바탕 가운데에 기획안 템플릿 슬라이드. 미리보기 칸의 너비·높이 중 먼저 닿는
               쪽에 맞춰 16:9 그대로 줄이고 늘린다(가로로 넓고 낮은 iPad에서도 잘리거나 스크롤되지 않게).
               서머리는 날짜·수량, 매체 슬라이드는 상품(플랜)을 바로 고칠 수 있다(제출·계약 뒤엔 보기만). */}
-          <section className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#eceef5] p-[40px]">
+          <section
+            data-tour="detail-preview"
+            className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#eceef5] p-[40px]"
+          >
             <div className="flex min-w-0 flex-1 items-center justify-center self-stretch [container-type:size]">
               <div className="w-[min(100cqw,calc(100cqh*16/9))]">
                 {selectedSummaryPage !== null && displayProposal ? (
@@ -968,6 +1102,14 @@ function ProposalEditorView({ id }: { id: string }) {
           proposalId={id}
           existingIds={orderedItems.map((item) => item.media_id)}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {tourStep === "favorites" && (
+        <FavoritesPickPreview
+          rows={GUIDE_DEMO_FAVORITES}
+          existingIds={orderedItems.map((item) => item.media_id)}
+          selectedIds={[GUIDE_DEMO_FAVORITES[1].id]}
+          visible={shownStep === "favorites"}
         />
       )}
       {confirmDialog}

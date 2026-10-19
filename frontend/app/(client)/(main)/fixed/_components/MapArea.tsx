@@ -113,7 +113,12 @@ export function MapArea({
     loading: boolean;
   };
   /** 가이드 — 이 장소를 고른 것처럼 장소 카드를 띄운다(예시 지하철·버스 데이터, 불러오지 않는다). */
-  demoPlace?: { place: CrowdPlace; transit: CrowdTransit } | null;
+  demoPlace?: {
+    place: CrowdPlace;
+    transit: CrowdTransit;
+    /** 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때 드러낸다. */
+    visible: boolean;
+  } | null;
 }) {
   const markerObjsRef = useRef<MarkerEntry[]>([]);
 
@@ -341,6 +346,7 @@ export function MapArea({
         <CrowdPlaceCard
           place={picked}
           transit={demoPlace?.transit}
+          hidden={demoPlace ? !demoPlace.visible : false}
           onClose={() => setPickedPlace(null)}
         />
       )}
@@ -465,11 +471,14 @@ function LegendRow({
 function CrowdPlaceCard({
   place,
   transit,
+  hidden = false,
   onClose,
 }: {
   place: CrowdPlace;
   /** 가이드 예시 — 주면 불러오지 않고 이 값을 보여 주고, 모바일도 시트 대신 지도 위 카드로 띄운다. */
   transit?: CrowdTransit;
+  /** 가이드 예시 — 자리를 재는 동안 투명하게. */
+  hidden?: boolean;
   onClose: () => void;
 }) {
   const isDesktop = useIsDesktop();
@@ -481,7 +490,10 @@ function CrowdPlaceCard({
   return (
     <Card
       data-tour="crowd-place"
-      className="absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)]"
+      className={cn(
+        "absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        hidden && "opacity-0",
+      )}
     >
       <div className="shrink-0 border-b border-[#f1f1f4] px-[14px] pt-[12px] pb-[10px]">
         <CrowdPlaceHeader place={place} onClose={onClose} />

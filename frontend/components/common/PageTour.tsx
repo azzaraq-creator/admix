@@ -11,6 +11,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
 import { XIcon } from "@/components/icons";
@@ -51,6 +52,10 @@ const GAP = 12;
 /** 카드와 화면 가장자리 사이. */
 const EDGE = 16;
 const CARD_WIDTH = 320;
+/** 단계를 바꾼 뒤 대상 자리가 이만큼(프레임) 그대로면 자리를 잡은 것으로 보고 옮긴다. */
+const SETTLE_FRAMES = 5;
+/** 대상이 계속 움직여도(애니메이션 등) 이만큼 지나면 옮긴다. */
+const SETTLE_MAX_MS = 800;
 /** 처음 들어왔을 때 화면이 자리를 잡은 뒤(글꼴·애니메이션) 띄운다. */
 const AUTO_OPEN_DELAY_MS = 600;
 
@@ -74,13 +79,9 @@ function findTargets(step: TourStep): HTMLElement[] {
       `[data-tour="${key}"]`,
     )) {
       const r = el.getBoundingClientRect();
-      // 숨긴 요소(display: none → 0×0)와 화면 밖으로 밀어 둔 요소(닫힌 모바일 드로어)는 건너뛴다.
-      if (
-        r.width > 0 &&
-        r.height > 0 &&
-        r.right > 0 &&
-        r.left < window.innerWidth
-      ) {
+      // 숨긴 요소(display: none → 0×0)와 왼쪽 화면 밖으로 밀어 둔 요소(닫힌 모바일 드로어)는 건너뛴다.
+      // 오른쪽 밖은 넘겨 보는 표 안일 수 있어 찾는다 — 처음 찾을 때 scrollIntoView가 표를 옆으로 넘긴다.
+      if (r.width > 0 && r.height > 0 && r.right > 0) {
         if (!step.targetAll) return [el];
         found.push(el);
       }
@@ -104,12 +105,51 @@ function unionRect(els: HTMLElement[]): Rect | null {
  * 버튼(useCurrentPageTour)과 PageTourHost가 같이 본다. 가이드가 없는 페이지는 등록이 없어
  * 버튼도 뜨지 않는다.
  */
-type Registration = { id: string; steps: TourStep[]; onStart?: () => void };
+type Registration = {
+  id: string;
+  steps: TourStep[];
+  onStart?: () => boolean | void;
+  next?: PageTourNext | null;
+  onClose?: () => void;
+};
+
+/** 마지막 단계에서 다른 화면의 가이드로 이어 간다(예: 기획안 목록 → 예시 기획안 상세). */
+export type PageTourNext = {
+  /** 마지막 단계 버튼 글자(기본 "시작하기" 대신). */
+  label: string;
+  href: string;
+  /** 이어 갈 가이드 id — 그 화면이 이 id로 usePageTour를 부르면 바로 연다. */
+  tourId: string;
+};
+
+export type PageTourOptions = {
+  /**
+   * 열기 직전에 화면을 첫 단계에 맞춰 둘 때(예: 대시보드를 AI 모드로). false를 돌려주면 열지 않는다
+   * (예: 다른 화면으로 옮겨 가서 열 때).
+   */
+  onStart?: () => boolean | void;
+  /** 처음 들어왔을 때 저절로 열지 — 기본 true(한 번만), "always"면 들어올 때마다, false면 열지 않는다. */
+  autoOpen?: boolean | "always";
+  /** 마지막 단계에서 이어 갈 가이드(없으면 null). */
+  next?: PageTourNext | null;
+  /** 가이드를 닫은 뒤(끝까지 보든 건너뛰든). 다음 가이드로 이어 갈 때는 부르지 않는다. */
+  onClose?: () => void;
+};
+
+/** 다른 화면으로 넘어가서 이어 열 가이드 id — 넘어간 화면이 같은 id로 등록하면 바로 연다. */
+const CONTINUE_KEY = "admix-tour:continue";
+
+/** 화면을 옮긴 뒤 그 화면의 가이드를 바로 열게 표시해 둔다. */
+export function continuePageTour(tourId: string) {
+  sessionStorage.setItem(CONTINUE_KEY, tourId);
+}
 
 let current: Registration | null = null;
 let isOpen = false;
 /** 열린 가이드의 지금 단계 id — 페이지가 단계에 맞춰 예시 화면을 띄우는 데 쓴다. */
 let activeStep: string | null = null;
+/** 화면에 보이는(자리를 잡아 밝힌 자리·카드가 옮겨 간) 단계 id — 예시 화면을 이때 같이 드러낸다. */
+let shownStep: string | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((listener) => listener());
 const subscribe = (callback: () => void) => {
@@ -123,30 +163,38 @@ const subscribe = (callback: () => void) => {
  * 페이지 가이드 등록 — 이 페이지가 떠 있는 동안 가이드 버튼이 이 단계들을 연다.
  * 처음 들어오면 한 번 저절로 열고, 닫으면(끝까지 보든 건너뛰든) 다시 저절로 열지 않는다.
  * steps는 바뀔 때마다 다시 등록하므로 컴포넌트 밖 상수로 둔다.
- * onStart — 열기 직전에 화면을 첫 단계에 맞춰 둘 때(예: 대시보드를 AI 모드로).
+ * 다른 화면의 가이드에서 이어 오면(continuePageTour) 저절로 열기 설정과 상관없이 바로 연다.
  */
 export function usePageTour(
   id: string,
   steps: TourStep[],
-  onStart?: () => void,
+  options: PageTourOptions = {},
 ) {
-  const onStartRef = useRef(onStart);
+  const { autoOpen = true, next = null } = options;
+  const optionsRef = useRef(options);
   useEffect(() => {
-    onStartRef.current = onStart;
+    optionsRef.current = options;
   });
 
   useEffect(() => {
     const registration: Registration = {
       id,
       steps,
-      onStart: () => onStartRef.current?.(),
+      onStart: () => optionsRef.current.onStart?.(),
+      next,
+      onClose: () => optionsRef.current.onClose?.(),
     };
     current = registration;
     emit();
-    const timer =
-      localStorage.getItem(STORAGE_PREFIX + id) === "done"
-        ? undefined
-        : setTimeout(openPageTour, AUTO_OPEN_DELAY_MS);
+    const continued = sessionStorage.getItem(CONTINUE_KEY) === id;
+    if (continued) sessionStorage.removeItem(CONTINUE_KEY);
+    const shouldOpen =
+      continued ||
+      autoOpen === "always" ||
+      (autoOpen && localStorage.getItem(STORAGE_PREFIX + id) !== "done");
+    const timer = shouldOpen
+      ? setTimeout(openPageTour, AUTO_OPEN_DELAY_MS)
+      : undefined;
     return () => {
       clearTimeout(timer);
       if (current !== registration) return;
@@ -154,7 +202,9 @@ export function usePageTour(
       isOpen = false;
       emit();
     };
-  }, [id, steps]);
+    // next는 값(글자·주소)이 같으면 다시 등록하지 않는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, steps, autoOpen, next?.href, next?.label, next?.tourId]);
 }
 
 /** 지금 화면에 가이드가 있는지 — 없으면 가이드 버튼을 숨긴다. */
@@ -181,17 +231,49 @@ function setActiveStep(id: string | null) {
   emit();
 }
 
+/**
+ * 화면에 보이는 단계 id — 단계를 바꾸면 새 대상이 자리를 잡을 때까지 이전 단계가 보이다가, 밝힌 자리·카드가
+ * 옮겨 갈 때 바뀐다. 예시 화면은 useActivePageTourStep으로 먼저 그려 두고(자리를 재야 하니까) 이 값이 될 때
+ * 드러내면, 예시가 먼저 뜨고 나서 밝힌 자리가 따라가는 어색함 없이 함께 움직인다.
+ */
+export function useShownPageTourStep() {
+  return useSyncExternalStore(
+    subscribe,
+    () => shownStep,
+    () => null,
+  );
+}
+
+function setShownStep(id: string | null) {
+  if (shownStep === id) return;
+  shownStep = id;
+  emit();
+}
+
 export function openPageTour() {
   if (!current) return;
-  current.onStart?.();
+  if (current.onStart?.() === false) return;
   isOpen = true;
   emit();
 }
 
 function closePageTour() {
-  if (current) localStorage.setItem(STORAGE_PREFIX + current.id, "done");
+  const closing = current;
+  if (closing) localStorage.setItem(STORAGE_PREFIX + closing.id, "done");
   isOpen = false;
   emit();
+  closing?.onClose?.();
+}
+
+/** 마지막 단계에서 다음 화면의 가이드로 — 이 가이드는 본 것으로 두고 화면을 옮긴다. */
+function continueToNext(navigate: (href: string) => void) {
+  const closing = current;
+  if (!closing?.next) return;
+  localStorage.setItem(STORAGE_PREFIX + closing.id, "done");
+  continuePageTour(closing.next.tourId);
+  isOpen = false;
+  emit();
+  navigate(closing.next.href);
 }
 
 /** 화면 틀(ClientShell)에 한 번 둔다 — 등록된 가이드가 열리면 그린다. */
@@ -208,6 +290,7 @@ export function PageTourHost() {
     <TourOverlay
       key={registration.id}
       steps={registration.steps}
+      next={registration.next ?? null}
       onClose={closePageTour}
     />,
     document.body,
@@ -216,12 +299,26 @@ export function PageTourHost() {
 
 function TourOverlay({
   steps,
+  next: nextTour,
   onClose,
 }: {
   steps: TourStep[];
+  next: PageTourNext | null;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
+  // 화면에 보이는 단계 — 단계를 바꾸면 새 대상(예시 창·툴팁 등)이 자리를 잡을 때까지 이전 자리·카드를
+  // 그대로 두었다가 한 번에 옮긴다(늦게 생기는 대상 때문에 두 번 움직이거나 글만 먼저 바뀌지 않게).
+  const [shownIndex, setShownIndex] = useState<number | null>(null);
+  // 처음 자리를 잡을 때는 미끄러지지 않고 그 자리에 바로 뜬다 — 다음 프레임부터 움직임을 켠다.
+  const [animate, setAnimate] = useState(false);
+  const firstShown = shownIndex !== null;
+  useEffect(() => {
+    if (!firstShown) return;
+    const frame = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(frame);
+  }, [firstShown]);
   const [rect, setRect] = useState<Rect | null>(null);
   const [cardHeight, setCardHeight] = useState(0);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
@@ -232,6 +329,7 @@ function TourOverlay({
   const bodyId = useId();
 
   const step = steps[index];
+  const shownStep = steps[shownIndex ?? index];
   const last = index === steps.length - 1;
 
   // 대상 자리를 매 프레임 잰다 — 모드 전환·패널 애니메이션·스크롤·창 크기 변화를 따로 듣지 않아도
@@ -240,14 +338,39 @@ function TourOverlay({
   useEffect(() => {
     let frame = 0;
     let scrolled = false;
+    let settled = false;
+    let stableFrames = 0;
+    let candidate: Rect | null = null;
+    const startedAt = performance.now();
     const tick = () => {
       const els = findTargets(step);
       if (els.length > 0 && !scrolled) {
-        els[0].scrollIntoView({ block: "nearest", behavior: "smooth" });
+        if (els.length === 1) {
+          els[0].scrollIntoView({ block: "nearest", behavior: "smooth" });
+        } else {
+          // 여러 대상(넘겨 보는 표의 PPT·삭제 등)은 마지막 것을 먼저 들여온 뒤 첫 것을 맞춰 모두 보이게.
+          els[els.length - 1].scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+          });
+          els[0].scrollIntoView({ block: "nearest", inline: "nearest" });
+        }
         scrolled = true;
       }
       const next = unionRect(els);
-      setRect((prev) => (sameRect(prev, next) ? prev : next));
+      if (!settled) {
+        stableFrames = sameRect(candidate, next) ? stableFrames + 1 : 0;
+        candidate = next;
+        if (
+          stableFrames >= SETTLE_FRAMES ||
+          performance.now() - startedAt > SETTLE_MAX_MS
+        ) {
+          settled = true;
+          setShownIndex(index);
+        }
+      }
+      // 자리를 잡은 뒤엔 매 프레임 따라간다(스크롤·창 크기 변화).
+      if (settled) setRect((prev) => (sameRect(prev, next) ? prev : next));
       setViewport((prev) =>
         prev.w === window.innerWidth && prev.h === window.innerHeight
           ? prev
@@ -257,7 +380,7 @@ function TourOverlay({
     };
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [step]);
+  }, [step, index]);
 
   // 카드 높이에 따라 위·아래 자리를 고른다.
   useLayoutEffect(() => {
@@ -272,15 +395,28 @@ function TourOverlay({
 
   useEffect(() => {
     primaryRef.current?.focus();
-  }, [index]);
+  }, [shownIndex]);
 
   // 지금 단계를 페이지에 알린다 — 닫히면(언마운트) 비운다.
   useEffect(() => {
     setActiveStep(step.id ?? null);
   }, [step.id]);
-  useEffect(() => () => setActiveStep(null), []);
+  useEffect(() => {
+    if (shownIndex !== null) setShownStep(steps[shownIndex].id ?? null);
+  }, [shownIndex, steps]);
+  useEffect(
+    () => () => {
+      setActiveStep(null);
+      setShownStep(null);
+    },
+    [],
+  );
 
-  const next = () => (last ? onClose() : setIndex((i) => i + 1));
+  const next = () => {
+    if (!last) setIndex((i) => i + 1);
+    else if (nextTour) continueToNext((href) => router.push(href));
+    else onClose();
+  };
   const prev = () => setIndex((i) => Math.max(0, i - 1));
 
   useEffect(() => {
@@ -352,7 +488,7 @@ function TourOverlay({
         <div
           aria-hidden
           className="pointer-events-none fixed shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] ring-2 ring-white/70 transition-[top,left,width,height,border-radius] duration-300 ease-out motion-reduce:transition-none"
-          style={{ ...spot, borderRadius: step.radius ?? 16 }}
+          style={{ ...spot, borderRadius: shownStep.radius ?? 16 }}
         />
       ) : (
         <div aria-hidden className="fixed inset-0 bg-black/50" />
@@ -364,12 +500,17 @@ function TourOverlay({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="fixed rounded-[20px] bg-white p-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition-[top,left] duration-300 ease-out motion-reduce:transition-none"
+        className={cn(
+          "fixed rounded-[20px] bg-white p-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.18)]",
+          animate &&
+            "transition-[top,left] duration-300 ease-out motion-reduce:transition-none",
+          !firstShown && "invisible",
+        )}
         style={cardStyle}
       >
         <div className="flex items-start justify-between gap-[12px]">
           <p className="text-[12px] font-semibold text-primary-500">
-            {index + 1} / {steps.length}
+            {(shownIndex ?? index) + 1} / {steps.length}
           </p>
           <button
             type="button"
@@ -384,37 +525,46 @@ function TourOverlay({
           id={titleId}
           className="mt-[4px] text-[16px] leading-[24px] font-bold text-black"
         >
-          {step.title}
+          {shownStep.title}
         </h2>
         <p
           id={bodyId}
           className="mt-[6px] text-[14px] leading-[21px] break-keep text-[#52525b]"
         >
-          {!isDesktop && step.mobileBody ? step.mobileBody : step.body}
+          {!isDesktop && shownStep.mobileBody
+            ? shownStep.mobileBody
+            : shownStep.body}
         </p>
 
-        <div className="mt-[18px] flex items-center justify-between gap-[8px]">
+        {/* 버튼이 셋(이전·시작하기·다음 가이드)이면 한 줄에 다 안 들어가 점은 위 줄로 내린다. */}
+        <div className="mt-[18px] flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[14px]">
           <div aria-hidden className="flex gap-[5px]">
             {steps.map((s, i) => (
               <span
                 key={s.title}
                 className={cn(
                   "h-[6px] rounded-full transition-[width,background-color] duration-300",
-                  i === index
+                  i === (shownIndex ?? index)
                     ? "w-[16px] bg-primary-500"
                     : "w-[6px] bg-gray-200",
                 )}
               />
             ))}
           </div>
-          <div className="flex gap-[6px]">
+          <div className="ml-auto flex gap-[6px]">
             {index > 0 && (
               <Button variant="ghost" size="sm" onPress={prev}>
                 이전
               </Button>
             )}
+            {/* 마지막 단계에 이어 갈 가이드가 있으면 — 여기서 끝내기(시작하기)와 이어 가기를 함께 둔다. */}
+            {last && nextTour && (
+              <Button variant="outline" size="sm" onPress={onClose}>
+                시작하기
+              </Button>
+            )}
             <Button ref={primaryRef} variant="primary" size="sm" onPress={next}>
-              {last ? "시작하기" : "다음"}
+              {last ? (nextTour?.label ?? "시작하기") : "다음"}
             </Button>
           </div>
         </div>

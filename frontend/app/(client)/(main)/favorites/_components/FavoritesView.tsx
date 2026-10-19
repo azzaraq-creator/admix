@@ -4,6 +4,7 @@ import { Button, Drawer, EmptyState } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
 
+import { useMixieChat } from "@/app/(client)/(main)/_components/useMixieChat";
 import { openLoginModal } from "@/app/(client)/(main)/_components/useLoginModal";
 import { MediaFilterPanel } from "@/app/(client)/(main)/fixed/_components/MediaFilterPanel";
 import {
@@ -26,6 +27,11 @@ import {
   AddToProposalModal,
 } from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
+import {
+  type TourStep,
+  useActivePageTourStep,
+  usePageTour,
+} from "@/components/common/PageTour";
 import {
   buildFilterUi,
   regionLabel,
@@ -51,14 +57,58 @@ import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 import { formatTotalWithInquiry } from "@/lib/media";
 
+import { GUIDE_DEMO_FAVORITES } from "../../proposals/_components/guideDemo";
 import { FavoriteRow, FavoriteRowSkeleton } from "./FavoriteRow";
 
 const won = (value: number) => `${value.toLocaleString()}원`;
 
+// 관심 매체 가이드 — 1단계는 빈 화면(하트로 담는 법), 2단계부터 예시 관심 매체(guideDemo)를 보여 준다.
+// 3단계는 첫 매체를, 4단계는 두 매체를 고른 모습. 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: "empty",
+    target: "favorites-empty",
+    title: "하트로 관심 매체 담기",
+    body: "AI 믹시나 매체 찾기에서 마음에 드는 매체의 하트를 누르면 여기에 모여요.",
+    radius: 22,
+  },
+  {
+    id: "search",
+    target: "favorites-search",
+    title: "검색·필터·정렬",
+    body: "매체명·주소로 찾고, 지역·카테고리·가격으로 거르고, 최근에 담은 순이나 가격 순으로 정렬해요.",
+    radius: 20,
+  },
+  {
+    id: "pick",
+    target: ["favorites-card", "favorites-row"],
+    title: "매체 고르기",
+    body: "카드 왼쪽 위의 '선택'을 눌러 여러 매체를 골라요. 카드를 누르면 매체 정보를 볼 수 있어요.",
+    mobileBody:
+      "사진 위 체크박스로 여러 매체를 골라요. 줄을 누르면 매체 정보를 볼 수 있어요.",
+    radius: 22,
+  },
+  {
+    id: "bar",
+    target: "favorites-bar",
+    title: "골라서 한 번에 기획안에 담기",
+    body: "고른 매체의 개수와 총 광고비·제작비를 보고, 기획안에 한 번에 담아요. 관심 매체에서 빼는 것도 여기서 해요.",
+    mobileBody:
+      "아래 바를 누르면 총 광고비·제작비를 보고, 기획안에 한 번에 담거나 관심 취소할 수 있어요.",
+    radius: 28,
+  },
+];
+
+/** 가이드 단계마다 골라 둔 예시 매체. */
+const TOUR_PICKED: Record<string, string[]> = {
+  pick: GUIDE_DEMO_FAVORITES.slice(0, 1).map((row) => row.id),
+  bar: GUIDE_DEMO_FAVORITES.slice(0, 2).map((row) => row.id),
+};
+
 /**
  * 관심 매체 — 시안 "04. 관심 매체". 매체 찾기와 같은 상단 바(검색·필터·초기화·정렬)와 필터 칩,
  * 매체 카드 격자. 카드의 "선택"으로 여러 매체를 고르고, 아래 고정 바에서 합계를 보며
- * 선택 해제·위시 취소(관심 매체에서 빼기)·기획안에 담기를 한다(회원 전용).
+ * 선택 해제·관심 취소(관심 매체에서 빼기)·기획안에 담기를 한다(회원 전용).
  */
 export function FavoritesView({ member }: { member: boolean }) {
   const router = useRouter();
@@ -73,23 +123,49 @@ export function FavoritesView({ member }: { member: boolean }) {
   // 정렬 — 매체 찾기와 같은 Select. 첫 옵션은 최근에 담은 순이라 "최근순"으로 부른다.
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+  const { setPanelOpen: setMixieOpen } = useMixieChat();
 
   const filterCount = countFilters(filter);
   const searched = !!keyword || filterCount > 0;
   const params = { ...toChipFilterParams(filter), keyword: keyword || null };
 
   const { data, isLoading } = useFavoriteList({ ...params, sort });
-  // 하트를 끄거나 위시 취소하는 즉시(서버 응답 전) 카드를 빼려고, 하트 상태(id 목록)로 한 번 더 거른다.
+  // 하트를 끄거나 관심 취소하는 즉시(서버 응답 전) 카드를 빼려고, 하트 상태(id 목록)로 한 번 더 거른다.
   const { data: ids } = useFavoriteIds();
-  const rows = (data?.items ?? []).filter(
+  const myRows = (data?.items ?? []).filter(
     (row) => !ids || ids.includes(row.id),
   );
+
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [addProposal, setAddProposal] = useState<{
+    mediaIds: string[];
+    planNo?: number;
+    options?: AddProposalOptions;
+  } | null>(null);
+
+  // 가이드 — 열 때 필터·팝업은 닫는다. 가이드 중엔 내 관심 매체 대신 빈 화면·예시 매체를 보여 준다
+  // (비회원이어도 회원 화면으로).
+  usePageTour("favorites", TOUR_STEPS, {
+    onStart: () => {
+      setFilterOpen(false);
+      setDetailId(null);
+      setAddProposal(null);
+    },
+  });
+  const tourStep = useActivePageTourStep();
+  const touring = tourStep != null;
+  const rows = touring
+    ? tourStep === "empty"
+      ? []
+      : GUIDE_DEMO_FAVORITES
+    : myRows;
 
   const { data: opts } = useMediaFilterOptions();
   const { optionsByKey, price, regions } = buildFilterUi(opts);
 
-  // 고른 매체 — 지금 목록에 보이는 것만 센다(필터로 빠지거나 위시 취소된 매체는 자동으로 빠진다).
-  const [picked, setPicked] = useState<string[]>([]);
+  // 고른 매체 — 지금 목록에 보이는 것만 센다(필터로 빠지거나 관심 취소된 매체는 자동으로 빠진다).
+  const [myPicked, setPicked] = useState<string[]>([]);
+  const picked = touring ? (TOUR_PICKED[tourStep] ?? []) : myPicked;
   const selectedRows = rows.filter((row) => picked.includes(row.id));
   const selectedIds = selectedRows.map((row) => row.id);
   const totalAd = selectedRows.reduce(
@@ -124,13 +200,6 @@ export function FavoritesView({ member }: { member: boolean }) {
     setPicked([]);
   };
 
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [addProposal, setAddProposal] = useState<{
-    mediaIds: string[];
-    planNo?: number;
-    options?: AddProposalOptions;
-  } | null>(null);
-
   const labelOf = (key: ChipDimKey, value: string) =>
     optionsByKey[key].find((o) => o.value === value)?.label ?? value;
   // 필터 패널 안의 초기화는 패널을 열어 둔다(resetSearch), 그 밖의 초기화는 패널도 닫는다.
@@ -148,15 +217,23 @@ export function FavoritesView({ member }: { member: boolean }) {
   // 토큰이 만료돼 회원 정보를 못 받으면 비회원 안내로 넘어간다.
   // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다(끝나지 않는 불러오는 중 방지).
   const hasToken = useHasUserToken(member);
-  const loading = (hasToken && !me && !meError) || (!!me && isLoading);
-  const isGuest = !loading && !me;
+  const loading =
+    !touring && ((hasToken && !me && !meError) || (!!me && isLoading));
+  // 가이드 중엔 회원 화면으로 본다.
+  const signedIn = touring || !!me;
+  const isGuest = !loading && !signedIn;
   // 담은 매체가 하나도 없을 때(검색·필터 전) — 빈 안내만 보이고 아래 바는 숨긴다.
-  const noFavorites = !loading && !!me && !searched && rows.length === 0;
+  const noFavorites = touring
+    ? tourStep === "empty"
+    : !loading && !!me && !searched && rows.length === 0;
 
   return (
     <div className="flex min-h-full w-full flex-col gap-[20px] px-[16px] py-[20px] sm:px-[20px]">
       {/* 상단 바 — 매체 찾기와 같은 검색·필터·초기화·정렬(지도 버튼은 없다). */}
-      <div className="relative z-30 flex shrink-0 flex-col">
+      <div
+        data-tour="favorites-search"
+        className="relative z-30 flex shrink-0 flex-col"
+      >
         <MediaFindTopBar
           keyword={query}
           onKeywordChange={setQuery}
@@ -201,7 +278,7 @@ export function FavoritesView({ member }: { member: boolean }) {
       </div>
 
       {/* 적용된 필터 칩 + 결과 수(시안: 왼쪽 칩, 오른쪽 "총 N개 매체"). */}
-      {me && (
+      {signedIn && (
         <div className="flex shrink-0 items-center justify-between gap-[12px]">
           <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
             {filter.region.map((value) => (
@@ -287,16 +364,26 @@ export function FavoritesView({ member }: { member: boolean }) {
       ) : rows.length === 0 ? (
         noFavorites ? (
           <EmptyBox
+            tour="favorites-empty"
             title="아직 관심 매체가 없어요"
-            description="매체 찾기에서 마음에 드는 매체에 하트를 눌러 보세요."
+            description="AI 믹시나 매체 찾기에서 마음에 드는 매체에 하트를 눌러 보세요."
             action={
-              <Button
-                variant="outline"
-                onPress={() => router.push("/fixed")}
-                className="mt-[8px] rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
-              >
-                매체 찾기로 가기
-              </Button>
+              <div className="mt-[8px] flex flex-wrap justify-center gap-[8px]">
+                <Button
+                  variant="outline"
+                  onPress={() => setMixieOpen(true)}
+                  className="rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
+                >
+                  AI 믹시에게 물어보기
+                </Button>
+                <Button
+                  variant="outline"
+                  onPress={() => router.push("/fixed")}
+                  className="rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
+                >
+                  매체 찾기로 가기
+                </Button>
+              </div>
             }
           />
         ) : (
@@ -317,35 +404,45 @@ export function FavoritesView({ member }: { member: boolean }) {
       ) : (
         <>
           <CardGrid>
-            {rows.map((row) => (
-              <MediaFindCard
+            {rows.map((row, index) => (
+              // data-tour — 가이드가 첫 카드를 밝힌다.
+              <div
                 key={row.id}
-                row={row}
-                onClick={() => setDetailId(row.id)}
-                selection={{
-                  checked: picked.includes(row.id),
-                  onChange: (checked) => togglePick(row.id, checked),
-                }}
-              />
+                data-tour={index === 0 ? "favorites-card" : undefined}
+                className="flex"
+              >
+                <MediaFindCard
+                  row={row}
+                  onClick={() => setDetailId(row.id)}
+                  selection={{
+                    checked: picked.includes(row.id),
+                    onChange: (checked) => togglePick(row.id, checked),
+                  }}
+                />
+              </div>
             ))}
           </CardGrid>
           {/* 모바일 — 카드 대신 가로 한 줄 목록(한 화면에 여러 개가 보이게). */}
           <RowList>
-            {rows.map((row) => (
-              <FavoriteRow
+            {rows.map((row, index) => (
+              <div
                 key={row.id}
-                row={row}
-                checked={picked.includes(row.id)}
-                onCheckedChange={(checked) => togglePick(row.id, checked)}
-                onOpen={() => setDetailId(row.id)}
-              />
+                data-tour={index === 0 ? "favorites-row" : undefined}
+              >
+                <FavoriteRow
+                  row={row}
+                  checked={picked.includes(row.id)}
+                  onCheckedChange={(checked) => togglePick(row.id, checked)}
+                  onOpen={() => setDetailId(row.id)}
+                />
+              </div>
             ))}
           </RowList>
         </>
       )}
 
       {/* 선택 요약 바 — 시안 메모: 화면 아래에 고정, 0개여도 보인다(담은 매체가 있을 때). */}
-      {me && !loading && !noFavorites && (
+      {signedIn && !loading && !noFavorites && (
         <SelectionBar
           count={selectedIds.length}
           totalAd={totalAd}
@@ -400,7 +497,7 @@ const BAR_BUTTON_CLASS =
 
 /**
  * 선택 요약 바(시안 media-selection-summary) — 짙은 바탕에 고른 개수, 총 광고비·총 제작비,
- * 선택 해제 / 위시 취소 / 기획안에 담기. 화면 아래에 붙어 따라온다(sticky).
+ * 선택 해제 / 관심 취소 / 기획안에 담기. 화면 아래에 붙어 따라온다(sticky).
  * 모바일은 폭이 좁아 바에는 개수만 두고, 누르면 아래에서 시트(HeroUI Drawer)가 올라와
  * 합계를 보고 버튼을 누른다.
  */
@@ -452,7 +549,10 @@ function DesktopSelectionBar({
 }: SelectionBarProps) {
   const none = count === 0;
   return (
-    <div className={cn(BAR_CLASS, "ml-[10px] max-sm:hidden")}>
+    <div
+      data-tour="favorites-bar"
+      className={cn(BAR_CLASS, "ml-[10px] max-sm:hidden")}
+    >
       <SelectionCount count={count} />
 
       {/* 합계 — 좁은 화면(태블릿 세로 등)에선 버튼 자리를 위해 뺀다. */}
@@ -487,7 +587,7 @@ function DesktopSelectionBar({
           )}
         >
           <CloseSmallIcon className="size-[9px] shrink-0" />
-          위시 취소
+          관심 취소
         </Button>
         <Button
           variant="primary"
@@ -531,10 +631,11 @@ function MobileSelectionSheet({
       {/* 바 전체가 시트를 여는 버튼이다(HeroUI Drawer.Trigger). */}
       <Drawer.Trigger
         aria-label="선택한 매체 자세히 보기"
+        data-tour="favorites-bar"
         className={cn(BAR_CLASS, "w-full cursor-pointer text-left sm:hidden")}
       >
         <SelectionCount count={count} />
-        {/* 누르면 할 일을 알려 준다 — 고른 게 있으면 "담기 · 취소 ⌃"(시트에서 기획안에 담기·위시 취소),
+        {/* 누르면 할 일을 알려 준다 — 고른 게 있으면 "담기 · 취소 ⌃"(시트에서 기획안에 담기·관심 취소),
             없으면 먼저 고르라는 안내만(화살표 없이 흐리게). */}
         {none ? (
           <span className="shrink-0 pr-[4px] text-[12px] font-medium text-white/50">
@@ -607,7 +708,7 @@ function MobileSelectionSheet({
                   )}
                 >
                   <CloseSmallIcon className="size-[10px] shrink-0" />
-                  위시 취소
+                  관심 취소
                 </Button>
               </div>
             </Drawer.Footer>
@@ -638,16 +739,22 @@ function CostItem({ label, value }: { label: string; value: string }) {
 
 /** 비어 있을 때·비회원일 때 — 내 기획안 목록의 빈 상태와 같은 모양(HeroUI EmptyState). */
 function EmptyBox({
+  tour,
   title,
   description,
   action,
 }: {
+  /** 가이드가 밝히는 자리(data-tour). */
+  tour?: string;
   title: string;
   description: string;
   action: ReactNode;
 }) {
   return (
-    <EmptyState className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl border border-[#ececef] bg-white p-[24px] text-center">
+    <EmptyState
+      data-tour={tour}
+      className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl border border-[#ececef] bg-white p-[24px] text-center"
+    >
       {/* 아이콘 칸 56px → 곡률 25px. 하트는 매체 카드의 켜진 하트와 같은 색. */}
       <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#fff1f0] text-red-500">
         <LoveIcon className="size-[24px]" />

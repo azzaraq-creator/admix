@@ -370,6 +370,155 @@ export function AddFromFavoritesModal({
 }
 
 /**
+ * 가이드용 "관심 매체에서 추가하기" 창 — 예시 관심 매체(rows)를 실제 창(AddFromFavoritesModal)과 같은
+ * 크기·구성·글자로 그린다(검색·이미 담긴 매체 숨기기·정렬·카테고리 칩·카드·닫기/추가하기).
+ * 불러오거나 담지 않고, 모달이 아니라서(포커스 가두기·바깥 클릭 닫기 없음) 가이드 판 아래에 보여 주기만 한다
+ * (z-60, 가이드 판 z-70 아래). 가이드 설명 카드가 아래에 들어가도록 위쪽에 붙여 0.8배로 줄인다.
+ * visible — 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때 드러낸다.
+ */
+export function FavoritesPickPreview({
+  rows,
+  existingIds,
+  selectedIds,
+  visible,
+}: {
+  rows: MediaCardRow[];
+  existingIds: string[];
+  selectedIds: string[];
+  visible: boolean;
+}) {
+  const addedCount = rows.filter((r) => existingIds.includes(r.id)).length;
+  const categoryCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    if (r.categoryLarge)
+      categoryCounts.set(
+        r.categoryLarge,
+        (categoryCounts.get(r.categoryLarge) ?? 0) + 1,
+      );
+  });
+  const categories = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "fixed inset-0 z-[60] flex justify-center px-[20px] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        !visible && "opacity-0",
+      )}
+    >
+      <div
+        data-tour="detail-favorites"
+        className="relative mt-[24px] flex h-[min(780px,calc(100vh-80px))] w-full max-w-[930px] origin-top scale-[0.8] flex-col rounded-[24px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
+      >
+        <span className="absolute top-[20px] right-[20px] z-10 flex size-[28px] items-center justify-center rounded-[14px] border border-[#ececef] bg-[#eaeaeb] text-[#70707a]">
+          <CloseMediumIcon className="size-[24px]" />
+        </span>
+
+        <div className="flex min-h-[28px] shrink-0 flex-row items-center gap-[8px] pr-[40px]">
+          <p className="text-[16px] font-semibold text-black">관심 매체 목록</p>
+          <Chip className="h-[20px] rounded-[7px] bg-[#f1f1f3] px-[7px] py-0 text-[10px] font-medium text-[#71717a]">
+            총 {rows.length}개
+          </Chip>
+        </div>
+
+        <div className="mt-[16px] flex shrink-0 items-center justify-between gap-[10px]">
+          <div className="flex h-[36px] w-full max-w-[420px] items-center gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px]">
+            <SearchOutlineIcon className="size-[16px] shrink-0 text-[#6c757d]" />
+            <span className="text-[13px] text-[#a1a1aa]">
+              매체명·주소로 검색해 보세요
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-[12px]">
+            {addedCount > 0 && (
+              <Switch size="sm" isSelected={false} className="group flex">
+                <Switch.Content className="flex-row-reverse gap-[6px]">
+                  <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
+                    <Switch.Thumb className="bg-white!" />
+                  </Switch.Control>
+                  <Label className="text-[13px] font-medium whitespace-nowrap text-[#52525b]">
+                    이미 담긴 매체 숨기기
+                    <span className="ml-[3px] text-[#a1a1aa]">
+                      {addedCount}
+                    </span>
+                  </Label>
+                </Switch.Content>
+              </Switch>
+            )}
+            <span className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-[#18181b]">
+              <SortIcon className="size-[16px] shrink-0 text-[#18181b]" />
+              {SORTS[0].label}
+            </span>
+          </div>
+        </div>
+
+        {categories.length > 1 && (
+          <div className="mt-[12px] flex shrink-0 gap-[6px] overflow-hidden">
+            {[ALL, ...categories].map((name) => (
+              <span
+                key={name}
+                className={cn(
+                  "flex h-[30px] shrink-0 items-center rounded-[12px] border bg-white px-[12px] text-[12px] whitespace-nowrap",
+                  name === ALL
+                    ? "border-[#18181b] font-semibold text-[#18181b]"
+                    : "border-[#ececef] font-normal text-[#71717a]",
+                )}
+              >
+                {name}
+                {name !== ALL && (
+                  <span className="ml-[3px] text-[#a1a1aa]">
+                    {categoryCounts.get(name)}
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-[16px] flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ScrollShadow size={24} className="min-h-0 flex-1">
+            <div className="grid grid-cols-1 gap-[10px] p-[2px] sm:grid-cols-3">
+              {rows.map((row) => (
+                <PickCard
+                  key={row.id}
+                  row={row}
+                  added={existingIds.includes(row.id)}
+                  checked={selectedIds.includes(row.id)}
+                  onChange={() => {}}
+                />
+              ))}
+            </div>
+          </ScrollShadow>
+        </div>
+
+        <div className="mt-[16px] flex shrink-0 items-center justify-end gap-[8px]">
+          <span
+            className={cn(
+              ACTION_CLASS,
+              "flex w-[96px] items-center justify-center bg-[#eee] text-[#18181b]",
+            )}
+          >
+            닫기
+          </span>
+          <span
+            className={cn(
+              ACTION_CLASS,
+              "flex min-w-[150px] items-center justify-center bg-primary-500 font-bold text-white",
+            )}
+          >
+            <FolderAddIcon className="size-[14px] shrink-0" />
+            {selectedIds.length > 0
+              ? `${selectedIds.length}개 추가하기`
+              : "추가하기"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * 고르기 카드 — 관심 매체 카드를 줄인 모양(사진 120px + 이름·주소·금액).
  * 카드 어디를 눌러도 고른다. 고르면 보라 2px 테두리, 이미 담긴 매체는 흐리게 + "이미 담김".
  */

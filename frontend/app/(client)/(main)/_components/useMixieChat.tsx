@@ -6,10 +6,18 @@ import { useReactChat } from "@/hooks/adRecommendReact";
 
 export type MixieChat = ReturnType<typeof useReactChat>;
 
+export type PanelPreview = "hidden" | "shown" | null;
+
 type MixieChatContextValue = {
   chat: MixieChat;
   panelOpen: boolean;
   setPanelOpen: (open: boolean) => void;
+  /**
+   * 대시보드 가이드 — 패널이 열린 것처럼 예시 대화를 띄운다. "hidden"은 자리를 재려고 투명하게 그려 둔 상태,
+   * "shown"은 밝힌 자리가 옮겨 가 드러난 상태(LNB 버튼도 이때 열림 모양).
+   */
+  panelPreview: PanelPreview;
+  setPanelPreview: (preview: PanelPreview) => void;
 };
 
 const MixieChatContext = createContext<MixieChatContextValue | null>(null);
@@ -22,9 +30,12 @@ const MixieChatContext = createContext<MixieChatContextValue | null>(null);
 export function MixieChatProvider({ children }: { children: ReactNode }) {
   const chat = useReactChat();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [panelPreview, setPanelPreview] = useState<PanelPreview>(null);
 
   return (
-    <MixieChatContext.Provider value={{ chat, panelOpen, setPanelOpen }}>
+    <MixieChatContext.Provider
+      value={{ chat, panelOpen, setPanelOpen, panelPreview, setPanelPreview }}
+    >
       {children}
     </MixieChatContext.Provider>
   );

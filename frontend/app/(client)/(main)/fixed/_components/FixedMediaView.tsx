@@ -22,6 +22,7 @@ import {
   type TourStep,
   useActivePageTourStep,
   usePageTour,
+  useShownPageTourStep,
 } from "@/components/common/PageTour";
 import {
   type MediaCardRow,
@@ -489,12 +490,16 @@ export function FixedMediaView() {
   };
 
   // 가이드 — 열 때 떠 있던 팝업·창은 닫고, 단계마다 예시 데이터를 띄운다.
-  usePageTour("media-find", TOUR_STEPS, () => {
-    setSelectedMedia(null);
-    setAddProposal(null);
-    closePopup();
+  usePageTour("media-find", TOUR_STEPS, {
+    onStart: () => {
+      setSelectedMedia(null);
+      setAddProposal(null);
+      closePopup();
+    },
   });
   const tourStep = useActivePageTourStep();
+  // 예시 화면은 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때(보이는 단계) 드러낸다.
+  const shownStep = useShownPageTourStep();
   const touring = tourStep != null;
   const mapStep = touring && MAP_STEPS.has(tourStep);
   // 예시 장소는 가이드를 열 때 한 번 만든다(기준 시각 = 지금).
@@ -504,7 +509,8 @@ export function FixedMediaView() {
     [touring],
   );
   const demoCrowd = demoPlace && {
-    on: true,
+    // 실시간 인구·흑백은 밝힌 자리가 지도 위 스위치로 옮겨 갈 때 켠다.
+    on: shownStep != null && MAP_STEPS.has(shownStep),
     onToggle: noop,
     gray: true,
     onToggleGray: noop,
@@ -582,7 +588,11 @@ export function FixedMediaView() {
             }
             onPopupClose={closePopup}
             highlightArea={hoverArea}
-            demoPlace={tourStep === "crowd-place" ? demoPlace : null}
+            demoPlace={
+              tourStep === "crowd-place" && demoPlace
+                ? { ...demoPlace, visible: shownStep === "crowd-place" }
+                : null
+            }
             crowd={
               mapStep && demoCrowd
                 ? demoCrowd
@@ -621,7 +631,10 @@ export function FixedMediaView() {
       />
 
       {touring && DETAIL_STEPS.has(tourStep) && (
-        <MediaDetailPreview vm={GUIDE_DEMO_DETAIL} />
+        <MediaDetailPreview
+          vm={GUIDE_DEMO_DETAIL}
+          visible={shownStep != null && DETAIL_STEPS.has(shownStep)}
+        />
       )}
 
       {selectedMedia && (
