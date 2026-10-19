@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import {
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   useRef,
   useState,
@@ -15,8 +16,13 @@ import { cn } from "@/lib/utils";
 
 import { useMixieChat } from "./useMixieChat";
 
-const SIZE = 52;
-/** 벽에서 띄우는 거리 */
+/** 벽에 붙은 탭의 벽을 따라가는 길이(끄는 동안엔 이 크기의 네모). */
+const LONG = 40;
+/** 벽에서 튀어나온 깊이. */
+const DEPTH = 32;
+/** 모서리 — (높이/2)-3px. */
+const RADIUS = LONG / 2 - 3;
+/** 탭이 벽을 따라 모서리(화면 끝)에서 띄우는 거리 */
 const MARGIN = 12;
 /** 모바일 상단바 높이 — 그 아래로만 다닌다. */
 const TOP_NAV = 48;
@@ -33,46 +39,80 @@ type Spot = { edge: Edge; ratio: number };
 // 처음엔 오른쪽 맨 아래 — 가운데 아래의 "지도 보기"·"목록 보기" 버튼과 같은 줄, 본문 글자를 덜 가린다.
 const DEFAULT_SPOT: Spot = { edge: "right", ratio: 1 };
 
-/** 다닐 수 있는 범위(버튼 왼쪽 위 기준). */
-function area(w: number, h: number) {
+/** 벽을 따라 다닐 수 있는 범위(탭 왼쪽 위 기준) — 좌우 벽은 세로로, 위아래 벽은 가로로. */
+function along(w: number, h: number) {
   return {
     minX: MARGIN,
-    maxX: w - SIZE - MARGIN,
+    maxX: w - LONG - MARGIN,
     minY: TOP_NAV + MARGIN,
-    maxY: h - SIZE - MARGIN,
+    maxY: h - LONG - MARGIN,
   };
 }
 
-function spotToXY(spot: Spot, w: number, h: number) {
-  const a = area(w, h);
-  const along = (min: number, max: number) => min + (max - min) * spot.ratio;
+type Box = { x: number; y: number; w: number; h: number; radius: string };
+
+/** 벽에 붙은 탭 — 벽 쪽 두 모서리는 각지고, 반대쪽만 둥글다. */
+function spotToBox(spot: Spot, w: number, h: number): Box {
+  const a = along(w, h);
+  const at = (min: number, max: number) => min + (max - min) * spot.ratio;
+  const r = `${RADIUS}px`;
   switch (spot.edge) {
     case "left":
-      return { x: a.minX, y: along(a.minY, a.maxY) };
+      return {
+        x: 0,
+        y: at(a.minY, a.maxY),
+        w: DEPTH,
+        h: LONG,
+        radius: `0 ${r} ${r} 0`,
+      };
     case "right":
-      return { x: a.maxX, y: along(a.minY, a.maxY) };
+      return {
+        x: w - DEPTH,
+        y: at(a.minY, a.maxY),
+        w: DEPTH,
+        h: LONG,
+        radius: `${r} 0 0 ${r}`,
+      };
     case "top":
-      return { x: along(a.minX, a.maxX), y: a.minY };
+      return {
+        x: at(a.minX, a.maxX),
+        y: TOP_NAV,
+        w: LONG,
+        h: DEPTH,
+        radius: `0 0 ${r} ${r}`,
+      };
     case "bottom":
-      return { x: along(a.minX, a.maxX), y: a.maxY };
+      return {
+        x: at(a.minX, a.maxX),
+        y: h - DEPTH,
+        w: LONG,
+        h: DEPTH,
+        radius: `${r} ${r} 0 0`,
+      };
   }
 }
 
-/** 놓은 자리에서 가장 가까운 벽으로 — 가운데에는 두지 않는다. */
+/** 놓은 자리(끄는 네모의 왼쪽 위)에서 가장 가까운 벽으로 — 가운데에는 두지 않는다. */
 function nearestSpot(x: number, y: number, w: number, h: number): Spot {
-  const a = area(w, h);
-  const cx = Math.min(Math.max(x, a.minX), a.maxX);
-  const cy = Math.min(Math.max(y, a.minY), a.maxY);
+  const a = along(w, h);
   const ratio = (v: number, min: number, max: number) =>
-    max > min ? (v - min) / (max - min) : 0;
+    max > min ? Math.min(Math.max((v - min) / (max - min), 0), 1) : 0;
   const candidates: [number, Spot][] = [
-    [cx - a.minX, { edge: "left", ratio: ratio(cy, a.minY, a.maxY) }],
-    [a.maxX - cx, { edge: "right", ratio: ratio(cy, a.minY, a.maxY) }],
-    [cy - a.minY, { edge: "top", ratio: ratio(cx, a.minX, a.maxX) }],
-    [a.maxY - cy, { edge: "bottom", ratio: ratio(cx, a.minX, a.maxX) }],
+    [x, { edge: "left", ratio: ratio(y, a.minY, a.maxY) }],
+    [w - LONG - x, { edge: "right", ratio: ratio(y, a.minY, a.maxY) }],
+    [y - TOP_NAV, { edge: "top", ratio: ratio(x, a.minX, a.maxX) }],
+    [h - LONG - y, { edge: "bottom", ratio: ratio(x, a.minX, a.maxX) }],
   ];
   return candidates.reduce((best, cur) => (cur[0] < best[0] ? cur : best))[1];
 }
+
+/** 벽 쪽 테두리는 뺀다(벽에 붙은 면). */
+const WALL_BORDER: Record<Edge, CSSProperties> = {
+  left: { borderLeftWidth: 0 },
+  right: { borderRightWidth: 0 },
+  top: { borderTopWidth: 0 },
+  bottom: { borderBottomWidth: 0 },
+};
 
 /** 화면 크기 — "폭x높이" 글자로 돌려줘 크기가 같으면 다시 그리지 않는다. 서버에선 null(첫 화면엔 그리지 않는다). */
 function useViewport() {
@@ -104,8 +144,8 @@ function loadSpot(): Spot {
 }
 
 /**
- * 모바일 전용 — 화면에 떠 있는 AI 믹시 버튼. 누르면 믹시 패널을 열고, 끌어서 옮기면 놓은 자리에서
- * 가장 가까운 벽(위·아래·왼쪽·오른쪽)에 붙는다. 놓은 자리는 기억해 둔다.
+ * 모바일 전용 — 화면 벽에 붙어 있는 AI 믹시 탭. 누르면 믹시 패널을 열고, 끌어서 옮기면 놓은 자리에서
+ * 가장 가까운 벽(위·아래·왼쪽·오른쪽)에 붙는다(벽 쪽은 각지고 반대쪽만 둥근 반쪽 모양). 놓은 자리는 기억해 둔다.
  * 홈은 믹시 대화가 본문이라 띄우지 않고(대시보드 가이드가 이 버튼을 밝히는 동안만 띄운다),
  * 패널이 열려 있는 동안엔 숨긴다.
  */
@@ -137,7 +177,10 @@ export function MixieFloatingButton() {
   )
     return null;
 
-  const { x, y } = dragXY ?? spotToXY(spot, viewport.w, viewport.h);
+  // 끄는 동안엔 벽에서 떨어진 둥근 네모, 놓으면 벽에 붙은 탭.
+  const box: Box = dragXY
+    ? { ...dragXY, w: LONG, h: LONG, radius: `${RADIUS}px` }
+    : spotToBox(spot, viewport.w, viewport.h);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     // 지난 끌기 뒤에 click이 오지 않았으면(터치) 남은 표시를 지운다.
@@ -147,8 +190,8 @@ export function MixieFloatingButton() {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      originX: x,
-      originY: y,
+      originX: box.x,
+      originY: box.y,
       moved: false,
     };
   };
@@ -160,10 +203,9 @@ export function MixieFloatingButton() {
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     drag.moved = true;
-    const a = area(viewport.w, viewport.h);
     setDragXY({
-      x: Math.min(Math.max(drag.originX + dx, a.minX), a.maxX),
-      y: Math.min(Math.max(drag.originY + dy, a.minY), a.maxY),
+      x: Math.min(Math.max(drag.originX + dx, 0), viewport.w - LONG),
+      y: Math.min(Math.max(drag.originY + dy, TOP_NAV), viewport.h - LONG),
     });
   };
 
@@ -199,16 +241,22 @@ export function MixieFloatingButton() {
       // z-40: 본문(매체 찾기 검색바 z-30)보다 위, 믹시 패널(z-50)·팝업·가이드보다 아래.
       // touch-none: 끄는 동안 화면이 같이 스크롤되지 않게.
       className={cn(
-        // 모서리는 (높이/2)-3px. 보라 그라데이션(믹시 심볼과 같은 색) 위에 흰 심볼.
-        "fixed top-0 left-0 z-40 flex touch-none items-center justify-center rounded-[23px] bg-linear-to-br from-[#B7A3F2] to-[#7A3FE0] shadow-[0px_6px_16px_rgba(122,63,224,0.35)] select-none sm:hidden",
+        // 본문을 가리지 않게 눈에 덜 띄도록 — 지도 위 스위치 묶음과 같은 반투명 유리(뒤 화면이 흐리게 비친다).
+        "fixed top-0 left-0 z-40 flex touch-none items-center justify-center border-[0.5px] border-white/40 bg-white/40 shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] select-none sm:hidden",
         // 놓으면 벽으로 미끄러져 붙는다. 끄는 동안엔 손가락을 바로 따라간다.
         !dragXY &&
-          "transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none",
+          "transition-[translate,width,height,border-radius,opacity] duration-200 ease-out motion-reduce:transition-none",
         panelOpen && "pointer-events-none opacity-0",
       )}
-      style={{ width: SIZE, height: SIZE, translate: `${x}px ${y}px` }}
+      style={{
+        width: box.w,
+        height: box.h,
+        borderRadius: box.radius,
+        translate: `${box.x}px ${box.y}px`,
+        ...(dragXY ? null : WALL_BORDER[spot.edge]),
+      }}
     >
-      <MixieIcon aria-hidden className="size-[24px] [&_path]:fill-white" />
+      <MixieIcon aria-hidden className="size-[16px]" />
     </button>
   );
 }

@@ -139,7 +139,7 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 // 모바일 — 패널 단계 다음에 화면에 떠 있는 AI 믹시 버튼(MixieFloatingButton)을 알려 준다.
-// 홈에선 평소 숨는 버튼이라 이 단계 동안만 띄운다. 곡률은 버튼(23px) + 여백(6px).
+// 홈에선 평소 숨는 버튼이라 이 단계 동안만 띄운다. 곡률은 버튼(17px) + 여백(6px).
 const MOBILE_TOUR_STEPS: TourStep[] = [
   ...TOUR_STEPS.slice(0, 2),
   {
@@ -147,7 +147,7 @@ const MOBILE_TOUR_STEPS: TourStep[] = [
     target: MIXIE_FAB_STEP_ID,
     title: "AI 믹시 버튼",
     body: "이 버튼을 누르면 AI 믹시 채팅이 열려요. 끌어서 원하는 자리로 옮길 수도 있어요.",
-    radius: 29,
+    radius: 23,
   },
   ...TOUR_STEPS.slice(2),
 ];
