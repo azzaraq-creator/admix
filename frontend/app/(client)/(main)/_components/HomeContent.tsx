@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 
 import { AiSearchBox } from "./AiSearchBox";
 import { HomeChat } from "./HomeChat";
-import { MIXIE_FAB_STEP_ID } from "./MixieFloatingButton";
+import { MIXIE_TAB_STEP_ID } from "./MobileTabBar";
 import { ModeToggle, type Mode } from "./ModeToggle";
 import { NewChatButton } from "./NewChatButton";
 import { useMixieChat } from "./useMixieChat";
@@ -116,17 +116,13 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     // 패널이 열린 것처럼 예시 대화(MixiePanelPreview)를 띄우고, 여는 버튼과 함께 밝힌다.
-    // PC는 LNB의 AI 믹시 버튼, 모바일은 그 버튼이 든 메뉴(상단바 왼쪽).
+    // PC는 LNB의 AI 믹시 버튼(모바일은 MOBILE_TOUR_STEPS에서 예시 시트만 밝힌다).
     id: "panel",
-    target: ["mixie-panel", "mobile-menu", "mixie-panel-demo"],
+    target: ["mixie-panel", "mixie-panel-demo"],
     targetAll: true,
     title: "어디서든 이어서 대화",
     body: "AI 믹시 패널에서 다른 화면을 보면서도 대화를 이어가요.",
-    mobileBody: "메뉴의 AI 믹시에서 언제든 대화를 이어가요.",
     radius: 22,
-    // 모바일은 패널이 화면 전체를 덮어, 카드를 패널 머리말(56px) 바로 아래에 겹쳐 띄운다 —
-    // 대화는 최근 것(아래)부터 보여 위쪽이 비고, 아래 입력바도 가리지 않는다.
-    overlayCardTop: 68,
   },
   {
     // 검색 탭으로 바꿔 둔 채 보여 준다(가이드가 끝나면 원래 탭으로).
@@ -138,17 +134,17 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-// 모바일 — 입력바 다음에 화면 벽에 붙은 AI 믹시 버튼(MixieFloatingButton)을 먼저 알려 주고,
-// 그 버튼으로 여는 시트(예시 대화)를 보여 준다. 홈에선 평소 숨는 버튼이라 버튼 단계 동안만 띄운다.
-// 버튼 곡률은 버튼(23px) + 여백(6px).
+// 모바일 — 입력바 다음에 하단 탭 바 가운데의 AI 믹시 버튼(MobileTabBar)을 먼저 알려 주고,
+// 그 버튼(아이콘 + 글자)으로 여는 시트(예시 대화)를 보여 준다.
 const MOBILE_TOUR_STEPS: TourStep[] = [
   TOUR_STEPS[0],
   {
-    id: MIXIE_FAB_STEP_ID,
-    target: MIXIE_FAB_STEP_ID,
+    id: MIXIE_TAB_STEP_ID,
+    target: MIXIE_TAB_STEP_ID,
     title: "AI 믹시 버튼",
-    body: "이 버튼을 누르면 AI 믹시 채팅이 열려요. 끌어서 원하는 자리로 옮길 수도 있어요.",
-    radius: 29,
+    body: "아래 가운데 AI 믹시를 누르면 어느 화면에서든 채팅이 열려요.",
+    // 곡률은 칸(20px) + 여백(6px).
+    radius: 26,
   },
   {
     ...TOUR_STEPS[1],
@@ -354,14 +350,14 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
               className="flex w-full flex-col sm:items-center"
             >
               <p className="max-w-[860px] text-left text-xs text-[#64748b] max-sm:text-[13px] max-sm:leading-[18px] sm:text-center">
-                {/* 모바일은 좌측 패널이 없고 메뉴(드로어)로 들어간다. */}
+                {/* 모바일은 좌측 패널이 없고 하단 탭 바 가운데 AI 믹시로 연다. */}
                 <span className="flex items-start gap-[4px] sm:hidden">
                   {/* 글자(13px/18px) 첫 줄 가운데에 맞춰 2px 내린다. */}
                   <InfoIcon
                     aria-hidden
                     className="mt-[2px] size-[14px] shrink-0"
                   />
-                  메뉴의 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
+                  아래 AI 믹시에서 언제든 대화를 이어갈 수 있습니다.
                 </span>
                 <span className="hidden items-start gap-[4px] sm:inline-flex">
                   {/* 글자(12px/16px) 첫 줄 가운데에 맞춰 1px 내린다. */}

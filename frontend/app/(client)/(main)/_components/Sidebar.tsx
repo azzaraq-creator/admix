@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, Dropdown, Separator, Spinner } from "@heroui/react";
+import { Button, Dropdown, Spinner } from "@heroui/react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { type ComponentType, type SVGProps } from "react";
 
 import {
@@ -11,18 +11,15 @@ import {
   ChevronRightIcon,
   FolderFilledIcon,
   GuideIcon,
-  FileTextIcon,
   LocationIcon,
   LoginDoorIcon,
   LogoFullDark,
-  LogoutFilledIcon,
   LoveIcon,
   MixieIcon,
   ProfileAvatarIcon,
-  ProfileFilledIcon,
 } from "@/components/icons";
 import { openPageTour, useHasPageTour } from "@/components/common/PageTour";
-import { useHasUserToken, useLogout, useMe } from "@/hooks/auth";
+import { useHasUserToken, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
@@ -33,10 +30,11 @@ import {
   useLnbCollapsed,
   useLnbExpanded,
 } from "./useLnb";
+import { ProfileMenu } from "./ProfileMenu";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
 
-type MenuItem = {
+export type MenuItem = {
   key: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -49,7 +47,8 @@ type MenuItem = {
 
 // Figma "01. 대시보드 - 배경 없음 (AI 믹시)" 기준 메뉴 구성.
 // AI 믹시(홈)는 활성 스타일이 달라 MENU_ITEMS와 분리해 렌더한다.
-const MENU_ITEMS: MenuItem[] = [
+// 모바일 하단 탭 바(MobileTabBar)도 같은 메뉴를 쓴다.
+export const MENU_ITEMS: MenuItem[] = [
   {
     key: "fixed",
     label: "매체 찾기",
@@ -80,9 +79,6 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-// 프로필 메뉴 아이콘 — 글자보다 한 톤 옅게 둬 글자가 먼저 읽히게 한다.
-const MENU_ICON = "size-[16px] shrink-0 text-gray-500";
-
 // 접고 펼칠 때 아무것도 좌우로 움직이지 않게, 아이콘·로고 심볼·아바타의 가운데를 모두
 // x=39px 열에 맞춘다. 접힌 폭 78px의 정가운데가 39px이라 접혀도 제자리에 남는다.
 // (nav 여백 10px + 행 왼쪽 여백 20px + 아이콘 18px의 절반 9px = 39px)
@@ -108,7 +104,6 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   // 데스크톱 접힘(180px → 78px). 모바일 드로어에는 적용하지 않도록 모든 변화는 sm: 에만 건다.
   const collapsed = useLnbCollapsed();
   const pathname = usePathname();
-  const router = useRouter();
 
   const { panelOpen, setPanelOpen, panelPreview } = useMixieChat();
   // 가이드가 예시 패널을 띄운 동안에도 열림 모양으로 보인다.
@@ -120,11 +115,6 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다.
   const hasToken = useHasUserToken(member);
   const meLoading = hasToken && !me && !meError;
-
-  const logout = useLogout();
-  const handleLogout = async () => {
-    await logout();
-  };
 
   const displayName = me?.name?.trim() ? me.name : "회원";
   // 모바일에서는 드로어로 열리므로, 이동 시 닫아준다.
@@ -362,41 +352,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                     placement={collapsed ? "right bottom" : "top start"}
                     className="w-(--trigger-width) min-w-[160px]"
                   >
-                    <Dropdown.Menu
-                      aria-label="프로필 메뉴"
-                      onAction={(key) => {
-                        if (key === "logout") {
-                          void handleLogout();
-                          return;
-                        }
-                        handleNavClick();
-                        router.push(String(key));
-                      }}
-                    >
-                      <Dropdown.Item id="/profile" textValue="내 정보">
-                        <ProfileFilledIcon className={MENU_ICON} />
-                        <span className="text-sm font-medium text-black">
-                          내 정보
-                        </span>
-                      </Dropdown.Item>
-                      <Dropdown.Item id="/help" textValue="약관 및 정책">
-                        <FileTextIcon className={`${MENU_ICON} size-[14px]`} />
-                        <span className="text-sm font-medium text-black">
-                          약관 및 정책
-                        </span>
-                      </Dropdown.Item>
-                      {/* 이동 메뉴와 로그아웃을 구분선으로 떼고, 로그아웃은 위험 동작이라 붉게 둔다. */}
-                      <Separator className="my-[4px] bg-gray-200" />
-                      <Dropdown.Item
-                        id="logout"
-                        textValue="로그아웃"
-                        variant="danger"
-                        className="text-danger"
-                      >
-                        <LogoutFilledIcon className="size-[14px] shrink-0 opacity-80" />
-                        <span className="text-sm font-medium">로그아웃</span>
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
+                    <ProfileMenu onNavigate={handleNavClick} />
                   </Dropdown.Popover>
                 </Dropdown>
               </div>
@@ -411,9 +367,10 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                 // 오른쪽 7px로 줄여 라벨(96px) 자리는 그대로 확보한다.
                 className="h-auto justify-start gap-[8px] overflow-hidden rounded-2xl py-2.5 pr-[7px] pl-[13px] data-[hovered=true]:border-primary-200"
               >
-                {/* 배지 높이 32px → (32/2)-3 = 13px */}
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-[13px] bg-primary-100 text-primary">
-                  <LoginDoorIcon className="h-[15px] w-[13px]" />
+                {/* 배지 자리(32px)는 그대로 두어 아이콘 열(x=39px)에 맞추고, 배경 없이 검정 아이콘만 —
+                    화면에 보라가 많아 무채색으로 둔다(모바일 상단바와 같은 모양). */}
+                <span className="flex size-8 shrink-0 items-center justify-center text-gray-900">
+                  <LoginDoorIcon className="h-[18px] w-[16px]" />
                 </span>
                 <span
                   className={cn(

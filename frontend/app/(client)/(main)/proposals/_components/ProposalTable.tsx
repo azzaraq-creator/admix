@@ -10,7 +10,13 @@ import {
   Table,
   Tooltip,
 } from "@heroui/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { SortDescriptor } from "react-aria-components";
 
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
@@ -453,6 +459,15 @@ function SortableHeader({
   );
 }
 
+// 하이드레이션이 끝났는지 — 서버 렌더·첫 화면에서는 false, 그 뒤로는 true.
+const subscribeNothing = () => () => {};
+const useHydrated = () =>
+  useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+
 export type ProposalSortKey = "title" | "updatedAt" | "createdAt";
 
 /**
@@ -489,6 +504,9 @@ export function ProposalTable({
   /** 가이드 — 열어 둔 요약을 드러낼지(밝힌 자리가 옮겨 갈 때). */
   demoSummaryVisible?: boolean;
 }) {
+  // 정렬은 하이드레이션 뒤에 켠다 — react-aria가 안드로이드에서만 칸의 aria-sort를 빼서(TalkBack 미지원),
+  // 서버("none")와 갤럭시 브라우저(없음)의 첫 화면이 어긋나 하이드레이션 경고가 났다.
+  const sortable = useHydrated();
   // 가이드가 밝히는 행 — 첫 행의 기획안명·PPT·삭제 버튼에 data-tour를 단다.
   const anchorId = items[0]?.id;
   // 빈 상태는 표 본문 칸(td)을 HeroUI가 만들어 높이를 CSS로 물려받기 어렵다.
@@ -584,7 +602,7 @@ export function ProposalTable({
               <Table.Column className="w-[102px]">표지</Table.Column>
               <Table.Column className="w-[110px]">상태</Table.Column>
               {/* 기획안명은 폭을 정하지 않아 나머지 폭을 모두 가져간다(표는 table-fixed). */}
-              <Table.Column id="title" allowsSorting isRowHeader>
+              <Table.Column id="title" allowsSorting={sortable} isRowHeader>
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="기획안명"
@@ -595,7 +613,11 @@ export function ProposalTable({
               {/* 매체 수량: 세 자리(999)까지. 숫자보다 머리글("매체 수량")이 넓어 머리글 기준. */}
               <Table.Column className="w-[84px]">매체 수량</Table.Column>
               <Table.Column className="w-[200px]">광고비 · 제작비</Table.Column>
-              <Table.Column id="updatedAt" allowsSorting className="w-[160px]">
+              <Table.Column
+                id="updatedAt"
+                allowsSorting={sortable}
+                className="w-[160px]"
+              >
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="최근 수정"
@@ -603,7 +625,11 @@ export function ProposalTable({
                   />
                 )}
               </Table.Column>
-              <Table.Column id="createdAt" allowsSorting className="w-[160px]">
+              <Table.Column
+                id="createdAt"
+                allowsSorting={sortable}
+                className="w-[160px]"
+              >
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="제작 일시"

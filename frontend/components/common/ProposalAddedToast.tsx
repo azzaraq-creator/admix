@@ -214,7 +214,8 @@ export function ProposalAddedToastProvider() {
       placement="bottom start"
       width={333}
       hotkey={[]}
-      className="sm:start-[30px] sm:bottom-[30px]"
+      // 모바일은 하단 탭 바(68px + 안전 영역) 위에 띄운다.
+      className="max-sm:bottom-[calc(80px+env(safe-area-inset-bottom))] sm:start-[30px] sm:bottom-[30px]"
     >
       {({ toast }) => <ProposalAddedToastItem toast={toast} />}
     </Toast.Provider>

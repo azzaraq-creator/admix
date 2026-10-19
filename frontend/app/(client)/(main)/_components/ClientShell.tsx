@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { CurrentProposalPanel } from "./CurrentProposalPanel";
 import { LoginModal } from "./LoginModal";
 import { MixieChatPanel } from "./MixieChatPanel";
-import { MixieFloatingButton } from "./MixieFloatingButton";
+import { MobileTabBar } from "./MobileTabBar";
 import { MobileTopNav } from "./MobileTopNav";
 import { PageTourHost } from "@/components/common/PageTour";
 import { USER_TOKEN_COOKIE } from "@/lib/userToken";
@@ -31,12 +31,12 @@ export async function ClientShell({ children }: { children: ReactNode }) {
         <div className="flex h-dvh w-full bg-white">
           <Sidebar member={member} />
           <MixieChatPanel />
-          <MixieFloatingButton />
           <div className="flex min-w-0 flex-1 flex-col">
-            <MobileTopNav />
+            <MobileTopNav member={member} />
             <div className="relative flex min-h-0 flex-1 flex-col">
               {children}
             </div>
+            <MobileTabBar />
           </div>
           <LoginModal />
           <CurrentProposalPanel />

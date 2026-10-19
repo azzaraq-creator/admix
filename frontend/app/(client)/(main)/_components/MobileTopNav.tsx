@@ -1,30 +1,80 @@
 "use client";
 
+import { Dropdown, Spinner } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { openPageTour, useHasPageTour } from "@/components/common/PageTour";
-import { GuideIcon } from "@/components/icons";
+import {
+  GuideIcon,
+  LoginDoorIcon,
+  ProfileAvatarIcon,
+} from "@/components/icons";
+import { useHasUserToken, useMe } from "@/hooks/auth";
+import { avatarColorClass } from "@/lib/avatarColor";
+import { cn } from "@/lib/utils";
 
 import { CurrentProposalButton } from "./CurrentProposalButton";
-import { setLnbExpanded } from "./useLnb";
+import { ProfileMenu } from "./ProfileMenu";
+import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
 
-export function MobileTopNav() {
+/**
+ * 상단바 왼쪽 — 사이드 메뉴 대신(메뉴는 하단 탭 바로 옮겼다) 회원이면 프로필 아이콘(누르면 내 정보·약관·
+ * 로그아웃 메뉴), 아니면 로그인 아이콘(누르면 로그인 창). 회원 정보를 받는 동안엔 스피너.
+ * member — 로그인 쿠키가 있는지(서버가 넘긴다). 새로고침 때 로그인 아이콘이 잠깐 보였다 바뀌지 않게.
+ */
+function MobileUserButton({ member }: { member: boolean }) {
+  const { data: me, isError } = useMe();
+  // 로그아웃하면 쿠키가 지워지므로 서버 값(member) 대신 지금 쿠키를 본다.
+  const hasToken = useHasUserToken(member);
+  const BUTTON = "flex h-full w-[48px] shrink-0 items-center justify-center";
+
+  if (hasToken && !me && !isError)
+    return (
+      <div aria-label="회원 정보를 불러오는 중" className={BUTTON}>
+        <Spinner size="sm" />
+      </div>
+    );
+  if (me)
+    return (
+      <Dropdown>
+        <Dropdown.Trigger
+          aria-label="프로필 메뉴"
+          className={cn(BUTTON, "outline-none")}
+        >
+          <ProfileAvatarIcon
+            className={cn(
+              "size-[26px] shrink-0",
+              avatarColorClass(me.sns_provider),
+            )}
+          />
+        </Dropdown.Trigger>
+        <Dropdown.Popover placement="bottom start" className="min-w-[160px]">
+          <ProfileMenu />
+        </Dropdown.Popover>
+      </Dropdown>
+    );
+  return (
+    <button
+      type="button"
+      aria-label="로그인 / 회원가입"
+      onClick={openLoginModal}
+      className={BUTTON}
+    >
+      {/* 배지 없이 검정 아이콘만 — 화면에 보라가 많아 상단바는 무채색으로 둔다. */}
+      <LoginDoorIcon className="h-[18px] w-[16px] text-gray-900" />
+    </button>
+  );
+}
+
+export function MobileTopNav({ member = false }: { member?: boolean }) {
   const { setPanelOpen } = useMixieChat();
   // 지금 페이지에 가이드가 있을 때만 현재 기획안 왼쪽에 아이콘 버튼을 둔다.
   const hasTour = useHasPageTour();
   return (
     <header className="relative flex h-[48px] shrink-0 items-center justify-between bg-white sm:hidden border-b border-gray-200">
-      <button
-        type="button"
-        aria-label="메뉴 열기"
-        data-tour="mobile-menu"
-        onClick={() => setLnbExpanded(true)}
-        className="flex h-full w-[48px] shrink-0 items-center justify-center"
-      >
-        <Image src="/icons/side-menu.svg" alt="" width={18} height={16} />
-      </button>
+      <MobileUserButton member={member} />
       {/* 로고는 오른쪽 버튼 수(가이드 유무)와 관계없이 화면 가운데에 둔다. */}
       <Link
         href="/"
