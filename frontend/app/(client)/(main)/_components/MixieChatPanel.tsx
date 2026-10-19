@@ -1,9 +1,11 @@
 "use client";
 
+import { Drawer } from "@heroui/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { ChevronLeftIcon, MixieIcon, XIcon } from "@/components/icons";
 import { useCloseOnBack } from "@/hooks/useCloseOnBack";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 import { cn } from "@/lib/utils";
 
@@ -16,7 +18,7 @@ import { useMixieChat } from "./useMixieChat";
 /**
  * LNB의 "AI 믹시"로 여닫는 대화 패널. (main) 레이아웃에 붙어 있어 어느 화면에서든
  * 열 수 있고, 홈과 같은 대화를 공유한다. 데스크톱은 LNB 오른쪽에 본문 위로 겹쳐 뜨고,
- * 모바일은 화면 전체를 덮는다.
+ * 모바일은 아래에서 올라와 화면을 다 채우는 시트(HeroUI Drawer) — 머리를 끌어내리면 닫힌다.
  */
 /**
  * 바깥 클릭으로 보지 않을 요소 — LNB의 "AI 믹시" 버튼과, 패널에서 연 창들.
@@ -40,8 +42,9 @@ export function MixieChatPanel() {
   const panelRef = useRef<HTMLElement>(null);
   // 데스크톱에서 LNB가 접히면(78px) 패널도 그 오른쪽에 붙는다.
   const lnbCollapsed = useLnbCollapsed();
-  // 휴대폰 뒤로가기 — 페이지를 옮기지 않고 패널을 닫는다.
-  useCloseOnBack(panelOpen, () => setPanelOpen(false));
+  const isDesktop = useIsDesktop();
+  // 뒤로가기 — 페이지를 옮기지 않고 패널을 닫는다(태블릿). 모바일 시트는 Drawer라 BackCloseOverlays가 맡는다.
+  useCloseOnBack(panelOpen && isDesktop, () => setPanelOpen(false));
 
   // 닫혀 있을 땐 LNB 뒤에 가려진 채로 남지 않게 display: none으로 숨긴다. 애니메이션은 살린다:
   // - 열 때: 먼저 보이게(shown) 한 뒤 다음 프레임에 열린 모양(entered)으로 바꿔 미끄러져 나오게.
@@ -88,7 +91,7 @@ export function MixieChatPanel() {
   // 자체적으로 이벤트 전파를 막는 곳을 눌러도 닫히게 한다. 단, LNB의 "AI 믹시" 버튼은
   // 자기 onClick으로 여닫고, 패널에서 연 모달(기획안 담기·로그인)은 패널의 일부로 본다.
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen || !isDesktop) return;
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (!target || panelRef.current?.contains(target)) return;
@@ -98,7 +101,21 @@ export function MixieChatPanel() {
     document.addEventListener("pointerdown", handlePointerDown, true);
     return () =>
       document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [panelOpen, setPanelOpen]);
+  }, [panelOpen, isDesktop, setPanelOpen]);
+
+  if (!isDesktop)
+    return (
+      <>
+        {/* 대시보드 가이드의 예시 패널 */}
+        {panelPreview && (
+          <MixiePanelPreview visible={panelPreview === "shown"} />
+        )}
+        <MobileMixieSheet
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+        />
+      </>
+    );
 
   return (
     <>
@@ -109,8 +126,8 @@ export function MixieChatPanel() {
         aria-label="AI 믹시 대화"
         aria-hidden={!panelOpen}
         inert={!panelOpen}
-        // 모바일은 화면 전체를 덮고(페이드), 데스크톱은 LNB 뒤에서 미끄러져 나와 본문 위에
-        // 뜬다 — 본문 폭은 그대로라 열고 닫아도 화면이 밀리지 않는다.
+        // 데스크톱은 LNB 뒤에서 미끄러져 나와 본문 위에 뜬다 — 본문 폭은 그대로라 열고 닫아도
+        // 화면이 밀리지 않는다(모바일은 아래 MobileMixieSheet).
         // 데스크톱 z-35: 본문의 가장 높은 층(매체 찾기 검색바 z-30)보다 위, 그 뒤로 미끄러져
         // 나오는 LNB(z-40)보다는 아래.
         className={cn(
@@ -152,5 +169,62 @@ export function MixieChatPanel() {
         </div>
       </aside>
     </>
+  );
+}
+
+/**
+ * 모바일 — 아래에서 올라와 화면을 다 채우는 시트. 손잡이·제목 줄을 끌어내리면 닫힌다
+ * (대화 영역은 Drawer.Body라 끌어도 닫히지 않고 위아래로 스크롤만 된다).
+ */
+function MobileMixieSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { chat } = useMixieChat();
+  return (
+    <Drawer
+      isOpen={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <Drawer.Backdrop>
+        <Drawer.Content placement="bottom">
+          {/* 높이는 보이는 화면(dvh) 전체 — HeroUI 기본 85vh 제한을 푼다. */}
+          <Drawer.Dialog
+            aria-label="AI 믹시 대화"
+            className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[20px] bg-white p-0 pt-[8px]"
+          >
+            <Drawer.Handle />
+            <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-gray-200 px-[16px]">
+              <div className="flex items-center gap-[8px]">
+                <MixieIcon className="size-[18px] shrink-0" />
+                <span className="text-[15px] font-semibold text-gray-900">
+                  AI 믹시
+                </span>
+              </div>
+              <div className="flex items-center gap-[12px]">
+                {chat.messages.length > 0 && <NewChatButton />}
+                <button
+                  type="button"
+                  aria-label="AI 믹시 닫기"
+                  onClick={onClose}
+                  className="flex size-[28px] items-center justify-center rounded-[8px] text-gray-500"
+                >
+                  <XIcon className="size-[16px]" />
+                </button>
+              </div>
+            </div>
+            {/* Drawer.Body 기본 글자색·여백·스크롤은 빼고, 스크롤은 대화(HomeChat)가 맡는다. */}
+            <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 p-0 pt-[16px] text-inherit">
+              <HomeChat variant="panel" />
+            </Drawer.Body>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </Drawer>
   );
 }
