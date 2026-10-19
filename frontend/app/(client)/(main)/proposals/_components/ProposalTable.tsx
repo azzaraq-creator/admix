@@ -140,7 +140,15 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
 }
 
 /** 태블릿 기획안 요약 — 터치 화면(sm 이상)에서 기획안명을 누르면 툴팁과 같은 내용을 Popover로. */
-function SummaryPopover({ proposal }: { proposal: Proposal }) {
+function SummaryPopover({
+  proposal,
+  suppressed = false,
+}: {
+  proposal: Proposal;
+  /** 가이드가 같은 행의 요약 툴팁을 열어 둘 때 — 기획안명이 두 번 보이지 않게 뺀다. */
+  suppressed?: boolean;
+}) {
+  if (suppressed) return null;
   return (
     <Popover>
       <Button
@@ -391,7 +399,12 @@ function TitleTooltip({
     >
       <Tooltip.Trigger
         data-tour={tourAnchor ? "proposal-title" : undefined}
-        className="max-w-full max-sm:hidden pointer-coarse:hidden"
+        // 터치 화면(iPad)은 평소 이 툴팁 대신 SummaryPopover를 쓰지만, 가이드가 열어 둘 때는 이 기획안명을
+        // 보이게 해 요약이 그 아래에 붙게 한다(숨긴 채로 열면 기준점이 없어 화면 왼쪽 위에 뜬다).
+        className={cn(
+          "max-w-full max-sm:hidden",
+          !forceOpen && "pointer-coarse:hidden",
+        )}
       >
         <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
           {proposal.title}
@@ -640,7 +653,10 @@ export function ProposalTable({
                     />
                     {/* 태블릿(sm 이상 터치 화면)은 기획안명을 누르면 같은 요약을 Popover로 띄운다.
                         버튼이라 눌러도 행 동작(기획안 열기)으로 번지지 않는다. */}
-                    <SummaryPopover proposal={proposal} />
+                    <SummaryPopover
+                      proposal={proposal}
+                      suppressed={proposal.id === demoSummaryId}
+                    />
                     {/* 모바일은 hover가 없어, 기획안명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
                         담긴 매체를 크게 보여 준다(기획안은 열지 않는다). 기획안명 칸 전체가 버튼이라
                         짧은 기획안명 옆 빈 곳을 눌러도 시트만 뜬다. */}

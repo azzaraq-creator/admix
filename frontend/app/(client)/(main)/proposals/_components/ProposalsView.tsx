@@ -87,6 +87,7 @@ const TOUR_STEPS: TourStep[] = [
     targetAll: true,
     title: "담긴 매체 미리보기",
     body: "기획안명에 마우스를 올리면 담긴 매체와 금액을 볼 수 있어요.",
+    touchBody: "기획안명을 누르면 담긴 매체와 금액을 볼 수 있어요.",
     mobileBody:
       "기획안명을 누르면 담긴 매체를 볼 수 있어요. 수정은 PC에서만 할 수 있어요.",
     radius: 14,

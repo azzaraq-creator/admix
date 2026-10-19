@@ -40,6 +40,8 @@ export type TourStep = {
   body: ReactNode;
   /** 모바일(sm 미만) 문구가 다를 때. */
   mobileBody?: ReactNode;
+  /** 터치 화면(iPad 등 sm 이상)에서 문구가 다를 때 — 예: "마우스를 올리면" 대신 "누르면". */
+  touchBody?: ReactNode;
   /** 밝힌 자리의 곡률 — 대상의 곡률 + 여백(PADDING)에 맞춘다. */
   radius?: number;
 };
@@ -69,6 +71,21 @@ const sameRect = (a: Rect | null, b: Rect | null) =>
     a.left === b.left &&
     a.width === b.width &&
     a.height === b.height);
+
+const TOUCH_QUERY = "(pointer: coarse)";
+
+/** 손가락으로 쓰는 화면(iPad 등) — 마우스 올리기(hover)가 없다. 서버 렌더에서는 마우스로 본다. */
+function useIsTouchScreen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mql = window.matchMedia(TOUCH_QUERY);
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(TOUCH_QUERY).matches,
+    () => false,
+  );
+}
 
 /** 지금 보이는 대상들 — all이 아니면 첫 번째 하나만. */
 function findTargets(step: TourStep): HTMLElement[] {
@@ -325,6 +342,7 @@ function TourOverlay({
   const cardRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const isDesktop = useIsDesktop();
+  const isTouch = useIsTouchScreen();
   const titleId = useId();
   const bodyId = useId();
 
@@ -533,7 +551,9 @@ function TourOverlay({
         >
           {!isDesktop && shownStep.mobileBody
             ? shownStep.mobileBody
-            : shownStep.body}
+            : isTouch && shownStep.touchBody
+              ? shownStep.touchBody
+              : shownStep.body}
         </p>
 
         {/* 버튼이 셋(이전·시작하기·다음 가이드)이면 한 줄에 다 안 들어가 점은 위 줄로 내린다. */}
