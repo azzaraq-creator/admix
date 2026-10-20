@@ -1,7 +1,8 @@
 "use client";
 
-import { Button, Separator, Spinner } from "@heroui/react";
+import { Button, Separator } from "@heroui/react";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { ChevronLeftIcon, Logo, TrashOutlineIcon } from "@/components/icons";
 import { useDeleteMyInquiry, useMyInquiry } from "@/hooks/inquiries";
 import { useModalConfirm } from "@/hooks/useModalConfirm";
@@ -83,7 +84,7 @@ export function InquiryDetailPage({
 
       {isLoading && (
         <div className="flex justify-center py-[72px]">
-          <Spinner />
+          <SpinningSymbol className="size-[40px]" />
         </div>
       )}
 

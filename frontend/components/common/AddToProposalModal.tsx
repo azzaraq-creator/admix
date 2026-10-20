@@ -10,11 +10,11 @@ import {
   Label,
   Modal,
   ScrollShadow,
-  Spinner,
   TextField,
 } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { CloseMediumIcon, FolderAddIcon } from "@/components/icons";
 import { adSessionsApi } from "@/hooks/adSessions";
 import {
@@ -315,7 +315,7 @@ export function AddToProposalModal({
                     aria-label="불러오는 중"
                     className="flex justify-center py-[28px]"
                   >
-                    <Spinner />
+                    <SpinningSymbol className="size-[32px]" />
                   </div>
                 ) : proposals.length === 0 ? (
                   <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[28px]">

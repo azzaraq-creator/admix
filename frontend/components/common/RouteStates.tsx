@@ -3,12 +3,13 @@
 import { Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { CircleAlertIcon, RotateCwIcon } from "@/components/icons";
 
 export function LoadingState() {
   return (
     <div className="flex min-h-[240px] w-full flex-1 items-center justify-center py-[80px]">
-      <div className="size-[36px] animate-spin rounded-full border-[3px] border-gray-200 border-t-primary" />
+      <SpinningSymbol className="size-[40px]" />
     </div>
   );
 }

@@ -25,13 +25,13 @@ export const useInquiry = (id: string | null) =>
 export const useMyInquiries = () =>
   useQuery({
     queryKey: inquiriesKeys.myList(),
-    queryFn: inquiriesClientApi.myList,
+    queryFn: ({ signal }) => inquiriesClientApi.myList(signal),
     staleTime: 30 * 1000,
   });
 
 export const useMyInquiry = (id: string | null) =>
   useQuery({
     queryKey: inquiriesKeys.myDetail(id ?? ""),
-    queryFn: () => inquiriesClientApi.myGet(id as string),
+    queryFn: ({ signal }) => inquiriesClientApi.myGet(id as string, signal),
     enabled: !!id,
   });

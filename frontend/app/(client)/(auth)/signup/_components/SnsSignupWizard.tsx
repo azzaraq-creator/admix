@@ -1,9 +1,9 @@
 "use client";
 
-import { Spinner } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { authApi, useMe, type MeResponse } from "@/hooks/auth";
 import type { MemberCategory } from "@/lib/memberCategory";
 import { getUserToken } from "@/lib/userToken";
@@ -42,7 +42,7 @@ export function SnsSignupWizard() {
   if (!me || me.verified) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-gray-50">
-        <Spinner />
+        <SpinningSymbol className="size-[40px]" />
       </div>
     );
   }

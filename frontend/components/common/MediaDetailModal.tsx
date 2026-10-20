@@ -38,6 +38,7 @@ import { useFavorite } from "@/hooks/favorites";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 import { MovingChip } from "@/components/common/MovingChip";
+import { SkeletonLoading } from "@/components/common/SkeletonLoading";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
 import {
@@ -242,34 +243,40 @@ export function MediaDetailInfo({ mediaId }: { mediaId: string }) {
   return vm ? <MediaDetailBody vm={vm} /> : <MediaDetailSkeleton />;
 }
 
-/** 상세를 불러오는 동안 본문 자리를 채우는 뼈대 — 이미지·이름·주소·칩·가격 칸 배치를 따른다. */
+/** 상세를 불러오는 동안 본문 자리를 채우는 뼈대 — 이미지·이름·주소·칩·가격 칸 배치를 따른다.
+ *  흐리게 깔고 그 위에 빙글빙글 도는 심볼을 띄운다. */
 function MediaDetailSkeleton() {
   return (
-    <div aria-hidden className="flex flex-col gap-[20px]">
-      <div className="flex flex-col gap-[20px] md:flex-row">
-        <div className="flex w-full shrink-0 flex-col gap-[10px] md:w-[440px]">
-          <Skeleton className="h-[240px] w-full rounded-[10px]" />
-          <div className="flex gap-[8px]">
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-[60px] w-[104px] rounded-[10px]" />
-            ))}
+    <SkeletonLoading>
+      <div className="flex flex-col gap-[20px]">
+        <div className="flex flex-col gap-[20px] md:flex-row">
+          <div className="flex w-full shrink-0 flex-col gap-[10px] md:w-[440px]">
+            <Skeleton className="h-[240px] w-full rounded-[10px]" />
+            <div className="flex gap-[8px]">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton
+                  key={i}
+                  className="h-[60px] w-[104px] rounded-[10px]"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex w-full min-w-0 flex-1 flex-col gap-[10px]">
+            <Skeleton className="h-[26px] w-[70%] rounded-[6px]" />
+            <Skeleton className="h-[16px] w-[55%] rounded-[6px]" />
+            <Skeleton className="h-[24px] w-[160px] rounded-[10px]" />
+            <Skeleton className="h-[98px] w-full rounded-[12px]" />
+            <Skeleton className="h-[16px] w-full rounded-[6px]" />
+            <Skeleton className="h-[16px] w-[80%] rounded-[6px]" />
           </div>
         </div>
-        <div className="flex w-full min-w-0 flex-1 flex-col gap-[10px]">
-          <Skeleton className="h-[26px] w-[70%] rounded-[6px]" />
-          <Skeleton className="h-[16px] w-[55%] rounded-[6px]" />
-          <Skeleton className="h-[24px] w-[160px] rounded-[10px]" />
-          <Skeleton className="h-[98px] w-full rounded-[12px]" />
-          <Skeleton className="h-[16px] w-full rounded-[6px]" />
-          <Skeleton className="h-[16px] w-[80%] rounded-[6px]" />
+        <div className="grid grid-cols-2 gap-[12px]">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-[62px] rounded-[10px]" />
+          ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-[12px]">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-[62px] rounded-[10px]" />
-        ))}
-      </div>
-    </div>
+    </SkeletonLoading>
   );
 }
 

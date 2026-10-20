@@ -26,7 +26,7 @@ export const useAdminProposalDetail = (id: string | null) =>
 export const useMyProposals = () =>
   useQuery({
     queryKey: proposalsKeys.myList(),
-    queryFn: proposalsClientApi.list,
+    queryFn: ({ signal }) => proposalsClientApi.list(signal),
     staleTime: 10 * 1000,
   });
 
@@ -39,7 +39,7 @@ export const useProposalDetail = (
 ) =>
   useQuery({
     queryKey: proposalsKeys.detail(id ?? ""),
-    queryFn: () => proposalsClientApi.get(id as string),
+    queryFn: ({ signal }) => proposalsClientApi.get(id as string, signal),
     enabled: !!id && !demo,
     initialData: demo ?? undefined,
   });

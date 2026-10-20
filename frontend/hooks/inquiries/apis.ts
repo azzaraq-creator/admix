@@ -91,10 +91,14 @@ export interface InquiryCreatePayload {
 }
 
 export const inquiriesClientApi = {
-  myList: () =>
-    api.get<MyInquiryListResponse>("/inquiries").then((r) => r.data),
-  myGet: (id: string) =>
-    api.get<MyInquiryDetail>(`/inquiries/${id}`).then((r) => r.data),
+  myList: (signal?: AbortSignal) =>
+    api
+      .get<MyInquiryListResponse>("/inquiries", { signal })
+      .then((r) => r.data),
+  myGet: (id: string, signal?: AbortSignal) =>
+    api
+      .get<MyInquiryDetail>(`/inquiries/${id}`, { signal })
+      .then((r) => r.data),
   create: (payload: InquiryCreatePayload) =>
     api.post<MyInquiryDetail>("/inquiries", payload).then((r) => r.data),
   /** 답변 대기 중인 본인 문의만 삭제된다(답변 완료는 409 already_answered). */

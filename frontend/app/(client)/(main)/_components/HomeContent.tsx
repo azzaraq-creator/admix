@@ -1,6 +1,6 @@
 "use client";
 
-import { Breadcrumbs, Button, ScrollShadow, Spinner } from "@heroui/react";
+import { Breadcrumbs, Button, ScrollShadow } from "@heroui/react";
 import {
   useEffect,
   useState,
@@ -21,6 +21,7 @@ import {
   useShownPageTourStep,
   type TourStep,
 } from "@/components/common/PageTour";
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -287,7 +288,7 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
           role="status"
           className="flex min-h-[60vh] w-full flex-1 flex-col items-center justify-center gap-[12px]"
         >
-          <Spinner size="lg" />
+          <SpinningSymbol className="size-[40px]" />
           <p className="text-[14px] text-[#71717a]">대화를 불러오는 중…</p>
         </div>
       ) : hasConversation ? (

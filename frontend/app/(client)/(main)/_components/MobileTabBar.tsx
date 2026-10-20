@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
+import { useMenuLink } from "./menuNav";
 import { MENU_ITEMS, type MenuItem } from "./Sidebar";
 import { useMixieChat } from "./useMixieChat";
 
@@ -14,15 +14,15 @@ export const MIXIE_TAB_STEP_ID = "mobile-tab-mixie";
 const TAB =
   "flex min-w-0 flex-1 flex-col items-center justify-center gap-[4px] text-[10px] leading-none";
 
-function TabLink({ item, pathname }: { item: MenuItem; pathname: string }) {
-  const { label, Icon, href, alsoActiveOn, iconClassName } = item;
-  const active = [href, ...(alsoActiveOn ?? [])].some((path) =>
-    pathname.startsWith(path),
-  );
+function TabLink({ item }: { item: MenuItem }) {
+  const { label, Icon, href, iconClassName } = item;
+  // 켜짐 여부·누를 때 할 일(이미 그 화면이거나 가는 중이면 무시)은 사이드 메뉴와 같다(menuNav).
+  const { active, onClick } = useMenuLink()(item);
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
+      onClick={onClick}
       className={cn(
         TAB,
         active ? "font-bold text-white" : "font-medium text-white/55",
@@ -43,7 +43,6 @@ function TabLink({ item, pathname }: { item: MenuItem; pathname: string }) {
  * 알려 주고, 화면들이 스크롤 끝·"지도 보기" 같은 아래 버튼을 그만큼 올린다(globals.css·각 화면).
  */
 export function MobileTabBar() {
-  const pathname = usePathname() ?? "";
   const { panelOpen, setPanelOpen } = useMixieChat();
   const [left, right] = [MENU_ITEMS.slice(0, 2), MENU_ITEMS.slice(2)];
 
@@ -57,7 +56,7 @@ export function MobileTabBar() {
       {/* 캡슐 56px → 곡률 (56/2)-3 = 25px. 바탕이 흐리게 비치는 남색(gray-800 #252836, 40%) 유리. */}
       <div className="pointer-events-auto flex h-[56px] items-stretch rounded-[25px] bg-[rgba(37,40,54,0.4)] px-[6px] shadow-[0px_6px_18px_rgba(0,0,0,0.18)] backdrop-blur-[12px] backdrop-saturate-[1.6]">
         {left.map((item) => (
-          <TabLink key={item.key} item={item} pathname={pathname} />
+          <TabLink key={item.key} item={item} />
         ))}
         <button
           type="button"
@@ -86,7 +85,7 @@ export function MobileTabBar() {
           </span>
         </button>
         {right.map((item) => (
-          <TabLink key={item.key} item={item} pathname={pathname} />
+          <TabLink key={item.key} item={item} />
         ))}
       </div>
     </nav>

@@ -411,41 +411,55 @@ export const mediaApi = {
     api
       .get<Blob>("/admin/media/template", { responseType: "blob" })
       .then((r) => r.data),
-  movingList: (filters?: MediaFilterParams) => {
+  movingList: (filters?: MediaFilterParams, signal?: AbortSignal) => {
     const qs = buildMovingQuery(filters);
     return api
-      .get<MediaCardListResponse>(`/media/moving${qs ? `?${qs}` : ""}`)
+      .get<MediaCardListResponse>(`/media/moving${qs ? `?${qs}` : ""}`, {
+        signal,
+      })
       .then((r) => r.data);
   },
   movingFilterOptions: () =>
     api
       .get<MediaFilterOptions>("/media/moving/filter-options")
       .then((r) => r.data),
-  fixedList: (limit: number, offset: number, filters?: MediaFilterParams) =>
+  fixedList: (
+    limit: number,
+    offset: number,
+    filters?: MediaFilterParams,
+    signal?: AbortSignal,
+  ) =>
     api
       .get<MediaCardListResponse>(
         `/media/fixed?${buildFixedQuery(limit, offset, filters)}`,
+        { signal },
       )
       .then((r) => r.data),
-  fixedClusters: (zoom: number, filters?: MediaFilterParams) =>
+  fixedClusters: (
+    zoom: number,
+    filters?: MediaFilterParams,
+    signal?: AbortSignal,
+  ) =>
     api
       .get<MediaClusterResponse>(
         `/media/fixed/clusters?${buildClusterQuery(zoom, filters)}`,
+        { signal },
       )
       .then((r) => r.data),
-  fixedPriceHistogram: (filters?: MediaFilterParams) => {
+  fixedPriceHistogram: (filters?: MediaFilterParams, signal?: AbortSignal) => {
     const qs = buildPriceHistogramQuery(filters);
     return api
       .get<PriceHistogramResponse>(
         `/media/fixed/price-histogram${qs ? `?${qs}` : ""}`,
+        { signal },
       )
       .then((r) => r.data.histogram);
   },
   /** 고정·이동 매체 전체 기준 필터 옵션 — 매체 찾기·관심 매체가 쓴다. */
   filterOptions: () =>
     api.get<MediaFilterOptions>("/media/filter-options").then((r) => r.data),
-  detail: (id: string) =>
-    api.get<MediaDetail>(`/media/${id}`).then((r) => r.data),
+  detail: (id: string, signal?: AbortSignal) =>
+    api.get<MediaDetail>(`/media/${id}`, { signal }).then((r) => r.data),
 };
 
 // ===== admin 매체 상세/등록 (media 전 컬럼) =====

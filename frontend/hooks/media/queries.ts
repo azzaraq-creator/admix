@@ -56,7 +56,7 @@ export const useAdminMediaPreview = (
 export const useMovingMediaList = (filters?: MediaFilterParams) =>
   useQuery({
     queryKey: mediaKeys.movingList(filters),
-    queryFn: () => mediaApi.movingList(filters),
+    queryFn: ({ signal }) => mediaApi.movingList(filters, signal),
     staleTime: 60 * 1000,
   });
 
@@ -77,8 +77,8 @@ export const useFixedMediaInfinite = (
     // 조회 범위(지도 영역)가 바뀌어 다시 불러오는 동안 이전 목록을 그대로 둔다.
     // 목록이 스켈레톤으로 바뀌었다 다시 그려지면 같은 매체 카드의 사진도 새로 불러와 버벅인다.
     placeholderData: keepPreviousData,
-    queryFn: ({ pageParam }) =>
-      mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam, filters),
+    queryFn: ({ pageParam, signal }) =>
+      mediaApi.fixedList(FIXED_PAGE_SIZE, pageParam, filters, signal),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.items.length, 0);
@@ -94,7 +94,8 @@ export const useFixedMediaInfinite = (
 export const useMediaFindCount = (filters: MediaFilterParams, enabled = true) =>
   useQuery({
     queryKey: mediaKeys.findCount(filters),
-    queryFn: async () => (await mediaApi.fixedList(1, 0, filters)).total,
+    queryFn: async ({ signal }) =>
+      (await mediaApi.fixedList(1, 0, filters, signal)).total,
     enabled,
     staleTime: 60 * 1000,
   });
@@ -107,7 +108,7 @@ export const useFixedClusters = (
   useQuery({
     queryKey: mediaKeys.fixedClusters(zoom, filters),
     enabled,
-    queryFn: () => mediaApi.fixedClusters(zoom, filters),
+    queryFn: ({ signal }) => mediaApi.fixedClusters(zoom, filters, signal),
     staleTime: 60 * 1000,
   });
 
@@ -118,7 +119,7 @@ export const useFixedPriceHistogram = (
 ) =>
   useQuery({
     queryKey: mediaKeys.fixedPriceHistogram(filters),
-    queryFn: () => mediaApi.fixedPriceHistogram(filters),
+    queryFn: ({ signal }) => mediaApi.fixedPriceHistogram(filters, signal),
     enabled,
     staleTime: 60 * 1000,
     // 조건이 바뀌어 다시 세는 동안 이전 막대를 두어 그래프가 깜빡이지 않게 한다.
@@ -158,7 +159,7 @@ export const useAdminRealtimePopulation = (
 export const useMediaDetail = (id: string | null) =>
   useQuery({
     queryKey: mediaKeys.detail(id ?? ""),
-    queryFn: () => mediaApi.detail(id as string),
+    queryFn: ({ signal }) => mediaApi.detail(id as string, signal),
     enabled: !!id,
     staleTime: 60 * 1000,
   });

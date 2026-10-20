@@ -6,6 +6,7 @@ import { LoginModal } from "./LoginModal";
 import { MixieChatPanel } from "./MixieChatPanel";
 import { MobileTabBar } from "./MobileTabBar";
 import { MobileTopNav } from "./MobileTopNav";
+import { ShellContent } from "./ShellContent";
 import { PageTourHost } from "@/components/common/PageTour";
 import { USER_TOKEN_COOKIE } from "@/lib/userToken";
 
@@ -35,12 +36,7 @@ export async function ClientShell({ children }: { children: ReactNode }) {
               화면들은 스크롤 끝·아래 버튼을 이만큼 올려 탭 바에 가리지 않게 한다(globals.css의 [data-shell-content]). */}
           <div className="relative flex min-w-0 flex-1 flex-col [--tabbar-space:calc(64px+env(safe-area-inset-bottom))] sm:[--tabbar-space:0px]">
             <MobileTopNav member={member} />
-            <div
-              data-shell-content
-              className="relative flex min-h-0 flex-1 flex-col"
-            >
-              {children}
-            </div>
+            <ShellContent>{children}</ShellContent>
             <MobileTabBar />
           </div>
           <LoginModal />

@@ -230,10 +230,11 @@ export function proposalLimitTier(
 }
 
 export const proposalsClientApi = {
-  list: () =>
+  list: (signal?: AbortSignal) =>
     api
       .get<ProposalSummary[]>("/proposals", {
         params: { session_id: getSessionId() },
+        signal,
       })
       .then((r) => r.data),
   create: (title: string) =>
@@ -243,10 +244,11 @@ export const proposalsClientApi = {
         session_id: getSessionId(),
       })
       .then((r) => r.data),
-  get: (id: string) =>
+  get: (id: string, signal?: AbortSignal) =>
     api
       .get<ProposalDetail>(`/proposals/${id}`, {
         params: { session_id: getSessionId() },
+        signal,
       })
       .then((r) => r.data),
   downloadCounterProposal: (id: string) =>

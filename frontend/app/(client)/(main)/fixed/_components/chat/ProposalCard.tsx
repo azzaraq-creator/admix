@@ -2,6 +2,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useRouter } from "next/navigation";
 
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
+import { SkeletonLoading } from "@/components/common/SkeletonLoading";
 import { ChevronRightIcon, CollectionIcon, Logo } from "@/components/icons";
 import type { V2ProposalRef } from "@/hooks/adRecommendReact";
 import { useProposalDetail } from "@/hooks/proposals";
@@ -52,14 +53,16 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col gap-[8px]">
-          {Array.from(
-            { length: Math.min(proposal.media_count, PREVIEW_COUNT) },
-            (_, i) => (
-              <Skeleton key={i} className="h-[56px] rounded-[12px]" />
-            ),
-          )}
-        </div>
+        <SkeletonLoading symbolClassName="size-[28px]">
+          <div className="flex flex-col gap-[8px]">
+            {Array.from(
+              { length: Math.min(proposal.media_count, PREVIEW_COUNT) },
+              (_, i) => (
+                <Skeleton key={i} className="h-[56px] rounded-[12px]" />
+              ),
+            )}
+          </div>
+        </SkeletonLoading>
       ) : count === 0 ? (
         // 매체 없이 만든 기획안 — 다음에 할 일을 알려 준다.
         <p className="rounded-[12px] border border-dashed border-[#e4e4e7] bg-[#f5f6fb] px-[12px] py-[14px] text-center text-[12px] leading-[1.6] break-keep text-[#71717a]">

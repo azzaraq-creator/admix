@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Drawer,
-  ListBox,
-  Popover,
-  Select,
-  Spinner,
-} from "@heroui/react";
+import { Button, Drawer, ListBox, Popover, Select } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
@@ -16,6 +9,7 @@ import {
   isOohMedia,
   planSpecText,
 } from "@/components/common/media-detail/MediaOptions";
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
   OpenFolderIcon,
@@ -594,7 +588,7 @@ function LoadingMessage() {
       aria-label="불러오는 중"
       className="flex flex-1 items-center justify-center py-[48px]"
     >
-      <Spinner />
+      <SpinningSymbol className="size-[40px]" />
     </div>
   );
 }

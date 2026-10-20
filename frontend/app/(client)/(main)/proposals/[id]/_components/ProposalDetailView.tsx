@@ -45,6 +45,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useSonner } from "@/hooks/useSonner";
 import { formatDateTime } from "@/lib/date";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { CoverSlide, CoverThumb } from "@/components/proposals/CoverTemplate";
 import { MediaSlide, MediaThumb } from "@/components/proposals/MediaTemplate";
 import {
@@ -193,7 +194,7 @@ export function ProposalDetailView({ id }: { id: string }) {
         role="status"
         className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f5f6fb]"
       >
-        <Spinner />
+        <SpinningSymbol className="size-[40px]" />
         <p className="text-[13px] text-[#8c8c94]">기획안을 불러오는 중이에요</p>
       </div>
     );
@@ -786,7 +787,7 @@ function ProposalEditorView({ id }: { id: string }) {
     <div className="relative flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto bg-[#f5f6fb] p-[20px]">
       {deleting && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-white/80">
-          <Spinner />
+          <SpinningSymbol className="size-[40px]" />
           <p className="text-[13px] text-[#8c8c94]">
             기획안을 삭제하는 중이에요
           </p>

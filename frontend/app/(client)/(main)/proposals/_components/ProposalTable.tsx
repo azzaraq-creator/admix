@@ -19,6 +19,7 @@ import {
 } from "react";
 import type { SortDescriptor } from "react-aria-components";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
   ArrowDownIcon,
@@ -803,7 +804,7 @@ export function ProposalTable({
         {/* 불러오는 중 — 헤더 아래 남는 칸 전체를 흰 본문 모양으로 채우고 가운데에 스피너(비어 있을 때의 흰 상자와 같은 모습). */}
         {loading && (
           <div className="flex min-h-0 flex-col items-center justify-center gap-[12px] rounded-[min(32px,var(--radius-2xl))] bg-surface">
-            <Spinner />
+            <SpinningSymbol className="size-[40px]" />
             <p className="text-[13px] text-[#8c8c94]">
               기획안을 불러오는 중이에요
             </p>

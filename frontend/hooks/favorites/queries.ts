@@ -28,7 +28,7 @@ export const useFavoriteList = (
   const { data: me } = useMe();
   return useQuery({
     queryKey: favoritesKeys.list(filters),
-    queryFn: () => favoritesApi.list(filters),
+    queryFn: ({ signal }) => favoritesApi.list(filters, signal),
     enabled: !!me && enabled,
     placeholderData: keepPreviousData,
   });
@@ -42,7 +42,7 @@ export const useFavoritePriceHistogram = (
   const { data: me } = useMe();
   return useQuery({
     queryKey: favoritesKeys.priceHistogram(filters),
-    queryFn: () => favoritesApi.priceHistogram(filters),
+    queryFn: ({ signal }) => favoritesApi.priceHistogram(filters, signal),
     enabled: !!me && enabled,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,

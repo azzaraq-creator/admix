@@ -2,7 +2,6 @@
 
 import { Button, Dropdown, Spinner } from "@heroui/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { type ComponentType, type SVGProps } from "react";
 
 import {
@@ -30,6 +29,7 @@ import {
   useLnbCollapsed,
   useLnbExpanded,
 } from "./useLnb";
+import { useMenuLink } from "./menuNav";
 import { ProfileMenu } from "./ProfileMenu";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
@@ -103,7 +103,6 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   const expanded = useLnbExpanded();
   // 데스크톱 접힘(180px → 78px). 모바일 드로어에는 적용하지 않도록 모든 변화는 sm: 에만 건다.
   const collapsed = useLnbCollapsed();
-  const pathname = usePathname();
 
   const { panelOpen, setPanelOpen, panelPreview } = useMixieChat();
   // 가이드가 예시 패널을 띄운 동안에도 열림 모양으로 보인다.
@@ -121,6 +120,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
   const handleNavClick = () => {
     if (window.innerWidth < 640) setLnbExpanded(false);
   };
+  const menuLink = useMenuLink();
 
   return (
     <>
@@ -236,44 +236,44 @@ export function Sidebar({ member = false }: { member?: boolean }) {
             <hr className="my-[15px] border-t border-gray-200" />
 
             <ul className="flex flex-col gap-[3px]">
-              {MENU_ITEMS.map(
-                ({ key, label, Icon, href, alsoActiveOn, iconClassName }) => {
-                  const active = [href, ...(alsoActiveOn ?? [])].some(
-                    (path) => pathname?.startsWith(path) ?? false,
-                  );
-                  return (
-                    <li key={key}>
-                      <Link
-                        href={href}
-                        onClick={handleNavClick}
-                        aria-current={active ? "page" : undefined}
-                        // 접히면 글자가 숨으므로 이름은 aria-label로, 마우스를 올리면 title로 알린다.
-                        aria-label={label}
-                        title={collapsed ? label : undefined}
+              {MENU_ITEMS.map((item) => {
+                const { key, label, Icon, href, iconClassName } = item;
+                const { active, onClick } = menuLink(item);
+                return (
+                  <li key={key}>
+                    <Link
+                      href={href}
+                      onClick={(e) => {
+                        onClick(e);
+                        handleNavClick();
+                      }}
+                      aria-current={active ? "page" : undefined}
+                      // 접히면 글자가 숨으므로 이름은 aria-label로, 마우스를 올리면 title로 알린다.
+                      aria-label={label}
+                      title={collapsed ? label : undefined}
+                      className={cn(
+                        NAV_ROW,
+                        active
+                          ? "bg-primary-100 font-bold text-primary"
+                          : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
+                      )}
+                    >
+                      {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
+                      <Icon
+                        className={cn("size-[18px] shrink-0", iconClassName)}
+                      />
+                      <span
                         className={cn(
-                          NAV_ROW,
-                          active
-                            ? "bg-primary-100 font-bold text-primary"
-                            : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
+                          "text-sm whitespace-nowrap",
+                          fadeLabel(collapsed),
                         )}
                       >
-                        {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
-                        <Icon
-                          className={cn("size-[18px] shrink-0", iconClassName)}
-                        />
-                        <span
-                          className={cn(
-                            "text-sm whitespace-nowrap",
-                            fadeLabel(collapsed),
-                          )}
-                        >
-                          {label}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                },
-              )}
+                        {label}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 

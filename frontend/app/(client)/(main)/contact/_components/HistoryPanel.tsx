@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Pagination, Spinner, Table } from "@heroui/react";
+import { Button, Pagination, Table } from "@heroui/react";
 import { InboxIcon } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
@@ -9,6 +9,7 @@ import {
   WriteIcon,
   SearchOutlineIcon,
 } from "@/components/icons";
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { useMyInquiries } from "@/hooks/inquiries";
 
 import {
@@ -101,7 +102,7 @@ export function HistoryPanel({
   if (isLoading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-[12px] rounded-[20px] border border-[#ececef] bg-white py-[72px]">
-        <Spinner />
+        <SpinningSymbol className="size-[40px]" />
         <p className="text-[13px] text-[#8c8c94]">
           문의 내역을 불러오는 중이에요
         </p>

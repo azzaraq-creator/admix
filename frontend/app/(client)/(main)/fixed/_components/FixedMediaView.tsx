@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -372,6 +373,18 @@ export function FixedMediaView() {
     },
     [commitZoomOnly, commitViewport, searchParams, crowdOn, trafficOn],
   );
+
+  // 이 화면에 있는 채로 영역 없는 /fixed로 다시 들어오면(모바일 하단 탭·사이드바의 "매체 찾기"를 한 번 더 누름)
+  // 지도는 그대로라 영역을 다시 알려 주지 않아, 목록이 영역을 기다리며 불러오는 중에 멈춘다.
+  // 그럴 땐 마지막으로 멈춘 지도 영역을 다시 걸어 준다. 검색어(kw)·지역(region)은 일부러 영역 없이
+  // 전체에서 찾는 경우라 두고, 첫 진입(지도가 아직 자리를 잡는 중)도 지도가 알아서 걸므로 건드리지 않는다.
+  useEffect(() => {
+    if (pendingCommitRef.current) return;
+    if (parseUrlBounds(searchParams)) return;
+    if (searchParams.get("kw") || searchParams.has("region")) return;
+    const last = lastViewportRef.current;
+    if (last) commitViewport(last, false);
+  }, [searchParams, commitViewport]);
 
   const handleRequestMapMove = useCallback(
     (center: {

@@ -4,6 +4,7 @@ import { ScrollShadow, Tabs } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
@@ -789,10 +790,16 @@ export function MediaFindPanel({
               />
             )}
             {isLoading ? (
-              // 첫 결과를 받기 전엔 카드 자리에 스켈레톤을 깔아 로딩 중임을 보여 준다.
-              Array.from({ length: 3 }, (_, i) => (
-                <MediaFindCardSkeleton key={i} />
-              ))
+              // 첫 결과를 받기 전엔 카드 자리에 스켈레톤을 흐리게 깔고, 그 위(아래 로딩 막)에
+              // 빙글빙글 도는 심볼을 띄워 불러오는 중임을 보여 준다.
+              <div
+                aria-hidden
+                className="flex shrink-0 flex-col gap-[10px] blur-[3px]"
+              >
+                {Array.from({ length: 3 }, (_, i) => (
+                  <MediaFindCardSkeleton key={i} />
+                ))}
+              </div>
             ) : listRows.length === 0 ? (
               // 고른 매체만 있고 주변 매체가 없으면 빈 안내는 띄우지 않는다.
               pinned ? null : (
@@ -828,6 +835,13 @@ export function MediaFindPanel({
               </>
             )}
           </ScrollShadow>
+        )}
+        {!mapExpanded && isLoading && (
+          // 목록 칸 위에 겹치는 로딩 막 — 흐린 스켈레톤 위로 엷은 흰 막과 빙글빙글 도는 심볼.
+          // 폭은 목록 칸(스크롤 영역의 좌우 패딩을 뺀 카드 폭)과 같게, 모바일은 하단 탭 바를 뺀 높이의 가운데에 둔다.
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-white/30 max-sm:pb-(--tabbar-space) sm:w-[calc(50%-10px)] lg:w-[420px]">
+            <SpinningSymbol className="size-[40px]" />
+          </div>
         )}
 
         <div

@@ -27,6 +27,7 @@ import {
   AddToProposalModal,
 } from "@/components/common/AddToProposalModal";
 import { MediaDetailModal } from "@/components/common/MediaDetailModal";
+import { SkeletonLoading } from "@/components/common/SkeletonLoading";
 import {
   type TourStep,
   useActivePageTourStep,
@@ -336,8 +337,8 @@ export function FavoritesView({ member }: { member: boolean }) {
       )}
 
       {loading ? (
-        // 카드(모바일은 한 줄) 자리에 뼈대를 깔아 모양을 미리 보여 준다.
-        <>
+        // 카드(모바일은 한 줄) 자리에 뼈대를 흐리게 깔고, 그 위에 빙글빙글 도는 심볼을 띄운다.
+        <SkeletonLoading>
           <CardGrid>
             {Array.from({ length: 6 }, (_, i) => (
               <MediaFindCardSkeleton key={i} />
@@ -348,7 +349,7 @@ export function FavoritesView({ member }: { member: boolean }) {
               <FavoriteRowSkeleton key={i} />
             ))}
           </RowList>
-        </>
+        </SkeletonLoading>
       ) : isGuest ? (
         <EmptyBox
           title="로그인하고 관심 매체를 모아 보세요"

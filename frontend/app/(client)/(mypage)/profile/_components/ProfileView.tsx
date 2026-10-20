@@ -6,7 +6,6 @@ import {
   Chip,
   Input,
   Popover,
-  Spinner,
   Switch,
   Tooltip,
 } from "@heroui/react";
@@ -33,6 +32,7 @@ import {
   useUploadBusinessRegistration,
   useWithdraw,
 } from "@/hooks/auth";
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { useAlertConfirm } from "@/hooks/useAlertConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { API_BASE_URL } from "@/lib/api";
@@ -571,7 +571,7 @@ export function ProfileView() {
   if (!me) {
     return (
       <div className="flex min-h-full items-center justify-center bg-gray-50">
-        <Spinner />
+        <SpinningSymbol className="size-[40px]" />
       </div>
     );
   }

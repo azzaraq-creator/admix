@@ -9,13 +9,13 @@ import {
   Modal,
   ScrollShadow,
   SearchField,
-  Spinner,
   Switch,
 } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { SelectToggle } from "@/app/(client)/(main)/fixed/_components/MediaFindCard";
+import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
   CloseMediumIcon,
@@ -295,7 +295,7 @@ export function AddFromFavoritesModal({
             <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col overflow-hidden p-0">
               {isLoading ? (
                 <div className="flex flex-1 items-center justify-center py-[40px]">
-                  <Spinner />
+                  <SpinningSymbol className="size-[32px]" />
                 </div>
               ) : allRows.length === 0 ? (
                 <EmptyNote
