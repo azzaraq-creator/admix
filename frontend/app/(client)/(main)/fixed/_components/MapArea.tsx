@@ -1,7 +1,13 @@
 "use client";
 
 import { Card, Chip, Drawer, ScrollShadow, Switch } from "@heroui/react";
-import { type CSSProperties, type ReactNode, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -50,6 +56,78 @@ const TOGGLE_STACK =
 const TOGGLE_STACK_SEP = "sm:@max-[400px]:hidden";
 const TOGGLE_STACK_ITEM =
   "sm:@max-[400px]:w-full sm:@max-[400px]:justify-between";
+
+// 모바일은 지도 폭에 맞춰 스위치 묶음을 단계별로 줄인다 — 한 줄(12px) → 안 들어가면 글자 1px 작게(11px)
+// → 그래도 안 들어가면 태블릿처럼 한 줄에 하나씩 쌓는다. 어느 단계인지는 실제 폭을 재서 고른다(useToggleFit).
+type ToggleFit = "base" | "small" | "stack";
+const MOBILE_STACK =
+  "max-sm:h-auto max-sm:flex-col max-sm:items-stretch max-sm:gap-[8px] max-sm:rounded-[12px] max-sm:px-[10px] max-sm:py-[8px]";
+const MOBILE_STACK_SEP = "max-sm:hidden";
+const MOBILE_STACK_ITEM = "max-sm:w-full max-sm:justify-between";
+
+/** 묶음 안 마지막 스위치 끝 + 오른쪽 여백이 묶음 밖으로 나가는지 — scrollWidth는 끝 여백이 먹혀도 넘침으로 안 잡는다. */
+function overflows(el: HTMLElement) {
+  const last = el.lastElementChild;
+  if (!last) return false;
+  const style = getComputedStyle(el);
+  const end =
+    last.getBoundingClientRect().right +
+    parseFloat(style.paddingRight) +
+    parseFloat(style.borderRightWidth);
+  return end > el.getBoundingClientRect().right + 0.5;
+}
+
+/**
+ * 모바일 지도 스위치 묶음의 단계(ToggleFit)를 고른다. 지도 폭이나 보이는 스위치가 바뀌면 한 줄(base)부터 다시
+ * 그려 보고, 묶음이 지도 안(좌우 여백 12px씩)에 다 안 들어가면(overflows) 한 단계씩 내린다.
+ * 그려진 뒤·화면에 보이기 전에(layout effect) 재므로 깨진 모양이 비치지 않는다.
+ * 묶음 높이도 돌려준다 — 모바일 범례를 그 바로 밑에 붙이려고.
+ */
+function useToggleFit(
+  mapRef: React.RefObject<HTMLElement | null>,
+  togglesRef: React.RefObject<HTMLElement | null>,
+  contentKey: string,
+) {
+  const [mapWidth, setMapWidth] = useState(0);
+  const [togglesHeight, setTogglesHeight] = useState(30);
+  useLayoutEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setMapWidth(Math.round(entry.contentRect.width)),
+    );
+    observer.observe(map);
+    return () => observer.disconnect();
+  }, [mapRef]);
+
+  // 지도 폭·스위치 구성이 바뀌면 key가 달라져 저절로 base부터 다시 시작한다.
+  const key = `${mapWidth}|${contentKey}`;
+  const [state, setState] = useState<{ key: string; fit: ToggleFit }>({
+    key,
+    fit: "base",
+  });
+  const fit = state.key === key ? state.fit : "base";
+
+  useLayoutEffect(() => {
+    const el = togglesRef.current;
+    if (!el) return;
+    if (fit !== "stack" && overflows(el)) {
+      setState({ key, fit: fit === "base" ? "small" : "stack" });
+    }
+  }, [fit, key, togglesRef]);
+
+  useLayoutEffect(() => {
+    const el = togglesRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() =>
+      setTogglesHeight(el.offsetHeight),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [togglesRef, contentKey]);
+
+  return { fit, togglesHeight };
+}
 
 export function MapArea({
   className,
@@ -180,6 +258,17 @@ export function MapArea({
   const isDesktop = useIsDesktop();
   const [legendOpen, setLegendOpen] = useState(false);
 
+  // 모바일 스위치 묶음 단계(한 줄 12px → 11px → 쌓기)와 높이 — 범례는 묶음 바로 밑(위 12 + 높이 + 간격 8)에 붙인다.
+  const togglesRef = useRef<HTMLDivElement>(null);
+  const { fit: toggleFit, togglesHeight } = useToggleFit(
+    containerRef,
+    togglesRef,
+    `${!!crowd}|${!!crowd?.on}|${!!traffic}`,
+  );
+  const toggleText = toggleFit === "small" && "max-sm:text-[11px]";
+  const stackItem = toggleFit === "stack" && MOBILE_STACK_ITEM;
+  const stackSep = toggleFit === "stack" && MOBILE_STACK_SEP;
+
   const { popupEl, flipUp, shiftX, maxHeight, width, gap } = useMapPopup({
     mapRef,
     mapReady,
@@ -191,7 +280,12 @@ export function MapArea({
   });
 
   return (
-    <div className={cn("relative @container", className)}>
+    <div
+      className={cn("relative @container", className)}
+      style={
+        { "--map-legend-top": `${12 + togglesHeight + 8}px` } as CSSProperties
+      }
+    >
       {/* 모바일은 지도가 좁아 실시간 인구 토글·범례(z-[2])가 매체 정보 팝업을 가린다 —
           팝업(지도 안에 그려진다)이 열려 있는 동안은 지도째 그 위로 올린다. */}
       <div
@@ -212,11 +306,15 @@ export function MapArea({
         // (혼잡도 "붐빔" 빨강과 헷갈리지 않게). 바탕은 반투명 유리(뒤 지도가 흐리게 비친다).
         // 태블릿처럼 지도 폭이 좁으면(400px 미만) 한 줄에 다 안 들어가 스위치를 한 줄에 하나씩 쌓는다.
         // data-tour — 매체 찾기 가이드가 밝히는 자리.
+        // 모바일은 지도 폭에 따라 한 줄 12px → 11px → 쌓기(useToggleFit). 한 줄일 땐 글자가 줄바꿈되지 않게
+        // nowrap으로 두고 폭을 지도 안(좌우 12px씩)으로 묶어, 넘치면 재서 다음 단계로 넘어간다.
         <div
+          ref={togglesRef}
           data-tour="map-layers"
           className={cn(
-            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]",
+            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:max-w-[calc(100%-24px)] max-sm:whitespace-nowrap",
             TOGGLE_STACK,
+            toggleFit === "stack" && MOBILE_STACK,
           )}
         >
           {crowd && (
@@ -231,6 +329,8 @@ export function MapArea({
                 className={cn(
                   "gap-[6px] text-[12px] font-semibold text-[#18181b]",
                   TOGGLE_STACK_ITEM,
+                  toggleText,
+                  stackItem,
                 )}
               >
                 {/* 아이콘 모양은 public/icons/group.svg */}
@@ -260,6 +360,7 @@ export function MapArea({
                 className={cn(
                   "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
                   TOGGLE_STACK_SEP,
+                  stackSep,
                 )}
               />
               <Switch
@@ -273,6 +374,8 @@ export function MapArea({
                   className={cn(
                     "gap-[6px] text-[12px] font-semibold text-[#18181b]",
                     TOGGLE_STACK_ITEM,
+                    toggleText,
+                    stackItem,
                   )}
                 >
                   <span>흑백</span>
@@ -289,6 +392,7 @@ export function MapArea({
               className={cn(
                 "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
                 TOGGLE_STACK_SEP,
+                stackSep,
               )}
             />
           )}
@@ -305,6 +409,8 @@ export function MapArea({
                 className={cn(
                   "gap-[6px] text-[12px] font-semibold text-[#18181b]",
                   TOGGLE_STACK_ITEM,
+                  toggleText,
+                  stackItem,
                 )}
               >
                 <span>도로 현황</span>
@@ -318,12 +424,13 @@ export function MapArea({
       )}
       {(crowd?.on || traffic?.on) && !isDesktop && !legendOpen && (
         // 모바일 접힌 범례 — 등급 색 점(도로 현황은 짧은 선)만. 누르면 등급 이름·안내까지 펼친다.
+        // 자리는 스위치 묶음 바로 밑(--map-legend-top) — 묶음이 쌓여 높아져도 겹치지 않게.
         <button
           type="button"
           aria-label="범례 펼치기"
           aria-expanded={false}
           onClick={() => setLegendOpen(true)}
-          className="absolute top-[50px] left-[12px] z-[2] flex h-[24px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[6px] pl-[9px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
+          className="absolute top-(--map-legend-top) left-[12px] z-[2] flex h-[24px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[6px] pl-[9px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
         >
           {crowd?.on && <LegendDots levels={CROWD_LEVELS} />}
           {crowd?.on && traffic?.on && (
@@ -336,7 +443,7 @@ export function MapArea({
       {(crowd?.on || traffic?.on) && (isDesktop || legendOpen) && (
         // 범례 — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
         // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 두고, 오른쪽 위 버튼으로 다시 접는다.
-        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[50px] max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)] max-sm:pr-[30px]">
+        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-(--map-legend-top) max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)] max-sm:pr-[30px]">
           {!isDesktop && (
             <button
               type="button"

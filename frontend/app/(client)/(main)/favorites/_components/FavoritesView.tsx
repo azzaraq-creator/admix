@@ -228,7 +228,9 @@ export function FavoritesView({ member }: { member: boolean }) {
     : !loading && !!me && !searched && rows.length === 0;
 
   return (
-    <div className="flex min-h-full w-full flex-col gap-[20px] px-[16px] py-[20px] sm:px-[20px]">
+    // 모바일은 아래 여백을 12px로 — 목록이 짧아 선택 바가 제자리(맨 아래)에 있을 때도, 길어서 탭 바 위에
+    // 붙을 때(sticky bottom 12px)와 같은 간격으로 탭 바 위에 놓이게.
+    <div className="flex min-h-full w-full flex-col gap-[20px] px-[16px] py-[20px] max-sm:pb-[12px] sm:px-[20px]">
       {/* 상단 바 — 매체 찾기와 같은 검색·필터·초기화·정렬(지도 버튼은 없다). */}
       <div
         data-tour="favorites-search"
@@ -632,10 +634,11 @@ function MobileSelectionSheet({
       <Drawer.Trigger
         aria-label="선택한 매체 자세히 보기"
         data-tour="favorites-bar"
-        // 모바일은 하단 탭 바 위에 붙는다.
+        // 모바일은 하단 탭 바 위 12px에 붙는다. 스크롤 영역(main) 아래에 이미 탭 바 높이만큼 여백
+        // (--tabbar-space, globals.css)이 있고 sticky는 그 여백 안쪽부터 재므로, 여기선 12px만 더 띄운다.
         className={cn(
           BAR_CLASS,
-          "w-full cursor-pointer text-left max-sm:bottom-[calc(var(--tabbar-space)+12px)] sm:hidden",
+          "w-full cursor-pointer text-left max-sm:bottom-[12px] sm:hidden",
         )}
       >
         <SelectionCount count={count} />
