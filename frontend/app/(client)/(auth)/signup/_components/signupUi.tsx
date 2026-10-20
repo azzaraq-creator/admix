@@ -46,7 +46,7 @@ export function SignupCard({
   return (
     <Card
       className={cn(
-        "w-full gap-[16px] rounded-[20px] border border-gray-200 bg-white p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] max-sm:gap-[12px] max-sm:p-[16px] sm:p-[32px]",
+        "w-full gap-[16px] rounded-[20px] border border-gray-200 bg-surface p-[20px] shadow-[0px_18px_20px_rgba(0,0,0,0.06),0px_2px_4px_rgba(0,0,0,0.04)] max-sm:gap-[12px] max-sm:p-[16px] sm:p-[32px]",
         // 모바일은 카드가 남는 세로 공간을 채운다. 안쪽 폭(cqw)으로 크기를 잡는 항목을 위해 컨테이너로 둔다.
         "max-sm:@container max-sm:flex-1",
         className,
@@ -104,10 +104,10 @@ export function FieldLabel({
  * 읽기 전용(인증된 이메일 등)은 회색 바탕, 잘못된 값이면 빨간 테두리.
  */
 export const INPUT_CLASS = cn(
-  "h-[44px] w-full border border-[#ececef] bg-white px-[14px] text-[14px] text-[#18181b] [box-shadow:none]!",
+  "h-[44px] w-full border border-tone-ececef bg-surface px-[14px] text-[14px] text-zinc-900 [box-shadow:none]!",
   RADIUS.h44,
-  "placeholder:text-[#a1a1aa] data-[focused=true]:border-primary-500",
-  "read-only:bg-[#f4f4f5] read-only:text-[#71717a] data-[disabled=true]:bg-[#f4f4f5]",
+  "placeholder:text-zinc-400 data-[focused=true]:border-primary-500",
+  "read-only:bg-zinc-100 read-only:text-zinc-500 data-[disabled=true]:bg-zinc-100",
   "data-[invalid=true]:border-[#dc2626]",
 );
 
@@ -119,10 +119,10 @@ export const INPUT_CLASS = cn(
  */
 const SIDE_BUTTON_TONE = {
   outline:
-    "border border-[#ececef] bg-white text-[#18181b] data-[hovered=true]:bg-gray-50 data-[disabled=true]:opacity-40",
+    "border border-tone-ececef bg-surface text-zinc-900 data-[hovered=true]:bg-gray-50 data-[disabled=true]:opacity-40",
   soft: "border border-primary-200 bg-primary-50 text-primary-500 data-[hovered=true]:bg-primary-100 data-[disabled=true]:opacity-40",
   success:
-    "gap-[4px] border border-[#bbf7d0] bg-[#f0fdf4] font-semibold text-[#16a34a] data-[disabled=true]:opacity-100",
+    "gap-[4px] border border-tone-bbf7d0 bg-tone-f0fdf4 font-semibold text-[#16a34a] data-[disabled=true]:opacity-100",
 } as const;
 
 export function SideButton({
@@ -183,7 +183,7 @@ export function PrimaryAction({
         {pending ? "처리 중…" : label}
       </Button>
       {note && (
-        <Description className="text-center text-[11px] text-[#a1a1aa] max-sm:break-keep">
+        <Description className="text-center text-[11px] text-zinc-400 max-sm:break-keep">
           {note}
         </Description>
       )}
@@ -205,7 +205,7 @@ export function FieldMessage({
         "text-[11px]",
         tone === "error" && "text-[#dc2626]",
         tone === "success" && "font-medium text-[#16a34a]",
-        tone === "muted" && "text-[#a1a1aa]",
+        tone === "muted" && "text-zinc-400",
       )}
     >
       {children}

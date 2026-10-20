@@ -192,10 +192,12 @@ export function ProposalDetailView({ id }: { id: string }) {
     return (
       <div
         role="status"
-        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-[#f5f6fb]"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[12px] bg-gray-50"
       >
         <SpinningSymbol className="size-[40px]" />
-        <p className="text-[13px] text-[#8c8c94]">기획안을 불러오는 중이에요</p>
+        <p className="text-[13px] text-tone-8c8c94">
+          기획안을 불러오는 중이에요
+        </p>
       </div>
     );
   }
@@ -655,7 +657,7 @@ function ProposalEditorView({ id }: { id: string }) {
       title: "슬라이드를 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-[#18181b]">
+          <span className="font-semibold text-zinc-900">
             {slideNumber}-{name}
           </span>
           가 기획안에서 삭제됩니다.
@@ -762,7 +764,7 @@ function ProposalEditorView({ id }: { id: string }) {
       title: "기획안을 삭제하시겠습니까?",
       description: (
         <>
-          <span className="font-semibold text-[#18181b]">{title}</span>가 내
+          <span className="font-semibold text-zinc-900">{title}</span>가 내
           기획안에서 영구히 삭제됩니다.
         </>
       ),
@@ -784,11 +786,11 @@ function ProposalEditorView({ id }: { id: string }) {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto bg-[#f5f6fb] p-[20px]">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto bg-gray-50 p-[20px]">
       {deleting && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-white/80">
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[12px] bg-surface/80">
           <SpinningSymbol className="size-[40px]" />
-          <p className="text-[13px] text-[#8c8c94]">
+          <p className="text-[13px] text-tone-8c8c94">
             기획안을 삭제하는 중이에요
           </p>
         </div>
@@ -808,12 +810,24 @@ function ProposalEditorView({ id }: { id: string }) {
               aria-label="내 기획안으로 돌아가기"
               className="shrink-0 rounded-[10px] transition-opacity hover:opacity-80"
             >
-              <Image
-                src="/icons/proposal-detail/back.svg"
-                alt=""
-                width={40}
-                height={28}
-              />
+              {/* 40×28 흰 칸 + 회색 테두리·화살표 — 다크 모드에서 어둡게 바뀌도록 그림 파일 대신 토큰 색으로 그린다. */}
+              <span className="flex h-[28px] w-[40px] items-center justify-center rounded-[12px] border border-gray-200 bg-surface text-gray-500">
+                <svg
+                  width="11"
+                  height="10"
+                  viewBox="14.5 9.5 11 10"
+                  fill="none"
+                  aria-hidden
+                  className="translate-y-[0.5px]"
+                >
+                  <path
+                    d="M25 14.5H15M19.2857 10L15 14.5L19.2857 19"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
             </button>
             {editing ? (
               // 이름 수정 — 새 기획안 만들기 창과 같은 HeroUI 입력칸(흰 바탕, 입력 중 보라 1px 테두리).
@@ -841,9 +855,9 @@ function ProposalEditorView({ id }: { id: string }) {
                         if (event.key === "Enter") void commitRename();
                         if (event.key === "Escape") cancelRename();
                       }}
-                      className="h-[34px] w-full rounded-[13px] border border-[#dde0ea] bg-white pr-[56px] pl-[12px] text-[20px] leading-none font-semibold text-black [box-shadow:none]! transition-colors focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none"
+                      className="h-[34px] w-full rounded-[13px] border border-gray-200 bg-surface pr-[56px] pl-[12px] text-[20px] leading-none font-semibold text-black [box-shadow:none]! transition-colors focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none"
                     />
-                    <span className="pointer-events-none absolute top-1/2 right-[14px] -translate-y-1/2 text-[12px] text-[#9aa0b4]">
+                    <span className="pointer-events-none absolute top-1/2 right-[14px] -translate-y-1/2 text-[12px] text-gray-400">
                       {draft.length}/{MAX_TITLE_LENGTH}
                     </span>
                   </div>
@@ -855,7 +869,7 @@ function ProposalEditorView({ id }: { id: string }) {
                     <HeroButton
                       variant="ghost"
                       onPress={cancelRename}
-                      className="h-[34px] min-w-0 rounded-[13px] bg-[#eee] px-[14px] text-[13px] font-medium text-[#18181b]"
+                      className="h-[34px] min-w-0 rounded-[13px] bg-tone-eeeeee px-[14px] text-[13px] font-medium text-zinc-900"
                     >
                       취소
                     </HeroButton>
@@ -907,7 +921,7 @@ function ProposalEditorView({ id }: { id: string }) {
               {!locked && savingVisible ? (
                 <p
                   role="status"
-                  className="flex items-center gap-[6px] text-[12px] leading-[1.4] whitespace-nowrap text-[#727892]"
+                  className="flex items-center gap-[6px] text-[12px] leading-[1.4] whitespace-nowrap text-gray-500"
                 >
                   <Spinner
                     size="sm"
@@ -917,7 +931,7 @@ function ProposalEditorView({ id }: { id: string }) {
                   저장 중...
                 </p>
               ) : (
-                <p className="text-[12px] leading-[1.4] whitespace-nowrap text-[#727892]">
+                <p className="text-[12px] leading-[1.4] whitespace-nowrap text-gray-500">
                   {/* 제출 완료(시안)는 제출일 — 제출 뒤엔 편집이 막혀 최종 수정 시각이 곧 제출 시각이다. */}
                   {submitted ? "제출일시" : "최종 수정일시"}:{" "}
                   {formatDateTime(proposal?.updated_at, { withSeconds: true })}
@@ -948,7 +962,7 @@ function ProposalEditorView({ id }: { id: string }) {
             variant="ghost"
             onPress={handleCancelSubmit}
             isPending={cancelSubmitMutation.isPending}
-            className="h-[45px] min-w-[171px] shrink-0 gap-[10px] rounded-[15px] bg-[#dde0ea] px-[20px] text-[14px] font-bold text-[#555b73] data-[hovered=true]:bg-[#c3c7d6]"
+            className="h-[45px] min-w-[171px] shrink-0 gap-[10px] rounded-[15px] bg-gray-200 px-[20px] text-[14px] font-bold text-gray-600 data-[hovered=true]:bg-gray-300"
           >
             <Image
               src="/icons/proposal-detail/cancel-submit.svg"
@@ -980,13 +994,13 @@ function ProposalEditorView({ id }: { id: string }) {
 
       {/* 본문 카드 — 도구 줄 + 슬라이드 목록 + 미리보기. 화면 아래까지 채우되, 최소 높이를 두지 않아
           iPad Safari처럼 보이는 높이가 낮아도 페이지 전체엔 스크롤이 생기지 않는다(목록·미리보기만 안에서 스크롤). */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#dde0ea] bg-[#f5f6fb] shadow-[0px_2px_10px_0px_rgba(0,0,0,0.05)]">
-        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#dde0ea] pr-[10px] pl-[20px]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-gray-200 bg-gray-50 shadow-[0px_2px_10px_0px_rgba(0,0,0,0.05)]">
+        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 pr-[10px] pl-[20px]">
           <p className="flex items-center gap-[10px] text-[12px] whitespace-nowrap">
             <span className="font-semibold text-black">
               슬라이드 {slides.length}
             </span>
-            <span className="text-[#727892]">
+            <span className="text-gray-500">
               선택된 매체 {orderedItems.length}개
             </span>
           </p>
@@ -999,7 +1013,7 @@ function ProposalEditorView({ id }: { id: string }) {
               variant="ghost"
               onPress={() => void handleDownload()}
               isPending={downloading}
-              className="h-[35px] gap-[5px] rounded-[15px] border border-[#ececef] bg-white px-[10px] text-[12px] font-medium text-black data-[hovered=true]:bg-[#fafafa]"
+              className="h-[35px] gap-[5px] rounded-[15px] border border-tone-ececef bg-surface px-[10px] text-[12px] font-medium text-black data-[hovered=true]:bg-zinc-50"
             >
               {/* HeroUI isPending은 누름만 막고 스피너는 그리지 않아, 받는 동안 아이콘 자리에 직접 돌린다. */}
               {downloading ? (
@@ -1023,7 +1037,7 @@ function ProposalEditorView({ id }: { id: string }) {
               <HeroButton
                 variant="ghost"
                 onPress={() => void handleDelete()}
-                className="h-[35px] gap-[5px] rounded-[15px] border border-[#ececef] bg-white px-[10px] text-[12px] text-[#dc2626] data-[hovered=true]:bg-[#fef2f2]"
+                className="h-[35px] gap-[5px] rounded-[15px] border border-tone-ececef bg-surface px-[10px] text-[12px] text-[#dc2626] data-[hovered=true]:bg-tone-fef2f2"
               >
                 <TrashOutlineIcon className="size-[18px]" />
                 삭제
@@ -1050,7 +1064,7 @@ function ProposalEditorView({ id }: { id: string }) {
               서머리는 날짜·수량, 매체 슬라이드는 상품(플랜)을 바로 고칠 수 있다(제출·계약 뒤엔 보기만). */}
           <section
             data-tour="detail-preview"
-            className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-[#eceef5] p-[40px]"
+            className="flex min-w-0 flex-1 [align-items:safe_center] [justify-content:safe_center] overflow-auto bg-gray-100 p-[40px]"
           >
             <div className="flex min-w-0 flex-1 items-center justify-center self-stretch [container-type:size]">
               <div className="w-[min(100cqw,calc(100cqh*16/9))]">
@@ -1115,8 +1129,8 @@ function ProposalEditorView({ id }: { id: string }) {
       )}
       {confirmDialog}
 
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
-        <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-scrim/70 px-[16px] sm:hidden">
+        <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-surface">
           <div className="flex flex-col items-center gap-[16px] px-[24px] py-[16px]">
             <CircleAlertIcon className="size-[32px] text-disabled" />
             <p className="text-center text-base font-semibold leading-[24px] text-black">

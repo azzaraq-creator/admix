@@ -24,7 +24,7 @@ import { PriceRangeFilter } from "./PriceRangeFilter";
 
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white p-[3px] text-[9px] font-semibold leading-[12px] text-primary">
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-surface p-[3px] text-[9px] font-semibold leading-[12px] text-primary">
       {count}
     </span>
   );
@@ -188,7 +188,7 @@ export function MediaSearchFilter({
   }
 
   return (
-    <div className="flex flex-col gap-[16px] border-b border-stroke bg-white pt-[12px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.16)]">
+    <div className="flex flex-col gap-[16px] border-b border-stroke bg-surface pt-[12px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.16)]">
       <div className="flex flex-col gap-[6px] px-[16px] py-[2px]">
         {[0, 2, 4].map((start) => (
           <div key={start} className="flex gap-[6px]">
@@ -265,7 +265,7 @@ export function MediaSearchFilter({
         <button
           type="button"
           onClick={reset}
-          className="flex items-center gap-[4px] rounded-[8px] border border-primary bg-white px-[12px] py-[8px] text-sm font-medium text-primary"
+          className="flex items-center gap-[4px] rounded-[8px] border border-primary bg-surface px-[12px] py-[8px] text-sm font-medium text-primary"
         >
           <RotateCwIcon className="size-[18px] text-primary" />
           초기화

@@ -135,7 +135,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // 회색 입력칸과 구분되게 흰 바탕 + 테두리(outline)로 둔다.
 const SMALL_BUTTON =
-  "h-[32px] min-w-0 shrink-0 rounded-[13px] border border-gray-200 bg-white px-[12px] text-[13px] font-medium text-gray-700 data-[hovered=true]:bg-gray-50 max-sm:text-[12px]";
+  "h-[32px] min-w-0 shrink-0 rounded-[13px] border border-gray-200 bg-surface px-[12px] text-[13px] font-medium text-gray-700 data-[hovered=true]:bg-gray-50 max-sm:text-[12px]";
 // 파일 선택은 "수정"(흰 바탕 테두리)과 구분되게 테두리 없는 회색 바탕으로 둔다.
 const UPLOAD_BUTTON =
   "h-[32px] min-w-0 shrink-0 rounded-[13px] bg-gray-200 px-[14px] text-[13px] font-medium text-gray-800 data-[hovered=true]:bg-gray-300 max-sm:h-[30px] max-sm:rounded-[12px] max-sm:text-[12px]";
@@ -153,7 +153,7 @@ const FOOTER_BUTTON =
 const FIELD_INPUT =
   "h-[40px] w-full rounded-[17px] border px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! placeholder:text-gray-400 max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px]";
 const FIELD_READONLY = "cursor-default border-transparent bg-gray-100";
-const FIELD_EDITING = "border-primary-300 bg-white focus:border-focus";
+const FIELD_EDITING = "border-primary-300 bg-surface focus:border-focus";
 
 /** 작은 배지 — HeroUI Chip(soft). */
 function Badge({
@@ -245,7 +245,7 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-white px-[16px] pt-[16px] pb-[4px] shadow-none sm:px-[28px] sm:pt-[24px] sm:pb-[8px]">
+    <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-surface px-[16px] pt-[16px] pb-[4px] shadow-none sm:px-[28px] sm:pt-[24px] sm:pb-[8px]">
       <h2 className="pb-[10px] text-[15px] leading-[20px] font-bold text-gray-900 sm:pb-[12px] sm:text-[17px] sm:leading-[24px]">
         {title}
       </h2>
@@ -533,7 +533,7 @@ export function ProfileView() {
             className={cn(
               FIELD_INPUT,
               editing ? FIELD_EDITING : FIELD_READONLY,
-              invalid && "border-danger bg-white",
+              invalid && "border-danger bg-surface",
             )}
           />
           {invalid && (
@@ -589,7 +589,7 @@ export function ProfileView() {
         </header>
 
         {/* 계정 정보 — 가입 때 정해진 값(읽기 전용)을 프로필 카드로 보여 준다. */}
-        <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-white p-[16px] shadow-none sm:p-[28px]">
+        <Card className="w-full gap-0 rounded-[20px] border border-gray-200 bg-surface p-[16px] shadow-none sm:p-[28px]">
           <div className="flex items-center gap-[12px] sm:gap-[20px]">
             <ProfileBadgeIcon
               aria-hidden
@@ -746,7 +746,7 @@ export function ProfileView() {
                       : "border-gray-200 bg-gray-50",
                   )}
                 >
-                  <span className="flex size-[36px] items-center justify-center rounded-full bg-white sm:size-[44px]">
+                  <span className="flex size-[36px] items-center justify-center rounded-full bg-surface sm:size-[44px]">
                     <Image
                       src="/icons/upload.svg"
                       alt=""
@@ -830,8 +830,8 @@ export function ProfileView() {
                 className="group gap-[12px]"
               >
                 <Switch.Content className="items-center gap-[12px]">
-                  <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
-                    <Switch.Thumb className="bg-white!" />
+                  <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
+                    <Switch.Thumb className="bg-surface!" />
                   </Switch.Control>
                   <span className="flex flex-col gap-[2px] text-left">
                     <span className="text-[13px] font-medium text-gray-900 sm:text-[14px]">
@@ -939,7 +939,7 @@ function FileRow({
   );
   return (
     // 모바일은 폭이 좁아 첫 줄엔 아이콘·파일 이름만 두고, 용량·상태·삭제는 둘째 줄로 내린다.
-    <div className="flex w-full items-center gap-[10px] rounded-[18px] border border-gray-200 bg-white py-[10px] pr-[10px] pl-[12px] max-sm:flex-wrap max-sm:gap-y-[4px]">
+    <div className="flex w-full items-center gap-[10px] rounded-[18px] border border-gray-200 bg-surface py-[10px] pr-[10px] pl-[12px] max-sm:flex-wrap max-sm:gap-y-[4px]">
       <div className="flex min-w-0 items-center gap-[10px] max-sm:basis-full">
         <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[13px] bg-gray-100 text-gray-500">
           <FileTypeIcon ext={fileExt(name)} className="size-[26px]" />
@@ -973,7 +973,7 @@ function FileRow({
             aria-label={removeLabel}
             onPress={onRemove}
             isDisabled={removeDisabled}
-            className="size-[32px] min-w-0 shrink-0 rounded-[13px] p-0 data-[hovered=true]:bg-[#fef2f2]"
+            className="size-[32px] min-w-0 shrink-0 rounded-[13px] p-0 data-[hovered=true]:bg-tone-fef2f2"
           >
             <Image src="/icons/trash.svg" alt="" width={18} height={18} />
           </Button>

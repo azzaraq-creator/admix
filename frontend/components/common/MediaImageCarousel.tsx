@@ -138,7 +138,7 @@ export function MediaImageCarousel({
               variant="ghost"
               onPress={() => setImageIndex(index)}
               className={cn(
-                "size-[5px] rounded-full bg-white p-0",
+                "size-[5px] rounded-full bg-surface p-0",
                 index === imageIndex ? "opacity-100" : "opacity-70",
               )}
             >

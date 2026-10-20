@@ -12,7 +12,7 @@ const MAX_NAME_LENGTH = 50;
 // 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다.
 const FIELD_CLASS =
   "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 버튼 40px → 곡률 17px. 오른쪽 아래에 내용 폭만큼 나란히 둔다.
 const ACTION_CLASS =
@@ -73,7 +73,7 @@ export function NewProposalModal({
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
             aria-label="새 기획안 만들기"
-            className="w-full max-w-[420px] gap-0 rounded-[24px] bg-white px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
+            className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
           >
             {/* 닫기 32px → 곡률 13px. */}
             <Modal.CloseTrigger

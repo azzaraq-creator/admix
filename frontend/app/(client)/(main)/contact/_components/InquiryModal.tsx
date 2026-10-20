@@ -32,7 +32,7 @@ const CONTENT_PLACEHOLDER =
 // 굵어지거나 스크롤 영역 가장자리에서 잘리지 않게 한다). 40px → 곡률 17px.
 const FIELD_CLASS =
   "w-full border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! max-sm:px-[14px] max-sm:text-[13px] " +
-  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 const INPUT_CLASS = cn(FIELD_CLASS, "h-[40px] rounded-[17px]");
 // 내용 칸은 여러 줄이라 곡률은 카드 칸(12px)과 같게.
 const TEXTAREA_CLASS = cn(
@@ -52,8 +52,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function SectionTitle({ title, note }: { title: string; note?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-[8px]">
-      <h3 className="text-[14px] font-semibold text-[#18181b]">{title}</h3>
-      {note && <p className="text-[12px] text-[#a1a1aa]">{note}</p>}
+      <h3 className="text-[14px] font-semibold text-zinc-900">{title}</h3>
+      {note && <p className="text-[12px] text-zinc-400">{note}</p>}
     </div>
   );
 }
@@ -175,7 +175,7 @@ function InquiryForm({
     <>
       <Modal.CloseTrigger
         aria-label="닫기"
-        className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]"
+        className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
       >
         <CloseMediumIcon className="size-[24px]" />
       </Modal.CloseTrigger>
@@ -184,7 +184,7 @@ function InquiryForm({
         <Modal.Heading className="text-[16px] font-semibold text-black">
           문의하기
         </Modal.Heading>
-        <p className="text-[12px] leading-[1.5] break-keep text-[#888] max-sm:hidden">
+        <p className="text-[12px] leading-[1.5] break-keep text-tone-888888 max-sm:hidden">
           광고 집행·매체 관련 궁금한 점을 남겨 주시면 확인 후 연락드릴게요
         </p>
       </Modal.Header>
@@ -237,7 +237,7 @@ function InquiryForm({
         </section>
 
         {/* 두 섹션 사이 구분선. */}
-        <Separator className="bg-[#ececef]" />
+        <Separator className="bg-tone-ececef" />
 
         {/* 문의 내용 — 제목·내용은 창 전체 폭으로. */}
         <section className="flex flex-col gap-[10px]">
@@ -273,7 +273,7 @@ function InquiryForm({
 
       <Modal.Footer className="mt-[20px] flex shrink-0 items-center gap-[8px] p-0">
         {/* 안내(i) 아이콘은 public/icons/info.svg와 같은 도형 — 글자색(currentColor)을 따른다. */}
-        <p className="mr-auto flex items-center gap-[4px] text-[12px] text-[#a1a1aa] max-sm:hidden">
+        <p className="mr-auto flex items-center gap-[4px] text-[12px] text-zinc-400 max-sm:hidden">
           <InfoIcon className="size-[13px] shrink-0" />
           영업일 기준 1~2일 내 답변드려요
         </p>
@@ -282,7 +282,7 @@ function InquiryForm({
           onPress={onClose}
           className={cn(
             ACTION_CLASS,
-            "w-[96px] bg-[#eee] text-[#18181b] max-sm:flex-1",
+            "w-[96px] bg-tone-eeeeee text-zinc-900 max-sm:flex-1",
           )}
         >
           취소
@@ -328,7 +328,7 @@ export function InquiryModal({
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
             aria-label="문의하기"
-            className="w-full max-w-[640px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+            className="w-full max-w-[640px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
           >
             {/* me 도착 시 key 변경으로 remount → 프리필 초기값 재계산 */}
             <InquiryForm key={me?.id ?? "anon"} me={me} onClose={onClose} />

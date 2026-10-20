@@ -37,10 +37,10 @@ const won = (value: number | null | undefined) =>
 
 /** 시안(03. 제안서)의 상태 배지 — 점 + 글자, 높이 22px → 곡률 8px. */
 const STATUS_STYLE: Record<Status, { chip: string; dot: string }> = {
-  "작성 중": { chip: "bg-[#f1f1f3] text-[#71717a]", dot: "bg-[#a1a1aa]" },
-  "제출 완료": { chip: "bg-[#dbeafe] text-[#2563c3]", dot: "bg-[#2563c3]" },
-  "맞춤 제안": { chip: "bg-[#fef3c7] text-[#a17600]", dot: "bg-[#a17600]" },
-  "계약 완료": { chip: "bg-[#d1fae5] text-[#069464]", dot: "bg-[#069464]" },
+  "작성 중": { chip: "bg-tone-f1f1f3 text-zinc-500", dot: "bg-zinc-400" },
+  "제출 완료": { chip: "bg-tone-dbeafe text-[#2563c3]", dot: "bg-[#2563c3]" },
+  "맞춤 제안": { chip: "bg-warning-bg text-[#a17600]", dot: "bg-[#a17600]" },
+  "계약 완료": { chip: "bg-tone-d1fae5 text-[#069464]", dot: "bg-[#069464]" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {
@@ -64,14 +64,14 @@ export function StatusBadge({ status }: { status: Status }) {
 /** 표지 — 샘플 이미지 위에 어두운 막 + "ADMIX 기획안 / 연도". */
 function Cover({ year }: { year: string }) {
   return (
-    <div className="relative h-[50px] w-[70px] overflow-hidden rounded-[8px] bg-black">
+    <div className="relative h-[50px] w-[70px] overflow-hidden rounded-[8px] bg-scrim">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/proposals/sample.png"
         alt=""
         className="size-full object-cover"
       />
-      <div className="absolute inset-0 flex flex-col justify-between bg-black/50 p-[4px_6px] text-[10px] leading-none font-semibold text-white">
+      <div className="absolute inset-0 flex flex-col justify-between bg-scrim/50 p-[4px_6px] text-[10px] leading-none font-semibold text-white">
         <span>
           ADMIX
           <br />
@@ -89,9 +89,9 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
   // 그 안에서 스크롤된다. 없으면 목록이 360px을 고집해 Popover 밖으로 넘친다.
   return (
     <div className="flex min-h-0 w-full flex-col gap-[12px]">
-      <p className="text-[14px] font-bold text-[#161A2E]">기획안 요약</p>
+      <p className="text-[14px] font-bold text-gray-900">기획안 요약</p>
       {proposal.previews.length === 0 ? (
-        <p className="text-[12px] text-[#727892]">아직 담긴 매체가 없어요.</p>
+        <p className="text-[12px] text-gray-500">아직 담긴 매체가 없어요.</p>
       ) : (
         // 아이패드 사파리는 흐림(mask)이 걸린 목록을 손가락으로 스크롤하는 동안 목록을 따로 그리면서
         // 바깥을 잘라 내지 못해, 카드가 Popover 밖으로 넘쳐 보였다. 감싸는 칸에서 clip-path로 확실히 자른다.
@@ -101,7 +101,7 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
               {proposal.previews.map((item) => (
                 <li
                   key={item.media_id}
-                  className="flex h-[64px] shrink-0 items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[8px] py-[6px]"
+                  className="flex h-[64px] shrink-0 items-center gap-[10px] rounded-[12px] border border-tone-ececef bg-surface px-[8px] py-[6px]"
                 >
                   <MediaThumbnail
                     src={item.thumbnail_url ?? undefined}
@@ -110,27 +110,27 @@ function SummaryTooltipBody({ proposal }: { proposal: Proposal }) {
                     fallback={<Logo className="size-[16px] opacity-30" />}
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-                    <p className="truncate text-[14px] font-semibold text-[#161A2E]">
+                    <p className="truncate text-[14px] font-semibold text-gray-900">
                       {item.name}
                     </p>
-                    <p className="truncate text-[12px] text-[#727892]">
+                    <p className="truncate text-[12px] text-gray-500">
                       {item.address ?? "-"}
                     </p>
                   </div>
                   {/* 금액 칸 — 광고비 14px·제작비 12px(이름표 11px). 억 단위 금액도 들어가게 160px. */}
-                  <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-[#dde0ea] bg-[#f5f6fb] px-[8px] py-[5px] whitespace-nowrap">
+                  <div className="flex w-[160px] shrink-0 flex-col gap-[2px] rounded-[8px] border border-gray-200 bg-gray-50 px-[8px] py-[5px] whitespace-nowrap">
                     <div className="flex items-center justify-between gap-[8px]">
-                      <span className="text-[11px] text-[#727892]">광고비</span>
-                      <span className="text-[14px] leading-[20px] font-bold text-[#161A2E]">
+                      <span className="text-[11px] text-gray-500">광고비</span>
+                      <span className="text-[14px] leading-[20px] font-bold text-gray-900">
                         {formatAdFee(item.advertisement_fee)}
                       </span>
                     </div>
                     {item.production_fee != null && (
                       <div className="flex items-center justify-between gap-[8px]">
-                        <span className="text-[11px] text-[#727892]">
+                        <span className="text-[11px] text-gray-500">
                           제작비
                         </span>
-                        <span className="text-[12px] leading-[16px] font-bold text-[#161A2E]">
+                        <span className="text-[12px] leading-[16px] font-bold text-gray-900">
                           {won(item.production_fee)}
                         </span>
                       </div>
@@ -169,7 +169,7 @@ function SummaryPopover({
       <Popover.Content
         placement="bottom start"
         offset={10}
-        className="flex w-[480px] max-w-[calc(100vw-24px)] flex-col rounded-[12px] border border-[#ececef] bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
+        className="flex w-[480px] max-w-[calc(100vw-24px)] flex-col rounded-[12px] border border-tone-ececef bg-surface shadow-[0px_4px_4px_rgba(0,0,0,0.1)]"
       >
         <Popover.Arrow />
         <Popover.Dialog
@@ -212,7 +212,7 @@ function MobileSummaryDrawer({
             aria-label={`${proposal.title} 요약`}
             // 최대 높이 — HeroUI 기본 85vh는 모바일 브라우저(웨일·사파리 등)에서 주소창·아래 바를 뺀
             // 실제 보이는 높이보다 커서 시트 위가 화면 밖으로 잘린다. 보이는 높이(dvh)의 85%로 줄인다.
-            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-surface px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
           >
             {({ close }) => (
               <>
@@ -221,7 +221,7 @@ function MobileSummaryDrawer({
                   <Drawer.Heading className="text-[17px] leading-[1.4] font-bold break-keep text-black">
                     {proposal.title}
                   </Drawer.Heading>
-                  <p className="text-[12px] text-[#8c8c94]">
+                  <p className="text-[12px] text-tone-8c8c94">
                     매체 {proposal.mediaCount}개 · 최근 수정{" "}
                     {proposal.updatedAt}
                   </p>
@@ -237,7 +237,7 @@ function MobileSummaryDrawer({
                   <Button
                     variant="ghost"
                     onPress={close}
-                    className="h-[44px] w-full rounded-[19px] bg-[#eee] text-[14px] font-semibold text-[#18181b]"
+                    className="h-[44px] w-full rounded-[19px] bg-tone-eeeeee text-[14px] font-semibold text-zinc-900"
                   >
                     닫기
                   </Button>
@@ -256,7 +256,7 @@ function MobileSummaryList({ proposal }: { proposal: Proposal }) {
   return (
     <>
       {proposal.previews.length === 0 ? (
-        <p className="rounded-[12px] bg-[#f7f7f8] py-[28px] text-center text-[13px] text-[#8c8c94]">
+        <p className="rounded-[12px] bg-tone-f7f7f8 py-[28px] text-center text-[13px] text-tone-8c8c94">
           아직 담긴 매체가 없어요.
         </p>
       ) : (
@@ -269,7 +269,7 @@ function MobileSummaryList({ proposal }: { proposal: Proposal }) {
             {proposal.previews.map((item) => (
               <li
                 key={item.media_id}
-                className="flex items-center gap-[12px] rounded-[16px] border border-[#ececef] bg-white p-[10px]"
+                className="flex items-center gap-[12px] rounded-[16px] border border-tone-ececef bg-surface p-[10px]"
               >
                 <MediaThumbnail
                   src={item.thumbnail_url ?? undefined}
@@ -278,23 +278,23 @@ function MobileSummaryList({ proposal }: { proposal: Proposal }) {
                   fallback={<Logo className="size-[18px] opacity-30" />}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                  <p className="truncate text-[14px] font-semibold text-[#18181b]">
+                  <p className="truncate text-[14px] font-semibold text-zinc-900">
                     {item.name}
                   </p>
-                  <p className="truncate text-[12px] text-[#8c8c94]">
+                  <p className="truncate text-[12px] text-tone-8c8c94">
                     {item.address ?? "-"}
                   </p>
-                  <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-[#71717a]">
+                  <p className="mt-[2px] flex gap-[10px] text-[12px] whitespace-nowrap text-zinc-500">
                     <span>
                       광고비{" "}
-                      <span className="font-semibold text-[#18181b]">
+                      <span className="font-semibold text-zinc-900">
                         {formatAdFee(item.advertisement_fee)}
                       </span>
                     </span>
                     {item.production_fee != null && (
                       <span>
                         제작비{" "}
-                        <span className="font-semibold text-[#18181b]">
+                        <span className="font-semibold text-zinc-900">
                           {won(item.production_fee)}
                         </span>
                       </span>
@@ -314,24 +314,24 @@ function MobileSummaryList({ proposal }: { proposal: Proposal }) {
 function MobileSummaryTotals({ proposal }: { proposal: Proposal }) {
   // 합계 — 관심 매체 시트와 같은 회색 상자.
   return (
-    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
+    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[14px]">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-[#71717a]">
+        <span className="text-[13px] font-medium text-zinc-500">
           광고비 합계
         </span>
-        <span className="text-[16px] font-bold text-[#18181b]">
+        <span className="text-[16px] font-bold text-zinc-900">
           {formatTotalWithInquiry(
             proposal.advertisementAmount,
             hasAdInquiry(proposal.previews),
           )}
         </span>
       </div>
-      <div className="h-px bg-[#ececef]" />
+      <div className="h-px bg-tone-ececef" />
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-[#71717a]">
+        <span className="text-[13px] font-medium text-zinc-500">
           제작비 합계
         </span>
-        <span className="text-[16px] font-bold text-[#18181b]">
+        <span className="text-[16px] font-bold text-zinc-900">
           {won(proposal.productionAmount)}
         </span>
       </div>
@@ -356,7 +356,7 @@ export function MobileSummarySheetPreview({
       aria-hidden
       data-tour="proposal-summary"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[60] flex max-h-[62dvh] flex-col rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        "fixed inset-x-0 bottom-0 z-[60] flex max-h-[62dvh] flex-col rounded-t-[24px] bg-surface px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
         !visible && "opacity-0",
       )}
     >
@@ -365,7 +365,7 @@ export function MobileSummarySheetPreview({
         <p className="text-[17px] leading-[1.4] font-bold break-keep text-black">
           {proposal.title}
         </p>
-        <p className="text-[12px] text-[#8c8c94]">
+        <p className="text-[12px] text-tone-8c8c94">
           매체 {proposal.mediaCount}개 · 최근 수정 {proposal.updatedAt}
         </p>
       </div>
@@ -422,7 +422,7 @@ function TitleTooltip({
         showArrow
         placement="bottom start"
         className={cn(
-          "w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#ececef] bg-white p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]",
+          "w-[480px] max-w-[calc(100vw-24px)] rounded-[12px] border border-tone-ececef bg-surface p-[16px] break-normal text-black shadow-[0px_4px_4px_rgba(0,0,0,0.1)]",
           // 가이드가 연 요약은 기본 등장 효과(커지며 나타남)를 끄고 밝힌 자리와 함께 서서히 드러낸다
           // — 효과가 끝날 때까지 자리를 못 잡아 가이드가 늦게 움직였다.
           forceOpen &&
@@ -451,7 +451,7 @@ function SortableHeader({
       {sortDirection && (
         <ArrowDownIcon
           className={cn(
-            "size-[16px] shrink-0 text-[#8c8c94] transition-transform",
+            "size-[16px] shrink-0 text-tone-8c8c94 transition-transform",
             sortDirection === "ascending" && "rotate-180",
           )}
         />
@@ -705,7 +705,7 @@ export function ProposalTable({
                   <Table.Cell>
                     <div className="flex w-full flex-col gap-[4px]">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12px] text-[#8c8c94]">
+                        <span className="text-[12px] text-tone-8c8c94">
                           광고비
                         </span>
                         <span className="text-[14px] font-semibold text-black">
@@ -716,7 +716,7 @@ export function ProposalTable({
                         </span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12px] text-[#8c8c94]">
+                        <span className="text-[12px] text-tone-8c8c94">
                           제작비
                         </span>
                         <span className="text-[12px] text-black">
@@ -727,12 +727,12 @@ export function ProposalTable({
                   </Table.Cell>
                   {/* 시안: 날짜는 12px 회색으로 작게. 칸(td) 스타일은 HeroUI 그대로 두고 글자만 조정한다. */}
                   <Table.Cell>
-                    <span className="text-[12px] whitespace-nowrap text-[#888]">
+                    <span className="text-[12px] whitespace-nowrap text-tone-888888">
                       {proposal.updatedAt}
                     </span>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-[12px] whitespace-nowrap text-[#888]">
+                    <span className="text-[12px] whitespace-nowrap text-tone-888888">
                       {proposal.createdAt}
                     </span>
                   </Table.Cell>
@@ -752,7 +752,7 @@ export function ProposalTable({
                           : undefined
                       }
                       aria-label={`${proposal.title} PPT 다운로드`}
-                      className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-[#ececef] bg-white px-0 text-[12px] font-semibold text-black"
+                      className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-tone-ececef bg-surface px-0 text-[12px] font-semibold text-black"
                     >
                       {/* HeroUI isPending은 누름만 막고 스피너는 그리지 않아, 받는 동안 아이콘 자리에 직접 돌린다. */}
                       {downloadingId === proposal.id ? (
@@ -780,7 +780,7 @@ export function ProposalTable({
                           : undefined
                       }
                       aria-label={`${proposal.title} 삭제`}
-                      className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-[#ececef] bg-white p-0 text-[#dc2626]"
+                      className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-tone-ececef bg-surface p-0 text-[#dc2626]"
                     >
                       <TrashOutlineIcon className="size-[18px]" />
                     </Button>
@@ -805,7 +805,7 @@ export function ProposalTable({
         {loading && (
           <div className="flex min-h-0 flex-col items-center justify-center gap-[12px] rounded-[min(32px,var(--radius-2xl))] bg-surface">
             <SpinningSymbol className="size-[40px]" />
-            <p className="text-[13px] text-[#8c8c94]">
+            <p className="text-[13px] text-tone-8c8c94">
               기획안을 불러오는 중이에요
             </p>
           </div>

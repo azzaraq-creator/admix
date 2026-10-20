@@ -20,7 +20,7 @@ export function ProposalChoiceList({
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   return (
-    <div className="flex w-full max-w-[440px] flex-col gap-[4px] rounded-[16px] border border-[#ececef] bg-white p-[6px] shadow-[0px_4px_10px_rgba(0,0,0,0.04)]">
+    <div className="flex w-full max-w-[440px] flex-col gap-[4px] rounded-[16px] border border-tone-ececef bg-surface p-[6px] shadow-[0px_4px_10px_rgba(0,0,0,0.04)]">
       {proposals.map((p) => {
         const pending = pendingId === p.id;
         return (
@@ -39,27 +39,27 @@ export function ProposalChoiceList({
             // 줄 높이 52px 안팎 → 곡률 12px.
             className={cn(
               "flex w-full items-center gap-[12px] rounded-[12px] px-[10px] py-[9px] text-left transition-colors",
-              "hover:bg-[#f7f7f8] disabled:cursor-default",
+              "hover:bg-tone-f7f7f8 disabled:cursor-default",
               pending && "bg-primary-50",
               pendingId != null && !pending && "opacity-50",
             )}
           >
             {/* 아이콘 칸 34px → 곡률 13px — 현재 기획안 패널의 기획안 선택 칸과 같은 모양. */}
-            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[13px] border border-[#ececef] bg-white text-gray-700">
+            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[13px] border border-tone-ececef bg-surface text-gray-700">
               <CollectionIcon className="size-[17px]" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-[1px]">
-              <span className="truncate text-[14px] font-semibold text-[#18181b]">
+              <span className="truncate text-[14px] font-semibold text-zinc-900">
                 {p.name}
               </span>
-              <span className="text-[12px] text-[#71717a]">
+              <span className="text-[12px] text-zinc-500">
                 매체 {p.media_count}개
               </span>
             </span>
             {pending ? (
               <Spinner size="sm" className="shrink-0" />
             ) : (
-              <ChevronRightIcon className="size-[16px] shrink-0 text-[#a1a1aa]" />
+              <ChevronRightIcon className="size-[16px] shrink-0 text-zinc-400" />
             )}
           </button>
         );

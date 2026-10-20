@@ -11,7 +11,7 @@ import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
 const CARD_CLASS =
-  "rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
+  "rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
 
 function InfoRow({
   label,
@@ -24,7 +24,7 @@ function InfoRow({
 }) {
   return (
     <div className={`flex gap-[16px] ${full ? "col-span-2" : ""}`}>
-      <span className="w-[120px] shrink-0 pt-[2px] text-base font-semibold leading-[24px] text-[#6d6d6d]">
+      <span className="w-[120px] shrink-0 pt-[2px] text-base font-semibold leading-[24px] text-tone-6d6d6d">
         {label}
       </span>
       <div className="min-w-0 flex-1 text-sm font-medium leading-[22px] text-black">
@@ -92,7 +92,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
   return (
     <div className="flex flex-col gap-[32px]">
       <div className={`flex flex-col gap-[24px] ${CARD_CLASS}`}>
-        <h1 className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
+        <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
           문의 상세
         </h1>
         <div className="grid grid-cols-2 gap-x-[48px] gap-y-[20px]">
@@ -114,7 +114,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
       </div>
 
       <div className={`flex flex-col gap-[24px] ${CARD_CLASS}`}>
-        <h2 className="text-xl font-semibold leading-[28px] text-[#2a2a2a]">
+        <h2 className="text-xl font-semibold leading-[28px] text-tone-2a2a2a">
           답변 정보
         </h2>
         <div className="grid grid-cols-2 gap-x-[48px]">
@@ -128,8 +128,8 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
           onChange={(e) => setAnswer(e.target.value)}
           readOnly={answered}
           placeholder="답변 내용을 입력해 주세요."
-          className={`h-[160px] w-full resize-none rounded-[8px] border border-[#f2f2f2] p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-[#8f8f8f] ${
-            answered ? "cursor-default bg-gray-50" : "bg-[#f0f0f3]"
+          className={`h-[160px] w-full resize-none rounded-[8px] border border-tone-f2f2f2 p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-tone-8f8f8f ${
+            answered ? "cursor-default bg-gray-50" : "bg-tone-f0f0f3"
           }`}
         />
         <div className="flex items-center justify-between">

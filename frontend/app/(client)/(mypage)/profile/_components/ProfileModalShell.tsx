@@ -18,7 +18,7 @@ import { XIcon } from "@/components/icons";
  */
 export const MODAL_INPUT_CLASS =
   "h-[40px] w-full rounded-[17px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px] " +
-  "placeholder:text-gray-400 data-[hovered=true]:bg-white data-[focused=true]:bg-white focus:not-read-only:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none " +
+  "placeholder:text-gray-400 data-[hovered=true]:bg-surface data-[focused=true]:bg-surface focus:not-read-only:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none " +
   "data-[disabled=true]:bg-gray-50 data-[disabled=true]:opacity-100 data-[disabled=true]:text-gray-400";
 
 /** 창 안 라벨(HeroUI Label). */
@@ -58,7 +58,7 @@ export function ProfileModalShell({
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
             aria-label={title}
-            className="w-full max-w-[440px] gap-0 rounded-[24px] bg-white px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] max-sm:px-[16px] max-sm:pt-[20px] max-sm:pb-[16px] sm:px-[32px]"
+            className="w-full max-w-[440px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] max-sm:px-[16px] max-sm:pt-[20px] max-sm:pb-[16px] sm:px-[32px]"
           >
             {/* 제목 줄(위 28px + 줄높이 26px)의 가운데(41px)에 X(32px)의 가운데를 맞춘다 → top 25px.
                 모바일은 위 20px + 줄높이 22px → 가운데 31px, X 28px → top 17px. */}

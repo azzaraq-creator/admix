@@ -102,7 +102,7 @@ export function MediaOptionsPriceBox({
   const totals = mediaOptionTotals(vm, value);
 
   return (
-    <div className="flex w-full flex-col gap-[8px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] px-[12px] py-[10px]">
+    <div className="flex w-full flex-col gap-[8px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 px-[12px] py-[10px]">
       {totals.plan && (
         <>
           <div className={ROW}>
@@ -116,11 +116,11 @@ export function MediaOptionsPriceBox({
               className="min-w-0 flex-1"
             >
               {/* 칸 28px → 곡률 11px. 조절기와 같은 높이·테두리. */}
-              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-[#ececef] bg-white py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-white">
-                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-[#18181b]">
+              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-tone-ececef bg-surface py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-surface">
+                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-zinc-900">
                   {() => planSpecText(totals.plan!)}
                 </Select.Value>
-                <Select.Indicator className="end-[9px] size-[13px] text-[#71717a]" />
+                <Select.Indicator className="end-[9px] size-[13px] text-zinc-500" />
               </Select.Trigger>
               <Select.Popover className="min-w-[var(--trigger-width)]">
                 <ListBox>
@@ -131,7 +131,7 @@ export function MediaOptionsPriceBox({
                       textValue={planSpecText(p)}
                     >
                       {/* 영상 길이·일 송출 수 (금액은 고르면 아래 광고비 줄에 보인다). */}
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
                         {planSpecText(p)}
                       </span>
                       <ListBox.ItemIndicator />
@@ -141,7 +141,7 @@ export function MediaOptionsPriceBox({
               </Select.Popover>
             </Select>
           </div>
-          <div className="h-px w-full bg-[#ececef]" />
+          <div className="h-px w-full bg-tone-ececef" />
         </>
       )}
 
@@ -159,7 +159,7 @@ export function MediaOptionsPriceBox({
       {/* 제작비 줄은 OOH이고 제작비가 있을 때만 — DOOH(디지털)·제작비 없음이면 뺀다. */}
       {totals.hasProduction && (
         <>
-          <div className="h-px w-full bg-[#ececef]" />
+          <div className="h-px w-full bg-tone-ececef" />
           <div className={ROW}>
             <span className={ROW_LABEL}>제작비</span>
             <Stepper
@@ -175,9 +175,9 @@ export function MediaOptionsPriceBox({
           </div>
         </>
       )}
-      <div className="h-px w-full bg-[#ececef]" />
+      <div className="h-px w-full bg-tone-ececef" />
       <div className="flex items-center justify-between whitespace-nowrap">
-        <span className="text-[13px] font-bold text-[#18181b]">
+        <span className="text-[13px] font-bold text-zinc-900">
           총 예상 비용
         </span>
         <span className="text-[17px] font-bold text-primary max-sm:text-[16px]">
@@ -190,9 +190,9 @@ export function MediaOptionsPriceBox({
 
 const ROW = "flex min-h-[28px] items-center gap-[10px]";
 const ROW_LABEL =
-  "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-[#a1a1aa]";
+  "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-zinc-400";
 const ROW_AMOUNT =
-  "min-w-0 flex-1 text-right text-[15px] font-bold whitespace-nowrap text-[#18181b] max-sm:text-[14px]";
+  "min-w-0 flex-1 text-right text-[15px] font-bold whitespace-nowrap text-zinc-900 max-sm:text-[14px]";
 
 // 조절기 28px → 곡률 11px, 양옆 −·+ 버튼은 칸 안에 붙인다.
 export function Stepper({
@@ -221,13 +221,13 @@ export function Stepper({
       }
       className="shrink-0"
     >
-      <NumberField.Group className="flex h-[28px] w-[104px] items-center rounded-[11px] border border-[#ececef] bg-white p-[2px] shadow-none">
-        <NumberField.DecrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-[#71717a] data-[disabled=true]:opacity-40 data-[hovered=true]:bg-[#f4f4f5] [&_svg]:size-[11px]" />
+      <NumberField.Group className="flex h-[28px] w-[104px] items-center rounded-[11px] border border-tone-ececef bg-surface p-[2px] shadow-none">
+        <NumberField.DecrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-zinc-100 [&_svg]:size-[11px]" />
         <div className="flex min-w-0 flex-1 items-center justify-center gap-[1px]">
-          <NumberField.Input className="w-[24px] min-w-0 bg-transparent p-0 text-right text-[12px] font-bold text-[#18181b] tabular-nums shadow-none outline-none" />
-          <span className="text-[12px] font-medium text-[#71717a]">{unit}</span>
+          <NumberField.Input className="w-[24px] min-w-0 bg-transparent p-0 text-right text-[12px] font-bold text-zinc-900 tabular-nums shadow-none outline-none" />
+          <span className="text-[12px] font-medium text-zinc-500">{unit}</span>
         </div>
-        <NumberField.IncrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-[#71717a] data-[disabled=true]:opacity-40 data-[hovered=true]:bg-[#f4f4f5] [&_svg]:size-[11px]" />
+        <NumberField.IncrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-zinc-100 [&_svg]:size-[11px]" />
       </NumberField.Group>
     </NumberField>
   );

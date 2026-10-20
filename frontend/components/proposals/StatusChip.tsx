@@ -10,11 +10,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  new: "bg-gray-50 text-[#545454]",
-  custom: "bg-[#fff3d3] text-[#ff920a]",
-  execution_requested: "bg-[#d6f1ff] text-[#0689ff]",
+  new: "bg-gray-50 text-tone-545454",
+  custom: "bg-tone-fff3d3 text-[#ff920a]",
+  execution_requested: "bg-tone-d6f1ff text-[#0689ff]",
   contracted: "bg-secondary text-primary",
-  cancelled: "bg-[#fef2f2] text-[#ef4444]",
+  cancelled: "bg-tone-fef2f2 text-[#ef4444]",
 };
 
 export function StatusChip({

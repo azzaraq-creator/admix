@@ -39,7 +39,7 @@ export function CoverTemplate({
         alt=""
         className="pointer-events-none absolute -right-[140px] top-[110px] size-[860px] select-none opacity-90"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#110c22] via-[#110c22]/70 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-tone-110c22 via-tone-110c22/70 to-transparent" />
 
       <div className="absolute left-[120px] top-[112px] flex items-center gap-[28px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}

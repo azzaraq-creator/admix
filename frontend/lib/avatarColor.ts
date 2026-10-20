@@ -8,5 +8,5 @@ const AVATAR_COLOR: Record<string, string> = {
 };
 
 export function avatarColorClass(snsProvider: string | null | undefined) {
-  return AVATAR_COLOR[snsProvider ?? ""] ?? "text-[#7A3FE0]";
+  return AVATAR_COLOR[snsProvider ?? ""] ?? "text-primary-500";
 }

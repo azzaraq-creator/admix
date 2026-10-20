@@ -40,7 +40,7 @@ const PAGE_SIZE_MOBILE = 5;
 const PAGE_LINK_CLASS =
   "size-[28px] min-w-0 rounded-[11px] border p-0 text-[11px] font-medium";
 const PAGE_NAV_CLASS =
-  "size-[28px] min-w-0 rounded-[11px] border border-[#ececef] bg-white p-0 text-[#71717a] data-[disabled=true]:opacity-40";
+  "size-[28px] min-w-0 rounded-[11px] border border-tone-ececef bg-surface p-0 text-zinc-500 data-[disabled=true]:opacity-40";
 
 export type InquiryStatusFilter = "all" | "pending" | "answered";
 
@@ -101,9 +101,9 @@ export function HistoryPanel({
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-[12px] rounded-[20px] border border-[#ececef] bg-white py-[72px]">
+      <div className="flex flex-1 flex-col items-center justify-center gap-[12px] rounded-[20px] border border-tone-ececef bg-surface py-[72px]">
         <SpinningSymbol className="size-[40px]" />
-        <p className="text-[13px] text-[#8c8c94]">
+        <p className="text-[13px] text-tone-8c8c94">
           문의 내역을 불러오는 중이에요
         </p>
       </div>
@@ -181,21 +181,21 @@ export function HistoryPanel({
                       {item.subject}
                     </span>
                     {isMobile && (
-                      <span className="mt-[2px] block text-[12px] text-[#888]">
+                      <span className="mt-[2px] block text-[12px] text-tone-888888">
                         {formatDateTime(item.createdAt)}
                       </span>
                     )}
                   </Table.Cell>
                   {!isMobile && (
                     <Table.Cell>
-                      <span className="text-[12px] whitespace-nowrap text-[#888]">
+                      <span className="text-[12px] whitespace-nowrap text-tone-888888">
                         {formatDateTime(item.createdAt)}
                       </span>
                     </Table.Cell>
                   )}
                   {!isMobile && (
                     <Table.Cell>
-                      <ChevronRightIcon className="ms-auto size-[16px] text-[#a1a1aa]" />
+                      <ChevronRightIcon className="ms-auto size-[16px] text-zinc-400" />
                     </Table.Cell>
                   )}
                 </Table.Row>
@@ -213,7 +213,7 @@ export function HistoryPanel({
 
       {/* 페이지네이션 — 기획안 목록과 같은 HeroUI Pagination. */}
       <Pagination className="gap-[12px]">
-        <Pagination.Summary className="text-[12px] text-[#8c8c94]">
+        <Pagination.Summary className="text-[12px] text-tone-8c8c94">
           전체 {items.length}건 중 {rangeStart}–{rangeEnd}건
           <span className="max-sm:hidden"> 표시</span>
         </Pagination.Summary>
@@ -235,7 +235,7 @@ export function HistoryPanel({
                 className={
                   n === currentPage
                     ? `${PAGE_LINK_CLASS} border-transparent bg-primary-500 font-semibold text-white`
-                    : `${PAGE_LINK_CLASS} border-[#ececef] bg-white text-[#71717a]`
+                    : `${PAGE_LINK_CLASS} border-tone-ececef bg-surface text-zinc-500`
                 }
               >
                 {n}

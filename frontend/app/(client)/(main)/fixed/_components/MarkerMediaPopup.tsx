@@ -16,7 +16,7 @@ import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
 /** 팝업 바탕색 — MapArea의 꼬리(화살표)도 같은 색으로 칠한다. */
-export const POPUP_BG_CLASS = "bg-[#f1f1f3]";
+export const POPUP_BG_CLASS = "bg-tone-f1f1f3";
 
 // 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
 const formatKrw = formatAdFee;
@@ -29,7 +29,7 @@ function PriceCell({ label, value }: { label: string; value: number | null }) {
         {label}
       </span>
       {/* 모바일은 매체명과 같은 14px. */}
-      <span className="text-[14px] leading-[18px] font-bold text-[#2d264b]">
+      <span className="text-[14px] leading-[18px] font-bold text-tone-2d264b">
         {formatKrw(value)}
       </span>
     </div>
@@ -49,7 +49,7 @@ function InlinePrice({
       <span className="text-[11px] font-medium text-gray-400 max-sm:text-[12px]">
         {label}
       </span>
-      <span className="text-[13px] font-bold text-[#2d264b]">
+      <span className="text-[13px] font-bold text-tone-2d264b">
         {formatKrw(value)}
       </span>
     </span>
@@ -76,7 +76,7 @@ function LikeButton({
         "size-[28px] min-w-0 shrink-0 rounded-[10px] p-0",
         // 꺼짐도 밝은 회색 바탕을 깔아 하트만 떠 보이지 않게 한다.
         liked
-          ? "bg-[#fff1f0] data-[selected=true]:bg-[#fff1f0]"
+          ? "bg-tone-fff1f0 data-[selected=true]:bg-tone-fff1f0"
           : "bg-gray-100 data-[hovered=true]:bg-gray-200",
       )}
     >
@@ -164,7 +164,7 @@ export function MediaPopupCard({
     <Card
       onClick={onSelect}
       className={cn(
-        "cursor-pointer gap-0 rounded-[12px] border bg-white shadow-none transition-colors",
+        "cursor-pointer gap-0 rounded-[12px] border bg-surface shadow-none transition-colors",
         simple ? "px-[10px] py-[8px]" : "p-[10px]",
         selected ? "border-primary" : "border-gray-200 hover:border-gray-300",
         // 2px 보라 테두리를 카드 안쪽에 — 테두리 1px + 안쪽 1px 선(after). 팝업 스크롤 칸에 잘리지 않는다.
@@ -230,16 +230,16 @@ export function MediaPopupCard({
               </div>
               {row.address && (
                 <div className="flex items-start gap-[3px]">
-                  <LocationFilledIcon className="mt-[2px] size-[12px] shrink-0 text-[#6c757d]" />
+                  <LocationFilledIcon className="mt-[2px] size-[12px] shrink-0 text-tone-6c757d" />
                   {/* 긴 주소는 가로로 넘치지 않고 아래로 내려간다 — 남은 폭 안에서 줄어들고(min-w-0),
                       단어 단위 줄바꿈(break-keep)은 지키되 폭보다 긴 단어는 그 안에서도 넘긴다. */}
-                  <span className="min-w-0 flex-1 text-[12px] max-sm:text-[11px] leading-[16px] break-keep wrap-anywhere text-[#6c757d]">
+                  <span className="min-w-0 flex-1 text-[12px] max-sm:text-[11px] leading-[16px] break-keep wrap-anywhere text-tone-6c757d">
                     {row.address}
                   </span>
                 </div>
               )}
               {row.categoryLarge && (
-                <Chip className="min-w-0 self-start gap-0 rounded-[8px] bg-[#ededef] py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-[#71717a]">
+                <Chip className="min-w-0 self-start gap-0 rounded-[8px] bg-tone-ededef py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-zinc-500">
                   {row.categoryLarge}
                   {row.categorySmall && (
                     <>
@@ -273,7 +273,7 @@ export function MediaPopupCard({
               className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-gray-200 px-[10px]"
             >
               <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
-              <span className="text-[12px] max-sm:text-[11px] font-bold text-[#18181b]">
+              <span className="text-[12px] max-sm:text-[11px] font-bold text-zinc-900">
                 기획안 담기
               </span>
             </Button>

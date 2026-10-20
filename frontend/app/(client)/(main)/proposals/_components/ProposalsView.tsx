@@ -321,7 +321,7 @@ export function ProposalsView() {
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
             내 기획안
           </h1>
-          <p className="text-[13px] font-light text-[#727892]">
+          <p className="text-[13px] font-light text-gray-500">
             기획안 {proposals.length}건
             {/* 모바일(sm 미만)에서는 설명 문구를 숨긴다. */}
             <span className="hidden sm:inline">
@@ -385,11 +385,11 @@ export function ProposalsView() {
           }}
           className="w-full sm:w-[350px]"
         >
-          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
-            <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
+          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
+            <SearchOutlineIcon className="size-[18px] shrink-0 text-tone-6c757d" />
             <SearchField.Input
               placeholder="기획안명으로 검색해 보세요"
-              className="px-0 text-[14px] placeholder:text-[#a1a1aa]"
+              className="px-0 text-[14px] placeholder:text-zinc-400"
             />
             {/* HeroUI 기본 me-2를 빼서 좌우 여백을 칸의 px-[12px]로 맞춘다. */}
             <SearchField.ClearButton className="me-0" />
@@ -438,7 +438,7 @@ export function ProposalsView() {
       )}
 
       <Pagination className="gap-[12px]">
-        <Pagination.Summary className="text-[12px] text-[#8c8c94]">
+        <Pagination.Summary className="text-[12px] text-tone-8c8c94">
           전체 {filtered.length}건 중 {rangeStart}–{rangeEnd}건 표시
         </Pagination.Summary>
         <Pagination.Content className="gap-[4px]">
@@ -459,7 +459,7 @@ export function ProposalsView() {
                 className={
                   n === currentPage
                     ? `${PAGE_LINK_CLASS} border-transparent bg-primary-500 font-semibold text-white`
-                    : `${PAGE_LINK_CLASS} border-[#ececef] bg-white text-[#71717a]`
+                    : `${PAGE_LINK_CLASS} border-tone-ececef bg-surface text-zinc-500`
                 }
               >
                 {n}
@@ -504,7 +504,7 @@ function EmptyStateBox({
 }) {
   return (
     // 표 바탕은 HeroUI 기본 그대로 두고, 빈 상태 영역만 흰 바탕으로 띄운다.
-    <EmptyState className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl bg-white p-[24px] text-center">
+    <EmptyState className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl bg-surface p-[24px] text-center">
       {icon && (
         // 아이콘 칸 56px → 곡률 25px.
         <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-primary-50 text-primary-500">
@@ -515,7 +515,7 @@ function EmptyStateBox({
         <p className="text-[16px] font-semibold text-gray-900">{title}</p>
       )}
       {description && (
-        <p className="text-[13px] leading-[1.6] text-[#8c8c94]">
+        <p className="text-[13px] leading-[1.6] text-tone-8c8c94">
           {description}
         </p>
       )}
@@ -528,4 +528,4 @@ function EmptyStateBox({
 const PAGE_LINK_CLASS =
   "size-[28px] min-w-0 rounded-[11px] border p-0 text-[11px] font-medium";
 const PAGE_NAV_CLASS =
-  "size-[28px] min-w-0 rounded-[11px] border border-[#ececef] bg-white p-0 text-[#71717a] data-[disabled=true]:opacity-40";
+  "size-[28px] min-w-0 rounded-[11px] border border-tone-ececef bg-surface p-0 text-zinc-500 data-[disabled=true]:opacity-40";

@@ -15,14 +15,14 @@ const TONE: Record<
 > = {
   popular: {
     label: "인기",
-    className: "bg-[#fff1f0] text-[#f04438]",
+    className: "bg-tone-fff1f0 text-[#f04438]",
     Icon: FlameIcon,
     // 기준은 백엔드 popularity.py(최근 90일, 상위 5%)와 맞춘다.
     help: "최근 90일 동안 기획안 담기·제출, 관심 매체 저장이 많은 상위 5% 매체예요.",
   },
   new: {
     label: "신규",
-    className: "bg-[#eff6ff] text-[#2e90fa]",
+    className: "bg-tone-eff6ff text-[#2e90fa]",
     Icon: NewStarIcon,
     // 기준은 백엔드 media_service.NEW_BADGE_DAYS(14일)와 맞춘다.
     help: "등록된 지 2주(14일) 이내인 새 매체예요.",

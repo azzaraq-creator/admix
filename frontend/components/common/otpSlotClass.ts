@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  */
 export const OTP_SLOT_CLASS = cn(
   "border text-gray-900 [box-shadow:none]! outline-none",
-  "not-data-[invalid=true]:border-gray-200 not-data-[invalid=true]:bg-white",
+  "not-data-[invalid=true]:border-gray-200 not-data-[invalid=true]:bg-surface",
   "not-data-[invalid=true]:data-[hovered=true]:border-gray-300",
   "not-data-[invalid=true]:data-[filled=true]:border-gray-300",
   "not-data-[invalid=true]:data-[active=true]:border-gray-500",

@@ -327,9 +327,9 @@ export function FavoritesView({ member }: { member: boolean }) {
               />
             )}
           </div>
-          <p className="shrink-0 text-[12px] text-[#727892] max-sm:text-[11px]">
+          <p className="shrink-0 text-[12px] text-gray-500 max-sm:text-[11px]">
             총{" "}
-            <span className="font-semibold text-[#18181b]">
+            <span className="font-semibold text-zinc-900">
               {loading ? "-" : `${rows.length.toLocaleString()}개 매체`}
             </span>
           </p>
@@ -525,7 +525,7 @@ type SelectionBarProps = {
 };
 
 const BAR_CLASS =
-  "sticky bottom-[20px] z-20 mt-auto flex h-[50px] shrink-0 items-center justify-between gap-[12px] rounded-[22px] bg-[#262a3d] p-[10px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)]";
+  "sticky bottom-[20px] z-20 mt-auto flex h-[50px] shrink-0 items-center justify-between gap-[12px] rounded-[22px] bg-gray-800 p-[10px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)] dark:bg-gray-200";
 
 /** 개수 칸 + 문구 — 바·시트 머리가 같이 쓴다. 개수 칸 28px → 곡률 11px. */
 function SelectionCount({ count }: { count: number }) {
@@ -664,7 +664,7 @@ function MobileSelectionSheet({
             // 여기서 한 번에 정한다: 손잡이 → 제목 6px, 제목 → 합계 12px, 합계 → 버튼 16px.
             // 최대 높이 — HeroUI 기본 85vh는 모바일 브라우저(웨일·사파리 등)에서 주소창·아래 바를 뺀
             // 실제 보이는 높이보다 커서 시트 위가 화면 밖으로 잘린다. 보이는 높이(dvh)의 85%로 줄인다.
-            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-white px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+            className="max-h-[85dvh] gap-0 rounded-t-[24px] bg-surface px-[20px] pt-[10px] pb-[calc(20px+env(safe-area-inset-bottom))]"
           >
             {/* 끌어내려 닫는 손잡이(HeroUI 기본). */}
             <Drawer.Handle />
@@ -675,12 +675,12 @@ function MobileSelectionSheet({
             </Drawer.Header>
             <Drawer.Body className="mt-[12px] p-0">
               {/* 합계 — 매체 정보 팝업 가격 칸과 같은 회색 상자. */}
-              <div className="flex flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[14px]">
+              <div className="flex flex-col gap-[10px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[14px]">
                 <SheetCostRow
                   label="총 광고비"
                   value={formatTotalWithInquiry(totalAd, adInquiry)}
                 />
-                <div className="h-px bg-[#ececef]" />
+                <div className="h-px bg-tone-ececef" />
                 <SheetCostRow label="총 제작비" value={won(totalProduction)} />
               </div>
             </Drawer.Body>
@@ -701,7 +701,7 @@ function MobileSelectionSheet({
                   onPress={run(onDeselect)}
                   className={cn(
                     SHEET_SECONDARY_CLASS,
-                    "bg-[#eee] text-[#18181b]",
+                    "bg-tone-eeeeee text-zinc-900",
                   )}
                 >
                   선택 해제
@@ -712,7 +712,7 @@ function MobileSelectionSheet({
                   onPress={run(onWishCancel)}
                   className={cn(
                     SHEET_SECONDARY_CLASS,
-                    "border border-[#ececef] bg-white text-[#18181b]",
+                    "border border-tone-ececef bg-surface text-zinc-900",
                   )}
                 >
                   <CloseSmallIcon className="size-[10px] shrink-0" />
@@ -730,8 +730,8 @@ function MobileSelectionSheet({
 function SheetCostRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[13px] font-medium text-[#71717a]">{label}</span>
-      <span className="text-[16px] font-bold text-[#18181b]">{value}</span>
+      <span className="text-[13px] font-medium text-zinc-500">{label}</span>
+      <span className="text-[16px] font-bold text-zinc-900">{value}</span>
     </div>
   );
 }
@@ -739,7 +739,7 @@ function SheetCostRow({ label, value }: { label: string; value: string }) {
 function CostItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-[2px] whitespace-nowrap">
-      <span className="text-[11px] font-medium text-[#9aa0b4]">{label}</span>
+      <span className="text-[11px] font-medium text-gray-400">{label}</span>
       <span className="text-[14px] font-bold text-white">{value}</span>
     </div>
   );
@@ -761,14 +761,14 @@ function EmptyBox({
   return (
     <EmptyState
       data-tour={tour}
-      className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl border border-[#ececef] bg-white p-[24px] text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-[8px] rounded-2xl border border-tone-ececef bg-surface p-[24px] text-center"
     >
       {/* 아이콘 칸 56px → 곡률 25px. 하트는 매체 카드의 켜진 하트와 같은 색. */}
-      <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-[#fff1f0] text-red-500">
+      <span className="mb-[4px] flex size-[56px] items-center justify-center rounded-[25px] bg-tone-fff1f0 text-red-500">
         <LoveIcon className="size-[24px]" />
       </span>
       <p className="text-[16px] font-semibold text-gray-900">{title}</p>
-      <p className="text-[13px] leading-[1.6] break-keep text-[#8c8c94]">
+      <p className="text-[13px] leading-[1.6] break-keep text-tone-8c8c94">
         {description}
       </p>
       {action}

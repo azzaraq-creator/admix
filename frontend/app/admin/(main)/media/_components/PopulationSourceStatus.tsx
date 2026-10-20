@@ -52,7 +52,7 @@ export function PopulationSourceStatus({
         <p className="text-sm font-semibold leading-[20px] text-success">
           {title}
         </p>
-        <p className="text-sm leading-[20px] text-[#555b73]">{body}</p>
+        <p className="text-sm leading-[20px] text-gray-600">{body}</p>
       </div>
       {!auto && sangwon && (
         <Button size="sm" variant="tertiary" onPress={onRevert}>

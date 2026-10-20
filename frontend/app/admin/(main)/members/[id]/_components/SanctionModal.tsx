@@ -71,11 +71,11 @@ function DateField({
   ];
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex flex-1 items-center justify-between rounded-[6px] border border-[#ebebeb] px-[12px] py-[10px] text-[13px] font-medium outline-none">
-        <span className={value ? "text-black" : "text-[#8f8f8f]"}>
+      <PopoverTrigger className="flex flex-1 items-center justify-between rounded-[6px] border border-tone-ebebeb px-[12px] py-[10px] text-[13px] font-medium outline-none">
+        <span className={value ? "text-black" : "text-tone-8f8f8f"}>
           {value || "날짜 선택"}
         </span>
-        <CalendarDays className="size-[14px] text-[#727272]" />
+        <CalendarDays className="size-[14px] text-tone-727272" />
       </PopoverTrigger>
       <PopoverContent>
         <Calendar
@@ -174,7 +174,7 @@ export function SanctionModal({
     >
       <DialogContent className="flex w-[600px] max-w-[calc(100vw-32px)] flex-col gap-[24px] rounded-[12px] p-[44px]">
         <div className="flex w-full items-start justify-between">
-          <DialogTitle className="text-[20px] font-semibold leading-[24px] text-[#202224]">
+          <DialogTitle className="text-[20px] font-semibold leading-[24px] text-tone-202224">
             활동 정지
           </DialogTitle>
           <button type="button" onClick={onClose} aria-label="닫기">
@@ -182,11 +182,11 @@ export function SanctionModal({
           </button>
         </div>
 
-        <div className="flex w-full items-center border-b border-[#f3f2f0]">
-          <span className="flex h-[48px] w-[160px] shrink-0 items-center bg-[#f5f5f5] px-[24px] text-[16px] leading-[24px] text-[#555]">
+        <div className="flex w-full items-center border-b border-tone-f3f2f0">
+          <span className="flex h-[48px] w-[160px] shrink-0 items-center bg-tone-f5f5f5 px-[24px] text-[16px] leading-[24px] text-tone-555555">
             회원ID
           </span>
-          <span className="flex-1 px-[24px] text-[16px] leading-[24px] text-[#2a2a2a]">
+          <span className="flex-1 px-[24px] text-[16px] leading-[24px] text-tone-2a2a2a">
             {memberEmail}
           </span>
         </div>
@@ -197,7 +197,7 @@ export function SanctionModal({
             value={reason || null}
             onValueChange={(v) => setReason(v ?? "")}
           >
-            <SelectTrigger className="h-[40px] w-full rounded-[17px] border-[#ebebeb] bg-white px-[12px] text-[14px] font-medium text-black data-[size=default]:h-[40px]">
+            <SelectTrigger className="h-[40px] w-full rounded-[17px] border-tone-ebebeb bg-surface px-[12px] text-[14px] font-medium text-black data-[size=default]:h-[40px]">
               <SelectValue placeholder="정지 사유 선택" />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -213,11 +213,11 @@ export function SanctionModal({
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
             placeholder="해당 회원을 정지하려는 사유를 입력해주세요."
-            className="min-h-[160px] w-full resize-y rounded-[8px] border border-[#f2f2f2] bg-[#f0f0f3] p-[20px] text-[16px] leading-[24px] text-black outline-none placeholder:text-[#8f8f8f]"
+            className="min-h-[160px] w-full resize-y rounded-[8px] border border-tone-f2f2f2 bg-tone-f0f0f3 p-[20px] text-[16px] leading-[24px] text-black outline-none placeholder:text-tone-8f8f8f"
           />
 
           <div className="flex flex-col gap-[8px]">
-            <p className="text-[16px] font-semibold leading-[1.5] text-[#555]">
+            <p className="text-[16px] font-semibold leading-[1.5] text-tone-555555">
               제재 기간 선택
             </p>
             <div className="flex items-center gap-[10px]">
@@ -226,7 +226,7 @@ export function SanctionModal({
                 onChange={setStartDate}
                 maxDate={endDate || undefined}
               />
-              <span className="text-[12px] text-[#727272]">-</span>
+              <span className="text-[12px] text-tone-727272">-</span>
               <DateField
                 value={endDate}
                 onChange={setEndDate}
@@ -253,7 +253,7 @@ export function SanctionModal({
             disabled={!canSave}
             className={cn(
               "flex flex-1 items-center justify-center rounded-[4px] py-[20px] text-[18px] font-semibold leading-[24px] text-white",
-              canSave ? "bg-primary" : "bg-[#cdcdcd]",
+              canSave ? "bg-primary" : "bg-tone-cdcdcd",
             )}
           >
             저장

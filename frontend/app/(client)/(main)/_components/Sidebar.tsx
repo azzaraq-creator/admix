@@ -11,7 +11,6 @@ import {
   FolderFilledIcon,
   GuideIcon,
   LocationIcon,
-  LoginDoorIcon,
   LogoFullDark,
   LoveIcon,
   MixieIcon,
@@ -30,7 +29,8 @@ import {
   useLnbExpanded,
 } from "./useLnb";
 import { useMenuLink } from "./menuNav";
-import { ProfileMenu } from "./ProfileMenu";
+import { GUEST_AVATAR_CLASS, ProfileMenu } from "./ProfileMenu";
+import { ThemeMenu } from "./ThemeMenu";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
 
@@ -129,7 +129,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
         aria-hidden
         onClick={() => setLnbExpanded(false)}
         className={cn(
-          "fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 ease-in-out sm:hidden",
+          "fixed inset-0 z-40 bg-scrim/30 transition-opacity duration-300 ease-in-out sm:hidden",
           expanded ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />
@@ -144,7 +144,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
         <nav
           aria-label="사이드바"
           className={cn(
-            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-gray-200 bg-white p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
+            "absolute inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-gray-200 bg-surface p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
             expanded ? "translate-x-0" : "-translate-x-full",
             collapsed && "sm:w-[78px]",
           )}
@@ -157,7 +157,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-expanded={!collapsed}
             onPress={() => setLnbCollapsed(!collapsed)}
-            className="absolute top-[28px] -right-[12px] hidden size-[24px] min-w-0 rounded-[9px] border border-gray-200 bg-white p-0 text-gray-500 shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-gray-900 sm:flex"
+            className="absolute top-[28px] -right-[12px] hidden size-[24px] min-w-0 rounded-[9px] border border-gray-200 bg-surface p-0 text-gray-500 shadow-[0_2px_6px_rgba(0,0,0,0.08)] data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-gray-900 sm:flex"
           >
             <ChevronLeftIcon
               className={cn(
@@ -211,8 +211,8 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                   className={cn(
                     NAV_ROW,
                     mixieActive
-                      ? "max-sm:hover:bg-[#f7f3fe] sm:bg-gradient-to-r sm:from-primary-500 sm:to-primary-700 sm:shadow-[0_4px_12px_0_rgba(163,59,209,0.35)]"
-                      : "hover:bg-[#f7f3fe]",
+                      ? "max-sm:hover:bg-tone-f7f3fe sm:bg-gradient-to-r sm:from-primary-500 sm:to-primary-700 sm:shadow-[0_4px_12px_0_rgba(163,59,209,0.35)]"
+                      : "hover:bg-tone-f7f3fe",
                   )}
                 >
                   {/* 아이콘의 그라데이션 fill은 속성값이라 CSS fill로 덮어 흰색으로 바꾼다. */}
@@ -255,7 +255,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                         NAV_ROW,
                         active
                           ? "bg-primary-100 font-bold text-primary"
-                          : "font-medium text-gray-900 hover:bg-[#f7f3fe]",
+                          : "font-medium text-gray-900 hover:bg-tone-f7f3fe",
                       )}
                     >
                       {/* 아이콘은 fill="currentColor"라 행의 글자색을 그대로 따른다. */}
@@ -278,6 +278,18 @@ export function Sidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
+            {/* 화면 모드 — PC 비회원만 가이드 줄과 같은 보조 줄로. 회원은 프로필 메뉴 맨 위,
+                모바일 비회원은 상단바 회색 프로필 메뉴에서 고른다. */}
+            {!hasToken && (
+              <ThemeMenu
+                placement={collapsed ? "right bottom" : "top start"}
+                className={cn(
+                  "mb-[4px] flex h-[32px] w-full items-center gap-[9px] overflow-hidden rounded-[13px] text-[13px] font-medium text-gray-500 outline-none transition-[padding,background-color,color] duration-300 ease-in-out hover:bg-gray-50 hover:text-gray-900 max-sm:hidden",
+                  collapsed ? "pr-0 pl-[20px]" : "px-[13px]",
+                )}
+                labelClassName={cn("whitespace-nowrap", fadeLabel(collapsed))}
+              />
+            )}
             {/* 지금 페이지 가이드 — 현재 기획안 카드 바로 위. 모바일은 상단바의 아이콘 버튼을 쓴다.
                 메뉴보다 한 단계 옅은 보조 줄(높이 32px → 곡률 13px). 아이콘 가운데는 메뉴 아이콘 열(x=39px). */}
             {hasTour && (
@@ -329,7 +341,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                     <ProfileAvatarIcon
                       className={cn(
                         "size-[24px] shrink-0",
-                        avatarColorClass(me?.sns_provider),
+                        avatarColorClass(me.sns_provider),
                       )}
                     />
                     <span
@@ -357,27 +369,27 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                 </Dropdown>
               </div>
             ) : (
-              // LNB 폭이 159px뿐이라 라벨(96px)이 잘리지 않게 배지·여백을 줄여 맞춘다.
-              <Button
-                variant="ghost"
-                fullWidth
-                aria-label="로그인 / 회원가입"
-                onPress={openLoginModal}
-                // 아이콘 + 글자를 가운데로. 접히면(78px) 글자가 투명해져도 자리를 차지해 아이콘이 왼쪽
-                // 밖으로 밀려 잘리므로, 접힌 동안엔 글자를 빼서 아이콘만 가운데에 둔다.
-                className="h-auto justify-center gap-[8px] overflow-hidden rounded-2xl px-[10px] py-2.5 data-[hovered=true]:border-primary-200"
-              >
-                <LoginDoorIcon className="h-[18px] w-[16px] shrink-0" />
-                <span
-                  className={cn(
-                    "text-sm font-medium whitespace-nowrap text-foreground",
-                    fadeLabel(collapsed),
-                    collapsed && "sm:hidden",
-                  )}
+              // 비회원 — 회원 줄과 같은 자리·모양(회색 아바타 + "로그인 / 회원가입"). 누르면 바로 로그인 창.
+              <div className="pr-[10px] pl-[17px]">
+                <button
+                  type="button"
+                  aria-label="로그인 / 회원가입"
+                  onClick={openLoginModal}
+                  className="flex w-full items-center gap-[10px] overflow-hidden rounded-[10px] outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
                 >
-                  로그인 / 회원가입
-                </span>
-              </Button>
+                  <ProfileAvatarIcon
+                    className={cn("size-[24px] shrink-0", GUEST_AVATAR_CLASS)}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-left text-sm font-medium text-black",
+                      fadeLabel(collapsed),
+                    )}
+                  >
+                    로그인 / 회원가입
+                  </span>
+                </button>
+              </div>
             )}
           </div>
         </nav>

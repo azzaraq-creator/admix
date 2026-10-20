@@ -128,9 +128,9 @@ export function MediaDetailModal({
         >
           <Modal.Dialog
             aria-label="매체 상세"
-            className="w-full max-w-full gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
+            className="w-full max-w-full gap-[10px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
           >
-            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]">
+            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
               <CloseMediumIcon className="size-[24px]" />
             </Modal.CloseTrigger>
 
@@ -140,7 +140,7 @@ export function MediaDetailModal({
               <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
                 매체 정보
               </p>
-              <p className="truncate text-[12px] text-[#888] max-sm:hidden">
+              <p className="truncate text-[12px] text-tone-888888 max-sm:hidden">
                 매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
               </p>
             </div>
@@ -206,12 +206,12 @@ export function MediaDetailPreview({
         !visible && "opacity-0",
       )}
     >
-      <div className="flex max-h-full w-full max-w-[940px] flex-col gap-[10px] rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]">
+      <div className="flex max-h-full w-full max-w-[940px] flex-col gap-[10px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]">
         <div className="flex h-[39px] shrink-0 items-center gap-[8px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
           <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
             매체 정보
           </p>
-          <p className="truncate text-[12px] text-[#888] max-sm:hidden">
+          <p className="truncate text-[12px] text-tone-888888 max-sm:hidden">
             매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
           </p>
         </div>
@@ -345,9 +345,9 @@ function MediaDetailBody({
             {vm.isMoving ? (
               <MovingChip className="mr-[2px]" />
             ) : (
-              <LocationFilledIcon className="size-[14px] shrink-0 text-[#6c757d]" />
+              <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
             )}
-            <span className="text-[12px] text-[#6c757d]">
+            <span className="text-[12px] text-tone-6c757d">
               {vm.address ?? "-"}
             </span>
           </div>
@@ -356,7 +356,7 @@ function MediaDetailBody({
             <div className="flex items-center gap-[10px]">
               {/* 정렬·shrink-0·가로 패딩(8px)은 HeroUI Chip 기본값이라 색·모서리·세로 여백만 준다. */}
               {vm.categoryLarge && (
-                <Chip className="gap-0 rounded-[10px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] text-[#71717a]">
+                <Chip className="gap-0 rounded-[10px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500">
                   {vm.categoryLarge}
                   {vm.categorySmall && (
                     <>
@@ -444,10 +444,10 @@ function SpecSection({
       {specs.map(([label, value]) => (
         <div
           key={label}
-          className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-[#ececef] bg-[#f5f6fb] p-[12px] font-semibold max-sm:p-[10px]"
+          className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-tone-ececef bg-gray-50 p-[12px] font-semibold max-sm:p-[10px]"
         >
-          <p className="text-[11px] tracking-[0.6px] text-[#a1a1aa]">{label}</p>
-          <p className="text-[13px] break-keep text-[#18181b]">{value}</p>
+          <p className="text-[11px] tracking-[0.6px] text-zinc-400">{label}</p>
+          <p className="text-[13px] break-keep text-zinc-900">{value}</p>
         </div>
       ))}
     </div>
@@ -460,13 +460,13 @@ function SpecSection({
         )}
         {/* HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 시안 값으로 덮는다. */}
         {oohType && (
-          <Chip className="rounded-full border border-[#ececef] bg-white px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-[#8c8c94]">
+          <Chip className="rounded-full border border-tone-ececef bg-surface px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-tone-8c8c94">
             {/* 글자만 넣으면 Chip이 라벨(좌우 2px 여백)로 감싸 폭이 늘어나서 직접 0으로 둔다. */}
             <Chip.Label className="px-0">{oohType}</Chip.Label>
           </Chip>
         )}
       </div>
-      <p className="text-[12px] text-[#888]">
+      <p className="text-[12px] text-tone-888888">
         매체 유형별로 항목이 달라집니다.
       </p>
       {specs.length > 0 &&
@@ -483,7 +483,7 @@ function SpecSection({
 
 // 모바일 상세 탭 — 선택 표시는 밑줄. HeroUI 탭의 알약 모양(배경·둥근 모서리)은 덮어쓴다.
 const MOBILE_TAB =
-  "-mb-px h-[40px] flex-1 rounded-none border-b-2 border-transparent bg-transparent px-[4px] text-[13px] font-medium whitespace-nowrap text-[#8c8c94] data-[selected=true]:border-gray-900 data-[selected=true]:font-semibold data-[selected=true]:text-gray-900";
+  "-mb-px h-[40px] flex-1 rounded-none border-b-2 border-transparent bg-transparent px-[4px] text-[13px] font-medium whitespace-nowrap text-tone-8c8c94 data-[selected=true]:border-gray-900 data-[selected=true]:font-semibold data-[selected=true]:text-gray-900";
 
 /** 모바일 전용 — 매체 설명·인구(실시간/직접 입력)·매체 정보를 탭으로 나눠 본다. 내용이 없는 탭은 뺀다. */
 function MobileDetailTabs({
@@ -511,7 +511,7 @@ function MobileDetailTabs({
     >
       <Tabs.List
         aria-label="매체 상세 항목"
-        className="w-full rounded-none border-b border-[#ececef] bg-transparent p-0"
+        className="w-full rounded-none border-b border-tone-ececef bg-transparent p-0"
       >
         {tabs.map(({ key, label }) => (
           <Tabs.Tab key={key} id={key} className={MOBILE_TAB}>
@@ -556,7 +556,7 @@ function DetailActions({
         variant="ghost"
         onPress={onClose}
         className={cn(
-          "h-auto rounded-[15px] bg-[#eee] px-[14px] py-[10px] text-[13px] font-medium max-sm:text-[12px] text-[#18181b]",
+          "h-auto rounded-[15px] bg-tone-eeeeee px-[14px] py-[10px] text-[13px] font-medium max-sm:text-[12px] text-zinc-900",
           "w-[96px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:px-[8px]",
         )}
       >
@@ -573,8 +573,8 @@ function DetailActions({
           "h-auto gap-[9px] rounded-[15px] border px-[14px] py-[10px] text-[13px] transition-colors max-sm:text-[12px]",
           "w-[120px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px]",
           liked
-            ? "border-[#ffccc7] bg-[#fff1f0] font-semibold text-[#ff4d4f] data-[hovered=true]:bg-[#ffe7e5] data-[selected=true]:bg-[#fff1f0] data-[selected=true]:data-[hovered=true]:bg-[#ffe7e5]"
-            : "border-[#ececef] bg-white font-medium text-[#18181b] data-[hovered=true]:bg-[#fafafa]",
+            ? "border-tone-ffccc7 bg-tone-fff1f0 font-semibold text-red data-[hovered=true]:bg-tone-ffe7e5 data-[selected=true]:bg-tone-fff1f0 data-[selected=true]:data-[hovered=true]:bg-tone-ffe7e5"
+            : "border-tone-ececef bg-surface font-medium text-zinc-900 data-[hovered=true]:bg-zinc-50",
         )}
       >
         <LoveIcon
@@ -582,8 +582,8 @@ function DetailActions({
           className={cn(
             "size-[14px] shrink-0 transition-colors max-sm:size-[13px]",
             liked
-              ? "animate-[admix-like-pop_280ms_ease-out] text-[#ff4d4f]"
-              : "text-[#c9cad3]",
+              ? "animate-[admix-like-pop_280ms_ease-out] text-red"
+              : "text-placeholder",
           )}
         />
         관심 매체
@@ -596,7 +596,7 @@ function DetailActions({
           "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
         )}
       >
-        <FolderAddIcon className="shrink-0 text-[#fafafa]" />
+        <FolderAddIcon className="shrink-0 text-zinc-50 dark:text-white" />
         기획안 담기
       </Button>
     </>
@@ -753,7 +753,7 @@ function StripArrow({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-y-0 flex w-[48px] items-center from-white via-white/80 to-transparent",
+        "pointer-events-none absolute inset-y-0 flex w-[48px] items-center from-surface via-surface/80 to-transparent",
         side === "left"
           ? "left-0 justify-start bg-gradient-to-r"
           : "right-0 justify-end bg-gradient-to-l",
@@ -763,7 +763,7 @@ function StripArrow({
         type="button"
         aria-label={side === "left" ? "이전 이미지들" : "다음 이미지들"}
         onClick={onPress}
-        className="pointer-events-auto flex size-[28px] items-center justify-center rounded-full border border-[#ececef] bg-white text-[#3f3f46] shadow-[0px_2px_6px_rgba(0,0,0,0.12)] hover:bg-[#f7f7f8]"
+        className="pointer-events-auto flex size-[28px] items-center justify-center rounded-full border border-tone-ececef bg-surface text-zinc-700 shadow-[0px_2px_6px_rgba(0,0,0,0.12)] hover:bg-tone-f7f7f8"
       >
         <Icon className="size-[16px]" />
       </button>
@@ -774,12 +774,12 @@ function StripArrow({
 /** 가격 칸(단가) — 옵션 없이 끼워 쓰는 곳(기획안 슬라이드 자리 등). */
 function PriceBox({ vm }: { vm: MediaDetailViewModel }) {
   return (
-    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]">
+    <div className="flex w-full flex-col gap-[10px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[12px]">
       <PriceRow label="광고비" unit="/ 1개월" value={vm.adFeeKrw} />
       {/* 제작비는 OOH이고 금액이 있을 때만. */}
       {isOohMedia(vm.oohType) && vm.productionFeeKrw != null && (
         <>
-          <div className="h-px w-full bg-[#ececef]" />
+          <div className="h-px w-full bg-tone-ececef" />
           <PriceRow label="제작비" unit="/ 1회" value={vm.productionFeeKrw} />
         </>
       )}
@@ -798,11 +798,11 @@ function PriceRow({
 }) {
   return (
     <div className="flex items-center justify-between whitespace-nowrap">
-      <div className="flex items-center gap-[3px] text-[12px] text-[#a1a1aa]">
+      <div className="flex items-center gap-[3px] text-[12px] text-zinc-400">
         <span className="font-semibold">{label}</span>
         <span>{unit}</span>
       </div>
-      <span className="text-[18px] font-bold text-[#18181b] max-sm:text-[15px]">
+      <span className="text-[18px] font-bold text-zinc-900 max-sm:text-[15px]">
         {formatKrw(value)}
       </span>
     </div>
@@ -846,7 +846,7 @@ function Description({ text }: { text: string }) {
       className="flex w-full flex-col items-start gap-[4px] text-[12px]"
     >
       {/* 펼친 카드의 제목과 줄 높이를 맞춰야 본문이 같은 자리에서 펼쳐진다. */}
-      <p className="leading-[18px] text-[#555]">매체 설명</p>
+      <p className="leading-[18px] text-tone-555555">매체 설명</p>
       <p
         ref={textRef}
         className="line-clamp-2 w-full whitespace-pre-wrap leading-[18px] text-black"
@@ -858,7 +858,7 @@ function Description({ text }: { text: string }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-auto min-w-0 p-0 text-[12px] font-normal text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+            className="h-auto min-w-0 p-0 text-[12px] font-normal text-tone-888888 underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
           >
             더보기
           </Button>
@@ -881,7 +881,7 @@ function Description({ text }: { text: string }) {
               className="flex max-h-[min(360px,60vh)] flex-col items-start gap-[4px] text-[12px]"
               style={{ padding: DESC_POP_PAD }}
             >
-              <Popover.Heading className="shrink-0 text-[12px] leading-[18px] font-normal text-[#555]">
+              <Popover.Heading className="shrink-0 text-[12px] leading-[18px] font-normal text-tone-555555">
                 매체 설명
               </Popover.Heading>
               <ScrollShadow
@@ -894,7 +894,7 @@ function Description({ text }: { text: string }) {
                 variant="ghost"
                 size="sm"
                 onPress={() => setOpen(false)}
-                className="h-auto min-w-0 shrink-0 p-0 text-[12px] font-normal text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+                className="h-auto min-w-0 shrink-0 p-0 text-[12px] font-normal text-tone-888888 underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
               >
                 접기
               </Button>
@@ -938,16 +938,16 @@ function PopulationCard({
   const weekday = population.weekdayDaily;
 
   return (
-    <div className="flex h-[315px] w-full shrink-0 flex-col justify-between gap-[6px] rounded-[16px] border border-[#f1f1f4] bg-white px-[20px] py-[12px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
+    <div className="flex h-[315px] w-full shrink-0 flex-col justify-between gap-[6px] rounded-[16px] border border-tone-f1f1f4 bg-surface px-[20px] py-[12px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
       <div className="flex items-start justify-between gap-[8px]">
         {weekday ? (
           <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
             {/* 모바일은 탭 이름이 이미 "요일별 …"이라 제목·칩을 빼고, 기준(상권·분기) 아래에 월평균 버튼. */}
             <div className="flex min-w-0 items-center gap-[6px] max-sm:hidden">
-              <p className="text-[14px] leading-[1.4] font-semibold text-[#18181b]">
+              <p className="text-[14px] leading-[1.4] font-semibold text-zinc-900">
                 {populationHeading(population)}
               </p>
-              <Chip className="rounded-[20px] bg-[#f4f4f5] px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-[#3f3f46]">
+              <Chip className="rounded-[20px] bg-zinc-100 px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-zinc-700">
                 하루 평균
               </Chip>
             </div>
@@ -963,7 +963,7 @@ function PopulationCard({
         ) : (
           <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
             <div className="flex min-w-0 items-baseline gap-[6px]">
-              <p className="text-[14px] leading-[1.4] font-semibold text-[#71717a]">
+              <p className="text-[14px] leading-[1.4] font-semibold text-zinc-500">
                 {population.title}
               </p>
               {population.caption && (
@@ -972,7 +972,7 @@ function PopulationCard({
                 </p>
               )}
             </div>
-            <p className="text-[22px] leading-[1.2] font-bold text-[#18181b] max-sm:text-[18px]">
+            <p className="text-[22px] leading-[1.2] font-bold text-zinc-900 max-sm:text-[18px]">
               {population.populationText}명
             </p>
             {population.note && (
@@ -994,7 +994,7 @@ function PopulationCard({
               {population.congestLevel}
             </Chip>
           )}
-          <Chip className="gap-[4px] rounded-[20px] border border-[#e4e4e7] bg-white px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-[#18181b]">
+          <Chip className="gap-[4px] rounded-[20px] border border-zinc-200 bg-surface px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-zinc-900">
             <TrendingUpIcon className="size-[10px]" />
             {ageLabel(topAge)} {topGender}
           </Chip>
@@ -1003,7 +1003,7 @@ function PopulationCard({
 
       {weekday && <WeekdayPopulationChart data={weekday} height={88} />}
 
-      <div className="h-px w-full shrink-0 bg-[#f1f1f4]" />
+      <div className="h-px w-full shrink-0 bg-tone-f1f1f4" />
 
       <div className="grid grid-cols-[2fr_3fr] gap-[16px]">
         <GenderRatio population={population} topGender={topGender} />
@@ -1025,9 +1025,9 @@ const GENDER_MUTED = "#a1a1aa";
 
 /** 연령대 1~3위 막대 색 — 남색 한 색의 진하기로(1위가 가장 진하게). 4위 아래는 회색. */
 const AGE_RANK_BAR: Record<number, string> = {
-  1: "bg-[#3b45b0]",
+  1: "bg-tone-3b45b0",
   2: "bg-[#8d95dc]",
-  3: "bg-[#d3d7f4]",
+  3: "bg-tone-d3d7f4",
 };
 
 /** 성별 비율 — 비율이 더 높은 쪽만 성별 색·진한 글씨, 낮은 쪽은 회색(위 칩의 성별과 같은 기준). */
@@ -1045,7 +1045,7 @@ function GenderRatio({
 
   return (
     <div className="flex min-w-0 flex-col gap-[8px]">
-      <p className="text-[13px] font-semibold text-[#18181b]">성별 비율</p>
+      <p className="text-[13px] font-semibold text-zinc-900">성별 비율</p>
       <div className="flex flex-1 flex-col justify-center gap-[10px]">
         {genders.map((g) => (
           <div
@@ -1057,10 +1057,10 @@ function GenderRatio({
               className="size-[12px] shrink-0 max-sm:hidden"
               style={{ color: g.top ? GENDER_COLOR[g.label] : GENDER_MUTED }}
             />
-            <span className="text-[11px] leading-[1.4] font-medium whitespace-nowrap text-[#18181b]">
+            <span className="text-[11px] leading-[1.4] font-medium whitespace-nowrap text-zinc-900">
               {g.label}
             </span>
-            <div className="relative h-[6px] min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#f4f4f5]">
+            <div className="relative h-[6px] min-w-0 flex-1 overflow-hidden rounded-[3px] bg-zinc-100">
               <div
                 className="absolute inset-y-0 left-0 rounded-[3px]"
                 style={{
@@ -1073,8 +1073,8 @@ function GenderRatio({
               className={cn(
                 "w-[28px] text-right text-[12px] leading-[1.4]",
                 g.top
-                  ? "font-bold text-[#18181b]"
-                  : "font-medium text-[#71717a]",
+                  ? "font-bold text-zinc-900"
+                  : "font-medium text-zinc-500",
               )}
             >
               {g.pct}%
@@ -1097,7 +1097,7 @@ function AgeRatio({
   const ageRanks = getAgeRanks(ageRatios);
   return (
     <div className="flex min-w-0 flex-col gap-[4px]">
-      <p className="text-[13px] font-semibold text-[#18181b]">연령대 비율</p>
+      <p className="text-[13px] font-semibold text-zinc-900">연령대 비율</p>
       <div className="flex h-[80px] items-end gap-[3px] max-sm:gap-[1px]">
         {ageRatios.map((age, i) => {
           const rank = ageRanks[i];
@@ -1116,16 +1116,16 @@ function AgeRatio({
                   rank={rank}
                   className={
                     rank === 1
-                      ? "bg-[#3b45b0] text-white"
-                      : "bg-[#e8eaf8] text-[#232a78]"
+                      ? "bg-tone-3b45b0 text-white"
+                      : "bg-tone-e8eaf8 text-tone-232a78"
                   }
                 />
               )}
               <span
                 className={
                   top
-                    ? "font-bold text-[#18181b]"
-                    : "font-medium text-[#71717a]"
+                    ? "font-bold text-zinc-900"
+                    : "font-medium text-zinc-500"
                 }
               >
                 {Math.round(age.value)}%
@@ -1133,7 +1133,7 @@ function AgeRatio({
               <div
                 className={cn(
                   "flex w-full max-w-[24px] justify-center rounded-t-[4px]",
-                  (rank != null && AGE_RANK_BAR[rank]) || "bg-[#f4f4f5]",
+                  (rank != null && AGE_RANK_BAR[rank]) || "bg-zinc-100",
                 )}
                 style={{ height }}
               >
@@ -1141,7 +1141,7 @@ function AgeRatio({
                   <span
                     className={cn(
                       "pt-[4px] text-[10px] leading-[14px] font-bold whitespace-nowrap",
-                      rank === 1 ? "text-white" : "text-[#232a78]",
+                      rank === 1 ? "text-white" : "text-tone-232a78",
                     )}
                   >
                     {rank}위
@@ -1151,8 +1151,8 @@ function AgeRatio({
               <span
                 className={
                   top
-                    ? "font-semibold text-[#18181b]"
-                    : "font-medium text-[#71717a]"
+                    ? "font-semibold text-zinc-900"
+                    : "font-medium text-zinc-500"
                 }
               >
                 {ageLabel(age)}
@@ -1203,7 +1203,7 @@ function PopulationTotalPopover({
       <Button
         variant="ghost"
         size="sm"
-        className="h-auto min-w-0 shrink-0 p-0 text-[11px] font-medium text-[#888] underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
+        className="h-auto min-w-0 shrink-0 p-0 text-[11px] font-medium text-tone-888888 underline data-[hovered=true]:bg-transparent data-[hovered=true]:text-black"
       >
         {population.title}
       </Button>

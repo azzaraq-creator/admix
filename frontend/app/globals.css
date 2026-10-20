@@ -4,7 +4,7 @@
 @import "shadcn/tailwind.css";
 @import "@heroui/styles";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *):not(:is(.light *)));
 
 @theme {
   --font-sans:
@@ -91,6 +91,106 @@
 
   --color-disabled: #737586;
   --color-placeholder: #c9cad3;
+  /* 바탕 흰색 — bg-white 대신 쓴다. 다크 모드에선 어두운 바탕이 된다(글자 흰색 text-white는 그대로 흰색). */
+  --color-surface: #ffffff;
+  /* 덮개·어두운 알약 바탕 — 다크 모드에서도 뒤집지 않는 진한 색. */
+  --color-scrim: #2f3442;
+
+  /* zinc — 화면 곳곳에 hex로 쓰던 Tailwind zinc 값을 정확히 고정한다(다크 모드에서 뒤집힘). */
+  --color-zinc-50: #fafafa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #09090b;
+
+  /* tone-<hex> — 화면마다 따로 쓰던 회색·옅은 바탕 hex. 라이트는 그 값 그대로, 다크는 맨 아래 html.dark. */
+  --color-tone-0a0a0a: #0a0a0a;
+  --color-tone-101828: #101828;
+  --color-tone-110c22: #110c22;
+  --color-tone-202224: #202224;
+  --color-tone-232a78: #232a78;
+  --color-tone-2a2a2a: #2a2a2a;
+  --color-tone-2d264b: #2d264b;
+  --color-tone-333333: #333333;
+  --color-tone-364153: #364153;
+  --color-tone-3b45b0: #3b45b0;
+  --color-tone-494a4a: #494a4a;
+  --color-tone-4a5565: #4a5565;
+  --color-tone-545454: #545454;
+  --color-tone-555555: #555555;
+  --color-tone-6c757d: #6c757d;
+  --color-tone-6d6d6d: #6d6d6d;
+  --color-tone-6e6e6e: #6e6e6e;
+  --color-tone-70707a: #70707a;
+  --color-tone-717182: #717182;
+  --color-tone-727272: #727272;
+  --color-tone-767676: #767676;
+  --color-tone-888888: #888888;
+  --color-tone-8c8c94: #8c8c94;
+  --color-tone-8f8f8f: #8f8f8f;
+  --color-tone-a1a1a1: #a1a1a1;
+  --color-tone-a9aab5: #a9aab5;
+  --color-tone-bbf7d0: #bbf7d0;
+  --color-tone-cdcdcd: #cdcdcd;
+  --color-tone-d1d5dc: #d1d5dc;
+  --color-tone-d1fae5: #d1fae5;
+  --color-tone-d3d4d6: #d3d4d6;
+  --color-tone-d3d7f4: #d3d7f4;
+  --color-tone-d6f1ff: #d6f1ff;
+  --color-tone-d9d9d9: #d9d9d9;
+  --color-tone-dbeafe: #dbeafe;
+  --color-tone-dcefdf: #dcefdf;
+  --color-tone-e5e5e5: #e5e5e5;
+  --color-tone-e6e6e6: #e6e6e6;
+  --color-tone-e8e8e8: #e8e8e8;
+  --color-tone-e8eaf8: #e8eaf8;
+  --color-tone-e9ebf2: #e9ebf2;
+  --color-tone-e9edf0: #e9edf0;
+  --color-tone-eaeaeb: #eaeaeb;
+  --color-tone-ebebeb: #ebebeb;
+  --color-tone-ebf8f8: #ebf8f8;
+  --color-tone-ececef: #ececef;
+  --color-tone-ededef: #ededef;
+  --color-tone-eeeeee: #eeeeee;
+  --color-tone-efefef: #efefef;
+  --color-tone-eff6ff: #eff6ff;
+  --color-tone-f0f0f3: #f0f0f3;
+  --color-tone-f0f5f9: #f0f5f9;
+  --color-tone-f0f8f1: #f0f8f1;
+  --color-tone-f0fdf4: #f0fdf4;
+  --color-tone-f1f1f3: #f1f1f3;
+  --color-tone-f1f1f4: #f1f1f4;
+  --color-tone-f2f2f2: #f2f2f2;
+  --color-tone-f3f2f0: #f3f2f0;
+  --color-tone-f3f4f3: #f3f4f3;
+  --color-tone-f3f4f8: #f3f4f8;
+  --color-tone-f3fbfb: #f3fbfb;
+  --color-tone-f5f5f5: #f5f5f5;
+  --color-tone-f5f6f8: #f5f6f8;
+  --color-tone-f7f3fe: #f7f3fe;
+  --color-tone-f7f7f7: #f7f7f7;
+  --color-tone-f7f7f8: #f7f7f8;
+  --color-tone-f8f8f8: #f8f8f8;
+  --color-tone-f9fafc: #f9fafc;
+  --color-tone-fafaf9: #fafaf9;
+  --color-tone-fafafc: #fafafc;
+  --color-tone-fdf6e3: #fdf6e3;
+  --color-tone-fdfdfd: #fdfdfd;
+  --color-tone-fef2f2: #fef2f2;
+  --color-tone-fef9c3: #fef9c3;
+  --color-tone-ffccc7: #ffccc7;
+  --color-tone-ffe0a3: #ffe0a3;
+  --color-tone-ffe7e5: #ffe7e5;
+  --color-tone-fff1f0: #fff1f0;
+  --color-tone-fff2f1: #fff2f1;
+  --color-tone-fff3d3: #fff3d3;
+  --color-tone-fff8ec: #fff8ec;
 }
 
 /* HeroUI v3와 이름이 겹치는 토큰(--background/--foreground/--border/--muted/
@@ -132,7 +232,8 @@
   --radius-2xl: calc(var(--app-radius) * 1.8);
 }
 
-:root {
+:root,
+.light {
   --app-background: #ffffff;
   --app-foreground: #2f3442;
   --card: #ffffff;
@@ -274,7 +375,7 @@
     opacity: 0;
   }
   .admix-ai-border[data-mode="search"] > * {
-    box-shadow: 0 0 0 1px #fff;
+    box-shadow: 0 0 0 1px var(--color-surface);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -384,6 +485,25 @@
   }
 }
 
+/* 다크 모드 실시간 인구 이름표(useMapCrowd가 인라인 스타일로 그린다) — 흰 유리 대신 어두운 유리. */
+html.dark .map-crowd-pill {
+  background: rgb(20 21 25 / 0.55) !important;
+  border-color: rgb(255 255 255 / 0.12) !important;
+  color: #e4e6ee !important;
+}
+
+/* 다크 모드 카카오 지도 — 카카오는 어두운 지도를 주지 않아 바탕 타일 그림만 색을 뒤집는다
+   (밝기 반전 + 색상 180° 되돌림이라 물은 파랑, 공원은 초록으로 남는다). 매체 핀·이름표·도로 현황 선은
+   타일이 아니라 그대로 색. 슬라이드처럼 라이트로 고정한 곳(.light)은 뒤집지 않는다. */
+@layer components {
+  html.dark img[src*="/api/v1/tile/"]:not(.light *) {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+  }
+  html.dark .map-crowd-gray img[src*="/api/v1/tile/"]:not(.light *) {
+    filter: grayscale(1) invert(1) brightness(0.9) contrast(0.9);
+  }
+}
+
 /* 모바일 하단 탭 바(MobileTabBar)는 본문 위에 떠 있다 — 각 화면의 스크롤 영역(<main>, 또는 data-tabbar-pad를
    단 스크롤 칸) 끝에 탭 바 높이(--tabbar-space, ClientShell에서 모바일만 값이 있다)만큼 여백을 둬,
    스크롤하는 동안엔 내용이 탭 바 뒤로 비쳐 지나가고 끝까지 내리면 마지막 내용이 탭 바 위에서 멈춘다. */
@@ -443,3 +563,273 @@
     }
   }
 }
+
+/* 다크 모드 — <html class="dark">일 때(next-themes가 붙인다) 색 토큰만 바꾼다.
+   화면 코드는 토큰(bg-surface, text-black, gray-*, zinc-*, tone-*)을 쓰므로 따로 손대지 않는다.
+   tone·zinc·gray 다크 값은 라이트 값의 밝기를 뒤집어 만든 것(채도 있는 가운데 색은 그대로).
+   .light — 다크 모드에서도 라이트로 그려야 하는 곳(기획안 슬라이드 등)을 감싼다. */
+html.dark {
+  color-scheme: dark;
+
+  /* 상태 글자색·보라 테두리 — 어두운 바탕(-bg·primary-50) 위에서 읽히게 / 튀지 않게. */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-sky-700: #7dd3fa;
+  --color-primary-200: #43346e;
+
+  --app-background: #141519;
+  --app-foreground: #e4e6ee;
+  --card: #1a1b21;
+  --card-foreground: #e4e6ee;
+  --popover: #1e2028;
+  --popover-foreground: #e4e6ee;
+  --app-muted: #1e2028;
+  --app-border: #2a2c36;
+  --input: #2a2c36;
+  --sidebar: #141519;
+  --sidebar-foreground: #e4e6ee;
+  --sidebar-border: #2a2c36;
+
+  --color-surface: #141519;
+  --color-primary-50: #1d1a25;
+  --color-primary-100: #251f35;
+  --color-primary-700: #ada3db;
+  --color-primary-800: #c0b7f0;
+  --color-primary-900: #d7ceff;
+  --color-black: #e4e6ee;
+  --color-stroke: #252630;
+  --color-gray-50: #1a1b21;
+  --color-gray-100: #1e2028;
+  --color-gray-200: #262a36;
+  --color-gray-300: #3a3c44;
+  --color-gray-400: #575b68;
+  --color-gray-600: #959aac;
+  --color-gray-700: #b2b5c0;
+  --color-gray-800: #ced0dc;
+  --color-gray-900: #e1e4f1;
+  --color-sky-50: #111d23;
+  --color-sky-100: #052532;
+  --color-success-bg: #002612;
+  --color-warning-bg: #271d00;
+  --color-error-bg: #38191b;
+  --color-disabled: #7f808c;
+  --color-placeholder: #393a3f;
+  --color-zinc-50: #191919;
+  --color-zinc-100: #1d1d1e;
+  --color-zinc-200: #27272b;
+  --color-zinc-300: #323235;
+  --color-zinc-400: #5a5a5f;
+  --color-zinc-500: #84848b;
+  --color-zinc-600: #a4a4a8;
+  --color-zinc-700: #b9b9bc;
+  --color-zinc-800: #d6d6d7;
+  --color-zinc-900: #e9e9eb;
+  --color-zinc-950: #ffffff;
+  --color-tone-101828: #e4eaf4;
+  --color-tone-202224: #dcddde;
+  --color-tone-333333: #c8c8c8;
+  --color-tone-364153: #b3b9c3;
+  --color-tone-545454: #a3a3a3;
+  --color-tone-555555: #a2a2a2;
+  --color-tone-717182: #83838f;
+  --color-tone-727272: #858585;
+  --color-tone-767676: #818181;
+  --color-tone-888888: #717171;
+  --color-tone-0a0a0a: #fdfdfd;
+  --color-tone-110c22: #f4f2ff;
+  --color-tone-232a78: #b3c1f9;
+  --color-tone-2a2a2a: #d2d2d2;
+  --color-tone-2d264b: #cec9f8;
+  --color-tone-3b45b0: #929fd5;
+  --color-tone-494a4a: #adaeae;
+  --color-tone-4a5565: #9ea3ac;
+  --color-tone-6c757d: #7e848a;
+  --color-tone-6d6d6d: #8a8a8a;
+  --color-tone-6e6e6e: #898989;
+  --color-tone-70707a: #85858c;
+  --color-tone-8c8c94: #6c6c71;
+  --color-tone-8f8f8f: #6a6a6a;
+  --color-tone-a1a1a1: #5b5b5b;
+  --color-tone-a9aab5: #525259;
+  --color-tone-bbf7d0: #052f19;
+  --color-tone-cdcdcd: #383838;
+  --color-tone-d1d5dc: #303336;
+  --color-tone-d1fae5: #002918;
+  --color-tone-d3d4d6: #333334;
+  --color-tone-d3d7f4: #292c4d;
+  --color-tone-d6f1ff: #002737;
+  --color-tone-d9d9d9: #2f2f2f;
+  --color-tone-dbeafe: #13253d;
+  --color-tone-dcefdf: #122b18;
+  --color-tone-e5e5e5: #272727;
+  --color-tone-e6e6e6: #262626;
+  --color-tone-e8e8e8: #252525;
+  --color-tone-e8eaf8: #202232;
+  --color-tone-e9ebf2: #20222b;
+  --color-tone-e9edf0: #1e2326;
+  --color-tone-eaeaeb: #232325;
+  --color-tone-ebebeb: #232323;
+  --color-tone-ebf8f8: #102020;
+  --color-tone-ececef: #222225;
+  --color-tone-ededef: #212123;
+  --color-tone-eeeeee: #212121;
+  --color-tone-efefef: #202020;
+  --color-tone-eff6ff: #151d27;
+  --color-tone-f0f0f3: #1f1f22;
+  --color-tone-f0f5f9: #181e22;
+  --color-tone-f0f8f1: #161f17;
+  --color-tone-f0fdf4: #0e1e14;
+  --color-tone-f1f1f3: #1f1f21;
+  --color-tone-f1f1f4: #1e1e22;
+  --color-tone-f2f2f2: #1e1e1e;
+  --color-tone-f3f2f0: #1f1e1c;
+  --color-tone-f3f4f3: #1c1e1c;
+  --color-tone-f3f4f8: #1c1d21;
+  --color-tone-f3fbfb: #131c1c;
+  --color-tone-f5f5f5: #1c1c1c;
+  --color-tone-f5f6f8: #1b1c1e;
+  --color-tone-f7f3fe: #1e1a26;
+  --color-tone-f7f7f7: #1b1b1b;
+  --color-tone-f7f7f8: #1b1b1c;
+  --color-tone-f8f8f8: #1a1a1a;
+  --color-tone-f9fafc: #18191b;
+  --color-tone-fafaf9: #191918;
+  --color-tone-fafafc: #19191b;
+  --color-tone-fdf6e3: #231b03;
+  --color-tone-fdfdfd: #171717;
+  --color-tone-fef2f2: #251819;
+  --color-tone-fef9c3: #211c00;
+  --color-tone-ffccc7: #49221f;
+  --color-tone-ffe0a3: #362500;
+  --color-tone-ffe7e5: #331918;
+  --color-tone-fff1f0: #271817;
+  --color-tone-fff2f1: #261817;
+  --color-tone-fff3d3: #281b00;
+  --color-tone-fff8ec: #21190a;}
+
+.light {
+  color-scheme: light;
+
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-error: #b91c1c;
+  --color-sky-700: #0b6593;
+  --color-primary-200: #d8cdf9;
+
+  --color-surface: #ffffff;
+  --color-primary-50: #f6f4fe;
+  --color-primary-100: #ece8fb;
+  --color-primary-700: #5426a6;
+  --color-primary-800: #3f1d82;
+  --color-primary-900: #2a1459;
+  --color-black: #2f3442;
+  --color-stroke: #e4e5ee;
+  --color-gray-50: #f5f6fb;
+  --color-gray-100: #eceef5;
+  --color-gray-200: #dde0ea;
+  --color-gray-300: #c3c7d6;
+  --color-gray-400: #9aa0b4;
+  --color-gray-600: #555b73;
+  --color-gray-700: #3d4258;
+  --color-gray-800: #262a3d;
+  --color-gray-900: #161a2e;
+  --color-sky-50: #eff9fe;
+  --color-sky-100: #dcf2fd;
+  --color-success-bg: #dcfce7;
+  --color-warning-bg: #fef3c7;
+  --color-error-bg: #fee2e2;
+  --color-disabled: #737586;
+  --color-placeholder: #c9cad3;
+  --color-zinc-50: #fafafa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #09090b;
+  --color-tone-0a0a0a: #0a0a0a;
+  --color-tone-101828: #101828;
+  --color-tone-110c22: #110c22;
+  --color-tone-202224: #202224;
+  --color-tone-232a78: #232a78;
+  --color-tone-2a2a2a: #2a2a2a;
+  --color-tone-2d264b: #2d264b;
+  --color-tone-333333: #333333;
+  --color-tone-364153: #364153;
+  --color-tone-3b45b0: #3b45b0;
+  --color-tone-494a4a: #494a4a;
+  --color-tone-4a5565: #4a5565;
+  --color-tone-545454: #545454;
+  --color-tone-555555: #555555;
+  --color-tone-6c757d: #6c757d;
+  --color-tone-6d6d6d: #6d6d6d;
+  --color-tone-6e6e6e: #6e6e6e;
+  --color-tone-70707a: #70707a;
+  --color-tone-717182: #717182;
+  --color-tone-727272: #727272;
+  --color-tone-767676: #767676;
+  --color-tone-888888: #888888;
+  --color-tone-8c8c94: #8c8c94;
+  --color-tone-8f8f8f: #8f8f8f;
+  --color-tone-a1a1a1: #a1a1a1;
+  --color-tone-a9aab5: #a9aab5;
+  --color-tone-bbf7d0: #bbf7d0;
+  --color-tone-cdcdcd: #cdcdcd;
+  --color-tone-d1d5dc: #d1d5dc;
+  --color-tone-d1fae5: #d1fae5;
+  --color-tone-d3d4d6: #d3d4d6;
+  --color-tone-d3d7f4: #d3d7f4;
+  --color-tone-d6f1ff: #d6f1ff;
+  --color-tone-d9d9d9: #d9d9d9;
+  --color-tone-dbeafe: #dbeafe;
+  --color-tone-dcefdf: #dcefdf;
+  --color-tone-e5e5e5: #e5e5e5;
+  --color-tone-e6e6e6: #e6e6e6;
+  --color-tone-e8e8e8: #e8e8e8;
+  --color-tone-e8eaf8: #e8eaf8;
+  --color-tone-e9ebf2: #e9ebf2;
+  --color-tone-e9edf0: #e9edf0;
+  --color-tone-eaeaeb: #eaeaeb;
+  --color-tone-ebebeb: #ebebeb;
+  --color-tone-ebf8f8: #ebf8f8;
+  --color-tone-ececef: #ececef;
+  --color-tone-ededef: #ededef;
+  --color-tone-eeeeee: #eeeeee;
+  --color-tone-efefef: #efefef;
+  --color-tone-eff6ff: #eff6ff;
+  --color-tone-f0f0f3: #f0f0f3;
+  --color-tone-f0f5f9: #f0f5f9;
+  --color-tone-f0f8f1: #f0f8f1;
+  --color-tone-f0fdf4: #f0fdf4;
+  --color-tone-f1f1f3: #f1f1f3;
+  --color-tone-f1f1f4: #f1f1f4;
+  --color-tone-f2f2f2: #f2f2f2;
+  --color-tone-f3f2f0: #f3f2f0;
+  --color-tone-f3f4f3: #f3f4f3;
+  --color-tone-f3f4f8: #f3f4f8;
+  --color-tone-f3fbfb: #f3fbfb;
+  --color-tone-f5f5f5: #f5f5f5;
+  --color-tone-f5f6f8: #f5f6f8;
+  --color-tone-f7f3fe: #f7f3fe;
+  --color-tone-f7f7f7: #f7f7f7;
+  --color-tone-f7f7f8: #f7f7f8;
+  --color-tone-f8f8f8: #f8f8f8;
+  --color-tone-f9fafc: #f9fafc;
+  --color-tone-fafaf9: #fafaf9;
+  --color-tone-fafafc: #fafafc;
+  --color-tone-fdf6e3: #fdf6e3;
+  --color-tone-fdfdfd: #fdfdfd;
+  --color-tone-fef2f2: #fef2f2;
+  --color-tone-fef9c3: #fef9c3;
+  --color-tone-ffccc7: #ffccc7;
+  --color-tone-ffe0a3: #ffe0a3;
+  --color-tone-ffe7e5: #ffe7e5;
+  --color-tone-fff1f0: #fff1f0;
+  --color-tone-fff2f1: #fff2f1;
+  --color-tone-fff3d3: #fff3d3;
+  --color-tone-fff8ec: #fff8ec;}

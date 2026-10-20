@@ -91,8 +91,8 @@ const CONTROL_RADIUS = "rounded-[15px]";
 // 마우스를 올리거나 입력 중이면 흰 바탕이 된다. 포커스 링 대신 1px 테두리가 보라색으로 바뀌고, 잘못된 입력이면 테두리만 빨갛게.
 const FIELD_CLASS =
   `${CONTROL_RADIUS} border border-gray-200 bg-gray-100 text-[14px] text-gray-900 [box-shadow:none]! transition-colors ` +
-  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white data-[focused=true]:bg-white " +
-  "data-[focus-within=true]:bg-white focus-within:border-focus focus-within:bg-white focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface data-[focused=true]:bg-surface " +
+  "data-[focus-within=true]:bg-surface focus-within:border-focus focus-within:bg-surface focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 간편 로그인 — 각 소셜 브랜드 색(카카오 노랑·네이버 초록). 크기는 HeroUI 기본 버튼(md) 그대로.
 const SNS_BUTTON_CLASS = `gap-[6px] text-[14px] font-semibold ${CONTROL_RADIUS}`;
@@ -196,7 +196,7 @@ export function LoginModal() {
           >
             <Modal.Dialog
               aria-label="로그인"
-              className="w-full max-w-[420px] gap-0 rounded-[24px] bg-white px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
+              className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
             >
               <Modal.CloseTrigger
                 aria-label="닫기"
@@ -364,7 +364,7 @@ export function LoginModal() {
           <Modal.Container placement="center" className="px-[16px] sm:px-0">
             <Modal.Dialog
               aria-label="서비스 이용 제한"
-              className="w-full max-w-[400px] gap-[20px] rounded-[24px] bg-white p-[28px]"
+              className="w-full max-w-[400px] gap-[20px] rounded-[24px] bg-surface p-[28px]"
             >
               <Modal.Header className="p-0">
                 <Modal.Heading className="text-[18px] leading-[28px] font-bold text-black">

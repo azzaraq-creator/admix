@@ -50,7 +50,7 @@ function Stepper({ current }: { current: number }) {
                   RADIUS.h24,
                   done || active
                     ? "bg-primary-500 text-white"
-                    : "border border-gray-200 bg-white text-gray-400",
+                    : "border border-gray-200 bg-surface text-gray-400",
                 )}
               >
                 {done ? <StepCheckIcon className="size-[14px]" /> : index + 1}
@@ -95,7 +95,7 @@ export function SignupShell({
   return (
     <div className="flex min-h-dvh w-full flex-col bg-gray-50">
       {/* 모바일은 앱 상단 바(48px)와 같은 높이로 줄이고 로고도 작게 둔다. */}
-      <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px] sm:px-[32px]">
+      <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-gray-200 bg-surface px-[16px] sm:px-[32px]">
         {/* 링크가 글줄(inline)이면 아래 글자 여백만큼 로고가 위로 뜬다 → flex로 세로 가운데. */}
         <Link href="/" aria-label="홈" className="max-sm:flex">
           <LogoFullDark className="h-[30px] max-sm:h-[22px]" />

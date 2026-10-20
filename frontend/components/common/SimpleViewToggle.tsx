@@ -29,8 +29,8 @@ export function SimpleViewToggle({
       <Switch.Content className="flex-row-reverse gap-[6px]">
         {/* 켜짐 손잡이 색(accent-foreground)이 globals.css에서 shadcn 진보라(#2a1459)로
             덮여 있어 흰색으로 되돌린다. 꺼짐 트랙은 회색 바탕(지도 팝업) 위에서도 보이게 진하게. */}
-        <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
-          <Switch.Thumb className="bg-white!" />
+        <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
+          <Switch.Thumb className="bg-surface!" />
         </Switch.Control>
         <Label
           className={cn(

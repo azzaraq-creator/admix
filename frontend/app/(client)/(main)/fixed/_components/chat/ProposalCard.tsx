@@ -35,17 +35,17 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
   const created = formatDate(data?.created_at);
 
   return (
-    <div className="flex w-full max-w-[440px] flex-col gap-[14px] rounded-[16px] border border-[#ececef] bg-white p-[16px] shadow-[0px_4px_10px_rgba(0,0,0,0.04)] max-sm:p-[14px]">
+    <div className="flex w-full max-w-[440px] flex-col gap-[14px] rounded-[16px] border border-tone-ececef bg-surface p-[16px] shadow-[0px_4px_10px_rgba(0,0,0,0.04)] max-sm:p-[14px]">
       <div className="flex items-center gap-[12px]">
         {/* 아이콘 칸 40px → 곡률 17px(관심 매체·빈 화면 아이콘 칸과 같은 규칙). */}
         <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[17px] bg-primary-50 text-primary">
           <CollectionIcon className="size-[24px]" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <p className="truncate text-[16px] font-bold text-[#18181b] max-sm:text-[15px]">
+          <p className="truncate text-[16px] font-bold text-zinc-900 max-sm:text-[15px]">
             {data?.title ?? proposal.name}
           </p>
-          <p className="text-[12px] text-[#71717a]">
+          <p className="text-[12px] text-zinc-500">
             {created && `${created} 생성 · `}
             {count > 0 ? `${count}개 매체 포함` : "빈 기획안"}
           </p>
@@ -65,7 +65,7 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
         </SkeletonLoading>
       ) : count === 0 ? (
         // 매체 없이 만든 기획안 — 다음에 할 일을 알려 준다.
-        <p className="rounded-[12px] border border-dashed border-[#e4e4e7] bg-[#f5f6fb] px-[12px] py-[14px] text-center text-[12px] leading-[1.6] break-keep text-[#71717a]">
+        <p className="rounded-[12px] border border-dashed border-zinc-200 bg-gray-50 px-[12px] py-[14px] text-center text-[12px] leading-[1.6] break-keep text-zinc-500">
           아직 담긴 매체가 없어요.
           <br />
           믹시에게 매체를 추천받아 이 기획안에 담아 보세요.
@@ -76,7 +76,7 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
             {items.slice(0, PREVIEW_COUNT).map((item) => (
               <li
                 key={item.media_id}
-                className="flex h-[56px] items-center gap-[10px] rounded-[12px] border border-[#ececef] bg-[#f5f6fb] px-[8px]"
+                className="flex h-[56px] items-center gap-[10px] rounded-[12px] border border-tone-ececef bg-gray-50 px-[8px]"
               >
                 <MediaThumbnail
                   src={item.thumbnail_url ?? undefined}
@@ -85,17 +85,17 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
                   fallback={<Logo className="size-[16px] opacity-30" />}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                  <p className="truncate text-[13px] font-semibold text-[#18181b]">
+                  <p className="truncate text-[13px] font-semibold text-zinc-900">
                     {item.media_name ?? item.name ?? "-"}
                   </p>
-                  <p className="truncate text-[11px] text-[#71717a]">
+                  <p className="truncate text-[11px] text-zinc-500">
                     {item.address ?? "-"}
                   </p>
                 </div>
               </li>
             ))}
             {rest > 0 && (
-              <li className="pl-[4px] text-[12px] font-medium text-[#71717a]">
+              <li className="pl-[4px] text-[12px] font-medium text-zinc-500">
                 외 {rest}개 매체
               </li>
             )}

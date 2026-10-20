@@ -41,7 +41,7 @@ function DialogContent({
         data-slot="dialog-backdrop"
         forceRender={backdropForceRender}
         className={cn(
-          "fixed inset-0 bg-black/70",
+          "fixed inset-0 bg-scrim/70",
           topLayer ? "z-[100001]" : "z-50",
           backdropClassName,
         )}
@@ -49,7 +49,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-white outline-none",
+          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-surface outline-none",
           topLayer ? "z-[100001]" : "z-50",
           className,
         )}

@@ -23,7 +23,7 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   secondary:
     "bg-gray-100 text-black hover:bg-gray-200 active:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-500",
   tertiary:
-    "border border-primary bg-white text-primary hover:bg-gray-50 active:bg-gray-50 disabled:border-gray-200 disabled:bg-white disabled:text-gray-300",
+    "border border-primary bg-surface text-primary hover:bg-gray-50 active:bg-gray-50 disabled:border-gray-200 disabled:bg-surface disabled:text-gray-300",
 };
 
 export function Button({
@@ -76,7 +76,7 @@ const ICON_BUTTON_VARIANT: Record<IconButtonVariant, string> = {
   secondary:
     "bg-gray-100 text-black hover:bg-gray-200 active:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-300",
   tertiary:
-    "border border-primary bg-white text-primary hover:bg-gray-50 active:bg-gray-100 disabled:border-gray-200 disabled:bg-white disabled:text-gray-300",
+    "border border-primary bg-surface text-primary hover:bg-gray-50 active:bg-gray-100 disabled:border-gray-200 disabled:bg-surface disabled:text-gray-300",
 };
 
 export function IconButton({
@@ -114,7 +114,7 @@ export function ExcelDownloadButton({
     <button
       type="button"
       className={cn(
-        "flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#4ca452] bg-white px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-[#f0f8f1] active:translate-y-px active:bg-[#dcefdf]",
+        "flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#4ca452] bg-surface px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-tone-f0f8f1 active:translate-y-px active:bg-tone-dcefdf",
         className,
       )}
       {...props}
@@ -134,7 +134,7 @@ export function ListButton({
     <button
       type="button"
       className={cn(
-        "flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-[#ebebeb] bg-white px-[16px] text-sm font-medium leading-[20px] text-[#0a0a0a] transition-colors hover:bg-[#f7f7f7] active:translate-y-px active:bg-[#efefef]",
+        "flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-tone-ebebeb bg-surface px-[16px] text-sm font-medium leading-[20px] text-tone-0a0a0a transition-colors hover:bg-tone-f7f7f7 active:translate-y-px active:bg-tone-efefef",
         SHADOW,
         className,
       )}
@@ -171,7 +171,7 @@ export function DeleteButton({
     <button
       type="button"
       className={cn(
-        "flex h-[36px] items-center justify-center rounded-[6px] bg-gray-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200 active:translate-y-px active:bg-[#c3c7d6]",
+        "flex h-[36px] items-center justify-center rounded-[6px] bg-gray-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200 active:translate-y-px active:bg-gray-300",
         className,
       )}
       {...props}

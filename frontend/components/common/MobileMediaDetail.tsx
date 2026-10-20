@@ -102,7 +102,7 @@ export function MobileMediaDetail({
 
   return (
     <div className={cn("flex w-full flex-col", className)}>
-      <div className="relative h-[250px] w-full shrink-0 bg-[#d9d9d9]">
+      <div className="relative h-[250px] w-full shrink-0 bg-tone-d9d9d9">
         {imageUrl && (
           <MediaImage
             src={mediaSrc(imageUrl)}
@@ -117,7 +117,7 @@ export function MobileMediaDetail({
             type="button"
             aria-label="목록으로"
             onClick={onBack}
-            className="absolute left-[16px] top-[16px] flex size-[36px] items-center justify-center rounded-full bg-white/90 text-black drop-shadow-[0px_0px_4px_rgba(0,0,0,0.2)]"
+            className="absolute left-[16px] top-[16px] flex size-[36px] items-center justify-center rounded-full bg-surface/90 text-black drop-shadow-[0px_0px_4px_rgba(0,0,0,0.2)]"
           >
             <ChevronLeftIcon className="size-[20px]" />
           </button>
@@ -204,7 +204,7 @@ export function MobileMediaDetail({
             <SectionTitle>유동 인구 데이터</SectionTitle>
             <div className="flex flex-col gap-[24px] rounded-[8px] border border-stroke p-[16px]">
               <div className="flex flex-col gap-[16px]">
-                <p className="text-base font-semibold leading-[24px] text-[#545454]">
+                <p className="text-base font-semibold leading-[24px] text-tone-545454">
                   성별 비율
                 </p>
                 <div className="flex items-center justify-center">
@@ -215,7 +215,7 @@ export function MobileMediaDetail({
                 </div>
               </div>
               <div className="flex flex-col gap-[16px]">
-                <p className="text-base font-semibold leading-[24px] text-[#545454]">
+                <p className="text-base font-semibold leading-[24px] text-tone-545454">
                   연령대 비율
                 </p>
                 <div className="flex items-center justify-center">

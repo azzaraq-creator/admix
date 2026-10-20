@@ -123,7 +123,7 @@ export function MediaPhotoSection({
             "flex w-[200px] shrink-0 flex-col items-center justify-center gap-[10px] rounded-[12px] border-2 border-dashed px-[16px] py-[20px] text-center transition-colors",
             dragging
               ? "border-primary bg-primary-50"
-              : "border-stroke bg-[#fafafc]",
+              : "border-stroke bg-tone-fafafc",
             disabled && !uploading && "opacity-60",
           )}
         >
@@ -136,7 +136,7 @@ export function MediaPhotoSection({
             </>
           ) : (
             <>
-              <ImagePlus className="size-[28px] text-[#71717a]" />
+              <ImagePlus className="size-[28px] text-zinc-500" />
               <div className="flex flex-col gap-[2px]">
                 <p className="text-sm font-semibold leading-[20px] text-black">
                   {remaining <= 0
@@ -235,7 +235,7 @@ function PhotoCard({
           className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border-2 border-primary"
         />
       )}
-      <div className="relative aspect-[4/3] w-full bg-[#f4f4f5]">
+      <div className="relative aspect-[4/3] w-full bg-zinc-100">
         <Image
           src={src}
           alt=""
@@ -261,7 +261,7 @@ function PhotoCard({
           aria-label="이미지 삭제"
           isDisabled={isBusy}
           onPress={onDelete}
-          className="absolute right-[8px] top-[8px] bg-white/90"
+          className="absolute right-[8px] top-[8px] bg-surface/90"
         >
           <Trash2 className="size-[16px]" />
         </Button>

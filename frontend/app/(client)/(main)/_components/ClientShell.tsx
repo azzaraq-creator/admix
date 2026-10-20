@@ -29,7 +29,7 @@ export async function ClientShell({ children }: { children: ReactNode }) {
   return (
     <LnbProvider initialCollapsed={lnbCollapsed}>
       <MixieChatProvider>
-        <div className="flex h-dvh w-full bg-white">
+        <div className="flex h-dvh w-full bg-surface">
           <Sidebar member={member} />
           <MixieChatPanel />
           {/* --tabbar-space: 모바일 하단 탭 바가 본문 위에 떠서 가리는 높이(캡슐 56 + 아래 여백 8 + 안전 영역).

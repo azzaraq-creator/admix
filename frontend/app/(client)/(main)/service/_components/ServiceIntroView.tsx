@@ -56,13 +56,13 @@ function CompareRow({
     <div
       className={cn(
         "flex items-center gap-[8px] rounded-[4px] p-[8px] sm:gap-[12px] sm:px-[24px] sm:py-[16px]",
-        isAdmix ? "bg-secondary" : "bg-[#eee]",
+        isAdmix ? "bg-secondary" : "bg-tone-eeeeee",
       )}
     >
       <CircleCheckIcon
         className={cn(
           "size-[16px] shrink-0 sm:size-[24px]",
-          isAdmix ? "text-primary" : "text-[#a9aab5]",
+          isAdmix ? "text-primary" : "text-tone-a9aab5",
         )}
       />
       <p className="text-base font-semibold leading-[24px]">
@@ -87,8 +87,9 @@ export function ServiceIntroView() {
               회사 및 서비스 소개를 확인하세요
             </p>
           </div>
+          {/* 사진 위 배너는 시안 그대로 — 다크 모드에서도 라이트 색으로 그린다(.light). */}
           <div
-              className="relative flex w-full flex-col justify-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:aspect-[1016/500] sm:rounded-[36px] sm:px-[60px] sm:py-0">
+              className="light relative flex w-full flex-col justify-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:aspect-[1016/500] sm:rounded-[36px] sm:px-[60px] sm:py-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src="/service/hero-bg.png"
@@ -189,7 +190,7 @@ export function ServiceIntroView() {
             {CARDS.map((card) => (
                 <div
                     key={card.badge}
-                    className="flex flex-col gap-[10px] rounded-[6px] border border-stroke bg-[#f8f8f8] p-[12px] sm:px-[18px] sm:py-[36px]"
+                    className="flex flex-col gap-[10px] rounded-[6px] border border-stroke bg-tone-f8f8f8 p-[12px] sm:px-[18px] sm:py-[36px]"
                 >
               <span
                   className="inline-flex w-fit items-center rounded-[4px] bg-primary px-[6px] py-[2px] text-xs font-medium leading-[16px] text-white sm:text-sm sm:font-semibold sm:leading-[20px]">
@@ -218,7 +219,7 @@ export function ServiceIntroView() {
 
         <section>
           <div
-              className="relative flex items-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:rounded-[36px] sm:px-[60px]">
+              className="light relative flex items-center overflow-hidden rounded-[16px] px-[16px] py-[80px] sm:rounded-[36px] sm:px-[60px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src="/service/cta-bg.png"

@@ -64,7 +64,7 @@ export function MovingView() {
   return (
     <div className="flex flex-1 overflow-hidden">
       <div
-        className={`min-w-0 flex-1 flex-col sm:flex sm:border-r sm:border-[#e8e8e8] ${
+        className={`min-w-0 flex-1 flex-col sm:flex sm:border-r sm:border-tone-e8e8e8 ${
           detailOpen ? "hidden" : "flex"
         }`}
       >

@@ -27,7 +27,7 @@ export function LocationSearchInput({
         onSubmit?.();
       }}
       className={cn(
-        "flex items-center justify-between gap-[12px] rounded-full border border-primary bg-white px-[24px] py-[10px]",
+        "flex items-center justify-between gap-[12px] rounded-full border border-primary bg-surface px-[24px] py-[10px]",
         className,
       )}
     >

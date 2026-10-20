@@ -271,7 +271,7 @@ export function ContactEmailChangeModal({
                 SIDE_BUTTON,
                 "gap-[4px]",
                 verified &&
-                  "data-[disabled=true]:bg-[#f0fdf4] data-[disabled=true]:text-[#16a34a]",
+                  "data-[disabled=true]:bg-tone-f0fdf4 data-[disabled=true]:text-[#16a34a]",
               )}
             >
               {verified ? (

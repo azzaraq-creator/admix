@@ -6,7 +6,7 @@ import { useState } from "react";
 const STEP = 1_000_000; // 백만원 단위 이동
 
 const THUMB_CLASS =
-  "size-[22px]! rounded-full border-2 border-primary bg-white shadow-[0px_2px_6px_rgba(163,59,209,0.35)] after:hidden data-[dragging=true]:scale-110 data-[focus-visible=true]:ring-4 data-[focus-visible=true]:ring-primary/20 max-sm:size-[20px]!";
+  "size-[22px]! rounded-full border-2 border-primary bg-surface shadow-[0px_2px_6px_rgba(163,59,209,0.35)] after:hidden data-[dragging=true]:scale-110 data-[focus-visible=true]:ring-4 data-[focus-visible=true]:ring-primary/20 max-sm:size-[20px]!";
 
 // 백만원 단위라 "1,200만원", "1억 2,000만원"처럼 만원·억으로 읽기 쉽게 적는다.
 export function priceLabel(n: number): string {
@@ -146,7 +146,7 @@ export function PriceRangeFilter({
         >
           <Switch.Content>
             <Switch.Control>
-              <Switch.Thumb className="bg-white!" />
+              <Switch.Thumb className="bg-surface!" />
             </Switch.Control>
             <span className="text-[14px] text-gray-900 max-sm:text-[12px]">
               별도 협의 포함

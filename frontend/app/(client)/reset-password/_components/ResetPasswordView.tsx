@@ -49,8 +49,8 @@ export function ResetPasswordView() {
     Boolean(password && confirmPassword) && !confirmMutation.isPending;
 
   return (
-    <main className="flex min-h-dvh w-full items-center justify-center bg-white sm:bg-[#ebf8f8]">
-      <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-white px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
+    <main className="flex min-h-dvh w-full items-center justify-center bg-surface sm:bg-tone-ebf8f8">
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-[32px] bg-surface px-[16px] py-[24px] sm:min-h-0 sm:w-[470px] sm:rounded-[24px] sm:px-[36px] sm:py-[46px]">
         <div className="flex w-full items-center justify-center py-[24px]">
           <LogoFull className="h-[30px]" />
         </div>
@@ -83,7 +83,7 @@ export function ResetPasswordView() {
                 placeholder="비밀번호를 입력해 주세요"
                 className={cn(
                   inputClass,
-                  error ? "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]" : "border-stroke",
+                  error ? "border-[#ff2c20] bg-tone-fff2f1 focus:border-[#ff2c20]" : "border-stroke",
                 )}
               />
               <input
@@ -96,7 +96,7 @@ export function ResetPasswordView() {
                 placeholder="비밀번호를 한번 더 입력해 주세요"
                 className={cn(
                   inputClass,
-                  error ? "border-[#ff2c20] bg-[#fff2f1] focus:border-[#ff2c20]" : "border-stroke",
+                  error ? "border-[#ff2c20] bg-tone-fff2f1 focus:border-[#ff2c20]" : "border-stroke",
                 )}
               />
               {error && (
@@ -112,7 +112,7 @@ export function ResetPasswordView() {
                 "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
                 canSubmit
                   ? "bg-primary text-white"
-                  : "bg-[#eee] text-[#727892]",
+                  : "bg-tone-eeeeee text-gray-500",
               )}
             >
               {confirmMutation.isPending ? "재설정 중..." : "비밀번호 재설정"}

@@ -73,13 +73,13 @@ export function CustomProposalWriteView() {
   };
 
   return (
-    <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#dde0ea] bg-white p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
       <div className="flex items-center gap-[12px]">
-        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-[#2a2a2a]">
+        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a">
           맞춤기획안 명
         </span>
         <span className="shrink-0 text-base font-semibold leading-[24px] text-[#d65856]">
@@ -118,7 +118,7 @@ export function CustomProposalWriteView() {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="shrink-0 rounded-[6px] border border-stroke px-[14px] py-[8px] text-sm font-medium leading-[20px] text-[#2a2a2a] hover:bg-[#fafafa] disabled:opacity-50"
+            className="shrink-0 rounded-[6px] border border-stroke px-[14px] py-[8px] text-sm font-medium leading-[20px] text-tone-2a2a2a hover:bg-zinc-50 disabled:opacity-50"
           >
             파일 변경
           </button>
@@ -136,7 +136,7 @@ export function CustomProposalWriteView() {
             handleFile(event.dataTransfer.files?.[0]);
           }}
           className={`flex flex-col items-center justify-center gap-[12px] rounded-[8px] border border-dashed py-[48px] ${
-            dragging ? "border-primary bg-[#f3fbfb]" : "border-stroke"
+            dragging ? "border-primary bg-tone-f3fbfb" : "border-stroke"
           }`}
         >
           <p className="text-base font-bold leading-[24px] text-black">

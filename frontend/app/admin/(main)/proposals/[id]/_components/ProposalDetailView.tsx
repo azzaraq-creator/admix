@@ -39,7 +39,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex flex-1 items-center gap-[16px]">
-      <span className="w-[160px] shrink-0 text-xl font-semibold leading-[24px] text-[#6d6d6d]">
+      <span className="w-[160px] shrink-0 text-xl font-semibold leading-[24px] text-tone-6d6d6d">
         {label}
       </span>
       <div className="min-w-0 flex-1 px-[12px] text-sm font-medium leading-[20px] text-black">
@@ -160,8 +160,8 @@ export function ProposalDetailView() {
 
   return (
     <div className="flex flex-col gap-[32px]">
-      <div className="flex flex-col gap-[16px] rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-        <h1 className="pb-[8px] text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
+      <div className="flex flex-col gap-[16px] rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+        <h1 className="pb-[8px] text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
           제안 상세
         </h1>
         <div className="flex flex-col gap-[16px]">
@@ -190,16 +190,16 @@ export function ProposalDetailView() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#dde0ea] bg-white p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex items-center justify-between">
-          <p className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">
+          <p className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
             {proposal?.title ?? ""}
           </p>
           <button
             type="button"
             onClick={handleExportPpt}
             disabled={exporting}
-            className="flex h-[36px] items-center gap-[10px] rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+            className="flex h-[36px] items-center gap-[10px] rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
           >
             <DownloadIcon className="size-[16px]" />
             {exporting ? "생성 중…" : "PPT 다운로드"}
@@ -207,7 +207,7 @@ export function ProposalDetailView() {
         </div>
 
         <div className="flex items-start gap-[11px]">
-          <div className="flex w-[224px] shrink-0 flex-col gap-[14px] self-stretch rounded-[6px] border border-[#cdcdcd] p-[16px]">
+          <div className="flex w-[224px] shrink-0 flex-col gap-[14px] self-stretch rounded-[6px] border border-tone-cdcdcd p-[16px]">
             <p className="text-base leading-[1.4] text-black">슬라이드 목록</p>
             <div className="flex flex-col gap-[6px]">
               {slides.map((slide, index) => (
@@ -217,11 +217,11 @@ export function ProposalDetailView() {
                   onClick={() => setSelected(index)}
                   className={`flex items-center gap-[14px] rounded-[4px] border px-[8px] py-[10px] text-left ${
                     index === selected
-                      ? "border-[#cdcdcd] bg-[#f3f4f3]"
-                      : "border-[#cdcdcd] hover:bg-[#fafafa]"
+                      ? "border-tone-cdcdcd bg-tone-f3f4f3"
+                      : "border-tone-cdcdcd hover:bg-zinc-50"
                   }`}
                 >
-                  <span className="flex w-[20px] shrink-0 items-center justify-center rounded-[4px] bg-[#fdfdfd] text-sm leading-[1.4] text-black">
+                  <span className="flex w-[20px] shrink-0 items-center justify-center rounded-[4px] bg-tone-fdfdfd text-sm leading-[1.4] text-black">
                     {index + 1}
                   </span>
                   <span className="truncate text-sm leading-[1.4] text-black">
@@ -232,7 +232,7 @@ export function ProposalDetailView() {
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-[14px] rounded-[6px] border border-[#cdcdcd] p-[16px]">
+          <div className="flex flex-1 flex-col gap-[14px] rounded-[6px] border border-tone-cdcdcd p-[16px]">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-[4px] text-sm font-medium leading-[1.4] text-black">
                 <span>{selected + 1}</span>
@@ -244,7 +244,7 @@ export function ProposalDetailView() {
                 onClick={() => setLightboxOpen(true)}
                 disabled={slides.length === 0}
                 aria-label="슬라이드 확대 보기"
-                className="flex size-[24px] items-center justify-center text-[#2a2a2a] disabled:opacity-40"
+                className="flex size-[24px] items-center justify-center text-tone-2a2a2a disabled:opacity-40"
               >
                 <FullscreenIcon className="size-[24px]" />
               </button>
@@ -261,23 +261,23 @@ export function ProposalDetailView() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-[24px] rounded-[6px] border border-[#cdcdcd] p-[16px]">
+        <div className="flex flex-col gap-[24px] rounded-[6px] border border-tone-cdcdcd p-[16px]">
           <div className="flex items-start justify-between">
-            <p className="text-xl font-semibold leading-[24px] text-[#2a2a2a]">
+            <p className="text-xl font-semibold leading-[24px] text-tone-2a2a2a">
               맞춤제안 이력
             </p>
             {accepted ? (
               <span
                 aria-disabled="true"
                 title="계약 완료된 기획안은 맞춤제안을 작성할 수 없습니다."
-                className="flex h-[36px] cursor-not-allowed items-center rounded-[15px] border border-[#ebebeb] bg-[#f5f5f5] px-[17px] text-sm font-medium leading-[20px] text-disabled"
+                className="flex h-[36px] cursor-not-allowed items-center rounded-[15px] border border-tone-ebebeb bg-tone-f5f5f5 px-[17px] text-sm font-medium leading-[20px] text-disabled"
               >
                 맞춤제안 작성
               </span>
             ) : (
               <Link
                 href={`/admin/proposals/${params.id}/write`}
-                className="flex h-[36px] items-center rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                className="flex h-[36px] items-center rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
               >
                 맞춤제안 작성
               </Link>
@@ -288,7 +288,7 @@ export function ProposalDetailView() {
               {HISTORY_HEADERS.map((header) => (
                 <div
                   key={header}
-                  className="flex h-full flex-1 items-center justify-center bg-[#f0f0f3] px-[24px] text-base font-normal leading-[24px] tracking-[-0.32px] text-[#555]"
+                  className="flex h-full flex-1 items-center justify-center bg-tone-f0f0f3 px-[24px] text-base font-normal leading-[24px] tracking-[-0.32px] text-tone-555555"
                 >
                   {header}
                 </div>
@@ -302,7 +302,7 @@ export function ProposalDetailView() {
               counterFiles.map((cf, index) => (
                 <div
                   key={cf.id}
-                  className="flex h-[56px] items-center border-b border-[#f0f0f3] text-sm font-medium leading-[20px] text-[#2a2a2a]"
+                  className="flex h-[56px] items-center border-b border-tone-f0f0f3 text-sm font-medium leading-[20px] text-tone-2a2a2a"
                 >
                   <div className="flex min-w-0 flex-1 items-center justify-center px-[24px]">
                     <span className="truncate">{cf.title ?? cf.file_name}</span>
@@ -324,7 +324,7 @@ export function ProposalDetailView() {
                           `/admin/proposals/${params.id}/write/${cf.id}`,
                         )
                       }
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-[#cdcdcd] px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-tone-cdcdcd px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
                     >
                       상세
                     </button>
@@ -332,7 +332,7 @@ export function ProposalDetailView() {
                       type="button"
                       onClick={() => handleDownloadCounter(cf.id, cf.file_name)}
                       aria-label="다운로드"
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-[#cdcdcd] px-[16px] py-[4px] text-[#0a0a0a]"
+                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-tone-cdcdcd px-[16px] py-[4px] text-tone-0a0a0a"
                     >
                       <DownloadIcon className="size-[16px]" />
                     </button>

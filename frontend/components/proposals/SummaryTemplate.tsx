@@ -241,10 +241,10 @@ function AmountCell({
 // 입력 칸 공통 모양 — 기획안 패널·문의 창과 같은 ADMIX 입력칸(옅은 회색 칸 + 1px 회색 테두리, 그림자 없음,
 // 올리거나 입력 중이면 흰 바탕, 입력 중엔 1px 보라 테두리). 46px → 곡률 19px(높이의 약 0.42배).
 const FIELD_BOX =
-  "flex h-[46px] min-h-0 items-center rounded-[19px] border border-[#ececef] bg-[#f7f7f8] shadow-none transition-colors hover:bg-white data-[hovered=true]:bg-white focus-within:border-focus focus-within:bg-white data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white";
+  "flex h-[46px] min-h-0 items-center rounded-[19px] border border-tone-ececef bg-tone-f7f7f8 shadow-none transition-colors hover:bg-surface data-[hovered=true]:bg-surface focus-within:border-focus focus-within:bg-surface data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface";
 // 입력 칸 안의 작은 버튼(−·+·달력) — 칸 곡률에 맞춰 동그랗게.
 const FIELD_BUTTON =
-  "flex size-[34px] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent p-0 text-[#71717a] data-[disabled=true]:opacity-40 data-[hovered=true]:bg-gray-100 data-[hovered=true]:text-gray-900";
+  "flex size-[34px] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent p-0 text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-gray-100 data-[hovered=true]:text-gray-900";
 
 function planLabel(plan: PlanOption): string {
   return (
@@ -278,7 +278,7 @@ export function PlanSelect({
         <Select.Value className="truncate text-left text-[18px] font-semibold leading-[1.4] tracking-[-0.45px] text-gray-900">
           {() => planLabel(current)}
         </Select.Value>
-        <Select.Indicator className="end-[14px] size-[18px] text-[#71717a]" />
+        <Select.Indicator className="end-[14px] size-[18px] text-zinc-500" />
       </Select.Trigger>
       <Select.Popover className="min-w-[var(--trigger-width)]">
         <ListBox>
@@ -288,7 +288,7 @@ export function PlanSelect({
               id={String(plan.plan_no)}
               textValue={planLabel(plan)}
             >
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
                 {planLabel(plan)}
               </span>
               <ListBox.ItemIndicator />
@@ -677,7 +677,7 @@ export function SummaryTemplate({
       : EMPTY;
 
   return (
-    <div className="relative flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-white px-[64px] pb-[48px] pt-[56px]">
+    <div className="relative flex h-[1080px] w-[1920px] flex-col overflow-hidden bg-surface px-[64px] pb-[48px] pt-[56px]">
       <div className="flex shrink-0 items-center gap-[16px]">
         <span className="h-[36px] w-[6px] rounded-full bg-primary" />
         <p className="text-[40px] font-bold leading-none tracking-[-1px] text-gray-900">

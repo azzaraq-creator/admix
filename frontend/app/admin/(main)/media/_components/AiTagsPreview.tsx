@@ -18,7 +18,7 @@ export interface AiPreview {
 const ORIGIN: Record<Origin, { label: string; chip: string; dot: string }> = {
   auto: {
     label: "자동",
-    chip: "bg-white text-primary-700 ring-1 ring-inset ring-primary-200",
+    chip: "bg-surface text-primary-700 ring-1 ring-inset ring-primary-200",
     dot: "bg-primary-300",
   },
   manual: {
@@ -28,8 +28,8 @@ const ORIGIN: Record<Origin, { label: string; chip: string; dot: string }> = {
   },
   source: {
     label: "기존 데이터",
-    chip: "bg-[#e9ebf2] text-[#555b73]",
-    dot: "bg-[#c3c7d6]",
+    chip: "bg-tone-e9ebf2 text-gray-600",
+    dot: "bg-gray-300",
   },
 };
 
@@ -46,24 +46,24 @@ function Chip({ label, origin }: { label: string; origin: Origin }) {
   );
 }
 
-const EMPTY_TEXT = "text-[12px] text-[#9aa0b4]";
+const EMPTY_TEXT = "text-[12px] text-gray-400";
 
 /** 어드민 매체 상세 "AI 검색 태그" — 믹시가 이 매체를 찾을 때 쓰는 태그를 항목별로. */
 export function AiTagsPreview({ data }: { data?: AiPreview }) {
   if (!data?.in_index) {
     return (
-      <div className="rounded-[12px] bg-[#f5f6fb] px-[16px] py-[14px] text-[13px] text-[#727892]">
+      <div className="rounded-[12px] bg-gray-50 px-[16px] py-[14px] text-[13px] text-gray-500">
         아직 믹시 검색 표에 없어요. 저장하면 올라가요.
       </div>
     );
   }
   return (
-    <div className="flex flex-col gap-[10px] rounded-[12px] bg-[#f5f6fb] p-[16px]">
+    <div className="flex flex-col gap-[10px] rounded-[12px] bg-gray-50 p-[16px]">
       <div className="flex flex-wrap items-center justify-end gap-[12px]">
         {(Object.keys(ORIGIN) as Origin[]).map((o) => (
           <span
             key={o}
-            className="flex items-center gap-[5px] text-[11px] text-[#727892]"
+            className="flex items-center gap-[5px] text-[11px] text-gray-500"
           >
             <span className={cn("size-[7px] rounded-full", ORIGIN[o].dot)} />
             {ORIGIN[o].label}
@@ -72,7 +72,7 @@ export function AiTagsPreview({ data }: { data?: AiPreview }) {
       </div>
       {data.groups.map((g) => (
         <div key={g.key} className="flex items-start gap-[12px]">
-          <p className="w-[64px] shrink-0 pt-[3px] text-[12px] font-semibold text-[#555b73]">
+          <p className="w-[64px] shrink-0 pt-[3px] text-[12px] font-semibold text-gray-600">
             {g.label}
           </p>
           <div className="flex min-w-0 flex-1 flex-wrap gap-[6px]">
@@ -97,7 +97,7 @@ export function AutoTargets({ text }: { text?: string }) {
     .map((v) => v.trim())
     .filter((v) => v && v !== "-");
   return (
-    <div className="flex min-h-[40px] flex-wrap items-center gap-[6px] rounded-[12px] bg-[#f5f6fb] px-[14px] py-[8px]">
+    <div className="flex min-h-[40px] flex-wrap items-center gap-[6px] rounded-[12px] bg-gray-50 px-[14px] py-[8px]">
       {text == null ? (
         <span className={EMPTY_TEXT}>저장하면 계산돼요</span>
       ) : values.length > 0 ? (

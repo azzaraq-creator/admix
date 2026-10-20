@@ -229,7 +229,7 @@ export function CommonTable<T>({
               handleSearch();
             }
           }}
-          className="h-[40px] min-w-0 flex-1 rounded-[17px] border border-stroke bg-white px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
+          className="h-[40px] min-w-0 flex-1 rounded-[17px] border border-stroke bg-surface px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
         />
       )}
       {opt.type === "select" && (
@@ -238,7 +238,7 @@ export function CommonTable<T>({
           value={tempSearch[opt.name] ?? ""}
           onValueChange={(value) => setField(opt.name, (value as string) ?? "")}
         >
-          <SelectTrigger className="w-[100px] shrink-0 rounded-[17px] border-stroke bg-white px-[12px] font-medium text-black data-[size=default]:h-[40px]">
+          <SelectTrigger className="w-[100px] shrink-0 rounded-[17px] border-stroke bg-surface px-[12px] font-medium text-black data-[size=default]:h-[40px]">
             <SelectValue placeholder={opt.placeholder ?? "전체"} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -274,7 +274,7 @@ export function CommonTable<T>({
   return (
     <div className="flex flex-col gap-[16px]">
       {showSearch && (
-        <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke bg-[#fafafc] p-[20px]">
+        <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
           {searchRows.map((rowOpts, rowIndex) => (
             <div
               key={rowIndex}
@@ -294,7 +294,7 @@ export function CommonTable<T>({
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke bg-white px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-100"
+                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke bg-surface px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-100"
                   >
                     <RotateCw className="size-[16px]" />
                     초기화
@@ -321,9 +321,9 @@ export function CommonTable<T>({
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white">
+      <div className="overflow-x-auto bg-surface">
         <Table className="min-w-[720px]">
-          <TableHeader className="bg-[#FAFAF9] [&_tr]:border-b-[1.25px] [&_tr]:border-[#E5E5E5]">
+          <TableHeader className="bg-tone-fafaf9 [&_tr]:border-b-[1.25px] [&_tr]:border-tone-e5e5e5">
             <TableRow className="h-[48px] hover:bg-transparent">
               {useCheckbox && (
                 <TableHead className="w-[56px] px-[16px] py-0 text-center">
@@ -379,7 +379,7 @@ export function CommonTable<T>({
                 <TableRow
                   key={idKey ? String(item[idKey]) : idx}
                   className={cn(
-                    "h-[56px] border-b-[1.25px] border-[#E5E5E5] hover:bg-gray-50",
+                    "h-[56px] border-b-[1.25px] border-tone-e5e5e5 hover:bg-gray-50",
                     onRowClick && "cursor-pointer",
                     rowClassName?.(item),
                   )}
@@ -501,7 +501,7 @@ function DateField({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className="relative flex h-[40px] w-[200px] items-center rounded-[17px] border border-stroke bg-white pl-[12px] pr-[36px] text-left outline-none focus:border-primary"
+        className="relative flex h-[40px] w-[200px] items-center rounded-[17px] border border-stroke bg-surface pl-[12px] pr-[36px] text-left outline-none focus:border-primary"
         aria-label="날짜 선택"
       >
         <span
@@ -545,7 +545,7 @@ function PageSizeSelect({
       value={String(value)}
       onValueChange={(next) => onChange(Number(next))}
     >
-      <SelectTrigger className="rounded-[17px] border-stroke bg-white px-[16px] font-medium text-black data-[size=default]:h-[40px]">
+      <SelectTrigger className="rounded-[17px] border-stroke bg-surface px-[16px] font-medium text-black data-[size=default]:h-[40px]">
         <SelectValue>{(selected) => `${String(selected)}개씩 보기`}</SelectValue>
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} className="min-w-0">

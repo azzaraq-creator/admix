@@ -57,11 +57,11 @@ export function useAdminConfirm() {
         backdropForceRender
       >
         <div className="flex flex-col gap-[8px]">
-          <p className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-[#2f3442]">
+          <p className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
             {state?.title}
           </p>
           {state?.description && (
-            <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-[#737586]">
+            <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
               {state.description}
             </div>
           )}
@@ -71,7 +71,7 @@ export function useAdminConfirm() {
             <button
               type="button"
               onClick={() => settle(false)}
-              className="rounded-[8px] bg-[#eceef5] px-[16px] py-[10px] text-sm font-medium leading-[20px] text-[#2f3442] transition-colors hover:bg-[#dde0ea]"
+              className="rounded-[8px] bg-gray-100 px-[16px] py-[10px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200"
             >
               {state?.cancelText ?? "취소"}
             </button>

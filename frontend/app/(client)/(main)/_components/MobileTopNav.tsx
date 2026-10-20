@@ -5,24 +5,19 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { openPageTour, useHasPageTour } from "@/components/common/PageTour";
-import {
-  GuideIcon,
-  LoginDoorIcon,
-  ProfileAvatarIcon,
-} from "@/components/icons";
+import { GuideIcon, ProfileAvatarIcon } from "@/components/icons";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
 import { CurrentProposalButton } from "./CurrentProposalButton";
-import { ProfileMenu } from "./ProfileMenu";
-import { openLoginModal } from "./useLoginModal";
+import { GUEST_AVATAR_CLASS, GuestMenu, ProfileMenu } from "./ProfileMenu";
 import { useMixieChat } from "./useMixieChat";
 
 /**
- * 상단바 왼쪽 — 사이드 메뉴 대신(메뉴는 하단 탭 바로 옮겼다) 회원이면 프로필 아이콘(누르면 내 정보·약관·
- * 로그아웃 메뉴), 아니면 로그인 아이콘(누르면 로그인 창). 회원 정보를 받는 동안엔 스피너.
- * member — 로그인 쿠키가 있는지(서버가 넘긴다). 새로고침 때 로그인 아이콘이 잠깐 보였다 바뀌지 않게.
+ * 상단바 왼쪽 — 사이드 메뉴 대신(메뉴는 하단 탭 바로 옮겼다) 회원이면 프로필 아이콘(누르면 화면 모드·내 정보·
+ * 약관·로그아웃 메뉴), 아니면 회색 프로필 아이콘(누르면 화면 모드·로그인 / 회원가입). 회원 정보를 받는 동안엔 스피너.
+ * member — 로그인 쿠키가 있는지(서버가 넘긴다). 새로고침 때 비회원 아이콘이 잠깐 보였다 바뀌지 않게.
  */
 function MobileUserButton({ member }: { member: boolean }) {
   const { data: me, isError } = useMe();
@@ -56,15 +51,20 @@ function MobileUserButton({ member }: { member: boolean }) {
       </Dropdown>
     );
   return (
-    <button
-      type="button"
-      aria-label="로그인 / 회원가입"
-      onClick={openLoginModal}
-      className={BUTTON}
-    >
-      {/* 배지 없이 검정 아이콘만 — 화면에 보라가 많아 상단바는 무채색으로 둔다. */}
-      <LoginDoorIcon className="h-[18px] w-[16px] text-gray-900" />
-    </button>
+    // 비회원 — 회원과 같은 자리의 회색 프로필 아이콘. 누르면 화면 모드 · 로그인 / 회원가입.
+    <Dropdown>
+      <Dropdown.Trigger
+        aria-label="메뉴 (화면 모드 · 로그인)"
+        className={cn(BUTTON, "outline-none")}
+      >
+        <ProfileAvatarIcon
+          className={cn("size-[26px] shrink-0", GUEST_AVATAR_CLASS)}
+        />
+      </Dropdown.Trigger>
+      <Dropdown.Popover placement="bottom start" className="min-w-[160px]">
+        <GuestMenu />
+      </Dropdown.Popover>
+    </Dropdown>
   );
 }
 
@@ -73,7 +73,7 @@ export function MobileTopNav({ member = false }: { member?: boolean }) {
   // 지금 페이지에 가이드가 있을 때만 현재 기획안 왼쪽에 아이콘 버튼을 둔다.
   const hasTour = useHasPageTour();
   return (
-    <header className="relative flex h-[48px] shrink-0 items-center justify-between bg-white sm:hidden border-b border-gray-200">
+    <header className="relative flex h-[48px] shrink-0 items-center justify-between bg-surface sm:hidden border-b border-gray-200">
       <MobileUserButton member={member} />
       {/* 로고는 오른쪽 버튼 수(가이드 유무)와 관계없이 화면 가운데에 둔다. */}
       <Link
@@ -88,6 +88,7 @@ export function MobileTopNav({ member = false }: { member?: boolean }) {
           width={56}
           height={16}
           priority
+          className="dark:invert"
         />
       </Link>
       <div className="flex h-full">

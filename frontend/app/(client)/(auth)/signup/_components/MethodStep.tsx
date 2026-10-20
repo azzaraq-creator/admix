@@ -38,20 +38,20 @@ export function MethodStep({
       {/* 선택한 유형 줄 — 높이 56px → 곡률 25px. */}
       <div
         className={cn(
-          "flex h-[56px] w-full items-center justify-between border border-gray-200 bg-white pr-[4px] pl-[16px]",
+          "flex h-[56px] w-full items-center justify-between border border-gray-200 bg-surface pr-[4px] pl-[16px]",
           RADIUS.h56,
         )}
       >
         <div className="flex items-center gap-[12px]">
           <CategoryBadge>{MEMBER_CATEGORY_LABEL[category]}</CategoryBadge>
-          <span className="text-[13px] text-[#71717a]">유형으로 가입합니다</span>
+          <span className="text-[13px] text-zinc-500">유형으로 가입합니다</span>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onPress={onChangeCategory}
           className={cn(
-            "h-[40px] px-[12px] text-[13px] font-medium text-[#71717a] data-[hovered=true]:text-gray-900",
+            "h-[40px] px-[12px] text-[13px] font-medium text-zinc-500 data-[hovered=true]:text-gray-900",
             RADIUS.h40,
           )}
         >
@@ -81,7 +81,7 @@ export function MethodStep({
 
         <div className="flex w-full items-center gap-[16px]">
           <Separator className="flex-1 bg-gray-200" />
-          <span className="text-[13px] text-[#a1a1aa]">또는</span>
+          <span className="text-[13px] text-zinc-400">또는</span>
           <Separator className="flex-1 bg-gray-200" />
         </div>
 
@@ -91,14 +91,14 @@ export function MethodStep({
           onPress={onEmail}
           className={cn(
             METHOD_BUTTON,
-            "border border-gray-200 bg-white text-[#18181b] data-[hovered=true]:bg-gray-50",
+            "border border-gray-200 bg-surface text-zinc-900 data-[hovered=true]:bg-gray-50",
           )}
         >
           이메일로 가입하기
         </Button>
       </div>
 
-      <p className="text-center text-[11px] text-[#a1a1aa]">
+      <p className="text-center text-[11px] text-zinc-400">
         가입을 진행하면 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.
       </p>
     </SignupCard>

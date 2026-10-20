@@ -152,8 +152,8 @@ export function BusinessRegisterModal({
             <div className="flex flex-col gap-[2px]">
               {NOTICES.map((notice) => (
                 <div key={notice} className="flex items-center gap-[8px]">
-                  <span className="size-[4px] shrink-0 rounded-full bg-[#737586]" />
-                  <p className="text-xs font-medium leading-[16px] tracking-[0.0048px] text-[#737586]">
+                  <span className="size-[4px] shrink-0 rounded-full bg-disabled" />
+                  <p className="text-xs font-medium leading-[16px] tracking-[0.0048px] text-disabled">
                     {notice}
                   </p>
                 </div>

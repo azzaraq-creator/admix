@@ -98,7 +98,7 @@ export default function PptDeckViewer({ deckId, slides, title }: PptDeckViewerPr
               <img
                 src={`${basePath}/${slide.thumb}`}
                 alt={`Slide ${i + 1} thumbnail`}
-                className="w-full rounded-sm bg-white shadow"
+                className="w-full rounded-sm bg-surface shadow"
                 loading="lazy"
               />
               <span className="text-xs text-zinc-400">{i + 1}</span>

@@ -26,7 +26,7 @@ function PopoverContent({
       >
         <PopoverPrimitive.Popup
           className={cn(
-            "rounded-[8px] border border-stroke bg-white shadow-lg outline-none",
+            "rounded-[8px] border border-stroke bg-surface shadow-lg outline-none",
             className,
           )}
           {...props}

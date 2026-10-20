@@ -27,7 +27,7 @@ export function YearSelect() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke px-[12px] text-sm font-medium leading-[20px] text-[#364153]"
+        className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke px-[12px] text-sm font-medium leading-[20px] text-tone-364153"
       >
         {selected}
         <ChevronDownIcon
@@ -36,7 +36,7 @@ export function YearSelect() {
       </button>
 
       {open && (
-        <ul className="absolute left-0 right-0 top-full z-10 overflow-hidden rounded-[8px] border border-stroke bg-white py-[4px] shadow-md">
+        <ul className="absolute left-0 right-0 top-full z-10 overflow-hidden rounded-[8px] border border-stroke bg-surface py-[4px] shadow-md">
           {YEARS.map((year) => (
             <li key={year}>
               <button
@@ -45,8 +45,8 @@ export function YearSelect() {
                   setSelected(year);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center px-[12px] py-[8px] text-sm leading-[20px] hover:bg-[#f5f6f8] ${
-                  year === selected ? "font-medium text-[#364153]" : "text-disabled"
+                className={`flex w-full items-center px-[12px] py-[8px] text-sm leading-[20px] hover:bg-tone-f5f6f8 ${
+                  year === selected ? "font-medium text-tone-364153" : "text-disabled"
                 }`}
               >
                 {year}

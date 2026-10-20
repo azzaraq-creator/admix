@@ -104,7 +104,7 @@ function ShareBar({
   color: string;
 }) {
   return (
-    <div className="h-[4px] w-full overflow-hidden rounded-full bg-[#f1f1f4]">
+    <div className="h-[4px] w-full overflow-hidden rounded-full bg-tone-f1f1f4">
       <div
         className="h-full rounded-full"
         style={{
@@ -125,11 +125,11 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-[8px]">
-      <h3 className="text-[13px] leading-[18px] font-bold text-[#18181b]">
+      <h3 className="text-[13px] leading-[18px] font-bold text-zinc-900">
         {title}
       </h3>
       {date && (
-        <span className="rounded-full bg-[#f4f4f5] px-[8px] py-[2px] text-[11px] leading-[14px] font-medium text-[#71717a]">
+        <span className="rounded-full bg-zinc-100 px-[8px] py-[2px] text-[11px] leading-[14px] font-medium text-zinc-500">
           {dayLabel(date)} 하루
         </span>
       )}
@@ -165,7 +165,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
       <section className="flex flex-col gap-[10px]">
         <SectionHeader title="지하철" date={subway.date} />
         {subway.stations.length === 0 ? (
-          <p className="text-[12px] text-[#71717a]">
+          <p className="text-[12px] text-zinc-500">
             이 범위엔 지하철역이 없어요.
           </p>
         ) : (
@@ -181,13 +181,13 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                           <LineBadge key={b.label} {...b} />
                         ))}
                       </div>
-                      <span className="truncate text-[13px] leading-[18px] font-semibold text-[#18181b]">
+                      <span className="truncate text-[13px] leading-[18px] font-semibold text-zinc-900">
                         {s.name}
                       </span>
                     </div>
                     <Count
                       n={s.ride + s.alight}
-                      className="shrink-0 text-[13px] font-bold text-[#18181b]"
+                      className="shrink-0 text-[13px] font-bold text-zinc-900"
                     />
                   </div>
                   <ShareBar
@@ -195,7 +195,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                     max={subwayMax}
                     color={badges[0]?.color ?? "#8b90a7"}
                   />
-                  <span className="text-[11px] leading-[14px] text-[#71717a] tabular-nums">
+                  <span className="text-[11px] leading-[14px] text-zinc-500 tabular-nums">
                     승차 {formatCount(s.ride)} · 하차 {formatCount(s.alight)}
                   </span>
                 </li>
@@ -205,12 +205,12 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
         )}
       </section>
 
-      <div className="h-px w-full bg-[#f1f1f4]" />
+      <div className="h-px w-full bg-tone-f1f1f4" />
 
       <section className="flex flex-col gap-[10px]">
         <SectionHeader title="버스" date={bus.date} />
         {bus.stopCount === 0 ? (
-          <p className="text-[12px] text-[#71717a]">
+          <p className="text-[12px] text-zinc-500">
             이 범위엔 버스정류장이 없어요.
           </p>
         ) : (
@@ -233,18 +233,18 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
               ].map(({ label, value }) => (
                 <div
                   key={label}
-                  className="flex flex-col items-center gap-[1px] rounded-[10px] bg-[#f7f7f8] py-[7px]"
+                  className="flex flex-col items-center gap-[1px] rounded-[10px] bg-tone-f7f7f8 py-[7px]"
                 >
-                  <span className="text-[10px] leading-[14px] text-[#71717a]">
+                  <span className="text-[10px] leading-[14px] text-zinc-500">
                     {label}
                   </span>
-                  <span className="text-[13px] leading-[18px] font-bold text-[#18181b]">
+                  <span className="text-[13px] leading-[18px] font-bold text-zinc-900">
                     {value}
                   </span>
                 </div>
               ))}
             </div>
-            <p className="text-[11px] leading-[14px] font-medium text-[#71717a]">
+            <p className="text-[11px] leading-[14px] font-medium text-zinc-500">
               많이 타고 내리는 정류장
             </p>
             <ol className="flex flex-col gap-[10px]">
@@ -261,17 +261,17 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
                     <div className="flex items-center justify-between gap-[8px]">
-                      <span className="min-w-0 truncate text-[12px] leading-[17px] font-semibold text-[#27272a]">
+                      <span className="min-w-0 truncate text-[12px] leading-[17px] font-semibold text-zinc-800">
                         {stop.name}
                         {stop.arsNo && (
-                          <span className="ml-[4px] text-[10px] font-medium text-[#a1a1aa]">
+                          <span className="ml-[4px] text-[10px] font-medium text-zinc-400">
                             {stop.arsNo}
                           </span>
                         )}
                       </span>
                       <Count
                         n={stop.ride + stop.alight}
-                        className="shrink-0 text-[12px] font-bold text-[#18181b]"
+                        className="shrink-0 text-[12px] font-bold text-zinc-900"
                       />
                     </div>
                     <ShareBar
@@ -287,7 +287,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
         )}
       </section>
 
-      <p className="text-[10px] leading-[14px] text-[#a1a1aa]">
+      <p className="text-[10px] leading-[14px] text-zinc-400">
         서울시 교통카드 승하차 통계(장소 범위와 주변 200m) · 서울시가 사흘쯤
         뒤에 공개해 가장 최근 날 기준
       </p>

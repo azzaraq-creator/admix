@@ -234,7 +234,7 @@ export function HelpView() {
         <div className="mt-[16px] grid gap-[20px] sm:mt-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
           <nav
             aria-label="목차"
-            className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white lg:flex"
+            className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-surface lg:flex"
           >
             <p className="shrink-0 px-[20px] pt-[12px] pb-[8px] text-[12px] font-semibold text-gray-400">
               목차
@@ -269,7 +269,7 @@ export function HelpView() {
 
           <article
             ref={articleRef}
-            className="relative flex min-h-0 flex-col rounded-[20px] border border-gray-200 bg-white p-[20px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
+            className="relative flex min-h-0 flex-col rounded-[20px] border border-gray-200 bg-surface p-[20px] sm:px-[36px] sm:py-[32px] lg:overflow-y-auto lg:[scrollbar-width:thin]"
           >
             {intro && (
               <div className="mb-[20px] shrink-0 rounded-[14px] bg-gray-50 p-[14px] sm:mb-[24px] sm:px-[18px]">

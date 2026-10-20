@@ -33,15 +33,15 @@ const BIZ_OPTIONS = [
 ];
 
 const CARD_CLASS =
-  "flex flex-col gap-[24px] rounded-[12px] border border-[#cdcdcd] p-[36px]";
-const CARD_TITLE = "text-xl font-semibold leading-[24px] text-[#2a2a2a]";
+  "flex flex-col gap-[24px] rounded-[12px] border border-tone-cdcdcd p-[36px]";
+const CARD_TITLE = "text-xl font-semibold leading-[24px] text-tone-2a2a2a";
 const INPUT_CLASS =
-  "h-[40px] flex-1 rounded-[6px] border border-[#ebebeb] bg-white px-[13px] text-sm font-medium text-black outline-none placeholder:text-[#767676]";
+  "h-[40px] flex-1 rounded-[6px] border border-tone-ebebeb bg-surface px-[13px] text-sm font-medium text-black outline-none placeholder:text-tone-767676";
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
     <div className="flex w-[160px] shrink-0 items-center gap-[4px]">
-      <span className="flex-1 text-xl font-semibold leading-[24px] text-[#6d6d6d]">
+      <span className="flex-1 text-xl font-semibold leading-[24px] text-tone-6d6d6d">
         {label}
       </span>
       {required && (
@@ -189,7 +189,7 @@ export function BasicInfoTab({
                     if (isMemberCategory(v)) setCategory(v);
                   }}
                 >
-                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
+                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-tone-ebebeb bg-surface px-[13px] font-medium text-black data-[size=default]:h-[40px]">
                     <SelectValue placeholder="회원 유형 선택" />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -252,7 +252,7 @@ export function BasicInfoTab({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="해당 회원에 대한 운영자 메모를 입력해주세요."
-              className="h-[162px] w-full resize-none rounded-[8px] border border-[#f2f2f2] bg-[#f0f0f3] p-[20px] text-base leading-[24px] tracking-[-0.32px] text-black outline-none placeholder:text-[#8f8f8f]"
+              className="h-[162px] w-full resize-none rounded-[8px] border border-tone-f2f2f2 bg-tone-f0f0f3 p-[20px] text-base leading-[24px] tracking-[-0.32px] text-black outline-none placeholder:text-tone-8f8f8f"
             />
           </div>
         </div>
@@ -263,7 +263,7 @@ export function BasicInfoTab({
             <div className="flex flex-col gap-[16px]">
               <Row label="상태" required>
                 <Select items={BIZ_OPTIONS} value={bizStatus} onValueChange={(v) => setBizStatus(v ?? "unregistered")}>
-                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-[#ebebeb] bg-white px-[13px] font-medium text-black data-[size=default]:h-[40px]">
+                  <SelectTrigger className="h-[40px] flex-1 rounded-[17px] border-tone-ebebeb bg-surface px-[13px] font-medium text-black data-[size=default]:h-[40px]">
                     <SelectValue placeholder="상태 선택" />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -293,7 +293,7 @@ export function BasicInfoTab({
             </div>
 
             <div className="flex flex-col gap-[16px]">
-              <p className="text-sm font-semibold leading-[20px] text-[#6d6d6d]">
+              <p className="text-sm font-semibold leading-[20px] text-tone-6d6d6d">
                 등록증 파일
               </p>
               {licenseUrl ? (
@@ -305,13 +305,13 @@ export function BasicInfoTab({
                       width={323}
                       height={447}
                       unoptimized={!isOptimizable(licenseUrl)}
-                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-[#ebebeb] object-cover"
+                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-tone-ebebeb object-cover"
                     />
                   ) : (
                     <iframe
                       src={licenseUrl}
                       title="사업자등록증 미리보기"
-                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-[#ebebeb]"
+                      className="h-[447px] w-[323px] max-w-full rounded-[6px] border border-tone-ebebeb"
                     />
                   )}
                   <div className="flex items-center justify-between">
@@ -322,7 +322,7 @@ export function BasicInfoTab({
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="flex h-[36px] w-[100px] shrink-0 cursor-pointer items-center justify-center gap-[8px] rounded-[15px] border border-[#ebebeb] bg-white text-sm font-medium text-[#0a0a0a] shadow-sm"
+                      className="flex h-[36px] w-[100px] shrink-0 cursor-pointer items-center justify-center gap-[8px] rounded-[15px] border border-tone-ebebeb bg-surface text-sm font-medium text-tone-0a0a0a shadow-sm"
                     >
                       <DownloadIcon className="size-[16px]" />
                       다운로드
@@ -330,7 +330,7 @@ export function BasicInfoTab({
                   </div>
                 </>
               ) : (
-                <p className="text-sm font-medium leading-[20px] text-[#767676]">
+                <p className="text-sm font-medium leading-[20px] text-tone-767676">
                   등록된 파일이 없습니다.
                 </p>
               )}

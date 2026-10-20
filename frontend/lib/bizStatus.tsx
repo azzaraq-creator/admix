@@ -2,9 +2,9 @@ export type BizStatus = "미등록" | "검토 대기" | "검토 완료" | "인�
 
 const BIZ_STATUS_CLASS: Record<BizStatus, string> = {
   미등록: "bg-gray-100 text-[#64748b]",
-  "검토 대기": "bg-[#fdf6e3] text-[#c99a2e]",
+  "검토 대기": "bg-tone-fdf6e3 text-[#c99a2e]",
   "검토 완료": "bg-primary-50 text-primary-800",
-  "인증 반려": "bg-[#fef2f2] text-[#ef4444]",
+  "인증 반려": "bg-tone-fef2f2 text-[#ef4444]",
 };
 
 const BIZ_STATUS_LABEL: Record<string, BizStatus> = {

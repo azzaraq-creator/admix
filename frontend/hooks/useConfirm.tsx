@@ -50,7 +50,7 @@ export function useConfirm() {
             {options?.title}
           </p>
           {options?.description && (
-            <div className="whitespace-pre-line text-base font-medium leading-[24px] text-[#737586]">
+            <div className="whitespace-pre-line text-base font-medium leading-[24px] text-disabled">
               {options.description}
             </div>
           )}
@@ -59,7 +59,7 @@ export function useConfirm() {
           <button
             type="button"
             onClick={() => settle(false)}
-            className="flex flex-1 items-center justify-center rounded-[8px] bg-[#eceef5] px-[16px] py-[12px] text-base font-medium text-[#2f3442]"
+            className="flex flex-1 items-center justify-center rounded-[8px] bg-gray-100 px-[16px] py-[12px] text-base font-medium text-black"
           >
             {options?.cancelText ?? "취소"}
           </button>
@@ -68,7 +68,7 @@ export function useConfirm() {
             onClick={() => settle(true)}
             className={`flex flex-1 items-center justify-center rounded-[8px] px-[16px] py-[12px] text-base font-medium ${
               options?.destructive
-                ? "border border-red-400 bg-white text-red-400"
+                ? "border border-red-400 bg-surface text-red-400"
                 : "bg-primary text-white"
             }`}
           >

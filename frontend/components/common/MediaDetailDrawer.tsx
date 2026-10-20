@@ -52,21 +52,21 @@ export function MediaDetailDrawer({
   const hasPopulation = Boolean(genderRatio && ageRatio.length);
 
   return (
-    <div className="relative flex h-dvh w-[385px] shrink-0 flex-col overflow-y-auto bg-[#eee]">
+    <div className="relative flex h-dvh w-[385px] shrink-0 flex-col overflow-y-auto bg-tone-eeeeee">
       <div className="relative shrink-0">
         <MediaDetailImages images={images} onOpen={setLightboxIndex} />
         <button
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="absolute right-[16px] top-[16px] flex items-center justify-center rounded-full bg-white p-[6px] text-black drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)]"
+          className="absolute right-[16px] top-[16px] flex items-center justify-center rounded-full bg-surface p-[6px] text-black drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)]"
         >
           <XIcon className="size-[16px]" />
         </button>
       </div>
 
       <div className="flex flex-col gap-[12px]">
-        <section className="flex flex-col gap-[18px] bg-white p-[24px]">
+        <section className="flex flex-col gap-[18px] bg-surface p-[24px]">
           <div className="flex flex-col">
             <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
               {media.name}
@@ -108,7 +108,7 @@ export function MediaDetailDrawer({
         </section>
 
         {data.address && (
-        <section className="flex items-center gap-[14px] bg-white p-[24px]">
+        <section className="flex items-center gap-[14px] bg-surface p-[24px]">
           <MapPinIcon className="size-[20px] shrink-0 text-black" />
           <p className="text-base font-medium leading-[24px] text-black">
             {data.address}
@@ -117,7 +117,7 @@ export function MediaDetailDrawer({
         )}
 
         {data.description && (
-        <section className="flex flex-col gap-[18px] bg-white p-[24px]">
+        <section className="flex flex-col gap-[18px] bg-surface p-[24px]">
           <div className="flex flex-col gap-[24px]">
             <p className="text-base font-semibold leading-[24px] text-black">
               매체 설명
@@ -139,13 +139,13 @@ export function MediaDetailDrawer({
         )}
 
         {hasPopulation && genderRatio && (
-          <section className="flex flex-col gap-[30px] bg-white p-[24px]">
+          <section className="flex flex-col gap-[30px] bg-surface p-[24px]">
             <p className="text-base font-semibold leading-[24px] text-black">
               유동 인구 데이터
             </p>
 
             <div className="flex flex-col gap-[16px]">
-              <p className="text-sm font-medium leading-[20px] text-[#545454]">
+              <p className="text-sm font-medium leading-[20px] text-tone-545454">
                 성별 비율
               </p>
               <GenderDonut
@@ -156,7 +156,7 @@ export function MediaDetailDrawer({
             </div>
 
             <div className="flex flex-col gap-[16px]">
-              <p className="text-sm font-medium leading-[20px] text-[#545454]">
+              <p className="text-sm font-medium leading-[20px] text-tone-545454">
                 연령대 비율
               </p>
               <AgeBarChart data={ageRatio} maxBarHeight={200} />

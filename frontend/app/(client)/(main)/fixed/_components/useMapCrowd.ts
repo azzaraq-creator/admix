@@ -44,6 +44,8 @@ function pill(
 ): HTMLElement {
   const color = crowdColor(place.level);
   const el = document.createElement("div");
+  // 다크 모드 색은 globals.css(.map-crowd-pill).
+  el.className = "map-crowd-pill";
   el.style.cssText = [
     "display:flex",
     "align-items:center",

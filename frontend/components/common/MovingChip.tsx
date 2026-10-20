@@ -12,7 +12,7 @@ export function MovingChip({ className }: { className?: string }) {
     <Chip
       aria-label="이동 매체"
       className={cn(
-        "inline-flex h-[18px] w-fit shrink-0 items-center gap-[3px] rounded-[6px] border border-gray-300 bg-white px-[5px] py-0 text-[11px] leading-[16px] font-semibold text-gray-700 max-sm:text-[10px]",
+        "inline-flex h-[18px] w-fit shrink-0 items-center gap-[3px] rounded-[6px] border border-gray-300 bg-surface px-[5px] py-0 text-[11px] leading-[16px] font-semibold text-gray-700 max-sm:text-[10px]",
         className,
       )}
     >

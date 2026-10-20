@@ -69,7 +69,7 @@ const SEARCH_SUGGESTIONS: { title: string; items: string[]; rows: 1 | 2 }[] = [
 // "높이/2 - 3px"(전송 버튼 40px→17px, 모드 탭 32px→13px)이라 13px이 된다.
 // 모바일에선 긴 문구가 화면 밖으로 넘치지 않게 칩 안에서 줄바꿈한다.
 const SUGGESTION_CHIP_CLASS =
-  "max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-full max-sm:min-h-[36px] max-sm:w-full max-sm:justify-start max-sm:py-[8px] max-sm:text-left max-sm:text-[14px] max-sm:leading-[20px] max-sm:break-keep max-sm:whitespace-normal";
+  "max-w-full rounded-[13px] border-tone-ececef bg-surface text-zinc-500 transition-colors hover:text-black max-sm:h-full max-sm:min-h-[36px] max-sm:w-full max-sm:justify-start max-sm:py-[8px] max-sm:text-left max-sm:text-[14px] max-sm:leading-[20px] max-sm:break-keep max-sm:whitespace-normal";
 
 // 모바일은 칩 목록을 좌우로 넘기게 한다. 화면 끝까지 붙여(-mx) 다음 칩이
 // 살짝 걸쳐 보이게 하고, 넘길 게 남은 쪽 가장자리는 흐리게(HeroUI ScrollShadow) 한다.
@@ -88,7 +88,7 @@ const SEARCH_SUGGESTION_ROW_CLASS =
   "flex gap-x-[10px] max-sm:w-max sm:contents";
 const SEARCH_SUGGESTION_ITEM_CLASS = "shrink-0 sm:max-w-full max-sm:snap-start";
 const SEARCH_SUGGESTION_CHIP_CLASS =
-  "sm:max-w-full rounded-[13px] border-[#ececef] bg-white text-[#71717a] transition-colors hover:text-black max-sm:h-[36px] max-sm:px-[14px] max-sm:text-[14px]";
+  "sm:max-w-full rounded-[13px] border-tone-ececef bg-surface text-zinc-500 transition-colors hover:text-black max-sm:h-[36px] max-sm:px-[14px] max-sm:text-[14px]";
 
 const MODE_LABEL: Record<Mode, string> = {
   ai: "AI 믹시",
@@ -289,7 +289,7 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
           className="flex min-h-[60vh] w-full flex-1 flex-col items-center justify-center gap-[12px]"
         >
           <SpinningSymbol className="size-[40px]" />
-          <p className="text-[14px] text-[#71717a]">대화를 불러오는 중…</p>
+          <p className="text-[14px] text-zinc-500">대화를 불러오는 중…</p>
         </div>
       ) : hasConversation ? (
         <div className="flex min-h-0 w-full flex-1 flex-col pt-[16px] sm:pt-[24px] sm:pb-[8px]">
@@ -312,7 +312,7 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
                 <div className="flex items-center gap-[12px] sm:flex-col sm:gap-0">
                   {m === "search" ? (
                     // 돋보기는 옆 부제(#888)와 어울리는 연한 회색.
-                    <SearchDuotoneIcon className="size-[36px] shrink-0 text-[#8c8c94] sm:size-[70px]" />
+                    <SearchDuotoneIcon className="size-[36px] shrink-0 text-tone-8c8c94 sm:size-[70px]" />
                   ) : (
                     <MixieIcon className="size-[36px] shrink-0 sm:size-[70px] drop-shadow-[0_4px_12px_rgba(163,59,209,0.2)]" />
                   )}
@@ -322,7 +322,7 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
                     ) : (
                       <p className={TITLE_CLASS}>{TITLE[m]}</p>
                     )}
-                    <p className="text-left text-[15px] leading-[22px] text-[#888] sm:mt-[12px] sm:text-center sm:text-base">
+                    <p className="text-left text-[15px] leading-[22px] text-tone-888888 sm:mt-[12px] sm:text-center sm:text-base">
                       {SUBTITLE[m]}
                     </p>
                   </div>
@@ -460,7 +460,7 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
       {SHOW_SCROLL_HINT && (
         <div
           aria-hidden
-          className={`flex shrink-0 flex-col items-center gap-[2px] text-[#888] ${
+          className={`flex shrink-0 flex-col items-center gap-[2px] text-tone-888888 ${
             hasConversation ? "mt-[12px]" : ""
           }`}
         >

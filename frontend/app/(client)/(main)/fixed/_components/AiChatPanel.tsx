@@ -305,7 +305,7 @@ export function AiChatPanel({
                     key={faq}
                     type="button"
                     onClick={() => void chat.submit(faq, { allowShort: true })}
-                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-[#f0f5f9] bg-[#f9fafc] px-[16px] py-[12px] text-left transition-colors hover:bg-gray-100"
+                    className="flex w-full items-start gap-[10px] rounded-[12px] border border-tone-f0f5f9 bg-tone-f9fafc px-[16px] py-[12px] text-left transition-colors hover:bg-gray-100"
                   >
                     <SparkleIcon className="size-[24px] shrink-0 text-primary" />
                     <span className="flex-1 text-base font-medium leading-[24px] text-black">
@@ -321,7 +321,7 @@ export function AiChatPanel({
 
       <div className="flex flex-col items-center gap-[10px] px-[24px] pb-[24px] pt-[8px]">
         {chat.lastConfirmingId && (
-          <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-[#f9fafc] px-[16px] py-[10px]">
+          <div className="flex w-full items-center gap-[8px] rounded-[12px] border border-stroke bg-tone-f9fafc px-[16px] py-[10px]">
             <span className="flex-1 text-sm font-medium text-gray-500">
               기존 조건에 어떻게 반영할까요?
             </span>
@@ -363,7 +363,7 @@ export function AiChatPanel({
                 : "사업자 등록하기")}
           </button>
         )}
-        <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-white px-[24px] py-[10px]">
+        <div className="flex w-full items-center gap-[12px] rounded-[24px] border border-primary bg-surface px-[24px] py-[10px]">
           <textarea
             ref={textareaRef}
             autoFocus
@@ -434,7 +434,7 @@ function SlotBar({
   if (rows.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-[6px] border-b border-stroke bg-[#f9fafc] px-[24px] py-[12px]">
+    <div className="flex flex-col gap-[6px] border-b border-stroke bg-tone-f9fafc px-[24px] py-[12px]">
       <div className="text-xs font-medium tracking-wide text-gray-500">
         현재 조건
       </div>

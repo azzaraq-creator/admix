@@ -69,7 +69,7 @@ export function MediaListSelect({
             <span
               className={cn(
                 "flex size-[24px] shrink-0 items-center justify-center rounded-full border-2",
-                selected ? "border-primary" : "border-[#d3d4d6]",
+                selected ? "border-primary" : "border-tone-d3d4d6",
               )}
             >
               {selected && (

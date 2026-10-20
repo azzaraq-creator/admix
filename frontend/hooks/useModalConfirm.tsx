@@ -81,11 +81,11 @@ export function useModalConfirm() {
             role="alertdialog"
             aria-label={options?.title}
             style={options?.width ? { maxWidth: options.width } : undefined}
-            className="w-full max-w-[400px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+            className="w-full max-w-[400px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
           >
             <Modal.CloseTrigger
               aria-label="닫기"
-              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]"
+              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
             >
               <CloseMediumIcon className="size-[24px]" />
             </Modal.CloseTrigger>
@@ -93,7 +93,7 @@ export function useModalConfirm() {
             <Modal.Header className="flex min-h-[28px] flex-col justify-center gap-[6px] p-0 pr-[40px]">
               {options?.destructive && (
                 // 아이콘 칸 44px → 곡률 19px. 옅은 빨강 바탕.
-                <span className="mb-[6px] flex size-[44px] items-center justify-center rounded-[19px] bg-[#fef2f2]">
+                <span className="mb-[6px] flex size-[44px] items-center justify-center rounded-[19px] bg-tone-fef2f2">
                   <Image src="/icons/trash.svg" alt="" width={22} height={22} />
                 </span>
               )}
@@ -106,8 +106,8 @@ export function useModalConfirm() {
                     options.iconTone === "primary"
                       ? "bg-primary-50 text-primary-500"
                       : options.iconTone === "danger"
-                        ? "bg-[#fef2f2] text-danger"
-                        : "bg-[#f4f4f5] text-[#52525b]",
+                        ? "bg-tone-fef2f2 text-danger"
+                        : "bg-zinc-100 text-zinc-600",
                   )}
                 >
                   {options.icon}
@@ -116,7 +116,7 @@ export function useModalConfirm() {
               <Modal.Heading
                 className={cn(
                   "text-[16px] leading-[1.4] font-semibold break-keep text-black",
-                  options?.compactActions && "font-bold text-[#161A2E]",
+                  options?.compactActions && "font-bold text-gray-900",
                 )}
               >
                 {options?.title}
@@ -124,9 +124,9 @@ export function useModalConfirm() {
               {options?.description && (
                 <div
                   className={cn(
-                    "text-[14px] leading-[1.6] whitespace-pre-line text-[#71717a]",
+                    "text-[14px] leading-[1.6] whitespace-pre-line text-zinc-500",
                     options?.compactActions &&
-                      "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-[#3D4258]",
+                      "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-gray-700",
                   )}
                 >
                   {options.description}
@@ -146,7 +146,7 @@ export function useModalConfirm() {
                   onPress={() => settle(false)}
                   className={cn(
                     ACTION_CLASS,
-                    "bg-[#eee] text-[#18181b]",
+                    "bg-tone-eeeeee text-zinc-900",
                     options?.compactActions && "w-[90px] flex-none",
                   )}
                 >
@@ -161,7 +161,7 @@ export function useModalConfirm() {
                   options?.compactActions && "w-[130px] flex-none",
                   !danger &&
                     (options?.neutral
-                      ? "bg-[#eee] text-[#18181b]"
+                      ? "bg-tone-eeeeee text-zinc-900"
                       : "bg-primary-500 text-white"),
                 )}
               >

@@ -50,7 +50,7 @@ export function GradeSurvey({
     return (
       <div className="flex flex-col gap-[16px]">
         {tierBox}
-        <div className="rounded-[12px] bg-[#f5f6fb] px-[16px] py-[14px] text-[13px] text-[#727892]">
+        <div className="rounded-[12px] bg-gray-50 px-[16px] py-[14px] text-[13px] text-gray-500">
           기본 정보에서 설치 장소(공간형·외부형)를 고르면 그 매체에 맞는 질문이
           나와요.
         </div>
@@ -72,7 +72,7 @@ export function GradeSurvey({
   return (
     <div className="flex flex-col gap-[16px]">
       {tierBox}
-      <p className="w-fit rounded-full bg-[#f5f6fb] px-[10px] py-[3px] text-[12px] font-semibold text-[#555b73]">
+      <p className="w-fit rounded-full bg-gray-50 px-[10px] py-[3px] text-[12px] font-semibold text-gray-600">
         {groups.map((g) => g.title).join(" · ")} 질문 · {questions.length}개 중{" "}
         {answered}개 답함
       </p>
@@ -94,11 +94,11 @@ export function GradeSurvey({
                 className="grid grid-cols-[180px_1fr] items-start gap-[12px] max-sm:grid-cols-1"
               >
                 <div className="flex flex-col gap-[2px] pt-[6px]">
-                  <p className="text-[13px] font-semibold text-[#161a2e]">
+                  <p className="text-[13px] font-semibold text-gray-900">
                     {q.label}
                   </p>
                   {q.help && (
-                    <p className="text-[12px] text-[#9aa0b4]">{q.help}</p>
+                    <p className="text-[12px] text-gray-400">{q.help}</p>
                   )}
                   {sugValue && (
                     <p className="text-[12px] text-primary-500">
@@ -127,8 +127,8 @@ export function GradeSurvey({
                           on
                             ? "border-primary-600 bg-primary-50 text-primary-600"
                             : suggested
-                              ? "border-dashed border-primary-400 bg-white text-primary-600 hover:bg-primary-50"
-                              : "border-stroke bg-white text-[#555b73] hover:bg-[#f5f6fb]",
+                              ? "border-dashed border-primary-400 bg-surface text-primary-600 hover:bg-primary-50"
+                              : "border-stroke bg-surface text-gray-600 hover:bg-gray-50",
                         )}
                       >
                         {o.label}
@@ -184,13 +184,13 @@ function TierBox({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-[16px] rounded-[12px] bg-[#f5f6fb] px-[16px] py-[14px]">
+    <div className="flex items-center gap-[16px] rounded-[12px] bg-gray-50 px-[16px] py-[14px]">
       <div className="flex shrink-0 items-center gap-[4px]">
-        <p className="text-[13px] font-semibold text-[#555b73]">{label}</p>
+        <p className="text-[13px] font-semibold text-gray-600">{label}</p>
         <Popover>
           <PopoverTrigger
             aria-label={`${label} 기준`}
-            className="flex size-[20px] items-center justify-center rounded-full text-[#9aa0b4] outline-none hover:text-[#555b73]"
+            className="flex size-[20px] items-center justify-center rounded-full text-gray-400 outline-none hover:text-gray-600"
           >
             <CircleHelp className="size-[16px]" />
           </PopoverTrigger>
@@ -204,18 +204,18 @@ function TierBox({
         <p
           className={cn(
             "text-[18px] font-bold leading-tight",
-            filled ? "text-[#161a2e]" : "text-[#9aa0b4]",
+            filled ? "text-gray-900" : "text-gray-400",
           )}
         >
           {value}
         </p>
-        {detail && <p className="text-[12px] text-[#727892]">{detail}</p>}
+        {detail && <p className="text-[12px] text-gray-500">{detail}</p>}
       </div>
     </div>
   );
 }
 
-const TIER_HELP_CLASS = "mt-[4px] text-[12px] leading-[18px] text-[#727892]";
+const TIER_HELP_CLASS = "mt-[4px] text-[12px] leading-[18px] text-gray-500";
 
 /** 자동으로 매긴 유동인구 단계와 단계 기준표. */
 function PopulationTierBox({ data }: { data?: PopulationTier }) {

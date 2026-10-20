@@ -96,7 +96,7 @@ function TermBadge({ required }: { required: boolean }) {
       className={cn(
         "h-[18px] px-[7px] py-0 text-[10px] font-semibold",
         RADIUS.h18,
-        required ? "bg-gray-600 text-gray-50" : "bg-[#ededef] text-[#71717a]",
+        required ? "bg-gray-600 text-gray-50" : "bg-tone-ededef text-zinc-500",
       )}
     >
       {required ? "필수" : "선택"}
@@ -148,7 +148,7 @@ export function TermsStep({
           className={cn(
             "flex w-full rounded-[12px] border px-[16px] py-[14px]",
             itemCount === 0
-              ? "border-gray-200 bg-white"
+              ? "border-gray-200 bg-surface"
               : "border-primary-200 bg-primary-50",
           )}
         >
@@ -170,7 +170,7 @@ export function TermsStep({
           </Checkbox>
         </div>
 
-        <Separator className="bg-[#ececef]" />
+        <Separator className="bg-tone-ececef" />
 
         <div className={cn("flex w-full flex-col gap-[12px]", ALIGN_WITH_ALL)}>
           {REQUIRED_TERMS.map((term) => (
@@ -194,7 +194,7 @@ export function TermsStep({
                   size="sm"
                   aria-label={`${term.label} 전문 보기`}
                   onPress={() => setOpenTerm(term.tab ?? null)}
-                  className="h-auto min-w-0 shrink-0 gap-[1px] p-0 text-[11px] font-normal text-[#a1a1aa] data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
+                  className="h-auto min-w-0 shrink-0 gap-[1px] p-0 text-[11px] font-normal text-zinc-400 data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
                 >
                   보기
                   <SmallChevronRightIcon className="size-[10px]" />
@@ -204,7 +204,7 @@ export function TermsStep({
           ))}
         </div>
 
-        <Separator className="bg-[#ececef]" />
+        <Separator className="bg-tone-ececef" />
 
         <Checkbox
           value={MARKETING_KEY}

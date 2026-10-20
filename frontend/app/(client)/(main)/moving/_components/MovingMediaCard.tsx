@@ -25,7 +25,7 @@ export function MovingMediaCard({
       onClick={onClick}
       className={cn(
         "flex min-w-0 flex-col gap-[12px] px-6 py-3 text-left transition-colors sm:min-w-[228px]",
-        selected ? "bg-gray-50" : "bg-white",
+        selected ? "bg-gray-50" : "bg-surface",
       )}
     >
       <MediaThumbnail

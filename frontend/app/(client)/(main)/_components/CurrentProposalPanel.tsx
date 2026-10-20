@@ -57,7 +57,7 @@ export const CURRENT_PROPOSAL_LABEL = "현재 기획안";
 
 /** 닫기 — 매체 정보 팝업과 같은 회색 원형 버튼(28px → 곡률 14px). */
 const CLOSE_BUTTON =
-  "size-[28px] min-w-0 shrink-0 rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a]";
+  "size-[28px] min-w-0 shrink-0 rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a";
 
 /**
  * 현재 기획안 내용 — 장바구니처럼 담은 매체와 옵션(상품·개월 수·제작 수)·광고비를 보고 고친다.
@@ -126,7 +126,7 @@ export function CurrentProposalPanel() {
               커서 위가 잘린다. 보이는 높이(dvh)의 90%로 둔다(관심 매체 "선택한 매체" 시트와 같은 방식). */}
           <Drawer.Dialog
             aria-label={CURRENT_PROPOSAL_LABEL}
-            className="flex h-[90dvh] max-h-[90dvh] w-full flex-col gap-0 rounded-t-[24px] bg-white p-0 pt-[10px]"
+            className="flex h-[90dvh] max-h-[90dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
           >
             <Drawer.Handle />
             <CurrentProposalContent headerClassName="pt-[8px]" />
@@ -153,7 +153,7 @@ export function CurrentProposalPopover({
         triggerRef={triggerRef}
         placement="right bottom"
         offset={14}
-        className="rounded-[20px] border border-[#ececef] bg-white p-0 shadow-[0px_12px_40px_rgba(0,0,0,0.16)]"
+        className="rounded-[20px] border border-tone-ececef bg-surface p-0 shadow-[0px_12px_40px_rgba(0,0,0,0.16)]"
       >
         <Popover.Arrow />
         {/* 높이 — 최대 680px, 화면이 낮으면 위아래 20px씩 남기고 그 안에서 목록만 스크롤한다.
@@ -269,25 +269,25 @@ function ProposalBody({
           }}
         >
           {/* 칸 44px → 곡률 19px(기획안 담기 창 입력칸과 같다). */}
-          <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-[#ececef] bg-[#f7f7f8] ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-white">
+          <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-tone-ececef bg-tone-f7f7f8 ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-surface">
             {/* 기획안 아이콘 — 위 "현재 기획안" 열린 폴더(보라)와 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
-            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-[#ececef] bg-white text-gray-700">
+            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-tone-ececef bg-surface text-gray-700">
               <CollectionIcon className="size-[15px]" />
             </span>
             <Select.Value className="flex min-w-0 flex-1 items-center gap-[6px]">
               {({ selectedText }) => (
                 <>
-                  <span className="truncate text-[14px] font-semibold text-[#18181b]">
+                  <span className="truncate text-[14px] font-semibold text-zinc-900">
                     {selectedText}
                   </span>
                   {newIds.includes(proposalId) && <NewBadge />}
-                  <span className="shrink-0 text-[12px] font-medium text-[#71717a]">
+                  <span className="shrink-0 text-[12px] font-medium text-zinc-500">
                     매체 {detail?.media_count ?? 0}개
                   </span>
                 </>
               )}
             </Select.Value>
-            <Select.Indicator className="end-[14px] text-[#71717a]" />
+            <Select.Indicator className="end-[14px] text-zinc-500" />
           </Select.Trigger>
           <Select.Popover className="min-w-[var(--trigger-width)]">
             <ListBox>
@@ -303,7 +303,7 @@ function ProposalBody({
                     <span className="truncate text-[14px]">{p.title}</span>
                     {newIds.includes(p.id) && <NewBadge />}
                   </span>
-                  <span className="shrink-0 text-[12px] text-[#71717a]">
+                  <span className="shrink-0 text-[12px] text-zinc-500">
                     매체 {p.media_count}개
                   </span>
                   <ListBox.ItemIndicator />
@@ -353,11 +353,11 @@ function ProposalBody({
       </div>
 
       {/* 총 예상 비용(광고비 + 제작비) — 목록을 스크롤해도 맨 아래에 고정. */}
-      <div className="flex shrink-0 flex-col gap-[12px] border-t border-[#ececef] bg-white px-[20px] pt-[14px] pb-[calc(16px+env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 flex-col gap-[12px] border-t border-tone-ececef bg-surface px-[20px] pt-[14px] pb-[calc(16px+env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between whitespace-nowrap">
-          <span className="text-[14px] font-bold text-[#18181b]">
+          <span className="text-[14px] font-bold text-zinc-900">
             총 예상 비용
-            <span className="ml-[6px] text-[12px] font-medium text-[#71717a]">
+            <span className="ml-[6px] text-[12px] font-medium text-zinc-500">
               매체 {rows.length}개
             </span>
           </span>
@@ -435,9 +435,9 @@ const planText = (plan: PlanOption) =>
 // 매체 정보 팝업 가격 칸과 같은 줄 모양.
 const ROW = "flex min-h-[28px] items-center gap-[10px]";
 const ROW_LABEL =
-  "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-[#a1a1aa]";
+  "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-zinc-400";
 const ROW_AMOUNT =
-  "min-w-0 flex-1 text-right text-[14px] font-bold whitespace-nowrap text-[#18181b]";
+  "min-w-0 flex-1 text-right text-[14px] font-bold whitespace-nowrap text-zinc-900";
 
 function ItemCard({
   row,
@@ -450,7 +450,7 @@ function ItemCard({
 }) {
   const { item, plan } = row;
   return (
-    <li className="flex flex-col gap-[10px] rounded-[16px] border border-[#ececef] bg-white p-[12px]">
+    <li className="flex flex-col gap-[10px] rounded-[16px] border border-tone-ececef bg-surface p-[12px]">
       <div className="flex items-center gap-[10px]">
         <MediaThumbnail
           src={item.thumbnail_url ?? undefined}
@@ -459,10 +459,10 @@ function ItemCard({
           fallback={<Logo className="size-[16px] opacity-30" />}
         />
         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <p className="truncate text-[14px] font-semibold text-[#18181b]">
+          <p className="truncate text-[14px] font-semibold text-zinc-900">
             {item.media_name ?? item.name ?? "-"}
           </p>
-          <p className="truncate text-[12px] text-[#71717a]">
+          <p className="truncate text-[12px] text-zinc-500">
             {item.address ?? "-"}
           </p>
         </div>
@@ -472,13 +472,13 @@ function ItemCard({
           variant="ghost"
           aria-label={`${item.media_name ?? item.name ?? "매체"} 빼기`}
           onPress={onRemove}
-          className="size-[30px] min-w-0 shrink-0 rounded-[12px] text-[#a1a1aa] data-[hovered=true]:bg-[#fff1f0] data-[hovered=true]:text-[#ff4d4f]"
+          className="size-[30px] min-w-0 shrink-0 rounded-[12px] text-zinc-400 data-[hovered=true]:bg-tone-fff1f0 data-[hovered=true]:text-red"
         >
           <TrashOutlineIcon className="size-[16px]" />
         </Button>
       </div>
 
-      <div className="flex flex-col gap-[8px] rounded-[12px] bg-[#f7f7f8] px-[10px] py-[8px]">
+      <div className="flex flex-col gap-[8px] rounded-[12px] bg-tone-f7f7f8 px-[10px] py-[8px]">
         {plan && (
           <div className={ROW}>
             <span className={ROW_LABEL}>상품</span>
@@ -490,11 +490,11 @@ function ItemCard({
               }}
               className="min-w-0 flex-1"
             >
-              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-[#ececef] bg-white py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-white">
-                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-[#18181b]">
+              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-tone-ececef bg-surface py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-surface">
+                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-zinc-900">
                   {() => planText(plan)}
                 </Select.Value>
-                <Select.Indicator className="end-[9px] size-[13px] text-[#71717a]" />
+                <Select.Indicator className="end-[9px] size-[13px] text-zinc-500" />
               </Select.Trigger>
               <Select.Popover className="min-w-[var(--trigger-width)]">
                 <ListBox>
@@ -504,7 +504,7 @@ function ItemCard({
                       id={String(p.plan_no)}
                       textValue={planText(p)}
                     >
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
                         {planText(p)}
                       </span>
                       <ListBox.ItemIndicator />
@@ -537,7 +537,7 @@ function ItemCard({
               max={99}
               onChange={(productionCount) => onChange({ productionCount })}
             />
-            <span className="min-w-0 flex-1 text-right text-[13px] font-semibold whitespace-nowrap text-[#71717a]">
+            <span className="min-w-0 flex-1 text-right text-[13px] font-semibold whitespace-nowrap text-zinc-500">
               {won(row.productionAmount)}
             </span>
           </div>
@@ -557,11 +557,11 @@ function EmptyMessage({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center">
       {/* 빈 상태 아이콘 — 보라 대신 차분한 회색(회색 칸 + 회색 아이콘). */}
-      <span className="mb-[4px] flex size-[48px] items-center justify-center rounded-[21px] bg-[#f4f4f5] text-[#71717a]">
+      <span className="mb-[4px] flex size-[48px] items-center justify-center rounded-[21px] bg-zinc-100 text-zinc-500">
         <OpenFolderIcon className="size-[24px]" />
       </span>
-      <p className="text-[15px] font-semibold text-[#18181b]">{title}</p>
-      <p className="text-[13px] leading-[1.6] break-keep text-[#8c8c94]">
+      <p className="text-[15px] font-semibold text-zinc-900">{title}</p>
+      <p className="text-[13px] leading-[1.6] break-keep text-tone-8c8c94">
         {description}
       </p>
     </div>
@@ -573,7 +573,7 @@ function NewBadge() {
   return (
     <span
       aria-label="새로 담김"
-      className="flex size-[16px] shrink-0 items-center justify-center rounded-full bg-[#ff4d4f] text-[9px] leading-none font-bold text-white"
+      className="flex size-[16px] shrink-0 items-center justify-center rounded-full bg-red text-[9px] leading-none font-bold text-white"
     >
       N
     </span>

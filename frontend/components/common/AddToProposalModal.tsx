@@ -38,12 +38,12 @@ const MAX_NAME_LENGTH = 50;
 // 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 기획안 검색창과 같은 방식.
 const FIELD_CLASS =
   "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-gray-400 hover:bg-white data-[hovered=true]:bg-white focus:border-focus data-[focused=true]:bg-white data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
+  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
 
 // 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·기획안 담기)과 같은 모양.
 const ACTION_CLASS =
   "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
-const CANCEL_CLASS = "bg-[#eee] text-[#18181b]";
+const CANCEL_CLASS = "bg-tone-eeeeee text-zinc-900";
 
 // 새 기획안 입력칸 아래 작은 버튼 32px → 곡률 13px.
 const SMALL_ACTION_CLASS =
@@ -202,11 +202,11 @@ export function AddToProposalModal({
           <Modal.Container placement="center" className="px-[16px] sm:px-0">
             <Modal.Dialog
               aria-label="기획안에 담기"
-              className="w-full max-w-[440px] gap-0 rounded-[20px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+              className="w-full max-w-[440px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
             >
               <Modal.CloseTrigger
                 aria-label="닫기"
-                className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a] max-sm:top-[16px] max-sm:right-[16px]"
+                className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
               >
                 <CloseMediumIcon className="size-[24px]" />
               </Modal.CloseTrigger>
@@ -215,7 +215,7 @@ export function AddToProposalModal({
                 <Modal.Heading className="text-[16px] font-semibold text-black">
                   기획안에 담기
                 </Modal.Heading>
-                <p className="text-[12px] leading-[1.5] text-[#888]">
+                <p className="text-[12px] leading-[1.5] text-tone-888888">
                   {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
                   {targetIds.length > 1
                     ? `매체 ${targetIds.length}개를 담을 기획안을 골라 주세요`
@@ -235,7 +235,7 @@ export function AddToProposalModal({
                       event.preventDefault();
                       handleCreate();
                     }}
-                    className="flex flex-col gap-[8px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] p-[12px]"
+                    className="flex flex-col gap-[8px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[12px]"
                   >
                     <TextField
                       value={newName}
@@ -291,17 +291,17 @@ export function AddToProposalModal({
                   <Button
                     variant="ghost"
                     onPress={() => setCreating(true)}
-                    className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-[13px] font-medium text-[#52525b] data-[hovered=true]:bg-[#fafafa]"
+                    className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-zinc-300 bg-surface text-[13px] font-medium text-zinc-600 data-[hovered=true]:bg-zinc-50"
                   >
                     <FolderAddIcon className="shrink-0" />새 기획안 만들기
                   </Button>
                 )}
 
                 <div className="flex items-center justify-between px-[2px] pt-[4px]">
-                  <p className="text-[13px] font-semibold text-[#18181b]">
+                  <p className="text-[13px] font-semibold text-zinc-900">
                     내 기획안
                     {proposals.length > 0 && (
-                      <span className="ml-[4px] text-[#a1a1aa]">
+                      <span className="ml-[4px] text-zinc-400">
                         {proposals.length}
                       </span>
                     )}
@@ -318,11 +318,11 @@ export function AddToProposalModal({
                     <SpinningSymbol className="size-[32px]" />
                   </div>
                 ) : proposals.length === 0 ? (
-                  <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[28px]">
-                    <p className="text-[14px] font-semibold text-[#18181b]">
+                  <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 py-[28px]">
+                    <p className="text-[14px] font-semibold text-zinc-900">
                       아직 만든 기획안이 없어요
                     </p>
-                    <p className="text-[12px] text-[#888]">
+                    <p className="text-[12px] text-tone-888888">
                       새 기획안을 만들어 매체를 담아 보세요.
                     </p>
                   </div>
@@ -353,17 +353,17 @@ export function AddToProposalModal({
                           className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
                         >
                           {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
-                          <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-[#ececef] bg-white px-[14px] transition-colors data-[hovered=true]:bg-[#fafafa] in-data-[selected=true]:bg-[#f7f7f8]">
+                          <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-tone-ececef bg-surface px-[14px] transition-colors data-[hovered=true]:bg-zinc-50 in-data-[selected=true]:bg-tone-f7f7f8">
                             {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
                             <Checkbox.Control className="border border-gray-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
                               <Checkbox.Indicator />
                             </Checkbox.Control>
-                            <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b] in-data-[disabled=true]:text-[#a1a1aa]">
+                            <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 in-data-[disabled=true]:text-zinc-400">
                               {proposal.title}
                             </Label>
                             {hasMedia(proposal) && (
                               // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
-                              <Chip className="shrink-0 rounded-[10px] bg-[#ededef] py-[3px] text-[11px] leading-[16.5px] font-semibold text-[#3f3f46]">
+                              <Chip className="shrink-0 rounded-[10px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] font-semibold text-zinc-700">
                                 이미 담김
                               </Chip>
                             )}
@@ -399,7 +399,7 @@ export function AddToProposalModal({
                   )}
                 >
                   {!submitting && (
-                    <FolderAddIcon className="my-0 shrink-0 text-[#fafafa]" />
+                    <FolderAddIcon className="my-0 shrink-0 text-zinc-50 dark:text-white" />
                   )}
                   {submitting
                     ? "담는 중..."

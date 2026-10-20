@@ -34,7 +34,7 @@ function ImageCell({
       onClick={clickable ? () => onOpen(index) : undefined}
       aria-label="이미지 크게보기"
       className={cn(
-        "relative min-w-0 overflow-hidden bg-[#d9d9d9]",
+        "relative min-w-0 overflow-hidden bg-tone-d9d9d9",
         clickable && "cursor-pointer",
         className,
       )}
@@ -60,7 +60,7 @@ export function MediaDetailImages({ images, onOpen }: MediaDetailImagesProps) {
   const count = images.length;
 
   return (
-    <div className="flex h-[200px] w-full items-center justify-center gap-[2px] overflow-hidden bg-white">
+    <div className="flex h-[200px] w-full items-center justify-center gap-[2px] overflow-hidden bg-surface">
       {count <= 1 ? (
         <ImageCell
           src={images[0]}
@@ -92,7 +92,7 @@ export function MediaDetailImages({ images, onOpen }: MediaDetailImagesProps) {
             >
               {count > 3 && (
                 <>
-                  <span className="absolute inset-0 bg-black/70" />
+                  <span className="absolute inset-0 bg-scrim/70" />
                   <span className="absolute left-1/2 top-1/2 flex w-[36px] -translate-x-1/2 -translate-y-1/2 flex-col items-center">
                     <PlusIcon className="size-[20px] text-white" />
                     <span className="text-[14px] font-medium leading-[1.6] tracking-[-0.35px] text-white">

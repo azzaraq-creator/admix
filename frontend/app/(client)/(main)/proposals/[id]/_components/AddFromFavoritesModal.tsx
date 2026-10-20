@@ -154,11 +154,11 @@ export function AddFromFavoritesModal({
             aria-label="관심 매체에서 추가하기"
             // 창 높이 고정 — 검색 결과가 적거나 없거나, 관심 매체가 없어 카테고리 줄이 빠져도 크기가 그대로다.
             // 목록 칸(본문)이 남는 높이를 채운다.
-            className="h-[min(780px,calc(100vh-80px))] w-full max-w-full gap-0 rounded-[24px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
+            className="h-[min(780px,calc(100vh-80px))] w-full max-w-full gap-0 rounded-[24px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
           >
             <Modal.CloseTrigger
               aria-label="닫기"
-              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-[#ececef] bg-[#eaeaeb] p-0 text-[#70707a]"
+              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a"
             >
               <CloseMediumIcon className="size-[24px]" />
             </Modal.CloseTrigger>
@@ -168,7 +168,7 @@ export function AddFromFavoritesModal({
               <Modal.Heading className="text-[16px] font-semibold text-black">
                 관심 매체 목록
               </Modal.Heading>
-              <Chip className="h-[20px] rounded-[7px] bg-[#f1f1f3] px-[7px] py-0 text-[10px] font-medium text-[#71717a]">
+              <Chip className="h-[20px] rounded-[7px] bg-tone-f1f1f3 px-[7px] py-0 text-[10px] font-medium text-zinc-500">
                 총 {allRows.length}개
               </Chip>
             </Modal.Header>
@@ -181,11 +181,11 @@ export function AddFromFavoritesModal({
                 onChange={setQuery}
                 className="w-full max-w-[420px]"
               >
-                <SearchField.Group className="h-[36px] gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:bg-white focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
-                  <SearchOutlineIcon className="size-[16px] shrink-0 text-[#6c757d]" />
+                <SearchField.Group className="h-[36px] gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:bg-surface focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
+                  <SearchOutlineIcon className="size-[16px] shrink-0 text-tone-6c757d" />
                   <SearchField.Input
                     placeholder="매체명·주소로 검색해 보세요"
-                    className="px-0 text-[13px] placeholder:text-[#a1a1aa]"
+                    className="px-0 text-[13px] placeholder:text-zinc-400"
                   />
                   <SearchField.ClearButton className="me-0" />
                 </SearchField.Group>
@@ -202,12 +202,12 @@ export function AddFromFavoritesModal({
                   >
                     <Switch.Content className="flex-row-reverse gap-[6px]">
                       {/* 간략히 보기 토글과 같은 색 — 꺼짐 회색 트랙, 켜짐 보라·흰 손잡이. */}
-                      <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
-                        <Switch.Thumb className="bg-white!" />
+                      <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
+                        <Switch.Thumb className="bg-surface!" />
                       </Switch.Control>
-                      <Label className="text-[13px] font-medium whitespace-nowrap text-[#52525b]">
+                      <Label className="text-[13px] font-medium whitespace-nowrap text-zinc-600">
                         이미 담긴 매체 숨기기
-                        <span className="ml-[3px] text-[#a1a1aa]">
+                        <span className="ml-[3px] text-zinc-400">
                           {addedCount}
                         </span>
                       </Label>
@@ -218,9 +218,9 @@ export function AddFromFavoritesModal({
                 <Dropdown>
                   <Dropdown.Trigger
                     aria-label={`정렬: ${currentSort.label}`}
-                    className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-[#18181b] outline-none hover:bg-white data-[focus-visible=true]:border-focus"
+                    className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-zinc-900 outline-none hover:bg-surface data-[focus-visible=true]:border-focus"
                   >
-                    <SortIcon className="size-[16px] shrink-0 text-[#18181b]" />
+                    <SortIcon className="size-[16px] shrink-0 text-zinc-900" />
                     {currentSort.label}
                   </Dropdown.Trigger>
                   <Dropdown.Popover
@@ -243,7 +243,7 @@ export function AddFromFavoritesModal({
                           id={s.key}
                           textValue={s.label}
                         >
-                          <span className="text-[13px] text-[#18181b]">
+                          <span className="text-[13px] text-zinc-900">
                             {s.label}
                           </span>
                           <Dropdown.ItemIndicator />
@@ -274,13 +274,13 @@ export function AddFromFavoritesModal({
                       className={cn(
                         "h-[30px] min-w-0 shrink-0 rounded-[12px] border px-[12px] text-[12px] whitespace-nowrap",
                         active
-                          ? "border-[#18181b] bg-white font-semibold text-[#18181b]"
-                          : "border-[#ececef] bg-white font-normal text-[#71717a] data-[hovered=true]:bg-[#fafafa]",
+                          ? "border-zinc-900 bg-surface font-semibold text-zinc-900"
+                          : "border-tone-ececef bg-surface font-normal text-zinc-500 data-[hovered=true]:bg-zinc-50",
                       )}
                     >
                       {name}
                       {name !== ALL && (
-                        <span className="ml-[3px] text-[#a1a1aa]">
+                        <span className="ml-[3px] text-zinc-400">
                           {categoryCounts.get(name)}
                         </span>
                       )}
@@ -339,7 +339,7 @@ export function AddFromFavoritesModal({
                 onPress={onClose}
                 className={cn(
                   ACTION_CLASS,
-                  "w-[96px] bg-[#eee] text-[#18181b]",
+                  "w-[96px] bg-tone-eeeeee text-zinc-900",
                 )}
               >
                 닫기
@@ -408,23 +408,23 @@ export function FavoritesPickPreview({
     >
       <div
         data-tour="detail-favorites"
-        className="relative mt-[24px] flex h-[min(780px,calc(100vh-80px))] w-full max-w-[930px] origin-top scale-[0.8] flex-col rounded-[24px] bg-white p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
+        className="relative mt-[24px] flex h-[min(780px,calc(100vh-80px))] w-full max-w-[930px] origin-top scale-[0.8] flex-col rounded-[24px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
       >
-        <span className="absolute top-[20px] right-[20px] z-10 flex size-[28px] items-center justify-center rounded-[14px] border border-[#ececef] bg-[#eaeaeb] text-[#70707a]">
+        <span className="absolute top-[20px] right-[20px] z-10 flex size-[28px] items-center justify-center rounded-[14px] border border-tone-ececef bg-tone-eaeaeb text-tone-70707a">
           <CloseMediumIcon className="size-[24px]" />
         </span>
 
         <div className="flex min-h-[28px] shrink-0 flex-row items-center gap-[8px] pr-[40px]">
           <p className="text-[16px] font-semibold text-black">관심 매체 목록</p>
-          <Chip className="h-[20px] rounded-[7px] bg-[#f1f1f3] px-[7px] py-0 text-[10px] font-medium text-[#71717a]">
+          <Chip className="h-[20px] rounded-[7px] bg-tone-f1f1f3 px-[7px] py-0 text-[10px] font-medium text-zinc-500">
             총 {rows.length}개
           </Chip>
         </div>
 
         <div className="mt-[16px] flex shrink-0 items-center justify-between gap-[10px]">
           <div className="flex h-[36px] w-full max-w-[420px] items-center gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px]">
-            <SearchOutlineIcon className="size-[16px] shrink-0 text-[#6c757d]" />
-            <span className="text-[13px] text-[#a1a1aa]">
+            <SearchOutlineIcon className="size-[16px] shrink-0 text-tone-6c757d" />
+            <span className="text-[13px] text-zinc-400">
               매체명·주소로 검색해 보세요
             </span>
           </div>
@@ -432,20 +432,20 @@ export function FavoritesPickPreview({
             {addedCount > 0 && (
               <Switch size="sm" isSelected={false} className="group flex">
                 <Switch.Content className="flex-row-reverse gap-[6px]">
-                  <Switch.Control className="bg-[#d4d4d8]! group-data-[selected=true]:bg-primary!">
-                    <Switch.Thumb className="bg-white!" />
+                  <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
+                    <Switch.Thumb className="bg-surface!" />
                   </Switch.Control>
-                  <Label className="text-[13px] font-medium whitespace-nowrap text-[#52525b]">
+                  <Label className="text-[13px] font-medium whitespace-nowrap text-zinc-600">
                     이미 담긴 매체 숨기기
-                    <span className="ml-[3px] text-[#a1a1aa]">
+                    <span className="ml-[3px] text-zinc-400">
                       {addedCount}
                     </span>
                   </Label>
                 </Switch.Content>
               </Switch>
             )}
-            <span className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-[#18181b]">
-              <SortIcon className="size-[16px] shrink-0 text-[#18181b]" />
+            <span className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-zinc-900">
+              <SortIcon className="size-[16px] shrink-0 text-zinc-900" />
               {SORTS[0].label}
             </span>
           </div>
@@ -457,15 +457,15 @@ export function FavoritesPickPreview({
               <span
                 key={name}
                 className={cn(
-                  "flex h-[30px] shrink-0 items-center rounded-[12px] border bg-white px-[12px] text-[12px] whitespace-nowrap",
+                  "flex h-[30px] shrink-0 items-center rounded-[12px] border bg-surface px-[12px] text-[12px] whitespace-nowrap",
                   name === ALL
-                    ? "border-[#18181b] font-semibold text-[#18181b]"
-                    : "border-[#ececef] font-normal text-[#71717a]",
+                    ? "border-zinc-900 font-semibold text-zinc-900"
+                    : "border-tone-ececef font-normal text-zinc-500",
                 )}
               >
                 {name}
                 {name !== ALL && (
-                  <span className="ml-[3px] text-[#a1a1aa]">
+                  <span className="ml-[3px] text-zinc-400">
                     {categoryCounts.get(name)}
                   </span>
                 )}
@@ -494,7 +494,7 @@ export function FavoritesPickPreview({
           <span
             className={cn(
               ACTION_CLASS,
-              "flex w-[96px] items-center justify-center bg-[#eee] text-[#18181b]",
+              "flex w-[96px] items-center justify-center bg-tone-eeeeee text-zinc-900",
             )}
           >
             닫기
@@ -538,12 +538,12 @@ function PickCard({
       }}
       aria-disabled={added || undefined}
       className={cn(
-        "relative gap-0 overflow-hidden rounded-[14px] border bg-white p-0 shadow-none transition-colors",
+        "relative gap-0 overflow-hidden rounded-[14px] border bg-surface p-0 shadow-none transition-colors",
         added
-          ? "cursor-default border-[#ececef]"
+          ? "cursor-default border-tone-ececef"
           : checked
             ? "cursor-pointer border-primary-500 shadow-[0_0_0_1px_var(--color-primary-500)]"
-            : "cursor-pointer border-[#ececef] hover:border-[#d4d4d8]",
+            : "cursor-pointer border-tone-ececef hover:border-zinc-300",
       )}
     >
       <div className={cn("relative h-[120px] w-full", added && "opacity-50")}>
@@ -555,7 +555,7 @@ function PickCard({
         />
       </div>
       {added ? (
-        <Chip className="absolute top-[11px] left-[11px] h-[30px] rounded-[12px] bg-white px-[10px] text-[12px] font-semibold text-[#3f3f46] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]">
+        <Chip className="absolute top-[11px] left-[11px] h-[30px] rounded-[12px] bg-surface px-[10px] text-[12px] font-semibold text-zinc-700 drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]">
           이미 담김
         </Chip>
       ) : (
@@ -571,13 +571,13 @@ function PickCard({
           {row.name}
         </p>
         <div className="flex min-w-0 items-center gap-[3px]">
-          <LocationFilledIcon className="size-[12px] shrink-0 text-[#6c757d]" />
-          <span className="truncate text-[11px] text-[#6c757d]">
+          <LocationFilledIcon className="size-[12px] shrink-0 text-tone-6c757d" />
+          <span className="truncate text-[11px] text-tone-6c757d">
             {row.address ?? "-"}
           </span>
         </div>
         {/* 금액 — 매체 찾기 카드처럼 이름표 위·금액 아래, 두 칸 모두 오른쪽 정렬. 광고비 칸이 남는 폭을 쓴다. */}
-        <div className="mt-[7px] flex items-end gap-[16px] border-t border-[#f1f1f4] pt-[8px]">
+        <div className="mt-[7px] flex items-end gap-[16px] border-t border-tone-f1f1f4 pt-[8px]">
           <PickPrice
             label="광고비 / 1개월"
             value={row.minAdvertisementFeeKrw}
@@ -614,7 +614,7 @@ function PickPrice({
     >
       <span className="text-[10px] font-medium text-gray-400">{label}</span>
       {/* 광고비 칸만 값이 비어 들어온다(제작비는 없으면 칸째 숨김) — 없으면 "별도 문의". */}
-      <span className="text-[14px] font-bold text-[#2d264b]">
+      <span className="text-[14px] font-bold text-tone-2d264b">
         {formatAdFee(value)}
       </span>
     </div>
@@ -631,9 +631,9 @@ function EmptyNote({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-[6px] rounded-[12px] border border-[#ececef] bg-[#f7f7f8] py-[40px] text-center">
-      <p className="text-[14px] font-semibold text-[#18181b]">{title}</p>
-      <p className="text-[12px] break-keep text-[#888]">{description}</p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-[6px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 py-[40px] text-center">
+      <p className="text-[14px] font-semibold text-zinc-900">{title}</p>
+      <p className="text-[12px] break-keep text-tone-888888">{description}</p>
       {action}
     </div>
   );

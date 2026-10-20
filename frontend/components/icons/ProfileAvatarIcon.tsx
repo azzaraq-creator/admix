@@ -12,8 +12,10 @@ export function ProfileAvatarIcon(props: IconProps) {
     >
       <g transform="translate(2 2)">
         <g>
+          {/* 다크 모드에선 옅은 칸이 바탕에 묻혀 불투명하게. */}
           <path
             opacity="0.4"
+            className="dark:opacity-100"
             d="M4 0H16C18.2091 0 20 1.79086 20 4V16C20 18.2091 18.2091 20 16 20H4C1.79086 20 0 18.2091 0 16V4C0 1.79086 1.79086 0 4 0Z"
             fill="currentColor"
           />

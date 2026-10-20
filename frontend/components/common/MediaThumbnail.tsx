@@ -36,7 +36,7 @@ export function MediaThumbnail({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center overflow-hidden bg-[#eee]",
+        "relative flex items-center justify-center overflow-hidden bg-tone-eeeeee",
         className,
       )}
     >

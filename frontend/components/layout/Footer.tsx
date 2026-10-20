@@ -18,7 +18,7 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
   return (
     <footer
       className={cn(
-        "w-full border-t border-gray-200 bg-white px-[16px] py-[20px] sm:py-[36px]",
+        "w-full border-t border-gray-200 bg-surface px-[16px] py-[20px] sm:py-[36px]",
         fullWidth ? "sm:px-[20px]" : "sm:px-[24px]",
       )}
     >

@@ -40,7 +40,7 @@ export function MediaItem({
       onClick={onClick}
       className={cn(
         "flex w-full items-start gap-[12px] rounded-[8px] border border-stroke px-[16px] py-[24px]",
-        selected ? "bg-gray-50" : "bg-white",
+        selected ? "bg-gray-50" : "bg-surface",
         onClick && "cursor-pointer",
         className,
       )}
@@ -102,7 +102,7 @@ export function MediaItem({
               onAddProposal?.();
             }}
             aria-label="기획안 담기"
-            className="flex shrink-0 items-center justify-center rounded-full border border-[#d3d4d6] p-[8px] text-black transition-colors hover:bg-gray-100"
+            className="flex shrink-0 items-center justify-center rounded-full border border-tone-d3d4d6 p-[8px] text-black transition-colors hover:bg-gray-100"
           >
             <FolderPlusIcon className="size-[20px]" />
           </button>

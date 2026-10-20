@@ -17,7 +17,7 @@ export function SalesTypeChip({
   return (
     <Chip
       className={cn(
-        "border border-[#e4e4e7] bg-white px-[7px] py-[2px] leading-[18px] font-normal text-[#52525b]",
+        "border border-zinc-200 bg-surface px-[7px] py-[2px] leading-[18px] font-normal text-zinc-600",
         className,
       )}
     >

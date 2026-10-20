@@ -51,13 +51,13 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-[24px] rounded-[8px] border border-[#dde0ea] bg-white p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
       <div className="flex items-center gap-[12px]">
-        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-[#2a2a2a]">
+        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a">
           맞춤기획안 명
         </span>
         <span className="shrink-0 text-base font-semibold leading-[24px] text-[#d65856]">
@@ -67,7 +67,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
           type="text"
           value={proposalName}
           readOnly
-          className="h-[44px] flex-1 rounded-[19px] border border-stroke bg-[#fafafa] px-[14px] text-sm font-medium leading-[20px] text-black outline-none"
+          className="h-[44px] flex-1 rounded-[19px] border border-stroke bg-zinc-50 px-[14px] text-sm font-medium leading-[20px] text-black outline-none"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
             type="button"
             onClick={() => setLightbox(true)}
             disabled={slideImages.length === 0}
-            className="flex h-[36px] items-center justify-center rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+            className="flex h-[36px] items-center justify-center rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
           >
             PPT 미리보기
           </button>
@@ -98,7 +98,7 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
             <button
               type="button"
               onClick={handleExport}
-              className="flex h-[36px] items-center gap-[6px] rounded-[15px] border border-[#ebebeb] bg-white px-[17px] text-sm font-medium leading-[20px] text-[#0a0a0a] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+              className="flex h-[36px] items-center gap-[6px] rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
             >
               <DownloadIcon className="size-[16px]" />
               내보내기

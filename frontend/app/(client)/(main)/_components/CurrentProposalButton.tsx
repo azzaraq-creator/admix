@@ -46,7 +46,7 @@ function ProposalCallout({
         offset={12}
         // 앱 토스트(globals.css .toast-region .toast)와 같은 어두운 모양 — 반투명 검정·흐림·흰 글씨.
         // 화살표도 같은 색으로 칠한다.
-        className="max-w-[min(320px,calc(100vw-24px))] rounded-[20px] border-0 bg-black/75 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] backdrop-blur-[8px] [&_[data-slot=popover-overlay-arrow]]:fill-black/75"
+        className="max-w-[min(320px,calc(100vw-24px))] rounded-[20px] border-0 bg-scrim/75 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] backdrop-blur-[8px] [&_[data-slot=popover-overlay-arrow]]:fill-scrim/75"
       >
         <Popover.Arrow />
         {callout && (
@@ -173,7 +173,7 @@ export function CurrentProposalButton({
           className={cn(
             // 아이콘은 메인 색(보라) — 펼친 카드의 "현재 기획안" 이름표와 같은 색으로, 접혀도 같은 버튼으로 읽히게.
             // (PC 사이드바 전용 — 모바일 상단바는 variant="header"로 따로 그린다.)
-            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-white text-primary transition-colors",
+            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-surface text-primary transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",
@@ -193,7 +193,7 @@ export function CurrentProposalButton({
           aria-expanded={open}
           onClick={toggle}
           className={cn(
-            "flex w-full overflow-hidden rounded-[16px] border bg-white p-[12px] text-left shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors",
+            "flex w-full overflow-hidden rounded-[16px] border bg-surface p-[12px] text-left shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",

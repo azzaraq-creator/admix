@@ -118,7 +118,7 @@ export function MediaDetailContent({
       )}
     >
       <div className="flex w-full max-w-[1016px] flex-col">
-        <div className="relative h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-[#d9d9d9]">
+        <div className="relative h-[390px] w-full shrink-0 overflow-hidden rounded-[16px] bg-tone-d9d9d9">
           {imageUrl && (
             <MediaImage
               src={mediaSrc(imageUrl)}
@@ -216,7 +216,7 @@ export function MediaDetailContent({
               <SectionTitle>{population.title} 데이터</SectionTitle>
               <div className="flex items-stretch gap-[36px] rounded-[8px] border border-stroke p-[40px]">
                 <div className="flex flex-1 flex-col gap-[16px]">
-                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
+                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-tone-545454">
                     성별 비율
                   </p>
                   <div className="flex flex-1 items-center justify-center">
@@ -227,7 +227,7 @@ export function MediaDetailContent({
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col gap-[16px]">
-                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-[#545454]">
+                  <p className="w-full text-[20px] font-semibold leading-[28px] tracking-[-0.08px] text-tone-545454">
                     연령대 비율
                   </p>
                   <div className="flex flex-1 items-center justify-center">

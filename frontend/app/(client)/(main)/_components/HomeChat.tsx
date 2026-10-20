@@ -47,7 +47,7 @@ function UserBubble({ content }: { content: string }) {
   return (
     <div
       data-user-message
-      className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-gray-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-gray-900 max-sm:text-[16px]"
+      className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-gray-200 bg-surface px-[16px] py-[8px] text-[14px] leading-[24px] text-gray-900 max-sm:text-[16px]"
     >
       {content}
     </div>
@@ -78,7 +78,7 @@ function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
             key={suggestion}
             type="button"
             onClick={() => onPick(suggestion)}
-            className="rounded-[13px] border border-gray-200 bg-white px-[12px] py-[6px] text-left text-[12px] leading-[17px] text-gray-600 sm:text-[13px] sm:leading-[18px] transition-colors hover:border-gray-300 hover:text-gray-900"
+            className="rounded-[13px] border border-gray-200 bg-surface px-[12px] py-[6px] text-left text-[12px] leading-[17px] text-gray-600 sm:text-[13px] sm:leading-[18px] transition-colors hover:border-gray-300 hover:text-gray-900"
           >
             {suggestion}
           </button>
@@ -339,7 +339,7 @@ export function HomeChat({
         className={
           isPanel
             ? // 패널 좌우 패딩(16px)을 음수 마진으로 넘어 폭 전체를 채우는 하단 바.
-              "relative -mx-[16px] shrink-0 self-stretch border-t border-gray-200 bg-white px-[16px] pt-[12px] pb-[10px]"
+              "relative -mx-[16px] shrink-0 self-stretch border-t border-gray-200 bg-surface px-[16px] pt-[12px] pb-[10px]"
             : `relative ${widthClass} shrink-0`
         }
       >
@@ -349,7 +349,7 @@ export function HomeChat({
           aria-label="맨 아래로 스크롤"
           tabIndex={showScrollDown ? 0 : -1}
           onClick={scrollToEnd}
-          className={`absolute bottom-full left-1/2 z-10 mb-[10px] flex size-[30px] -translate-x-1/2 items-center justify-center rounded-full bg-gray-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 ${
+          className={`absolute bottom-full left-1/2 z-10 mb-[10px] flex size-[30px] -translate-x-1/2 items-center justify-center rounded-full bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 ${
             showScrollDown
               ? "translate-y-0 opacity-100"
               : "pointer-events-none translate-y-[6px] opacity-0"
@@ -366,7 +366,7 @@ export function HomeChat({
           className={
             isPanel
               ? "relative"
-              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-gray-300 max-sm:bg-white max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[57px]"
+              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-gray-300 max-sm:bg-surface max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[57px]"
           }
         >
           <textarea
@@ -388,11 +388,11 @@ export function HomeChat({
                     ? "믹시에게 이어서 물어보세요"
                     : "믹시에게 물어보세요"
             }
-            className={`w-full resize-none text-black max-sm:block outline-none [scrollbar-width:none] placeholder:text-[#a1a1aa] disabled:opacity-60 [&::-webkit-scrollbar]:hidden ${
+            className={`w-full resize-none text-black max-sm:block outline-none [scrollbar-width:none] placeholder:text-zinc-400 disabled:opacity-60 [&::-webkit-scrollbar]:hidden ${
               isPanel
                 ? // 높이 44px → 모서리 19px. 매체 찾기 검색바와 같게 회색 칸 + gray-200
                   // 테두리로 두고, 마우스를 올리거나 선택하면 테두리는 그대로 배경만 흰색이 된다.
-                  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 py-[10px] pr-[48px] pl-[16px] text-sm leading-[22px] transition-colors hover:bg-white focus:bg-white sm:text-[14px]"
+                  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 py-[10px] pr-[48px] pl-[16px] text-sm leading-[22px] transition-colors hover:bg-surface focus:bg-surface sm:text-[14px]"
                 : // 홈 입력바는 검색 탭 입력바(AiSearchBox 검색 모드)와 같은 흰 바탕 + 1px 회색(#c3c7d6)
                   // 테두리. 회색 바탕이면 같은 회색 계열인 모드 탭이 묻혀 보이지 않는다.
                   // 오른쪽에 전송 버튼과 모드 탭이 있으면 글자가 그 밑으로 들어가지 않게 여백을 넓힌다.
@@ -401,7 +401,7 @@ export function HomeChat({
                   // 모바일(<sm)은 그 여백을 빼면 글자 칸이 140px도 안 남아, 두 줄로 나눠
                   // 위엔 입력(한 줄, 넘치면 안에서 스크롤), 아래 줄에 탭·전송 버튼(36px)을 둔다.
                   // 테두리·여백은 위 wrapper가 맡는다.
-                  `h-[24px] bg-transparent p-0 text-base leading-[24px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-gray-300 sm:bg-white sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
+                  `h-[24px] bg-transparent p-0 text-base leading-[24px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-gray-300 sm:bg-surface sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
                     modeToggle ? "sm:pr-[196px]" : "sm:pr-[60px]"
                   }`
             }`}

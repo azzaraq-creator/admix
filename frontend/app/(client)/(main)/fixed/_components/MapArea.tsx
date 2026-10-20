@@ -291,7 +291,7 @@ export function MapArea({
       <div
         ref={containerRef}
         className={cn(
-          "h-full w-full bg-[#e9edf0]",
+          "h-full w-full bg-tone-e9edf0",
           (popupId || popupPosition) && "max-sm:relative max-sm:z-[3]",
           // 실시간 인구를 켜면 범위 밖은 흑백 판(useMapCrowd)이 덮는다. 판이 아직 없거나 확대·축소 중엔
           // 판이 어긋나므로 지도 전체를 흑백으로(globals.css) — 색이 번쩍 돌아오지 않게.
@@ -312,7 +312,7 @@ export function MapArea({
           ref={togglesRef}
           data-tour="map-layers"
           className={cn(
-            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:max-w-[calc(100%-24px)] max-sm:whitespace-nowrap",
+            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-surface/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:max-w-[calc(100%-24px)] max-sm:whitespace-nowrap",
             TOGGLE_STACK,
             toggleFit === "stack" && MOBILE_STACK,
           )}
@@ -327,7 +327,7 @@ export function MapArea({
             >
               <Switch.Content
                 className={cn(
-                  "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                  "gap-[6px] text-[12px] font-semibold text-zinc-900",
                   TOGGLE_STACK_ITEM,
                   toggleText,
                   stackItem,
@@ -341,13 +341,13 @@ export function MapArea({
                 <span>
                   실시간 인구
                   {/* 서울시 데이터라 서울만 보인다는 걸 알린다. */}
-                  <span className="ml-[3px] font-medium text-[#71717a]">
+                  <span className="ml-[3px] font-medium text-zinc-500">
                     (서울)
                   </span>
                 </span>
                 <Switch.Control className="ml-[2px]">
                   {/* 켜져도 손잡이는 흰색(테마 기본은 진한 색이라 보라 위에서 안 보인다). */}
-                  <Switch.Thumb className="bg-white!" />
+                  <Switch.Thumb className="bg-surface!" />
                 </Switch.Control>
               </Switch.Content>
             </Switch>
@@ -358,7 +358,7 @@ export function MapArea({
               <span
                 aria-hidden
                 className={cn(
-                  "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
+                  "mx-[8px] h-[14px] w-px bg-zinc-900/15",
                   TOGGLE_STACK_SEP,
                   stackSep,
                 )}
@@ -372,7 +372,7 @@ export function MapArea({
               >
                 <Switch.Content
                   className={cn(
-                    "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                    "gap-[6px] text-[12px] font-semibold text-zinc-900",
                     TOGGLE_STACK_ITEM,
                     toggleText,
                     stackItem,
@@ -380,7 +380,7 @@ export function MapArea({
                 >
                   <span>흑백</span>
                   <Switch.Control>
-                    <Switch.Thumb className="bg-white!" />
+                    <Switch.Thumb className="bg-surface!" />
                   </Switch.Control>
                 </Switch.Content>
               </Switch>
@@ -390,7 +390,7 @@ export function MapArea({
             <span
               aria-hidden
               className={cn(
-                "mx-[8px] h-[14px] w-px bg-[#18181b]/15",
+                "mx-[8px] h-[14px] w-px bg-zinc-900/15",
                 TOGGLE_STACK_SEP,
                 stackSep,
               )}
@@ -407,7 +407,7 @@ export function MapArea({
             >
               <Switch.Content
                 className={cn(
-                  "gap-[6px] text-[12px] font-semibold text-[#18181b]",
+                  "gap-[6px] text-[12px] font-semibold text-zinc-900",
                   TOGGLE_STACK_ITEM,
                   toggleText,
                   stackItem,
@@ -415,7 +415,7 @@ export function MapArea({
               >
                 <span>도로 현황</span>
                 <Switch.Control>
-                  <Switch.Thumb className="bg-white!" />
+                  <Switch.Thumb className="bg-surface!" />
                 </Switch.Control>
               </Switch.Content>
             </Switch>
@@ -430,27 +430,27 @@ export function MapArea({
           aria-label="범례 펼치기"
           aria-expanded={false}
           onClick={() => setLegendOpen(true)}
-          className="absolute top-(--map-legend-top) left-[12px] z-[2] flex h-[24px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-white/40 pr-[6px] pl-[9px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
+          className="absolute top-(--map-legend-top) left-[12px] z-[2] flex h-[24px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-surface/40 pr-[6px] pl-[9px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
         >
           {crowd?.on && <LegendDots levels={CROWD_LEVELS} />}
           {crowd?.on && traffic?.on && (
-            <span aria-hidden className="h-[10px] w-px bg-[#18181b]/15" />
+            <span aria-hidden className="h-[10px] w-px bg-zinc-900/15" />
           )}
           {traffic?.on && <LegendDots levels={TRAFFIC_LEVELS} line />}
-          <ChevronDownIcon className="size-[12px] text-[#3f3f46]" />
+          <ChevronDownIcon className="size-[12px] text-zinc-700" />
         </button>
       )}
       {(crowd?.on || traffic?.on) && (isDesktop || legendOpen) && (
         // 범례 — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
         // 모바일은 아래쪽에 "목록 보기" 버튼이 떠 있어 토글 버튼 바로 밑에 두고, 오른쪽 위 버튼으로 다시 접는다.
-        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-white/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-(--map-legend-top) max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)] max-sm:pr-[30px]">
+        <div className="absolute bottom-[12px] left-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-(--map-legend-top) max-sm:bottom-auto max-sm:max-w-[calc(100%-24px)] max-sm:pr-[30px]">
           {!isDesktop && (
             <button
               type="button"
               aria-label="범례 접기"
               aria-expanded
               onClick={() => setLegendOpen(false)}
-              className="absolute top-[4px] right-[4px] flex size-[22px] items-center justify-center rounded-full text-[#3f3f46]"
+              className="absolute top-[4px] right-[4px] flex size-[22px] items-center justify-center rounded-full text-zinc-700"
             >
               <ChevronDownIcon className="size-[12px] rotate-180" />
             </button>
@@ -552,16 +552,16 @@ function CrowdHoverCard({ place }: { place: CrowdPlace }) {
       : `${place.populationMin.toLocaleString()}~${place.populationMax.toLocaleString()}명`;
   const time = place.measuredAt?.slice(11, 16);
   return (
-    <Card className="w-max gap-[2px] rounded-[10px] border-0 bg-black/60 px-[10px] py-[6px] shadow-[0px_3px_10px_rgba(0,0,0,0.2)] backdrop-blur-[6px]">
+    <Card className="w-max gap-[2px] rounded-[10px] border-0 bg-scrim/60 px-[10px] py-[6px] shadow-[0px_3px_10px_rgba(0,0,0,0.2)] backdrop-blur-[6px]">
       <div className="flex items-center gap-[6px] whitespace-nowrap">
         <span className="text-[12px] leading-[16px] font-bold text-white">
           {place.name}
         </span>
         <Chip
           size="sm"
-          className="h-[16px] px-[5px] text-[10px] font-bold"
-          // 어두운 바탕 위라 혼잡도 색 글자에 옅은 흰 바탕을 깐다.
-          style={{ color, background: "rgba(255,255,255,0.92)" }}
+          // 어두운 바탕 위라 혼잡도 색 글자에 옅은 흰 바탕을 깐다. 다크 모드는 혼잡도 색을 옅게 깐 어두운 칩.
+          className="h-[16px] bg-white/92 px-[5px] text-[10px] font-bold dark:bg-[color-mix(in_srgb,var(--crowd)_22%,#141519)]"
+          style={{ color, "--crowd": color } as CSSProperties}
         >
           {place.level}
         </Chip>
@@ -587,7 +587,7 @@ function LegendRow({
       {levels.map(({ level, color }) => (
         <span
           key={level}
-          className="flex items-center gap-[3px] font-medium text-[#3f3f46]"
+          className="flex items-center gap-[3px] font-medium text-zinc-700"
         >
           <span
             className={cn(
@@ -654,11 +654,11 @@ function CrowdPlaceCard({
     <Card
       data-tour="crowd-place"
       className={cn(
-        "absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-white p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        "absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[14px] border-0 bg-surface p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.18)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
         hidden && "opacity-0",
       )}
     >
-      <div className="shrink-0 border-b border-[#f1f1f4] px-[14px] pt-[12px] pb-[10px]">
+      <div className="shrink-0 border-b border-tone-f1f1f4 px-[14px] pt-[12px] pb-[10px]">
         <CrowdPlaceHeader place={place} onClose={onClose} />
       </div>
       <ScrollShadow
@@ -698,10 +698,10 @@ function CrowdPlaceSheet({
           {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — HeroUI 기본 85vh는 모바일 주소창 때문에 위가 잘린다. */}
           <Drawer.Dialog
             aria-label={`${place.name} 지하철·버스`}
-            className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-white p-0 pt-[10px]"
+            className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
           >
             <Drawer.Handle />
-            <div className="shrink-0 border-b border-[#f1f1f4] px-[20px] pt-[10px] pb-[14px]">
+            <div className="shrink-0 border-b border-tone-f1f1f4 px-[20px] pt-[10px] pb-[14px]">
               <CrowdPlaceHeader place={place} onClose={onClose} large />
             </div>
             <ScrollShadow
@@ -739,7 +739,7 @@ function CrowdPlaceHeader({
         <div className="flex items-center gap-[6px]">
           <span
             className={cn(
-              "truncate font-bold text-[#18181b]",
+              "truncate font-bold text-zinc-900",
               large
                 ? "text-[17px] leading-[24px]"
                 : "text-[14px] leading-[20px]",
@@ -749,25 +749,32 @@ function CrowdPlaceHeader({
           </span>
           <Chip
             size="sm"
+            // 다크 모드는 옅은 바탕 대신 혼잡도 색을 옅게 깐 어두운 칩.
             className={cn(
-              "shrink-0 font-bold",
+              "shrink-0 bg-(--crowd-bg) font-bold dark:bg-[color-mix(in_srgb,var(--crowd)_22%,#141519)]",
               large
                 ? "h-[20px] px-[7px] text-[11px]"
                 : "h-[18px] px-[6px] text-[10px]",
             )}
-            style={{ color, background: crowdBg(place.level) }}
+            style={
+              {
+                color,
+                "--crowd": color,
+                "--crowd-bg": crowdBg(place.level),
+              } as CSSProperties
+            }
           >
             {place.level}
           </Chip>
         </div>
         <span
           className={cn(
-            "text-[#52525b] tabular-nums",
+            "text-zinc-600 tabular-nums",
             large ? "text-[13px] leading-[18px]" : "text-[12px] leading-[16px]",
           )}
         >
           실시간 인구 {range}
-          {time && <span className="ml-[4px] text-[#a1a1aa]">· {time}</span>}
+          {time && <span className="ml-[4px] text-zinc-400">· {time}</span>}
         </span>
       </div>
       <button
@@ -775,7 +782,7 @@ function CrowdPlaceHeader({
         onClick={onClose}
         aria-label="닫기"
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full text-[#71717a] hover:bg-[#f4f4f5]",
+          "flex shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100",
           large ? "-mr-[6px] size-[32px]" : "-mt-[2px] -mr-[4px] size-[24px]",
         )}
       >
@@ -789,13 +796,13 @@ function CrowdPlaceBody({ code }: { code: string }) {
   const { data, isLoading, isError } = useCrowdTransit(code);
   if (isLoading)
     return (
-      <p className="text-[12px] text-[#71717a]">
+      <p className="text-[12px] text-zinc-500">
         지하철·버스 승하차를 불러오는 중…
       </p>
     );
   if (isError || !data)
     return (
-      <p className="text-[12px] text-[#71717a]">
+      <p className="text-[12px] text-zinc-500">
         지하철·버스 승하차를 불러오지 못했어요.
       </p>
     );

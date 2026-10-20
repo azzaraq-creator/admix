@@ -20,7 +20,7 @@ const PILL =
   "flex h-[45px] items-center rounded-[20px] border border-gray-200 bg-gray-100 transition-colors max-sm:h-[40px] max-sm:rounded-[17px]";
 /** hover·pressed에서 흰 배경으로 밝아진다. HeroUI 버튼은 data-pressed로 눌림을 알린다. */
 const PILL_ACTIVE =
-  "hover:bg-white active:bg-white data-[pressed=true]:bg-white";
+  "hover:bg-surface active:bg-surface data-[pressed=true]:bg-surface";
 /** HeroUI Button은 내부 svg에 자체 크기·여백을 주므로, 아이콘마다 m-0으로 되돌린다. */
 const PILL_ICON = "m-0 size-[20px] shrink-0";
 
@@ -90,7 +90,7 @@ export function MediaFindTopBar({
             PILL,
             PILL_ACTIVE,
             // 모바일(안쪽 38px)은 (38 - 20) / 2 = 9px.
-            "w-full gap-[14px] pr-[20px] pl-[11.5px] focus-within:border-focus focus-within:bg-white max-sm:gap-[10px] max-sm:pr-[16px] max-sm:pl-[9px]",
+            "w-full gap-[14px] pr-[20px] pl-[11.5px] focus-within:border-focus focus-within:bg-surface max-sm:gap-[10px] max-sm:pr-[16px] max-sm:pl-[9px]",
           )}
         >
           <SearchOutlineIcon
@@ -130,13 +130,13 @@ export function MediaFindTopBar({
           PILL_ACTIVE,
           "shrink-0 gap-[10px] px-[20px] max-sm:gap-[6px] max-sm:px-[14px]",
           // 필터 패널이 열려 있으면 hover와 같은 흰 배경으로 켜둔다(테두리는 그대로).
-          filterOpen && "bg-white",
+          filterOpen && "bg-surface",
         )}
       >
         <FilterIcon
-          className={cn(PILL_ICON, "text-[#18181b] max-sm:size-[17px]")}
+          className={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
         />
-        <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-[#18181b]">
+        <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-zinc-900">
           필터
         </span>
         {filterCount > 0 && (
@@ -154,7 +154,7 @@ export function MediaFindTopBar({
         className={cn(
           PILL,
           PILL_ACTIVE,
-          "size-[45px] shrink-0 justify-center border-0 p-0 max-sm:size-[40px]",
+          "size-[45px] shrink-0 justify-center p-0 max-sm:size-[40px]",
         )}
       >
         <RotateLeftIcon
@@ -173,7 +173,7 @@ export function MediaFindTopBar({
             PILL_ACTIVE,
             "gap-[10px] px-[20px] max-sm:min-w-0 max-sm:gap-[6px] max-sm:px-[14px]",
           )}
-          iconClassName={cn(PILL_ICON, "text-[#18181b] max-sm:size-[17px]")}
+          iconClassName={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
         />
 
         {/* 모바일은 목록/지도 아래쪽에 뜨는 전환 버튼(MediaFindPanel)을 대신 쓴다. */}
@@ -182,7 +182,7 @@ export function MediaFindTopBar({
             variant="ghost"
             onPress={onToggleMapExpanded}
             aria-pressed={mapExpanded}
-            className="flex h-[40px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[17px] bg-gray-800 px-[20px] text-white transition-colors hover:bg-gray-900 active:bg-gray-900 data-[pressed=true]:bg-gray-900"
+            className="flex h-[45px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[20px] bg-gray-800 px-[20px] text-white transition-colors hover:bg-gray-900 active:bg-gray-900 data-[pressed=true]:bg-gray-900 dark:bg-gray-200 dark:hover:bg-gray-300 dark:active:bg-gray-300 dark:data-[pressed=true]:bg-gray-300"
           >
             <MapOutlineIcon className="m-0 size-[24px] shrink-0" />
             <span className="text-[12px] whitespace-nowrap">

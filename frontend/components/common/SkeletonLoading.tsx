@@ -22,7 +22,7 @@ export function SkeletonLoading({
       <div aria-hidden className="blur-[3px]">
         {children}
       </div>
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/30">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-surface/30">
         <SpinningSymbol className={symbolClassName} />
       </div>
     </div>

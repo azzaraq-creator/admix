@@ -31,7 +31,7 @@ import { FAQ_TYPE_OPTIONS } from "./index";
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-[12px]">
-      <span className="w-[80px] shrink-0 text-base font-medium leading-[24px] text-[#2a2a2a]">
+      <span className="w-[80px] shrink-0 text-base font-medium leading-[24px] text-tone-2a2a2a">
         {label}
       </span>
       <span className="text-base font-medium leading-[24px] text-disabled">
@@ -43,7 +43,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 function FieldLabel({ label }: { label: string }) {
   return (
-    <span className="flex h-[44px] w-[80px] shrink-0 items-center justify-between text-base font-medium leading-[24px] text-[#2a2a2a]">
+    <span className="flex h-[44px] w-[80px] shrink-0 items-center justify-between text-base font-medium leading-[24px] text-tone-2a2a2a">
       {label}
       <span className="text-[#d65856]">*</span>
     </span>
@@ -161,7 +161,7 @@ function FaqForm({
   const saving = createMutation.isPending || updateMutation.isPending;
 
   const inputClass =
-    "h-[44px] flex-1 rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary";
+    "h-[44px] flex-1 rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary";
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -186,7 +186,7 @@ function FaqForm({
         <FieldRow>
           <FieldLabel label="유형" />
           <Select items={FAQ_TYPE_OPTIONS} value={type} onValueChange={(value) => setType(value ?? "")}>
-            <SelectTrigger className="w-full rounded-[19px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]">
+            <SelectTrigger className="w-full rounded-[19px] border-stroke bg-surface px-[14px] font-medium text-black data-[size=default]:h-[44px]">
               <SelectValue placeholder="유형 선택" />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false} className="min-w-0">
@@ -205,7 +205,7 @@ function FaqForm({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="내용 입력"
-            className="h-[140px] flex-1 resize-none rounded-[6px] border border-stroke px-[14px] py-[12px] text-sm font-medium leading-[22px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary"
+            className="h-[140px] flex-1 resize-none rounded-[6px] border border-stroke px-[14px] py-[12px] text-sm font-medium leading-[22px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary"
           />
         </div>
       </div>

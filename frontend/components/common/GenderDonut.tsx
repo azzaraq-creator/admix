@@ -15,7 +15,7 @@ export function GenderDonut({ male, female, className }: GenderDonutProps) {
           background: `conic-gradient(#ff7a00 0% ${female}%, #16c60c ${female}% 100%)`,
         }}
       >
-        <div className="absolute inset-[30px] flex items-center justify-center gap-[20px] rounded-full bg-white">
+        <div className="absolute inset-[30px] flex items-center justify-center gap-[20px] rounded-full bg-surface">
           <div className="flex flex-col items-center gap-[8px]">
             <span className="text-base font-semibold text-black">남성</span>
             <span className="flex items-end text-[#16c60c]">

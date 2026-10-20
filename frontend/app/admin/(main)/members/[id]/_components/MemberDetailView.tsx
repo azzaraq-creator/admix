@@ -48,7 +48,7 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
 function HeaderInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex w-[120px] flex-col gap-[12px]">
-      <span className="text-sm font-medium leading-normal text-[#494a4a]">{label}</span>
+      <span className="text-sm font-medium leading-normal text-tone-494a4a">{label}</span>
       <span className="text-sm font-semibold leading-normal text-black">{value}</span>
     </div>
   );
@@ -101,12 +101,12 @@ export function MemberDetailView() {
 
   return (
     <div className="flex flex-col gap-[24px]">
-      <h1 className="text-2xl font-semibold leading-[32px] text-[#2a2a2a]">회원 상세</h1>
+      <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">회원 상세</h1>
 
-      <div className="flex items-center gap-[48px] rounded-[12px] border border-[#cdcdcd] p-[36px]">
+      <div className="flex items-center gap-[48px] rounded-[12px] border border-tone-cdcdcd p-[36px]">
         <div className="flex min-w-0 flex-1 items-center gap-[21px]">
-          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-[#cdcdcd] bg-gray-50">
-            <Building2 className="size-[60px] text-[#767676]" />
+          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-tone-cdcdcd bg-gray-50">
+            <Building2 className="size-[60px] text-tone-767676" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[20px]">
             <p className="text-[36px] font-semibold leading-[1.4] text-black">
@@ -117,27 +117,27 @@ export function MemberDetailView() {
                 label="회원 유형"
                 value={MEMBER_CATEGORY_LABEL[member.member_category] ?? "-"}
               />
-              <div className="h-[41px] w-px bg-[#e6e6e6]" />
+              <div className="h-[41px] w-px bg-tone-e6e6e6" />
               <div className="flex w-[120px] flex-col gap-[12px]">
-                <span className="text-sm font-medium leading-normal text-[#494a4a]">
+                <span className="text-sm font-medium leading-normal text-tone-494a4a">
                   사업자정보
                 </span>
                 <BizStatusBadge status={bizStatus} />
               </div>
-              <div className="h-[41px] w-px bg-[#e6e6e6]" />
+              <div className="h-[41px] w-px bg-tone-e6e6e6" />
               <HeaderInfo label="가입일" value={member.created_at.slice(0, 10)} />
             </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-stretch gap-[16px] rounded-[8px] border border-[#cdcdcd] p-[16px]">
+        <div className="flex shrink-0 items-stretch gap-[16px] rounded-[8px] border border-tone-cdcdcd p-[16px]">
           <HeaderStat label="제안 건수" value={String(member.proposal_count)} />
-          <div className="w-px self-stretch bg-[#e6e6e6]" />
+          <div className="w-px self-stretch bg-tone-e6e6e6" />
           <HeaderStat label="문의 건수" value={String(member.inquiry_count)} />
         </div>
       </div>
 
-      <div className="flex items-center border-b border-[#cdcdcd]">
+      <div className="flex items-center border-b border-tone-cdcdcd">
         {visibleTabs.map((item) => {
           const active = tab === item.key;
           return (
@@ -168,7 +168,7 @@ export function MemberDetailView() {
       {tab === "sanctions" && (
         <div className="flex flex-col gap-[16px]">
           <div className="flex w-full items-center justify-between">
-            <p className="text-[20px] font-semibold leading-[24px] text-[#2a2a2a]">
+            <p className="text-[20px] font-semibold leading-[24px] text-tone-2a2a2a">
               제재 이력 관리
             </p>
             <PrimaryButton onClick={() => setSanctionModal({ mode: "add" })}>

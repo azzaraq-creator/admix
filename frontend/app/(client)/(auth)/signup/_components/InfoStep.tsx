@@ -181,7 +181,7 @@ export function InfoStep({
             {/* 배지 20px → 곡률 7px. */}
             <Chip
               className={cn(
-                "absolute top-1/2 right-[14px] h-[20px] -translate-y-1/2 gap-[4px] bg-[#f0fdf4] py-0 pr-[10px] pl-[8px] text-[11px] font-semibold text-[#16a34a]",
+                "absolute top-1/2 right-[14px] h-[20px] -translate-y-1/2 gap-[4px] bg-tone-f0fdf4 py-0 pr-[10px] pl-[8px] text-[11px] font-semibold text-[#16a34a]",
                 RADIUS.h20,
               )}
             >
@@ -290,14 +290,14 @@ export function InfoStep({
             {phoneServerError || errors.phone}
           </FieldError>
           {!phoneServerError && !(submitted && errors.phone) && (
-            <Description className="text-[11px] text-[#a1a1aa]">
+            <Description className="text-[11px] text-zinc-400">
               {"숫자만 입력하면 '-'는 자동으로 들어갑니다."}
             </Description>
           )}
         </TextField>
 
-        <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-[#ececef] bg-white p-[16px]">
-          <p className="text-[13px] font-semibold text-[#18181b]">
+        <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">
+          <p className="text-[13px] font-semibold text-zinc-900">
             정보 추가 입력
           </p>
           <TextField
@@ -328,13 +328,13 @@ export function InfoStep({
               {values.file ? (
                 <div
                   className={cn(
-                    "flex h-[44px] w-full items-center justify-between gap-[10px] border border-[#ececef] pr-[4px] pl-[14px]",
+                    "flex h-[44px] w-full items-center justify-between gap-[10px] border border-tone-ececef pr-[4px] pl-[14px]",
                     RADIUS.h44,
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-[8px]">
                     <FileIcon className="size-[18px] shrink-0 text-gray-500" />
-                    <span className="truncate text-[13px] text-[#18181b]">
+                    <span className="truncate text-[13px] text-zinc-900">
                       {values.file.name}
                     </span>
                   </div>
@@ -373,7 +373,7 @@ export function InfoStep({
                     "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-gray-400 transition-colors",
                     dragging
                       ? "border-primary-500 bg-primary-50"
-                      : "border-gray-200 bg-[#fafafa] hover:border-gray-300",
+                      : "border-gray-200 bg-zinc-50 hover:border-gray-300",
                   )}
                 >
                   <UploadIcon className="size-[20px]" />

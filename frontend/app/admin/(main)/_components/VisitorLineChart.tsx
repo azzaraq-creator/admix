@@ -69,7 +69,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
                   x={PL - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-[#9aa0b4] text-[12px]"
+                  className="fill-gray-400 text-[12px]"
                 >
                   {value.toLocaleString()}
                 </text>
@@ -119,7 +119,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
               x={xFor(index)}
               y={H - 20}
               textAnchor="middle"
-              className="fill-[#9aa0b4] text-[12px]"
+              className="fill-gray-400 text-[12px]"
             >
               {month}
             </text>
@@ -143,7 +143,7 @@ export function VisitorLineChart({ values }: { values: number[] }) {
 
       <div className="flex items-center justify-center gap-[6px]">
         <span className="h-[2px] w-[16px] rounded-full bg-primary" />
-        <span className="size-[8px] rounded-full border-2 border-primary bg-white" />
+        <span className="size-[8px] rounded-full border-2 border-primary bg-surface" />
         <span className="text-xs font-medium leading-[16px] text-disabled">
           방문자 수
         </span>

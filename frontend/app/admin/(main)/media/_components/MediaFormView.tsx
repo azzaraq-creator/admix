@@ -1471,7 +1471,7 @@ function NewBadgeStatus({
     <p
       className={cn(
         "mt-[6px] w-fit rounded-full px-[10px] py-[3px] text-[12px] font-semibold",
-        on ? "bg-[#eff6ff] text-[#2e90fa]" : "bg-[#f5f6fb] text-[#9aa0b4]",
+        on ? "bg-tone-eff6ff text-[#2e90fa]" : "bg-gray-50 text-gray-400",
       )}
     >
       {text}
@@ -1511,8 +1511,8 @@ function QualityScoreStatus({
         className={cn(
           "w-fit rounded-full px-[10px] py-[3px] text-[12px] font-semibold",
           score && !score.provisional
-            ? "bg-[#eff6ff] text-[#2e90fa]"
-            : "bg-[#f5f6fb] text-[#9aa0b4]",
+            ? "bg-tone-eff6ff text-[#2e90fa]"
+            : "bg-gray-50 text-gray-400",
         )}
       >
         {note}

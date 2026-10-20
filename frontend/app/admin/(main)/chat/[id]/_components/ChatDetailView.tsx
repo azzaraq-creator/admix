@@ -97,8 +97,8 @@ function ProfileCard({
   return (
     <Card className="flex-row items-center gap-[20px] border border-stroke px-[24px] py-[20px] shadow-none">
       <Avatar className="size-[56px] shrink-0">
-        <Avatar.Fallback className="bg-[#f3f4f8]">
-          <UserRound className="size-[26px] text-[#767676]" />
+        <Avatar.Fallback className="bg-tone-f3f4f8">
+          <UserRound className="size-[26px] text-tone-767676" />
         </Avatar.Fallback>
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
@@ -113,7 +113,7 @@ function ProfileCard({
             <Chip size="sm">{MEMBERSHIP_LABEL[membership] ?? membership}</Chip>
           )}
         </div>
-        {email && <p className="text-sm text-[#555b73]">{email}</p>}
+        {email && <p className="text-sm text-gray-600">{email}</p>}
       </div>
       <div className="flex shrink-0 gap-[28px]">
         {stats.map((s) => (
@@ -195,9 +195,9 @@ function MemberDetail({ userId }: { userId: string }) {
                 <Switch.Content>
                   <Switch.Control>
                     {/* 켜져도 손잡이는 흰색 — 테마 기본은 진한 색이라 검게 보인다. */}
-                    <Switch.Thumb className="bg-white!" />
+                    <Switch.Thumb className="bg-surface!" />
                   </Switch.Control>
-                  <span className="text-xs text-[#555b73]">
+                  <span className="text-xs text-gray-600">
                     메시지 없는 대화 숨기기 ({emptyCount})
                   </span>
                 </Switch.Content>
@@ -288,7 +288,7 @@ function Transcript({
       </div>
       <div
         ref={scrollRef}
-        className="flex max-h-[calc(100dvh-260px)] min-h-[320px] flex-col gap-[18px] overflow-y-auto bg-[#fafafc] px-[24px] py-[24px]"
+        className="flex max-h-[calc(100dvh-260px)] min-h-[320px] flex-col gap-[18px] overflow-y-auto bg-tone-fafafc px-[24px] py-[24px]"
       >
         {messages.map((m) => (
           <MessageBubble key={m.id} message={m} />
@@ -331,9 +331,9 @@ function MessageBubble({ message }: { message: AdMessageOut }) {
         </Avatar.Fallback>
       </Avatar>
       <div className="flex min-w-0 max-w-[85%] flex-col gap-[6px]">
-        <span className="text-xs font-semibold text-[#555b73]">믹시</span>
+        <span className="text-xs font-semibold text-gray-600">믹시</span>
         {message.content && (
-          <div className="rounded-[16px] rounded-tl-[4px] border border-stroke bg-white px-[14px] py-[10px]">
+          <div className="rounded-[16px] rounded-tl-[4px] border border-stroke bg-surface px-[14px] py-[10px]">
             <MixieMarkdown className="text-sm leading-[20px] sm:text-sm sm:leading-[20px]">
               {message.content}
             </MixieMarkdown>
@@ -412,7 +412,7 @@ function RecommendCard({ rank, item }: { rank: number; item: RecommendItem }) {
           {item.name ?? "(매체명 없음)"}
         </p>
         {category && (
-          <p className="truncate text-xs text-[#555b73]">{category}</p>
+          <p className="truncate text-xs text-gray-600">{category}</p>
         )}
         <p className="truncate text-xs text-disabled">
           {formatAdFee(item.min_advertisement_fee_krw ?? null)}

@@ -265,7 +265,7 @@ export function EmailVerifyStep({
                 <br />
                 메일이 오지 않으면 스팸함을 확인해주세요.
               </FieldMessage>
-              <span className="shrink-0 font-semibold text-[#333]">
+              <span className="shrink-0 font-semibold text-tone-333333">
                 {formatRemaining(remaining)}
               </span>
             </div>

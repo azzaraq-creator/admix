@@ -143,12 +143,12 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
   const adInquiry = hasAdInquiry(proposal.preview_items);
 
   return (
-    <div className="flex w-full flex-col gap-[12px] rounded-[16px] border border-[#ececef] bg-[#f5f6fb] p-[14px]">
+    <div className="flex w-full flex-col gap-[12px] rounded-[16px] border border-tone-ececef bg-gray-50 p-[14px]">
       <div className="flex min-w-0 flex-col gap-[4px]">
-        <p className="truncate text-[16px] font-bold text-[#18181b]">
+        <p className="truncate text-[16px] font-bold text-zinc-900">
           {proposal.title}
         </p>
-        <p className="text-[12px] text-[#71717a]">
+        <p className="text-[12px] text-zinc-500">
           {created && `${created} 생성 · `}
           {proposal.media_count}개 매체 포함
         </p>
@@ -168,9 +168,9 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
               <li key={i} className="flex items-center gap-[8px]">
                 <span
                   aria-hidden
-                  className="size-[6px] shrink-0 rounded-full bg-[#7a3fe0]"
+                  className="size-[6px] shrink-0 rounded-full bg-primary-500"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#18181b]">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
                   {name}
                 </span>
               </li>
@@ -179,20 +179,20 @@ function ProposalCard({ proposal }: { proposal: ProposalSummary }) {
         </ScrollShadow>
       )}
       {/* 비용(광고비·제작비·총 예상 비용)은 매체 목록 아래에. */}
-      <div className="flex flex-col gap-[8px] rounded-[16px] border border-[#ececef] bg-white px-[14px] py-[12px] whitespace-nowrap">
+      <div className="flex flex-col gap-[8px] rounded-[16px] border border-tone-ececef bg-surface px-[14px] py-[12px] whitespace-nowrap">
         <div className="flex items-center justify-between font-medium">
-          <span className="text-[12px] text-[#71717a]">광고비</span>
-          <span className="text-[14px] text-[#18181b]">
+          <span className="text-[12px] text-zinc-500">광고비</span>
+          <span className="text-[14px] text-zinc-900">
             {formatTotalWithInquiry(adAmount, adInquiry)}
           </span>
         </div>
         <div className="flex items-center justify-between font-medium">
-          <span className="text-[12px] text-[#71717a]">제작비</span>
-          <span className="text-[14px] text-[#18181b]">
+          <span className="text-[12px] text-zinc-500">제작비</span>
+          <span className="text-[14px] text-zinc-900">
             {won(productionAmount)}
           </span>
         </div>
-        <div className="flex items-center justify-between border-t border-[#ececef] pt-[8px] text-[14px] font-bold text-[#18181b]">
+        <div className="flex items-center justify-between border-t border-tone-ececef pt-[8px] text-[14px] font-bold text-zinc-900">
           <span>총 예상 비용</span>
           <span>
             {formatTotalWithInquiry(adAmount + productionAmount, adInquiry)}
@@ -237,7 +237,7 @@ function ProposalAddedToastItem({
     <Toast
       toast={toast}
       className={cn(
-        "gap-0 rounded-[20px] bg-white p-0 leading-[normal] shadow-[0px_4px_7px_0px_rgba(0,0,0,0.25)] backdrop-blur-none",
+        "gap-0 rounded-[20px] bg-surface p-0 leading-[normal] shadow-[0px_4px_7px_0px_rgba(0,0,0,0.25)] backdrop-blur-none",
         // HeroUI 기본 퇴장은 자기 높이만큼 내려가며 0.15초에 사라져, 키 큰 이 카드는 뚝 끊겨 보인다.
         // 24px만 내려가며 0.3초 동안 고르게 흐려지게 한다.
         "data-[exiting=true]:[--toast-enter:-24px] data-[exiting=true]:[--toast-ease:ease-in-out] data-[exiting=true]:[--toast-opacity-duration:300ms] data-[exiting=true]:[--toast-translate-duration:300ms]",
@@ -267,16 +267,16 @@ function ProposalAddedToastItem({
         {/* 터치 기기(폰·태블릿) — 쓸어내릴 수 있음을 알리는 손잡이. 마우스만 쓰는 PC에선 숨긴다. */}
         <span
           aria-hidden
-          className="mx-auto hidden h-[4px] w-[36px] shrink-0 rounded-full bg-[#d4d4d8] pointer-coarse:block"
+          className="mx-auto hidden h-[4px] w-[36px] shrink-0 rounded-full bg-zinc-300 pointer-coarse:block"
         />
         <div className="flex items-center gap-[10px] p-[10px]">
           <CheckCircleFilledIcon className="shrink-0 text-[#16a34a]" />
-          <p className="text-[13px] font-medium text-[#161A2E]">
+          <p className="text-[13px] font-medium text-gray-900">
             기획안에 추가되었습니다
           </p>
         </div>
         <div className="flex w-full flex-col gap-[8px] p-[10px]">
-          <span className="self-start rounded-full border border-[#ededef] bg-[#f7f3fe] px-[8px] py-[4px] text-[10px] font-semibold text-[#7a3fe0]">
+          <span className="self-start rounded-full border border-tone-ededef bg-tone-f7f3fe px-[8px] py-[4px] text-[10px] font-semibold text-primary-500">
             {toast.content.proposals.length}개 기획안
           </span>
           {/* 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}

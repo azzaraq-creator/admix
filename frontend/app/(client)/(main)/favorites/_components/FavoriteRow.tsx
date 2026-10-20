@@ -29,7 +29,7 @@ export function FavoriteRow({
     <Card
       onClick={onOpen}
       className={cn(
-        "cursor-pointer flex-row items-center gap-[12px] rounded-[14px] border bg-white p-[10px] shadow-none transition-colors",
+        "cursor-pointer flex-row items-center gap-[12px] rounded-[14px] border bg-surface p-[10px] shadow-none transition-colors",
         checked
           ? "border-primary-500 shadow-[0_0_0_1px_var(--color-primary-500)]"
           : "border-gray-200",
@@ -53,8 +53,8 @@ export function FavoriteRow({
             aria-label={`${row.name} 선택`}
             className="group"
           >
-            <Checkbox.Content className="size-[26px] items-center justify-center rounded-[9px] bg-white/90 drop-shadow-[0px_1px_3px_rgba(0,0,0,0.15)] group-data-[selected=true]:bg-primary-500">
-              <Checkbox.Control className="size-[14px] rounded-[5.25px] border border-[#d4d4d8] bg-white shadow-none group-data-[selected=true]:border-white group-data-[selected=true]:bg-white! group-data-[selected=true]:before:bg-white!">
+            <Checkbox.Content className="size-[26px] items-center justify-center rounded-[9px] bg-surface/90 drop-shadow-[0px_1px_3px_rgba(0,0,0,0.15)] group-data-[selected=true]:bg-primary-500">
+              <Checkbox.Control className="size-[14px] rounded-[5.25px] border border-zinc-300 bg-surface shadow-none group-data-[selected=true]:border-white group-data-[selected=true]:bg-surface! group-data-[selected=true]:before:bg-surface!">
                 <Checkbox.Indicator className="[&_svg]:stroke-primary-500! [&_svg]:text-primary-500!" />
               </Checkbox.Control>
             </Checkbox.Content>
@@ -67,8 +67,8 @@ export function FavoriteRow({
           {row.name}
         </p>
         <div className="flex min-w-0 items-center gap-[3px]">
-          <LocationFilledIcon className="size-[12px] shrink-0 text-[#6c757d]" />
-          <span className="truncate text-[11px] text-[#6c757d]">
+          <LocationFilledIcon className="size-[12px] shrink-0 text-tone-6c757d" />
+          <span className="truncate text-[11px] text-tone-6c757d">
             {row.address ?? "-"}
           </span>
         </div>
@@ -90,7 +90,7 @@ function PriceLine({ label, value }: { label: string; value: number | null }) {
         {label}
       </span>
       {/* 광고비 줄만 값이 비어 들어온다(제작비는 없으면 줄째 숨김) — 없으면 "별도 문의". */}
-      <span className="text-[13px] font-bold text-[#2d264b]">
+      <span className="text-[13px] font-bold text-tone-2d264b">
         {formatAdFee(value)}
       </span>
     </div>
@@ -100,7 +100,7 @@ function PriceLine({ label, value }: { label: string; value: number | null }) {
 /** 불러오는 동안의 한 줄 — FavoriteRow와 같은 크기·배치. */
 export function FavoriteRowSkeleton() {
   return (
-    <div className="flex items-center gap-[12px] rounded-[14px] border border-gray-200 bg-white p-[10px]">
+    <div className="flex items-center gap-[12px] rounded-[14px] border border-gray-200 bg-surface p-[10px]">
       <Skeleton className="size-[88px] shrink-0 rounded-[10px]" />
       <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
         <Skeleton className="h-[16px] w-[70%] rounded-[6px]" />

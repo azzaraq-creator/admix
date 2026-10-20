@@ -95,7 +95,7 @@ export function FilterChip({
   // 시안 비율 기준(칩 높이 31px): 글자 12px, X 12px, 간격 7px, 좌우 11px, 모서리 11px.
   // HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 여기서 덮어쓴다.
   return (
-    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-[#ececef] bg-white px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-[#71717a]">
+    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-tone-ececef bg-surface px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-zinc-500">
       {label}
       <button
         type="button"
@@ -280,9 +280,9 @@ function RegionFilter({
 
 // 옵션 태그 — 높이 32px, 모서리는 (높이/2)-3px = 13px.
 // 선택 시 테두리 #9aa0b4(= gray-400) + gray-900 볼드. HeroUI Tag의 기본 배경·선택 색은
-// bg-white로 덮는다(유틸리티 레이어가 컴포넌트 레이어보다 뒤에 와서 그대로 이긴다).
+// bg-surface로 덮는다(유틸리티 레이어가 컴포넌트 레이어보다 뒤에 와서 그대로 이긴다).
 const OPTION_TAG = cn(
-  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-white px-[14px] text-[13px] max-sm:text-[11px] font-medium text-gray-600 transition-colors",
+  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-surface px-[14px] text-[13px] max-sm:text-[11px] font-medium text-gray-600 transition-colors",
   "hover:border-gray-300",
   "data-[selected=true]:border-gray-400 data-[selected=true]:font-bold data-[selected=true]:text-gray-900",
 );
@@ -525,7 +525,7 @@ export function MediaFilterPanel({
   return (
     <div
       ref={panelRef}
-      className="flex flex-col rounded-[20px] border border-gray-200 bg-white shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]"
+      className="flex flex-col rounded-[20px] border border-gray-200 bg-surface shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]"
     >
       {/* 모든 필터를 한 화면에 위에서부터 쌓는다(탭 없이). 길어지면 이 칸만 위아래로 넘긴다. */}
       <ScrollShadow
@@ -554,7 +554,7 @@ export function MediaFilterPanel({
             setDraft(EMPTY_MEDIA_FILTER);
             onReset();
           }}
-          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-gray-200 bg-white px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
+          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-gray-200 bg-surface px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
         >
           <RotateLeftIcon className="m-0 size-[18px] shrink-0 max-sm:size-[15px]" />
           {/* 모바일은 폭이 좁아 버튼 글자를 줄인다. */}

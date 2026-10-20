@@ -127,7 +127,7 @@ function MediaSearchBar({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-[16px] rounded-[12px] border border-stroke bg-[#fafafc] p-[20px]">
+    <div className="flex flex-wrap items-end gap-[16px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
       <DateRangePicker
         className="w-[300px]"
         value={range}

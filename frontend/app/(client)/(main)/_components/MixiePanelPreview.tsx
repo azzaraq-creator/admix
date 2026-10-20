@@ -75,7 +75,7 @@ const DEMO_MESSAGES: V2Message[] = [
 /** 실제 패널과 같은 사용자 말풍선(HomeChat UserBubble). */
 function DemoUserBubble({ content }: { content: string }) {
   return (
-    <div className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-gray-200 bg-white px-[16px] py-[8px] text-[14px] leading-[24px] text-gray-900">
+    <div className="max-w-[85%] rounded-[19px] rounded-br-[4px] border border-gray-200 bg-surface px-[16px] py-[8px] text-[14px] leading-[24px] text-gray-900">
       {content}
     </div>
   );
@@ -97,7 +97,7 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
       aria-hidden
       data-tour="mixie-panel-demo"
       className={cn(
-        "fixed inset-0 z-50 flex flex-col overflow-hidden bg-white duration-300 ease-out motion-reduce:transition-none max-sm:rounded-t-[20px] max-sm:pt-[8px] max-sm:transition-[translate] sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)] sm:transition-opacity",
+        "fixed inset-0 z-50 flex flex-col overflow-hidden bg-surface duration-300 ease-out motion-reduce:transition-none max-sm:rounded-t-[20px] max-sm:pt-[8px] max-sm:transition-[translate] sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)] sm:transition-opacity",
         lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
         !visible && "max-sm:translate-y-full sm:opacity-0",
       )}
@@ -106,7 +106,7 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
       <div className="flex shrink-0 justify-center pb-[8px] sm:hidden">
         <span className="h-[4px] w-[36px] rounded-[2px] bg-separator" />
       </div>
-      <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px] max-sm:h-[52px]">
+      <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-surface px-[16px] max-sm:h-[52px]">
         <div className="flex items-center gap-[8px]">
           <MixieIcon className="size-[18px] shrink-0" />
           <span className="text-[15px] font-semibold text-gray-900">
@@ -140,8 +140,8 @@ export function MixiePanelPreview({ visible }: { visible: boolean }) {
             ),
           )}
         </div>
-        <div className="relative -mx-[16px] shrink-0 border-t border-gray-200 bg-white px-[16px] pt-[12px] pb-[12px]">
-          <div className="flex h-[44px] items-center rounded-[19px] border border-gray-200 bg-gray-100 pr-[48px] pl-[16px] text-[14px] text-[#a1a1aa]">
+        <div className="relative -mx-[16px] shrink-0 border-t border-gray-200 bg-surface px-[16px] pt-[12px] pb-[12px]">
+          <div className="flex h-[44px] items-center rounded-[19px] border border-gray-200 bg-gray-100 pr-[48px] pl-[16px] text-[14px] text-zinc-400">
             믹시에게 이어서 물어보세요
           </div>
           <span className="absolute top-[16px] right-[20px] flex size-[36px] items-center justify-center rounded-[15px] bg-primary-300 text-white">

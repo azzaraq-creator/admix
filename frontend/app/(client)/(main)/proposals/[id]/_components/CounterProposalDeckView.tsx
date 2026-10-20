@@ -71,7 +71,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-[24px] border-b border-[#e8e8e8] bg-white px-[24px] py-[30px]">
+        <header className="flex items-center gap-[24px] border-b border-tone-e8e8e8 bg-surface px-[24px] py-[30px]">
           <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
             <p className="text-[20px] font-bold leading-[28px] tracking-[-0.08px] text-black">
               {title}
@@ -94,7 +94,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="flex w-[284px] shrink-0 flex-col border-r border-[#e8e8e8]">
+          <aside className="flex w-[284px] shrink-0 flex-col border-r border-tone-e8e8e8">
             <div className="flex h-[48px] items-center px-[24px]">
               <p className="text-sm font-medium leading-[20px] text-gray-500">
                 슬라이드 <span className="text-primary">{total}</span>
@@ -123,7 +123,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
                     <img
                       src={src(slide.thumb)}
                       alt={`슬라이드 ${index + 1}`}
-                      className="w-full bg-white object-contain"
+                      className="w-full bg-surface object-contain"
                       loading="lazy"
                     />
                   </button>
@@ -133,7 +133,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
           </aside>
 
           <section className="relative flex min-w-0 flex-1 flex-col">
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-white p-[40px]">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-surface p-[40px]">
               {total > 0 && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
@@ -145,7 +145,7 @@ export function CounterProposalDeckView({ id }: { id: string }) {
               )}
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-[40px] flex justify-center">
-              <div className="pointer-events-auto flex items-center rounded-[12px] border border-gray-50 bg-white shadow-sm">
+              <div className="pointer-events-auto flex items-center rounded-[12px] border border-gray-50 bg-surface shadow-sm">
                 <button
                   type="button"
                   onClick={() => setLightbox(true)}
@@ -193,8 +193,8 @@ export function CounterProposalDeckView({ id }: { id: string }) {
         />
       )}
 
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-[16px] sm:hidden">
-        <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-white">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-scrim/70 px-[16px] sm:hidden">
+        <div className="flex w-[343px] flex-col overflow-hidden rounded-[12px] bg-surface">
           <div className="flex flex-col items-center gap-[16px] px-[24px] py-[16px]">
             <p className="text-center text-base font-semibold leading-[24px] text-black">
               해당 기능은 모바일에서 지원되지 않습니다.

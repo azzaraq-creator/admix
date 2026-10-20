@@ -35,9 +35,9 @@ const STATUS_OPTIONS: { label: string; value: AdminStatus }[] = [
 ];
 
 const INPUT_CLASS =
-  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-[#a1a1a1] focus:border-primary disabled:bg-[#f5f5f5] disabled:text-disabled";
+  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary disabled:bg-tone-f5f5f5 disabled:text-disabled";
 const SELECT_TRIGGER_CLASS =
-  "w-full rounded-[6px] border-stroke bg-white px-[14px] font-medium text-black data-[size=default]:h-[44px]";
+  "w-full rounded-[6px] border-stroke bg-surface px-[14px] font-medium text-black data-[size=default]:h-[44px]";
 
 function Field({
   label,
@@ -50,7 +50,7 @@ function Field({
 }) {
   return (
     <div className="flex items-center gap-[12px]">
-      <span className="flex w-[88px] shrink-0 items-center gap-[4px] text-base font-medium leading-[24px] text-[#2a2a2a]">
+      <span className="flex w-[88px] shrink-0 items-center gap-[4px] text-base font-medium leading-[24px] text-tone-2a2a2a">
         {label}
         {required && <span className="text-[#d65856]">*</span>}
       </span>
@@ -312,7 +312,7 @@ function AccountForm({
                   />
                   <span
                     className={`flex size-[18px] shrink-0 items-center justify-center rounded-[6px] border ${
-                      checked ? "border-primary bg-primary" : "border-stroke bg-white"
+                      checked ? "border-primary bg-primary" : "border-stroke bg-surface"
                     }`}
                   >
                     {checked && (

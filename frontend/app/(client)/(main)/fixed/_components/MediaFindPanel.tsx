@@ -598,7 +598,7 @@ export function MediaFindPanel({
           suggestionSlot={
             showSug && (placeSug.length > 0 || mediaSug.length > 0) ? (
               // 검색 추천 — 테두리·그림자는 바깥 칸에 두고, 안쪽 ScrollShadow가 스크롤하며 넘치는 쪽을 흐리게 한다.
-              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
+              <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[16px] border border-gray-200 bg-surface shadow-[0px_4px_16px_rgba(0,0,0,0.12)]">
                 <ScrollShadow size={24} className="max-h-[318px]">
                   {mediaSug.length > 0 && (
                     <div>
@@ -839,14 +839,14 @@ export function MediaFindPanel({
         {!mapExpanded && isLoading && (
           // 목록 칸 위에 겹치는 로딩 막 — 흐린 스켈레톤 위로 엷은 흰 막과 빙글빙글 도는 심볼.
           // 폭은 목록 칸(스크롤 영역의 좌우 패딩을 뺀 카드 폭)과 같게, 모바일은 하단 탭 바를 뺀 높이의 가운데에 둔다.
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-white/30 max-sm:pb-(--tabbar-space) sm:w-[calc(50%-10px)] lg:w-[420px]">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-surface/30 max-sm:pb-(--tabbar-space) sm:w-[calc(50%-10px)] lg:w-[420px]">
             <SpinningSymbol className="size-[40px]" />
           </div>
         )}
 
         <div
           // 모바일 지도는 하단 탭 바 위에서 끝낸다 — 탭 바 밑으로 이어지면 왼쪽 아래 카카오 로고가 가린다.
-          className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-[#eee] max-sm:mb-[calc(var(--tabbar-space)+8px)] ${
+          className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-tone-eeeeee max-sm:mb-[calc(var(--tabbar-space)+8px)] ${
             mapExpanded ? "block" : "hidden sm:block"
           }`}
         >
@@ -857,7 +857,7 @@ export function MediaFindPanel({
         <button
           type="button"
           onClick={() => setMapExpanded((v) => !v)}
-          className="absolute bottom-[calc(var(--tabbar-space)+20px)] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-gray-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-gray-900 sm:hidden"
+          className="absolute bottom-[calc(var(--tabbar-space)+20px)] left-1/2 z-20 flex h-[40px] -translate-x-1/2 items-center gap-[6px] rounded-[17px] bg-gray-800 px-[18px] text-[13px] max-sm:text-[12px] font-medium whitespace-nowrap text-white shadow-[0px_4px_12px_rgba(0,0,0,0.2)] transition-colors active:bg-gray-900 sm:hidden dark:bg-gray-200 dark:active:bg-gray-300"
         >
           {mapExpanded ? (
             <ListIcon className="size-[18px] shrink-0" />

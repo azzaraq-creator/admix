@@ -203,7 +203,7 @@ export function ImageLightbox({
                   >
                     <ChevronRightIcon className="size-[26px]" />
                   </Button>
-                  <p className="pointer-events-none absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-[12px] py-[4px] text-[13px] font-medium text-white tabular-nums">
+                  <p className="pointer-events-none absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-full bg-scrim/50 px-[12px] py-[4px] text-[13px] font-medium text-white tabular-nums">
                     {index + 1} / {count}
                   </p>
                 </>

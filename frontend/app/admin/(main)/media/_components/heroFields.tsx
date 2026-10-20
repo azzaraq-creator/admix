@@ -54,7 +54,7 @@ export function HeroField({
     <div
       className={cn("flex min-w-0 flex-col gap-[6px]", wide && "col-span-2")}
     >
-      <Label className="text-sm font-medium leading-[20px] text-[#2a2a2a]">
+      <Label className="text-sm font-medium leading-[20px] text-tone-2a2a2a">
         {label}
         {required && <span className="text-[#d65856]"> *</span>}
         {extra && <span className="text-disabled"> {extra}</span>}

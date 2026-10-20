@@ -21,7 +21,7 @@ const TYPE_TO_CATEGORY: Record<string, string> = {
 
 // 분류 칩 32px → 곡률 13px. 매체 찾기 필터 칩과 같은 모양(선택 시 진한 테두리·굵은 글자).
 const CATEGORY_TAG = cn(
-  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-white px-[14px] text-[13px] font-medium text-gray-600 transition-colors",
+  "flex h-[32px] shrink-0 items-center rounded-[13px] border border-gray-200 bg-surface px-[14px] text-[13px] font-medium text-gray-600 transition-colors",
   "hover:border-gray-300",
   "data-[selected=true]:border-gray-400 data-[selected=true]:font-bold data-[selected=true]:text-gray-900",
 );
@@ -56,26 +56,26 @@ function FaqAccordion({ items }: { items: Faq[] }) {
           key={faq.id}
           id={faq.id}
           // HeroUI가 항목에 border-none(선 모양 없음)을 걸어 두어 border-solid를 함께 준다.
-          className="rounded-[16px] border border-solid border-[#ececef] bg-white transition-colors after:hidden hover:border-[#d4d4d8] hover:bg-[#fafafa] data-[expanded=true]:border-[#e4e4e7] data-[expanded=true]:bg-[#fafafa]"
+          className="rounded-[16px] border border-solid border-tone-ececef bg-surface transition-colors after:hidden hover:border-zinc-300 hover:bg-zinc-50 data-[expanded=true]:border-zinc-200 data-[expanded=true]:bg-zinc-50"
         >
           <Accordion.Heading>
             {/* HeroUI 기본 hover 회색(질문 줄만 네모로 칠함)은 끄고, 카드 전체 hover를 쓴다. */}
             <Accordion.Trigger className="gap-[12px] rounded-[16px] px-[20px] py-[18px] hover:bg-transparent max-sm:px-[16px]">
               <span
                 aria-hidden
-                className="w-[14px] shrink-0 text-[15px] leading-[1.5] font-bold text-[#a1a1aa]"
+                className="w-[14px] shrink-0 text-[15px] leading-[1.5] font-bold text-zinc-400"
               >
                 Q
               </span>
-              <span className="min-w-0 flex-1 text-[15px] leading-[1.5] font-semibold break-keep text-[#18181b]">
+              <span className="min-w-0 flex-1 text-[15px] leading-[1.5] font-semibold break-keep text-zinc-900">
                 {faq.question}
               </span>
               {faq.category && (
-                <Chip className="h-[22px] shrink-0 rounded-[8px] bg-[#f1f1f3] px-[8px] py-0 text-[11px] font-medium text-[#71717a] max-sm:hidden">
+                <Chip className="h-[22px] shrink-0 rounded-[8px] bg-tone-f1f1f3 px-[8px] py-0 text-[11px] font-medium text-zinc-500 max-sm:hidden">
                   {faq.category}
                 </Chip>
               )}
-              <Accordion.Indicator className="ms-0 size-[16px] text-[#a1a1aa]" />
+              <Accordion.Indicator className="ms-0 size-[16px] text-zinc-400" />
             </Accordion.Trigger>
           </Accordion.Heading>
           <Accordion.Panel>
@@ -83,11 +83,11 @@ function FaqAccordion({ items }: { items: Faq[] }) {
             <Accordion.Body className="flex gap-[12px] px-[20px] pt-0 pb-[20px] max-sm:px-[16px]">
               <span
                 aria-hidden
-                className="w-[14px] shrink-0 text-[14px] leading-[1.7] font-bold text-[#a1a1aa]"
+                className="w-[14px] shrink-0 text-[14px] leading-[1.7] font-bold text-zinc-400"
               >
                 A
               </span>
-              <p className="min-w-0 flex-1 text-[14px] leading-[1.7] break-keep whitespace-pre-line text-[#52525b]">
+              <p className="min-w-0 flex-1 text-[14px] leading-[1.7] break-keep whitespace-pre-line text-zinc-600">
                 {faq.answer}
               </p>
             </Accordion.Body>

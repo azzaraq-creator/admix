@@ -64,7 +64,7 @@ export function AdminSidebar() {
   return (
     <>
       {/* 모바일(<lg): 상단 헤더 + 햄버거 드로어 */}
-      <header className="sticky top-0 z-30 flex h-[56px] shrink-0 items-center justify-between border-b border-stroke bg-[#fafaf9] px-[16px] lg:hidden">
+      <header className="sticky top-0 z-30 flex h-[56px] shrink-0 items-center justify-between border-b border-stroke bg-tone-fafaf9 px-[16px] lg:hidden">
         <Link href="/admin" aria-label="대시보드">
           <LogoFull />
         </Link>
@@ -72,7 +72,7 @@ export function AdminSidebar() {
           type="button"
           aria-label="메뉴 열기"
           onClick={() => setDrawerOpen(true)}
-          className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-gray-100"
+          className="flex size-[40px] items-center justify-center rounded-[8px] text-tone-364153 hover:bg-gray-100"
         >
           <MenuIcon className="size-[24px]" />
         </button>
@@ -84,16 +84,16 @@ export function AdminSidebar() {
             type="button"
             aria-label="메뉴 닫기"
             onClick={() => setDrawerOpen(false)}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-scrim/40"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col bg-[#fafaf9] shadow-xl">
+          <aside className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col bg-tone-fafaf9 shadow-xl">
             <div className="flex items-center justify-between px-[20px] py-[16px]">
               <LogoFull />
               <button
                 type="button"
                 aria-label="메뉴 닫기"
                 onClick={() => setDrawerOpen(false)}
-                className="flex size-[40px] items-center justify-center rounded-[8px] text-[#364153] hover:bg-gray-100"
+                className="flex size-[40px] items-center justify-center rounded-[8px] text-tone-364153 hover:bg-gray-100"
               >
                 <XIcon className="size-[20px]" />
               </button>
@@ -104,7 +104,7 @@ export function AdminSidebar() {
       )}
 
       {/* 데스크톱(lg+): 고정 사이드바 */}
-      <aside className="sticky top-0 hidden h-dvh w-[256px] shrink-0 flex-col bg-[#fafaf9] lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[256px] shrink-0 flex-col bg-tone-fafaf9 lg:flex">
         <div className="flex items-center justify-center p-[32px]">
           <LogoFull />
         </div>
@@ -149,7 +149,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const topClass = (active: boolean) =>
     `flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
-      active ? "bg-primary text-white" : "text-[#364153] hover:bg-gray-100"
+      active ? "bg-primary text-white" : "text-tone-364153 hover:bg-gray-100"
     }`;
 
   return (
@@ -172,7 +172,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
               type="button"
               onClick={() => setBusinessOpen((value) => !value)}
               className={`flex w-full items-center rounded-[8px] px-[20px] py-[12px] text-base font-semibold leading-[24px] ${
-                businessActive ? "text-primary" : "text-[#364153]"
+                businessActive ? "text-primary" : "text-tone-364153"
               } hover:bg-gray-100`}
             >
               <span className="flex-1 text-left">비즈니스 관리</span>
@@ -194,7 +194,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
                       className={`flex items-center rounded-[8px] py-[10px] pl-[36px] pr-[20px] text-sm leading-[20px] ${
                         active
                           ? "font-semibold text-primary"
-                          : "font-medium text-[#4a5565] hover:bg-gray-100"
+                          : "font-medium text-tone-4a5565 hover:bg-gray-100"
                       }`}
                     >
                       {link.label}
@@ -222,7 +222,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-[#364153] hover:bg-gray-100"
+          className="flex w-full items-center gap-[10px] rounded-[8px] px-[20px] py-[12px] text-base font-medium leading-[24px] text-tone-364153 hover:bg-gray-100"
         >
           <LogOutIcon className="size-[20px] shrink-0" />
           로그아웃

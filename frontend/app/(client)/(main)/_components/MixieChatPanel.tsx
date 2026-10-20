@@ -131,7 +131,7 @@ export function MixieChatPanel() {
         // 데스크톱 z-35: 본문의 가장 높은 층(매체 찾기 검색바 z-30)보다 위, 그 뒤로 미끄러져
         // 나오는 LNB(z-40)보다는 아래.
         className={cn(
-          "fixed inset-0 z-50 flex flex-col bg-white transition-[opacity,translate,left] duration-300 ease-in-out sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:opacity-100 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
+          "fixed inset-0 z-50 flex flex-col bg-surface transition-[opacity,translate,left] duration-300 ease-in-out sm:inset-y-0 sm:right-auto sm:z-[35] sm:w-[400px] sm:border-r sm:border-gray-200 sm:opacity-100 sm:shadow-[4px_0_16px_0_rgba(0,0,0,0.08)]",
           lnbCollapsed ? "sm:left-[78px]" : "sm:left-[180px]",
           entered
             ? "opacity-100 sm:translate-x-0"
@@ -140,7 +140,7 @@ export function MixieChatPanel() {
         )}
       >
         <div className="flex h-full w-full min-h-0 flex-col">
-          <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-[16px]">
+          <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-gray-200 bg-surface px-[16px]">
             <div className="flex items-center gap-[8px]">
               <MixieIcon className="size-[18px] shrink-0" />
               {/* 패널 안은 보라가 이미 많아 제목은 그라데이션 없이 기본 글자색 단색으로 둔다. */}
@@ -222,7 +222,7 @@ function MobileMixieSheet({
           {/* 높이는 보이는 영역 전체(키보드가 있으면 그 위까지) — HeroUI 기본 85vh 제한을 푼다. */}
           <Drawer.Dialog
             aria-label="AI 믹시 대화"
-            className="flex h-full max-h-full w-full flex-col gap-0 rounded-t-[20px] bg-white p-0 pt-[8px]"
+            className="flex h-full max-h-full w-full flex-col gap-0 rounded-t-[20px] bg-surface p-0 pt-[8px]"
           >
             <Drawer.Handle />
             <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-gray-200 px-[16px]">

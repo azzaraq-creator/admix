@@ -520,7 +520,7 @@ function TourOverlay({
           style={{ ...spot, borderRadius: shownStep.radius ?? 16 }}
         />
       ) : (
-        <div aria-hidden className="fixed inset-0 bg-black/50" />
+        <div aria-hidden className="fixed inset-0 bg-scrim/50" />
       )}
 
       <div
@@ -530,7 +530,7 @@ function TourOverlay({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         className={cn(
-          "fixed rounded-[20px] bg-white p-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.18)]",
+          "fixed rounded-[20px] bg-surface p-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.18)]",
           animate &&
             "transition-[top,left] duration-300 ease-out motion-reduce:transition-none",
           !firstShown && "invisible",
@@ -558,7 +558,7 @@ function TourOverlay({
         </h2>
         <p
           id={bodyId}
-          className="mt-[6px] text-[14px] leading-[21px] break-keep text-[#52525b]"
+          className="mt-[6px] text-[14px] leading-[21px] break-keep text-zinc-600"
         >
           {!isDesktop && shownStep.mobileBody
             ? shownStep.mobileBody

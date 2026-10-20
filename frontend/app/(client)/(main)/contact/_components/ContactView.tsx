@@ -66,7 +66,7 @@ function StatusFilterDropdown({
     <Dropdown>
       <Dropdown.Trigger
         aria-label={`답변 상태: ${current.label}`}
-        className="flex h-[40px] shrink-0 items-center gap-[6px] rounded-[17px] border border-gray-200 bg-gray-100 px-[14px] text-[14px] font-medium whitespace-nowrap text-[#18181b] outline-none data-[focus-visible=true]:border-focus"
+        className="flex h-[40px] shrink-0 items-center gap-[6px] rounded-[17px] border border-gray-200 bg-gray-100 px-[14px] text-[14px] font-medium whitespace-nowrap text-zinc-900 outline-none data-[focus-visible=true]:border-focus"
       >
         {/* 모바일(sm 미만)은 짧은 이름 — 전체·대기·완료. */}
         <span className="max-sm:hidden">{current.label}</span>
@@ -74,7 +74,7 @@ function StatusFilterDropdown({
         {/* 홑화살표(lucide) — 색은 글자색을 따른다. */}
         <ChevronDownIcon
           aria-hidden
-          className="size-[14px] text-[#71717a]"
+          className="size-[14px] text-zinc-500"
           strokeWidth={2}
         />
       </Dropdown.Trigger>
@@ -91,7 +91,7 @@ function StatusFilterDropdown({
         >
           {INQUIRY_STATUS_FILTERS.map((f) => (
             <Dropdown.Item key={f.key} id={f.key} textValue={f.label}>
-              <span className="text-[14px] text-[#18181b]">
+              <span className="text-[14px] text-zinc-900">
                 <span className="max-sm:hidden">{f.label}</span>
                 <span className="sm:hidden">{f.short}</span>
               </span>
@@ -130,7 +130,7 @@ function DisabledTabLabel({ label }: { label: string }) {
         {/* 화살표가 탭을 가리키도록 — 화살표 높이만큼 띄운다. */}
         <Popover.Content placement="bottom" offset={10}>
           <Popover.Arrow />
-          <Popover.Dialog className="px-[12px] py-[8px] text-[13px] text-[#18181b]">
+          <Popover.Dialog className="px-[12px] py-[8px] text-[13px] text-zinc-900">
             {LOGIN_REQUIRED}
           </Popover.Dialog>
         </Popover.Content>
@@ -198,7 +198,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
           <h1 className="text-[24px] leading-[1.4] font-semibold text-black">
             문의하기
           </h1>
-          <p className="text-[13px] font-light text-[#727892]">
+          <p className="text-[13px] font-light text-gray-500">
             궁금한 점을 가장 편한 방법으로 문의해 주세요.
           </p>
         </div>
@@ -260,11 +260,11 @@ export function ContactView({ member = false }: { member?: boolean }) {
                 onChange={setSearchQuery}
                 className="min-w-0 flex-1 sm:w-[350px] sm:flex-none"
               >
-                <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-white data-[focus-within=true]:ring-0">
-                  <SearchOutlineIcon className="size-[18px] shrink-0 text-[#6c757d]" />
+                <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
+                  <SearchOutlineIcon className="size-[18px] shrink-0 text-tone-6c757d" />
                   <SearchField.Input
                     placeholder={searchPlaceholder}
-                    className="px-0 text-[14px] placeholder:text-[#a1a1aa]"
+                    className="px-0 text-[14px] placeholder:text-zinc-400"
                   />
                   <SearchField.ClearButton className="me-0" />
                 </SearchField.Group>

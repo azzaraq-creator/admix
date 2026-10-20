@@ -87,7 +87,7 @@ export function AiSearchBox({
             return;
           textareaRef.current?.focus();
         }}
-        className="relative flex min-h-[140px] flex-col rounded-[25px] bg-white px-[12px] pt-[12px] pb-[12px] max-sm:flex-1 sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px]"
+        className="relative flex min-h-[140px] flex-col rounded-[25px] bg-surface px-[12px] pt-[12px] pb-[12px] max-sm:flex-1 sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px]"
       >
         <textarea
           ref={textareaRef}
@@ -104,7 +104,7 @@ export function AiSearchBox({
               ? "지역이나 매체명을 검색해 보세요"
               : "지역, 예산, 타겟, 광고 목적을 입력해 보세요"
           }
-          className="max-h-[110px] w-full resize-none sm:pr-[8px] bg-transparent text-base leading-[24px] sm:text-[15px] sm:leading-[22px] text-black outline-none placeholder:text-[#a1a1aa] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-[110px] w-full resize-none sm:pr-[8px] bg-transparent text-base leading-[24px] sm:text-[15px] sm:leading-[22px] text-black outline-none placeholder:text-zinc-400 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
 
         {/* 시안: 전환 탭과 전송 버튼을 오른쪽 아래에 10px 간격으로 나란히 둔다. */}

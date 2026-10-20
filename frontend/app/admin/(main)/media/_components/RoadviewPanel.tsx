@@ -46,14 +46,14 @@ export function RoadviewPanel({
         >
           <ChevronDown
             className={cn(
-              "mt-[3px] size-[16px] shrink-0 text-[#555b73] transition-transform",
+              "mt-[3px] size-[16px] shrink-0 text-gray-600 transition-transform",
               !open && "-rotate-90",
             )}
           />
           <span className="flex flex-col gap-[2px]">
             <span className="text-[15px] font-bold text-black">로드뷰</span>
             {open && (
-              <span className="text-[12px] text-[#9aa0b4]">
+              <span className="text-[12px] text-gray-400">
                 화면을 끌어 둘러보며 가시거리·가림·보는 방향·설치 높이·주변 다른
                 광고를 답해 주세요. 촬영 시점이 지금과 다를 수 있어요.
               </span>
@@ -126,10 +126,10 @@ function RoadviewView({ lat, lng }: { lat: number; lng: number }) {
   }, [lat, lng]);
 
   return (
-    <div className="relative h-[360px] overflow-hidden rounded-[8px] bg-[#f5f6fb] max-sm:h-[240px]">
+    <div className="relative h-[360px] overflow-hidden rounded-[8px] bg-gray-50 max-sm:h-[240px]">
       <div ref={ref} className="h-full w-full" />
       {status !== "ready" && (
-        <p className="absolute inset-0 flex items-center justify-center px-[16px] text-center text-[13px] text-[#727892]">
+        <p className="absolute inset-0 flex items-center justify-center px-[16px] text-center text-[13px] text-gray-500">
           {status === "loading"
             ? "로드뷰를 불러오는 중…"
             : status === "none"

@@ -50,7 +50,7 @@ export function SlideLightbox({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[70] flex flex-col gap-[16px] bg-black/90 p-[36px]"
+      className="fixed inset-0 z-[70] flex flex-col gap-[16px] bg-scrim/90 p-[36px]"
     >
       <div className="flex items-center justify-end">
         <button
@@ -76,7 +76,7 @@ export function SlideLightbox({
           </button>
           <div className="flex h-full min-w-0 flex-1 items-center justify-center">
             <div
-              className="relative aspect-[1920/1080] max-h-full overflow-hidden rounded-[8px] bg-white"
+              className="relative aspect-[1920/1080] max-h-full overflow-hidden rounded-[8px] bg-surface"
               style={{ width: "min(100%, calc((100vh - 320px) * 16 / 9))" }}
             >
               {renderSlide(slides[index], true)}
@@ -96,9 +96,9 @@ export function SlideLightbox({
         </div>
 
         <div className="flex justify-center">
-          <div className="rounded-full bg-black/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
+          <div className="rounded-full bg-scrim/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
             <span className="text-white">{index + 1} </span>
-            <span className="text-[#767676]">/ {slides.length}</span>
+            <span className="text-tone-767676">/ {slides.length}</span>
           </div>
         </div>
       </div>
@@ -117,7 +117,7 @@ export function SlideLightbox({
             type="button"
             onClick={() => onIndexChange(() => idx)}
             className={cn(
-              "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-white transition-opacity",
+              "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-surface transition-opacity",
               idx === index
                 ? "ring-2 ring-white"
                 : "opacity-50 hover:opacity-80",

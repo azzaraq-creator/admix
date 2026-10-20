@@ -66,7 +66,7 @@ export function MediaSortSelect({
       <Select.Trigger
         className={cn(
           triggerClassName,
-          "min-h-0 shadow-none data-[open=true]:bg-white",
+          "min-h-0 shadow-none data-[open=true]:bg-surface",
         )}
       >
         <SortIcon className={iconClassName} />

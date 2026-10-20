@@ -18,10 +18,10 @@ export type Proposal = {
 };
 
 const STATUS_CLASS: Record<ProposalStatus, string> = {
-  신규: "bg-[#d6f1ff] text-[#0689ff]",
-  맞춤제안: "bg-[#fdf6e3] text-[#c99a2e]",
+  신규: "bg-tone-d6f1ff text-[#0689ff]",
+  맞춤제안: "bg-tone-fdf6e3 text-[#c99a2e]",
   계약완료: "bg-gray-100 text-[#64748b]",
-  취소: "bg-[#fef2f2] text-[#ef4444]",
+  취소: "bg-tone-fef2f2 text-[#ef4444]",
 };
 
 export function ProposalStatusBadge({ status }: { status: ProposalStatus }) {

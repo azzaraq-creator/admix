@@ -54,25 +54,25 @@ const subscribeMinute = (onChange: () => void) => {
 export function HoursChip() {
   const open = useSyncExternalStore(subscribeMinute, isOpenNow, () => null);
   return (
-    <Chip className="h-[28px] w-fit gap-[6px] rounded-[11px] bg-[#f4f4f5] px-[10px] py-0 text-[12px] font-medium text-[#52525b]">
+    <Chip className="h-[28px] w-fit gap-[6px] rounded-[11px] bg-zinc-100 px-[10px] py-0 text-[12px] font-medium text-zinc-600">
       <span
         aria-hidden
         className={cn(
           "size-[6px] shrink-0 rounded-full",
-          open ? "bg-[#16a34a]" : "bg-[#a1a1aa]",
+          open ? "bg-[#16a34a]" : "bg-zinc-400",
         )}
       />
       {open != null && (
         <span
           className={cn(
             "font-semibold",
-            open ? "text-[#16a34a]" : "text-[#71717a]",
+            open ? "text-[#16a34a]" : "text-zinc-500",
           )}
         >
           {open ? "상담 가능" : "상담 시간 아님"}
         </span>
       )}
-      <span className="text-[#a1a1aa]">·</span>
+      <span className="text-zinc-400">·</span>
       평일 09:00 ~ 18:00
       <span className="max-sm:hidden">(주말·공휴일 휴무)</span>
     </Chip>
@@ -85,17 +85,17 @@ export function HoursChip() {
  */
 function ProcessCard() {
   return (
-    <Card className="relative mt-[14px] gap-[20px] rounded-[20px] border border-[#e4e4e7] bg-[#f7f7f8] px-[20px] py-[24px] shadow-none md:px-[80px]">
+    <Card className="relative mt-[14px] gap-[20px] rounded-[20px] border border-zinc-200 bg-tone-f7f7f8 px-[20px] py-[24px] shadow-none md:px-[80px]">
       {/* 말풍선 꼬리 — 바탕과 같은 색 24px 네모를 45° 돌려 윗변에 반만 내민다(위로 약 17px, 밑변 약 34px).
           바깥쪽 두 변(돌리기 전 위·왼쪽)에만 윤곽선을 그리고, 아래 절반이 몸통 윗선을 덮어 하나의 윤곽으로 잇는다.
           카드가 3칸일 때(ContactChannels 폭 880px 이상, 칸 사이 16px): 셋째 칸 가운데 = (전체 - 32px) × 5/6 + 32px.
           그보다 좁으면 카드가 세로로 쌓여 바로 위가 문의 접수라 가운데. */}
       <span
         aria-hidden
-        className="absolute -top-[12px] left-1/2 size-[24px] -translate-x-1/2 rotate-45 rounded-tl-[4px] border-t border-l border-[#e4e4e7] bg-[#f7f7f8] @[880px]:left-[calc((100%-32px)*5/6+32px)]"
+        className="absolute -top-[12px] left-1/2 size-[24px] -translate-x-1/2 rotate-45 rounded-tl-[4px] border-t border-l border-zinc-200 bg-tone-f7f7f8 @[880px]:left-[calc((100%-32px)*5/6+32px)]"
       />
       <Card.Header className="items-center">
-        <Card.Title className="text-[15px] font-bold text-[#18181b]">
+        <Card.Title className="text-[15px] font-bold text-zinc-900">
           문의 처리 과정
         </Card.Title>
       </Card.Header>
@@ -112,18 +112,18 @@ function ProcessCard() {
               {i < STEPS.length - 1 && (
                 <span
                   aria-hidden
-                  className="absolute top-[14px] right-[calc(10px-50%)] left-[calc(50%+22px)] h-px bg-[#e4e4e7] max-sm:hidden"
+                  className="absolute top-[14px] right-[calc(10px-50%)] left-[calc(50%+22px)] h-px bg-zinc-200 max-sm:hidden"
                 />
               )}
               {/* 번호 원 — 흰 원이 연회색 바탕에 묻히지 않게 말풍선과 같은 윤곽선. */}
-              <span className="flex size-[28px] items-center justify-center rounded-full border border-[#e4e4e7] bg-white text-[12px] font-bold text-[#52525b]">
+              <span className="flex size-[28px] items-center justify-center rounded-full border border-zinc-200 bg-surface text-[12px] font-bold text-zinc-600">
                 {i + 1}
               </span>
               <div className="flex flex-col gap-[2px]">
-                <p className="text-[14px] font-semibold text-[#18181b]">
+                <p className="text-[14px] font-semibold text-zinc-900">
                   {step.title}
                 </p>
-                <p className="text-[13px] leading-[1.5] break-keep text-[#8c8c94] max-sm:text-[12px]">
+                <p className="text-[13px] leading-[1.5] break-keep text-tone-8c8c94 max-sm:text-[12px]">
                   {step.description}
                 </p>
               </div>
@@ -138,7 +138,7 @@ function ProcessCard() {
 // 카드 안 버튼 40px → 곡률 17px(규칙: 높이/2 - 3px).
 const ACTION_CLASS =
   "h-[40px] w-full gap-[8px] rounded-[17px] text-[14px] font-semibold";
-const OUTLINE_ACTION_CLASS = `${ACTION_CLASS} border-[#e4e4e7] bg-white text-[#18181b]`;
+const OUTLINE_ACTION_CLASS = `${ACTION_CLASS} border-zinc-200 bg-surface text-zinc-900`;
 
 /** 상담 방법 카드 — 아이콘 옆 제목·설명 / 버튼 / 아래 회색 한 줄 안내. 세 장의 높이는 가장 긴 카드에 맞춘다. */
 function ChannelCard({
@@ -159,24 +159,24 @@ function ChannelCard({
   return (
     // 카드 곡률 20px — 매체 정보 팝업·기획안 담기 창과 같다.
     // 3칸일 때(카드 폭 280px 안팎)는 안쪽 여백을 20px로 줄여 머리 줄(아이콘·제목·배지)이 한 줄에 들어가게 한다.
-    <Card className="gap-[20px] rounded-[20px] border border-[#ececef] p-[24px] shadow-[0_6px_20px_-8px_rgba(24,24,27,0.10)] @[880px]:p-[20px]">
+    <Card className="gap-[20px] rounded-[20px] border border-tone-ececef p-[24px] shadow-[0_6px_20px_-8px_rgba(24,24,27,0.10)] @[880px]:p-[20px]">
       {/* 아이콘 옆에 제목·설명, 배지는 머리 줄 오른쪽 끝(위쪽 맞춤). */}
       <Card.Header className="flex-row items-center gap-[12px]">
         {/* 아이콘 칸 48px → 곡률 21px. */}
-        <span className="flex size-[48px] shrink-0 items-center justify-center rounded-[21px] bg-[#f4f4f5] text-[#18181b]">
+        <span className="flex size-[48px] shrink-0 items-center justify-center rounded-[21px] bg-zinc-100 text-zinc-900">
           {icon}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <Card.Title className="text-[18px] leading-[1.4] font-bold tracking-[-0.2px] whitespace-nowrap text-[#18181b]">
+          <Card.Title className="text-[18px] leading-[1.4] font-bold tracking-[-0.2px] whitespace-nowrap text-zinc-900">
             {title}
           </Card.Title>
-          <Card.Description className="text-[13px] leading-[1.5] break-keep text-[#71717a]">
+          <Card.Description className="text-[13px] leading-[1.5] break-keep text-zinc-500">
             {description}
           </Card.Description>
         </div>
         {/* 가장 빠른 상담 — 번개 + 연한 노랑 바탕에 진한 호박색 글자(노란 글자는 잘 안 읽혀서). 높이 22px → 곡률 8px. */}
         {badge && (
-          <Chip className="h-[22px] shrink-0 gap-[3px] self-start rounded-[8px] bg-[#fef9c3] px-[7px] py-0 text-[11px] font-semibold text-[#a16207]">
+          <Chip className="h-[22px] shrink-0 gap-[3px] self-start rounded-[8px] bg-tone-fef9c3 px-[7px] py-0 text-[11px] font-semibold text-[#a16207]">
             <ZapIcon aria-hidden className="size-[11px] fill-current" />
             {badge}
           </Chip>
@@ -184,7 +184,7 @@ function ChannelCard({
       </Card.Header>
       <Card.Content className="justify-end gap-[8px]">{children}</Card.Content>
       {/* 안내 아이콘은 글자와 같은 색(currentColor). */}
-      <Card.Footer className="gap-[5px] text-[12px] text-[#8c8c94]">
+      <Card.Footer className="gap-[5px] text-[12px] text-tone-8c8c94">
         <InfoIcon aria-hidden className="size-[13px] shrink-0" />
         {footnote}
       </Card.Footer>
@@ -237,7 +237,7 @@ export function ContactChannels({
           {/* 모바일에서는 번호를 누르면 바로 전화가 걸린다. */}
           <a
             href={`tel:${PHONE}`}
-            className="mb-[4px] text-[26px] leading-[1.3] font-bold tracking-[-0.3px] text-[#18181b]"
+            className="mb-[4px] text-[26px] leading-[1.3] font-bold tracking-[-0.3px] text-zinc-900"
           >
             {PHONE}
           </a>

@@ -49,7 +49,7 @@ export function SlideSidebar({
   };
 
   return (
-    <aside className="flex w-[197px] shrink-0 flex-col border-r border-[#dde0ea]">
+    <aside className="flex w-[197px] shrink-0 flex-col border-r border-gray-200">
       {/* 세로 스크롤바가 자리를 차지하는 환경(스크롤 막대 항상 보기·마우스 연결)에서도 가로 스크롤이
           생기지 않게 가로 넘침은 숨기고, 썸네일 카드는 남는 폭에 맞춰 줄어든다(최대 150px).
           슬라이드가 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다. */}
@@ -67,7 +67,7 @@ export function SlideSidebar({
           return (
             <Fragment key={slide.id}>
               {showDivider && (
-                <div className="h-px w-full shrink-0 bg-[#dde0ea]" />
+                <div className="h-px w-full shrink-0 bg-gray-200" />
               )}
               <div
                 // 가이드가 매체 슬라이드 부분만 밝힌다.
@@ -112,7 +112,7 @@ export function SlideSidebar({
                 )}
                 {/* 번호(16px 칸) — 매체 슬라이드는 아래에 끌기 손잡이. */}
                 <div className="flex w-[16px] shrink-0 flex-col items-center gap-[11px] pt-[10px]">
-                  <span className="text-center text-[12px] leading-[14px] text-[#727892]">
+                  <span className="text-center text-[12px] leading-[14px] text-gray-500">
                     {index + 1}
                   </span>
                   {canEdit && (
@@ -124,7 +124,7 @@ export function SlideSidebar({
                       onPointerUp={() => {
                         if (from === null) setArmed(null);
                       }}
-                      className="-my-[7px] flex h-[24px] w-[16px] cursor-grab items-center justify-center rounded-[4px] hover:bg-[#dde0ea] active:cursor-grabbing"
+                      className="-my-[7px] flex h-[24px] w-[16px] cursor-grab items-center justify-center rounded-[4px] hover:bg-gray-200 active:cursor-grabbing"
                     >
                       <Image
                         src="/icons/proposal-detail/grip.svg"
@@ -145,23 +145,23 @@ export function SlideSidebar({
                   aria-label={`${index + 1}번 슬라이드 ${slide.name}`}
                   aria-current={selected || undefined}
                   className={cn(
-                    "relative flex h-[95px] max-w-[150px] min-w-0 flex-1 flex-col items-center rounded-[10px] bg-white p-[4px] text-left transition-colors",
+                    "relative flex h-[95px] max-w-[150px] min-w-0 flex-1 flex-col items-center rounded-[10px] bg-surface p-[4px] text-left transition-colors",
                     selected
-                      ? "border-2 border-[#7a3fe0] p-[3px]"
-                      : "border border-[#dde0ea] hover:border-[#d4d4d8]",
+                      ? "border-2 border-primary-500 p-[3px]"
+                      : "border border-gray-200 hover:border-zinc-300",
                   )}
                 >
                   <span
                     className={cn(
                       "relative h-[67px] w-full shrink-0 overflow-hidden rounded-[5px]",
-                      selected ? "bg-[#dde0ea]" : "bg-[#eceef5]",
+                      selected ? "bg-gray-200" : "bg-gray-100",
                     )}
                   >
                     {renderThumb(slide)}
                   </span>
                   <span
                     className={cn(
-                      "mt-[5px] w-full truncate text-center text-[11px] leading-[13px] text-[#262a3d]",
+                      "mt-[5px] w-full truncate text-center text-[11px] leading-[13px] text-gray-800",
                       selected ? "font-bold" : "font-medium",
                     )}
                   >
@@ -185,7 +185,7 @@ export function SlideSidebar({
                         }
                       }}
                       className={cn(
-                        "absolute flex size-[20px] items-center justify-center rounded-[7px] bg-[#727892] text-white transition-colors hover:bg-[#555b73]",
+                        "absolute flex size-[20px] items-center justify-center rounded-[7px] bg-gray-500 text-white transition-colors hover:bg-gray-600",
                         selected
                           ? "top-[8px] right-[8px]"
                           : "top-[9px] right-[9px]",
@@ -207,7 +207,7 @@ export function SlideSidebar({
           <Button
             variant="ghost"
             onPress={onAddFromFavorites}
-            className="h-[40px] w-full gap-[10px] rounded-[17px] border border-[#dde0ea] bg-white px-[10px] text-[12px] font-semibold text-[#161A2E] shadow-[0px_2px_8px_0px_rgba(229,231,235,0.5)] data-[hovered=true]:bg-[#fafafa]"
+            className="h-[40px] w-full gap-[10px] rounded-[17px] border border-gray-200 bg-surface px-[10px] text-[12px] font-semibold text-gray-900 shadow-[0px_2px_8px_0px_rgba(229,231,235,0.5)] data-[hovered=true]:bg-zinc-50"
           >
             <Image
               src="/icons/proposal-detail/add-favorites.svg"

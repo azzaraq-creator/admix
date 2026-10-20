@@ -29,9 +29,9 @@ export function RuleChip({
     <Chip
       className={cn(
         "h-[24px] gap-[4px] rounded-[9px] py-0 pr-[10px] pl-[8px] text-[11px] font-medium",
-        state === "ok" && "bg-[#f0fdf4] text-[#16a34a]",
-        state === "fail" && "bg-[#fef2f2] text-[#dc2626]",
-        state === "idle" && "bg-[#f4f4f5] text-[#a1a1aa]",
+        state === "ok" && "bg-tone-f0fdf4 text-[#16a34a]",
+        state === "fail" && "bg-tone-fef2f2 text-[#dc2626]",
+        state === "idle" && "bg-zinc-100 text-zinc-400",
       )}
     >
       {state === "fail" ? (

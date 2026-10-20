@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -34,7 +40,12 @@ export function SlideScaler({
   const scale = width / baseWidth;
 
   return (
-    <div ref={ref} style={style} className={cn("overflow-hidden", className)}>
+    // 슬라이드는 인쇄물이라 다크 모드에서도 라이트 색으로 그린다(.light).
+    <div
+      ref={ref}
+      style={style}
+      className={cn("light overflow-hidden", className)}
+    >
       <div
         style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
         className={cn("absolute left-0 top-0", contentClassName)}

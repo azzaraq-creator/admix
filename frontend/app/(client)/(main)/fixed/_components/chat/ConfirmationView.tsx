@@ -8,7 +8,7 @@ export function ConfirmationView({
   messageText?: string;
 }) {
   return (
-    <div className="space-y-[8px] rounded-[8px] border border-[#ffe0a3] bg-[#fff8ec] px-[12px] py-[10px]">
+    <div className="space-y-[8px] rounded-[8px] border border-tone-ffe0a3 bg-tone-fff8ec px-[12px] py-[10px]">
       <div className="text-xs font-semibold tracking-wide text-[#ff920a]">
         ⚠️ 조건 변경 확인 필요
       </div>

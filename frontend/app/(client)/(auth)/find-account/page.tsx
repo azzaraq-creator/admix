@@ -90,7 +90,7 @@ export default function FindAccountPage() {
                 {sentTo}
               </span>
             </div>
-            <p className="flex flex-wrap items-center justify-center gap-x-[6px] text-[12px] text-[#a1a1aa]">
+            <p className="flex flex-wrap items-center justify-center gap-x-[6px] text-[12px] text-zinc-400">
               메일이 오지 않았나요? 스팸함을 확인하거나
               <Button
                 variant="ghost"

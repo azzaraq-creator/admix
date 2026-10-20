@@ -38,7 +38,7 @@ export function ProposalSlideLightbox({
     <div
       role="dialog"
       aria-modal
-      className="fixed inset-0 z-50 flex flex-col gap-[16px] bg-black/70 p-[36px]"
+      className="fixed inset-0 z-50 flex flex-col gap-[16px] bg-scrim/70 p-[36px]"
     >
       <div className="flex items-center justify-end">
         <button
@@ -62,7 +62,7 @@ export function ProposalSlideLightbox({
             <ChevronLeftIcon className="size-[48px]" />
           </button>
           <div className="flex h-full min-w-0 flex-1 items-center justify-center">
-            <div className="relative aspect-[1920/1080] h-full max-w-full overflow-hidden rounded-[4px] bg-white">
+            <div className="relative aspect-[1920/1080] h-full max-w-full overflow-hidden rounded-[4px] bg-surface">
               {current && (
                 <AdminSlideView
                   slide={current}
@@ -83,9 +83,9 @@ export function ProposalSlideLightbox({
         </div>
 
         <div className="flex justify-center">
-          <div className="rounded-full bg-black/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
+          <div className="rounded-full bg-scrim/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
             <span className="text-white">{index + 1} </span>
-            <span className="text-[#767676]">/ {total}</span>
+            <span className="text-tone-767676">/ {total}</span>
           </div>
         </div>
       </div>
@@ -97,7 +97,7 @@ export function ProposalSlideLightbox({
             type="button"
             onClick={() => onIndexChange(thumbIndex)}
             className={cn(
-              "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-white transition-opacity",
+              "relative aspect-[1920/1080] h-[68px] shrink-0 overflow-hidden rounded-[4px] bg-surface transition-opacity",
               thumbIndex === index
                 ? "ring-2 ring-white"
                 : "opacity-50 hover:opacity-80",

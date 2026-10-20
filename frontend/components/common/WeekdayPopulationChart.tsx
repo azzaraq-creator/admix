@@ -37,7 +37,7 @@ function DarkTooltip({
 }: Partial<TooltipContentProps<ValueType, NameType>>) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[8px] bg-[#18181b]/90 px-[10px] py-[6px] text-[12px] leading-[1.4] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+    <div className="rounded-[8px] bg-zinc-900/90 px-[10px] py-[6px] text-[12px] leading-[1.4] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
       <p className="font-medium text-white/60">{label}요일</p>
       <p className="font-semibold text-white">
         {Number(payload[0].value).toLocaleString()}명

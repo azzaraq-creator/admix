@@ -16,7 +16,7 @@ export type Inquiry = {
 };
 
 const STATUS_CLASS: Record<InquiryStatus, string> = {
-  "답변 대기": "bg-[#fdf6e3] text-[#c99a2e]",
+  "답변 대기": "bg-tone-fdf6e3 text-[#c99a2e]",
   "답변 완료": "bg-primary-50 text-primary-800",
 };
 

@@ -146,7 +146,7 @@ function RecentProposalCard({ item }: { item: RecentProposal }) {
   return (
     <Link
       href={`/admin/proposals/${item.id}`}
-      className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[16px] active:bg-[#f5f6f8]"
+      className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[16px] active:bg-tone-f5f6f8"
     >
       <div className="flex items-start justify-between gap-[12px]">
         <p className="line-clamp-2 min-w-0 text-base font-semibold leading-[24px] text-black">

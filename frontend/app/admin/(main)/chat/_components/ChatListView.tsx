@@ -140,7 +140,7 @@ export function ChatListView() {
       </h1>
 
       {/* 검색 */}
-      <div className="flex flex-wrap items-center gap-[12px] rounded-[12px] border border-stroke bg-[#fafafc] p-[20px]">
+      <div className="flex flex-wrap items-center gap-[12px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
         <Input
           aria-label="이름·이메일 검색"
           variant="secondary"
@@ -219,9 +219,9 @@ export function ChatListView() {
               <Switch.Content>
                 <Switch.Control>
                   {/* 켜져도 손잡이는 흰색 — 테마 기본은 진한 색이라 검게 보인다. */}
-                  <Switch.Thumb className="bg-white!" />
+                  <Switch.Thumb className="bg-surface!" />
                 </Switch.Control>
-                <span className="text-sm text-[#555b73]">
+                <span className="text-sm text-gray-600">
                   메시지 없는 대화 숨기기
                   {emptyCount > 0 && (
                     <span className="ml-[4px] text-disabled">
@@ -319,7 +319,7 @@ export function ChatListView() {
                     <Table.Cell className="font-medium text-black">
                       {r.kind === "member" ? r.name : "-"}
                     </Table.Cell>
-                    <Table.Cell className="text-[#555b73]">
+                    <Table.Cell className="text-gray-600">
                       {r.email || "-"}
                     </Table.Cell>
                     <Table.Cell className="tabular-nums">
@@ -334,7 +334,7 @@ export function ChatListView() {
                     >
                       {r.message_count.toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell className="whitespace-nowrap text-[#555b73] tabular-nums">
+                    <Table.Cell className="whitespace-nowrap text-gray-600 tabular-nums">
                       {formatChatDateTime(r.last_used_at)}
                     </Table.Cell>
                   </Table.Row>
