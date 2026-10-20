@@ -18,10 +18,17 @@ import { openLoginModal } from "./useLoginModal";
 const MENU_ICON = "size-[16px] shrink-0 text-gray-500";
 
 /**
- * 프로필 메뉴 항목(화면 모드 · 내 정보 · 약관 및 정책 | 로그아웃) — PC 사이드바와 모바일 상단바의 Dropdown이 같이 쓴다.
+ * 프로필 메뉴 항목([화면 모드] · 내 정보 · 약관 및 정책 | 로그아웃) — PC 사이드바와 모바일 상단바의 Dropdown이 같이 쓴다.
  * onNavigate: 이동하기 전에 할 일(모바일 사이드바 닫기 등).
+ * withTheme: 맨 위에 화면 모드 줄 — 모바일 상단바만. PC는 사이드바 가이드 줄 위에 따로 있다.
  */
-export function ProfileMenu({ onNavigate }: { onNavigate?: () => void }) {
+export function ProfileMenu({
+  onNavigate,
+  withTheme = false,
+}: {
+  onNavigate?: () => void;
+  withTheme?: boolean;
+}) {
   const router = useRouter();
   const logout = useLogout();
   return (
@@ -38,7 +45,7 @@ export function ProfileMenu({ onNavigate }: { onNavigate?: () => void }) {
         router.push(String(key));
       }}
     >
-      <ThemeSubmenu />
+      {withTheme ? <ThemeSubmenu /> : null}
       <Dropdown.Item id="/profile" textValue="내 정보">
         <ProfileFilledIcon className={MENU_ICON} />
         <span className="text-sm font-medium text-black">내 정보</span>

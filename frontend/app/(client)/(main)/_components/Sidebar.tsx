@@ -278,18 +278,15 @@ export function Sidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
-            {/* 화면 모드 — PC 비회원만 가이드 줄과 같은 보조 줄로. 회원은 프로필 메뉴 맨 위,
-                모바일 비회원은 상단바 회색 프로필 메뉴에서 고른다. */}
-            {!hasToken && (
-              <ThemeMenu
-                placement={collapsed ? "right bottom" : "top start"}
-                className={cn(
-                  "mb-[4px] flex h-[32px] w-full items-center gap-[9px] overflow-hidden rounded-[13px] text-[13px] font-medium text-gray-500 outline-none transition-[padding,background-color,color] duration-300 ease-in-out hover:bg-gray-50 hover:text-gray-900 max-sm:hidden",
-                  collapsed ? "pr-0 pl-[20px]" : "px-[13px]",
-                )}
-                labelClassName={cn("whitespace-nowrap", fadeLabel(collapsed))}
-              />
-            )}
+            {/* 화면 모드 — PC는 회원·비회원 모두 가이드 줄과 같은 보조 줄로. 모바일은 상단바 프로필 메뉴에서 고른다. */}
+            <ThemeMenu
+              placement={collapsed ? "right bottom" : "top start"}
+              className={cn(
+                "mb-[4px] flex h-[32px] w-full items-center gap-[9px] overflow-hidden rounded-[13px] text-[13px] font-medium text-gray-500 outline-none transition-[padding,background-color,color] duration-300 ease-in-out hover:bg-gray-50 hover:text-gray-900 max-sm:hidden",
+                collapsed ? "pr-0 pl-[20px]" : "px-[13px]",
+              )}
+              labelClassName={cn("whitespace-nowrap", fadeLabel(collapsed))}
+            />
             {/* 지금 페이지 가이드 — 현재 기획안 카드 바로 위. 모바일은 상단바의 아이콘 버튼을 쓴다.
                 메뉴보다 한 단계 옅은 보조 줄(높이 32px → 곡률 13px). 아이콘 가운데는 메뉴 아이콘 열(x=39px). */}
             {hasTour && (

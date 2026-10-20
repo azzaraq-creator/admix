@@ -46,7 +46,7 @@ function MobileUserButton({ member }: { member: boolean }) {
           />
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom start" className="min-w-[160px]">
-          <ProfileMenu />
+          <ProfileMenu withTheme />
         </Dropdown.Popover>
       </Dropdown>
     );
