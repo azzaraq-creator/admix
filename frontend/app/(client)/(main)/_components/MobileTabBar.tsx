@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { MixieIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import { MENU_ITEMS, type MenuItem } from "./Sidebar";
@@ -55,8 +54,8 @@ export function MobileTabBar() {
       aria-label="하단 메뉴"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[35] px-[12px] pb-[calc(8px+env(safe-area-inset-bottom))] sm:hidden"
     >
-      {/* 캡슐 56px → 곡률 (56/2)-3 = 25px. 바탕이 흐리게 비치는 남색(gray-800 #252836, 68%) 유리. */}
-      <div className="pointer-events-auto flex h-[56px] items-stretch rounded-[25px] bg-[rgba(37,40,54,0.68)] px-[6px] shadow-[0px_6px_18px_rgba(0,0,0,0.18)] backdrop-blur-[12px] backdrop-saturate-[1.6]">
+      {/* 캡슐 56px → 곡률 (56/2)-3 = 25px. 바탕이 흐리게 비치는 남색(gray-800 #252836, 40%) 유리. */}
+      <div className="pointer-events-auto flex h-[56px] items-stretch rounded-[25px] bg-[rgba(37,40,54,0.4)] px-[6px] shadow-[0px_6px_18px_rgba(0,0,0,0.18)] backdrop-blur-[12px] backdrop-saturate-[1.6]">
         {left.map((item) => (
           <TabLink key={item.key} item={item} pathname={pathname} />
         ))}
@@ -70,16 +69,20 @@ export function MobileTabBar() {
         >
           {/* 칸은 살짝 어두운 남색으로 깔아 가운데를 구분하고, 아이콘·글자만 선명한 연보라로 색 포인트를 준다 —
               밝은 칸 위의 연보라는 대비가 낮아 흐려 보여서(약 2.7:1), 칸을 어둡게 해 또렷하게 한다(약 6:1).
-              46px → 곡률 (46/2)-3 = 20px. 켜진 상태는 따로 두지 않는다. */}
+              46px → 곡률 (46/2)-3 = 20px. 켜진 상태는 따로 두지 않는다.
+              심볼과 글자 위로는 연보라·하늘 빛이 천천히 흘러 살아 있는 AI 느낌을 준다(mixie-tab-shine, globals.css).
+              심볼은 MixieIcon과 같은 모양을 마스크로 써서 그 빛 띠를 오려 낸다. */}
           <span
             data-tour={MIXIE_TAB_STEP_ID}
-            className="flex h-[46px] w-full max-w-[60px] flex-col items-center justify-center gap-[3px] rounded-[20px] bg-[rgba(16,18,28,0.38)] text-[10px] leading-none font-bold text-[#d6c6ff]"
+            className="flex h-[46px] w-full max-w-[60px] flex-col items-center justify-center gap-[3px] rounded-[20px] bg-[rgba(16,18,28,0.38)] text-[10px] leading-none font-bold"
           >
-            <MixieIcon
+            <span
               aria-hidden
-              className="size-[18px] shrink-0 [&_path]:fill-[#cbb6ff]"
+              className="mixie-tab-shine mixie-tab-shine-icon size-[18px] shrink-0"
             />
-            <span className="truncate">AI 믹시</span>
+            <span className="mixie-tab-shine mixie-tab-shine-text truncate">
+              AI 믹시
+            </span>
           </span>
         </button>
         {right.map((item) => (
