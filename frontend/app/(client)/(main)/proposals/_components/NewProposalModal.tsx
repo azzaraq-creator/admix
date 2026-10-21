@@ -116,6 +116,8 @@ export function NewProposalModal({
                 >
                   <Input
                     placeholder="예) 2026 하반기 강남 옥외광고"
+                    // 모바일 키보드의 엔터 키를 "완료"로 표시한다 — 누르면 바로 만들어진다.
+                    enterKeyHint="done"
                     className={FIELD_CLASS}
                   />
                   <div className="flex items-start justify-between gap-[8px] px-[4px]">

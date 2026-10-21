@@ -14,7 +14,7 @@ import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
-import { FileIcon } from "@/components/icons";
+import { EyeIcon, FileIcon } from "@/components/icons";
 import { authApi } from "@/hooks/auth";
 import {
   PHONE_INPUT_MAX_LENGTH,
@@ -67,6 +67,28 @@ function bizFileError(file: File): string | null {
 
 const FIELD_ERROR = "text-[11px] text-[#dc2626]";
 
+/** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — 입력칸 44px 안에 28px로 세워 위아래·오른쪽 8px, 곡률 28/2 - 3 = 11px. */
+function PasswordToggle({
+  shown,
+  onToggle,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      isIconOnly
+      variant="ghost"
+      size="sm"
+      aria-label={shown ? "비밀번호 숨기기" : "비밀번호 보기"}
+      onPress={onToggle}
+      className="absolute top-1/2 right-[8px] size-[28px] min-w-0 -translate-y-1/2 rounded-[11px] text-zinc-400 data-[hovered=true]:text-zinc-900"
+    >
+      <EyeIcon off={shown} className="size-[16px]" />
+    </Button>
+  );
+}
+
 /** 4단계 — 시안(00. 회원가입 - 회원정보 입력). */
 export function InfoStep({
   email,
@@ -93,6 +115,8 @@ export function InfoStep({
   // "다음"에서 확인한 전화번호 중복 결과 — 확인한 번호와 같을 때만 보여 준다.
   const [duplicatePhone, setDuplicatePhone] = useState<string | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof SignupInfo>(key: K, value: SignupInfo[K]) =>
@@ -194,7 +218,7 @@ export function InfoStep({
         {needPassword && (
           <>
             <TextField
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               value={values.password}
               onChange={(value) => set("password", value)}
@@ -203,10 +227,16 @@ export function InfoStep({
               className="gap-[8px]"
             >
               <FieldLabel required>비밀번호</FieldLabel>
-              <Input
-                placeholder="영문, 숫자, 특수문자 포함 8자 이상"
-                className={INPUT_CLASS}
-              />
+              <div className="relative">
+                <Input
+                  placeholder="영문, 숫자, 특수문자 포함 8자 이상"
+                  className={cn(INPUT_CLASS, "pr-[44px]")}
+                />
+                <PasswordToggle
+                  shown={showPassword}
+                  onToggle={() => setShowPassword((prev) => !prev)}
+                />
+              </div>
               <div className="flex flex-wrap gap-[8px]">
                 {PASSWORD_RULES.map((rule) => (
                   <RuleChip
@@ -225,7 +255,7 @@ export function InfoStep({
             </TextField>
 
             <TextField
-              type="password"
+              type={showPasswordConfirm ? "text" : "password"}
               autoComplete="new-password"
               value={values.passwordConfirm}
               onChange={(value) => set("passwordConfirm", value)}
@@ -236,10 +266,16 @@ export function InfoStep({
               className="gap-[8px]"
             >
               <FieldLabel required>비밀번호 확인</FieldLabel>
-              <Input
-                placeholder="비밀번호를 한번 더 입력해 주세요."
-                className={INPUT_CLASS}
-              />
+              <div className="relative">
+                <Input
+                  placeholder="비밀번호를 한번 더 입력해 주세요."
+                  className={cn(INPUT_CLASS, "pr-[44px]")}
+                />
+                <PasswordToggle
+                  shown={showPasswordConfirm}
+                  onToggle={() => setShowPasswordConfirm((prev) => !prev)}
+                />
+              </div>
               {passwordMatch ? (
                 <div className="flex items-center justify-between">
                   <FieldMessage tone="success">

@@ -29,6 +29,7 @@ export { ChevronDownIcon } from "./ChevronDownIcon";
 export { ChevronDoubleDownIcon } from "./ChevronDoubleDownIcon";
 export { ChevronLeftIcon } from "./ChevronLeftIcon";
 export { ChevronRightIcon } from "./ChevronRightIcon";
+export { EyeIcon } from "./EyeIcon";
 export { CallIcon } from "./CallIcon";
 export { CheckCircleFilledIcon } from "./CheckCircleFilledIcon";
 export { CircleCheckIcon } from "./CircleCheckIcon";

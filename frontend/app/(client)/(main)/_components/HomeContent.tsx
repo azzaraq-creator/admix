@@ -343,8 +343,10 @@ export function HomeContent({ chatActive = false }: { chatActive?: boolean }) {
           </div>
 
           {/* 입력바 아래 — AI(안내 + 추천 질문)와 검색(추천 지역·매체)을 같은 칸에 겹쳐 둔다.
-              칸 높이가 늘 둘 중 큰 쪽이라 모드를 바꿔도 입력바가 움직이지 않는다. */}
-          <div className="mt-[10px] grid w-full max-w-[860px] overflow-x-clip sm:mt-[20px] sm:justify-items-center">
+              칸 높이가 늘 둘 중 큰 쪽이라 모드를 바꿔도 입력바가 움직이지 않는다.
+              모바일은 자르는 영역을 화면 끝까지 넓힌다(-mx·px 20px) — 칩 목록(ScrollShadow)이 화면 끝까지
+              붙어 있어, 본문 폭에서 자르면 좌우 흐림(24px)이 거의 다 잘려 칩이 뚝 끊겨 보였다. */}
+          <div className="mt-[10px] grid w-full max-w-[860px] overflow-x-clip max-sm:-mx-[20px] max-sm:w-auto max-sm:self-stretch max-sm:px-[20px] sm:mt-[20px] sm:justify-items-center">
             <ModeLayer
               active={mode === "ai"}
               side="left"

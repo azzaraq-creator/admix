@@ -223,7 +223,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "options",
     target: "detail-options",
     title: "상품·기간·제작 수",
-    body: "상품과 개월 수, 제작 개수를 고르면 예상 비용이 바로 나와요.",
+    body: "매체를 선택하면 상세 정보가 열려요. 상품과 개월 수, 제작 개수를 고르면 예상 비용이 바로 나와요.",
     radius: 18,
   },
   {

@@ -34,7 +34,12 @@ export function TermsModal({
     >
       <Modal.Backdrop>
         <Modal.Container placement="center" scroll="inside" size="lg">
-          <Modal.Dialog aria-label={title} className="max-h-[80dvh]">
+          {/* 모바일은 화면 높이에서 위아래 32px씩만 남기고 꽉 채운다 — 높이를 정해 두어 Safari 주소창이
+              접히고 펴져도 창이 위아래 같은 간격으로 가운데에 선다. 보이는 화면이 더 낮으면 max-h-full이 줄인다. */}
+          <Modal.Dialog
+            aria-label={title}
+            className="max-h-[80dvh] max-sm:h-[calc(100dvh-64px)] max-sm:max-h-full"
+          >
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading className="text-[18px] font-bold text-gray-900">

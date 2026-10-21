@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { Providers } from "./providers";
 import "react-day-picker/style.css";
@@ -18,6 +18,14 @@ export const metadata: Metadata = {
           { url: "/favicon/icon.svg", type: "image/svg+xml" },
         ],
   },
+};
+
+// 아이폰 Safari는 글씨가 16px보다 작은 입력칸(매체 찾기 검색창 13px·로그인 14px 등)을 누르면 화면을 저절로
+// 확대한다. 최대 배율을 1로 두어 막는다 — 아이폰은 이 값과 상관없이 두 손가락 확대가 그대로 된다.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

@@ -73,6 +73,10 @@ export function MediaFindTopBar({
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
     onKeywordSubmit();
+    // 터치 기기는 키보드의 "검색"을 누르면 키보드를 내려 결과가 보이게 한다. PC는 이어서 고칠 수 있게 포커스를 둔다.
+    if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
+      event.currentTarget.blur();
+    }
   };
 
   return (
@@ -100,6 +104,8 @@ export function MediaFindTopBar({
             value={keyword}
             onChange={(event) => onKeywordChange(event.target.value)}
             onKeyDown={handleKeyDown}
+            // 모바일 키보드의 엔터 키를 "검색"으로 표시한다.
+            enterKeyHint="search"
             placeholder="매체명, 지역, 주소로 검색해 보세요"
             aria-label="매체 검색"
             className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-gray-900 outline-none placeholder:text-gray-400"

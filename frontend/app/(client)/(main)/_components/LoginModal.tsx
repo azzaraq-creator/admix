@@ -16,7 +16,7 @@ import {
   TextField,
 } from "@heroui/react";
 
-import { ChevronRightIcon, XIcon } from "@/components/icons";
+import { ChevronRightIcon, EyeIcon, XIcon } from "@/components/icons";
 import { LogoFullDark } from "@/components/icons/LogoFull";
 import { authApi, authKeys, useLogin, useSnsLogin } from "@/hooks/auth";
 import { getUserToken, setTokens } from "@/lib/userToken";
@@ -50,36 +50,6 @@ function NaverIcon(props: SVGProps<SVGSVGElement>) {
     >
       <rect x="1.5" y="1.5" width="21" height="21" rx="4.5" fill="#00C300" />
       <path d="M7 7h3l4 5.8V7h3v10h-3l-4-5.8V17H7V7Z" fill="#fff" />
-    </svg>
-  );
-}
-
-function EyeIcon({
-  off,
-  ...props
-}: SVGProps<SVGSVGElement> & { off?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <path
-        d="M2.5 12S5.9 5.5 12 5.5 21.5 12 21.5 12 18.1 18.5 12 18.5 2.5 12 2.5 12Z"
-        stroke="currentColor"
-        strokeWidth={1.8}
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={1.8} />
-      {off && (
-        <path
-          d="M4 4l16 16"
-          stroke="currentColor"
-          strokeWidth={1.8}
-          strokeLinecap="round"
-        />
-      )}
     </svg>
   );
 }

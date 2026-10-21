@@ -638,15 +638,19 @@ function CrowdPlaceCard({
   onClose,
 }: {
   place: CrowdPlace;
-  /** 가이드 예시 — 주면 불러오지 않고 이 값을 보여 주고, 모바일도 시트 대신 지도 위 카드로 띄운다. */
+  /** 가이드 예시 — 주면 불러오지 않고 이 값을 보여 주고, 모바일은 시트와 똑같이 생긴 보기용 시트로 띄운다. */
   transit?: CrowdTransit;
   /** 가이드 예시 — 자리를 재는 동안 투명하게. */
   hidden?: boolean;
   onClose: () => void;
 }) {
   const isDesktop = useIsDesktop();
-  if (!isDesktop && !transit)
-    return <CrowdPlaceSheet place={place} onClose={onClose} />;
+  if (!isDesktop)
+    return transit ? (
+      <CrowdPlaceSheetPreview place={place} transit={transit} hidden={hidden} />
+    ) : (
+      <CrowdPlaceSheet place={place} onClose={onClose} />
+    );
   // PC·태블릿 — 지역명·실시간 인구·닫기는 위에 고정하고, 지하철·버스만 ScrollShadow 안에서 스크롤한다.
   // 지도 폭이 좁으면(400px 미만, 태블릿) 320px 카드가 오른쪽으로 잘리고 세로로 쌓인 스위치와도 겹쳐서,
   // 지도 폭에 맞춰 아래쪽에 붙인다(범례 위를 덮는다).
@@ -714,6 +718,46 @@ function CrowdPlaceSheet({
         </Drawer.Content>
       </Drawer.Backdrop>
     </Drawer>
+  );
+}
+
+/**
+ * 가이드 예시(모바일) — 실제 시트(Drawer)는 모달이라 가이드와 포커스·겹침이 부딪혀서, 같은 모양을 화면 아래에
+ * 그냥 그린다(누를 수 없음). 지도는 컨테이너 쿼리(@container)라 fixed가 지도 기준이 되므로 body로 띄운다.
+ */
+function CrowdPlaceSheetPreview({
+  place,
+  transit,
+  hidden,
+}: {
+  place: CrowdPlace;
+  transit: CrowdTransit;
+  hidden: boolean;
+}) {
+  return createPortal(
+    <div
+      aria-hidden
+      data-tour="crowd-place"
+      className={cn(
+        // 위에 가이드 설명 창이 들어갈 자리(280px)를 남긴다 — 실제 시트처럼 80dvh면 설명 창이 시트를 덮는다.
+        "fixed inset-x-0 bottom-0 z-[60] flex max-h-[min(80dvh,calc(100dvh-280px))] flex-col rounded-t-[24px] bg-surface pt-[10px] shadow-[0px_-4px_24px_rgba(0,0,0,0.12)] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        hidden && "opacity-0",
+      )}
+    >
+      <div className="drawer__handle">
+        <div data-slot="drawer-handle-bar" />
+      </div>
+      <div className="shrink-0 border-b border-tone-f1f1f4 px-[20px] pt-[10px] pb-[14px]">
+        <CrowdPlaceHeader place={place} onClose={() => {}} large />
+      </div>
+      <ScrollShadow
+        size={32}
+        className="flex min-h-0 flex-1 flex-col gap-[16px] px-[20px] pt-[16px] pb-[calc(20px+env(safe-area-inset-bottom))]"
+      >
+        <CrowdTransitSections data={transit} />
+      </ScrollShadow>
+    </div>,
+    document.body,
   );
 }
 
