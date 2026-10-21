@@ -18,27 +18,55 @@ const FIELD_CLASS =
 const ACTION_CLASS =
   "h-[40px] min-w-[76px] rounded-[17px] px-[18px] text-[14px] font-semibold";
 
+const COPY = {
+  create: {
+    heading: "새 기획안 만들기",
+    description: "기획안 이름을 정해 주세요. 이름은 나중에도 바꿀 수 있어요.",
+    submit: "만들기",
+    pending: "만드는 중...",
+  },
+  rename: {
+    heading: "기획안명 수정",
+    description: "바꿀 기획안 이름을 입력해 주세요.",
+    submit: "저장",
+    pending: "저장 중...",
+  },
+};
+
 /**
  * 새 기획안 만들기 — HeroUI Modal. 로그인 창·"새 대화" 확인창과 같은 흰 창(모서리 24px)에
  * 이름 입력칸 하나와 취소/만들기 버튼. Enter로도 만들 수 있다.
+ * mode="rename"이면 같은 창으로 기획안명을 바꾼다(열 때 지금 이름을 채워 둔다).
  */
 export function NewProposalModal({
   open,
   onOpenChange,
   onCreate,
+  mode = "create",
+  initialName = "",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // 성공이면 null, 실패면 인라인으로 표시할 에러 문구를 반환.
   onCreate: (name: string) => Promise<string | null>;
+  mode?: "create" | "rename";
+  initialName?: string;
 }) {
-  const [name, setName] = useState("");
+  const copy = COPY[mode];
+  const [name, setName] = useState(initialName);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const trimmed = name.trim();
 
+  // 열릴 때마다 지금 이름으로 채운다(수정 — 저장 뒤 다시 열면 바뀐 이름이 보이게).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setName(initialName);
+  }
+
   const reset = () => {
-    setName("");
+    setName(initialName);
     setError(null);
     setSubmitting(false);
   };
@@ -50,6 +78,11 @@ export function NewProposalModal({
 
   const handleCreate = async () => {
     if (!trimmed || submitting) return;
+    // 이름을 그대로 두고 저장하면 그냥 닫는다.
+    if (mode === "rename" && trimmed === initialName) {
+      close();
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const message = await onCreate(trimmed);
@@ -72,7 +105,7 @@ export function NewProposalModal({
       <Modal.Backdrop>
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
-            aria-label="새 기획안 만들기"
+            aria-label={copy.heading}
             className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
           >
             {/* 닫기 32px → 곡률 13px. */}
@@ -85,10 +118,10 @@ export function NewProposalModal({
 
             <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
               <Modal.Heading className="text-[18px] font-bold text-gray-900">
-                새 기획안 만들기
+                {copy.heading}
               </Modal.Heading>
               <p className="text-[13px] leading-[1.5] text-gray-500">
-                기획안 이름을 정해 주세요. 이름은 나중에도 바꿀 수 있어요.
+                {copy.description}
               </p>
             </Modal.Header>
 
@@ -147,7 +180,7 @@ export function NewProposalModal({
                   isPending={submitting}
                   className={`${ACTION_CLASS} bg-primary text-white`}
                 >
-                  {submitting ? "만드는 중..." : "만들기"}
+                  {submitting ? copy.pending : copy.submit}
                 </Button>
               </Modal.Footer>
             </form>

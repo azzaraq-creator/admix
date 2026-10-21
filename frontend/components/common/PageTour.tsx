@@ -119,8 +119,32 @@ function unionRect(els: HTMLElement[]): Rect | null {
   const top = Math.min(...rects.map((r) => r.top));
   const left = Math.min(...rects.map((r) => r.left));
   const bottom = Math.max(...rects.map((r) => r.bottom));
-  const right = Math.max(...rects.map((r) => r.right));
-  return { top, left, width: right - left, height: bottom - top };
+  let right = Math.max(...rects.map((r) => r.right));
+  let clippedLeft = left;
+  // 넘겨 보는 표 안의 대상이 표의 보이는 폭보다 넓으면(모바일 표 머리글 여러 칸) 보이는 부분만 밝힌다
+  // — 화면 밖까지 늘어난 자리는 위치가 어긋나 보인다. 표를 넘기면 밝힌 자리도 따라 움직인다.
+  const scroller = horizontalScroller(els[0]);
+  if (scroller) {
+    const box = scroller.getBoundingClientRect();
+    clippedLeft = Math.max(left, box.left);
+    right = Math.min(right, box.right);
+  }
+  return {
+    top,
+    left: clippedLeft,
+    width: Math.max(0, right - clippedLeft),
+    height: bottom - top,
+  };
+}
+
+/** 가로로 넘겨 보는 가장 가까운 조상(넘치는 표 스크롤 칸). */
+function horizontalScroller(el: HTMLElement): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (node.scrollWidth <= node.clientWidth) continue;
+    const { overflowX } = getComputedStyle(node);
+    if (overflowX === "auto" || overflowX === "scroll") return node;
+  }
+  return null;
 }
 
 /**

@@ -27,6 +27,7 @@ import {
   useDeleteProposal,
   useMyProposals,
   useProposalLimitDialog,
+  useRenameProposal,
 } from "@/hooks/proposals";
 import {
   type TourStep,
@@ -65,6 +66,7 @@ const TAB_EMPTY_TITLE: Record<Status, string> = {
 };
 
 // 기획안 가이드 — 1단계는 빈 표, 2단계(상태별 보기·검색)부터 예시 기획안(guideDemo)을 보여 준다.
+// 3단계는 표 머리글의 정렬(기획안명·최근 수정·제작 일시)을 한 자리로 밝힌다.
 // 곡률은 대상 곡률 + 밝힌 자리 여백(6px).
 const TOUR_STEPS: TourStep[] = [
   {
@@ -80,6 +82,14 @@ const TOUR_STEPS: TourStep[] = [
     title: "상태별로 보기·검색",
     body: "작성 중·제출 완료 등 상태별로 나눠 보고, 기획안명으로 찾아요.",
     radius: 23,
+  },
+  {
+    id: "sort",
+    target: "proposal-sort",
+    targetAll: true,
+    title: "정렬해서 보기",
+    body: "기획안명·최근 수정·제작 일시를 눌러 오름차순·내림차순으로 정렬해 볼 수 있어요.",
+    radius: 14,
   },
   {
     id: "summary",
@@ -121,11 +131,15 @@ export function ProposalsView() {
   const { data, isLoading } = useMyProposals();
   const createMutation = useCreateProposal();
   const deleteMutation = useDeleteProposal();
+  const renameMutation = useRenameProposal();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortDescriptor>(DEFAULT_SORT);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  // 이름을 바꾸는 기획안 — 창을 닫아도 남겨 둬 닫히는 동안 이름이 비지 않게 한다.
+  const [renameTarget, setRenameTarget] = useState<Proposal | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
   // 삭제 확인·모바일 미지원 안내는 HeroUI Modal 확인창(ADMIX 팝업 모양).
@@ -220,6 +234,19 @@ export function ProposalsView() {
         return null;
       }
       return "기획안을 만들지 못했어요. 다시 시도해 주세요.";
+    }
+  };
+
+  const handleRename = async (name: string): Promise<string | null> => {
+    if (!renameTarget) return null;
+    try {
+      await renameMutation.mutateAsync({ id: renameTarget.id, title: name });
+      return null;
+    } catch (err) {
+      if (proposalErrorReason(err) === "duplicate_name") {
+        return "이미 사용 중인 기획안 이름입니다. 다른 이름을 입력해 주세요.";
+      }
+      return "이름을 변경하지 못했어요. 다시 시도해 주세요.";
     }
   };
 
@@ -422,6 +449,10 @@ export function ProposalsView() {
         }}
         onDownload={handleDownload}
         onDelete={handleDelete}
+        onRename={(proposal) => {
+          setRenameTarget(proposal);
+          setRenameOpen(true);
+        }}
         downloadingId={downloadingId}
         demoSummaryId={
           tourStep === "summary" && isDesktop
@@ -429,6 +460,7 @@ export function ProposalsView() {
             : null
         }
         demoSummaryVisible={shownStep === "summary"}
+        emphasizeSort={tourStep === "sort"}
       />
       {tourStep === "summary" && !isDesktop && (
         <MobileSummarySheetPreview
@@ -482,6 +514,13 @@ export function ProposalsView() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreate={handleCreate}
+      />
+      <NewProposalModal
+        mode="rename"
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        onCreate={handleRename}
+        initialName={renameTarget?.title ?? ""}
       />
       {confirmDialog}
       {deleteDialog}

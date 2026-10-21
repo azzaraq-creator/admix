@@ -10,6 +10,7 @@ import {
   Table,
   Tooltip,
 } from "@heroui/react";
+import Image from "next/image";
 import {
   useEffect,
   useRef,
@@ -31,6 +32,10 @@ import { cn } from "@/lib/utils";
 import { formatAdFee, formatTotalWithInquiry, hasAdInquiry } from "@/lib/media";
 
 import { type Proposal, type Status } from "./proposalTypes";
+
+/** 상세와 같은 기준 — 제출 완료·계약 완료는 이름을 바꿀 수 없다. */
+const isRenamable = (status: Status) =>
+  status !== "제출 완료" && status !== "계약 완료";
 
 const won = (value: number | null | undefined) =>
   value == null ? "-" : `${value.toLocaleString()}원`;
@@ -200,7 +205,7 @@ function MobileSummaryDrawer({
     <Drawer>
       <Drawer.Trigger
         data-tour={tourAnchor ? "proposal-title" : undefined}
-        className="flex w-full min-w-0 justify-start text-left outline-none sm:hidden"
+        className="flex min-w-0 flex-1 justify-start text-left outline-none sm:hidden"
       >
         <span className="block truncate text-[14px] font-bold text-black underline underline-offset-[3px]">
           {proposal.title}
@@ -409,7 +414,7 @@ function TitleTooltip({
         // 터치 화면(iPad)은 평소 이 툴팁 대신 SummaryPopover를 쓰지만, 가이드가 열어 둘 때는 이 기획안명을
         // 보이게 해 요약이 그 아래에 붙게 한다(숨긴 채로 열면 기준점이 없어 화면 왼쪽 위에 뜬다).
         className={cn(
-          "max-w-full max-sm:hidden",
+          "max-w-full min-w-0 max-sm:hidden",
           !forceOpen && "pointer-coarse:hidden",
         )}
       >
@@ -441,12 +446,20 @@ function TitleTooltip({
 function SortableHeader({
   label,
   sortDirection,
+  emphasized = false,
 }: {
   label: string;
   sortDirection?: "ascending" | "descending";
+  /** 가이드 정렬 단계 — 정렬되는 머리글만 크고 굵고 진하게. */
+  emphasized?: boolean;
 }) {
   return (
-    <span className="inline-flex items-center gap-[4px]">
+    <span
+      className={cn(
+        "inline-flex items-center gap-[4px]",
+        emphasized && "text-[14px] font-bold text-black",
+      )}
+    >
       {label}
       {sortDirection && (
         <ArrowDownIcon
@@ -485,9 +498,11 @@ export function ProposalTable({
   onOpen,
   onDownload,
   onDelete,
+  onRename,
   downloadingId,
   demoSummaryId,
   demoSummaryVisible = true,
+  emphasizeSort = false,
 }: {
   items: Proposal[];
   /** 처음 불러오거나 만들기·삭제 뒤 목록을 다시 받는 중 — 행 대신 본문 가운데에 스피너를 보인다. */
@@ -499,11 +514,15 @@ export function ProposalTable({
   onOpen: (proposal: Proposal) => void;
   onDownload: (proposal: Proposal) => void;
   onDelete: (proposal: Proposal) => void;
+  /** 기획안명 옆 수정 버튼 — 제출 완료·계약 완료는 상세처럼 바꿀 수 없어 버튼을 뺀다. */
+  onRename: (proposal: Proposal) => void;
   downloadingId: string | null;
   /** 가이드 — 이 기획안의 요약 툴팁을 열어 둔다(PC). */
   demoSummaryId?: string | null;
   /** 가이드 — 열어 둔 요약을 드러낼지(밝힌 자리가 옮겨 갈 때). */
   demoSummaryVisible?: boolean;
+  /** 가이드 정렬 단계 — 기획안명·최근 수정·제작 일시 머리글을 돋보이게. */
+  emphasizeSort?: boolean;
 }) {
   // 정렬은 하이드레이션 뒤에 켠다 — react-aria가 안드로이드에서만 칸의 aria-sort를 빼서(TalkBack 미지원),
   // 서버("none")와 갤럭시 브라우저(없음)의 첫 화면이 어긋나 하이드레이션 경고가 났다.
@@ -606,11 +625,17 @@ export function ProposalTable({
               <Table.Column className="w-[102px]">표지</Table.Column>
               <Table.Column className="w-[110px]">상태</Table.Column>
               {/* 기획안명은 폭을 정하지 않아 나머지 폭을 모두 가져간다(표는 table-fixed). */}
-              <Table.Column id="title" allowsSorting={sortable} isRowHeader>
+              <Table.Column
+                id="title"
+                allowsSorting={sortable}
+                isRowHeader
+                data-tour="proposal-sort"
+              >
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="기획안명"
                     sortDirection={sortDirection}
+                    emphasized={emphasizeSort}
                   />
                 )}
               </Table.Column>
@@ -620,24 +645,28 @@ export function ProposalTable({
               <Table.Column
                 id="updatedAt"
                 allowsSorting={sortable}
+                data-tour="proposal-sort"
                 className="w-[160px]"
               >
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="최근 수정"
                     sortDirection={sortDirection}
+                    emphasized={emphasizeSort}
                   />
                 )}
               </Table.Column>
               <Table.Column
                 id="createdAt"
                 allowsSorting={sortable}
+                data-tour="proposal-sort"
                 className="w-[160px]"
               >
                 {({ sortDirection }) => (
                   <SortableHeader
                     label="제작 일시"
                     sortDirection={sortDirection}
+                    emphasized={emphasizeSort}
                   />
                 )}
               </Table.Column>
@@ -681,25 +710,44 @@ export function ProposalTable({
                     <StatusBadge status={proposal.status} />
                   </Table.Cell>
                   <Table.Cell>
-                    <TitleTooltip
-                      proposal={proposal}
-                      tourAnchor={proposal.id === anchorId}
-                      forceOpen={proposal.id === demoSummaryId}
-                      forceVisible={demoSummaryVisible}
-                    />
-                    {/* 태블릿(sm 이상 터치 화면)은 기획안명을 누르면 같은 요약을 Popover로 띄운다.
+                    <div className="flex min-w-0 items-center gap-[8px]">
+                      <TitleTooltip
+                        proposal={proposal}
+                        tourAnchor={proposal.id === anchorId}
+                        forceOpen={proposal.id === demoSummaryId}
+                        forceVisible={demoSummaryVisible}
+                      />
+                      {/* 태블릿(sm 이상 터치 화면)은 기획안명을 누르면 같은 요약을 Popover로 띄운다.
                         버튼이라 눌러도 행 동작(기획안 열기)으로 번지지 않는다. */}
-                    <SummaryPopover
-                      proposal={proposal}
-                      suppressed={proposal.id === demoSummaryId}
-                    />
-                    {/* 모바일은 hover가 없어, 기획안명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
+                      <SummaryPopover
+                        proposal={proposal}
+                        suppressed={proposal.id === demoSummaryId}
+                      />
+                      {/* 모바일은 hover가 없어, 기획안명을 누르면 아래에서 올라오는 시트(HeroUI Drawer)로
                         담긴 매체를 크게 보여 준다(기획안은 열지 않는다). 기획안명 칸 전체가 버튼이라
                         짧은 기획안명 옆 빈 곳을 눌러도 시트만 뜬다. */}
-                    <MobileSummaryDrawer
-                      proposal={proposal}
-                      tourAnchor={proposal.id === anchorId}
-                    />
+                      <MobileSummaryDrawer
+                        proposal={proposal}
+                        tourAnchor={proposal.id === anchorId}
+                      />
+                      {isRenamable(proposal.status) && (
+                        // 상세의 기획안명 수정 버튼과 같은 아이콘. 버튼이라 눌러도 행 동작(기획안 열기)으로 번지지 않는다.
+                        <Button
+                          variant="ghost"
+                          isIconOnly
+                          aria-label="기획안명 수정"
+                          onPress={() => onRename(proposal)}
+                          className="size-auto min-w-0 shrink-0 rounded-none bg-transparent p-0 transition-opacity data-[hovered=true]:bg-transparent data-[hovered=true]:opacity-70 data-[pressed=true]:scale-100"
+                        >
+                          <Image
+                            src="/icons/proposal-detail/edit.svg"
+                            alt=""
+                            width={14}
+                            height={16.8}
+                          />
+                        </Button>
+                      )}
+                    </div>
                   </Table.Cell>
                   <Table.Cell>{proposal.mediaCount}</Table.Cell>
                   <Table.Cell>
