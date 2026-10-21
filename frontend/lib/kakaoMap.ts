@@ -38,6 +38,11 @@ export interface KakaoPolygon {
   }) => void;
 }
 
+/** 지도 click 등 마우스 이벤트 — 누른 자리 좌표. */
+export interface KakaoMouseEvent {
+  latLng: KakaoLatLng;
+}
+
 export interface KakaoPoint {
   x: number;
   y: number;
@@ -162,8 +167,16 @@ export interface KakaoMaps {
     zIndex?: number;
   }) => KakaoPolyline;
   event: {
-    addListener: (target: object, type: string, handler: () => void) => void;
-    removeListener: (target: object, type: string, handler: () => void) => void;
+    addListener: (
+      target: object,
+      type: string,
+      handler: (event?: KakaoMouseEvent) => void,
+    ) => void;
+    removeListener: (
+      target: object,
+      type: string,
+      handler: (event?: KakaoMouseEvent) => void,
+    ) => void;
   };
   services?: KakaoServices;
 }

@@ -259,6 +259,23 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         help: "지도 핀 위치입니다. 주소를 고르면 자동으로 채워집니다.",
       },
       { key: "longitude", required: "FIXED", label: "경도", type: "number" },
+      // 방향·너비는 한 칸(지도 편집기, FacingDirectionEditor)으로 그린다 — 너비(facing_spread)는 짝으로 묶어 따로 그리지 않는다.
+      {
+        key: "facing_direction",
+        label: "매체 방향",
+        type: "number",
+        min: 0,
+        max: 359,
+        pair: { key: "facing_spread", label: "매체 방향 너비" },
+        help: "매체 화면이 바라보는 쪽과 보이는 범위입니다. 매체 정보에서 주소를 누르면 뜨는 지도에 이 부채꼴 그대로 보입니다.",
+      },
+      {
+        key: "facing_spread",
+        label: "매체 방향 너비",
+        type: "number",
+        min: 10,
+        max: 360,
+      },
     ],
   },
   {

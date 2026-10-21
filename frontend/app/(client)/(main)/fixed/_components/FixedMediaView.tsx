@@ -220,10 +220,17 @@ const TOUR_STEPS: TourStep[] = [
     radius: 22,
   },
   {
+    id: "location",
+    target: "detail-location",
+    title: "위치·방향 지도",
+    body: "매체를 선택하면 상세 정보가 열려요. 주소를 누르면 지도에서 매체 위치와 바라보는 방향을 볼 수 있어요.",
+    radius: 6,
+  },
+  {
     id: "options",
     target: "detail-options",
     title: "상품·기간·제작 수",
-    body: "매체를 선택하면 상세 정보가 열려요. 상품과 개월 수, 제작 개수를 고르면 예상 비용이 바로 나와요.",
+    body: "상품과 개월 수, 제작 개수를 고르면 예상 비용이 바로 나와요.",
     radius: 18,
   },
   {
@@ -237,7 +244,7 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 const MAP_STEPS = new Set(["map-layers", "crowd-place"]);
-const DETAIL_STEPS = new Set(["options", "info"]);
+const DETAIL_STEPS = new Set(["location", "options", "info"]);
 const noop = () => {};
 
 export function FixedMediaView() {

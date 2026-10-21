@@ -144,6 +144,13 @@ export interface MediaDetail {
   oohType: string | null;
   description: string | null;
   address: string | null;
+  /** 고정 매체 좌표·방향 — 주소를 누르면 뜨는 위치 지도(이동 매체는 없음). */
+  latitude?: number | null;
+  longitude?: number | null;
+  /** 매체 화면이 바라보는 방위각(도, 북쪽 0·시계 방향). 없으면 지도에 동그라미만. */
+  facingDirection?: number | null;
+  /** 부채꼴 너비(전체 각도, 도). 없으면 기본 너비. */
+  facingSpread?: number | null;
   thumbnailUrl: string | null;
   imageUrls: string[];
   sizeText: string | null;

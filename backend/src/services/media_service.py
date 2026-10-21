@@ -1495,6 +1495,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
     ]
     # 매체 정보 팝업의 "안건" 옵션 — 기획안이 고르는 플랜과 같은 범위(전체 플랜, plan_no 순).
     # 프론트가 "[1안] 영상 20초, 100회, 1개월 10,000,000원"처럼 이어 붙인다.
+    fixed = m.media_source != "MOVING"
     plan_options = [
         dict(
             planNo=p.plan_no,
@@ -1531,6 +1532,11 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         description=m.description,
         # 이동매체는 정해진 위치가 없어 운행 지역을 위치 자리에 보여 준다.
         address=area["label"] if area else _display_address(m),
+        # 위치 지도는 고정 매체만 — 이동 매체는 정해진 자리가 없다.
+        latitude=float(m.latitude) if fixed and m.latitude is not None else None,
+        longitude=float(m.longitude) if fixed and m.longitude is not None else None,
+        facingDirection=m.facing_direction if fixed else None,
+        facingSpread=m.facing_spread if fixed else None,
         thumbnailUrl=m.thumbnail_url,
         imageUrls=[img.image_url for img in m.images],
         sizeText=_size_text(m),

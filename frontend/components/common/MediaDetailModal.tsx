@@ -10,8 +10,9 @@ import {
   Tabs,
   ToggleButton,
 } from "@heroui/react";
+import { MousePointerClick } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { formatAdFee } from "@/lib/media";
 import {
@@ -41,6 +42,7 @@ import { MovingChip } from "@/components/common/MovingChip";
 import { SkeletonLoading } from "@/components/common/SkeletonLoading";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
+import { MediaLocationMapModal } from "./media-detail/MediaLocationMapModal";
 import {
   DEFAULT_MEDIA_OPTIONS,
   isOohMedia,
@@ -150,6 +152,7 @@ export function MediaDetailModal({
                 <MediaDetailBody
                   vm={vm}
                   options={{ value: options, onChange: setOptions }}
+                  locationHint
                 />
               ) : (
                 <MediaDetailSkeleton />
@@ -285,6 +288,80 @@ type OptionsControl = {
   onChange: (next: MediaOptionsValue) => void;
 };
 
+// 위치 말풍선 — 팝업이 자리 잡은 뒤 띄우고, 잠깐 보여 준 뒤 저절로 닫는다.
+const LOCATION_HINT_DELAY_MS = 400;
+const LOCATION_HINT_SHOW_MS = 3000;
+
+/**
+ * 매체 정보 팝업을 열면 주소를 가리키며 "눌러서 매체 위치와 방향을 확인해 보세요"를 잠깐 띄운다 — 주소를 누르면
+ * 위치 지도가 뜬다는 걸 알린다. 담기 알림 말풍선(ProposalCallout)과 같은 어두운 모양이고, 화면을 막지 않는다
+ * (isNonModal). 3초 뒤나 아무 데나 누르면 닫히고, 말풍선을 누르면 지도를 연다.
+ */
+function LocationHintCallout({
+  triggerRef,
+  onPress,
+}: {
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  onPress: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const show = window.setTimeout(() => setOpen(true), LOCATION_HINT_DELAY_MS);
+    const hide = window.setTimeout(
+      () => setOpen(false),
+      LOCATION_HINT_DELAY_MS + LOCATION_HINT_SHOW_MS,
+    );
+    return () => {
+      window.clearTimeout(show);
+      window.clearTimeout(hide);
+    };
+  }, []);
+
+  // 아무 데나 누르면 닫는다(말풍선 자체를 누른 건 onPress 가 받는다).
+  const calloutRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (calloutRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [open]);
+
+  return (
+    <Popover isOpen={open} onOpenChange={setOpen}>
+      <Popover.Content
+        triggerRef={triggerRef}
+        isNonModal
+        placement="bottom start"
+        offset={10}
+        className="max-w-[min(320px,calc(100vw-24px))] rounded-[20px] border-0 bg-scrim/75 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] backdrop-blur-[8px] [&_[data-slot=popover-overlay-arrow]]:fill-scrim/75"
+      >
+        <Popover.Arrow />
+        <button
+          ref={calloutRef}
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onPress();
+          }}
+          className="flex items-center gap-[6px] px-[14px] py-[10px] text-left outline-none"
+        >
+          <MousePointerClick
+            aria-hidden
+            className="size-[15px] shrink-0 text-white/80"
+          />
+          <span className="text-[13px] font-medium break-keep text-white">
+            눌러서 매체 위치와 방향을 확인해 보세요
+          </span>
+        </button>
+      </Popover.Content>
+    </Popover>
+  );
+}
+
 /**
  * options가 있으면(매체 정보 팝업) 상품·개월 수·제작 수를 고르고 가격 칸이 그 금액으로 바뀐다.
  * 없으면(기획안 슬라이드 자리 등) 기존처럼 단가만 보여 준다.
@@ -292,9 +369,12 @@ type OptionsControl = {
 function MediaDetailBody({
   vm,
   options,
+  locationHint = false,
 }: {
   vm: MediaDetailViewModel;
   options?: OptionsControl;
+  /** 열자마자 주소에 "눌러서 매체 위치와 방향을 확인해 보세요" 말풍선을 잠깐 띄운다(매체 정보 팝업만). */
+  locationHint?: boolean;
 }) {
   const specs: [string, string][] = [
     ...vm.features.filter(([label]) => !SPEC_EXCLUDED_LABELS.has(label)),
@@ -303,6 +383,9 @@ function MediaDetailBody({
 
   // 모바일 크게 보기 — 연 장 번호(닫혀 있으면 null). PC는 ImageGallery 가 따로 연다.
   const [mobileLightbox, setMobileLightbox] = useState<number | null>(null);
+  // 주소를 누르면 여는 위치 지도.
+  const [mapOpen, setMapOpen] = useState(false);
+  const addressRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
@@ -340,17 +423,51 @@ function MediaDetailBody({
             </p>
           </div>
 
-          <div className="flex items-center gap-[3px]">
-            {/* 이동 매체는 주소 대신 운행 지역이라 목록 카드처럼 "이동" 칩을 앞에 붙인다. */}
-            {vm.isMoving ? (
-              <MovingChip className="mr-[2px]" />
-            ) : (
-              <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
-            )}
-            <span className="text-[12px] text-tone-6c757d">
-              {vm.address ?? "-"}
-            </span>
-          </div>
+          {/* 좌표가 있는 고정 매체는 주소를 누르면 위치 지도(매체 자리·방향)를 띄운다. */}
+          {vm.location ? (
+            // data-tour — 매체 찾기 가이드 "위치·방향 지도" 단계가 밝히는 자리.
+            <button
+              ref={addressRef}
+              type="button"
+              data-tour="detail-location"
+              onClick={() => setMapOpen(true)}
+              className="group flex items-center gap-[3px] text-left"
+            >
+              <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d group-hover:text-black" />
+              <span className="text-[12px] text-tone-6c757d underline underline-offset-2 group-hover:text-black">
+                {vm.address ?? "지도에서 위치 보기"}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-[3px]">
+              {/* 이동 매체는 주소 대신 운행 지역이라 목록 카드처럼 "이동" 칩을 앞에 붙인다. */}
+              {vm.isMoving ? (
+                <MovingChip className="mr-[2px]" />
+              ) : (
+                <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
+              )}
+              <span className="text-[12px] text-tone-6c757d">
+                {vm.address ?? "-"}
+              </span>
+            </div>
+          )}
+          {locationHint && vm.location && (
+            <LocationHintCallout
+              triggerRef={addressRef}
+              onPress={() => setMapOpen(true)}
+            />
+          )}
+          {mapOpen && vm.location && (
+            <MediaLocationMapModal
+              name={vm.name}
+              address={vm.address}
+              lat={vm.location.lat}
+              lng={vm.location.lng}
+              direction={vm.location.direction}
+              spread={vm.location.spread}
+              onClose={() => setMapOpen(false)}
+            />
+          )}
 
           {(vm.categoryLarge || vm.salesType) && (
             <div className="flex items-center gap-[10px]">
@@ -1072,9 +1189,7 @@ function GenderRatio({
             <span
               className={cn(
                 "w-[28px] text-right text-[12px] leading-[1.4]",
-                g.top
-                  ? "font-bold text-zinc-900"
-                  : "font-medium text-zinc-500",
+                g.top ? "font-bold text-zinc-900" : "font-medium text-zinc-500",
               )}
             >
               {g.pct}%
@@ -1123,9 +1238,7 @@ function AgeRatio({
               )}
               <span
                 className={
-                  top
-                    ? "font-bold text-zinc-900"
-                    : "font-medium text-zinc-500"
+                  top ? "font-bold text-zinc-900" : "font-medium text-zinc-500"
                 }
               >
                 {Math.round(age.value)}%

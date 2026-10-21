@@ -65,6 +65,8 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
             ("address_detail", "상세 주소", None),
             ("latitude", "위도", None),
             ("longitude", "경도", None),
+            ("facing_direction", "매체 방향(도, 북 0·동 90)", None),
+            ("facing_spread", "매체 방향 너비(도)", None),
             ("moving_location_detail", "노선·운행 설명 (이동)", None),
         ],
     ),

@@ -55,6 +55,13 @@ export type MediaDetailViewModel = {
   badge: "popular" | "new" | null;
   description?: string;
   address?: string;
+  /** 주소를 누르면 뜨는 위치 지도 — 좌표가 있는 고정 매체만. */
+  location?: {
+    lat: number;
+    lng: number;
+    direction: number | null;
+    spread: number | null;
+  };
   imageUrl: string | null;
   images: string[];
   sizeText: string | null;
@@ -138,6 +145,15 @@ export function toMediaDetailViewModel(
     badge: detail.badge,
     description: detail.description ?? undefined,
     address: detail.address ?? undefined,
+    location:
+      detail.latitude != null && detail.longitude != null
+        ? {
+            lat: detail.latitude,
+            lng: detail.longitude,
+            direction: detail.facingDirection ?? null,
+            spread: detail.facingSpread ?? null,
+          }
+        : undefined,
     imageUrl: detail.thumbnailUrl ?? detail.imageUrls[0] ?? null,
     images,
     sizeText: detail.sizeText,

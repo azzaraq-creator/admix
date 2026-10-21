@@ -48,6 +48,11 @@ const DEMO_DETAIL: MediaDetail = {
   description:
     "강남역 11번 출구 앞 사거리 건물 옥상에 있는 대형 빌보드예요. 강남대로를 오가는 차량과 보행자 모두에게 크게 보여요. (가이드용 예시 매체)",
   address: DEMO_ADDRESS,
+  // 좌표가 있어야 주소에 밑줄이 생긴다(누르면 위치·방향 지도) — 가이드 "위치·방향 지도" 단계가 밝힌다.
+  latitude: 37.4979,
+  longitude: 127.0276,
+  facingDirection: 315,
+  facingSpread: 90,
   thumbnailUrl: DEMO_IMAGE,
   imageUrls: [],
   // 매체 정보 칸은 아래 네 줄만(sizeText가 있으면 "매체 크기" 칸이 하나 더 붙어 비운다).

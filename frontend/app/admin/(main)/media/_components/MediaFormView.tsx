@@ -38,6 +38,7 @@ import {
   HeroTagMulti,
 } from "./heroFields";
 import { AiTagsPreview, AutoTargets } from "./AiTagsPreview";
+import { FacingDirectionEditor } from "./FacingDirectionEditor";
 import { GradeSurvey } from "./GradeSurvey";
 import {
   computeSurveyScore,
@@ -1059,6 +1060,29 @@ function MediaForm({
     normalizeTime(allValues.operation_end_time ?? "") ?? "",
   );
 
+  // 매체 방향 — 위치 좌표 지도에서 부채꼴을 보며 방향·너비를 정한다.
+  const renderFacingDirection = (disabled: boolean) => {
+    const lat = Number(allValues[ADDRESS_KEYS.latitude]);
+    const lng = Number(allValues[ADDRESS_KEYS.longitude]);
+    const hasCoords =
+      (allValues[ADDRESS_KEYS.latitude] ?? "") !== "" &&
+      (allValues[ADDRESS_KEYS.longitude] ?? "") !== "" &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng);
+    const markDirty = { shouldDirty: true };
+    return (
+      <FacingDirectionEditor
+        lat={hasCoords ? lat : null}
+        lng={hasCoords ? lng : null}
+        direction={allValues.facing_direction ?? ""}
+        spread={allValues.facing_spread ?? ""}
+        onDirectionChange={(v) => setValue("facing_direction", v, markDirty)}
+        onSpreadChange={(v) => setValue("facing_spread", v, markDirty)}
+        disabled={disabled}
+      />
+    );
+  };
+
   const renderField = (f: MediaFieldDef, disabled = false) => {
     // 짝의 둘째 칸(세로)은 첫째 칸 안에 함께 그린다.
     if (PAIRED_KEYS.has(f.key)) return null;
@@ -1084,12 +1108,15 @@ function MediaForm({
           f.type === "multiselect" ||
           f.key === "ai_tags_preview" ||
           f.key === "popularity_summary" ||
-          f.key === "grade_survey"
+          f.key === "grade_survey" ||
+          f.key === "facing_direction"
         }
       >
-        {f.pair
-          ? renderPairControl({ ...f, pair: f.pair })
-          : renderControl(f, disabled)}
+        {f.key === "facing_direction"
+          ? renderFacingDirection(disabled)
+          : f.pair
+            ? renderPairControl({ ...f, pair: f.pair })
+            : renderControl(f, disabled)}
         {f.key === "is_newly_built_yn" && (
           <NewBadgeStatus
             value={allValues[f.key] ?? ""}

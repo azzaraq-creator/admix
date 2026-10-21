@@ -131,6 +131,10 @@ class Media(Base):
     description = Column(Text, nullable=True)
     markers_vo = Column(JSONB(none_as_null=True), nullable=True)
     properties_type = Column(String(50), nullable=True)
+    # 매체 방향 — 매체 화면이 바라보는 방위각(도, 북쪽 0·시계 방향)과 부채꼴 너비(전체 각도, 도).
+    # 매체 정보 팝업 위치 지도의 부채꼴. 너비가 비면 기본 너비.
+    facing_direction = Column(Integer, nullable=True)
+    facing_spread = Column(Integer, nullable=True)
     road_view_heading = Column(Numeric, nullable=True)
     road_view_latitude = Column(Numeric, nullable=True)
     road_view_longitude = Column(Numeric, nullable=True)
