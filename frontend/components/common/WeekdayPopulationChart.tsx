@@ -29,7 +29,7 @@ function compact(value: number): string {
   return value.toLocaleString();
 }
 
-/** 마우스를 올린 요일 — 흰 팝업 위라 검정 바탕으로. "하루 평균"은 제목 옆에 있어 요일·숫자만. */
+/** 마우스를 올린 요일 — 흰 팝업 위라 검정 바탕으로(다크 모드에서도 뒤집히지 않게 고정 색). "하루 평균"은 제목 옆에 있어 요일·숫자만. */
 function DarkTooltip({
   active,
   payload,
@@ -37,7 +37,7 @@ function DarkTooltip({
 }: Partial<TooltipContentProps<ValueType, NameType>>) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[8px] bg-zinc-900/90 px-[10px] py-[6px] text-[12px] leading-[1.4] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+    <div className="rounded-[8px] bg-[#18181b]/90 px-[10px] py-[6px] text-[12px] leading-[1.4] shadow-[0_4px_12px_rgba(0,0,0,0.18)] dark:ring-1 dark:ring-white/10">
       <p className="font-medium text-white/60">{label}요일</p>
       <p className="font-semibold text-white">
         {Number(payload[0].value).toLocaleString()}명
