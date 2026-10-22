@@ -298,26 +298,13 @@ export function FixedMediaView() {
   const crowdGray = useCrowdGraySetting();
   const trafficOn = useTrafficSetting();
   // "유동인구" 층 — 켜기는 지도 스위치(MapArea), 조건 창·칩은 검색 줄 아래(MediaFindPanel).
-  const popGridState = usePopGridState();
-  // 실시간 인구와 유동인구는 함께 켜지 않는다 — 둘 다 칸·장소를 눌러 카드·시트를 띄워 서로 겹친다(도로 현황은 함께 가능).
-  const popGrid = {
-    ...popGridState,
-    toggle: (on: boolean) => {
-      if (on) setCrowdSetting(false);
-      popGridState.toggle(on);
-    },
-  };
+  const popGrid = usePopGridState();
   // 지도 영역은 실시간 인구·교통을 켰을 때만 상태로 둔다 — 꺼 둔 채로 지도를 옮기거나 확대·축소할 때마다
   // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다. 줌 단계만은 버튼을 보일지
   // 정하는 데 늘 필요해서 따로 두고, 값이 바뀔 때만 다시 그린다.
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
   const [mapZoom, setMapZoom] = useState<number | null>(null);
-  // 예전에 둘 다 켜 둔 브라우저 — 유동인구를 남기고 실시간 인구를 끈다.
-  useEffect(() => {
-    if (popGrid.on && crowdOn) setCrowdSetting(false);
-  }, [popGrid.on, crowdOn]);
   const toggleCrowd = (on: boolean) => {
-    if (on && popGrid.on) popGrid.toggle(false);
     setCrowdSetting(on);
     if (on) setCrowdBounds(lastViewportRef.current);
   };
