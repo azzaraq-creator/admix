@@ -30,6 +30,7 @@ export interface KakaoCustomOverlay {
 
 export interface KakaoPolygon {
   setMap: (map: KakaoMap | null) => void;
+  setPath: (path: KakaoLatLng[]) => void;
   setOptions: (options: {
     strokeWeight?: number;
     strokeOpacity?: number;

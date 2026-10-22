@@ -49,6 +49,7 @@ import {
 } from "./guideDemo";
 import { MarkerMediaPopup } from "./MarkerMediaPopup";
 import { MediaFindPanel } from "./MediaFindPanel";
+import { usePopGridState } from "./PopGridLayer";
 import { replaceQuery } from "./replaceQuery";
 
 /** 지도 마커 → 매체 찾기 카드 행. 팝업을 목록과 같은 카드로 그리기 위한 변환. */
@@ -296,12 +297,27 @@ export function FixedMediaView() {
   const crowdOn = useCrowdSetting();
   const crowdGray = useCrowdGraySetting();
   const trafficOn = useTrafficSetting();
+  // "유동인구" 층 — 켜기는 지도 스위치(MapArea), 조건 창·칩은 검색 줄 아래(MediaFindPanel).
+  const popGridState = usePopGridState();
+  // 실시간 인구와 유동인구는 함께 켜지 않는다 — 둘 다 칸·장소를 눌러 카드·시트를 띄워 서로 겹친다(도로 현황은 함께 가능).
+  const popGrid = {
+    ...popGridState,
+    toggle: (on: boolean) => {
+      if (on) setCrowdSetting(false);
+      popGridState.toggle(on);
+    },
+  };
   // 지도 영역은 실시간 인구·교통을 켰을 때만 상태로 둔다 — 꺼 둔 채로 지도를 옮기거나 확대·축소할 때마다
   // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다. 줌 단계만은 버튼을 보일지
   // 정하는 데 늘 필요해서 따로 두고, 값이 바뀔 때만 다시 그린다.
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
   const [mapZoom, setMapZoom] = useState<number | null>(null);
+  // 예전에 둘 다 켜 둔 브라우저 — 유동인구를 남기고 실시간 인구를 끈다.
+  useEffect(() => {
+    if (popGrid.on && crowdOn) setCrowdSetting(false);
+  }, [popGrid.on, crowdOn]);
   const toggleCrowd = (on: boolean) => {
+    if (on && popGrid.on) popGrid.toggle(false);
     setCrowdSetting(on);
     if (on) setCrowdBounds(lastViewportRef.current);
   };
@@ -564,6 +580,7 @@ export function FixedMediaView() {
         onRequestMapMove={handleRequestMapMove}
         getViewport={() => lastViewportRef.current}
         onHoverArea={setHoverArea}
+        popGrid={popGrid}
         mapSlot={
           <MapArea
             markers={markers}
@@ -616,11 +633,13 @@ export function FixedMediaView() {
             crowd={
               mapStep && demoCrowd
                 ? demoCrowd
-                : // 넓게 보거나(레벨 8 이상) 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
-                  !crowdZoomOk || crowdData?.enabled === false
+                : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다. 넓게 볼 때(레벨 8 이상)는 장소가 너무
+                  // 많아 겹쳐서 끄되, 유동인구 스위치와 함께 묶음에 남아 있으니 흐리게 두고 이유를 알린다.
+                  crowdData?.enabled === false
                   ? undefined
                   : {
-                      on: crowdOn,
+                      on: crowdOn && crowdZoomOk,
+                      disabled: !crowdZoomOk,
                       onToggle: toggleCrowd,
                       gray: crowdGray,
                       onToggleGray: setCrowdGraySetting,
@@ -628,14 +647,19 @@ export function FixedMediaView() {
                       loading: !crowdData || crowdData.pending > 0,
                     }
             }
+            // 가이드 중에는 스위치를 숨긴다 — 가이드가 밝히는 스위치 묶음 모양이 달라지지 않게.
+            popGrid={mapStep ? undefined : popGrid}
+            // 가이드가 지도 스위치 묶음을 밝히는 동안 모바일에서도 펼쳐 둔다.
+            forceLayersOpen={!!mapStep}
             traffic={
               mapStep
                 ? demoTraffic
-                : // 실시간 인구와 같은 서울시 주요 장소 기준이라, 넓게 보거나 키가 없으면 같이 숨긴다.
-                  !crowdZoomOk || trafficData?.enabled === false
+                : // 실시간 인구와 같은 기준 — 키가 없으면 숨기고, 넓게 볼 땐 흐리게.
+                  trafficData?.enabled === false
                   ? undefined
                   : {
-                      on: trafficOn,
+                      on: trafficOn && crowdZoomOk,
+                      disabled: !crowdZoomOk,
                       onToggle: toggleTraffic,
                       links: trafficData?.links ?? [],
                       // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.

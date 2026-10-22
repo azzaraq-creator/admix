@@ -32,6 +32,7 @@ export { FilterChip };
 import { replaceQuery } from "./replaceQuery";
 import { MediaFindCard, MediaFindCardSkeleton } from "./MediaFindCard";
 import { MediaFindTopBar } from "./MediaFindTopBar";
+import { PopGridPanel, type PopGridState } from "./PopGridLayer";
 import { DEFAULT_MEDIA_SORT, type MediaSortKey } from "./MediaSortSelect";
 import {
   searchPlaces,
@@ -138,6 +139,7 @@ export function MediaFindPanel({
   onRequestMapMove,
   getViewport,
   onHoverArea,
+  popGrid,
   demo,
 }: {
   /** 지도 영역 — 데이터는 onMapData로 올려보내고 엘리먼트는 부모가 내려준다. */
@@ -164,6 +166,8 @@ export function MediaFindPanel({
   } | null;
   /** 이동매체 카드에 마우스를 올리면 그 운행 지역, 떼면 null — 지도에 영역으로 그린다. */
   onHoverArea?: (area: OperatingArea | null) => void;
+  /** "유동인구" 층 — 위쪽 줄 버튼으로 조건 창을 열고, 켜져 있으면 칩 줄에 지금 조건을 보여 준다. */
+  popGrid?: PopGridState;
   /**
    * 가이드 — 예시 매체 카드를 목록 맨 위에 두고, view를 주면 목록/지도 보기를 그쪽으로 맞춘다
    * (모바일은 한 번에 하나만 보여서 지도 단계에선 지도로). 가이드가 끝나면 원래 보기로 돌아간다.
@@ -647,6 +651,13 @@ export function MediaFindPanel({
           }
         />
 
+        {popGrid?.on && !filterOpen && (
+          // 유동인구 카드(PC) — 검색 줄 아래 오른쪽(지도 쪽). 켜 둔 동안 늘 떠 있고, 제목 줄로 조건을 접고 펼친다.
+          // 필터 창을 여는 동안은 같은 자리라 내린다. 모바일은 지도 위 "유동인구" 버튼 → 시트(MapArea).
+          <div className="absolute top-[calc(100%+10px)] right-0 z-30 w-[420px] max-sm:hidden">
+            <PopGridPanel state={popGrid} />
+          </div>
+        )}
         {filterOpen && (
           <div className="absolute inset-x-0 top-[calc(100%+10px)] z-30">
             <MediaFilterPanel

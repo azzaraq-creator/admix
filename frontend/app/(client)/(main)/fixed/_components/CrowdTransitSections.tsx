@@ -104,7 +104,7 @@ function ShareBar({
   color: string;
 }) {
   return (
-    <div className="h-[4px] w-full overflow-hidden rounded-full bg-tone-f1f1f4">
+    <div className="h-[4px] w-full overflow-hidden rounded-full bg-zinc-900/[0.07] dark:bg-white/10">
       <div
         className="h-full rounded-full"
         style={{
@@ -129,7 +129,7 @@ function SectionHeader({
         {title}
       </h3>
       {date && (
-        <span className="rounded-full bg-zinc-100 px-[8px] py-[2px] text-[11px] leading-[14px] font-medium text-zinc-500">
+        <span className="text-[11px] leading-[14px] font-medium text-zinc-600 dark:text-[#b4b5bf]">
           {dayLabel(date)} 하루
         </span>
       )}
@@ -165,7 +165,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
       <section className="flex flex-col gap-[10px]">
         <SectionHeader title="지하철" date={subway.date} />
         {subway.stations.length === 0 ? (
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-zinc-600 dark:text-[#b4b5bf]">
             이 범위엔 지하철역이 없어요.
           </p>
         ) : (
@@ -195,7 +195,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                     max={subwayMax}
                     color={badges[0]?.color ?? "#8b90a7"}
                   />
-                  <span className="text-[11px] leading-[14px] text-zinc-500 tabular-nums">
+                  <span className="text-[11px] leading-[14px] text-zinc-600 dark:text-[#b4b5bf] tabular-nums">
                     승차 {formatCount(s.ride)} · 하차 {formatCount(s.alight)}
                   </span>
                 </li>
@@ -205,12 +205,12 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
         )}
       </section>
 
-      <div className="h-px w-full bg-tone-f1f1f4" />
+      <div className="h-px w-full bg-zinc-900/5 dark:bg-white/10" />
 
       <section className="flex flex-col gap-[10px]">
         <SectionHeader title="버스" date={bus.date} />
         {bus.stopCount === 0 ? (
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-zinc-600 dark:text-[#b4b5bf]">
             이 범위엔 버스정류장이 없어요.
           </p>
         ) : (
@@ -233,9 +233,9 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
               ].map(({ label, value }) => (
                 <div
                   key={label}
-                  className="flex flex-col items-center gap-[1px] rounded-[10px] bg-tone-f7f7f8 py-[7px]"
+                  className="flex flex-col items-center gap-[1px] rounded-[10px] bg-zinc-900/[0.05] py-[7px] dark:bg-white/[0.07]"
                 >
-                  <span className="text-[10px] leading-[14px] text-zinc-500">
+                  <span className="text-[10px] leading-[14px] text-zinc-600 dark:text-[#b4b5bf]">
                     {label}
                   </span>
                   <span className="text-[13px] leading-[18px] font-bold text-zinc-900">
@@ -244,7 +244,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                 </div>
               ))}
             </div>
-            <p className="text-[11px] leading-[14px] font-medium text-zinc-500">
+            <p className="text-[11px] leading-[14px] font-medium text-zinc-600 dark:text-[#b4b5bf]">
               많이 타고 내리는 정류장
             </p>
             <ol className="flex flex-col gap-[10px]">
@@ -264,7 +264,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                       <span className="min-w-0 truncate text-[12px] leading-[17px] font-semibold text-zinc-800">
                         {stop.name}
                         {stop.arsNo && (
-                          <span className="ml-[4px] text-[10px] font-medium text-zinc-400">
+                          <span className="ml-[4px] text-[10px] font-medium text-zinc-500 dark:text-[#a4a5af]">
                             {stop.arsNo}
                           </span>
                         )}
@@ -287,7 +287,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
         )}
       </section>
 
-      <p className="text-[10px] leading-[14px] text-zinc-400">
+      <p className="text-[10px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
         서울시 교통카드 승하차 통계(장소 범위와 주변 200m) · 서울시가 사흘쯤
         뒤에 공개해 가장 최근 날 기준
       </p>
