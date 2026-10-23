@@ -852,7 +852,7 @@ export function PopGridLayer({
     y: number;
   } | null>(null);
   // 모바일 — 칸을 눌러 팝오버를 띄웠는지(자리는 지도 아래쪽 고정). 지도를 움직이면 닫는다.
-  // place 가 있으면 누른 자리에 실시간 인구 장소도 겹쳐 있어 먼저 둘 중 볼 것을 고르게 한다.
+  // place 가 있으면 누른 자리에 실시간 인구 장소도 겹쳐 있어 먼저 둘 중 볼 것을 고르게 한다(인구 분포를 고르면 바로 시트).
   const [tap, setTap] = useState<{
     x: number;
     y: number;
@@ -935,7 +935,10 @@ export function PopGridLayer({
           kind="인구 분포"
           title={`${cells[sel][1]} ${cells[sel][2]}`}
           detail={v != null ? rankText(rank(v)) : "자료 없음"}
-          onClick={() => setTap({ ...tap, place: null })}
+          onClick={() => {
+            setTap(null);
+            state.setSheetOpen(true);
+          }}
         />
       </div>
     );
