@@ -49,7 +49,7 @@ import {
 } from "./guideDemo";
 import { MarkerMediaPopup } from "./MarkerMediaPopup";
 import { MediaFindPanel } from "./MediaFindPanel";
-import { usePopGridState } from "./PopGridLayer";
+import { useGuidePopGrid, usePopGridState } from "./PopGridLayer";
 import { replaceQuery } from "./replaceQuery";
 
 /** 지도 마커 → 매체 찾기 카드 행. 팝업을 목록과 같은 카드로 그리기 위한 변환. */
@@ -117,7 +117,7 @@ function roundCoord(v: number): string {
 }
 
 const CROWD_STORAGE_KEY = "admix.map.crowd";
-// 실시간 인구를 켰을 때 범위 밖을 흑백으로 — 기본은 켬("0"으로 꺼 둔 경우만 끔).
+// 실시간 인구를 켰을 때 범위 밖을 흑백으로 — 기본은 끔("1"로 켜 둔 경우만 켬).
 const CROWD_GRAY_STORAGE_KEY = "admix.map.crowd-gray";
 const CROWD_EVENT = "admix:crowd-setting";
 
@@ -142,7 +142,7 @@ function setCrowdSetting(on: boolean) {
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
-/** "흑백" 켜 둔 상태 — 실시간 인구와 같이 이 브라우저에 기억한다. 기본은 켬. */
+/** "흑백" 켜 둔 상태 — 실시간 인구와 같이 이 브라우저에 기억한다. 기본은 끔. */
 function useCrowdGraySetting(): boolean {
   return useSyncExternalStore(
     (onChange) => {
@@ -153,8 +153,8 @@ function useCrowdGraySetting(): boolean {
         window.removeEventListener("storage", onChange);
       };
     },
-    () => window.localStorage.getItem(CROWD_GRAY_STORAGE_KEY) !== "0",
-    () => true,
+    () => window.localStorage.getItem(CROWD_GRAY_STORAGE_KEY) === "1",
+    () => false,
   );
 }
 
@@ -163,7 +163,7 @@ function setCrowdGraySetting(on: boolean) {
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
-// 실시간 인구 장소 이름표를 보일지 — 끄면 범위 색만 남아 아래 격자·매체 핀을 가리지 않는다. 기본은 켬.
+// 실시간 인구 장소 이름표를 보일지 — 끄면 범위 색만 남아 아래 격자·매체 핀을 가리지 않는다. 기본은 끔.
 const CROWD_LABELS_STORAGE_KEY = "admix.map.crowd-labels";
 
 function useCrowdLabelsSetting(): boolean {
@@ -176,8 +176,8 @@ function useCrowdLabelsSetting(): boolean {
         window.removeEventListener("storage", onChange);
       };
     },
-    () => window.localStorage.getItem(CROWD_LABELS_STORAGE_KEY) !== "0",
-    () => true,
+    () => window.localStorage.getItem(CROWD_LABELS_STORAGE_KEY) === "1",
+    () => false,
   );
 }
 
@@ -221,11 +221,35 @@ const TOUR_STEPS: TourStep[] = [
     radius: 26,
   },
   {
+    id: "pop-grid",
+    target: ["pop-panel", "pop-mobile"],
+    targetAll: true,
+    title: "인구 분포 (서울)",
+    body: "지도 왼쪽 위 인구 분포를 켜면 서울을 250m 칸으로 나눠 사람이 많은 곳일수록 진하게 칠해요. 이 카드에서 자료·연도·월·시간대·성별·연령을 골라요.",
+    mobileBody:
+      "지도 표시에서 인구 분포를 켜면 서울을 250m 칸으로 나눠 사람이 많은 곳일수록 진하게 칠해요. 아래 버튼을 누르면 자료·기간·시간대·성별·연령을 골라요.",
+    radius: 26,
+  },
+  {
+    id: "pop-cell",
+    // PC는 칸 정보 카드, 모바일은 지도의 그 칸 자리(팝오버 없이).
+    target: ["pop-cell", "pop-cell-map"],
+    title: "칸별 인구",
+    body: "지도에서 칸을 누르면 그 칸의 인구와 서울 안 순위, 월별 변화가 보여요.",
+    mobileBody:
+      "지도에서 칸을 누르면 그 칸의 인구와 서울 안 순위, 월별 변화가 보여요. 자세히 보기를 누르면 조건도 바꿀 수 있어요.",
+    radius: 24,
+  },
+  {
     id: "map-layers",
-    target: "map-layers",
-    title: "실시간 인구·흑백·도로 현황",
-    body: "장소별 혼잡도와 도로 소통 상태를 지도에서 봐요. 흑백은 붐비는 곳을 돋보이게 해요.",
+    target: "map-realtime",
+    targetAll: true,
+    title: "실시간 인구·흑백·장소명·도로 현황",
+    body: "장소별 혼잡도와 도로 소통 상태를 지도에서 봐요. 흑백은 붐비는 곳을 돋보이게 하고, 장소명을 끄면 이름표 없이 구역 색만 남아요.",
     radius: 21,
+    // 모바일은 스위치 상자가 작아 밝힌 자리를 넉넉히.
+    mobilePadding: 14,
+    mobileRadius: 29,
   },
   {
     id: "crowd-place",
@@ -266,6 +290,7 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 const MAP_STEPS = new Set(["map-layers", "crowd-place"]);
+const POP_STEPS = new Set(["pop-grid", "pop-cell"]);
 const DETAIL_STEPS = new Set(["location", "options", "info"]);
 const noop = () => {};
 
@@ -530,6 +555,8 @@ export function FixedMediaView() {
       setSelectedMedia(null);
       setAddProposal(null);
       closePopup();
+      // 가이드 지도 단계에서 지금 보이는 영역의 실제 실시간 인구 장소를 함께 보여 주려고 영역을 잡아 둔다.
+      setCrowdBounds(lastViewportRef.current);
     },
   });
   const tourStep = useActivePageTourStep();
@@ -537,19 +564,45 @@ export function FixedMediaView() {
   const shownStep = useShownPageTourStep();
   const touring = tourStep != null;
   const mapStep = touring && MAP_STEPS.has(tourStep);
+  // 인구 분포 단계 — 켠 것처럼 보이는 예시 상태(진짜 켜짐·조건은 그대로). 모바일은 지도로 바꾼다.
+  const popStep = touring && POP_STEPS.has(tourStep);
+  const shownPop = useGuidePopGrid(
+    popGrid,
+    !touring
+      ? null
+      : tourStep === "pop-cell"
+        ? "cell"
+        : popStep
+          ? "conditions"
+          : mapStep
+            ? "off"
+            : null,
+  );
+  // 지도 단계(인구 분포·실시간 인구) — 실시간 인구·도로 현황은 예시로 바꿔 둔다.
+  const mapGuide = mapStep || popStep;
   // 예시 장소는 가이드를 열 때 한 번 만든다(기준 시각 = 지금).
   const demoPlace = useMemo(
     () =>
       touring ? { place: guideDemoPlace(), transit: guideDemoTransit() } : null,
     [touring],
   );
+  // 가이드 지도 단계 — 예시 장소(강남역) 말고도 화면 안 실제 장소들을 함께 그린다(실시간 인구를 꺼 둔 사람도).
+  const { data: guideCrowdData } = useMediaCrowd(crowdBounds, mapGuide);
   const demoCrowd = demoPlace && {
-    // 실시간 인구·흑백은 밝힌 자리가 지도 위 스위치로 옮겨 갈 때 켠다.
+    // 실시간 인구는 밝힌 자리가 지도 위 스위치로 옮겨 갈 때 켠다.
     on: shownStep != null && MAP_STEPS.has(shownStep),
     onToggle: noop,
-    gray: true,
+    // 가이드에선 실시간 인구만 켠 모습 — 흑백·장소명은 꺼 둔다.
+    gray: false,
     onToggleGray: noop,
-    places: [demoPlace.place],
+    labels: false,
+    onToggleLabels: noop,
+    places: [
+      demoPlace.place,
+      ...(guideCrowdData?.places ?? []).filter(
+        (pl) => pl.code !== demoPlace.place.code,
+      ),
+    ],
     loading: false,
   };
   const demoTraffic = { on: false, onToggle: noop, links: [], loading: false };
@@ -562,7 +615,7 @@ export function FixedMediaView() {
           touring
             ? {
                 row: GUIDE_DEMO_ROW,
-                view: mapStep && !isDesktop ? "map" : "list",
+                view: mapGuide && !isDesktop ? "map" : "list",
               }
             : null
         }
@@ -579,7 +632,7 @@ export function FixedMediaView() {
         onRequestMapMove={handleRequestMapMove}
         getViewport={() => lastViewportRef.current}
         onHoverArea={setHoverArea}
-        popGrid={popGrid}
+        popGrid={shownPop}
         mapSlot={
           <MapArea
             markers={markers}
@@ -630,7 +683,7 @@ export function FixedMediaView() {
                 : null
             }
             crowd={
-              mapStep && demoCrowd
+              mapGuide && demoCrowd
                 ? demoCrowd
                 : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
                   crowdData?.enabled === false
@@ -646,12 +699,12 @@ export function FixedMediaView() {
                       loading: !crowdData || crowdData.pending > 0,
                     }
             }
-            // 가이드 중에는 스위치를 숨긴다 — 가이드가 밝히는 스위치 묶음 모양이 달라지지 않게.
-            popGrid={mapStep ? undefined : popGrid}
+            // 가이드 중에는 예시 상태(useGuidePopGrid) — 실시간 인구 단계에선 끈 스위치만 보여 묶음 모양이 늘 같게.
+            popGrid={shownPop}
             // 가이드가 지도 스위치 묶음을 밝히는 동안 모바일에서도 펼쳐 둔다.
-            forceLayersOpen={!!mapStep}
+            forceLayersOpen={mapGuide}
             traffic={
-              mapStep
+              mapGuide
                 ? demoTraffic
                 : // 실시간 인구와 같은 기준 — 키가 없으면 숨긴다.
                   trafficData?.enabled === false

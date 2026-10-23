@@ -30,6 +30,9 @@ export const POP_LEVELS: { label: string; short: string; color: string }[] = [
 ];
 // 가까이 보면 칸이 커서 지도 글씨를 덮는다 — 진한 단계도 아래 지도가 비치게.
 const LEVEL_ALPHA = [0.12, 0.5, 0.56, 0.62, 0.66, 0.74];
+// 실시간 인구를 함께 켰을 때 — 장소 구역이 잘 보이게 연하게. 너무 옅으면 아래 지도(회색·푸른 건물)가 비쳐
+// 진한 빨강이 보랏빛이 된다 — 상위 단계는 0.6 넘게.
+const LEVEL_ALPHA_SOFT = [0.1, 0.38, 0.44, 0.5, 0.56, 0.64];
 const NO_DATA = "rgba(120,120,128,0.14)";
 
 export function popLevel(v: number | null, breaks: number[]): number {
@@ -128,6 +131,7 @@ function gridBoard(map: KakaoMap) {
     cells: PopCell[],
     values: (number | null)[],
     breaks: number[],
+    soft = false,
   ) => {
     const proj = map.getProjection();
     const bounds = map.getBounds();
@@ -184,7 +188,7 @@ function gridBoard(map: KakaoMap) {
     ctx.fillStyle = NO_DATA;
     ctx.fill(noData);
     paths.forEach((path, lv) => {
-      ctx.globalAlpha = LEVEL_ALPHA[lv];
+      ctx.globalAlpha = (soft ? LEVEL_ALPHA_SOFT : LEVEL_ALPHA)[lv];
       ctx.fillStyle = POP_LEVELS[lv].color;
       ctx.fill(path);
     });
@@ -335,6 +339,7 @@ export function useMapPopGrid({
   breaks,
   selected,
   realtime = null,
+  soft = false,
   onHover,
   onSelect,
   onViewChange,
@@ -348,9 +353,14 @@ export function useMapPopGrid({
   selected: number | null;
   /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
   realtime?: PopRealtime | null;
+  /** 실시간 인구를 함께 켬 — 격자를 연하게 */
+  soft?: boolean;
   onHover: (hit: { index: number; x: number; y: number } | null) => void;
-  /** 누른 칸 번호와 지도 안 화면 자리 */
-  onSelect: (index: number | null, point?: { x: number; y: number }) => void;
+  /** 누른 칸 번호와 지도 안 화면 자리·좌표 */
+  onSelect: (
+    index: number | null,
+    point?: { x: number; y: number; lat: number; lng: number },
+  ) => void;
   /** 지도를 끌거나 확대·축소하기 시작함 — 화면 자리에 붙인 팝오버를 닫는 데 쓴다. */
   onViewChange?: () => void;
 }) {
@@ -360,6 +370,7 @@ export function useMapPopGrid({
   const hoveredRef = useRef<() => number | null>(() => null);
   const dataRef = useRef({ cells, values, breaks, selected });
   const realtimeRef = useRef(realtime);
+  const softRef = useRef(soft);
   const handlersRef = useRef({ onHover, onSelect, onViewChange });
   const find = useMemo(() => (cells ? cellIndex(cells) : null), [cells]);
   const findRef = useRef(find);
@@ -367,6 +378,7 @@ export function useMapPopGrid({
   useLayoutEffect(() => {
     dataRef.current = { cells, values, breaks, selected };
     realtimeRef.current = realtime;
+    softRef.current = soft;
     handlersRef.current = { onHover, onSelect, onViewChange };
     findRef.current = find;
   });
@@ -382,7 +394,7 @@ export function useMapPopGrid({
     hoveredRef.current = () => hovered;
     const redraw = () => {
       const { cells: c, values: v, breaks: b, selected: sel } = dataRef.current;
-      if (c && v && board.draw(c, v, b)) {
+      if (c && v && board.draw(c, v, b, softRef.current)) {
         board.drawRealtime(realtimeRef.current);
         board.highlight(c, sel, hovered);
       } else if (!v) board.hide();
@@ -421,10 +433,14 @@ export function useMapPopGrid({
     const onClick = (e?: KakaoMouseEvent) => {
       if (!e) return;
       const pt = map.getProjection().containerPointFromCoords(e.latLng);
-      handlersRef.current.onSelect(
-        findRef.current?.(e.latLng.getLat(), e.latLng.getLng()) ?? null,
-        { x: pt.x, y: pt.y },
-      );
+      const lat = e.latLng.getLat();
+      const lng = e.latLng.getLng();
+      handlersRef.current.onSelect(findRef.current?.(lat, lng) ?? null, {
+        x: pt.x,
+        y: pt.y,
+        lat,
+        lng,
+      });
     };
     redraw();
     maps.event.addListener(map, "idle", redraw);
@@ -451,13 +467,13 @@ export function useMapPopGrid({
   useEffect(() => {
     const board = boardRef.current;
     if (!board || !cells) return;
-    if (values && board.draw(cells, values, breaks)) {
+    if (values && board.draw(cells, values, breaks, soft)) {
       board.drawRealtime(realtimeRef.current);
       board.highlight(cells, selected, hoveredRef.current());
     } else if (!values) board.hide();
     // 누른 칸이 바뀔 때는 강조 판만 — selected 는 아래 효과가 맡는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cells, values, breaks]);
+  }, [cells, values, breaks, soft]);
 
   // 실시간 자료가 바뀌면 실시간 판만 다시.
   useEffect(() => {

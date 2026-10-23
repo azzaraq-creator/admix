@@ -45,6 +45,10 @@ export type TourStep = {
   touchBody?: ReactNode;
   /** 밝힌 자리의 곡률 — 대상의 곡률 + 여백(PADDING)에 맞춘다. */
   radius?: number;
+  /** 모바일(sm 미만)에서 밝힌 자리를 대상보다 넓히는 여백(px) — 작은 대상이 답답해 보일 때. 기본 PADDING. */
+  mobilePadding?: number;
+  /** 모바일 곡률이 다를 때(mobilePadding 과 함께). */
+  mobileRadius?: number;
   /**
    * 대상 바깥에 카드 자리가 없을 때(화면을 다 덮는 대상) 카드를 화면 위에서 이만큼(px) 띄워 겹쳐 둔다.
    * 없으면 아래쪽에 겹쳐 둔다 — 아래쪽 입력바 등을 가리면 안 될 때 쓴다.
@@ -480,11 +484,12 @@ function TourOverlay({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, steps.length]);
 
+  const pad = (!isDesktop && shownStep.mobilePadding) || PADDING;
   const spot = rect && {
-    top: rect.top - PADDING,
-    left: rect.left - PADDING,
-    width: rect.width + PADDING * 2,
-    height: rect.height + PADDING * 2,
+    top: rect.top - pad,
+    left: rect.left - pad,
+    width: rect.width + pad * 2,
+    height: rect.height + pad * 2,
   };
 
   const cardWidth = Math.min(CARD_WIDTH, viewport.w - EDGE * 2);
@@ -541,7 +546,11 @@ function TourOverlay({
         <div
           aria-hidden
           className="pointer-events-none fixed shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] ring-2 ring-white/70 transition-[top,left,width,height,border-radius] duration-300 ease-out motion-reduce:transition-none"
-          style={{ ...spot, borderRadius: shownStep.radius ?? 16 }}
+          style={{
+            ...spot,
+            borderRadius:
+              (!isDesktop && shownStep.mobileRadius) || shownStep.radius || 16,
+          }}
         />
       ) : (
         <div aria-hidden className="fixed inset-0 bg-scrim/50" />

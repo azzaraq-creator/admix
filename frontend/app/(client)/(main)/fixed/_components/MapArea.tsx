@@ -43,6 +43,7 @@ import { useMapMarkers } from "./useMapMarkers";
 import { useMapPopup } from "./useMapPopup";
 import {
   PopGridLayer,
+  PopGridGuideSpot,
   PopGridMobileButton,
   PopGridSheet,
   type PopGridState,
@@ -277,6 +278,28 @@ export function MapArea({
       ? (crowd.places.find((p) => p.code === pickedPlace.code) ?? pickedPlace)
       : null;
 
+  const isDesktop = useIsDesktop();
+
+  // 인구 분포를 켠 동안 — 도로 현황 선·실시간 인구 범위를 격자 위에 다시 그린다(카카오 도형은 격자 판 아래 층).
+  const popOn = !!popGrid?.on;
+  const rtLinks = traffic?.on ? traffic.links : null;
+  const rtPlaces = crowd?.on ? crowd.places : null;
+  const crowdRings = useCrowdRings(popOn && !!rtPlaces);
+
+  // 모바일에서 인구 분포·실시간 인구를 함께 켜면 지도 누름은 인구 분포 층(PopGridLayer)이 한 번에 받는다 —
+  // 누른 자리에 장소 범위와 격자 칸이 겹치면 둘 중 볼 것을 고르게 한다. 그래서 범위 누름은 여기서 흘려보낸다.
+  const tapViaGrid = popOn && !isDesktop && !!rtPlaces && !!crowdRings;
+  const selectPlace = (place: CrowdPlace | null) => {
+    if (place && tapViaGrid) return;
+    setPickedPlace(place);
+  };
+  const placeAt = tapViaGrid
+    ? (lat: number, lng: number) =>
+        rtPlaces.find((pl) =>
+          crowdRings.get(pl.code)?.some((ring) => inRing(ring, lng, lat)),
+        ) ?? null
+    : undefined;
+
   const {
     hovered: crowdHovered,
     hoverEl: crowdHoverEl,
@@ -288,16 +311,8 @@ export function MapArea({
     gray: !!crowd?.gray,
     strong: !!popGrid?.on,
     selectedCode: picked?.code,
-    onSelect: setPickedPlace,
+    onSelect: selectPlace,
   });
-
-  const isDesktop = useIsDesktop();
-
-  // 인구 분포를 켠 동안 — 도로 현황 선·실시간 인구 범위를 격자 위에 다시 그린다(카카오 도형은 격자 판 아래 층).
-  const popOn = !!popGrid?.on;
-  const rtLinks = traffic?.on ? traffic.links : null;
-  const rtPlaces = crowd?.on ? crowd.places : null;
-  const crowdRings = useCrowdRings(popOn && !!rtPlaces);
   const popRealtime = useMemo<PopRealtime | null>(() => {
     if (!popOn) return null;
     const lines = (rtLinks ?? []).map((l) => ({
@@ -379,6 +394,17 @@ export function MapArea({
           mapReady={mapReady}
           state={popGrid}
           realtime={popRealtime}
+          soft={!!crowd?.on}
+          placeAt={placeAt}
+          onPickPlace={setPickedPlace}
+        />
+      )}
+      {popGrid?.demo && (
+        // 가이드 "칸별 인구" — 예시로 고른 격자 칸 자리도 밝힌다(가이드 밝힘은 칸 정보 카드 한 자리라).
+        <PopGridGuideSpot
+          mapRef={mapRef}
+          mapEl={containerRef}
+          state={popGrid}
         />
       )}
       {popGrid?.on && !isDesktop && (
@@ -420,12 +446,10 @@ export function MapArea({
         // 스위치형 — [아이콘 · 실시간 인구 · 스위치 | 흑백 | 도로 현황]. 켜면 스위치만 서비스 색(보라)으로 바뀐다
         // (혼잡도 "붐빔" 빨강과 헷갈리지 않게). 바탕은 반투명 유리(뒤 지도가 흐리게 비친다).
         // 태블릿처럼 지도 폭이 좁으면(400px 미만) 한 줄에 다 안 들어가 스위치를 한 줄에 하나씩 쌓는다.
-        // data-tour — 매체 찾기 가이드가 밝히는 자리.
         // 모바일은 지도 폭에 따라 한 줄 12px → 11px → 쌓기(useToggleFit). 한 줄일 땐 글자가 줄바꿈되지 않게
         // nowrap으로 두고 폭을 지도 안(좌우 12px씩)으로 묶어, 넘치면 재서 다음 단계로 넘어간다.
         <div
           ref={togglesRef}
-          data-tour="map-layers"
           className={cn(
             // PC — 고정 자료(인구 분포)와 실시간 자료(실시간 인구·흑백·도로 현황)를 위아래 두 알약으로 나눈다.
             // 모바일 — 한 장의 유리 묶음 그대로, 두 무리 사이에 선(stack 일 때 가로선).
@@ -437,7 +461,11 @@ export function MapArea({
           )}
         >
           {popGrid && (
-            <div className={TOGGLE_PILL}>
+            // 모바일 가이드는 인구 분포 조건 버튼과 이 스위치를 함께 밝힌다(PC는 조건 카드만).
+            <div
+              className={TOGGLE_PILL}
+              data-tour={isDesktop ? undefined : "pop-mobile"}
+            >
               {/* 인구 분포 — 서울 250m 격자를 고른 조건의 서울 순위로 칠한다(PopGridLayer). 고정(월별) 자료. */}
               <Switch
                 size="sm"
@@ -481,11 +509,13 @@ export function MapArea({
           )}
           {(crowd || traffic) && (
             // 실시간 자료 상자(PC) — 윗줄 "실시간 인구 (서울) | 흑백", 아랫줄 "도로 현황"을 한 상자 안에.
-            <div className={TOGGLE_BOX}>
+            // data-tour — 매체 찾기 가이드가 실시간 자료만 밝힌다. 모바일은 상자가 contents(크기 없음)라 스위치들을 감싸 밝힌다.
+            <div className={TOGGLE_BOX} data-tour="map-realtime">
               {crowd && (
                 <div className={TOGGLE_ROW}>
                   {crowd && (
                     <Switch
+                      data-tour="map-realtime"
                       size="sm"
                       isSelected={crowd.on}
                       onChange={crowd.onToggle}
@@ -526,6 +556,7 @@ export function MapArea({
                         )}
                       />
                       <Switch
+                        data-tour="map-realtime"
                         size="sm"
                         isSelected={crowd.gray}
                         onChange={crowd.onToggleGray}
@@ -558,6 +589,7 @@ export function MapArea({
                           />
                           {/* 장소 이름표 — 끄면 범위 색만 남아 아래 격자·매체 핀이 가려지지 않는다. */}
                           <Switch
+                            data-tour="map-realtime"
                             size="sm"
                             isSelected={crowd.labels !== false}
                             onChange={crowd.onToggleLabels}
@@ -599,6 +631,7 @@ export function MapArea({
                   {traffic && (
                     // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
                     <Switch
+                      data-tour="map-realtime"
                       size="sm"
                       isSelected={traffic.on}
                       onChange={traffic.onToggle}
@@ -782,6 +815,18 @@ function LegendRow({
       ))}
     </div>
   );
+}
+
+/** 점(경도·위도)이 고리 안에 있는지 — 반직선 교차 세기. */
+function inRing(ring: [number, number][], x: number, y: number): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
 }
 
 /**

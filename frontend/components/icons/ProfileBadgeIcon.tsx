@@ -1,6 +1,6 @@
 import type { IconProps } from "./types";
 
-// 프로필 페이지 큰 아바타(public/icons/profile.svg, 여백 없음) — 배경 칸은 글자색(currentColor)을 40% 불투명도로 칠해
+// 프로필 페이지 큰 아바타(public/icons/profile.svg, 여백 없음) — 배경 칸은 글자색(currentColor)으로 칠해
 // 가입 방법마다 색을 바꾼다(lib/avatarColor). 얼굴은 고정 색.
 export function ProfileBadgeIcon(props: IconProps) {
   return (
@@ -11,7 +11,6 @@ export function ProfileBadgeIcon(props: IconProps) {
       {...props}
     >
       <path
-        opacity="0.4"
         d="M4 0H16C18.2091 0 20 1.79086 20 4V16C20 18.2091 18.2091 20 16 20H4C1.79086 20 0 18.2091 0 16V4C0 1.79086 1.79086 0 4 0Z"
         fill="currentColor"
       />

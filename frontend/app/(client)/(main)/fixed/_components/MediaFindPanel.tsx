@@ -14,7 +14,12 @@ import {
   type ChipDimKey,
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
-import { ListIcon, MapOutlineIcon } from "@/components/icons";
+import {
+  ChevronDownIcon,
+  ListIcon,
+  MapOutlineIcon,
+  SearchOutlineIcon,
+} from "@/components/icons";
 import {
   mediaApi,
   useFixedClusters,
@@ -25,6 +30,7 @@ import {
   type MediaFindSource,
   type OperatingArea,
 } from "@/hooks/media";
+import { cn } from "@/lib/utils";
 
 import { FilterChip, MediaFilterPanel } from "./MediaFilterPanel";
 
@@ -198,6 +204,9 @@ export function MediaFindPanel({
   const [filterOpen, setFilterOpen] = useState(false);
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
   const [mapExpandedState, setMapExpanded] = useState(false);
+  // 모바일 — 검색·필터·정렬을 한 줄 요약으로 접어 지도·목록 자리를 넓힌다(탭 줄은 그대로). 가이드 중엔 늘 펼친다.
+  const [topCollapsedState, setTopCollapsed] = useState(false);
+  const topCollapsed = topCollapsedState && !demo;
   const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -575,7 +584,36 @@ export function MediaFindPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-[10px]">
-      <div data-tour="find-search" className="relative z-30 shrink-0">
+      {topCollapsed && (
+        // 모바일 접힌 요약 — 누르면 검색·필터·탭을 다시 펼친다.
+        <button
+          type="button"
+          onClick={() => setTopCollapsed(false)}
+          aria-expanded={false}
+          aria-label="검색·필터 펼치기"
+          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[17px] border border-gray-200 bg-gray-100 pr-[12px] pl-[10px] text-left sm:hidden"
+        >
+          <SearchOutlineIcon className="size-[18px] shrink-0 text-gray-500" />
+          <span className="min-w-0 flex-1 truncate text-[13px] text-gray-900">
+            {keyword || placeLabel || (
+              <span className="text-gray-400">검색·필터</span>
+            )}
+          </span>
+          {filterCount > 0 && (
+            <span className="shrink-0 text-[12px] font-medium text-gray-600">
+              필터 {filterCount}
+            </span>
+          )}
+          <ChevronDownIcon className="size-[14px] shrink-0 text-gray-500" />
+        </button>
+      )}
+      <div
+        data-tour="find-search"
+        className={cn(
+          "relative z-30 shrink-0",
+          topCollapsed && "max-sm:hidden",
+        )}
+      >
         <MediaFindTopBar
           keyword={location}
           onKeywordChange={(v) => {
@@ -761,6 +799,23 @@ export function MediaFindPanel({
             />
           )}
         </div>
+        {!demo && !topCollapsed && (
+          // 모바일 — 검색·필터·정렬을 한 줄로 접는다(지도·목록 자리를 넓히려고). 탭 줄은 그대로.
+          <button
+            type="button"
+            onClick={() => {
+              setFilterOpen(false);
+              setShowSug(false);
+              setTopCollapsed(true);
+            }}
+            aria-expanded
+            aria-label="검색·필터 접기"
+            className="ml-auto flex h-[30px] shrink-0 items-center gap-[2px] rounded-full px-[8px] text-[12px] font-medium text-gray-500 sm:hidden"
+          >
+            접기
+            <ChevronDownIcon className="size-[12px] rotate-180" />
+          </button>
+        )}
       </div>
 
       <div className="relative flex min-h-0 flex-1 gap-[20px]">

@@ -3,13 +3,17 @@
 import { Drawer, ScrollShadow } from "@heroui/react";
 import {
   type RefObject,
+  useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 
+import { createPortal } from "react-dom";
+
 import { ChevronDownIcon, InfoIcon, XIcon } from "@/components/icons";
+import type { CrowdPlace } from "@/hooks/media";
 import {
   type PopAge,
   type PopBand,
@@ -24,7 +28,13 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import type { KakaoMap } from "@/lib/kakaoMap";
 import { cn } from "@/lib/utils";
 
-import { POP_LEVELS, type PopRealtime, useMapPopGrid } from "./useMapPopGrid";
+import { crowdColor } from "./useMapCrowd";
+import {
+  POP_LEVELS,
+  type PopRealtime,
+  popLevel,
+  useMapPopGrid,
+} from "./useMapPopGrid";
 
 const METRICS: { key: PopMetric; label: string; desc: string }[] = [
   {
@@ -154,10 +164,10 @@ function ChipButton({
       onClick={onClick}
       className={cn(
         // 고르기 전엔 회색 바탕, 고르면 흰 바탕(탭 "전체·고정·이동"과 같은 느낌).
-        "h-[26px] shrink-0 rounded-full border px-[9px] text-[12px] font-semibold whitespace-nowrap transition-colors",
+        "h-[26px] shrink-0 rounded-full border px-[9px] text-[12px] whitespace-nowrap transition-colors",
         on
-          ? "border-transparent bg-surface text-zinc-900"
-          : "border-transparent bg-zinc-900/[0.06] text-zinc-600 hover:bg-zinc-900/10 dark:bg-white/10 dark:text-[#c9cad3]",
+          ? "border-transparent bg-surface font-semibold text-zinc-900"
+          : "border-transparent font-normal bg-zinc-900/[0.06] text-zinc-600 hover:bg-zinc-900/10 dark:bg-white/10 dark:text-[#c9cad3]",
         (disabled || locked) &&
           "opacity-40 hover:bg-zinc-900/[0.06] dark:hover:bg-white/10",
         disabled && "cursor-not-allowed",
@@ -285,6 +295,8 @@ export function usePopGridState() {
     setSelected,
     sheetOpen,
     setSheetOpen,
+    /** 매체 찾기 가이드 예시 — 모바일에서 누른 칸 팝오버를 지도를 누르지 않아도 띄운다(useGuidePopGrid). */
+    demo: false,
     /** 올린 달이 하나도 없음 */
     empty: !!monthList && monthList.length === 0,
     years,
@@ -328,6 +340,41 @@ export function usePopGridState() {
 }
 
 export type PopGridState = ReturnType<typeof usePopGridState>;
+
+const noop = () => {};
+
+/**
+ * 매체 찾기 가이드 — 인구 분포 단계 동안 쓰는 예시 상태. 진짜 켜짐·고른 칸은 건드리지 않고 켠 것처럼 보이게 한다.
+ * "conditions"는 조건을 펼친 카드, "cell"은 서울에서 값이 가장 큰 칸을 누른 것처럼 칸 정보를 띄운다.
+ * "off"는 끈 스위치만 보여 준다(실시간 인구 단계 — 스위치 묶음 모양이 늘 같게).
+ */
+export function useGuidePopGrid(
+  state: PopGridState,
+  step: "conditions" | "cell" | "off" | null,
+): PopGridState {
+  const { data: grid } = usePopGridValues(step === "cell" ? state.query : null);
+  const top = useMemo(() => {
+    let best: number | null = null;
+    (grid?.values ?? []).forEach((v, i) => {
+      if (v != null && (best == null || v > (grid?.values[best] ?? 0)))
+        best = i;
+    });
+    return best;
+  }, [grid]);
+  if (!step) return state;
+  return {
+    ...state,
+    on: step !== "off",
+    toggle: noop,
+    panelOpen: step === "conditions",
+    setPanelOpen: noop,
+    selected: step === "cell" ? top : null,
+    setSelected: noop,
+    sheetOpen: false,
+    setSheetOpen: noop,
+    demo: step === "cell",
+  };
+}
 
 /**
  * 위쪽 줄 "유동인구" 버튼을 누르면 열리는 조건 창 — 켜기·자료·기간·시간대·성별·연령.
@@ -493,7 +540,11 @@ export function PopGridPanel({ state }: { state: PopGridState }) {
   const value = sel != null ? (grid?.values[sel] ?? null) : null;
   return (
     // 모바일은 펼친 조건을 카드 아래에 겹쳐 띄운다(지도를 밀어내지 않게) — 그래서 카드가 넘침을 자르지 않는다.
-    <div className="relative flex flex-col rounded-[20px] border-[0.5px] border-white/50 bg-surface/75 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)] backdrop-blur-[14px] backdrop-saturate-[1.8] sm:overflow-hidden">
+    // data-tour — 매체 찾기 가이드가 밝히는 자리(인구 분포 조건).
+    <div
+      data-tour="pop-panel"
+      className="relative flex flex-col rounded-[20px] border-[0.5px] border-white/50 bg-surface/75 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)] backdrop-blur-[14px] backdrop-saturate-[1.8] sm:overflow-hidden"
+    >
       <button
         type="button"
         onClick={() => state.setPanelOpen(!open)}
@@ -524,21 +575,24 @@ export function PopGridPanel({ state }: { state: PopGridState }) {
       />
 
       {sel != null && cells && (
-        <PopCellSection
-          cell={cells[sel]}
-          value={value}
-          rankValue={rank(value)}
-          metric={state.metric}
-          query={{
-            metric: state.metric,
-            band: state.band,
-            sex: state.segOk ? state.sex : "all",
-            ages: state.segOk ? state.ages : [],
-          }}
-          target={state.target}
-          activeMonths={state.activeMonths}
-          onClose={() => state.setSelected(null)}
-        />
+        // data-tour — 매체 찾기 가이드가 밝히는 자리(칸 정보).
+        <div data-tour="pop-cell">
+          <PopCellSection
+            cell={cells[sel]}
+            value={value}
+            rankValue={rank(value)}
+            metric={state.metric}
+            query={{
+              metric: state.metric,
+              band: state.band,
+              sex: state.segOk ? state.sex : "all",
+              ages: state.segOk ? state.ages : [],
+            }}
+            target={state.target}
+            activeMonths={state.activeMonths}
+            onClose={() => state.setSelected(null)}
+          />
+        </div>
       )}
 
       {open && (
@@ -566,8 +620,10 @@ export function PopGridMobileButton({ state }: { state: PopGridState }) {
       type="button"
       onClick={() => state.setSheetOpen(true)}
       aria-label="인구 분포 조건 열기"
+      // data-tour — 매체 찾기 가이드가 밝히는 자리(모바일 인구 분포 조건).
+      data-tour="pop-mobile"
       // "지도 표시" 버튼(또는 펼친 스위치 묶음) 바로 밑 — --map-legend-top 은 MapArea 가 정한다.
-      className="absolute top-(--map-legend-top) left-[12px] z-[2] flex max-w-[calc(100%-24px)] flex-col gap-[5px] rounded-[14px] border-[0.5px] border-white/50 bg-surface/75 px-[10px] py-[7px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8] sm:hidden"
+      className="absolute top-(--map-legend-top) left-[12px] z-[2] flex max-w-[calc(100%-24px)] flex-col gap-[5px] rounded-[23px] border-[0.5px] border-white/50 bg-surface/75 px-[10px] py-[7px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8] sm:hidden"
     >
       <span className="flex min-w-0 items-center gap-[4px]">
         <span className="truncate text-[11px] leading-[14px] font-bold text-zinc-900">
@@ -673,17 +729,118 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
  * 매체 찾기 지도 "유동인구" 층 — 격자 칠하기와 마우스를 올린 칸의 작은 이름표(PC)만. 범례·누른 칸 정보·조건은
  * 유동인구 카드(PopGridPanel)에 있다. 칸을 누르면 카드에 그 칸 정보가 붙는다.
  */
+/**
+ * 가이드 "칸별 인구" 단계 — 고른 격자 칸 자리를 가이드 어둠 위에서 따로 밝힌다. 가이드 밝힘은 한 자리(칸 정보 카드)만
+ * 감싸서, 칸 자리엔 가이드 판(z-70) 위에 작은 창을 띄우고 뒤를 2배 밝게(backdrop brightness) 해 어둠을 걷어낸다.
+ */
+function GuideCellSpot({
+  mapRef,
+  mapEl,
+  corners,
+}: {
+  mapRef: RefObject<KakaoMap | null>;
+  mapEl: RefObject<HTMLElement | null>;
+  corners: number[];
+}) {
+  const [box, setBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const map = mapRef.current;
+      const el = mapEl.current;
+      const maps = window.kakao?.maps;
+      if (map && el && maps) {
+        const proj = map.getProjection();
+        const r = el.getBoundingClientRect();
+        const pts = [0, 1, 2, 3].map((j) =>
+          proj.containerPointFromCoords(
+            new maps.LatLng(corners[j * 2], corners[j * 2 + 1]),
+          ),
+        );
+        const xs = pts.map((p) => p.x);
+        const ys = pts.map((p) => p.y);
+        const next = {
+          left: Math.round(r.left + Math.min(...xs)),
+          top: Math.round(r.top + Math.min(...ys)),
+          width: Math.round(Math.max(...xs) - Math.min(...xs)),
+          height: Math.round(Math.max(...ys) - Math.min(...ys)),
+        };
+        setBox((prev) =>
+          prev &&
+          prev.left === next.left &&
+          prev.top === next.top &&
+          prev.width === next.width &&
+          prev.height === next.height
+            ? prev
+            : next,
+        );
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [mapRef, mapEl, corners]);
+  if (!box) return null;
+  return createPortal(
+    // PC — 가이드 밝힘(칸 정보 카드) 밖이라 직접 어둠을 걷는다. 모바일 — 이 상자가 곧 가이드 대상(data-tour)이라 밝기는 가이드가.
+    <div
+      aria-hidden
+      data-tour="pop-cell-map"
+      className="pointer-events-none fixed z-[71] rounded-[4px] sm:ring-2 sm:ring-white/70 sm:backdrop-brightness-200"
+      style={{
+        left: box.left - 6,
+        top: box.top - 6,
+        width: box.width + 12,
+        height: box.height + 12,
+      }}
+    />,
+    document.body,
+  );
+}
+
+/** 가이드 "칸별 인구" 단계에서만 — 예시로 고른 칸 자리를 밝힌다(MapArea). */
+export function PopGridGuideSpot({
+  mapRef,
+  mapEl,
+  state,
+}: {
+  mapRef: RefObject<KakaoMap | null>;
+  mapEl: RefObject<HTMLElement | null>;
+  state: PopGridState;
+}) {
+  const { data: cells } = usePopGridCells(state.demo);
+  const sel = state.selected;
+  if (!state.demo || sel == null || !cells) return null;
+  return (
+    <GuideCellSpot mapRef={mapRef} mapEl={mapEl} corners={cells[sel][3]} />
+  );
+}
+
 export function PopGridLayer({
   mapRef,
   mapReady,
   state,
   realtime = null,
+  soft = false,
+  placeAt,
+  onPickPlace,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   state: PopGridState;
   /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
   realtime?: PopRealtime | null;
+  /** 실시간 인구를 함께 켬 — 격자를 연하게 */
+  soft?: boolean;
+  /** 모바일 — 누른 자리의 실시간 인구 장소(인구 분포와 함께 켰을 때만). 칸과 겹치면 둘 중 고르게 한다. */
+  placeAt?: (lat: number, lng: number) => CrowdPlace | null;
+  /** 실시간 인구 장소를 골랐을 때 — 장소 시트를 연다 */
+  onPickPlace?: (place: CrowdPlace) => void;
 }) {
   const isDesktop = useIsDesktop();
   const { data: cells } = usePopGridCells(true);
@@ -695,7 +852,12 @@ export function PopGridLayer({
     y: number;
   } | null>(null);
   // 모바일 — 칸을 눌러 팝오버를 띄웠는지(자리는 지도 아래쪽 고정). 지도를 움직이면 닫는다.
-  const [tap, setTap] = useState<{ x: number; y: number } | null>(null);
+  // place 가 있으면 누른 자리에 실시간 인구 장소도 겹쳐 있어 먼저 둘 중 볼 것을 고르게 한다.
+  const [tap, setTap] = useState<{
+    x: number;
+    y: number;
+    place: CrowdPlace | null;
+  } | null>(null);
 
   useMapPopGrid({
     mapRef,
@@ -705,11 +867,25 @@ export function PopGridLayer({
     breaks: grid?.breaks ?? [],
     selected: state.selected,
     realtime,
+    soft,
     onHover: isDesktop ? setHover : () => {},
     onSelect: (i, point) => {
+      const place =
+        !isDesktop && point ? (placeAt?.(point.lat, point.lng) ?? null) : null;
+      // 격자 밖 장소 범위 — 고를 것 없이 장소 시트.
+      if (place && i == null) {
+        state.setSelected(null);
+        setTap(null);
+        onPickPlace?.(place);
+        return;
+      }
       state.setSelected(i);
       // 모바일은 누른 자리에 칸 정보 팝오버 — "자세히 보기"로 시트를 연다.
-      setTap(!isDesktop && i != null && point ? point : null);
+      setTap(
+        !isDesktop && i != null && point
+          ? { x: point.x, y: point.y, place }
+          : null,
+      );
     },
     onViewChange: () => setTap(null),
   });
@@ -717,43 +893,94 @@ export function PopGridLayer({
   const hovered = hover && cells ? cells[hover.index] : null;
   const hoverValue = hover ? (grid?.values[hover.index] ?? null) : null;
   const sel = state.selected;
-  if (!isDesktop && tap && sel != null && cells) {
+  if (!isDesktop && tap?.place && sel != null && cells) {
+    const place = tap.place;
     const v = grid?.values[sel] ?? null;
+    const lv = popLevel(v, grid?.breaks ?? []);
+    const close = () => {
+      setTap(null);
+      state.setSelected(null);
+    };
     return (
       <div
         role="dialog"
-        aria-label={`${cells[sel][1]} ${cells[sel][2]} 인구 분포`}
-        // 모바일 지도는 낮아 누른 자리에 붙이면 "목록 보기" 버튼·지도 밖으로 넘친다 — 그 버튼 바로 위에 고정.
-        className="absolute inset-x-[12px] bottom-[76px] z-[3] flex flex-col overflow-hidden rounded-[18px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.18)] backdrop-blur-[14px] backdrop-saturate-[1.8] [&>div:first-child]:border-t-0 [&>div:first-child]:px-[14px]"
+        aria-label="볼 정보 고르기"
+        className="absolute inset-x-[12px] bottom-[76px] z-[3] flex flex-col overflow-hidden rounded-[18px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.18)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
       >
-        <PopCellSection
-          cell={cells[sel]}
-          value={v}
-          rankValue={rank(v)}
-          metric={state.metric}
-          query={{
-            metric: state.metric,
-            band: state.band,
-            sex: state.segOk ? state.sex : "all",
-            ages: state.segOk ? state.ages : [],
-          }}
-          target={state.target}
-          activeMonths={state.activeMonths}
-          onClose={() => {
-            setTap(null);
-            state.setSelected(null);
+        <div className="flex items-center justify-between px-[14px] pt-[8px] pb-[2px]">
+          <span className="text-[12px] leading-[16px] text-zinc-500 dark:text-[#a4a5af]">
+            어떤 정보를 볼까요?
+          </span>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="닫기"
+            className="-mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
+          >
+            <XIcon className="size-[16px]" />
+          </button>
+        </div>
+        <TapChoice
+          color={crowdColor(place.level)}
+          kind="실시간 인구"
+          title={place.name}
+          detail={place.level}
+          onClick={() => {
+            close();
+            onPickPlace?.(place);
           }}
         />
+        <TapChoice
+          color={lv < 0 ? undefined : POP_LEVELS[lv].color}
+          kind="인구 분포"
+          title={`${cells[sel][1]} ${cells[sel][2]}`}
+          detail={v != null ? rankText(rank(v)) : "자료 없음"}
+          onClick={() => setTap({ ...tap, place: null })}
+        />
+      </div>
+    );
+  }
+  // 가이드 예시(state.demo)는 모바일에선 팝오버를 띄우지 않고 칸 자리만 밝힌다(PopGridGuideSpot).
+  if (!isDesktop && tap && !state.demo && sel != null && cells) {
+    // 모바일 — PC 마우스 이름표와 같은 작은 검은 카드를 누른 자리에, "자세히 보기"로 시트를 연다.
+    // 지도를 움직이면 닫힌다(onViewChange). 화면 오른쪽·아래로 넘치지 않게 누른 자리 왼쪽·위로도 붙인다.
+    const v = grid?.values[sel] ?? null;
+    const flipX = tap.x > 180;
+    const flipY = tap.y > 260;
+    return (
+      <div
+        data-tour="pop-cell"
+        role="dialog"
+        aria-label={`${cells[sel][1]} ${cells[sel][2]} 인구 분포`}
+        className="absolute z-[3] flex flex-col gap-[1px] rounded-[10px] bg-scrim/80 px-[10px] pt-[6px] pb-[4px] text-white shadow-[0px_3px_10px_rgba(0,0,0,0.2)] backdrop-blur-[6px]"
+        style={{
+          left: flipX ? undefined : tap.x + 10,
+          right: flipX ? `calc(100% - ${tap.x - 10}px)` : undefined,
+          top: flipY ? undefined : tap.y + 10,
+          bottom: flipY ? `calc(100% - ${tap.y - 10}px)` : undefined,
+        }}
+      >
+        <span className="text-[12px] leading-[16px] font-bold whitespace-nowrap">
+          {cells[sel][1]} {cells[sel][2]}
+        </span>
+        <span className="text-[11px] leading-[15px] whitespace-nowrap tabular-nums">
+          {state.target} {valueText(state.metric, v)}
+          {v != null && (
+            <span className="ml-[4px] text-white/60">
+              · {rankText(rank(v))}
+            </span>
+          )}
+        </span>
         <button
           type="button"
           onClick={() => {
             setTap(null);
             state.setSheetOpen(true);
           }}
-          className="flex h-[40px] shrink-0 items-center justify-center gap-[4px] border-t border-zinc-900/5 text-[13px] font-semibold text-zinc-900 dark:border-white/10"
+          className="-mx-[4px] mt-[2px] flex h-[26px] items-center justify-center gap-[3px] rounded-[7px] bg-white/15 px-[8px] text-[11px] font-semibold text-white active:bg-white/25"
         >
           자세히 보기
-          <ChevronDownIcon className="size-[12px] -rotate-90" />
+          <ChevronDownIcon className="size-[10px] -rotate-90" />
         </button>
       </div>
     );
@@ -776,6 +1003,44 @@ export function PopGridLayer({
         )}
       </span>
     </div>
+  );
+}
+
+/** 모바일 — 장소 범위와 격자 칸이 겹친 자리를 눌렀을 때 고르는 줄 하나. */
+function TapChoice({
+  color,
+  kind,
+  title,
+  detail,
+  onClick,
+}: {
+  color?: string;
+  kind: string;
+  title: string;
+  detail: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-[10px] border-t border-zinc-900/5 px-[14px] py-[10px] text-left first-of-type:border-t-0 active:bg-zinc-900/5 dark:border-white/10"
+    >
+      <span
+        aria-hidden
+        className="size-[10px] shrink-0 rounded-full bg-zinc-300"
+        style={color ? { backgroundColor: color } : undefined}
+      />
+      <span className="flex min-w-0 flex-1 flex-col gap-[1px]">
+        <span className="truncate text-[14px] leading-[20px] font-bold text-zinc-900">
+          {title}
+        </span>
+        <span className="truncate text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3]">
+          {kind} · {detail}
+        </span>
+      </span>
+      <ChevronDownIcon className="size-[12px] shrink-0 -rotate-90 text-zinc-500" />
+    </button>
   );
 }
 
