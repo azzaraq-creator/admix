@@ -139,6 +139,8 @@ def _fetch(code: str) -> dict | None:
     ttl = CACHE_TTL_S if row else 60
     with _cache_lock:
         _cache[code] = (now + ttl, row)
+        if row:
+            _last_good[code] = row
     return row
 
 
@@ -249,13 +251,18 @@ def _place_centers() -> dict[str, tuple[float, float]]:
     return out
 
 
+# 장소별 마지막으로 받은 정상 값 — 캐시가 만료돼 다시 받는 동안(또는 서울시 호출이 잠깐 실패해도) 지도엔 이 값을 보인다.
+_last_good: dict[str, dict] = {}
+
+
 def _cached_row(code: str) -> tuple[bool, dict | None]:
-    """(캐시가 살아 있는지, 원본 한 건)."""
+    """(캐시가 살아 있는지, 원본 한 건 — 만료됐으면 마지막 정상 값)."""
     with _cache_lock:
         hit = _cache.get(code)
+        last = _last_good.get(code)
     if hit and hit[0] > time.monotonic():
-        return True, hit[1]
-    return False, None
+        return True, hit[1] or last
+    return False, last
 
 
 def _fetch_in_background(code: str) -> None:
@@ -292,9 +299,12 @@ def crowd_in_bounds(ne_lat: float, sw_lat: float, ne_lng: float, sw_lng: float) 
             continue
         fresh, row = _cached_row(p.code)
         if not fresh:
+            # 다시 받는 동안에도 마지막 값을 그대로 보인다 — 켜자마자 비어 보이거나 5분마다 깜빡이지 않게.
+            # 한 번도 받은 적 없는 장소만 빠지고, 지도는 pending 을 보고 잠시 뒤 다시 묻는다.
             _fetch_in_background(p.code)
             pending += 1
-            continue
+            if row is None:
+                continue
         if not row or not row.get("AREA_CONGEST_LVL"):
             continue
         places.append(

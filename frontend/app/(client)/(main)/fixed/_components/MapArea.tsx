@@ -4,6 +4,7 @@ import { Card, Chip, Drawer, ScrollShadow, Switch } from "@heroui/react";
 import {
   type CSSProperties,
   type ReactNode,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -179,6 +180,7 @@ export function MapArea({
   traffic,
   popGrid,
   forceLayersOpen = false,
+  onLiveViewport,
   demoPlace,
 }: {
   className?: string;
@@ -226,6 +228,11 @@ export function MapArea({
   popGrid?: PopGridState;
   /** 모바일 스위치 묶음을 펼친 채로 — 가이드가 묶음을 밝히는 동안. */
   forceLayersOpen?: boolean;
+  /**
+   * 실시간 인구·도로 현황을 켜는 순간 — 지금 지도에 보이는 영역. 마지막으로 멈춘 영역(onBoundsChange)은 지도 크기가
+   * 막 바뀐 뒤(목록↔지도, 검색 접기 등)엔 실제와 달라, 켜자마자 엉뚱한 영역을 물어 지도를 움직여야 뜨던 문제를 막는다.
+   */
+  onLiveViewport?: (bounds: MapBoundsPayload) => void;
   /** 가이드 — 이 장소를 고른 것처럼 장소 카드를 띄운다(예시 지하철·버스 데이터, 불러오지 않는다). */
   demoPlace?: {
     place: CrowdPlace;
@@ -262,6 +269,29 @@ export function MapArea({
   });
 
   useMapArea({ mapRef, mapReady, area: highlightArea });
+
+  const liveOn = !!crowd?.on || !!traffic?.on;
+  const onLiveViewportRef = useRef(onLiveViewport);
+  useEffect(() => {
+    onLiveViewportRef.current = onLiveViewport;
+  });
+  useEffect(() => {
+    const map = mapRef.current;
+    const el = containerRef.current;
+    // 지도가 숨어 있으면(모바일 목록 보기) 영역이 0이라 묻지 않는다 — 보이게 될 때 onBoundsChange 가 맡는다.
+    if (!liveOn || !mapReady || !map || !el || el.offsetWidth === 0) return;
+    const b = map.getBounds();
+    const ne = b.getNorthEast();
+    const sw = b.getSouthWest();
+    onLiveViewportRef.current?.({
+      neLat: ne.getLat(),
+      neLng: ne.getLng(),
+      swLat: sw.getLat(),
+      swLng: sw.getLng(),
+      zoom: map.getLevel(),
+      moveType: "program",
+    });
+  }, [liveOn, mapReady, mapRef, containerRef]);
 
   useMapTraffic({
     mapRef,

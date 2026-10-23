@@ -703,6 +703,10 @@ export function FixedMediaView() {
             popGrid={shownPop}
             // 가이드가 지도 스위치 묶음을 밝히는 동안 모바일에서도 펼쳐 둔다.
             forceLayersOpen={mapGuide}
+            onLiveViewport={(b) => {
+              lastViewportRef.current ??= b;
+              setCrowdBounds(b);
+            }}
             traffic={
               mapGuide
                 ? demoTraffic
