@@ -87,6 +87,10 @@ export interface KakaoRoadviewClient {
 
 export interface KakaoPolyline {
   setMap: (map: KakaoMap | null) => void;
+  setOptions: (options: {
+    strokeWeight?: number;
+    strokeOpacity?: number;
+  }) => void;
 }
 
 export interface KakaoGeocoderResult {

@@ -36,6 +36,22 @@ function loadRings(): Promise<Map<string, Rings>> {
   return ringsPromise;
 }
 
+/** 장소 범위(고리) — 켰을 때 한 번 받는다. 인구 분포 격자 위에 범위를 다시 그릴 때(MapArea) 쓴다. */
+export function useCrowdRings(enabled: boolean): Map<string, Rings> | null {
+  const [rings, setRings] = useState<Map<string, Rings> | null>(null);
+  useEffect(() => {
+    if (!enabled || rings) return;
+    let cancelled = false;
+    loadRings().then((loaded) => {
+      if (!cancelled) setRings(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, rings]);
+  return rings;
+}
+
 /** 장소 하나의 표시 — 색 점 + 장소 이름 + 혼잡도. */
 function pill(
   place: CrowdPlace,
@@ -180,6 +196,13 @@ const RANGE_STYLE = {
   fillOpacity: 0.14,
   zIndex: 0,
 };
+// 인구 분포 격자를 함께 켰을 때 — 격자 판 아래 층이라 묻히지 않게 더 진하고 굵게.
+const RANGE_STRONG = {
+  strokeWeight: 3,
+  strokeOpacity: 1,
+  fillOpacity: 0.26,
+  zIndex: 0,
+};
 const RANGE_HIGHLIGHT = {
   strokeWeight: 4,
   strokeOpacity: 1,
@@ -209,6 +232,7 @@ export function useMapCrowd({
   mapReady,
   places,
   gray = true,
+  strong = false,
   selectedCode,
   onSelect,
 }: {
@@ -217,6 +241,8 @@ export function useMapCrowd({
   places?: CrowdPlace[] | null;
   /** 범위 밖을 흑백으로(끄면 판을 내린다). */
   gray?: boolean;
+  /** 인구 분포를 함께 켬 — 범위를 더 진하게 */
+  strong?: boolean;
   /** 범위를 눌러 고른 장소 */
   selectedCode?: string | null;
   onSelect?: (place: CrowdPlace | null) => void;
@@ -229,6 +255,15 @@ export function useMapCrowd({
   const latestRef = useRef(new Map<string, CrowdPlace>());
   const drawnRef = useRef(new Map<string, Drawn>());
   const [boardShown, setBoardShown] = useState(false);
+  const baseStyle = strong ? RANGE_STRONG : RANGE_STYLE;
+  const baseStyleRef = useRef(baseStyle);
+  useEffect(() => {
+    baseStyleRef.current = baseStyle;
+    // 이미 그린 범위도 바꾼다(강조 중인 범위는 아래 효과가 다시 맞춘다).
+    drawnRef.current.forEach((d) =>
+      d.polygons.forEach((polygon) => polygon.setOptions(baseStyle)),
+    );
+  }, [baseStyle]);
   const refreshBoardRef = useRef<(() => void) | null>(null);
   // 이름표는 한 번 그려 두고 다시 쓰므로, 누를 때 부를 함수는 늘 최신 것을 쓰게 ref 로 둔다.
   const onSelectRef = useRef(onSelect);
@@ -311,7 +346,7 @@ export function useMapCrowd({
       const polygons = (rings?.get(place.code) ?? []).map((ring) => {
         const polygon = new maps.Polygon({
           path: ring.map(([lng, lat]) => new maps.LatLng(lat, lng)),
-          ...RANGE_STYLE,
+          ...baseStyleRef.current,
           strokeColor: color,
           fillColor: color,
         });
@@ -387,8 +422,8 @@ export function useMapCrowd({
     if (!shownCode) return;
     const polygons = drawnRef.current.get(shownCode)?.polygons ?? [];
     polygons.forEach((polygon) => polygon.setOptions(RANGE_HIGHLIGHT));
-    return () => polygons.forEach((polygon) => polygon.setOptions(RANGE_STYLE));
-  }, [shownCode, places, rings]);
+    return () => polygons.forEach((polygon) => polygon.setOptions(baseStyle));
+  }, [shownCode, places, rings, baseStyle]);
 
   // 정보 카드 자리.
   useEffect(() => {

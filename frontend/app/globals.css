@@ -836,3 +836,8 @@ html.dark {
     box-shadow: 0 0 0 6px rgba(31, 107, 255, 0);
   }
 }
+
+/* 실시간 인구 "이름" 끄기 — 장소 이름표만 숨기고 범위는 남긴다(MapArea). 이름표는 인라인 display:flex 라 !important. */
+.map-crowd-no-labels .map-crowd-pill {
+  display: none !important;
+}

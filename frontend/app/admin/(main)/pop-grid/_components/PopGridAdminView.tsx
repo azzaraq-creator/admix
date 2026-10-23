@@ -123,10 +123,10 @@ export function PopGridAdminView() {
       {confirmDialog}
       <div className="flex flex-col gap-[8px]">
         <h1 className="text-2xl leading-[32px] font-bold text-black">
-          유동인구 데이터
+          인구 분포 데이터
         </h1>
         <p className="text-sm leading-[20px] text-gray-600">
-          매체 찾기 지도의 「유동인구」 층에 쓰는 서울 250m 격자(
+          매체 찾기 지도의 「인구 분포」 층에 쓰는 서울 250m 격자(
           {(data?.cellCount ?? 8617).toLocaleString()}칸) 월별 값이에요. 여기
           올린 달만 지도에서 고를 수 있어요. 같은 달을 다시 올리면 파일에 든
           자료만 새 값으로 바뀌어요.
@@ -179,8 +179,8 @@ export function PopGridAdminView() {
           <p className="text-sm text-gray-500">불러오는 중…</p>
         ) : months.length === 0 ? (
           <p className="text-sm text-gray-500">
-            아직 올린 달이 없어요. 위에서 파일을 올리면 매체 찾기 지도에
-            「유동인구」 층이 생겨요.
+            아직 올린 달이 없어요. 위에서 파일을 올리면 매체 찾기 지도에 「인구
+            분포」 층이 생겨요.
           </p>
         ) : (
           <div className="overflow-x-auto rounded-[12px] border border-stroke">

@@ -1,12 +1,28 @@
 "use client";
 
 import { Dropdown } from "@heroui/react";
-import { Check, Monitor, Moon, Sun } from "lucide-react";
+import { Check, Monitor, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
+/** 라이트 아이콘 — public/icons/light.svg 모양을 글자색(currentColor)으로 칠한다(lucide 아이콘과 같은 자리에 쓰려고 같은 props). */
+function LightIcon({
+  className,
+}: {
+  className?: string;
+  strokeWidth?: number;
+  "aria-hidden"?: boolean;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-block bg-current [mask:url(/icons/light.svg)_center/contain_no-repeat] ${className ?? ""}`}
+    />
+  );
+}
+
 const OPTIONS = [
-  { id: "light", label: "라이트", Icon: Sun },
+  { id: "light", label: "라이트", Icon: LightIcon },
   { id: "dark", label: "다크", Icon: Moon },
   { id: "system", label: "시스템", Icon: Monitor },
 ] as const;

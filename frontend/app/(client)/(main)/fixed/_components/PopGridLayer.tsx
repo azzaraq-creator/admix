@@ -24,12 +24,12 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import type { KakaoMap } from "@/lib/kakaoMap";
 import { cn } from "@/lib/utils";
 
-import { POP_LEVELS, useMapPopGrid } from "./useMapPopGrid";
+import { POP_LEVELS, type PopRealtime, useMapPopGrid } from "./useMapPopGrid";
 
 const METRICS: { key: PopMetric; label: string; desc: string }[] = [
   {
     key: "flow",
-    label: "유동인구",
+    label: "종합",
     desc: "생활·체류인구·보행(통신 70%)과 지하철·버스 승하차(교통카드 30%)를 합쳐 서울에서 많은 순으로 칠해요 — 성별·연령은 생활·체류에 걸려요",
   },
   {
@@ -100,7 +100,8 @@ function monthsLabel(year: string, picked: string[], all: string[]): string {
 function valueText(metric: PopMetric, v: number | null): string {
   if (v == null) return "자료 없음";
   const n = v >= 10 ? Math.round(v).toLocaleString() : v.toFixed(1);
-  if (metric === "flow") return "유동인구";
+  // 종합은 여러 자료를 합친 순위라 이름 없이 "20대 남성 · 서울 상위 9%"처럼.
+  if (metric === "flow") return "";
   if (metric === "people") return "생활·체류인구";
   if (metric === "live") return `약 ${n}명`;
   if (metric === "subway") return `시간당 약 ${n}명 승하차`;
@@ -348,7 +349,7 @@ export function PopGridControls({ state }: { state: PopGridState }) {
     <div className="flex flex-col gap-[14px]">
       {s.empty ? (
         <p className="text-[12px] text-zinc-600 dark:text-[#b4b5bf]">
-          아직 올린 유동인구 자료가 없어요.
+          아직 올린 인구 분포 자료가 없어요.
         </p>
       ) : (
         <>
@@ -426,14 +427,14 @@ export function PopGridControls({ state }: { state: PopGridState }) {
                 <span>{reason}</span>
                 {picked && (
                   <span className="text-zinc-500 dark:text-[#a9aab4]">
-                    고른 {targetLabel(s.sex, s.ages)}은
-                    유동인구·생활·체류인구에서 그대로 적용돼요.{" "}
+                    고른 {targetLabel(s.sex, s.ages)}은 종합·생활·체류인구에서
+                    그대로 적용돼요.{" "}
                     <button
                       type="button"
                       onClick={() => s.setMetric("flow")}
                       className="font-semibold text-zinc-900 underline underline-offset-2 dark:text-white"
                     >
-                      유동인구로 보기
+                      종합으로 보기
                     </button>
                   </span>
                 )}
@@ -497,14 +498,12 @@ export function PopGridPanel({ state }: { state: PopGridState }) {
         type="button"
         onClick={() => state.setPanelOpen(!open)}
         aria-expanded={open}
+        aria-label={open ? "인구 분포 조건 접기" : "인구 분포 조건 펼치기"}
         className="flex shrink-0 items-center gap-[8px] px-[20px] pt-[12px] pb-[6px] text-left max-sm:px-[16px]"
       >
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="text-[14px] leading-[20px] font-bold text-zinc-900">
-            유동인구 지도
-            <span className="ml-[6px] text-[12px] font-medium text-zinc-600 dark:text-[#b4b5bf]">
-              {open ? "조건 접기" : "조건 바꾸기"}
-            </span>
+            인구 분포
           </span>
           <span className="truncate text-[12px] leading-[17px] text-zinc-700 dark:text-[#c9cad3]">
             {isFetching ? "불러오는 중…" : state.summary}
@@ -566,7 +565,7 @@ export function PopGridMobileButton({ state }: { state: PopGridState }) {
     <button
       type="button"
       onClick={() => state.setSheetOpen(true)}
-      aria-label="유동인구 지도 조건 열기"
+      aria-label="인구 분포 조건 열기"
       // "지도 표시" 버튼(또는 펼친 스위치 묶음) 바로 밑 — --map-legend-top 은 MapArea 가 정한다.
       className="absolute top-(--map-legend-top) left-[12px] z-[2] flex max-w-[calc(100%-24px)] flex-col gap-[5px] rounded-[14px] border-[0.5px] border-white/50 bg-surface/75 px-[10px] py-[7px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8] sm:hidden"
     >
@@ -608,7 +607,7 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
         <Drawer.Content placement="bottom">
           {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — 실시간 인구 시트와 같다. */}
           <Drawer.Dialog
-            aria-label="유동인구 지도"
+            aria-label="인구 분포"
             // 바탕은 옅은 회색 — 고른 칩(흰 바탕)이 시트 바탕과 구분되게(다크는 칩보다 한 단계 밝은 회색).
             className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[10px] dark:bg-[#24252b]"
           >
@@ -616,7 +615,7 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
             <div className="flex shrink-0 items-start justify-between gap-[8px] px-[16px] pt-[8px] pb-[10px]">
               <div className="flex min-w-0 flex-col gap-[2px]">
                 <span className="text-[17px] leading-[24px] font-bold text-zinc-900">
-                  유동인구 지도
+                  인구 분포
                 </span>
                 <span className="truncate text-[13px] leading-[18px] text-zinc-700 dark:text-[#c9cad3]">
                   {isFetching ? "불러오는 중…" : state.summary}
@@ -678,10 +677,13 @@ export function PopGridLayer({
   mapRef,
   mapReady,
   state,
+  realtime = null,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   state: PopGridState;
+  /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
+  realtime?: PopRealtime | null;
 }) {
   const isDesktop = useIsDesktop();
   const { data: cells } = usePopGridCells(true);
@@ -702,6 +704,7 @@ export function PopGridLayer({
     values: grid?.values ?? null,
     breaks: grid?.breaks ?? [],
     selected: state.selected,
+    realtime,
     onHover: isDesktop ? setHover : () => {},
     onSelect: (i, point) => {
       state.setSelected(i);
@@ -719,7 +722,7 @@ export function PopGridLayer({
     return (
       <div
         role="dialog"
-        aria-label={`${cells[sel][1]} ${cells[sel][2]} 유동인구`}
+        aria-label={`${cells[sel][1]} ${cells[sel][2]} 인구 분포`}
         // 모바일 지도는 낮아 누른 자리에 붙이면 "목록 보기" 버튼·지도 밖으로 넘친다 — 그 버튼 바로 위에 고정.
         className="absolute inset-x-[12px] bottom-[76px] z-[3] flex flex-col overflow-hidden rounded-[18px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.18)] backdrop-blur-[14px] backdrop-saturate-[1.8] [&>div:first-child]:border-t-0 [&>div:first-child]:px-[14px]"
       >

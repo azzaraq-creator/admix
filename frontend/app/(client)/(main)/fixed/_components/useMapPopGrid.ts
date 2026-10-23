@@ -16,7 +16,7 @@ import type {
 } from "@/lib/kakaoMap";
 
 /**
- * 유동인구 격자 색 — 연노랑 → 주황 → 빨강 → 진한 빨강(ColorBrewer YlOrRd). 한 색의 진하기만 바꾸면 단계가 잘 안 갈려서
+ * 인구 분포 격자 색 — 연노랑 → 주황 → 빨강 → 진한 빨강(ColorBrewer YlOrRd, 맨 끝은 옅게 칠해도 보랏빛이 돌지 않게 따뜻한 빨강). 한 색의 진하기만 바꾸면 단계가 잘 안 갈려서
  * 단계마다 색 자체가 바뀌게 했다. 화면의 서비스 보라와도 섞이지 않는다. 하위 60%는 거의 비치게, 자료 없음은 옅은 회색.
  * short — 범례 칸 아래 글자.
  */
@@ -26,7 +26,7 @@ export const POP_LEVELS: { label: string; short: string; color: string }[] = [
   { label: "상위 20%", short: "20%", color: "#feb24c" },
   { label: "상위 10%", short: "10%", color: "#fd8d3c" },
   { label: "상위 5%", short: "5%", color: "#e31a1c" },
-  { label: "상위 1%", short: "1%", color: "#800026" },
+  { label: "상위 1%", short: "1%", color: "#a8121c" },
 ];
 // 가까이 보면 칸이 커서 지도 글씨를 덮는다 — 진한 단계도 아래 지도가 비치게.
 const LEVEL_ALPHA = [0.12, 0.5, 0.56, 0.62, 0.66, 0.74];
@@ -99,6 +99,11 @@ function gridBoard(map: KakaoMap) {
   canvas.style.cssText =
     "position:absolute;visibility:hidden;pointer-events:none";
   anchor.appendChild(canvas);
+  // 실시간 판 — 도로 현황 선·실시간 인구 범위. 카카오 Polyline·Polygon 은 이 그림판(CustomOverlay)보다 아래 층이라
+  // 격자 색에 덮이므로, 인구 분포를 켠 동안 격자 위에 같은 모양을 다시 그린다(누르기·마우스는 아래 원래 도형이 받는다).
+  const ov = document.createElement("canvas");
+  ov.style.cssText = "position:absolute;visibility:hidden;pointer-events:none";
+  anchor.appendChild(ov);
   // 강조 판 — 누른 칸·마우스를 올린 칸 테두리. 카카오 Polygon 은 이 그림판(CustomOverlay)보다 아래 층에 그려져
   // 격자 색에 덮여 흐려지므로, 격자 판 바로 위에 같은 크기 판을 하나 더 두고 칸 두 개만 다시 그린다.
   const hl = document.createElement("canvas");
@@ -153,6 +158,8 @@ function gridBoard(map: KakaoMap) {
     canvas.height = h * 3;
     hl.width = w * 3;
     hl.height = h * 3;
+    ov.width = w * 3;
+    ov.height = h * 3;
     tx = { toX, toY };
     const ctx = canvas.getContext("2d");
     if (!ctx) return false;
@@ -195,7 +202,7 @@ function gridBoard(map: KakaoMap) {
     }
 
     // 기준점은 화면 가운데 — 카카오는 기준점이 화면 밖이면 판을 그리지 않아, 끌어도 오래 남게 가운데에 둔다.
-    for (const el of [canvas, hl]) {
+    for (const el of [canvas, ov, hl]) {
       el.style.left = `${-1.5 * w}px`;
       el.style.top = `${-1.5 * h}px`;
       el.style.width = `${w * 3}px`;
@@ -205,8 +212,51 @@ function gridBoard(map: KakaoMap) {
       proj.coordsFromContainerPoint(new maps.Point(w / 2, h / 2)),
     );
     canvas.style.visibility = "visible";
+    ov.style.visibility = "visible";
     hl.style.visibility = "visible";
     return true;
+  };
+  /** 실시간 판 다시 그리기 — 지도를 옮길 때(draw 뒤)와 실시간 자료가 바뀔 때만(마우스 움직임엔 안 그린다). */
+  const drawRealtime = (rt: PopRealtime | null) => {
+    const ctx = ov.getContext("2d");
+    if (!ctx || !tx) return;
+    const { toX, toY } = tx;
+    ctx.clearRect(0, 0, ov.width, ov.height);
+    if (!rt) return;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (const area of rt.areas) {
+      const p = new Path2D();
+      for (const ring of area.rings) {
+        ring.forEach(([lng, lat], i) =>
+          i
+            ? p.lineTo(toX(lat, lng), toY(lat, lng))
+            : p.moveTo(toX(lat, lng), toY(lat, lng)),
+        );
+        p.closePath();
+      }
+      // 테두리 없이 혼잡도 색 반투명 채우기 — 붐비는 장소가 보이면서 안쪽 격자 색도 비치게.
+      ctx.globalAlpha = 0.38;
+      ctx.fillStyle = area.color;
+      ctx.fill(p);
+      ctx.globalAlpha = 1;
+    }
+    // 도로 선 — 소통 색(원활·서행·정체)을 얇고 옅게(격자·장소 구역보다 앞서 보이지 않게).
+    for (const line of rt.lines) {
+      if (line.path.length < 2) continue;
+      ctx.beginPath();
+      line.path.forEach(([lat, lng], i) =>
+        i
+          ? ctx.lineTo(toX(lat, lng), toY(lat, lng))
+          : ctx.moveTo(toX(lat, lng), toY(lat, lng)),
+      );
+      ctx.strokeStyle = line.color;
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   };
   /** 강조 판 다시 그리기 — 누른 칸(흰 바탕 굵은 테두리 + 파란 테두리, 안을 옅게 밝힘)·마우스를 올린 칸(얇은 파랑). */
   const highlight = (
@@ -252,9 +302,22 @@ function gridBoard(map: KakaoMap) {
   };
   const hide = () => {
     canvas.style.visibility = "hidden";
+    ov.style.visibility = "hidden";
     hl.style.visibility = "hidden";
   };
-  return { draw, highlight, hide, remove: () => overlay.setMap(null) };
+  return {
+    draw,
+    drawRealtime,
+    highlight,
+    hide,
+    remove: () => overlay.setMap(null),
+  };
+}
+
+/** 격자 위에 다시 그릴 실시간 자료 — 도로 선(위도, 경도)·장소 범위(경도, 위도 고리). */
+export interface PopRealtime {
+  lines: { path: [number, number][]; color: string }[];
+  areas: { rings: [number, number][][]; color: string }[];
 }
 
 // 테두리 파랑 — 노랑~빨강 격자의 반대 색이라 어느 단계 위에서도, 라이트·다크 지도 어디서도 눈에 띈다.
@@ -271,6 +334,7 @@ export function useMapPopGrid({
   values,
   breaks,
   selected,
+  realtime = null,
   onHover,
   onSelect,
   onViewChange,
@@ -282,6 +346,8 @@ export function useMapPopGrid({
   values: (number | null)[] | null;
   breaks: number[];
   selected: number | null;
+  /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
+  realtime?: PopRealtime | null;
   onHover: (hit: { index: number; x: number; y: number } | null) => void;
   /** 누른 칸 번호와 지도 안 화면 자리 */
   onSelect: (index: number | null, point?: { x: number; y: number }) => void;
@@ -293,12 +359,14 @@ export function useMapPopGrid({
   // 지도 이벤트 쪽에서 들고 있는 "마우스를 올린 칸" — 값·선택이 바뀌어 강조 판을 다시 그릴 때 쓴다.
   const hoveredRef = useRef<() => number | null>(() => null);
   const dataRef = useRef({ cells, values, breaks, selected });
+  const realtimeRef = useRef(realtime);
   const handlersRef = useRef({ onHover, onSelect, onViewChange });
   const find = useMemo(() => (cells ? cellIndex(cells) : null), [cells]);
   const findRef = useRef(find);
   // 지도 이벤트 손잡이는 한 번만 달고, 최신 값·콜백은 ref 로 본다.
   useLayoutEffect(() => {
     dataRef.current = { cells, values, breaks, selected };
+    realtimeRef.current = realtime;
     handlersRef.current = { onHover, onSelect, onViewChange };
     findRef.current = find;
   });
@@ -314,8 +382,10 @@ export function useMapPopGrid({
     hoveredRef.current = () => hovered;
     const redraw = () => {
       const { cells: c, values: v, breaks: b, selected: sel } = dataRef.current;
-      if (c && v && board.draw(c, v, b)) board.highlight(c, sel, hovered);
-      else if (!v) board.hide();
+      if (c && v && board.draw(c, v, b)) {
+        board.drawRealtime(realtimeRef.current);
+        board.highlight(c, sel, hovered);
+      } else if (!v) board.hide();
     };
     const onZoomStart = () => {
       board.hide();
@@ -381,12 +451,18 @@ export function useMapPopGrid({
   useEffect(() => {
     const board = boardRef.current;
     if (!board || !cells) return;
-    if (values && board.draw(cells, values, breaks))
+    if (values && board.draw(cells, values, breaks)) {
+      board.drawRealtime(realtimeRef.current);
       board.highlight(cells, selected, hoveredRef.current());
-    else if (!values) board.hide();
+    } else if (!values) board.hide();
     // 누른 칸이 바뀔 때는 강조 판만 — selected 는 아래 효과가 맡는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cells, values, breaks]);
+
+  // 실시간 자료가 바뀌면 실시간 판만 다시.
+  useEffect(() => {
+    boardRef.current?.drawRealtime(realtime);
+  }, [realtime]);
 
   // 누른 칸이 바뀌면 강조 판만 다시 그린다.
   useEffect(() => {

@@ -119,8 +119,6 @@ function roundCoord(v: number): string {
 const CROWD_STORAGE_KEY = "admix.map.crowd";
 // 실시간 인구를 켰을 때 범위 밖을 흑백으로 — 기본은 켬("0"으로 꺼 둔 경우만 끔).
 const CROWD_GRAY_STORAGE_KEY = "admix.map.crowd-gray";
-// "실시간 인구"를 보여 주는 가장 넓은 지도 레벨(카카오 — 숫자가 클수록 넓게 본다).
-const CROWD_MAX_LEVEL = 7;
 const CROWD_EVENT = "admix:crowd-setting";
 
 /** "실시간 인구" 켜 둔 상태 — 이 브라우저(localStorage)에 기억한다. 서버 렌더에서는 꺼짐. */
@@ -162,6 +160,29 @@ function useCrowdGraySetting(): boolean {
 
 function setCrowdGraySetting(on: boolean) {
   window.localStorage.setItem(CROWD_GRAY_STORAGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(CROWD_EVENT));
+}
+
+// 실시간 인구 장소 이름표를 보일지 — 끄면 범위 색만 남아 아래 격자·매체 핀을 가리지 않는다. 기본은 켬.
+const CROWD_LABELS_STORAGE_KEY = "admix.map.crowd-labels";
+
+function useCrowdLabelsSetting(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(CROWD_EVENT, onChange);
+      window.addEventListener("storage", onChange);
+      return () => {
+        window.removeEventListener(CROWD_EVENT, onChange);
+        window.removeEventListener("storage", onChange);
+      };
+    },
+    () => window.localStorage.getItem(CROWD_LABELS_STORAGE_KEY) !== "0",
+    () => true,
+  );
+}
+
+function setCrowdLabelsSetting(on: boolean) {
+  window.localStorage.setItem(CROWD_LABELS_STORAGE_KEY, on ? "1" : "0");
   window.dispatchEvent(new Event(CROWD_EVENT));
 }
 
@@ -296,14 +317,13 @@ export function FixedMediaView() {
   // "실시간 인구" — 켜 둔 상태는 이 브라우저에 기억한다. 켰을 때만 서울시 혼잡도를 묻는다.
   const crowdOn = useCrowdSetting();
   const crowdGray = useCrowdGraySetting();
+  const crowdLabels = useCrowdLabelsSetting();
   const trafficOn = useTrafficSetting();
   // "유동인구" 층 — 켜기는 지도 스위치(MapArea), 조건 창·칩은 검색 줄 아래(MediaFindPanel).
   const popGrid = usePopGridState();
   // 지도 영역은 실시간 인구·교통을 켰을 때만 상태로 둔다 — 꺼 둔 채로 지도를 옮기거나 확대·축소할 때마다
-  // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다. 줌 단계만은 버튼을 보일지
-  // 정하는 데 늘 필요해서 따로 두고, 값이 바뀔 때만 다시 그린다.
+  // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다.
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
-  const [mapZoom, setMapZoom] = useState<number | null>(null);
   const toggleCrowd = (on: boolean) => {
     setCrowdSetting(on);
     if (on) setCrowdBounds(lastViewportRef.current);
@@ -312,16 +332,9 @@ export function FixedMediaView() {
     setTrafficSetting(on);
     if (on) setCrowdBounds(lastViewportRef.current);
   };
-  // 넓게 볼 때(레벨 8 이상)는 버튼·표시를 모두 숨기고 서울시에도 묻지 않는다 — 장소가 너무 많아 겹친다.
-  const crowdZoomOk = mapZoom != null && mapZoom <= CROWD_MAX_LEVEL;
-  const { data: crowdData } = useMediaCrowd(
-    crowdBounds,
-    crowdOn && crowdZoomOk,
-  );
-  const { data: trafficData } = useMediaTraffic(
-    crowdBounds,
-    trafficOn && crowdZoomOk,
-  );
+  // 지도를 넓게 봐도 보여 준다(인구 분포처럼) — 도로 구간은 서버가 화면 가운데에서 가까운 것부터 2,500개까지만 준다.
+  const { data: crowdData } = useMediaCrowd(crowdBounds, crowdOn);
+  const { data: trafficData } = useMediaTraffic(crowdBounds, trafficOn);
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
   const commitZoomOnly = useCallback((zoom: number) => {
@@ -348,7 +361,6 @@ export function FixedMediaView() {
   const handleBoundsChange = useCallback(
     (b: MapBoundsPayload) => {
       lastViewportRef.current = b;
-      setMapZoom(b.zoom);
       if (crowdOn || trafficOn) setCrowdBounds(b);
       if (b.moveType === "program") {
         const reason = pendingCommitRef.current;
@@ -620,16 +632,16 @@ export function FixedMediaView() {
             crowd={
               mapStep && demoCrowd
                 ? demoCrowd
-                : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다. 넓게 볼 때(레벨 8 이상)는 장소가 너무
-                  // 많아 겹쳐서 끄되, 유동인구 스위치와 함께 묶음에 남아 있으니 흐리게 두고 이유를 알린다.
+                : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
                   crowdData?.enabled === false
                   ? undefined
                   : {
-                      on: crowdOn && crowdZoomOk,
-                      disabled: !crowdZoomOk,
+                      on: crowdOn,
                       onToggle: toggleCrowd,
                       gray: crowdGray,
                       onToggleGray: setCrowdGraySetting,
+                      labels: crowdLabels,
+                      onToggleLabels: setCrowdLabelsSetting,
                       places: crowdData?.places ?? [],
                       loading: !crowdData || crowdData.pending > 0,
                     }
@@ -641,12 +653,11 @@ export function FixedMediaView() {
             traffic={
               mapStep
                 ? demoTraffic
-                : // 실시간 인구와 같은 기준 — 키가 없으면 숨기고, 넓게 볼 땐 흐리게.
+                : // 실시간 인구와 같은 기준 — 키가 없으면 숨긴다.
                   trafficData?.enabled === false
                   ? undefined
                   : {
-                      on: trafficOn && crowdZoomOk,
-                      disabled: !crowdZoomOk,
+                      on: trafficOn,
                       onToggle: toggleTraffic,
                       links: trafficData?.links ?? [],
                       // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.

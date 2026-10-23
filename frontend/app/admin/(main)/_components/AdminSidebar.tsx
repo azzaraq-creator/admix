@@ -23,7 +23,7 @@ type NavLink = { label: string; href: string; permKey: string };
 const TOP_LINKS: NavLink[] = [
   { label: "대시보드", href: "/admin", permKey: "dashboard" },
   { label: "광고 매체 관리", href: "/admin/media", permKey: "media" },
-  { label: "유동인구 데이터", href: "/admin/pop-grid", permKey: "media" },
+  { label: "인구 분포 데이터", href: "/admin/pop-grid", permKey: "media" },
   { label: "회원 관리", href: "/admin/members", permKey: "member" },
   { label: "AI 채팅 관리", href: "/admin/chat", permKey: "chat" },
 ];

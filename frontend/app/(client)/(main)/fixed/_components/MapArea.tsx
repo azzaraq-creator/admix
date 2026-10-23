@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type ReactNode,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,7 +18,7 @@ import {
   type OperatingArea,
   type TrafficLink,
 } from "@/hooks/media";
-import { ChevronDownIcon, LayerIcon, XIcon } from "@/components/icons";
+import { ChevronDownIcon, XIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +33,12 @@ import { POPUP_BG_CLASS } from "./MarkerMediaPopup";
 import { useKakaoMap } from "./useKakaoMap";
 import { useMapArea } from "./useMapArea";
 import { CrowdTransitSections } from "./CrowdTransitSections";
-import { CROWD_LEVELS, crowdColor, useMapCrowd } from "./useMapCrowd";
+import {
+  CROWD_LEVELS,
+  crowdColor,
+  useCrowdRings,
+  useMapCrowd,
+} from "./useMapCrowd";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMapPopup } from "./useMapPopup";
 import {
@@ -41,7 +47,8 @@ import {
   PopGridSheet,
   type PopGridState,
 } from "./PopGridLayer";
-import { TRAFFIC_LEVELS, useMapTraffic } from "./useMapTraffic";
+import type { PopRealtime } from "./useMapPopGrid";
+import { TRAFFIC_LEVELS, trafficColor, useMapTraffic } from "./useMapTraffic";
 
 export { geocodeAddress, searchPlaces, type KakaoPlace } from "@/lib/kakaoMap";
 export type {
@@ -60,6 +67,16 @@ const POPUP_ARROW_MAX_OFFSET = 150;
 const TOGGLE_STACK =
   "sm:@max-[400px]:h-auto sm:@max-[400px]:flex-col sm:@max-[400px]:items-stretch sm:@max-[400px]:gap-[8px] sm:@max-[400px]:rounded-[12px] sm:@max-[400px]:px-[10px] sm:@max-[400px]:py-[8px]";
 const TOGGLE_STACK_SEP = "sm:@max-[400px]:hidden";
+// PC 스위치 알약 하나(고정 자료·실시간 자료 각각) — 모바일은 껍데기 없이 바깥 묶음에 스위치를 그대로 늘어놓는다(contents).
+// PC 실시간 자료 상자 — 알약과 같은 유리, 줄(TOGGLE_ROW)을 위아래로. 모바일은 껍데기 없이(contents).
+const TOGGLE_BOX =
+  "max-sm:contents sm:flex sm:flex-col sm:items-start sm:gap-[6px] sm:rounded-[15px] sm:border-[0.5px] sm:border-white/40 sm:bg-surface/40 sm:py-[6px] sm:pr-[8px] sm:pl-[10px] sm:shadow-[0px_4px_16px_rgba(0,0,0,0.14)] sm:backdrop-blur-[6px] sm:backdrop-saturate-[1.8] sm:@max-[400px]:items-stretch sm:@max-[400px]:gap-[8px] sm:@max-[400px]:rounded-[12px] sm:@max-[400px]:py-[8px]";
+const TOGGLE_ROW =
+  "max-sm:contents sm:flex sm:h-[18px] sm:items-center sm:@max-[400px]:h-auto sm:@max-[400px]:flex-col sm:@max-[400px]:items-stretch sm:@max-[400px]:gap-[8px]";
+const TOGGLE_PILL = cn(
+  "max-sm:contents sm:flex sm:h-[30px] sm:items-center sm:rounded-full sm:border-[0.5px] sm:border-white/40 sm:bg-surface/40 sm:pr-[8px] sm:pl-[10px] sm:shadow-[0px_4px_16px_rgba(0,0,0,0.14)] sm:backdrop-blur-[6px] sm:backdrop-saturate-[1.8]",
+  TOGGLE_STACK,
+);
 const TOGGLE_STACK_ITEM =
   "sm:@max-[400px]:w-full sm:@max-[400px]:justify-between";
 
@@ -73,7 +90,10 @@ const MOBILE_STACK_ITEM = "max-sm:w-full max-sm:justify-between";
 
 /** 묶음 안 마지막 스위치 끝 + 오른쪽 여백이 묶음 밖으로 나가는지 — scrollWidth는 끝 여백이 먹혀도 넘침으로 안 잡는다. */
 function overflows(el: HTMLElement) {
-  const last = el.lastElementChild;
+  let last = el.lastElementChild;
+  // 모바일 알약 껍데기(display: contents)는 크기가 없다 — 그 안 마지막 스위치를 잰다.
+  while (last && getComputedStyle(last).display === "contents")
+    last = last.lastElementChild;
   if (!last) return false;
   const style = getComputedStyle(el);
   const end =
@@ -186,11 +206,12 @@ export function MapArea({
     /** 범위 밖 흑백 */
     gray: boolean;
     onToggleGray: (on: boolean) => void;
+    /** 장소 이름표 보이기(기본 켬) — 가이드 예시엔 없다. */
+    labels?: boolean;
+    onToggleLabels?: (on: boolean) => void;
     places: CrowdPlace[];
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
-    /** 넓게 봐서 켤 수 없음 — 스위치를 흐리게, 확대하라고 알린다. */
-    disabled?: boolean;
   };
   /** "도로 현황" — 서울시 도로 구간의 실시간 소통(서울시 실시간 도로 소통 정보, TOPIS). 키가 없으면 넘기지 않는다. */
   traffic?: {
@@ -199,8 +220,6 @@ export function MapArea({
     links: TrafficLink[];
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
-    /** 넓게 봐서 켤 수 없음 */
-    disabled?: boolean;
   };
   /** "유동인구" — 서울 250m 격자의 월별 인구(어드민이 올린 달). 켜기는 지도 스위치, 조건은 검색 줄 아래 유동인구 지도 창. */
   popGrid?: PopGridState;
@@ -247,6 +266,7 @@ export function MapArea({
     mapRef,
     mapReady,
     links: traffic?.on ? traffic.links : null,
+    strong: !!popGrid?.on,
   });
 
   // 실시간 인구 장소 범위를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
@@ -266,11 +286,33 @@ export function MapArea({
     mapReady,
     places: crowd?.on ? crowd.places : null,
     gray: !!crowd?.gray,
+    strong: !!popGrid?.on,
     selectedCode: picked?.code,
     onSelect: setPickedPlace,
   });
 
   const isDesktop = useIsDesktop();
+
+  // 인구 분포를 켠 동안 — 도로 현황 선·실시간 인구 범위를 격자 위에 다시 그린다(카카오 도형은 격자 판 아래 층).
+  const popOn = !!popGrid?.on;
+  const rtLinks = traffic?.on ? traffic.links : null;
+  const rtPlaces = crowd?.on ? crowd.places : null;
+  const crowdRings = useCrowdRings(popOn && !!rtPlaces);
+  const popRealtime = useMemo<PopRealtime | null>(() => {
+    if (!popOn) return null;
+    const lines = (rtLinks ?? []).map((l) => ({
+      path: l.path,
+      color: trafficColor(l.level),
+    }));
+    const areas =
+      rtPlaces && crowdRings
+        ? rtPlaces.flatMap((pl) => {
+            const rings = crowdRings.get(pl.code);
+            return rings ? [{ rings, color: crowdColor(pl.level) }] : [];
+          })
+        : [];
+    return lines.length || areas.length ? { lines, areas } : null;
+  }, [popOn, rtLinks, rtPlaces, crowdRings]);
   // 모바일 스위치 묶음(유동인구·실시간 인구·흑백·도로 현황) — 지도를 가려서 평소엔 "지도 표시" 버튼 하나로 접어 둔다.
   const [layersOpen, setLayersOpen] = useState(false);
   const layersShown = isDesktop || layersOpen || forceLayersOpen;
@@ -324,13 +366,20 @@ export function MapArea({
           // 실시간 인구를 켜면 범위 밖은 흑백 판(useMapCrowd)이 덮는다. 판이 아직 없거나 확대·축소 중엔
           // 판이 어긋나므로 지도 전체를 흑백으로(globals.css) — 색이 번쩍 돌아오지 않게.
           crowd?.on && crowd.gray && !crowdBoardShown && "map-crowd-gray",
+          // 이름표 끄기 — 장소 표시(.map-crowd-pill)만 숨기고 범위는 남긴다(globals.css).
+          crowd?.on && crowd.labels === false && "map-crowd-no-labels",
         )}
       />
       {crowdHovered && crowdHoverEl
         ? createPortal(<CrowdHoverCard place={crowdHovered} />, crowdHoverEl)
         : null}
       {popGrid?.on && (
-        <PopGridLayer mapRef={mapRef} mapReady={mapReady} state={popGrid} />
+        <PopGridLayer
+          mapRef={mapRef}
+          mapReady={mapReady}
+          state={popGrid}
+          realtime={popRealtime}
+        />
       )}
       {popGrid?.on && !isDesktop && (
         // 모바일 — 유동인구 조건·범례·칸 정보는 지도 오른쪽 위 버튼 → 아래에서 올라오는 시트.
@@ -348,7 +397,11 @@ export function MapArea({
           aria-label="지도 표시 설정"
           className="absolute top-[12px] left-[12px] z-[2] flex h-[36px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-surface/60 pr-[12px] pl-[10px] text-[12px] font-semibold text-zinc-900 shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
         >
-          <LayerIcon className="size-[16px] shrink-0" />
+          {/* 아이콘 모양은 public/icons/layer.svg — 글자색으로 칠한다. */}
+          <span
+            aria-hidden
+            className="h-[14px] w-[16px] shrink-0 bg-current [mask:url(/icons/layer.svg)_center/contain_no-repeat]"
+          />
           지도 표시
           {layersOnCount > 0 && (
             <span className="flex size-[18px] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
@@ -373,105 +426,24 @@ export function MapArea({
         <div
           ref={togglesRef}
           data-tour="map-layers"
-          title={
-            crowd?.disabled || traffic?.disabled
-              ? "지도를 확대하면 실시간 인구·도로 현황을 켤 수 있어요"
-              : undefined
-          }
           className={cn(
-            "absolute top-[12px] left-[12px] z-[2] flex h-[30px] items-center rounded-full border-[0.5px] border-white/40 bg-surface/40 pr-[8px] pl-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8] max-sm:top-[56px] max-sm:max-w-[calc(100%-24px)] max-sm:whitespace-nowrap",
+            // PC — 고정 자료(인구 분포)와 실시간 자료(실시간 인구·흑백·도로 현황)를 위아래 두 알약으로 나눈다.
+            // 모바일 — 한 장의 유리 묶음 그대로, 두 무리 사이에 선(stack 일 때 가로선).
+            "absolute top-[12px] left-[12px] z-[2] flex sm:flex-col sm:items-start sm:gap-[8px]",
+            "max-sm:top-[56px] max-sm:h-[30px] max-sm:max-w-[calc(100%-24px)] max-sm:items-center max-sm:rounded-full max-sm:border-[0.5px] max-sm:border-white/40 max-sm:bg-surface/40 max-sm:pr-[8px] max-sm:pl-[10px] max-sm:whitespace-nowrap max-sm:shadow-[0px_4px_16px_rgba(0,0,0,0.14)] max-sm:backdrop-blur-[6px] max-sm:backdrop-saturate-[1.8]",
             // 모바일은 "지도 표시" 버튼으로 펼쳤을 때만.
             !layersShown && "max-sm:hidden",
-            TOGGLE_STACK,
             toggleFit === "stack" && MOBILE_STACK,
           )}
         >
           {popGrid && (
-            // 유동인구 — 서울 250m 격자를 고른 조건의 서울 순위로 칠한다(PopGridLayer). 켜면 유동인구 지도 창이 펼쳐진다.
-            <Switch
-              size="sm"
-              isSelected={popGrid.on}
-              onChange={popGrid.toggle}
-              aria-label="유동인구 지도 보기"
-              className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-            >
-              <Switch.Content
-                className={cn(
-                  "gap-[6px] text-[12px] font-semibold text-zinc-900",
-                  TOGGLE_STACK_ITEM,
-                  toggleText,
-                  stackItem,
-                )}
-              >
-                <span>유동인구</span>
-                <Switch.Control>
-                  <Switch.Thumb className="bg-surface!" />
-                </Switch.Control>
-              </Switch.Content>
-            </Switch>
-          )}
-          {popGrid && (crowd || traffic) && (
-            <span
-              aria-hidden
-              className={cn(
-                "mx-[8px] h-[14px] w-px bg-zinc-900/15",
-                TOGGLE_STACK_SEP,
-                stackSep,
-              )}
-            />
-          )}
-          {crowd && (
-            <Switch
-              size="sm"
-              isSelected={crowd.on}
-              isDisabled={crowd.disabled}
-              onChange={crowd.onToggle}
-              aria-label="실시간 인구 보기"
-              className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-            >
-              <Switch.Content
-                className={cn(
-                  "gap-[6px] text-[12px] font-semibold text-zinc-900",
-                  TOGGLE_STACK_ITEM,
-                  toggleText,
-                  stackItem,
-                )}
-              >
-                {/* 아이콘 모양은 public/icons/group.svg */}
-                <span
-                  aria-hidden
-                  className="h-[11px] w-[12px] shrink-0 bg-current [mask:url(/icons/group.svg)_center/contain_no-repeat]"
-                />
-                <span>
-                  실시간 인구
-                  {/* 서울시 데이터라 서울만 보인다는 걸 알린다. */}
-                  <span className="ml-[3px] font-medium text-zinc-500">
-                    (서울)
-                  </span>
-                </span>
-                <Switch.Control className="ml-[2px]">
-                  {/* 켜져도 손잡이는 흰색(테마 기본은 진한 색이라 보라 위에서 안 보인다). */}
-                  <Switch.Thumb className="bg-surface!" />
-                </Switch.Control>
-              </Switch.Content>
-            </Switch>
-          )}
-          {crowd?.on && (
-            <>
-              {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
-              <span
-                aria-hidden
-                className={cn(
-                  "mx-[8px] h-[14px] w-px bg-zinc-900/15",
-                  TOGGLE_STACK_SEP,
-                  stackSep,
-                )}
-              />
+            <div className={TOGGLE_PILL}>
+              {/* 인구 분포 — 서울 250m 격자를 고른 조건의 서울 순위로 칠한다(PopGridLayer). 고정(월별) 자료. */}
               <Switch
                 size="sm"
-                isSelected={crowd.gray}
-                onChange={crowd.onToggleGray}
-                aria-label="범위 밖 흑백으로 보기"
+                isSelected={popGrid.on}
+                onChange={popGrid.toggle}
+                aria-label="인구 분포 보기"
                 className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
               >
                 <Switch.Content
@@ -482,55 +454,181 @@ export function MapArea({
                     stackItem,
                   )}
                 >
-                  <span>흑백</span>
+                  <span>
+                    인구 분포
+                    {/* 서울시 생활인구 격자라 서울만 보인다는 걸 알린다. */}
+                    <span className="ml-[3px] font-medium text-zinc-500">
+                      (서울)
+                    </span>
+                  </span>
                   <Switch.Control>
                     <Switch.Thumb className="bg-surface!" />
                   </Switch.Control>
                 </Switch.Content>
               </Switch>
-            </>
+            </div>
           )}
-          {crowd && traffic && (
+          {popGrid && (crowd || traffic) && (
+            // 고정 자료 | 실시간 자료 — 모바일만(PC는 알약이 따로). 쌓이면 가로선.
             <span
               aria-hidden
               className={cn(
-                "mx-[8px] h-[14px] w-px bg-zinc-900/15",
-                TOGGLE_STACK_SEP,
-                stackSep,
+                "mx-[8px] h-[14px] w-px bg-zinc-900/15 sm:hidden",
+                toggleFit === "stack" &&
+                  "max-sm:mx-0 max-sm:my-[2px] max-sm:h-px max-sm:w-full",
               )}
             />
           )}
-          {traffic && (
-            // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
-            <Switch
-              size="sm"
-              isSelected={traffic.on}
-              isDisabled={traffic.disabled}
-              onChange={traffic.onToggle}
-              aria-label="도로 현황 보기"
-              className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-            >
-              <Switch.Content
-                className={cn(
-                  "gap-[6px] text-[12px] font-semibold text-zinc-900",
-                  TOGGLE_STACK_ITEM,
-                  toggleText,
-                  stackItem,
-                )}
-              >
-                <span>도로 현황</span>
-                <Switch.Control>
-                  <Switch.Thumb className="bg-surface!" />
-                </Switch.Control>
-              </Switch.Content>
-            </Switch>
-          )}
-          {(crowd?.disabled || traffic?.disabled) && !isDesktop && (
-            // 넓게 볼 땐 실시간 인구·도로 현황을 켤 수 없다 — 모바일은 흐린 스위치 아래 줄에 이유(PC는 묶음 툴팁).
-            // 폭 0·최소 100% — 이 문구가 묶음 폭을 넓히지 않게(스위치 줄 간격이 벌어지지 않게).
-            <span className="w-0 min-w-full text-[11px] leading-[15px] font-medium whitespace-normal text-zinc-600 dark:text-[#b4b5bf]">
-              지도를 확대하면 실시간 인구·도로 현황을 켤 수 있어요
-            </span>
+          {(crowd || traffic) && (
+            // 실시간 자료 상자(PC) — 윗줄 "실시간 인구 (서울) | 흑백", 아랫줄 "도로 현황"을 한 상자 안에.
+            <div className={TOGGLE_BOX}>
+              {crowd && (
+                <div className={TOGGLE_ROW}>
+                  {crowd && (
+                    <Switch
+                      size="sm"
+                      isSelected={crowd.on}
+                      onChange={crowd.onToggle}
+                      aria-label="실시간 인구 보기"
+                      className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                    >
+                      <Switch.Content
+                        className={cn(
+                          "gap-[6px] text-[12px] font-semibold text-zinc-900",
+                          TOGGLE_STACK_ITEM,
+                          toggleText,
+                          stackItem,
+                        )}
+                      >
+                        <span>
+                          실시간 인구
+                          {/* 서울시 데이터라 서울만 보인다는 걸 알린다. */}
+                          <span className="ml-[3px] font-medium text-zinc-500">
+                            (서울)
+                          </span>
+                        </span>
+                        <Switch.Control className="ml-[2px]">
+                          {/* 켜져도 손잡이는 흰색(테마 기본은 진한 색이라 보라 위에서 안 보인다). */}
+                          <Switch.Thumb className="bg-surface!" />
+                        </Switch.Control>
+                      </Switch.Content>
+                    </Switch>
+                  )}
+                  {crowd?.on && (
+                    <>
+                      {/* 실시간 인구를 켰을 때만 — 범위 밖을 흑백으로 할지. */}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "mx-[8px] h-[14px] w-px bg-zinc-900/15",
+                          TOGGLE_STACK_SEP,
+                          stackSep,
+                        )}
+                      />
+                      <Switch
+                        size="sm"
+                        isSelected={crowd.gray}
+                        onChange={crowd.onToggleGray}
+                        aria-label="범위 밖 흑백으로 보기"
+                        className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                      >
+                        <Switch.Content
+                          className={cn(
+                            "gap-[6px] text-[12px] font-semibold text-zinc-900",
+                            TOGGLE_STACK_ITEM,
+                            toggleText,
+                            stackItem,
+                          )}
+                        >
+                          <span>흑백</span>
+                          <Switch.Control>
+                            <Switch.Thumb className="bg-surface!" />
+                          </Switch.Control>
+                        </Switch.Content>
+                      </Switch>
+                      {crowd.onToggleLabels && (
+                        <>
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "mx-[8px] h-[14px] w-px bg-zinc-900/15",
+                              TOGGLE_STACK_SEP,
+                              stackSep,
+                            )}
+                          />
+                          {/* 장소 이름표 — 끄면 범위 색만 남아 아래 격자·매체 핀이 가려지지 않는다. */}
+                          <Switch
+                            size="sm"
+                            isSelected={crowd.labels !== false}
+                            onChange={crowd.onToggleLabels}
+                            aria-label="실시간 인구 장소명 보기"
+                            className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                          >
+                            <Switch.Content
+                              className={cn(
+                                "gap-[6px] text-[12px] font-semibold text-zinc-900",
+                                TOGGLE_STACK_ITEM,
+                                toggleText,
+                                stackItem,
+                              )}
+                            >
+                              <span>장소명</span>
+                              <Switch.Control>
+                                <Switch.Thumb className="bg-surface!" />
+                              </Switch.Control>
+                            </Switch.Content>
+                          </Switch>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {crowd && traffic && (
+                // 모바일 한 줄일 때만 세로선(PC는 알약이 따로, 쌓이면 줄마다 하나).
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mx-[8px] h-[14px] w-px bg-zinc-900/15 sm:hidden",
+                    stackSep,
+                  )}
+                />
+              )}
+              {traffic && (
+                <div className={TOGGLE_ROW}>
+                  {traffic && (
+                    // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
+                    <Switch
+                      size="sm"
+                      isSelected={traffic.on}
+                      onChange={traffic.onToggle}
+                      aria-label="도로 현황 보기"
+                      className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                    >
+                      <Switch.Content
+                        className={cn(
+                          "gap-[6px] text-[12px] font-semibold text-zinc-900",
+                          TOGGLE_STACK_ITEM,
+                          toggleText,
+                          stackItem,
+                        )}
+                      >
+                        <span>
+                          도로 현황
+                          {/* 서울시 도로 소통 정보라 서울만 보인다는 걸 알린다. */}
+                          <span className="ml-[3px] font-medium text-zinc-500">
+                            (서울)
+                          </span>
+                        </span>
+                        <Switch.Control>
+                          <Switch.Thumb className="bg-surface!" />
+                        </Switch.Control>
+                      </Switch.Content>
+                    </Switch>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -718,7 +816,7 @@ function CrowdPlaceCard({
     <Card
       data-tour="crowd-place"
       className={cn(
-        "absolute top-[52px] left-[12px] z-[2] flex max-h-[calc(100%-140px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/75 p-0 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)] backdrop-blur-[14px] backdrop-saturate-[1.8] transition-opacity duration-300 ease-out motion-reduce:transition-none",
+        "absolute top-(--map-legend-top) left-[12px] z-[2] flex max-h-[calc(100%-var(--map-legend-top)-88px)] w-[320px] @max-[400px]:top-auto @max-[400px]:bottom-[12px] @max-[400px]:w-[calc(100%-24px)] flex-col gap-0 overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/75 p-0 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)] backdrop-blur-[14px] backdrop-saturate-[1.8] transition-opacity duration-300 ease-out motion-reduce:transition-none",
         hidden && "opacity-0",
       )}
     >

@@ -23,15 +23,30 @@ export function useMapTraffic({
   mapRef,
   mapReady,
   links,
+  strong = false,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   links?: TrafficLink[] | null;
+  /** 인구 분포를 함께 켬 — 선은 격자 위에 따로 그리므로 원래 선은 숨긴다. */
+  strong?: boolean;
 }) {
   const drawnRef = useRef(
     new Map<string, { level: string; line: KakaoPolyline }>(),
   );
   const active = !!links;
+  // 인구 분포를 켠 동안은 격자 위 실시간 판(useMapPopGrid)이 같은 선을 얇고 옅게 다시 그리므로 원래 선은 숨긴다
+  // (격자가 옅은 곳에서 굵은 원래 선이 비쳐 두 겹으로 보이지 않게).
+  const lineStyle = strong
+    ? { strokeWeight: 3, strokeOpacity: 0 }
+    : // 인구 분포를 꺼도 격자 위 선과 같은 얇고 옅은 모양(카카오는 소수 굵기를 잘 못 그려 3).
+      { strokeWeight: 3, strokeOpacity: 0.6 };
+  const lineStyleRef = useRef(lineStyle);
+  useEffect(() => {
+    lineStyleRef.current = lineStyle;
+    drawnRef.current.forEach((d) => d.line.setOptions(lineStyle));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strong]);
 
   useEffect(() => {
     const maps = window.kakao?.maps;
@@ -44,9 +59,8 @@ export function useMapTraffic({
       cur?.line.setMap(null);
       const line = new maps.Polyline({
         path: link.path.map(([lat, lng]) => new maps.LatLng(lat, lng)),
-        strokeWeight: 5,
+        ...lineStyleRef.current,
         strokeColor: trafficColor(link.level),
-        strokeOpacity: 0.85,
         // 매체 핀·장소 범위보다 아래.
         zIndex: -1,
       });
