@@ -822,6 +822,11 @@ _CLUSTER_MIN_LEVEL = 1
 _CLUSTER_DECLUSTER_LEVEL = 1
 
 
+def _same_spot_key(lat: float, lng: float) -> tuple[int, int]:
+    """소수 4자리(≈11m) 반올림 — 프런트 useMapMarkers 의 겹침 묶음(GROUP_PRECISION)과 같은 기준."""
+    return (round(lat * 1e4), round(lng * 1e4))
+
+
 def _cluster_cell_deg(zoom_level: int) -> float:
     step = max(0, zoom_level - _CLUSTER_MIN_LEVEL)
     return _CLUSTER_CELL_DEG_BASE * (2 ** step)
@@ -943,7 +948,7 @@ def list_fixed_clusters(
         if r.latitude is not None and r.longitude is not None
     ]
 
-    # 마커로 나갈 행 결정(확대 임계치 이하: 전부 개별 핀 / 그 외: 1개짜리 버킷만).
+    # 마커로 나갈 행 결정(확대 임계치 이하: 전부 개별 핀 / 그 외: 1개짜리·같은 자리뿐인 버킷만).
     clusters: list[dict] = []
     if zoom_level <= _CLUSTER_DECLUSTER_LEVEL:
         marker_points = points
@@ -955,8 +960,11 @@ def list_fixed_clusters(
             buckets.setdefault(key, []).append((r, lat, lng))
         marker_points = []
         for members in buckets.values():
-            if len(members) == 1:
-                marker_points.append(members[0])
+            # 한 개뿐이거나 모두 같은 자리(≈11m — 지도 겹침 묶음과 같은 기준)면 클러스터로 묶지 않고 매체로 보낸다.
+            # 같은 자리 매체는 아무리 확대해도 칸이 안 나뉘어, 클러스터로 두면 눌러도 확대만 되고 고를 수 없다.
+            # 지도는 이들을 겹침 묶음(숫자)으로 그리고, 누르면 매체 목록을 띄운다.
+            if len({_same_spot_key(lat, lng) for _, lat, lng in members}) == 1:
+                marker_points.extend(members)
             else:
                 n = len(members)
                 clusters.append(

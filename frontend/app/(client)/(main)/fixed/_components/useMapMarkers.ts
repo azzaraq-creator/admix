@@ -18,26 +18,18 @@ import {
 } from "./mapTypes";
 
 /**
- * 매체명 말풍선 — 마커와 같은 모양새: 보라(#7A3FE0) 바탕에 흰 글자, 아래 뾰족한 꼬리, 마커와 같은 그림자.
- * 선택(포커스)되면 포커스 마커처럼 흰 바탕·보라 테두리·보라 글자. 이름이 길면 말줄임(전체 이름은 title).
+ * 매체명 말풍선 — 핀·숫자핀과 같은 반투명(70%) 보라 바탕에 또렷한 흰 글자, 테두리 없이 아래 뾰족한 꼬리.
+ * 선택(포커스)되면 핀 포커스와 같은 진한 보라를 불투명하게. 이름이 길면 말줄임(전체 이름은 title).
  * 바깥 상자(아래 여백 = 꼬리 길이)의 아래 가운데가 매체 위치다(yAnchor 1).
  */
-const PIN_COLOR = "#7A3FE0";
-
 function bubbleCss(selected: boolean) {
-  const bg = selected ? "#ffffff" : PIN_COLOR;
-  const fg = selected ? PIN_COLOR : "#ffffff";
-  // 테두리 — 기본은 옅은 흰 테두리(실시간 인구 표시의 유리 가장자리와 질감을 맞춘다), 선택(흰 바탕)은 보라.
-  const border = selected
-    ? `1.5px solid ${PIN_COLOR}`
-    : "1.5px solid rgba(255,255,255,0.55)";
+  const bg = selected ? "#5b21c4" : "rgba(122,63,224,0.7)";
   return {
-    // 그림자는 실시간 인구 표시처럼 부드럽고 넓게.
-    wrap: "position:relative;padding-bottom:7px;filter:drop-shadow(0 2px 4px rgba(26,16,37,0.24));cursor:pointer;",
-    box: `position:relative;display:block;max-width:190px;padding:4px 10px;border-radius:14px;background:${bg};border:${border};color:${fg};font-size:12px;line-height:16px;font-weight:600;letter-spacing:-0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`,
-    // 꼬리는 몸통 위에 그려(z-index) 몸통 아래 테두리가 꼬리를 가로지르지 않게 한다 — 꼬리 윗부분(몸통 안쪽)이
-    // 같은 바탕색으로 그 테두리를 덮고, 바깥 두 변(오른쪽·아래)에만 테두리를 그어 몸통 테두리와 이어진다.
-    tail: `position:absolute;z-index:1;left:50%;bottom:2px;width:9px;height:9px;transform:translateX(-50%) rotate(45deg);background:${bg};border-right:${border};border-bottom:${border};border-bottom-right-radius:2px;`,
+    wrap: "position:relative;padding-bottom:6px;cursor:pointer;",
+    // 그림자는 상자 밖에만 생기는 box-shadow — drop-shadow 는 반투명 바탕 안으로 비쳐 탁해진다.
+    box: `position:relative;display:block;max-width:190px;padding:4px 10px;border-radius:14px;background:${bg};backdrop-filter:blur(2px);box-shadow:0 1px 3px rgba(26,16,37,${selected ? 0.32 : 0.22});color:#ffffff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:-0.2px;text-shadow:0 0 1px rgba(26,16,37,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`,
+    // 꼬리는 몸통 바로 아래 삼각형 — 몸통과 겹치지 않아 반투명 바탕이 겹쳐 진해지지 않는다.
+    tail: `position:absolute;left:50%;bottom:0;width:10px;height:6px;transform:translateX(-50%);background:${bg};clip-path:polygon(0 0,100% 0,50% 100%);`,
   };
 }
 
@@ -60,21 +52,23 @@ function styleBubble(el: HTMLDivElement, selected: boolean) {
   tail.style.cssText = css.tail;
 }
 
-const MARKER_SIZE = { width: 40, height: 40 };
-const MARKER_ANCHOR = { x: 20, y: 16 };
+// 단일 매체 핀 — 반투명(70%) 보라 원 + 흰 카테고리 아이콘(public/markers/pin). 숫자핀(클러스터)과 같은 보라 원이라
+// 지도 위 표시가 한 가족으로 보이고, 물방울보다 작아 지도 글씨를 덜 가린다. 기준점은 원 가운데.
+const MARKER_SIZE = { width: 32, height: 32 };
+const MARKER_ANCHOR = { x: 16, y: 16 };
 
 const MARKER_SRC: Record<string, string> = {
-  "전광판&빌보드": "/markers/billboard.svg",
-  지하철: "/markers/subway.svg",
-  공항: "/markers/airport.svg",
-  "기차&기차역": "/markers/train.svg",
-  기차역: "/markers/train-station.svg",
-  정류장: "/markers/bus-stop.svg",
-  "주거&사무공간": "/markers/residential-office.svg",
-  "쇼핑몰&마트": "/markers/mart.svg",
-  엔터테인먼트: "/markers/entertainment.svg",
-  "생활&편의시설": "/markers/amenities.svg",
-  기타: "/markers/etc.svg",
+  "전광판&빌보드": "/markers/pin/billboard.svg",
+  지하철: "/markers/pin/subway.svg",
+  공항: "/markers/pin/airport.svg",
+  "기차&기차역": "/markers/pin/train.svg",
+  기차역: "/markers/pin/train-station.svg",
+  정류장: "/markers/pin/bus-stop.svg",
+  "주거&사무공간": "/markers/pin/residential-office.svg",
+  "쇼핑몰&마트": "/markers/pin/mart.svg",
+  엔터테인먼트: "/markers/pin/entertainment.svg",
+  "생활&편의시설": "/markers/pin/amenities.svg",
+  기타: "/markers/pin/etc.svg",
 };
 
 const CATEGORY_TO_ITEM: Record<string, string> = {
@@ -107,8 +101,10 @@ function markerSrc(category: MarkerCategory, focused = false): string {
     (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) ||
     "기타";
   const file = MARKER_SRC[item] ?? MARKER_SRC["기타"];
-  // 포커스 변형: 바깥 링 흰색 (public/markers/focus/*.svg). 크기는 기본과 같다.
-  const path = focused ? file.replace("/markers/", "/markers/focus/") : file;
+  // 포커스 변형: 보라 원 + 흰 아이콘 (public/markers/pin/focus/*.svg). 크기는 기본과 같다.
+  const path = focused
+    ? file.replace("/markers/pin/", "/markers/pin/focus/")
+    : file;
   return encodeURI(path);
 }
 
@@ -137,17 +133,10 @@ function groupKeyOf(lat: number, lng: number): string {
   )}`;
 }
 
-// 숫자핀(클러스터·겹침 그룹) 공통 디자인 — public/markers/cluster.svg(기본)와
-// focus/cluster.svg(선택)를 그대로 옮긴 것. SVG엔 숫자가 박혀 있어 이미지로는 못 쓰고
-// 같은 색·테두리를 CSS로 그린다. 기본은 보라 원 + 흰 숫자(테두리·그림자 없음),
-// 선택은 흰 원 + 보라 테두리·숫자(단일 핀 포커스와 같이 크기는 그대로).
-// 기본 원에는 옅은 흰 테두리와 부드러운 그림자 — 실시간 인구 표시(유리 스타일)와 질감을 맞춘다.
-// 숫자 크기·테두리 두께는 SVG(원 지름 약 29 : 숫자 12 : 선 1.6) 비율로 핀 크기에 맞춘다.
+// 숫자핀(클러스터·겹침 그룹) 공통 디자인 — 테두리 없는 반투명(70%) 보라 원 + 흰 숫자, 옅은 그림자 하나.
+// 선택(팝업 열림·포커스)은 단일 핀 포커스와 같이 한 단계 진한 보라.
 function numberPinCss(size: number, selected: boolean): string {
-  const base = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.42)}px;font-weight:600;letter-spacing:-0.5px;box-sizing:border-box;cursor:pointer;`;
-  return selected
-    ? `${base}background:#ffffff;border:${(size * 0.05).toFixed(1)}px solid #7a3fe0;color:#7a3fe0;`
-    : `${base}background:#7a3fe0;color:#ffffff;border:${(size * 0.05).toFixed(1)}px solid rgba(255,255,255,0.55);box-shadow:0 2px 8px rgba(26,16,37,0.24);`;
+  return `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.4)}px;font-weight:700;letter-spacing:-0.5px;cursor:pointer;color:#ffffff;background:${selected ? "#5b21c4" : "rgba(122,63,224,0.7)"};backdrop-filter:blur(2px);box-shadow:0 1px 3px rgba(26,16,37,${selected ? 0.32 : 0.22});`;
 }
 
 export function useMapMarkers({
@@ -307,7 +296,7 @@ export function useMapMarkers({
       } else {
         // 겹친 마커 → 카운트 배지. 클릭 시 그 매체들을 리스트 팝업으로.
         const size =
-          members.length >= 100 ? 48 : members.length >= 10 ? 44 : 40;
+          members.length >= 100 ? 38 : members.length >= 10 ? 34 : 30;
         const selected = key === selectedGroupKeyRef.current;
         const el = document.createElement("div");
         el.style.cssText = numberPinCss(size, selected);
@@ -371,7 +360,7 @@ export function useMapMarkers({
     clusterOverlaysRef.current = [];
 
     clusters.forEach((c) => {
-      const size = c.count >= 100 ? 60 : c.count >= 10 ? 48 : 40;
+      const size = c.count >= 100 ? 46 : c.count >= 10 ? 38 : 32;
       const el = document.createElement("div");
       el.style.cssText = numberPinCss(size, false);
       el.textContent = String(c.count);

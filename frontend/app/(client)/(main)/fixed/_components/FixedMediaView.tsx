@@ -527,18 +527,22 @@ export function FixedMediaView() {
   // 지도를 직접 옮기면 pin이 지워져 하이라이트도 사라진다.
   const searchedId = searchParams.get("pin");
 
+  // 팝업이 열린 핀을 다시 누르면 닫는다(선택도 푼다).
   const handleMarkerClick = (id: string) => {
     setGroupPopup(null);
-    setPopupId(id);
-    setFocusId(id);
+    const reopen = popupId !== id;
+    setPopupId(reopen ? id : null);
+    setFocusId(reopen ? id : undefined);
   };
 
-  // 겹친 마커(카운트 배지) 클릭 → 그 매체들을 리스트 팝업으로.
+  // 겹친 마커(카운트 배지) 클릭 → 그 매체들을 리스트 팝업으로. 이미 열린 묶음을 다시 누르면 닫는다.
   // 개별 핀 포커스는 해제(겹침핀 활성화 시 다른 핀 selected 유지 방지).
   const handleGroupClick = useCallback((mk: MapMarker[]) => {
     setPopupId(null);
     setFocusId(undefined);
-    setGroupPopup(mk);
+    setGroupPopup((cur) =>
+      cur && cur[0]?.id === mk[0]?.id && cur.length === mk.length ? null : mk,
+    );
   }, []);
 
   // 지도 빈 곳 클릭(onPopupClose는 지도 클릭에서만 불린다) → 팝업을 닫고 핀 선택도 푼다.
