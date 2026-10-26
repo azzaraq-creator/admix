@@ -853,11 +853,6 @@ export function PopGridLayer({
   );
   const labels = scored ? countGrid?.values : grid?.values;
   const rank = useRank(grid?.values);
-  const [hover, setHover] = useState<{
-    index: number;
-    x: number;
-    y: number;
-  } | null>(null);
   // 모바일 — 칸을 눌러 팝오버를 띄웠는지(자리는 지도 아래쪽 고정). 지도를 움직이면 닫는다.
   // place 가 있으면 누른 자리에 실시간 인구 장소도 겹쳐 있어 먼저 둘 중 볼 것을 고르게 한다(인구 분포를 고르면 바로 시트).
   const [tap, setTap] = useState<{
@@ -876,7 +871,8 @@ export function PopGridLayer({
     selected: state.selected,
     realtime,
     soft,
-    onHover: isDesktop ? setHover : () => {},
+    // 마우스를 올린 칸은 지도에 테두리만 — 툴팁은 띄우지 않는다(칸 숫자·누른 칸 카드로 충분).
+    onHover: () => {},
     onSelect: (i, point) => {
       const place =
         !isDesktop && point ? (placeAt?.(point.lat, point.lng) ?? null) : null;
@@ -898,8 +894,6 @@ export function PopGridLayer({
     onViewChange: () => setTap(null),
   });
 
-  const hovered = hover && cells ? cells[hover.index] : null;
-  const hoverValue = hover ? (grid?.values[hover.index] ?? null) : null;
   const sel = state.selected;
   if (!isDesktop && tap?.place && sel != null && cells) {
     const place = tap.place;
@@ -996,25 +990,7 @@ export function PopGridLayer({
       </div>
     );
   }
-  if (!hovered || !hover) return null;
-  return (
-    <div
-      className="pointer-events-none absolute z-[3] flex flex-col gap-[1px] rounded-[10px] bg-scrim/70 px-[10px] py-[6px] text-white shadow-[0px_3px_10px_rgba(0,0,0,0.2)] backdrop-blur-[6px]"
-      style={{ left: hover.x + 14, top: hover.y + 14 }}
-    >
-      <span className="text-[12px] leading-[16px] font-bold whitespace-nowrap">
-        {hovered[1]} {hovered[2]}
-      </span>
-      <span className="text-[11px] leading-[15px] whitespace-nowrap tabular-nums">
-        {state.target} {valueText(state.metric, hoverValue)}
-        {hoverValue != null && (
-          <span className="ml-[4px] text-white/60">
-            · {rankText(rank(hoverValue))}
-          </span>
-        )}
-      </span>
-    </div>
-  );
+  return null;
 }
 
 /** 모바일 — 장소 범위와 격자 칸이 겹친 자리를 눌렀을 때 고르는 줄 하나. */

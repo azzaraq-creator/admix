@@ -330,11 +330,7 @@ export function MapArea({
         ) ?? null
     : undefined;
 
-  const {
-    hovered: crowdHovered,
-    hoverEl: crowdHoverEl,
-    boardShown: crowdBoardShown,
-  } = useMapCrowd({
+  const { boardShown: crowdBoardShown } = useMapCrowd({
     mapRef,
     mapReady,
     places: crowd?.on ? crowd.places : null,
@@ -415,9 +411,6 @@ export function MapArea({
           crowd?.on && crowd.labels === false && "map-crowd-no-labels",
         )}
       />
-      {crowdHovered && crowdHoverEl
-        ? createPortal(<CrowdHoverCard place={crowdHovered} />, crowdHoverEl)
-        : null}
       {popGrid?.on && (
         <PopGridLayer
           mapRef={mapRef}
@@ -781,40 +774,6 @@ export function MapArea({
           )
         : null}
     </div>
-  );
-}
-
-/**
- * 실시간 인구 장소에 마우스를 올렸을 때 뜨는 작은 카드 — 지도에는 그 장소 범위가 함께 칠해진다.
- * 검정 반투명 — 흰 유리 스타일의 장소 표시와 겹쳐 보이지 않게 구분한다.
- */
-function CrowdHoverCard({ place }: { place: CrowdPlace }) {
-  const color = crowdColor(place.level);
-  const range =
-    place.populationMin === place.populationMax
-      ? `${place.populationMax.toLocaleString()}명`
-      : `${place.populationMin.toLocaleString()}~${place.populationMax.toLocaleString()}명`;
-  const time = place.measuredAt?.slice(11, 16);
-  return (
-    <Card className="w-max gap-[2px] rounded-[10px] border-0 bg-scrim/60 px-[10px] py-[6px] shadow-[0px_3px_10px_rgba(0,0,0,0.2)] backdrop-blur-[6px]">
-      <div className="flex items-center gap-[6px] whitespace-nowrap">
-        <span className="text-[12px] leading-[16px] font-bold text-white">
-          {place.name}
-        </span>
-        <Chip
-          size="sm"
-          // 어두운 바탕 위라 혼잡도 색 글자에 옅은 흰 바탕을 깐다. 다크 모드는 혼잡도 색을 옅게 깐 어두운 칩.
-          className="h-[16px] bg-white/92 px-[5px] text-[10px] font-bold dark:bg-[color-mix(in_srgb,var(--crowd)_22%,#141519)]"
-          style={{ color, "--crowd": color } as CSSProperties}
-        >
-          {place.level}
-        </Chip>
-      </div>
-      <span className="text-[11px] leading-[15px] whitespace-nowrap text-white/90 tabular-nums">
-        {range}
-        {time && <span className="ml-[4px] text-white/60">· {time}</span>}
-      </span>
-    </Card>
   );
 }
 

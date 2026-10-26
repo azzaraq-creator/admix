@@ -224,7 +224,7 @@ type Drawn = {
  * 표시는 매체 핀·말풍선보다 아래(zIndex 0)에 깔아 매체 선택을 가리지 않는다.
  * 켜면 장소 범위를 혼잡도 색으로 칠해 두고, 범위 밖은 흑백으로 바꾼다(grayBoard).
  * 판이 아직 없거나 확대·축소 중이면 boardShown=false — MapArea 가 그동안 지도 전체를 흑백으로 둔다.
- * 마우스를 올리면 정보 카드를 띄울 자리(hoverEl)를 돌려준다 — 카드 내용은 MapArea 가 React(HeroUI)로 그려 넣는다.
+ * 마우스를 올리면 범위만 강조한다(인원·혼잡도 카드는 띄우지 않는다 — 누르면 장소 카드).
  * 범위를 누르면 onSelect(장소), 지도 빈 곳을 누르면 onSelect(null) — 고른 장소(selectedCode)는 범위를 강조해 둔다.
  */
 export function useMapCrowd({
@@ -248,7 +248,6 @@ export function useMapCrowd({
   onSelect?: (place: CrowdPlace | null) => void;
 }) {
   const [hovered, setHovered] = useState<CrowdPlace | null>(null);
-  const [hoverEl, setHoverEl] = useState<HTMLDivElement | null>(null);
   const [rings, setRings] = useState<Map<string, Rings> | null>(null);
   const active = !!places?.length;
   /** 장소 코드 → 가장 최근에 받은 데이터(정보 카드는 늘 최신 값으로). */
@@ -351,7 +350,7 @@ export function useMapCrowd({
           fillColor: color,
         });
         polygon.setMap(map);
-        // 범위에 마우스를 올리면 작은 카드, 누르면(모바일도) 지하철·버스 승하차까지 담은 장소 카드.
+        // 범위에 마우스를 올리면 강조, 누르면(모바일도) 지하철·버스 승하차까지 담은 장소 카드.
         maps.event.addListener(polygon, "mouseover", enter);
         maps.event.addListener(polygon, "mouseout", leave);
         maps.event.addListener(polygon, "click", select);
@@ -425,38 +424,5 @@ export function useMapCrowd({
     return () => polygons.forEach((polygon) => polygon.setOptions(baseStyle));
   }, [shownCode, places, rings, baseStyle]);
 
-  // 정보 카드 자리.
-  useEffect(() => {
-    const maps = window.kakao?.maps;
-    const map = mapRef.current;
-    if (!mapReady || !maps || !map || !shown) return;
-    // 카드 자리 — 크기 0인 기준점(장소 위치)에 붙이고, 카드는 CSS로 표시 바로 위 가운데에 띄운다.
-    // (카드 내용은 나중에 React가 넣어 카카오가 크기를 0으로 잡으므로 anchor 로는 위치가 어긋난다.)
-    // 카드는 마우스를 받지 않아 표시에서 마우스를 떼면 바로 닫힌다.
-    const anchor = document.createElement("div");
-    anchor.style.cssText =
-      "position:relative;width:0;height:0;pointer-events:none";
-    const el = document.createElement("div");
-    el.style.cssText =
-      "position:absolute;left:0;bottom:18px;transform:translateX(-50%);pointer-events:none";
-    anchor.appendChild(el);
-    const card = new maps.CustomOverlay({
-      position: new maps.LatLng(shown.lat, shown.lng),
-      content: anchor,
-      xAnchor: 0,
-      yAnchor: 0,
-      zIndex: 20,
-    });
-    card.setMap(map);
-    // 카카오가 카드를 감싸는 바깥 상자도 마우스를 받지 않게 — 받으면 표시 위를 덮어 마우스가 떠난 것으로
-    // 잡혀 카드가 닫혔다 열렸다 깜빡인다.
-    if (anchor.parentElement) anchor.parentElement.style.pointerEvents = "none";
-    setHoverEl(el);
-    return () => {
-      card.setMap(null);
-      setHoverEl(null);
-    };
-  }, [mapRef, mapReady, shown]);
-
-  return { hovered: shown, hoverEl, boardShown };
+  return { boardShown };
 }

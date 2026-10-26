@@ -359,7 +359,12 @@ export function FixedMediaView() {
   };
   // 지도를 넓게 봐도 보여 준다(인구 분포처럼) — 도로 구간은 서버가 화면 가운데에서 가까운 것부터 2,500개까지만 준다.
   const { data: crowdData } = useMediaCrowd(crowdBounds, crowdOn);
-  const { data: trafficData } = useMediaTraffic(crowdBounds, trafficOn);
+  const tourStep = useActivePageTourStep();
+  // 가이드 스위치 단계(map-layers)는 도로 현황을 켠 모습으로 보여 주므로 꺼 둔 사람도 받아 온다.
+  const { data: trafficData } = useMediaTraffic(
+    crowdBounds,
+    trafficOn || tourStep === "map-layers",
+  );
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
   const commitZoomOnly = useCallback((zoom: number) => {
@@ -559,7 +564,6 @@ export function FixedMediaView() {
       setCrowdBounds(lastViewportRef.current);
     },
   });
-  const tourStep = useActivePageTourStep();
   // 예시 화면은 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때(보이는 단계) 드러낸다.
   const shownStep = useShownPageTourStep();
   const touring = tourStep != null;
@@ -592,10 +596,10 @@ export function FixedMediaView() {
     // 실시간 인구는 밝힌 자리가 지도 위 스위치로 옮겨 갈 때 켠다.
     on: shownStep != null && MAP_STEPS.has(shownStep),
     onToggle: noop,
-    // 가이드에선 실시간 인구만 켠 모습 — 흑백·장소명은 꺼 둔다.
+    // 가이드에선 흑백은 꺼 두고, 스위치를 밝히는 단계(map-layers)에서만 장소명을 켠 모습으로.
     gray: false,
     onToggleGray: noop,
-    labels: false,
+    labels: shownStep === "map-layers",
     onToggleLabels: noop,
     places: [
       demoPlace.place,
@@ -605,7 +609,14 @@ export function FixedMediaView() {
     ],
     loading: false,
   };
-  const demoTraffic = { on: false, onToggle: noop, links: [], loading: false };
+  // 도로 현황도 스위치 단계(map-layers)에서만 켠 모습 — 실제 구간을 그린다.
+  const trafficShown = shownStep === "map-layers";
+  const demoTraffic = {
+    on: trafficShown,
+    onToggle: noop,
+    links: trafficShown ? (trafficData?.links ?? []) : [],
+    loading: false,
+  };
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 px-[20px] pt-[20px] pb-[20px] max-sm:px-[16px] max-sm:pt-[12px] max-sm:pb-0">
