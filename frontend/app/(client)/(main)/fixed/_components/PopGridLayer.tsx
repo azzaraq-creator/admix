@@ -845,6 +845,13 @@ export function PopGridLayer({
   const isDesktop = useIsDesktop();
   const { data: cells } = usePopGridCells(true);
   const { data: grid } = usePopGridValues(state.query);
+  // 칸 숫자 — 종합·생활·체류인구는 합친 점수라 같은 조건의 생활인구 수를 따로 받아 적는다.
+  const scored =
+    state.query?.metric === "flow" || state.query?.metric === "people";
+  const { data: countGrid } = usePopGridValues(
+    scored && state.query ? { ...state.query, metric: "live" } : null,
+  );
+  const labels = scored ? countGrid?.values : grid?.values;
   const rank = useRank(grid?.values);
   const [hover, setHover] = useState<{
     index: number;
@@ -865,6 +872,7 @@ export function PopGridLayer({
     cells: cells ?? null,
     values: grid?.values ?? null,
     breaks: grid?.breaks ?? [],
+    labels: labels ?? null,
     selected: state.selected,
     realtime,
     soft,
@@ -1131,19 +1139,18 @@ function PopCellSection({
     ...query,
     metric: "live",
   });
-  const counts = new Map(
-    ((scored ? countTrend : trend)?.months ?? []).map((m) => [m.ym, m.value]),
-  );
   const [tip, setTip] = useState<string | null>(null);
-  const shown = (trend?.months ?? []).filter((m) =>
+  // 월별 색 띠 — 인구 수로(점수와 수 툴팁이 따로 놀지 않게). 이 칸 안에서 가장 적은 달 → 많은 달을
+  // 지도 색 띠 앞 다섯 단계(옅은 노랑 → 빨강)로 나눠 칠해, 붐비는 달이 한눈에 보이게.
+  const shown = ((scored ? countTrend : trend)?.months ?? []).filter((m) =>
     activeMonths.some((a) => a.slice(0, 4) === m.ym.slice(0, 4)),
   );
-  const max = Math.max(1, ...shown.map((m) => m.value ?? 0));
-  const best = shown.reduce<{ ym: string; value: number | null } | null>(
-    (a, m) =>
-      m.value != null && (a?.value == null || m.value > a.value) ? m : a,
-    null,
-  );
+  const nums = shown.flatMap((m) => (m.value != null ? [m.value] : []));
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const best = shown.find((m) => m.value != null && m.value === hi) ?? null;
+  const shade = (v: number) =>
+    hi > lo ? Math.min(4, Math.floor(((v - lo) / (hi - lo)) * 5)) : 2;
   return (
     <div className="flex flex-col gap-[8px] border-t border-zinc-900/5 px-[20px] pt-[10px] pb-[12px] max-sm:px-[16px]">
       <div className="flex items-start justify-between gap-[8px]">
@@ -1170,21 +1177,25 @@ function PopCellSection({
         </button>
       </div>
       {shown.length > 0 && (
-        <div className="flex flex-col gap-[4px]">
-          <span className="text-[11px] font-bold text-zinc-600 dark:text-[#b4b5bf]">
-            달별
-            {best?.value != null && ` · 가장 많은 달 ${monthLabel(best.ym)}`}
+        <div className="flex flex-col gap-[6px]">
+          <span className="text-[12px] leading-[16px] text-zinc-600 dark:text-[#b4b5bf]">
+            월별
+            {best && (
+              <>
+                {" · 가장 많은 달 "}
+                <b className="font-bold text-zinc-900">{monthLabel(best.ym)}</b>
+              </>
+            )}
           </span>
-          {/* 모바일은 지도를 덜 밀어내게 막대를 낮게. 높이는 막대 칸 안 비율(%)로.
-              막대에 마우스를 올리면(모바일은 누르면) 그달 인구 수 툴팁. */}
+          {/* 칸 안에 달 숫자. 고르지 않은 달은 옅게. 칸에 마우스를 올리면(모바일은 누르면) 그달 인구 수 툴팁. */}
           <div
-            className="relative flex h-[48px] items-end gap-[3px] max-sm:h-[34px]"
+            className="relative flex gap-[2px]"
             onMouseLeave={() => setTip(null)}
           >
             {shown.map((m, i) => {
               const on = activeMonths.includes(m.ym);
-              const count = counts.get(m.ym) ?? null;
-              const label = `${monthLabel(m.ym)} · ${valueText(countMetric, count)}${scored ? " (생활인구)" : ""}`;
+              const lv = m.value == null ? -1 : shade(m.value);
+              const label = `${monthLabel(m.ym)} · ${valueText(countMetric, m.value)}${scored ? " (생활인구)" : ""}`;
               return (
                 <button
                   type="button"
@@ -1194,32 +1205,20 @@ function PopCellSection({
                   onFocus={() => setTip(m.ym)}
                   onBlur={() => setTip(null)}
                   onClick={() => setTip(tip === m.ym ? null : m.ym)}
-                  className="relative flex h-full flex-1 flex-col items-center justify-end gap-[2px] outline-none"
+                  className={cn(
+                    "relative flex h-[26px] flex-1 items-center justify-center text-[10px] font-semibold tabular-nums outline-none first:rounded-l-[6px] last:rounded-r-[6px] max-sm:h-[24px]",
+                    lv < 0 && "bg-zinc-100 text-zinc-400 dark:bg-zinc-800",
+                    lv >= 4 ? "text-white" : lv >= 0 && "text-[#5a3410]",
+                    !on && "opacity-40",
+                    tip === m.ym && "ring-2 ring-zinc-900/70 ring-inset",
+                  )}
+                  style={
+                    lv >= 0 ? { background: POP_LEVELS[lv].color } : undefined
+                  }
                 >
-                  <div className="flex min-h-0 w-full flex-1 items-end">
-                    <div
-                      className={cn(
-                        "w-full rounded-t-[3px] transition-colors",
-                        // 블루그레이(slate) — 지도 색 띠(노랑~빨강)와 겹치지 않는 무난한 색. 고른 달은 진하게,
-                        // 나머지는 한 단계 옅게(너무 밝으면 막대가 바탕에 묻힌다), 올린 달은 더 진하게.
-                        m.value == null
-                          ? "bg-zinc-200"
-                          : tip === m.ym
-                            ? "bg-slate-700 dark:bg-slate-300"
-                            : on
-                              ? "bg-slate-500 dark:bg-slate-400"
-                              : "bg-slate-300 dark:bg-slate-600",
-                      )}
-                      style={{
-                        height: `${m.value == null ? 8 : Math.max(8, (m.value / max) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] leading-[10px] text-zinc-600 dark:text-[#b4b5bf] tabular-nums">
-                    {Number(m.ym.slice(4))}
-                  </span>
+                  {Number(m.ym.slice(4))}
                   {tip === m.ym && (
-                    // 양 끝 막대는 툴팁이 카드 밖으로 나가지 않게 한쪽으로 붙인다.
+                    // 양 끝 칸은 툴팁이 카드 밖으로 나가지 않게 한쪽으로 붙인다.
                     <span
                       role="tooltip"
                       className={cn(

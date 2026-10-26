@@ -16,7 +16,7 @@ import { api } from "@/lib/api";
 
 /**
  * flow 유동인구(종합 0~100점) · people 생활·체류인구(합친 0~100점) · subway 지하철 승하차 · walk 상권 보행(분기)
- * · live 생활인구(달별 막대 툴팁의 인원 수)
+ * · live 생활인구(월별 색 띠 툴팁의 인원 수)
  */
 export type PopMetric = "flow" | "people" | "live" | "subway" | "walk";
 /** all 하루 전체 · am 출근 7~9시 · day 낮 10~16시 · pm 퇴근 17~19시 · night 야간 20~23시 */

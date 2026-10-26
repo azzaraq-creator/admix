@@ -34,6 +34,17 @@ const LEVEL_ALPHA = [0.12, 0.5, 0.56, 0.62, 0.66, 0.74];
 // 진한 빨강이 보랏빛이 된다 — 상위 단계는 0.6 넘게.
 const LEVEL_ALPHA_SOFT = [0.1, 0.38, 0.44, 0.5, 0.56, 0.64];
 const NO_DATA = "rgba(120,120,128,0.14)";
+// 칸 숫자 — 칸이 이만큼(px) 넘게 보일 때만 적는다. 그보다 작으면 숫자가 칸을 덮어 색이 안 읽힌다.
+const LABEL_MIN_CELL = 46;
+// 상위 5%·1%(진한 빨강) 칸은 흰 글씨, 나머지는 진한 갈색 글씨.
+const LABEL_LIGHT_FROM = 4;
+
+/** 칸 숫자 — 짧게: 822 · 2.5천 · 1.2만. */
+export function shortCount(v: number): string {
+  if (v < 1000) return String(Math.round(v));
+  if (v < 10000) return `${+(v / 1000).toFixed(1)}천`;
+  return `${+(v / 10000).toFixed(1)}만`;
+}
 
 export function popLevel(v: number | null, breaks: number[]): number {
   if (v == null) return -1;
@@ -132,6 +143,7 @@ function gridBoard(map: KakaoMap) {
     values: (number | null)[],
     breaks: number[],
     soft = false,
+    labels: (number | null)[] | null = null,
   ) => {
     const proj = map.getProjection();
     const bounds = map.getBounds();
@@ -193,16 +205,31 @@ function gridBoard(map: KakaoMap) {
       ctx.fill(path);
     });
     ctx.globalAlpha = 1;
+    const cellPx = Math.abs(
+      toX(cells[0][3][0], cells[0][3][3]) - toX(cells[0][3][0], cells[0][3][1]),
+    );
     // 칸이 크게 보일 때(약 12px 넘게)만 칸 사이 얇은 선 — 멀리서 보면 선이 색을 덮는다.
-    if (
-      Math.abs(
-        toX(cells[0][3][0], cells[0][3][3]) -
-          toX(cells[0][3][0], cells[0][3][1]),
-      ) > 12
-    ) {
+    if (cellPx > 12) {
       ctx.strokeStyle = "rgba(255,255,255,0.55)";
       ctx.lineWidth = 0.5;
       paths.forEach((path) => ctx.stroke(path));
+    }
+    // 칸 숫자 — 충분히 확대했을 때만, 자료 없는 칸은 비운다. 작고 굵지 않은 글씨로 색을 가리지 않게.
+    if (labels && cellPx >= LABEL_MIN_CELL) {
+      ctx.font = `600 ${cellPx >= 80 ? 12 : 11}px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i < cells.length; i++) {
+        const n = labels[i];
+        if (n == null) continue;
+        const c = cells[i][3];
+        const x = (toX(c[0], c[1]) + toX(c[4], c[5])) / 2;
+        const y = (toY(c[0], c[1]) + toY(c[4], c[5])) / 2;
+        if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
+        const light = popLevel(values[i] ?? null, breaks) >= LABEL_LIGHT_FROM;
+        ctx.fillStyle = light ? "rgba(255,255,255,0.95)" : "rgba(66,36,8,0.82)";
+        ctx.fillText(shortCount(n), x, y);
+      }
     }
 
     // 기준점은 화면 가운데 — 카카오는 기준점이 화면 밖이면 판을 그리지 않아, 끌어도 오래 남게 가운데에 둔다.
@@ -337,6 +364,7 @@ export function useMapPopGrid({
   cells,
   values,
   breaks,
+  labels = null,
   selected,
   realtime = null,
   soft = false,
@@ -350,6 +378,8 @@ export function useMapPopGrid({
   cells: PopCell[] | null;
   values: (number | null)[] | null;
   breaks: number[];
+  /** 칸에 적을 숫자(격자 순서) — 확대했을 때만 보인다 */
+  labels?: (number | null)[] | null;
   selected: number | null;
   /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
   realtime?: PopRealtime | null;
@@ -368,7 +398,7 @@ export function useMapPopGrid({
   const boardRef = useRef<ReturnType<typeof gridBoard> | null>(null);
   // 지도 이벤트 쪽에서 들고 있는 "마우스를 올린 칸" — 값·선택이 바뀌어 강조 판을 다시 그릴 때 쓴다.
   const hoveredRef = useRef<() => number | null>(() => null);
-  const dataRef = useRef({ cells, values, breaks, selected });
+  const dataRef = useRef({ cells, values, breaks, labels, selected });
   const realtimeRef = useRef(realtime);
   const softRef = useRef(soft);
   const handlersRef = useRef({ onHover, onSelect, onViewChange });
@@ -376,7 +406,7 @@ export function useMapPopGrid({
   const findRef = useRef(find);
   // 지도 이벤트 손잡이는 한 번만 달고, 최신 값·콜백은 ref 로 본다.
   useLayoutEffect(() => {
-    dataRef.current = { cells, values, breaks, selected };
+    dataRef.current = { cells, values, breaks, labels, selected };
     realtimeRef.current = realtime;
     softRef.current = soft;
     handlersRef.current = { onHover, onSelect, onViewChange };
@@ -393,8 +423,14 @@ export function useMapPopGrid({
     let hovered: number | null = null;
     hoveredRef.current = () => hovered;
     const redraw = () => {
-      const { cells: c, values: v, breaks: b, selected: sel } = dataRef.current;
-      if (c && v && board.draw(c, v, b, softRef.current)) {
+      const {
+        cells: c,
+        values: v,
+        breaks: b,
+        labels: l,
+        selected: sel,
+      } = dataRef.current;
+      if (c && v && board.draw(c, v, b, softRef.current, l)) {
         board.drawRealtime(realtimeRef.current);
         board.highlight(c, sel, hovered);
       } else if (!v) board.hide();
@@ -467,13 +503,13 @@ export function useMapPopGrid({
   useEffect(() => {
     const board = boardRef.current;
     if (!board || !cells) return;
-    if (values && board.draw(cells, values, breaks, soft)) {
+    if (values && board.draw(cells, values, breaks, soft, labels)) {
       board.drawRealtime(realtimeRef.current);
       board.highlight(cells, selected, hoveredRef.current());
     } else if (!values) board.hide();
     // 누른 칸이 바뀔 때는 강조 판만 — selected 는 아래 효과가 맡는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cells, values, breaks, soft]);
+  }, [cells, values, breaks, soft, labels]);
 
   // 실시간 자료가 바뀌면 실시간 판만 다시.
   useEffect(() => {
