@@ -1,6 +1,6 @@
 import type { IconProps } from "./types";
 
-// 타깃(과녁과 화살표) — 매체 찾기 "타깃 설정" 버튼. public/icons/target.svg 와 같은 모양을 글자색(currentColor)으로.
+// 타깃(과녁과 화살표) — 매체 찾기 "유동인구" 버튼. public/icons/target.svg 와 같은 모양을 글자색(currentColor)으로.
 // 21×20 그림을 여백을 넉넉히 둔 25px 판 가운데에 둔다 — 버튼의 20px 칸에선 16px 남짓으로 보인다.
 export function TargetIcon(props: IconProps) {
   return (

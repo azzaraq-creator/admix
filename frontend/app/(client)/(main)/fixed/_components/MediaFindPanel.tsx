@@ -2,7 +2,13 @@
 
 import { ScrollShadow, Tabs } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
@@ -40,7 +46,7 @@ import {
   type MapMarker,
 } from "./MapArea";
 
-/** 필터 칩으로 보여 주는 차원 — 관심 매체·이동매체 페이지가 쓴다(매체 찾기는 필터 대신 카테고리 탭·타깃 설정). */
+/** 필터 칩으로 보여 주는 차원 — 관심 매체·이동매체 페이지가 쓴다(매체 찾기는 필터 대신 카테고리 탭·유동인구 창). */
 export const CHIP_DIMS: ChipDimKey[] = [
   "category",
   "saleType",
@@ -137,7 +143,7 @@ export function MediaFindPanel({
   } | null;
   /** 이동매체 카드에 마우스를 올리면 그 운행 지역, 떼면 null — 지도에 영역으로 그린다. */
   onHoverArea?: (area: OperatingArea | null) => void;
-  /** "유동인구" 층 — 위쪽 줄 "타깃 설정" 버튼으로 조건 칸(PC·태블릿은 목록 칸 자리, 모바일은 아래 시트)을 연다. */
+  /** "유동인구" 층 — 위쪽 줄 "유동인구" 버튼으로 조건 칸(PC·태블릿은 목록 칸 자리, 모바일은 아래 시트)을 연다. */
   popGrid?: PopGridState;
   /**
    * 가이드 — 예시 매체 카드를 목록 맨 위에 두고, view를 주면 목록/지도 보기를 그쪽으로 맞춘다
@@ -165,7 +171,7 @@ export function MediaFindPanel({
   // 고른 매체의 카드 정보 — 고정 영역이 넓어 목록 첫 페이지에 없을 수도 있어 따로 들고 있는다.
   const [pinnedRow, setPinnedRow] = useState<MediaCardRow | null>(null);
   const [showSug, setShowSug] = useState(false);
-  // 타깃 설정 창 — 인구 분포 카드·모바일 시트에서도 열 수 있어 인구 분포 상태에 둔다.
+  // 유동인구 창 — 인구 분포 카드·모바일 시트에서도 열 수 있어 인구 분포 상태에 둔다.
   const filterOpen = !!popGrid?.targetOpen;
   const setFilterOpen = (open: boolean) => popGrid?.setTargetOpen(open);
   // 카테고리 탭을 한 번이라도 눌렀는지 — 그 뒤부터 선택 알약이 미끄러지는 연출을 켠다(아래 Tabs.Indicator).
@@ -180,18 +186,33 @@ export function MediaFindPanel({
       else q.delete("view");
     });
   };
-  // 타깃 설정 — PC·태블릿은 목록 칸 자리에 열어 지도와 함께 본다("지도 크게 보기"면 목록 칸을 되살린다).
+  // 유동인구 창 — PC·태블릿은 버튼 바로 밑에서 내려오는 창(오른쪽 끝을 버튼에 맞춰 지도 위에 띄운다). 목록·지도는 그대로.
   // 모바일은 지도 보기에서만 버튼이 보이고, 누르면 화면 끝까지 올라오는 Drawer로 연다(닫으면 지도 보기 그대로).
   const isDesktop = useIsDesktop();
-  const targetColumn = filterOpen && isDesktop;
-  const fixView = filterOpen && mapExpandedState === isDesktop;
+  const fixView = filterOpen && !isDesktop && !mapExpandedState;
   useEffect(() => {
     if (!fixView) return;
-    replaceQuery((q) => {
-      if (isDesktop) q.delete("view");
-      else q.set("view", "map");
-    });
-  }, [fixView, isDesktop]);
+    replaceQuery((q) => q.set("view", "map"));
+  }, [fixView]);
+  // 유동인구 창은 위쪽 줄 바로 밑에서 시작한다 — 태블릿은 위쪽 줄이 두 줄이라 높이를 재서 맞춘다.
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const [topBarHeight, setTopBarHeight] = useState(45);
+  useLayoutEffect(() => {
+    const el = topBarRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setTopBarHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  // PC 창은 Esc로도 닫는다.
+  useEffect(() => {
+    if (!filterOpen || !isDesktop) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") popGrid?.setTargetOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filterOpen, isDesktop, popGrid]);
   const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -359,7 +380,7 @@ export function MediaFindPanel({
   }, [clusterData, onRequestMapMove]);
 
   // 초기화 — 키워드·장소 칩을 비우고 검색 입력도 지운다. 목록은 지도 영역을 따르므로
-  // 줌과 지금 보이는 지도 영역(bbox)은 유지한다. 타깃 설정은 그 창 안의 초기화로 따로 되돌린다.
+  // 줌과 지금 보이는 지도 영역(bbox)은 유지한다. 유동인구 창은 그 창 안의 초기화로 따로 되돌린다.
   const resetSearch = () => {
     setLocation("");
     setShowSug(false);
@@ -521,8 +542,12 @@ export function MediaFindPanel({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-[10px]">
-      <div data-tour="find-search" className="relative z-30 shrink-0">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-[10px]">
+      <div
+        ref={topBarRef}
+        data-tour="find-search"
+        className="relative z-30 shrink-0"
+      >
         <MediaFindTopBar
           keyword={location}
           onKeywordChange={(v) => {
@@ -532,9 +557,9 @@ export function MediaFindPanel({
           onKeywordSubmit={handleSubmit}
           onKeywordClear={clearKeyword}
           searchBoxRef={searchBoxRef}
-          filterLabel="타깃 설정"
+          filterLabel="유동인구"
           filterIcon={TargetIcon}
-          // 과녁 아이콘은 그림 둘레에 여백이 있어 기본 간격이면 글자와 떨어져 보인다.
+          // 아이콘 그림 둘레에 여백이 있어 기본 간격이면 글자와 떨어져 보인다.
           filterClassName="gap-[6px] max-sm:gap-[4px]"
           filterOpen={filterOpen}
           onToggleFilter={() => setFilterOpen(!filterOpen)}
@@ -545,8 +570,6 @@ export function MediaFindPanel({
             scrollRef.current?.scrollTo({ top: 0 });
           }}
           onSortOpen={() => setFilterOpen(false)}
-          onReset={handleReset}
-          resetDisabled={!searched}
           mapExpanded={mapExpanded}
           mobileView={mapExpanded ? "map" : "list"}
           onToggleMapExpanded={() => setMapExpanded((v) => !v)}
@@ -605,7 +628,7 @@ export function MediaFindPanel({
 
       {/* 아래 리스트가 카드 그림자 자리를 만드느라 -mt-[30px]로 이 줄 위까지 박스를
           끌어올린다. 그대로 두면 나중에 그려지는 리스트가 칩을 덮어 X가 눌리지 않으므로
-          탭 줄을 z-20으로 띄운다(타깃 설정 창 z-30보다는 아래). */}
+          탭 줄을 z-20으로 띄운다(유동인구 창 z-30보다는 아래). */}
       <div
         data-tour="find-tabs"
         className="relative z-20 flex shrink-0 flex-wrap items-center gap-[12px]"
@@ -689,11 +712,7 @@ export function MediaFindPanel({
             // data-top-scroll·data-bottom-scroll이 둘 다 false(넘칠 게 없음)면 흐림을 끈다.
             // 태블릿(sm~lg)은 460px 고정이면 지도가 쪼그라들어 목록과 지도를 반씩 나눈다 —
             // 좌우 패딩 40px을 더하고 간격 20px의 절반을 빼면 (100% - 20px) / 2 + 40px.
-            // 타깃 설정 칸을 여는 동안은 감춰 둔다(빼지 않아야 닫을 때 보던 스크롤 자리가 남는다).
-            className={cn(
-              "-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[calc(var(--tabbar-space)+72px)] sm:w-[calc(50%+30px)] lg:w-[460px]",
-              targetColumn && "hidden",
-            )}
+            className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[calc(var(--tabbar-space)+72px)] sm:w-[calc(50%+30px)] lg:w-[460px]"
           >
             {demo && (
               // 가이드 예시 카드 — 기획안 담기·관심 매체 버튼을 밝힌다(가이드 판이 막고 있어 눌리지 않는다).
@@ -759,17 +778,11 @@ export function MediaFindPanel({
             )}
           </ScrollShadow>
         )}
-        {targetColumn && popGrid && (
-          // 타깃 설정 — 목록 칸 자리(카드와 같은 폭·지도와 같은 높이). 지도는 그대로 다 보인다.
-          <div className="flex min-h-0 shrink-0 flex-col sm:w-[calc(50%-10px)] lg:w-[420px]">
-            <PopGridTargetPanel state={popGrid} />
-          </div>
-        )}
         {!isDesktop && popGrid && (
-          // 모바일 타깃 설정 Drawer — 늘 붙여 두고 열림만 바꾼다(닫힐 때 내려가는 움직임이 보이게).
+          // 모바일 유동인구 창 Drawer — 늘 붙여 두고 열림만 바꾼다(닫힐 때 내려가는 움직임이 보이게).
           <PopGridTargetPanel state={popGrid} />
         )}
-        {!targetColumn && !mapExpanded && isLoading && (
+        {!mapExpanded && isLoading && (
           // 목록 칸 위에 겹치는 로딩 막 — 흐린 스켈레톤 위로 엷은 흰 막과 빙글빙글 도는 심볼.
           // 폭은 목록 칸(스크롤 영역의 좌우 패딩을 뺀 카드 폭)과 같게, 모바일은 하단 탭 바를 뺀 높이의 가운데에 둔다.
           <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-surface/30 max-sm:pb-(--tabbar-space) sm:w-[calc(50%-10px)] lg:w-[420px]">
@@ -800,6 +813,28 @@ export function MediaFindPanel({
           {mapExpanded ? "목록 보기" : "지도 보기"}
         </button>
       </div>
+      {isDesktop && popGrid && (
+        // PC·태블릿 유동인구 창 — 위쪽 줄 바로 밑, 오른쪽 끝을 유동인구·지도 크게 보기 버튼 줄에 맞춘다.
+        // 늘 붙여 두고 열림만 바꿔, 버튼에서 펼쳐지듯 살짝 내려오며 나타나고 올라가며 사라진다.
+        // 높이는 내용만큼, 길면 화면 아래까지에서 멈추고 창 안에서 스크롤한다. 지도를 눌러도 닫히지 않는다(고르며 지도를 본다).
+        <div
+          className="pointer-events-none absolute right-0 bottom-0 z-30 flex w-[400px] max-w-full flex-col"
+          style={{ top: topBarHeight + 8 }}
+        >
+          <div
+            aria-hidden={!filterOpen}
+            inert={!filterOpen}
+            className={cn(
+              "flex max-h-full min-h-0 origin-top-right flex-col rounded-[20px] shadow-[0px_12px_32px_rgba(0,0,0,0.16)] transition-[opacity,translate,scale] duration-200 ease-out",
+              filterOpen
+                ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                : "-translate-y-[8px] scale-[0.98] opacity-0",
+            )}
+          >
+            <PopGridTargetPanel state={popGrid} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

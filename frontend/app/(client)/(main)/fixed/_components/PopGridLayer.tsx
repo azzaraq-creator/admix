@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Drawer, ScrollShadow } from "@heroui/react";
+import {
+  Button,
+  Drawer,
+  ListBox,
+  ScrollShadow,
+  Select,
+  Switch,
+} from "@heroui/react";
 import {
   type RefObject,
   useEffect,
@@ -170,10 +177,10 @@ function ChipButton({
       aria-disabled={locked || undefined}
       onClick={onClick}
       className={cn(
-        // 흰 카드(OptionCard) 위 — 고르기 전엔 옅은 회색, 고르면 아주 옅은 보라 바탕에 진한 글자(보라가 튀지 않게).
+        // 흰 카드(OptionCard) 위 — 고르기 전엔 옅은 회색, 고르면 흰 바탕에 회색 테두리·진한 글자(무채색으로 무난하게).
         "h-[32px] shrink-0 rounded-full border px-[12px] text-[13px] whitespace-nowrap transition-colors max-sm:h-[30px] max-sm:px-[11px] max-sm:text-[12px]",
         on
-          ? "border-transparent bg-primary-100 font-semibold text-zinc-900 dark:bg-primary/25 dark:text-white"
+          ? "border-zinc-400 bg-surface font-semibold text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:border-white/40 dark:bg-white/[0.14] dark:text-white"
           : "border-transparent font-normal bg-zinc-900/[0.05] text-zinc-700 hover:bg-zinc-900/[0.09] dark:bg-white/[0.08] dark:text-[#c9cad3] dark:hover:bg-white/[0.12]",
         (disabled || locked) &&
           "opacity-40 hover:bg-zinc-900/[0.05] dark:hover:bg-white/[0.08]",
@@ -185,7 +192,7 @@ function ChipButton({
   );
 }
 
-/** 타깃 설정 항목 하나 — 흰 카드에 제목·지금 고른 값(오른쪽)·고르는 칩. 칩 묶음이 둘이면 줄을 나눠 넘긴다. */
+/** 유동인구 창 항목 하나 — 흰 카드에 제목·지금 고른 값(오른쪽)·고르는 칩. 칩 묶음이 둘이면 줄을 나눠 넘긴다. */
 function OptionCard({
   title,
   hint,
@@ -195,7 +202,8 @@ function OptionCard({
   title: string;
   /** 제목 옆 작은 설명(예: 여러 달은 평균) */
   hint?: string;
-  value: string;
+  /** 오른쪽 — 지금 고른 값(회색 글자), 또는 기간처럼 연도 Select. */
+  value: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -211,12 +219,55 @@ function OptionCard({
             </span>
           )}
         </h3>
-        <span className="shrink-0 text-[13px] font-semibold text-zinc-600 max-sm:text-[12px] dark:text-[#c9cad3]">
-          {value}
-        </span>
+        {typeof value === "string" ? (
+          <span className="shrink-0 text-[13px] font-semibold text-zinc-600 max-sm:text-[12px] dark:text-[#c9cad3]">
+            {value}
+          </span>
+        ) : (
+          value
+        )}
       </div>
       {children}
     </section>
+  );
+}
+
+/** 기간 카드의 연도 Select — 작은 회색 알약 버튼, 누르면 아래로 연도 목록. */
+function YearSelect({
+  years,
+  value,
+  onChange,
+}: {
+  years: string[];
+  value: string;
+  onChange: (year: string) => void;
+}) {
+  return (
+    <Select
+      aria-label="연도"
+      selectedKey={value}
+      onSelectionChange={(key) => {
+        if (key != null) onChange(String(key));
+      }}
+      className="-my-[4px] shrink-0"
+    >
+      <Select.Trigger className="flex h-[28px] min-h-0 items-center gap-[4px] rounded-full border-0 bg-zinc-900/[0.05] pr-[8px] pl-[12px] text-[13px] font-semibold text-zinc-900 shadow-none hover:bg-zinc-900/[0.09] data-[open=true]:bg-zinc-900/[0.09] max-sm:text-[12px] dark:bg-white/[0.08] dark:text-white">
+        <Select.Value className="text-[13px] font-semibold whitespace-nowrap text-zinc-900 max-sm:text-[12px] dark:text-white">
+          {value}년
+        </Select.Value>
+        <Select.Indicator className="static size-[14px] shrink-0 text-zinc-500" />
+      </Select.Trigger>
+      <Select.Popover placement="bottom end" className="w-[140px]">
+        <ListBox>
+          {years.map((y) => (
+            <ListBox.Item key={y} id={y} textValue={`${y}년`}>
+              {y}년
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
 
@@ -250,12 +301,12 @@ function setPopGridOn(on: boolean) {
 }
 
 /**
- * 유동인구 층의 켜짐·조건 — 위쪽 줄 "타깃 설정" 창(PopGridTargetPanel)과 지도 층(PopGridLayer)이 함께 쓴다.
+ * 유동인구 층의 켜짐·조건 — 위쪽 줄 "유동인구" 창(PopGridTargetPanel)과 지도 층(PopGridLayer)이 함께 쓴다.
  * 매체 찾기 화면(FixedMediaView)에서 한 번 만들어 둘 다에 넘긴다.
  */
 export function usePopGridState() {
   const on = usePopGridOn();
-  // 타깃 설정 창 — 위쪽 줄 버튼, PC 인구 분포 카드·모바일 시트의 "타깃 설정" 버튼으로 연다.
+  // 유동인구 창 — 위쪽 줄 버튼, PC 인구 분포 카드·모바일 시트의 "유동인구" 버튼으로 연다.
   const [targetOpen, setTargetOpen] = useState(false);
   // 지도에서 누른 격자 칸(격자 순서 번호) — 카드에 그 칸 정보를 붙인다.
   const [selected, setSelected] = useState<number | null>(null);
@@ -299,16 +350,20 @@ export function usePopGridState() {
   const target = segOk ? targetLabel(sex, ages) : "전체(성·연령 구분 없음)";
   const metricInfo = METRICS.find((m) => m.key === metric)!;
   const bandLabel = BANDS.find((b) => b.key === band)!.label;
-  const summary = [
-    metricInfo.label,
-    shownYear ? monthsLabel(shownYear, activeMonths, yearMonths) : "",
-    band === "all" ? "" : bandLabel,
-    segOk ? target : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // 지금 조건 — 항목 이름(유동인구 창 카드 제목과 같다)을 붙여 "종합"·"전체"가 무엇의 값인지 알게 한다.
+  // 시간대는 하루 전체면, 성별·연령은 고를 수 없는 자료면 뺀다.
+  const summaryParts = [
+    { label: "자료", value: metricInfo.label },
+    {
+      label: "기간",
+      value: shownYear ? monthsLabel(shownYear, activeMonths, yearMonths) : "",
+    },
+    { label: "시간대", value: band === "all" ? "" : bandLabel },
+    { label: "성별·연령", value: segOk ? target : "" },
+  ].filter((p) => p.value);
+  const summary = summaryParts.map((p) => `${p.label} ${p.value}`).join(" · ");
 
-  // 처음 조건(종합·최근 해 전체·하루 전체·성별·연령 전체)에서 바꾼 게 있는지 — 타깃 설정 초기화를 잠글지.
+  // 처음 조건(종합·최근 해 전체·하루 전체·성별·연령 전체)에서 바꾼 게 있는지 — 유동인구 창 초기화를 잠글지.
   const changed =
     metric !== "flow" ||
     shownYear !== latestYear ||
@@ -383,6 +438,7 @@ export function usePopGridState() {
     query,
     target,
     summary,
+    summaryParts,
   };
 }
 
@@ -392,7 +448,7 @@ const noop = () => {};
 
 /**
  * 매체 찾기 가이드 — 인구 분포 단계 동안 쓰는 예시 상태. 진짜 켜짐·고른 칸은 건드리지 않고 켠 것처럼 보이게 한다.
- * "conditions"는 타깃 설정 창을 연 것(PC), "cell"은 서울에서 값이 가장 큰 칸을 누른 것처럼 칸 정보를 띄운다.
+ * "conditions"는 유동인구 창을 연 것(PC), "cell"은 서울에서 값이 가장 큰 칸을 누른 것처럼 칸 정보를 띄운다.
  * "off"는 끈 스위치만 보여 준다(실시간 인구 단계 — 스위치 묶음 모양이 늘 같게).
  */
 export function useGuidePopGrid(
@@ -400,7 +456,7 @@ export function useGuidePopGrid(
   step: "conditions" | "cell" | "off" | null,
 ): PopGridState {
   const { data: grid } = usePopGridValues(step === "cell" ? state.query : null);
-  // 모바일은 지도 위 인구 분포 버튼을 밝히므로 타깃 설정 창을 열지 않는다(열면 지도를 가린다).
+  // 모바일은 지도 위 인구 분포 버튼을 밝히므로 유동인구 창을 열지 않는다(열면 지도를 가린다).
   const isDesktop = useIsDesktop();
   const top = useMemo(() => {
     let best: number | null = null;
@@ -425,7 +481,7 @@ export function useGuidePopGrid(
   };
 }
 
-/** 인구 분포 조건 고르기 — 자료·기간·시간대·성별·연령. 타깃 설정 창(PopGridTargetPanel) 안에 둔다. */
+/** 인구 분포 조건 고르기 — 자료·기간·시간대·성별·연령. 유동인구 창(PopGridTargetPanel) 안에 둔다. */
 function PopGridControls({ state }: { state: PopGridState }) {
   const s = state;
   // 흐린 성별·연령 칩을 누르면 이유 상자를 잠깐 깜빡인다.
@@ -463,25 +519,17 @@ function PopGridControls({ state }: { state: PopGridState }) {
           <OptionCard
             title="기간"
             hint="여러 달은 평균"
+            // 연도는 Select — 어드민이 올린 달이 있는 해만(다음 해 자료를 올리면 저절로 늘어난다).
             value={
-              s.shownYear
-                ? monthsLabel(s.shownYear, s.activeMonths, s.yearMonths)
-                : ""
+              s.shownYear && (
+                <YearSelect
+                  years={[...s.years.keys()].sort().reverse()}
+                  value={s.shownYear}
+                  onChange={s.setYear}
+                />
+              )
             }
           >
-            {s.years.size > 1 && (
-              <ChipRow>
-                {[...s.years.keys()].sort().map((y) => (
-                  <ChipButton
-                    key={y}
-                    on={y === s.shownYear}
-                    onClick={() => s.setYear(y)}
-                  >
-                    {y}년
-                  </ChipButton>
-                ))}
-              </ChipRow>
-            )}
             <ChipRow>
               <ChipButton on={!s.months.length} onClick={s.clearMonths}>
                 1년 전체
@@ -592,7 +640,7 @@ function PopGridControls({ state }: { state: PopGridState }) {
 }
 
 /**
- * "타깃 설정" — 인구 분포 조건 고르기(켜고 끄기는 지도 위 스위치). 지도를 가리지 않고 함께 보게 한다:
+ * "유동인구" — 인구 분포 조건 고르기(켜고 끄기는 지도 위 스위치). 지도를 가리지 않고 함께 보게 한다:
  * PC·태블릿은 목록 칸 자리를 이 칸으로 바꾸고(MediaFindPanel) 지도를 눌러도 닫지 않는다(칸을 눌러 보며 고르게).
  * 모바일은 화면 끝까지 올라오는 Drawer — 손잡이를 끌어내리거나 완료·닫기·뒤로가기로 닫는다.
  * 고르는 즉시 지도에 반영하고, 인구 분포가 꺼져 있으면 조건을 고를 때 함께 켠다.
@@ -633,50 +681,71 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
   );
   const body = (
     <>
-      <div className="flex shrink-0 items-start gap-[12px] px-[20px] pt-[16px] pb-[12px] max-sm:px-[16px] max-sm:pt-[8px]">
-        <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <span className="text-[15px] leading-[21px] font-bold text-zinc-900 max-sm:text-[16px] max-sm:leading-[22px]">
-            타깃 설정
-          </span>
-          <span className="text-[12px] leading-[17px] text-zinc-600 dark:text-[#b4b5bf]">
-            고른 사람이 많은 곳일수록 지도의 서울 250m 칸을 진하게 칠해요.
-          </span>
-        </div>
+      <div className="flex shrink-0 items-center gap-[12px] px-[20px] pt-[16px] pb-[12px] max-sm:px-[16px] max-sm:pt-[8px]">
+        <span className="min-w-0 flex-1 text-[15px] leading-[21px] font-bold text-zinc-900 max-sm:text-[16px] max-sm:leading-[22px]">
+          유동인구
+        </span>
+        {/* 완료 버튼은 없다 — 고르는 즉시 지도에 반영되고, 닫기는 X로. 초기화는 조건이 바뀌었을 때만 누를 수 있다. */}
+        <Button
+          variant="ghost"
+          isDisabled={!state.changed}
+          onPress={state.reset}
+          className="-mr-[4px] flex h-[32px] min-w-0 shrink-0 items-center gap-[4px] rounded-full px-[10px] text-[13px] font-medium text-zinc-600 hover:bg-zinc-900/5 max-sm:text-[12px] dark:text-[#b4b5bf]"
+        >
+          <RotateLeftIcon className="m-0 size-[16px] shrink-0 max-sm:size-[14px]" />
+          초기화
+        </Button>
         <button
           type="button"
           onClick={close}
-          aria-label="타깃 설정 닫기"
+          aria-label="유동인구 닫기"
           className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
         >
           <XIcon className="size-[20px]" />
         </button>
       </div>
+      {/* 인구 분포 켜기·끄기 — 지도 왼쪽 위 카드의 스위치와 같다(조건을 고르면 저절로 켜진다). */}
+      <div className="shrink-0 px-[20px] pb-[12px] max-sm:px-[16px]">
+        <Switch
+          size="sm"
+          isSelected={state.on}
+          onChange={state.toggle}
+          aria-label="지도에 유동인구 보기"
+          className="w-full rounded-[14px] bg-surface px-[14px] py-[11px] dark:bg-white/[0.05] [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+        >
+          <Switch.Content className="w-full justify-between gap-[8px] text-[14px] font-bold text-zinc-900 max-sm:text-[13px]">
+            <span>
+              지도에 유동인구 보기
+              <span className="ml-[4px] text-[12px] font-medium text-zinc-500">
+                (서울)
+              </span>
+            </span>
+            <Switch.Control>
+              <Switch.Thumb className="bg-surface!" />
+            </Switch.Control>
+          </Switch.Content>
+        </Switch>
+      </div>
       {isDesktop ? (
         scroll
       ) : (
         // 모바일 Drawer는 본문(Drawer.Body) 밖을 끌면 시트째 끌려 내려간다 — 스크롤 칸을 본문에 넣어 안쪽만 움직이게.
-        <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-inherit">
-          {scroll}
-        </Drawer.Body>
+        <>
+          <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-inherit">
+            {scroll}
+          </Drawer.Body>
+          {/* 모바일은 시트가 화면을 다 덮어 닫을 곳이 X뿐이라, 엄지가 닿는 아래에 완료를 고정한다(PC는 지도와 함께 보므로 없다). */}
+          <div className="shrink-0 border-t border-zinc-900/5 px-[16px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] dark:border-white/10">
+            <Button
+              variant="ghost"
+              onPress={close}
+              className="flex h-[46px] w-full items-center justify-center rounded-[16px] bg-primary text-[15px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
+            >
+              완료
+            </Button>
+          </div>
+        </>
       )}
-      <div className="flex shrink-0 items-center justify-between gap-[12px] border-t border-zinc-900/5 px-[20px] py-[12px] max-sm:px-[16px] max-sm:pb-[calc(12px+env(safe-area-inset-bottom))] dark:border-white/10">
-        <Button
-          variant="ghost"
-          isDisabled={!state.changed}
-          onPress={state.reset}
-          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-gray-200 bg-surface px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[12px] dark:border-white/10"
-        >
-          <RotateLeftIcon className="m-0 size-[18px] shrink-0 max-sm:size-[15px]" />
-          초기화
-        </Button>
-        <Button
-          variant="ghost"
-          onPress={close}
-          className="flex h-[40px] items-center rounded-[17px] bg-primary px-[20px] text-[14px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600 max-sm:text-[12px]"
-        >
-          완료
-        </Button>
-      </div>
     </>
   );
 
@@ -686,7 +755,8 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
     return (
       <div
         data-tour="pop-panel"
-        className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-gray-200 bg-[#f3f3f6] dark:border-white/10 dark:bg-[#24252b]"
+        // 높이는 내용만큼(바깥 창이 화면 아래까지로 막는다) — 넘치면 안쪽 칸이 스크롤.
+        className="flex max-h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-gray-200 bg-[#f3f3f6] dark:border-white/10 dark:bg-[#24252b]"
       >
         {body}
       </div>
@@ -700,7 +770,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
       <Drawer.Backdrop>
         <Drawer.Content placement="bottom">
           <Drawer.Dialog
-            aria-label="타깃 설정"
+            aria-label="유동인구"
             className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[calc(10px+env(safe-area-inset-top))] dark:bg-[#24252b]"
           >
             <Drawer.Handle />
@@ -713,47 +783,54 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
 }
 
 /**
- * 지도 왼쪽 위 인구 분포 버튼 — 지금 조건 한 줄 + 색 띠. 지도를 가리지 않게 늘 띄우는 건 이 버튼 하나다.
- * 누르면 PC는 위쪽 줄 타깃 설정 창, 모바일은 유동인구 시트(PopGridSheet)를 연다.
+ * 지도 왼쪽 위 — 인구 분포를 켰을 때만, 고른 조건(예: 자료 종합 · 기간 2025년 전체 · 성별·연령 20대). 누르면 유동인구 창이 열린다.
+ * 오른쪽 위 실시간 정보 버튼과 겹치지 않게 폭을 줄이고(--map-right-top-w), 넘치면 항목 단위로 줄을 바꾼다.
+ * 높이는 MapArea가 재서 실시간 인구 장소 카드를 그 밑에 붙인다(cardRef).
+ * 켜기·끄기는 유동인구 창 맨 위 스위치에서.
  */
-export function PopGridLegendButton({ state }: { state: PopGridState }) {
-  const isDesktop = useIsDesktop();
+export function PopGridMapCard({
+  state,
+  cardRef,
+}: {
+  state: PopGridState;
+  cardRef?: React.Ref<HTMLButtonElement>;
+}) {
   return (
     <button
+      ref={cardRef}
       type="button"
-      onClick={() =>
-        isDesktop ? state.setTargetOpen(true) : state.setSheetOpen(true)
-      }
-      aria-label={isDesktop ? "타깃 설정 열기" : "인구 분포 조건 열기"}
-      // 타깃 설정 창이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
+      onClick={() => state.setTargetOpen(true)}
+      aria-label="유동인구 조건 열기"
+      // 유동인구 창이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
       data-filter-toggle
-      // data-tour — 매체 찾기 가이드가 밝히는 자리(모바일 인구 분포 조건).
+      // data-tour — 매체 찾기 가이드가 밝히는 자리(모바일 인구 분포).
       data-tour="pop-mobile"
-      // 지도 스위치 묶음(모바일은 "지도 표시" 버튼) 바로 밑 — --map-legend-top 은 MapArea 가 정한다.
-      className="absolute top-(--map-legend-top) left-[12px] z-[2] flex max-w-[calc(100%-24px)] flex-col gap-[5px] rounded-[23px] border-[0.5px] border-white/50 bg-surface/75 px-[10px] py-[7px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8]"
+      className="absolute top-[12px] left-[12px] z-[2] flex min-h-[30px] max-w-[calc(100%-24px-var(--map-right-top-w,0px))] items-center gap-[4px] rounded-[15px] border-[0.5px] border-white/50 bg-surface/75 py-[6px] pr-[8px] pl-[12px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8] transition-colors hover:bg-surface/90"
     >
-      <span className="flex min-w-0 items-center gap-[4px]">
-        <span className="truncate text-[11px] leading-[14px] font-bold text-zinc-900">
-          {state.summary}
-        </span>
-        <ChevronDownIcon className="size-[12px] shrink-0 -rotate-90 text-zinc-600 dark:text-[#b4b5bf]" />
-      </span>
-      <span className="flex gap-[2px]">
-        {POP_LEVELS.map((lv) => (
+      {/* 항목 이름은 옅게, 값은 진하게 — 예: 자료 종합 · 기간 2025년 전체 · 성별·연령 20대 */}
+      {/* 모바일은 폭이 좁아 항목 단위로 줄을 바꾸므로 사이 점(·)을 빼고 간격만 둔다(줄 앞에 점이 오지 않게). */}
+      <span className="flex min-w-0 flex-wrap items-baseline gap-x-[5px] text-[12px] leading-[17px] text-zinc-900 max-sm:gap-x-[8px]">
+        {state.summaryParts.map((p, i) => (
           <span
-            key={lv.label}
-            className="h-[5px] w-[14px] rounded-[2px]"
-            style={{ background: lv.color }}
-          />
+            key={p.label}
+            className="flex items-baseline gap-[5px] whitespace-nowrap"
+          >
+            {i > 0 && <span className="text-zinc-400 max-sm:hidden">·</span>}
+            <span className="font-medium text-zinc-500 dark:text-[#a9aab4]">
+              {p.label}
+            </span>
+            <span className="-ml-[2px] font-bold">{p.value}</span>
+          </span>
         ))}
       </span>
+      <ChevronDownIcon className="size-[12px] shrink-0 -rotate-90 text-zinc-600 dark:text-[#b4b5bf]" />
     </button>
   );
 }
 
 /**
  * 모바일 유동인구 시트 — 아래에서 올라오는 Drawer(손잡이를 끌어내리거나 바깥을 눌러 닫는다).
- * PC 유동인구 카드와 같은 내용: 지금 조건·색 띠·누른 칸 정보. 조건은 "타깃 설정"으로 위쪽 줄 창을 열어 바꾼다.
+ * PC 유동인구 카드와 같은 내용: 지금 조건·색 띠·누른 칸 정보. 조건은 "유동인구"으로 위쪽 줄 창을 열어 바꾼다.
  */
 export function PopGridSheet({ state }: { state: PopGridState }) {
   const { data: cells } = usePopGridCells(true);
@@ -833,7 +910,7 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
                     className="flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[17px] bg-surface text-[13px] font-semibold text-zinc-900"
                   >
                     <TargetIcon className="size-[17px]" />
-                    타깃 설정 바꾸기
+                    유동인구 조건 바꾸기
                   </button>
                 </div>
               </ScrollShadow>
@@ -939,7 +1016,7 @@ export function PopGridGuideSpot({
 
 /**
  * 매체 찾기 지도 "유동인구" 층 — 격자 칠하기와 누른 칸 정보(PC는 지도 오른쪽 아래 카드, 모바일은 누른 자리 팝오버).
- * 조건은 위쪽 줄 타깃 설정 창, 범례는 지도 왼쪽 위 버튼(PopGridLegendButton)에 있다.
+ * 조건은 위쪽 줄 유동인구 창, 범례는 지도 왼쪽 위 카드(PopGridMapCard)에 있다.
  */
 export function PopGridLayer({
   mapRef,
@@ -1111,13 +1188,13 @@ export function PopGridLayer({
     );
   }
   if (isDesktop && sel != null && cells) {
-    // PC — 누른 칸 정보를 지도 오른쪽 아래에 띄운다(칸을 누를 때만, X로 닫는다).
+    // PC — 누른 칸 정보를 지도 오른쪽 아래에 띄운다(칸을 누를 때만, X로 닫는다). 실시간 범례가 있으면 그 위로(--map-live-legend-h).
     // data-tour — 매체 찾기 가이드가 밝히는 자리(칸 정보).
     const v = grid?.values[sel] ?? null;
     return (
       <div
         data-tour="pop-cell"
-        className="absolute right-[12px] bottom-[12px] z-[3] flex max-h-[calc(100%-24px)] w-[360px] flex-col overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
+        className="absolute right-[12px] bottom-[calc(12px+var(--map-live-legend-h,0px))] z-[3] flex max-h-[calc(100%-24px-var(--map-live-legend-h,0px))] w-[360px] flex-col overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
       >
         <ScrollShadow size={24} className="min-h-0 flex-1">
           <PopCellSection
