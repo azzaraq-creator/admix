@@ -45,7 +45,7 @@ import { useMapPopup } from "./useMapPopup";
 import {
   PopGridLayer,
   PopGridGuideSpot,
-  PopGridMobileButton,
+  PopGridLegendButton,
   PopGridSheet,
   type PopGridState,
 } from "./PopGridLayer";
@@ -386,7 +386,7 @@ export function MapArea({
       className={cn("relative @container", className)}
       style={
         {
-          // 모바일 범례는 스위치 묶음 바로 밑 — 묶음을 접어 두면 "지도 표시" 버튼(36px) 밑.
+          // 범례는 스위치 묶음 바로 밑 — 모바일에서 묶음을 접어 두면 "지도 표시" 버튼(36px) 밑.
           "--map-legend-top": `${
             isDesktop
               ? 12 + togglesHeight + 8
@@ -430,13 +430,11 @@ export function MapArea({
           state={popGrid}
         />
       )}
-      {popGrid?.on && !isDesktop && (
-        // 모바일 — 유동인구 조건·범례·칸 정보는 지도 오른쪽 위 버튼 → 아래에서 올라오는 시트.
-        <>
-          <PopGridMobileButton state={popGrid} />
-          <PopGridSheet state={popGrid} />
-        </>
+      {popGrid?.on && (
+        // 범례 버튼 — PC는 누르면 타깃 설정 창, 모바일은 아래에서 올라오는 시트(범례·칸 정보).
+        <PopGridLegendButton state={popGrid} />
       )}
+      {popGrid?.on && !isDesktop && <PopGridSheet state={popGrid} />}
       {(popGrid || crowd || traffic) && !isDesktop && (
         // 모바일 "지도 표시" 버튼 — 누르면 스위치 묶음을 펼치고 접는다. 켜진 표시 수를 작은 숫자로.
         <button

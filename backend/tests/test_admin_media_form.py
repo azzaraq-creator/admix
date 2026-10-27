@@ -139,7 +139,7 @@ def test_keyword_search_matches_tags(db):
         },
     )
     created.append(m["media_id"])
-    total, items, _ = ms.list_fixed_media(
+    total, items, _, _ = ms.list_fixed_media(
         s, limit=5, offset=0, source="all", keyword="태그검색전용말"
     )
     assert total == 1 and items[0]["id"] == m["media_id"]

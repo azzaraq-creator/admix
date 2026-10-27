@@ -70,6 +70,7 @@ export { LoginDoorIcon } from "./LoginDoorIcon";
 export { SearchDuotoneIcon } from "./SearchDuotoneIcon";
 export { SearchOutlineIcon } from "./SearchOutlineIcon";
 export { FilterIcon } from "./FilterIcon";
+export { TargetIcon } from "./TargetIcon";
 export { RotateLeftIcon } from "./RotateLeftIcon";
 export { SortIcon } from "./SortIcon";
 export { MapOutlineIcon } from "./MapOutlineIcon";

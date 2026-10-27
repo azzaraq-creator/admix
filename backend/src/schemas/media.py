@@ -75,11 +75,20 @@ class MediaSourceCounts(BaseModel):
     moving: int
 
 
+class MediaCategoryCounts(BaseModel):
+    """매체 찾기 카테고리 탭별 매체 수 — 고른 카테고리와 무관하게 같은 조건으로 센다."""
+
+    all: int
+    # category_large → 매체 수(매체가 있는 카테고리만)
+    byCategory: dict[str, int]
+
+
 class MediaCardListResponse(BaseModel):
     total: int
     items: list[MediaCardRow]
     # 매체 찾기 목록만 채운다(탭 숫자).
     sourceCounts: MediaSourceCounts | None = None
+    categoryCounts: MediaCategoryCounts | None = None
 
 
 class MediaMarker(BaseModel):

@@ -764,16 +764,16 @@ def list_fixed_media(
     keyword: str | None = None,
     regions: list[str] | None = None,
     sort: str | None = None,
-) -> tuple[int, list[dict], dict[str, int]]:
-    """매체 찾기 목록 — (탭 매체 수, 카드, 탭별 매체 수 {all, fixed, moving}).
+) -> tuple[int, list[dict], dict[str, int], dict]:
+    """매체 찾기 목록 — (매체 수, 카드, 탭별 매체 수 {fixed, moving, all}, 카테고리 탭별 매체 수).
 
     source=all 이면 고정매체와 운행 범위가 지도 영역과 겹치는 이동매체를 한 목록으로 섞어
-    같은 정렬로 페이지를 나눈다. 탭별 매체 수는 탭과 무관하게 같은 조건으로 센다.
+    같은 정렬로 페이지를 나눈다. 카테고리 탭 숫자는 고른 카테고리와 무관하게 같은 조건으로 센다.
     """
     base = _media_base_query(
         db,
         media_source=None,
-        categories=categories,
+        categories=None,
         ooh_types=ooh_types,
         exposure_types=exposure_types,
         media_shapes=media_shapes,
@@ -788,6 +788,18 @@ def list_fixed_media(
         keyword=keyword,
         regions=regions,
     )
+    by_category = (
+        base.filter(Media.media_source.in_(("FIXED", "MOVING")))
+        .with_entities(Media.category_large, func.count())
+        .group_by(Media.category_large)
+        .all()
+    )
+    category_counts = dict(
+        all=sum(n for _, n in by_category),
+        byCategory={c: n for c, n in by_category if c is not None},
+    )
+    if categories:
+        base = base.filter(Media.category_large.in_(categories))
     by_source = dict(
         base.with_entities(Media.media_source, func.count())
         .group_by(Media.media_source)
@@ -810,7 +822,7 @@ def list_fixed_media(
         .offset(offset)
         .all()
     )
-    return total, [_media_card(m) for m in rows], counts
+    return total, [_media_card(m) for m in rows], counts, category_counts
 
 
 # 지도 마커 클러스터링 — zoom_level 기반 그리드 셀 크기(도 단위).

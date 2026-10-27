@@ -143,7 +143,7 @@ def list_fixed_media(
     sort: str = Query("latest", pattern=media_service.MEDIA_SORT_PATTERN),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
-    total, items, counts = media_service.list_fixed_media(
+    total, items, counts, category_counts = media_service.list_fixed_media(
         db,
         limit=limit,
         offset=offset,
@@ -164,7 +164,9 @@ def list_fixed_media(
         regions=region,
         sort=sort,
     )
-    return MediaCardListResponse(total=total, items=items, sourceCounts=counts)
+    return MediaCardListResponse(
+        total=total, items=items, sourceCounts=counts, categoryCounts=category_counts
+    )
 
 
 @router.get("/fixed/clusters", response_model=MediaClusterResponse)

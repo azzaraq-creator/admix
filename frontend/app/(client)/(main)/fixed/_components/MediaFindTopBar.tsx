@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import type { KeyboardEvent, ReactNode, RefObject } from "react";
+import type { ComponentType, KeyboardEvent, ReactNode, RefObject } from "react";
 
 import {
   CloseSmallIcon,
@@ -9,7 +9,9 @@ import {
   MapOutlineIcon,
   RotateLeftIcon,
   SearchOutlineIcon,
+  type IconProps,
 } from "@/components/icons";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
 import { type MediaSortKey, MediaSortSelect } from "./MediaSortSelect";
@@ -31,7 +33,10 @@ export function MediaFindTopBar({
   onKeywordClear,
   searchBoxRef,
   suggestionSlot,
-  filterCount,
+  filterCount = 0,
+  filterLabel = "필터",
+  filterIcon: FilterButtonIcon = FilterIcon,
+  filterClassName,
   filterOpen,
   onToggleFilter,
   onReset,
@@ -43,6 +48,7 @@ export function MediaFindTopBar({
   mapExpanded,
   onToggleMapExpanded,
   showMapToggle = true,
+  mobileView,
 }: {
   keyword: string;
   onKeywordChange: (value: string) => void;
@@ -51,11 +57,16 @@ export function MediaFindTopBar({
   onKeywordClear: () => void;
   searchBoxRef: RefObject<HTMLDivElement | null>;
   suggestionSlot?: ReactNode;
-  filterCount: number;
+  filterCount?: number;
+  /** 필터 버튼 이름·아이콘 — 매체 찾기는 "타깃 설정"(인구 분포 조건 창)을 연다. */
+  filterLabel?: string;
+  filterIcon?: ComponentType<IconProps>;
+  /** 필터 버튼에 덧붙일 클래스 — 아이콘·글자 간격 등을 버튼마다 맞춘다. */
+  filterClassName?: string;
   filterOpen: boolean;
   onToggleFilter: () => void;
   onReset: () => void;
-  /** 검색어·장소·필터 중 되돌릴 것이 하나도 없으면 초기화를 잠근다. */
+  /** 검색어·장소·필터 중 되돌릴 것이 하나도 없으면 초기화를 잠근다(타깃 설정은 그 창 안에서 따로 되돌린다). */
   resetDisabled: boolean;
   sort: MediaSortKey;
   onSortChange: (next: MediaSortKey) => void;
@@ -67,7 +78,14 @@ export function MediaFindTopBar({
   onToggleMapExpanded: () => void;
   /** 지도 크게 보기 버튼 — 지도가 없는 화면(관심 매체)에선 뺀다. */
   showMapToggle?: boolean;
+  /**
+   * 모바일 한 줄 배치(매체 찾기) — [검색창][오른쪽 한 칸](초기화 없음). 오른쪽 칸은 목록 보기면 정렬, 지도 보기면 필터 버튼
+   * (정렬은 목록에만, 타깃 설정은 지도에만 필요하다). 없으면 예전처럼 검색창 아래 둘째 줄에 필터·초기화·정렬.
+   */
+  mobileView?: "list" | "map";
 }) {
+  const oneRow = mobileView != null;
+  const isNarrow = !useIsDesktop();
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") return;
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
@@ -81,11 +99,19 @@ export function MediaFindTopBar({
 
   return (
     // 모바일·태블릿은 검색창을 첫 줄 전체에 두고, 필터·초기화·정렬을 둘째 줄로 내린다
-    // (태블릿 폭에서 한 줄에 두면 정렬·지도 버튼이 필터 위로 겹친다).
-    <div className="flex items-center gap-[10px] max-lg:flex-wrap max-sm:gap-[8px]">
+    // (태블릿 폭에서 한 줄에 두면 정렬·지도 버튼이 필터 위로 겹친다). 모바일 한 줄 배치(mobileView)는 아래 설명.
+    <div
+      className={cn(
+        "flex items-center gap-[10px] max-lg:flex-wrap max-sm:gap-[8px]",
+        oneRow && "max-sm:flex-nowrap",
+      )}
+    >
       <div
         ref={searchBoxRef}
-        className="relative min-w-0 flex-1 max-lg:basis-full lg:max-w-[594px]"
+        className={cn(
+          "relative min-w-0 flex-1 max-lg:basis-full lg:max-w-[594px]",
+          oneRow && "max-sm:basis-auto",
+        )}
       >
         {/* 돋보기의 좌측 여백은 상하 여백과 같아야 한다 — 테두리 1px을 뺀 안쪽
             높이 43px에서 20px 아이콘이 가운데 서면 위아래가 11.5px씩이다. */}
@@ -106,7 +132,12 @@ export function MediaFindTopBar({
             onKeyDown={handleKeyDown}
             // 모바일 키보드의 엔터 키를 "검색"으로 표시한다.
             enterKeyHint="search"
-            placeholder="매체명, 지역, 주소로 검색해 보세요"
+            // 모바일 한 줄 배치는 검색창이 좁아 안내 문구를 줄인다.
+            placeholder={
+              oneRow && isNarrow
+                ? "매체명·지역·주소 검색"
+                : "매체명, 지역, 주소로 검색해 보세요"
+            }
             aria-label="매체 검색"
             className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-gray-900 outline-none placeholder:text-gray-400"
           />
@@ -135,15 +166,18 @@ export function MediaFindTopBar({
           PILL,
           PILL_ACTIVE,
           "shrink-0 gap-[10px] px-[20px] max-sm:gap-[6px] max-sm:px-[14px]",
+          filterClassName,
+          oneRow && "max-sm:order-last",
+          oneRow && mobileView === "list" && "max-sm:hidden",
           // 필터 패널이 열려 있으면 hover와 같은 흰 배경으로 켜둔다(테두리는 그대로).
           filterOpen && "bg-surface",
         )}
       >
-        <FilterIcon
+        <FilterButtonIcon
           className={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
         />
         <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-zinc-900">
-          필터
+          {filterLabel}
         </span>
         {filterCount > 0 && (
           <span className="flex size-[24px] shrink-0 items-center justify-center rounded-[9px] bg-primary text-[12px] font-medium text-white max-sm:size-[20px] max-sm:rounded-[7px] max-sm:text-[10px]">
@@ -161,6 +195,8 @@ export function MediaFindTopBar({
           PILL,
           PILL_ACTIVE,
           "size-[45px] shrink-0 justify-center p-0 max-sm:size-[40px]",
+          // 모바일 한 줄 배치는 검색창을 넓히려고 뺀다 — 검색어·장소는 검색창 X로 지운다.
+          oneRow && "max-sm:hidden",
         )}
       >
         <RotateLeftIcon
@@ -168,7 +204,13 @@ export function MediaFindTopBar({
         />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px]">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 items-center justify-end gap-[10px]",
+          oneRow && "max-sm:flex-none",
+          oneRow && mobileView === "map" && "max-sm:hidden",
+        )}
+      >
         <MediaSortSelect
           value={sort}
           onChange={onSortChange}
