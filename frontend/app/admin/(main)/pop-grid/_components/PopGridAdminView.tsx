@@ -6,6 +6,10 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import {
   type AdminPopGridMonth,
   popGridApi,
+  useAdminHouseholdDelete,
+  useAdminHouseholds,
+  useAdminHouseholdSync,
+  useAdminHouseholdUpload,
   useAdminPopGridDelete,
   useAdminPopGridMonths,
   useAdminPopGridUpload,
@@ -32,6 +36,8 @@ const SEOUL_LIVE_URL =
 const SEOUL_STAY_URL =
   "https://data.seoul.go.kr/dataList/OA-22892/F/1/datasetView.do";
 
+const HOUSEHOLD_URL = "https://www.data.go.kr/data/15097974/fileData.do";
+
 const ymText = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(4))}월`;
 
 function sourceText(m: AdminPopGridMonth): string {
@@ -57,6 +63,7 @@ function lastUpload(m: AdminPopGridMonth): string {
  * 어드민 "유동인구 데이터" — 매체 찾기 지도 "유동인구" 층에 쓰는 서울 250m 격자 월별 값을 올리고 지운다.
  * ① 인계 월 파일(유동인구 지도 인계 패키지 period/YYYYMM.js) — 생활·체류·지하철·버스·보행 모두, 여러 달 한 번에.
  * ② 서울시 원자료 zip — 브라우저(Web Worker)가 격자별로 요약해 작은 파일(약 3MB)만 올린다. 생활·체류만 바뀐다.
+ *    zip에 없는 날은 그 달 값에 표시해 둔다. 생활인구 새벽 3~5시(band dawn)도 함께 저장하지만 지금 지도에선 쓰지 않는다.
  */
 export function PopGridAdminView() {
   const { data, isLoading } = useAdminPopGridMonths();
@@ -208,6 +215,14 @@ export function PopGridAdminView() {
                   <tr key={m.ym} className="border-t border-stroke">
                     <td className="px-[16px] py-[10px] font-semibold whitespace-nowrap text-black">
                       {ymText(m.ym)}
+                      {!!m.sources.live?.missingDays?.length && (
+                        <span
+                          className="ml-[6px] text-xs font-medium text-amber-600"
+                          title={`zip에 없던 날: ${m.sources.live.missingDays.map((d) => `${d}일`).join(", ")}`}
+                        >
+                          {m.sources.live.missingDays.length}일 빠짐
+                        </span>
+                      )}
                     </td>
                     {METRIC_COLUMNS.map((c) => {
                       const s = m.sources[c.key];
@@ -262,7 +277,201 @@ export function PopGridAdminView() {
           </div>
         )}
       </section>
+
+      <HouseholdSection />
     </div>
+  );
+}
+
+/**
+ * ③ 거주인구(행정동 세대수) — 행정안전부 「지역별(행정동) 세대원수별 주민등록 세대수」 CSV(전국 약 3,600줄, 300KB)를 그대로 올린다.
+ * 서버가 서울 행정동만 골라 담는다. 지도 "거주인구" 자료는 250m 칸을 그 칸의 동 값으로 칠한다.
+ */
+function HouseholdSection() {
+  const { data: months = [], isLoading } = useAdminHouseholds();
+  const upload = useAdminHouseholdUpload();
+  const remove = useAdminHouseholdDelete();
+  const sync = useAdminHouseholdSync();
+  const { success, error } = useSonner();
+  const { confirm, alert, confirmDialog } = useAdminConfirm();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const r = await upload.mutateAsync(file);
+      const lines = [
+        `${ymText(r.ym)} — 서울 행정동 ${r.dongs}곳, 세대 ${r.total.toLocaleString()}세대를 넣었어요.`,
+      ];
+      if (r.notOnMap.length)
+        lines.push(
+          `지도 격자 목록에 없는 동이라 안 보여요: ${r.notOnMap.join(", ")}`,
+        );
+      if (r.missingOnMap.length)
+        lines.push(
+          `⚠ 파일에 없는 동(지도에서 자료 없음): ${r.missingOnMap.join(", ")}`,
+        );
+      await alert({
+        title: "올렸어요",
+        description: lines.join("\n"),
+        confirmText: "확인",
+      });
+    } catch (err) {
+      await alert({
+        title: "올리지 못했어요",
+        description: extractApiError(err, "올리지 못했어요"),
+        confirmText: "확인",
+      });
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      const r = await sync.mutateAsync();
+      await alert({
+        title: r.added.length ? "받아 왔어요" : "새로 받을 달이 없어요",
+        description: r.added.length
+          ? `${r.added.map(ymText).join(", ")} 세대수를 넣었어요.`
+          : "2025년 1월부터 공공데이터포털에 올라온 달은 모두 들어 있어요.",
+        confirmText: "확인",
+      });
+    } catch (err) {
+      await alert({
+        title: "받아 오지 못했어요",
+        description: extractApiError(err, "받아 오지 못했어요"),
+        confirmText: "확인",
+      });
+    }
+  };
+
+  const handleDelete = async (ym: string) => {
+    const ok = await confirm({
+      title: `${ymText(ym)} 세대수를 지울까요?`,
+      description:
+        "지도 거주인구에서 이 달을 더 고를 수 없게 돼요. 파일을 다시 올리면 되살릴 수 있어요.",
+      confirmText: "지우기",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+    try {
+      await remove.mutateAsync(ym);
+      success(`${ymText(ym)} 세대수를 지웠어요.`);
+    } catch {
+      error("지우지 못했어요. 잠시 뒤 다시 해 주세요.");
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[20px]">
+      {confirmDialog}
+      <div className="flex flex-col gap-[4px]">
+        <h2 className="text-base leading-[24px] font-bold text-black">
+          ③ 거주인구 올리기 — 행정동 세대수 (행정안전부)
+        </h2>
+        <p className="text-sm leading-[20px] text-gray-600">
+          공공데이터포털{" "}
+          <a
+            href={HOUSEHOLD_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline underline-offset-2"
+          >
+            「지역별(행정동) 세대원수별 주민등록 세대수」
+          </a>
+          을 서버가 하루 한 번 API로 확인해 2025년 1월부터 새 달을 저절로 받아
+          와요(매달 10일 무렵 새 달이 올라와요). 바로 받으려면 「지금 받아
+          오기」, API가 막히면 받은 CSV를 고르세요. 서울 행정동만 담고, 지도
+          「거주인구」에서 그 동의 칸을 같은 색으로 칠해요. 같은 달을 다시
+          올리면 그 달 값을 통째로 바꿔요.
+        </p>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <div className="flex items-center gap-[12px]">
+        <Button
+          variant="outline"
+          onPress={handleSync}
+          isDisabled={sync.isPending || upload.isPending}
+        >
+          지금 받아 오기
+        </Button>
+        <Button
+          variant="tertiary"
+          onPress={() => fileRef.current?.click()}
+          isDisabled={sync.isPending || upload.isPending}
+        >
+          CSV 고르기
+        </Button>
+        {(upload.isPending || sync.isPending) && (
+          <span className="text-sm text-gray-600">
+            {sync.isPending ? "공공데이터포털에서 받는 중…" : "올리는 중…"}
+          </span>
+        )}
+      </div>
+      {isLoading ? (
+        <p className="text-sm text-gray-500">불러오는 중…</p>
+      ) : months.length === 0 ? (
+        <p className="text-sm text-gray-500">아직 올린 달이 없어요.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-[12px] border border-stroke">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-tone-fafaf9 text-left text-gray-600">
+              <tr>
+                <th className="px-[16px] py-[10px] font-semibold">기준 달</th>
+                <th className="px-[16px] py-[10px] font-semibold">행정동</th>
+                <th className="px-[16px] py-[10px] font-semibold">
+                  서울 세대수
+                </th>
+                <th className="px-[16px] py-[10px] font-semibold">
+                  마지막으로 올린 때
+                </th>
+                <th className="px-[16px] py-[10px]" />
+              </tr>
+            </thead>
+            <tbody>
+              {[...months].reverse().map((m) => (
+                <tr key={m.ym} className="border-t border-stroke">
+                  <td className="px-[16px] py-[10px] font-semibold whitespace-nowrap text-black">
+                    {ymText(m.ym)}
+                  </td>
+                  <td className="px-[16px] py-[10px] text-gray-600 tabular-nums">
+                    {m.dongs}곳
+                  </td>
+                  <td className="px-[16px] py-[10px] text-gray-600 tabular-nums">
+                    {m.total.toLocaleString()}세대
+                  </td>
+                  <td
+                    className="px-[16px] py-[10px] whitespace-nowrap text-gray-600"
+                    title={m.file ?? undefined}
+                  >
+                    {m.updatedAt
+                      ? `${new Date(m.updatedAt).toLocaleDateString("ko-KR")} · ${m.by ?? ""}`
+                      : "-"}
+                  </td>
+                  <td className="px-[16px] py-[10px] text-right">
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      onPress={() => handleDelete(m.ym)}
+                      isDisabled={remove.isPending}
+                    >
+                      지우기
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -326,6 +535,10 @@ function SeoulRawUpload() {
       const lines = [
         `${ymText(r.ym)} — ${r.metrics.includes("live") ? "생활인구" : ""}${r.metrics.includes("live") && r.metrics.includes("stay") ? "·" : ""}${r.metrics.includes("stay") ? "체류인구" : ""}를 바꿨어요.`,
       ];
+      if (r.missingDays.length)
+        lines.push(
+          `⚠ zip에 ${r.missingDays.map((d) => `${d}일`).join(", ")} 자료가 없어요 — 있는 ${r.days}일로 평균을 냈어요. 서울시가 빠진 날을 채우면 다시 올려 주세요.`,
+        );
       if (r.totals.live)
         lines.push(
           `서울 생활인구(하루 평균) ${Math.round(r.totals.live / 10000).toLocaleString()}만 명 — 1,000만 명 남짓이면 정상이에요.`,
@@ -386,7 +599,8 @@ function SeoulRawUpload() {
         <p className="text-sm leading-[20px] text-gray-600">
           서울 열린데이터광장에서 받은 월 zip을 그대로 고르세요. 이 PC에서
           격자별로 요약한 뒤(1~3분) 약 3MB만 올려요. 생활·체류인구만 바뀌고,
-          지하철·버스·보행은 그 달에 있던 값 그대로예요.
+          지하철·버스·보행은 그 달에 있던 값 그대로예요. 같은 달을 다시 올리면
+          그 달 값을 통째로 바꿔요(빠진 날이 있으면 알려 드려요).
         </p>
       </div>
 

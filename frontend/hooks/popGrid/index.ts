@@ -3,6 +3,7 @@
 import {
   keepPreviousData,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -16,9 +17,10 @@ import { api } from "@/lib/api";
 
 /**
  * flow 유동인구(종합 0~100점) · people 생활·체류인구(합친 0~100점) · subway 지하철 승하차 · walk 상권 보행(분기)
- * · live 생활인구(월별 색 띠 툴팁의 인원 수)
+ * · live 생활인구(월별 색 띠 툴팁의 인원 수) · household 거주인구 — 행정동 주민등록 세대수(동마다 값 하나 — 그 동의 칸을 같은 값으로)
  */
-export type PopMetric = "flow" | "people" | "live" | "subway" | "walk";
+export type PopMetric =
+  "flow" | "people" | "live" | "household" | "subway" | "walk";
 /** all 하루 전체 · am 출근 7~9시 · day 낮 10~16시 · pm 퇴근 17~19시 · night 야간 20~23시 */
 export type PopBand = "all" | "am" | "day" | "pm" | "night";
 export type PopSex = "all" | "M" | "F";
@@ -50,6 +52,8 @@ export interface PopGridValues {
   breaks: number[];
   total: number;
   cellsWithData: number;
+  /** 동 단위 자료(세대수) — 동마다 숫자를 적을 가운데 칸. 순위도 이 칸들로 센다. */
+  labelCells?: number[];
 }
 
 export interface PopCellTrend {
@@ -76,6 +80,7 @@ export interface AdminPopGridMonth extends PopGridMonth {
       by?: string;
       quarter?: string;
       fallback?: boolean;
+      missingDays?: number[];
     }
   >;
   updatedAt: string | null;
@@ -84,10 +89,34 @@ export interface AdminPopGridMonth extends PopGridMonth {
 export interface PopGridUploadResult {
   ym: string;
   days: number;
+  /** zip에 없던 날(그 달 1일~말일 중) */
+  missingDays: number[];
+  /** 거주인구(새벽 3~5시)를 함께 넣었는지 */
+  resident: boolean;
   source: "handover" | "seoul-raw";
   metrics: string[];
   rows: number;
   totals: Record<string, number>;
+}
+
+/** 어드민 — 들어 있는 행정동 세대수 달 */
+export interface AdminHouseholdMonth {
+  ym: string;
+  dongs: number;
+  total: number;
+  file: string | null;
+  by: string | null;
+  updatedAt: string | null;
+}
+
+export interface HouseholdUploadResult {
+  ym: string;
+  dongs: number;
+  total: number;
+  /** 격자에 있는데 파일에 없는 동 */
+  missingOnMap: string[];
+  /** 파일에 있는데 격자 목록에 없는 동(지도에 안 나온다) */
+  notOnMap: string[];
 }
 
 function queryString(q: PopGridQuery): string {
@@ -132,6 +161,26 @@ export const popGridApi = {
   },
   adminDelete: (ym: string) =>
     api.delete(`/admin/pop-grid/months/${ym}`).then((r) => r.data),
+  adminHouseholds: () =>
+    api
+      .get<{ months: AdminHouseholdMonth[] }>("/admin/pop-grid/households")
+      .then((r) => r.data.months),
+  adminHouseholdUpload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api
+      .post<HouseholdUploadResult>("/admin/pop-grid/households/upload", fd)
+      .then((r) => r.data);
+  },
+  /** 공공데이터포털 API에서 2025-01부터 빠진 달을 지금 받아 온다 */
+  adminHouseholdSync: () =>
+    api
+      .post<{ added: string[]; months: AdminHouseholdMonth[] }>(
+        "/admin/pop-grid/households/sync",
+      )
+      .then((r) => r.data),
+  adminHouseholdDelete: (ym: string) =>
+    api.delete(`/admin/pop-grid/households/${ym}`).then((r) => r.data),
 };
 
 export const popGridKeys = {
@@ -142,6 +191,7 @@ export const popGridKeys = {
   trend: (code: string | null, q: Omit<PopGridQuery, "months">) =>
     [...popGridKeys.all, "trend", code, q] as const,
   adminMonths: () => [...popGridKeys.all, "admin", "months"] as const,
+  adminHouseholds: () => [...popGridKeys.all, "admin", "households"] as const,
 };
 
 /** 격자 8,617칸 모양 — 바뀌지 않아 한 번만 받는다(약 160KB). */
@@ -206,3 +256,47 @@ export const useAdminPopGridDelete = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: popGridKeys.all }),
   });
 };
+
+export const useAdminHouseholds = () =>
+  useQuery({
+    queryKey: popGridKeys.adminHouseholds(),
+    queryFn: popGridApi.adminHouseholds,
+  });
+
+export const useAdminHouseholdUpload = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: popGridApi.adminHouseholdUpload,
+    onSuccess: () => qc.invalidateQueries({ queryKey: popGridKeys.all }),
+  });
+};
+
+export const useAdminHouseholdDelete = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: popGridApi.adminHouseholdDelete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: popGridKeys.all }),
+  });
+};
+
+export const useAdminHouseholdSync = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: popGridApi.adminHouseholdSync,
+    onSuccess: () => qc.invalidateQueries({ queryKey: popGridKeys.all }),
+  });
+};
+
+const valuesData = (rs: { data?: PopGridValues }[]) => rs.map((r) => r.data);
+
+/** 겹쳐 볼 지도 여러 장 — 함께 고른 자료마다 한 장. 값은 아직 안 받은 것이 undefined. */
+export const usePopGridValuesList = (qs: PopGridQuery[]) =>
+  useQueries({
+    queries: qs.map((q) => ({
+      queryKey: popGridKeys.values(q),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        popGridApi.values(q, signal),
+      staleTime: 10 * 60 * 1000,
+    })),
+    combine: valuesData,
+  });

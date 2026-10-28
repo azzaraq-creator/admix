@@ -9,19 +9,21 @@ import json
 import re
 from typing import Literal
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy.orm import Session
 
+from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
-from src.services import pop_grid
+from src.services import household_dong, pop_grid
 from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/pop-grid", tags=["pop-grid"])
 admin_router = APIRouter(prefix="/admin/pop-grid", tags=["admin-pop-grid"])
 
-Metric = Literal["flow", "people", "live", "stay", "subway", "bus", "walk", "live_fs", "live_fl", "stay60", "stay240"]
-Band = Literal["all", "am", "day", "pm", "night"]
+Metric = Literal["flow", "people", "resident", "household", "live", "stay", "subway", "bus", "walk", "live_fs", "live_fl", "stay60", "stay240"]
+Band = Literal["all", "am", "day", "pm", "night", "dawn"]
 Sex = Literal["all", "M", "F"]
 _YM = re.compile(r"^20\d{2}(0[1-9]|1[0-2])$")
 # 업로드 한도 — 인계 월 파일 약 4MB, 브라우저 요약 파일은 더 작다.
@@ -132,5 +134,64 @@ def admin_delete_month(
     if not _YM.match(ym):
         raise HTTPException(status_code=400, detail="ym 은 YYYYMM")
     if not pop_grid.delete_month(db, ym):
+        raise HTTPException(status_code=404, detail="month not found")
+    return {"ok": True}
+
+
+# ---------- 어드민 — 행정동 세대수(행정안전부)
+
+_MAX_HOUSEHOLD_UPLOAD = 5 * 1024 * 1024
+
+
+@admin_router.get("/households")
+def admin_list_households(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """들어 있는 행정동 세대수 달 — 동 수·서울 세대수 합·올린 사람."""
+    return {"months": household_dong.list_months(db)}
+
+
+@admin_router.post("/households/upload")
+def admin_upload_households(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_permission("media")),
+) -> dict:
+    """「지역별(행정동) 세대원수별 주민등록 세대수」 CSV 한 달치 — 같은 달을 다시 올리면 통째로 바꾼다."""
+    content = file.file.read(_MAX_HOUSEHOLD_UPLOAD + 1)
+    if len(content) > _MAX_HOUSEHOLD_UPLOAD:
+        raise HTTPException(status_code=400, detail="파일이 너무 커요 (5MB 넘음) — 공공데이터포털에서 받은 CSV를 그대로 올려 주세요.")
+    try:
+        return household_dong.save_month(db, content, admin.name or admin.email, file.filename or "")
+    except household_dong.HouseholdFileError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@admin_router.post("/households/sync")
+def admin_sync_households(
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_permission("media")),
+) -> dict:
+    """공공데이터포털 API에서 2025-01부터 빠진 달을 지금 받아 온다(평소엔 서버가 하루 한 번 스스로 한다)."""
+    if not get_settings().data_go_kr_service_key:
+        raise HTTPException(status_code=400, detail="서버에 공공데이터포털 인증키(DATA_GO_KR_SERVICE_KEY)가 없어요 — CSV로 올려 주세요.")
+    try:
+        added = household_dong.sync_new_months(db, admin.name or admin.email)
+    except (household_dong.HouseholdFileError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=f"공공데이터포털에서 받지 못했어요 — 잠시 뒤 다시 해 주세요. ({e})") from e
+    return {"added": added, "months": household_dong.list_months(db)}
+
+
+@admin_router.delete("/households/{ym}")
+def admin_delete_households(
+    ym: str,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """그 달 세대수를 지운다."""
+    if not _YM.match(ym):
+        raise HTTPException(status_code=400, detail="ym 은 YYYYMM")
+    if not household_dong.delete_month(db, ym):
         raise HTTPException(status_code=404, detail="month not found")
     return {"ok": True}

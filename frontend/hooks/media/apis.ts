@@ -113,7 +113,8 @@ export interface MediaAgeRatio {
  * station: 지하철역 안 매체 — 그 역의 최근 날들의 하루 평균 승하차를 한 달로 환산(min = max). 성별·연령은 상권 값.
  */
 export interface MediaPopulation {
-  source: "realtime" | "manual" | "sangwon" | "station";
+  /** grid: 매체가 있는 서울 250m 칸과 이웃 8칸의 생활인구 합 — "가시거리 375m 이내 총 유동인구". */
+  source: "realtime" | "manual" | "sangwon" | "station" | "grid";
   /** realtime: 장소 이름, manual: 입력한 기준(예: "2025년 3분기"), sangwon: "OO 상권 · 2025년 4분기" */
   placeName: string;
   /** 여유 / 보통 / 약간 붐빔 / 붐빔 */
@@ -127,6 +128,19 @@ export interface MediaPopulation {
   measuredAt: string | null;
   /** 월~일 하루 평균 — sangwon: 같은 분기 유동인구, station: 같은 요일 날들의 승하차. 없으면 null. */
   weekdayDaily?: { label: string; value: number }[] | null;
+  /** grid: 종합 기준 서울 칸 가운데 상위 몇 %(지도 칸 정보와 같다) — 화면엔 안 보이고 믹시 설명에 쓴다. */
+  seoulTopPct?: number | null;
+  /** grid: 시간대별(출근·낮·퇴근·야간) 한 시각 평균. */
+  bandAverages?: { label: string; value: number }[] | null;
+  /** grid: 지하철역 안 매체면 그 역의 최근 하루 평균 승하차(보조 정보). */
+  station?: { name: string; daily: number; days: number } | null;
+}
+
+/** 매체 상세 "가까운 역" 한 줄 — 매체 좌표에서 직선 거리. */
+export interface MediaNearbyStation {
+  name: string;
+  lines: string[];
+  distanceM: number;
 }
 
 export interface MediaDetail {
@@ -160,6 +174,8 @@ export interface MediaDetail {
   plans: MediaPlanRow[];
   planOptions: MediaPlanOption[];
   population: MediaPopulation | null;
+  /** 가장 가까운 지하철역(1km 안) — 다음 역과 200m 안 차이면 2개. 고정 매체만 */
+  nearbyStations?: MediaNearbyStation[];
 }
 
 export interface MediaFilterParams {

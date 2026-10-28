@@ -18,7 +18,11 @@ import {
   type ChipDimKey,
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
-import { ListIcon, MapOutlineIcon, TargetIcon } from "@/components/icons";
+import {
+  ListIcon,
+  MapOutlineIcon,
+  PopulationGridIcon,
+} from "@/components/icons";
 import {
   mediaApi,
   useFixedClusters,
@@ -557,8 +561,8 @@ export function MediaFindPanel({
           onKeywordSubmit={handleSubmit}
           onKeywordClear={clearKeyword}
           searchBoxRef={searchBoxRef}
-          filterLabel="유동인구"
-          filterIcon={TargetIcon}
+          filterLabel="인구 분포"
+          filterIcon={PopulationGridIcon}
           // 아이콘 그림 둘레에 여백이 있어 기본 간격이면 글자와 떨어져 보인다.
           filterClassName="gap-[6px] max-sm:gap-[4px]"
           filterOpen={filterOpen}

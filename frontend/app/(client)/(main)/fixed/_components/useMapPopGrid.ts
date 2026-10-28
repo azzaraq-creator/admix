@@ -33,11 +33,82 @@ const LEVEL_ALPHA = [0.12, 0.5, 0.56, 0.62, 0.66, 0.74];
 // 실시간 인구를 함께 켰을 때 — 장소 구역이 잘 보이게 연하게. 너무 옅으면 아래 지도(회색·푸른 건물)가 비쳐
 // 진한 빨강이 보랏빛이 된다 — 상위 단계는 0.6 넘게.
 const LEVEL_ALPHA_SOFT = [0.1, 0.38, 0.44, 0.5, 0.56, 0.64];
+// 동 단위 자료(거주인구) — 하위 단계도 지도 위에서 보이게 더 진하게(칸 숫자가 동마다 하나라 글씨를 덜 덮는다).
+const LEVEL_ALPHA_GROUP = [0.3, 0.42, 0.48, 0.54, 0.58, 0.64];
+const LEVEL_ALPHA_GROUP_SOFT = [0.24, 0.34, 0.4, 0.46, 0.5, 0.56];
 const NO_DATA = "rgba(120,120,128,0.14)";
 // 칸 숫자 — 칸이 이만큼(px) 넘게 보일 때만 적는다. 그보다 작으면 숫자가 칸을 덮어 색이 안 읽힌다.
 const LABEL_MIN_CELL = 46;
+// 동 단위 자료는 동마다 숫자가 하나라 덜 확대해도 적는다.
+const LABEL_MIN_CELL_GROUP = 18;
 // 상위 5%·1%(진한 빨강) 칸은 흰 글씨, 나머지는 진한 갈색 글씨.
 const LABEL_LIGHT_FROM = 4;
+
+/**
+ * 동 단위 자료(거주인구 = 행정동 세대수) — 칸을 동으로 묶는다. 동 경계선·동 이름 글씨·누른 동 강조에 쓴다.
+ * edges[i * 4 + k] — 칸 i 의 변 k(0 아래·1 오른쪽·2 위·3 왼쪽, 모서리 순서 왼아래→오른아래→오른위→왼위와 같다) 너머 칸, 없으면 -1.
+ */
+export interface CellGroups {
+  keys: (string | null)[];
+  edges: Int32Array;
+  members: Map<string, number[]>;
+  /** 칸 숫자 위에 함께 적을 이름(동 이름) — 숫자를 적는 칸에만 */
+  names: (string | null)[];
+}
+
+/**
+ * 겹쳐 보기(자료 여러 개) — 첫 자료 칸 색 위에 함께 고른 자료(거주인구·지하철·보행)를 반투명으로 포개 칠한다.
+ * 고른 자료가 다 많은 곳이 가장 빨갛게 보인다.
+ */
+export interface GroupOverlay {
+  /** 겹쳐 칠할 자료마다 — 칸별 값(거주인구는 같은 동은 같은 값)과 단계 경계 값 */
+  layers: { metric: string; values: (number | null)[]; breaks: number[] }[];
+  /** 거주인구를 함께 골랐으면 옅은 동 경계 */
+  groups: CellGroups | null;
+}
+// 겹쳐 칠할 때 각 층 진하기 — 첫 자료는 또렷하게, 함께 고른 자료는 옅게 한 겹씩 더해 다 많은 곳이 가장 빨갛게.
+const OVERLAY_ALPHA_LIVE = [0.1, 0.42, 0.48, 0.54, 0.6, 0.68];
+const OVERLAY_ALPHA_RES = [0.06, 0.28, 0.34, 0.4, 0.44, 0.5];
+
+const GRID_LETTERS = "가나다라마바사아";
+
+/** 격자 코드(예: 다사52255325) → 10m 단위 동서·남북 좌표. 이웃 칸은 ±25(250m). */
+function cellXY(code: string): [number, number] {
+  return [
+    GRID_LETTERS.indexOf(code[0]) * 10000 + Number(code.slice(2, 6)),
+    GRID_LETTERS.indexOf(code[1]) * 10000 + Number(code.slice(6, 10)),
+  ];
+}
+
+export function cellGroups(
+  cells: PopCell[],
+  keys: (string | null)[],
+  names: (string | null)[],
+): CellGroups {
+  const at = new Map<string, number>();
+  const xy = cells.map((c, i) => {
+    const p = cellXY(c[0]);
+    at.set(`${p[0]}:${p[1]}`, i);
+    return p;
+  });
+  const edges = new Int32Array(cells.length * 4).fill(-1);
+  const step = [
+    [0, -25],
+    [25, 0],
+    [0, 25],
+    [-25, 0],
+  ];
+  xy.forEach(([x, y], i) =>
+    step.forEach(([dx, dy], k) => {
+      edges[i * 4 + k] = at.get(`${x + dx}:${y + dy}`) ?? -1;
+    }),
+  );
+  const members = new Map<string, number[]>();
+  keys.forEach((k, i) => {
+    if (k) members.set(k, [...(members.get(k) ?? []), i]);
+  });
+  return { keys, edges, members, names };
+}
 
 /** 칸 숫자 — 짧게: 822 · 2.5천 · 1.2만. */
 export function shortCount(v: number): string {
@@ -127,6 +198,8 @@ function gridBoard(map: KakaoMap) {
     toX: (lat: number, lng: number) => number;
     toY: (lat: number, lng: number) => number;
   } | null = null;
+  // 마지막으로 그린 동 묶음 — 강조 판이 누른 칸 대신 그 동 전체를 밝힌다.
+  let groupsNow: CellGroups | null = null;
   const overlay: KakaoCustomOverlay = new maps.CustomOverlay({
     position: map.getCenter(),
     content: anchor,
@@ -144,6 +217,8 @@ function gridBoard(map: KakaoMap) {
     breaks: number[],
     soft = false,
     labels: (number | null)[] | null = null,
+    groups: CellGroups | null = null,
+    resident: GroupOverlay | null = null,
   ) => {
     const proj = map.getProjection();
     const bounds = map.getBounds();
@@ -177,6 +252,7 @@ function gridBoard(map: KakaoMap) {
     ov.width = w * 3;
     ov.height = h * 3;
     tx = { toX, toY };
+    groupsNow = groups;
     const ctx = canvas.getContext("2d");
     if (!ctx) return false;
     // 단계마다 경로 하나로 모아 한 번에 칠한다.
@@ -199,23 +275,122 @@ function gridBoard(map: KakaoMap) {
     ctx.clearRect(0, 0, maxX, maxY);
     ctx.fillStyle = NO_DATA;
     ctx.fill(noData);
+    const alphas = resident
+      ? OVERLAY_ALPHA_LIVE
+      : groups
+        ? soft
+          ? LEVEL_ALPHA_GROUP_SOFT
+          : LEVEL_ALPHA_GROUP
+        : soft
+          ? LEVEL_ALPHA_SOFT
+          : LEVEL_ALPHA;
     paths.forEach((path, lv) => {
-      ctx.globalAlpha = (soft ? LEVEL_ALPHA_SOFT : LEVEL_ALPHA)[lv];
+      ctx.globalAlpha = alphas[lv];
       ctx.fillStyle = POP_LEVELS[lv].color;
       ctx.fill(path);
     });
+    // 함께 고른 자료를 한 겹씩 — 여러 겹이면 겹마다 옅게(√겹 수로 나눠) 너무 빨개지지 않게.
+    const layerScale = resident ? 1 / Math.sqrt(resident.layers.length) : 1;
+    for (const layer of resident?.layers ?? []) {
+      const rPaths = POP_LEVELS.map(() => new Path2D());
+      for (let i = 0; i < cells.length; i++) {
+        const lv = popLevel(layer.values[i] ?? null, layer.breaks);
+        if (lv < 0) continue;
+        const c = cells[i][3];
+        const x0 = toX(c[0], c[1]);
+        const y0 = toY(c[0], c[1]);
+        if (x0 < -50 || y0 < -50 || x0 > maxX + 50 || y0 > maxY + 50) continue;
+        const path = rPaths[lv];
+        path.moveTo(x0, y0);
+        for (let k = 1; k < 4; k++)
+          path.lineTo(toX(c[k * 2], c[k * 2 + 1]), toY(c[k * 2], c[k * 2 + 1]));
+        path.closePath();
+      }
+      rPaths.forEach((path, lv) => {
+        ctx.globalAlpha = OVERLAY_ALPHA_RES[lv] * layerScale;
+        ctx.fillStyle = POP_LEVELS[lv].color;
+        ctx.fill(path);
+      });
+    }
     ctx.globalAlpha = 1;
     const cellPx = Math.abs(
       toX(cells[0][3][0], cells[0][3][3]) - toX(cells[0][3][0], cells[0][3][1]),
     );
-    // 칸이 크게 보일 때(약 12px 넘게)만 칸 사이 얇은 선 — 멀리서 보면 선이 색을 덮는다.
-    if (cellPx > 12) {
+    if (!groups && cellPx > 12) {
+      // 칸이 크게 보일 때(약 12px 넘게)만 칸 사이 얇은 선 — 멀리서 보면 선이 색을 덮는다.
       ctx.strokeStyle = "rgba(255,255,255,0.55)";
       ctx.lineWidth = 0.5;
       paths.forEach((path) => ctx.stroke(path));
     }
-    // 칸 숫자 — 충분히 확대했을 때만, 자료 없는 칸은 비운다. 작고 굵지 않은 글씨로 색을 가리지 않게.
-    if (labels && cellPx >= LABEL_MIN_CELL) {
+    const borderGroups = groups ?? resident?.groups ?? null;
+    if (borderGroups) {
+      // 동 경계 — 이웃 칸이 다른 동(또는 서울 밖)인 변만. 흰 바탕 위에 진한 선이라 어느 색 위에서도 보인다.
+      const g = borderGroups;
+      const border = new Path2D();
+      for (let i = 0; i < cells.length; i++) {
+        const key = g.keys[i];
+        if (!key) continue;
+        const c = cells[i][3];
+        const x0 = toX(c[0], c[1]);
+        const y0 = toY(c[0], c[1]);
+        if (x0 < -50 || y0 < -50 || x0 > maxX + 50 || y0 > maxY + 50) continue;
+        for (let k = 0; k < 4; k++) {
+          const j = g.edges[i * 4 + k];
+          if (j >= 0 && g.keys[j] === key) continue;
+          // 두 동 사이 변은 한 번만(번호가 작은 칸이 긋는다).
+          if (j >= 0 && g.keys[j] && j < i) continue;
+          const k2 = (k + 1) % 4;
+          border.moveTo(
+            toX(c[k * 2], c[k * 2 + 1]),
+            toY(c[k * 2], c[k * 2 + 1]),
+          );
+          border.lineTo(
+            toX(c[k2 * 2], c[k2 * 2 + 1]),
+            toY(c[k2 * 2], c[k2 * 2 + 1]),
+          );
+        }
+      }
+      ctx.lineCap = "round";
+      // 겹쳐 볼 땐 생활인구 칸 색이 먼저 읽히게 흰 바탕 없이 옅은 선만.
+      if (groups && cellPx > 8) {
+        ctx.strokeStyle = "rgba(255,255,255,0.6)";
+        ctx.lineWidth = 2.5;
+        ctx.stroke(border);
+      }
+      ctx.strokeStyle = "rgba(92,52,18,0.45)";
+      ctx.lineWidth = cellPx > 8 ? 1 : 0.8;
+      ctx.stroke(border);
+    }
+    if (labels && groups && cellPx >= LABEL_MIN_CELL_GROUP) {
+      // 동 단위 — 동 가운데 칸에 동 이름과 숫자 두 줄. 흰 테두리 글씨라 어느 색 위에서도 읽힌다.
+      const font = getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      for (let i = 0; i < cells.length; i++) {
+        const n = labels[i];
+        if (n == null) continue;
+        const c = cells[i][3];
+        const x = (toX(c[0], c[1]) + toX(c[4], c[5])) / 2;
+        const y = (toY(c[0], c[1]) + toY(c[4], c[5])) / 2;
+        if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
+        const name = groups.names[i];
+        const lines: [string, string][] = [
+          ...(name ? [[name, `600 11px ${font}`] as [string, string]] : []),
+          [shortCount(n), `700 12px ${font}`],
+        ];
+        lines.forEach(([t, f], li) => {
+          const ly = y + (li - (lines.length - 1) / 2) * 14;
+          ctx.font = f;
+          ctx.strokeStyle = "rgba(255,255,255,0.92)";
+          ctx.lineWidth = 3.5;
+          ctx.strokeText(t, x, ly);
+          ctx.fillStyle = li === lines.length - 1 ? "#3b1f08" : "#5c3a1c";
+          ctx.fillText(t, x, ly);
+        });
+      }
+    } else if (labels && !groups && cellPx >= LABEL_MIN_CELL) {
+      // 칸 숫자 — 충분히 확대했을 때만, 자료 없는 칸은 비운다. 작고 굵지 않은 글씨로 색을 가리지 않게.
       ctx.font = `600 ${cellPx >= 80 ? 12 : 11}px ${getComputedStyle(document.body).fontFamily}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -231,7 +406,6 @@ function gridBoard(map: KakaoMap) {
         ctx.fillText(shortCount(n), x, y);
       }
     }
-
     // 기준점은 화면 가운데 — 카카오는 기준점이 화면 밖이면 판을 그리지 않아, 끌어도 오래 남게 가운데에 둔다.
     for (const el of [canvas, ov, hl]) {
       el.style.left = `${-1.5 * w}px`;
@@ -309,6 +483,55 @@ function gridBoard(map: KakaoMap) {
       return p;
     };
     ctx.lineJoin = "round";
+    const g = groupsNow;
+    if (g) {
+      // 동 단위 — 동 전체의 바깥 경계선을 강조한다.
+      const outline = (i: number) => {
+        const key = g.keys[i];
+        const p = new Path2D();
+        const fill = new Path2D();
+        for (const m of key ? (g.members.get(key) ?? [i]) : [i]) {
+          const c = cells[m][3];
+          fill.addPath(quad(m));
+          for (let k = 0; k < 4; k++) {
+            const j = g.edges[m * 4 + k];
+            if (key && j >= 0 && g.keys[j] === key) continue;
+            const k2 = (k + 1) % 4;
+            p.moveTo(toX(c[k * 2], c[k * 2 + 1]), toY(c[k * 2], c[k * 2 + 1]));
+            p.lineTo(
+              toX(c[k2 * 2], c[k2 * 2 + 1]),
+              toY(c[k2 * 2], c[k2 * 2 + 1]),
+            );
+          }
+        }
+        return { p, fill };
+      };
+      ctx.lineCap = "round";
+      const hoverKey = hovered != null ? g.keys[hovered] : null;
+      const selKey = selected != null ? g.keys[selected] : null;
+      if (hovered != null && (hoverKey == null || hoverKey !== selKey)) {
+        ctx.strokeStyle = OUTLINE_BLUE;
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 2;
+        ctx.stroke(outline(hovered).p);
+      }
+      if (selected != null) {
+        const { p, fill } = outline(selected);
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = "#ffffff";
+        ctx.fill(fill);
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 8;
+        ctx.stroke(p);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = OUTLINE_BLUE;
+        ctx.lineWidth = 3.5;
+        ctx.stroke(p);
+      }
+      ctx.globalAlpha = 1;
+      return;
+    }
     if (hovered != null && hovered !== selected) {
       ctx.strokeStyle = OUTLINE_BLUE;
       ctx.globalAlpha = 0.9;
@@ -365,6 +588,8 @@ export function useMapPopGrid({
   values,
   breaks,
   labels = null,
+  groups = null,
+  overlay = null,
   selected,
   realtime = null,
   soft = false,
@@ -380,6 +605,10 @@ export function useMapPopGrid({
   breaks: number[];
   /** 칸에 적을 숫자(격자 순서) — 확대했을 때만 보인다 */
   labels?: (number | null)[] | null;
+  /** 동 단위 자료 — 동 경계선·동 이름·누른 동 강조(cellGroups) */
+  groups?: CellGroups | null;
+  /** 겹쳐 보기 — 생활인구 칸 위에 거주인구(동 경계·세대수 원) */
+  overlay?: GroupOverlay | null;
   selected: number | null;
   /** 도로 현황·실시간 인구 — 격자 위에 다시 그린다 */
   realtime?: PopRealtime | null;
@@ -398,7 +627,15 @@ export function useMapPopGrid({
   const boardRef = useRef<ReturnType<typeof gridBoard> | null>(null);
   // 지도 이벤트 쪽에서 들고 있는 "마우스를 올린 칸" — 값·선택이 바뀌어 강조 판을 다시 그릴 때 쓴다.
   const hoveredRef = useRef<() => number | null>(() => null);
-  const dataRef = useRef({ cells, values, breaks, labels, selected });
+  const dataRef = useRef({
+    cells,
+    values,
+    breaks,
+    labels,
+    groups,
+    overlay,
+    selected,
+  });
   const realtimeRef = useRef(realtime);
   const softRef = useRef(soft);
   const handlersRef = useRef({ onHover, onSelect, onViewChange });
@@ -406,7 +643,15 @@ export function useMapPopGrid({
   const findRef = useRef(find);
   // 지도 이벤트 손잡이는 한 번만 달고, 최신 값·콜백은 ref 로 본다.
   useLayoutEffect(() => {
-    dataRef.current = { cells, values, breaks, labels, selected };
+    dataRef.current = {
+      cells,
+      values,
+      breaks,
+      labels,
+      groups,
+      overlay,
+      selected,
+    };
     realtimeRef.current = realtime;
     softRef.current = soft;
     handlersRef.current = { onHover, onSelect, onViewChange };
@@ -428,9 +673,11 @@ export function useMapPopGrid({
         values: v,
         breaks: b,
         labels: l,
+        groups: g,
+        overlay: o,
         selected: sel,
       } = dataRef.current;
-      if (c && v && board.draw(c, v, b, softRef.current, l)) {
+      if (c && v && board.draw(c, v, b, softRef.current, l, g, o)) {
         board.drawRealtime(realtimeRef.current);
         board.highlight(c, sel, hovered);
       } else if (!v) board.hide();
@@ -503,13 +750,16 @@ export function useMapPopGrid({
   useEffect(() => {
     const board = boardRef.current;
     if (!board || !cells) return;
-    if (values && board.draw(cells, values, breaks, soft, labels)) {
+    if (
+      values &&
+      board.draw(cells, values, breaks, soft, labels, groups, overlay)
+    ) {
       board.drawRealtime(realtimeRef.current);
       board.highlight(cells, selected, hoveredRef.current());
     } else if (!values) board.hide();
     // 누른 칸이 바뀔 때는 강조 판만 — selected 는 아래 효과가 맡는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cells, values, breaks, soft, labels]);
+  }, [cells, values, breaks, soft, labels, groups, overlay]);
 
   // 실시간 자료가 바뀌면 실시간 판만 다시.
   useEffect(() => {

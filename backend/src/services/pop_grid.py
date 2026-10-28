@@ -8,6 +8,8 @@
 값 = 정수 × scale[자료], 65535 = 그 달 자료 없음. 격자 순서는 assets/geo/pop-grid-cells.json 과 같다.
 
 화면은 고른 달(여러 달이면 평균)·자료·시간대·성별·연령으로 격자 값을 받아 진하기로 칠한다.
+- 새벽 3~5시(band dawn) 생활인구 평균도 저장한다(metric resident) — 지금 지도 "거주인구"는 행정동 세대수(household_dong)를 쓴다.
+  서울시 원자료 zip으로 올린 달에만 있다(인계 월 파일엔 새벽 묶음이 없다).
 - 성·연령 구분은 생활인구·체류인구에만 있다. 지하철·버스·보행은 고른 성·연령과 상관없이 전체 값이다.
 - 통신 자료는 기지국 자리에 따라 한 칸에 몰려 잡히는 일이 많아(이웃의 4배 넘는 칸 151개, 2025-09 기지국 재배치)
   기본으로 이웃 8칸과 평균(가운데 가중 2, 750m 평활)을 낸다 — 인계 지도의 기본값과 같다.
@@ -47,10 +49,10 @@ _FIELD_METRIC = {
     "sps": "live",
     "sts": "stay",
 }
-BANDS = {"24시간": "all", "출근": "am", "낮": "day", "퇴근": "pm", "야간": "night"}
+BANDS = {"24시간": "all", "출근": "am", "낮": "day", "퇴근": "pm", "야간": "night", "거주": "dawn"}
 METRICS = ("live", "live_fs", "live_fl", "stay", "stay60", "stay240", "subway", "bus", "walk")
 # 성·연령으로 나눌 수 있는 자료
-SEG_METRICS = {"live", "stay"}
+SEG_METRICS = {"live", "stay", "resident"}
 AGES = ("00", "10", "20", "30", "40", "50", "60", "70")
 _SEG_RE = re.compile(r"^[MF](00|10|20|30|40|50|60|70)$")
 
@@ -173,8 +175,10 @@ def save_month(db: Session, content: bytes, admin_name: str, filename: str) -> d
     source = "seoul-raw" if head.get("source") == "seoul-raw" else "handover"
     now = datetime.now(timezone.utc)
     metrics = sorted({e[0] for e in entries})
+    missing_days = [int(d) for d in head.get("missingDays") or []]
     info = {
         "source": source,
+        "missingDays": missing_days,
         "file": filename,
         "files": head.get("files") or [filename],
         "uploaded_at": now.isoformat(timespec="seconds"),
@@ -219,7 +223,16 @@ def save_month(db: Session, content: bytes, admin_name: str, filename: str) -> d
     for m, b, s, sc, data in entries:
         if b == "all" and s == "ALL":
             totals[m] = round(sum(v for v in _decode(data, sc) if v is not None))
-    return {"ym": ym, "days": days, "source": source, "metrics": metrics, "rows": len(entries), "totals": totals}
+    return {
+        "ym": ym,
+        "days": days,
+        "missingDays": missing_days,
+        "resident": any(b == "dawn" for _, b, _, _, _ in entries),
+        "source": source,
+        "metrics": metrics,
+        "rows": len(entries),
+        "totals": totals,
+    }
 
 
 def delete_month(db: Session, ym: str) -> bool:
@@ -237,7 +250,8 @@ def list_months(db: Session) -> list[dict]:
     rows = db.execute(
         text(
             "SELECT m.ym, m.days, m.sources, m.updated_at, "
-            "COALESCE(array_agg(DISTINCT v.metric) FILTER (WHERE v.metric IS NOT NULL), '{}') AS metrics "
+            "COALESCE(array_agg(DISTINCT v.metric) FILTER (WHERE v.metric IS NOT NULL), '{}') AS metrics, "
+            "bool_or(v.metric = 'live' AND v.band = 'dawn') AS resident "
             "FROM pop_grid_month m LEFT JOIN pop_grid_value v ON v.ym = m.ym "
             "GROUP BY m.ym ORDER BY m.ym"
         )
@@ -246,7 +260,8 @@ def list_months(db: Session) -> list[dict]:
         {
             "ym": r.ym,
             "days": r.days,
-            "metrics": sorted(r.metrics),
+            # 거주인구는 생활인구 새벽 묶음이 있는 달에만 — 지도 자료 목록에서 따로 고른다.
+            "metrics": sorted(r.metrics) + (["resident"] if r.resident else []),
             "sources": r.sources,
             "updatedAt": r.updated_at.isoformat(timespec="seconds") if r.updated_at else None,
         }
@@ -368,6 +383,14 @@ def grid_values(
     smooth: bool,
 ) -> dict:
     """지도 한 장 — 칸별 값(격자 순서, 자료 없음은 null)과 색 단계 경계."""
+    if metric == "household":
+        # 행정동 세대수 — 격자 자료가 아니라 동마다 값 하나(household_dong).
+        from src.services import household_dong
+
+        return household_dong.grid_values(db, months)
+    if metric == "resident":
+        # 거주인구 = 생활인구 새벽 3~5시. 시간대 칩은 상관없다.
+        return dict(grid_values(db, months, "live", "dawn", sex, ages, smooth), metric="resident", band="dawn")
     if metric in _COMBOS:
         return _combo_values(db, metric, months, band, sex, ages, smooth)
     n = cell_count()
@@ -508,6 +531,10 @@ def cell_trend(
     idx = _cells()["index"].get(code)
     if idx is None:
         return None
+    if metric == "household":
+        from src.services import household_dong
+
+        return household_dong.cell_trend(db, idx)
     all_months = [r[0] for r in db.execute(text("SELECT ym FROM pop_grid_month ORDER BY ym")).all()]
     out = []
     for ym in all_months:
@@ -518,5 +545,131 @@ def cell_trend(
 
 
 def available_months(db: Session) -> list[dict]:
-    """지도에서 고를 수 있는 달과 그 달에 있는 자료."""
-    return [{"ym": m["ym"], "metrics": m["metrics"]} for m in list_months(db)]
+    """지도에서 고를 수 있는 달과 그 달에 있는 자료. 행정동 세대수가 있는 달은 "household"를 붙인다."""
+    from src.services import household_dong
+
+    out = {m["ym"]: list(m["metrics"]) for m in list_months(db)}
+    for ym in household_dong.months(db):
+        out.setdefault(ym, []).append("household")
+    return [{"ym": ym, "metrics": out[ym]} for ym in sorted(out)]
+
+
+# ---------- 매체 상세 — 매체가 있는 칸의 값(지도 칸 숫자와 같은 기준)
+
+# 시간대별 그래프 — 지도의 시간대 칩과 같은 이름·순서.
+_DETAIL_BANDS = (("am", "출근 7~9시"), ("day", "낮 10~16시"), ("pm", "퇴근 17~19시"), ("night", "야간 20~23시"))
+# 매체 상세 연령 칸 — (화면 라벨, 경계, 격자 연령). 10대 이하 = 0~19세, 60대 이상 = 60세 이상(segments 가 70을 붙인다).
+_DETAIL_AGES = (
+    ("10", "under", ["00", "10"]),
+    ("20대", None, ["20"]),
+    ("30대", None, ["30"]),
+    ("40대", None, ["40"]),
+    ("50대", None, ["50"]),
+    ("60", "over", ["60"]),
+)
+
+
+@lru_cache(maxsize=1)
+def _cell_lookup() -> tuple[float, float, dict[tuple[int, int], list[int]]]:
+    """좌표 → 칸 찾기용 묶음 — 칸 중심을 약 250m 상자에 넣는다(이웃 상자까지 보면 칸 하나를 놓치지 않는다)."""
+    step_lat, step_lng = 0.00225, 0.0028
+    buckets: dict[tuple[int, int], list[int]] = {}
+    for i, row in enumerate(_cells()["rows"]):
+        k = row[3]
+        lat, lng = sum(k[0::2]) / 4, sum(k[1::2]) / 4
+        buckets.setdefault((int(lat // step_lat), int(lng // step_lng)), []).append(i)
+    return step_lat, step_lng, buckets
+
+
+def cell_at(lat: float, lng: float) -> int | None:
+    """좌표가 들어 있는 칸(격자 순서 번호) — 서울 밖이면 None. 칸은 네 모서리로 된 거의 직사각형이라 상자로 본다."""
+    step_lat, step_lng, buckets = _cell_lookup()
+    by, bx = int(lat // step_lat), int(lng // step_lng)
+    rows = _cells()["rows"]
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            for i in buckets.get((by + dy, bx + dx), ()):
+                k = rows[i][3]
+                if min(k[0::2]) <= lat < max(k[0::2]) and min(k[1::2]) <= lng < max(k[1::2]):
+                    return i
+    return None
+
+
+def _latest_year_months(db: Session) -> list[str]:
+    """지도 처음 조건과 같은 기간 — 생활인구가 있는 가장 최근 해의 모든 달."""
+    yms = [
+        r[0]
+        for r in db.execute(
+            text("SELECT DISTINCT ym FROM pop_grid_value WHERE metric = 'live' ORDER BY ym")
+        ).all()
+    ]
+    if not yms:
+        return []
+    year = yms[-1][:4]
+    return [ym for ym in yms if ym.startswith(year)]
+
+
+def _period_label(months: list[str]) -> str:
+    """기간 — "2025년 1월~12월 평균", 한 달이면 "2025년 3월 평균"."""
+    year = months[0][:4]
+    first, last = int(months[0][4:]), int(months[-1][4:])
+    return f"{year}년 {first}월 평균" if first == last else f"{year}년 {first}월~{last}월 평균"
+
+
+def _top_pct(values: list[float | None], v: float) -> float:
+    """서울 칸 가운데 몇 % 안에 드는지 — 값이 있는 칸 기준(지도 칸 정보 카드의 "서울 상위 N%"와 같은 계산)."""
+    present = [x for x in values if x is not None]
+    if not present:
+        return 100.0
+    above = sum(1 for x in present if x > v)
+    return max(0.1, round(above / len(present) * 100, 1))
+
+
+def media_cell_population(db: Session, lat: float, lng: float) -> dict | None:
+    """매체 주변 유동인구 — 매체가 있는 250m 칸과 이웃 8칸(750m 네모, 가운데에서 약 375m)의 생활인구를 더한 값.
+
+    화면 이름은 "가시거리 375m 이내 총 유동인구". 칸 값은 평활하지 않은 원래 값을 더한다(평활 값을 더하면 이웃이 겹쳐 세진다).
+    기간은 지도 처음 조건과 같은 최근 해 전체 평균. 생활인구라 시간대마다 "한 시각에 그 안에 머무는 평균 인원"이고,
+    총 인원(populationMin/Max)은 출근·낮·퇴근·야간 네 시간대 값을 더한 것이다(화면 "총 N명").
+    성별·연령 비율과 시간대별 값도 같은 9칸·같은 기간으로 낸다. 순위는 지도 칸 정보 카드와 같은 종합 기준 서울 상위 %
+    (매체 칸 하나 기준, 믹시 설명용). 서울 밖이거나 값이 없으면 None.
+    """
+    idx = cell_at(lat, lng)
+    if idx is None:
+        return None
+    months = _latest_year_months(db)
+    if not months:
+        return None
+    area = [idx, *_cells()["neighbors"][idx]]
+
+    def value(metric: str = "live", band: str = "all", sex: str = "all", ages: list[str] | None = None):
+        vals = grid_values(db, months, metric, band, sex, ages or [], False)["values"]
+        present = [vals[i] for i in area if vals[i] is not None]
+        return sum(present) if present else None
+
+    bands = [dict(label=label, value=round(value(band=band) or 0)) for band, label in _DETAIL_BANDS]
+    total = sum(b["value"] for b in bands)
+    if not total:
+        return None
+    flow = grid_values(db, months, "flow", "all", "all", [], True)["values"]
+    male, female = value(sex="M") or 0, value(sex="F") or 0
+    by_age = [(label, bound, value(ages=ages) or 0) for label, bound, ages in _DETAIL_AGES]
+    age_total = sum(v for _, _, v in by_age)
+    male_pct = round(male / (male + female) * 100) if male + female else 0
+    row = _cells()["rows"][idx]
+    return dict(
+        source="grid",
+        placeName=f"{row[2]} · {_period_label(months)}",
+        congestLevel=None,
+        populationMin=total,
+        populationMax=total,
+        malePct=male_pct,
+        femalePct=(100 - male_pct) if male + female else 0,
+        ageRatios=[
+            dict(label=label, value=round(v / age_total * 100, 1) if age_total else 0.0, bound=bound)
+            for label, bound, v in by_age
+        ],
+        measuredAt=None,
+        seoulTopPct=_top_pct(flow, flow[idx]) if flow[idx] is not None else None,
+        bandAverages=bands,
+    )

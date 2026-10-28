@@ -1365,6 +1365,79 @@ def _nearest_subway_station(db: Session, m: Media) -> tuple[str, str] | None:
     return (best[1], best[2]) if best else None
 
 
+# 매체 상세 "가까운 역" — 이 거리(m, 직선) 안에서 가장 가까운 지하철역 하나. 두 역 사이라
+# 다음 역과 거리 차이가 NEARBY_STATION_TIE_M 안이면 그 역까지 둘.
+NEARBY_STATION_MAX_M = 1000
+NEARBY_STATION_TIE_M = 200
+# 역 노선 이름 — transit_station 은 철도 법정 노선명(경부선·과천선 등)이라 타는 사람이 아는 이름으로 바꾼다.
+_LINE_NAME = {
+    "경부선": "1호선",
+    "경원선": "1호선",
+    "경인선": "1호선",
+    "장항선": "1호선",
+    "일산선": "3호선",
+    "과천선": "4호선",
+    "안산선": "4호선",
+    "진접선": "4호선",
+    "7호선(인천)": "7호선",
+    "별내선": "8호선",
+    "9호선(연장)": "9호선",
+    "분당선": "수인분당선",
+    "수인선": "수인분당선",
+    "중앙선": "경의중앙선",
+    "신분당선(연장)": "신분당선",
+    "신분당선(연장2)": "신분당선",
+    "공항철도1호선": "공항철도",
+    "수도권 광역급행철도": "GTX-A",
+    "의정부선": "의정부경전철",
+    "에버라인선": "에버라인",
+    "우이신설선": "우이신설선",
+}
+
+
+def _line_names(lines: str | None) -> list[str]:
+    """노선 문자열("경인선,7호선") → 타는 사람이 아는 이름, 겹치면 하나만(["1호선", "7호선"])."""
+    out: list[str] = []
+    for raw in (lines or "").split(","):
+        name = _LINE_NAME.get(raw.strip(), raw.strip())
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
+def _nearby_stations(db: Session, m: Media) -> list[dict]:
+    """매체 좌표에서 가장 가까운 지하철역(NEARBY_STATION_MAX_M 안, 수도권 transit_station) — 이름·노선·직선 거리(10m 단위).
+    다음으로 가까운 역이 NEARBY_STATION_TIE_M 안 차이면 함께(두 역 사이 매체)."""
+    if m.latitude is None or m.longitude is None:
+        return []
+    lat, lng = float(m.latitude), float(m.longitude)
+    kx = 111_320 * math.cos(math.radians(lat))
+    dlat = NEARBY_STATION_MAX_M / 110_540
+    dlng = NEARBY_STATION_MAX_M / kx
+    rows = db.execute(
+        text(
+            """
+            SELECT name, lines, latitude, longitude FROM transit_station
+            WHERE kind = 'subway'
+              AND latitude BETWEEN :lat0 AND :lat1 AND longitude BETWEEN :lng0 AND :lng1
+            """
+        ),
+        {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng},
+    ).all()
+    # 같은 이름 역이 따로 들어 있기도 해(서울역 — 1·4호선과 GTX) 이름으로 묶어 가까운 거리·노선을 합친다.
+    by_name: dict[str, tuple[float, list[str]]] = {}
+    for name, lines, slat, slng in rows:
+        d = math.hypot((slat - lat) * 110_540, (slng - lng) * kx)
+        if d > NEARBY_STATION_MAX_M or not name:
+            continue
+        key = name if name.endswith("역") else f"{name}역"
+        prev_d, prev_lines = by_name.get(key, (d, []))
+        by_name[key] = (min(d, prev_d), prev_lines + [x for x in _line_names(lines) if x not in prev_lines])
+    found = sorted((d, key, ls) for key, (d, ls) in by_name.items())
+    picked = found[:1] + [f for f in found[1:2] if f[0] - found[0][0] <= NEARBY_STATION_TIE_M]
+    return [{"name": key, "lines": ls, "distanceM": int(round(d / 10) * 10)} for d, key, ls in picked]
+
+
 def _station_population(db: Session, m: Media) -> dict | None:
     """지하철역 안 매체의 월평균 승하차 — 그 역의 최근 날들(transit_ridership, 최대 약 한 달)의 하루 평균을
     한 달(365/12일)로 환산한다. 상권 유동인구와 같은 "월평균"으로 비교되게.
@@ -1424,6 +1497,13 @@ def population_fact(pop: dict | None) -> str | None:
         congest = f", 혼잡도 {pop['congestLevel']}" if pop.get("congestLevel") else ""
         return f"실시간 인구({pop.get('placeName')}{when}): {count}{congest}, {gender}"
     basis = f"({pop['placeName']})" if pop.get("placeName") else ""
+    if pop.get("source") == "grid":
+        rank = f", 서울 상위 {pop['seoulTopPct']:g}%" if pop.get("seoulTopPct") is not None else ""
+        station = pop.get("station")
+        ride = f", {station['name']} 하루 승하차 약 {station['daily']:,}명" if station else ""
+        bands = " + ".join(f"{b['label']} {b['value']:,}" for b in pop.get("bandAverages") or [])
+        parts = f" ({bands})" if bands else ""
+        return f"가시거리 375m 이내 총 유동인구{basis}: 총 {pop['populationMax']:,}명{parts}{rank}{ride}, {gender}"
     title = "월평균 역 승하차" if pop.get("source") == "station" else "월평균 유동인구"
     return f"{title}{basis}: {pop['populationMax']:,}명, {gender}"
 
@@ -1449,6 +1529,53 @@ def media_population(db: Session, m: Media) -> dict | None:
         or _station_population(db, m)
         or _sangwon_population(db, m.sangwon_code)
     )
+
+
+def _station_daily(db: Session, m: Media) -> dict | None:
+    """지하철역 안 매체 — 그 역의 최근 날들 하루 평균 승하차(보조 정보). 격자 인구와 따로, 역에서 타고 내린 사람 수."""
+    if m.category_large != STATION_MEDIA_CATEGORY:
+        return None
+    station = _nearest_subway_station(db, m)
+    if station is None:
+        return None
+    row = db.execute(
+        text(
+            """
+            SELECT count(*) AS days, avg(ride_count + alight_count) AS daily FROM transit_ridership
+            WHERE station_id = :sid
+            """
+        ),
+        {"sid": station[0]},
+    ).first()
+    if row is None or row.days < STATION_MIN_DAYS or not row.daily:
+        return None
+    name = station[1] if station[1].endswith("역") else f"{station[1]}역"
+    return dict(name=name, daily=round(float(row.daily)), days=int(row.days))
+
+
+def media_detail_population(db: Session, m: Media) -> dict | None:
+    """매체 상세 인구 카드 — ① 어드민에서 직접 입력한 값 ② 매체가 있는 서울 250m 칸과 이웃 8칸의 생활인구 합
+    ("가시거리 375m 이내 총 유동인구", pop_grid.media_cell_population) ③ 칸 값이 없으면 예전처럼 역 승하차·상권 월평균(media_population).
+
+    지도 격자와 숫자가 달라 헷갈렸다(상권은 하루 동안 지나간 누적 인원·구역 크기 제각각, 격자는 한 시각 평균 머무는 인원).
+    2026-10-27부터 상세도 격자 기준. 유동인구 등급·자동 타깃·어드민 안내는 상권 월평균 기준 그대로(media_population).
+    지하철역 안 매체는 역 승하차를 보조 정보(station)로 붙인다.
+    """
+    from src.services import pop_grid
+
+    if m.media_source == "MOVING":
+        return None
+    manual = _manual_population(m)
+    if manual:
+        return manual
+    cell = (
+        pop_grid.media_cell_population(db, float(m.latitude), float(m.longitude))
+        if m.latitude is not None and m.longitude is not None
+        else None
+    )
+    if cell:
+        return dict(cell, station=_station_daily(db, m))
+    return media_population(db, m)
 
 
 def proposal_slide_facts(m: Media) -> dict:
@@ -1563,7 +1690,9 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         features=features,
         plans=plans,
         planOptions=plan_options,
-        population=media_population(db, m),
+        population=media_detail_population(db, m),
+        # 가까운 지하철역 — 고정 매체만(이동 매체는 정해진 자리가 없다).
+        nearbyStations=_nearby_stations(db, m) if fixed else [],
     )
 
 

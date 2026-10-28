@@ -180,6 +180,14 @@ class MediaWeekdayPopulation(BaseModel):
     value: int  # 그 요일 하루 평균 유동인구(명)
 
 
+class MediaStationDaily(BaseModel):
+    """지하철역 안 매체의 역 하루 평균 승하차 — 매체 상세 인구 카드의 보조 정보."""
+
+    name: str
+    daily: int
+    days: int
+
+
 class MediaPopulation(BaseModel):
     """매체 정보 팝업의 인구 카드.
 
@@ -187,9 +195,10 @@ class MediaPopulation(BaseModel):
     source="manual": 어드민에서 직접 입력한 월평균 유동인구(min = max).
     source="sangwon": 서울시 상권 데이터의 월평균 유동인구(min = max).
     source="station": 지하철역 안 매체 — 그 역의 최근 날들의 하루 평균 승하차를 한 달로 환산(min = max). 성별·연령은 상권 값.
+    source="grid": 매체가 있는 서울 250m 칸과 이웃 8칸의 생활인구 합 — "가시거리 375m 이내 총 유동인구"(min = max).
     """
 
-    source: Literal["realtime", "manual", "sangwon", "station"]
+    source: Literal["realtime", "manual", "sangwon", "station", "grid"]
     # realtime: 장소 이름, manual: 입력한 기준(예: "2025년 3분기"), sangwon: "OO 상권 · 2025년 4분기"
     placeName: str
     congestLevel: str | None  # 여유 / 보통 / 약간 붐빔 / 붐빔
@@ -201,6 +210,19 @@ class MediaPopulation(BaseModel):
     measuredAt: str | None  # 서울시 기준 시각 "YYYY-MM-DD HH:MM"
     # sangwon: 월~일 하루 평균(같은 분기), station: 같은 요일 날들의 하루 평균 승하차. 그 밖은 None.
     weekdayDaily: list[MediaWeekdayPopulation] | None = None
+    # grid: 종합 기준 서울 칸 가운데 상위 몇 %(지도 칸 정보와 같다), 시간대별(출근·낮·퇴근·야간) 한 시각 평균,
+    # 지하철역 안 매체면 그 역의 하루 평균 승하차(보조 정보).
+    seoulTopPct: float | None = None
+    bandAverages: list[MediaWeekdayPopulation] | None = None
+    station: MediaStationDaily | None = None
+
+
+class MediaNearbyStation(BaseModel):
+    """매체 상세 "가까운 역" 한 줄 — 매체 좌표에서 직선 거리."""
+
+    name: str  # "강남역"
+    lines: list[str]  # ["2호선", "신분당선"]
+    distanceM: int
 
 
 class MediaDetail(BaseModel):
@@ -231,3 +253,4 @@ class MediaDetail(BaseModel):
     plans: list[MediaPlanRow]
     planOptions: list[MediaPlanOption] = []
     population: MediaPopulation | None
+    nearbyStations: list[MediaNearbyStation] = []

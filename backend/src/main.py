@@ -27,6 +27,7 @@ from src.routers.recommend_react import router as recommend_react_router
 from src.services.sangwon_sync import start_daily_sync
 from src.services.road_traffic import start_daily_sync as start_road_link_sync
 from src.services.transit_sync import start_daily_sync as start_transit_sync
+from src.services.household_dong import start_daily_sync as start_household_sync
 
 settings = get_settings()
 
@@ -80,6 +81,8 @@ def _start_background_jobs() -> None:
     start_transit_sync()
     # 서울시 도로 링크(도로 현황 지도) — 표가 비었으면 받는다.
     start_road_link_sync()
+    # 행정안전부 행정동 세대수(지도 "거주인구") 새 달 확인(하루 한 번). 키가 없으면 돌지 않는다.
+    start_household_sync()
 
 
 @app.get("/health")

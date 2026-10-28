@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     geoapify_api_key: str = ""  # 기획안 PPT 매체 슬라이드 정적지도용 (Geoapify Static Maps)
     seoul_openapi_key: str = ""  # 서울 열린데이터광장 인증키 — 매체 정보 팝업의 실시간 인구(citydata_ppltn)
+    # 공공데이터포털 일반 인증키(Decoding) — 행정안전부 행정동 세대수(지도 "거주인구") 달마다 자동으로 받기. 비우면 어드민 CSV 업로드만.
+    data_go_kr_service_key: str = ""
     port: int = 8000
 
     # 비동기 AI 추천 (SQS + Lambda)

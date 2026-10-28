@@ -314,22 +314,8 @@ export function MapArea({
     return () => document.removeEventListener("pointerdown", close);
   }, [layersOpen]);
 
-  // 실시간 범례(PC, 오른쪽 아래) 높이 — 누른 칸 정보 카드(PopGridLayer)를 그 위로 올린다. 범례가 없으면 0.
-  const liveLegendRef = useRef<HTMLDivElement>(null);
-  const [liveLegendHeight, setLiveLegendHeight] = useState(0);
+  // 실시간 범례(PC) — 실시간 정보 버튼 밑에 띄운다. 모바일은 띄우지 않는다.
   const liveLegendShown = liveOn && isDesktop;
-  useLayoutEffect(() => {
-    const el = liveLegendRef.current;
-    if (!liveLegendShown || !el) {
-      setLiveLegendHeight(0);
-      return;
-    }
-    const observer = new ResizeObserver(() =>
-      setLiveLegendHeight(el.offsetHeight),
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [liveLegendShown]);
 
   // 왼쪽 위 인구 분포 조건 높이(줄이 바뀌면 커진다) — 실시간 인구 장소 카드는 그 밑에 붙인다.
   // 오른쪽 위 실시간 정보 버튼 폭 — 조건 카드가 그 앞에서 줄을 바꾼다.
@@ -379,7 +365,6 @@ export function MapArea({
           // 실시간 인구 장소 카드는 왼쪽 위 인구 분포 조건 바로 밑, 없으면 맨 위.
           "--map-legend-top": `${popCardShown ? 12 + popCardHeight + 8 : 12}px`,
           "--map-right-top-w": `${layersButtonWidth ? layersButtonWidth + 8 : 0}px`,
-          "--map-live-legend-h": `${liveLegendHeight ? liveLegendHeight + 8 : 0}px`,
         } as CSSProperties
       }
     >
@@ -505,46 +490,43 @@ export function MapArea({
               )}
             </div>
           )}
+          {liveLegendShown && (
+            // 범례(PC) — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
+            // 모바일은 지도가 좁아 범례를 띄우지 않는다(장소 이름표에 혼잡도가 적혀 있다).
+            // 오른쪽 위 실시간 정보 버튼(창을 펼쳤으면 창) 바로 밑 — 오른쪽 아래는 누른 칸 정보 카드 자리.
+            <div className="flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]">
+              {crowd?.on && (
+                <>
+                  <LegendRow levels={CROWD_LEVELS} />
+                  <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
+                    {crowd.loading
+                      ? "서울시 실시간 혼잡도를 불러오는 중…"
+                      : crowd.places.length === 0
+                        ? "이 지역엔 서울시 주요 장소가 없어요"
+                        : "서울시 주요 장소 실시간 혼잡도 · 5분마다 갱신"}
+                  </span>
+                </>
+              )}
+              {traffic?.on && (
+                <>
+                  <LegendRow levels={TRAFFIC_LEVELS} line />
+                  <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
+                    {traffic.loading
+                      ? "서울시 도로 현황을 불러오는 중…"
+                      : traffic.links.length === 0
+                        ? "이 지역엔 서울시 도로 정보가 없어요"
+                        : "서울시 실시간 도로 소통(주요 도로) · 5분마다 갱신"}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
       {popGrid?.on && (
         // 인구 분포 조건 — 켰을 때만 고른 조건 한 줄. 누르면 유동인구 창(켜기·끄기도 그 창에서).
         // 실시간 인구·도로 현황은 오른쪽 위 "실시간 정보" 버튼으로 따로 뺐다.
         <PopGridMapCard state={popGrid} cardRef={popCardRef} />
-      )}
-      {liveLegendShown && (
-        // 범례(PC) — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
-        // 모바일은 지도가 좁아 범례를 띄우지 않는다(장소 이름표에 혼잡도가 적혀 있다).
-        // 오른쪽 아래 — 왼쪽 아래는 카카오 로고·축척 자리. 누른 칸 정보 카드는 이 범례 위로 올라간다(--map-live-legend-h).
-        <div
-          ref={liveLegendRef}
-          className="absolute right-[12px] bottom-[12px] z-[2] flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
-        >
-          {crowd?.on && (
-            <>
-              <LegendRow levels={CROWD_LEVELS} />
-              <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
-                {crowd.loading
-                  ? "서울시 실시간 혼잡도를 불러오는 중…"
-                  : crowd.places.length === 0
-                    ? "이 지역엔 서울시 주요 장소가 없어요"
-                    : "서울시 주요 장소 실시간 혼잡도 · 5분마다 갱신"}
-              </span>
-            </>
-          )}
-          {traffic?.on && (
-            <>
-              <LegendRow levels={TRAFFIC_LEVELS} line />
-              <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
-                {traffic.loading
-                  ? "서울시 도로 현황을 불러오는 중…"
-                  : traffic.links.length === 0
-                    ? "이 지역엔 서울시 도로 정보가 없어요"
-                    : "서울시 실시간 도로 소통(주요 도로) · 5분마다 갱신"}
-              </span>
-            </>
-          )}
-        </div>
       )}
       {picked && (
         <CrowdPlaceCard
@@ -682,12 +664,13 @@ function CrowdPlaceCard({
         hidden && "opacity-0",
       )}
     >
-      <div className="shrink-0 border-b border-zinc-900/5 px-[14px] pt-[12px] pb-[10px]">
+      {/* 바깥 여백은 위·아래·양옆 모두 16px로 맞춘다. */}
+      <div className="shrink-0 border-b border-zinc-900/5 px-[16px] pt-[16px] pb-[12px]">
         <CrowdPlaceHeader place={place} onClose={onClose} />
       </div>
       <ScrollShadow
         size={24}
-        className="flex min-h-0 flex-1 flex-col gap-[14px] px-[14px] pt-[12px] pb-[12px]"
+        className="flex min-h-0 flex-1 flex-col gap-[14px] px-[16px] pt-[12px] pb-[16px]"
       >
         {transit ? (
           <CrowdTransitSections data={transit} />

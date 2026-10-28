@@ -2,6 +2,7 @@
 
 import {
   type MediaDetail,
+  type MediaNearbyStation,
   type MediaPlanOption,
   type MediaPopulation,
   useMediaDetail,
@@ -34,6 +35,10 @@ export type MediaDetailPopulationVM = {
   genderRatio: { male: number; female: number };
   /** 월~일 하루 평균 — 서울시 상권(요일 값이 있을 때)·지하철역 승하차. */
   weekdayDaily: { label: string; value: number }[] | null;
+  /** 격자(grid) — 시간대별 한 시각 평균(출근·낮·퇴근·야간). 있으면 요일별 대신 이 그래프. */
+  bandAverages: { label: string; value: number }[] | null;
+  /** 격자 — 지하철역 안 매체의 역 승하차 한 줄("잠실역 하루 승하차 약 19.7만 명 · 최근 28일"). */
+  stationText: string | null;
   /** 숫자를 어떻게 셌는지 — 지하철역 승하차만(교통카드 기준). 없으면 null. */
   note: string | null;
   /** 출처 — 인구수·요일별(traffic)과 성별·연령(demographic). 직접 입력은 알 수 없어 null. */
@@ -70,6 +75,8 @@ export type MediaDetailViewModel = {
   /** 매체 정보 팝업의 "안건" 옵션(플랜별 광고비·제작비·노출 조건). */
   planOptions: MediaPlanOption[];
   population: MediaDetailPopulationVM | null;
+  /** 가까운 지하철역 — 주소 밑에 보여 준다. */
+  nearbyStations: MediaNearbyStation[];
 };
 
 export function formatFee(krw: number | null): string {
@@ -83,9 +90,14 @@ const POPULATION_TITLE: Record<MediaPopulation["source"], string> = {
   manual: "월평균 유동인구",
   sangwon: "월평균 유동인구",
   station: "월평균 역 승하차",
+  // 매체 칸과 이웃 8칸(750m 네모, 가운데에서 약 375m)의 생활인구 합.
+  grid: "가시거리 375m 이내 총 유동인구",
 };
 
 const SANGWON_SOURCE = "서울시 상권분석서비스";
+// 서울 생활인구는 서울시 공공빅데이터와 KT 통신데이터로 만든 추계 인구다(서울 열린데이터광장).
+const GRID_SOURCE =
+  "서울시 생활인구(서울시 공공빅데이터 + KT 통신데이터) · 250m 격자";
 
 /** 지하철 승하차 집계 기준(서울시 교통카드 데이터) — 역 안에서 갈아타는 환승은 찍지 않아 빠진다. */
 const STATION_NOTE =
@@ -106,6 +118,7 @@ const POPULATION_SOURCES: Record<
     traffic: "서울시 지하철 역별 승하차 인원",
     demographic: SANGWON_SOURCE,
   },
+  grid: { traffic: GRID_SOURCE, demographic: GRID_SOURCE },
 };
 
 /** 인구 카드 제목 옆 설명 — 실시간은 "장소 · 시:분 기준", 월평균은 기준(시기·상권). */
@@ -166,12 +179,14 @@ export function toMediaDetailViewModel(
       planNo: p.planNo,
     })),
     planOptions: detail.planOptions ?? [],
+    nearbyStations: detail.nearbyStations ?? [],
     population: pop
       ? {
-          populationText: formatPopulationRange(
+          // 격자 인구는 출근·낮·퇴근·야간 네 시간대 값을 더한 총 인원이라 "총"을 붙인다.
+          populationText: `${pop.source === "grid" ? "총 " : ""}${formatPopulationRange(
             pop.populationMin,
             pop.populationMax,
-          ),
+          )}`,
           title: POPULATION_TITLE[pop.source],
           caption: populationCaption(pop),
           congestLevel: pop.congestLevel,
@@ -192,6 +207,10 @@ export function toMediaDetailViewModel(
           ],
           genderRatio: { male: pop.malePct, female: pop.femalePct },
           weekdayDaily: pop.weekdayDaily?.length ? pop.weekdayDaily : null,
+          bandAverages: pop.bandAverages?.length ? pop.bandAverages : null,
+          stationText: pop.station
+            ? `${pop.station.name} 하루 승하차 약 ${pop.station.daily.toLocaleString()}명 · 최근 ${pop.station.days}일`
+            : null,
           note: pop.source === "station" ? STATION_NOTE : null,
           sources: POPULATION_SOURCES[pop.source],
         }

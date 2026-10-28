@@ -32,6 +32,8 @@ export type SummarizeResult = {
 export type SeoulZipHead = {
   ym: string;
   days: number;
+  /** zip에 없는 날(그 달 1일~말일 중) — 어드민에 경고로 보여 준다. */
+  missingDays: number[];
   source: "seoul-raw";
   files: string[];
   fields: string[];
@@ -39,14 +41,18 @@ export type SeoulZipHead = {
   n: number;
 };
 
-// 시간대 묶음(양끝 포함) — 파이썬 파이프라인과 같은 이름·범위
+// 시간대 묶음(양끝 포함) — 파이썬 파이프라인과 같은 이름·범위.
+// "거주"(새벽 3~5시)는 대부분 집에 있는 시각이라 그 칸에 사는 사람(거주인구)으로 본다 — 생활인구에만 만든다.
 export const BANDS: ReadonlyArray<readonly [string, number, number]> = [
   ["24시간", 0, 23],
   ["출근", 7, 9],
   ["낮", 10, 16],
   ["퇴근", 17, 19],
   ["야간", 20, 23],
+  ["거주", 3, 5],
 ];
+const bandsOf = (kind: Kind) =>
+  kind === "live" ? BANDS : BANDS.filter(([b]) => b !== "거주");
 
 export const SEX_AGE: string[] = (() => {
   const out: string[] = [];
@@ -549,7 +555,8 @@ export function finalizeAccum(
   days: [number, number],
 ): { fields: string[]; arrays: Float64Array[] } {
   const V = kind === "live" ? LIVE_V : STAY_V;
-  const names: string[][] = BANDS.map(([b]) => {
+  const bands = bandsOf(kind);
+  const names: string[][] = bands.map(([b]) => {
     if (kind === "live")
       return [`spN_${b}`, ...SEX_AGE.map((sa) => `sps_${b}_${sa}`)];
     return [
@@ -581,8 +588,8 @@ export function finalizeAccum(
           ((pres[p] ? acc[o0 + v] : 0) + (pres[p + 1] ? acc[o1 + v] : 0)) / den;
       }
     }
-    for (let bi = 0; bi < BANDS.length; bi++) {
-      const [, h0, h1] = BANDS[bi];
+    for (let bi = 0; bi < bands.length; bi++) {
+      const [, h0, h1] = bands[bi];
       let cnt = 0;
       for (let h = h0; h <= h1; h++) if (hourHas[h]) cnt++;
       const outs = arrays[bi];
@@ -779,6 +786,7 @@ async function processZip(
   fields: string[];
   arrays: Float64Array[];
   days: [number, number];
+  dates: number[];
 }> {
   const zipName =
     zip.name ?? (kind === "live" ? "생활인구.zip" : "체류인구.zip");
@@ -847,7 +855,7 @@ async function processZip(
     }
   }
   const { fields, arrays } = finalizeAccum(kind, nCell, a.acc, a.pres, days);
-  return { fields, arrays, days };
+  return { fields, arrays, days, dates: [...a.dates.keys()] };
 }
 
 /** 원본 zip 두 개(하나만도 가능)를 격자 요약 파일 글자로. */
@@ -864,6 +872,8 @@ export async function summarizeSeoulZips(
   const fields: string[] = [];
   const arrays: Float64Array[] = [];
   const files: string[] = [];
+  // 그 달 날짜 가운데 zip에 들어 있는 날 — 생활·체류 둘 다 올리면 둘 다 있는 날만 센다.
+  let present = null as Set<number> | null;
   for (const [kind, zip] of [
     ["live", live],
     ["stay", stay],
@@ -873,12 +883,19 @@ export async function summarizeSeoulZips(
     fields.push(...r.fields);
     arrays.push(...r.arrays);
     files.push(zip.name ?? `${kind}.zip`);
+    const got = new Set(r.dates.map((d) => d % 100));
+    present = present ? new Set([...present].filter((d) => got.has(d))) : got;
   }
+  const total = daysInMonth(ym);
+  const missingDays = Array.from({ length: total }, (_, i) => i + 1).filter(
+    (d) => !present?.has(d),
+  );
   throwIfAborted(signal);
   onProgress?.({ stage: "pack", file: "", done: 0, total: 1 });
   const { text, head } = await packFields(fields, arrays, n, {
     ym,
-    days: daysInMonth(ym),
+    days: total - missingDays.length,
+    missingDays,
     source: "seoul-raw",
     files,
   });

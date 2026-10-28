@@ -23,12 +23,13 @@ import {
   ChevronDownIcon,
   InfoIcon,
   RotateLeftIcon,
-  TargetIcon,
+  PopulationGridIcon,
   XIcon,
 } from "@/components/icons";
 import type { CrowdPlace } from "@/hooks/media";
 import {
   type PopAge,
+  type PopCell,
   type PopBand,
   type PopMetric,
   type PopSex,
@@ -36,6 +37,7 @@ import {
   usePopGridCells,
   usePopGridMonths,
   usePopGridValues,
+  usePopGridValuesList,
 } from "@/hooks/popGrid";
 import { useCloseOnBack } from "@/hooks/useCloseOnBack";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -44,6 +46,8 @@ import { cn } from "@/lib/utils";
 
 import { crowdColor } from "./useMapCrowd";
 import {
+  cellGroups,
+  type GroupOverlay,
   POP_LEVELS,
   type PopRealtime,
   popLevel,
@@ -52,14 +56,14 @@ import {
 
 const METRICS: { key: PopMetric; label: string; desc: string }[] = [
   {
-    key: "flow",
-    label: "종합",
-    desc: "생활·체류인구·보행(통신 70%)과 지하철·버스 승하차(교통카드 30%)를 합쳐 서울에서 많은 순으로 칠해요 — 성별·연령은 생활·체류에 걸려요",
+    key: "live",
+    label: "생활인구",
+    desc: "그 시각에 그 칸에 있던 사람 수(고른 기간·시간대의 한 시각 평균) — 사는 사람·일하는 사람·지나는 사람을 모두 세요",
   },
   {
-    key: "people",
-    label: "생활·체류인구",
-    desc: "생활인구(그 시각 있던 사람)와 체류인구(머물기 시작한 사람)를 같은 점수로 바꿔 2:1로 합쳐요",
+    key: "household",
+    label: "거주인구",
+    desc: "행정안전부 주민등록 세대수(행정동) — 동마다 값 하나라 그 동의 칸을 모두 같은 색으로 칠해요",
   },
   {
     key: "subway",
@@ -96,10 +100,57 @@ const AGES: { key: PopAge; label: string }[] = [
 const NO_SEG_REASON: Partial<Record<PopMetric, string>> = {
   subway:
     "지하철은 교통카드 승하차 자료라 성별·연령 정보가 없어요. 전체 승하차 인원으로 보여요.",
+  household:
+    "거주인구는 행정안전부 주민등록 세대수라 성별·연령 구분이 없어요. 동 전체 세대수로 보여요.",
   walk: "보행 자료는 성별과 연령이 따로따로만 있어 '20대 남성'처럼 함께 고를 수 없어요. 전체 인원으로 보여요.",
 };
 // 성·연령 구분이 있는 자료
-const SEG_METRICS = new Set<PopMetric>(["flow", "people"]);
+const SEG_METRICS = new Set<PopMetric>(["flow", "people", "live"]);
+// 자료마다 출처(짧게) — 인구 분포 창 맨 아래·누른 칸 정보 카드.
+const SOURCES: Record<PopMetric, string> = {
+  flow: "서울시 생활인구·교통카드·상권분석서비스",
+  people: "서울시 생활인구 (KT 통신데이터)",
+  live: "서울시 생활인구 (KT 통신데이터)",
+  household: "행정안전부 주민등록 세대수",
+  subway: "서울시 지하철 승하차 (교통카드)",
+  walk: "서울시 상권분석서비스",
+};
+// 시간대를 고르지 않는 자료 — 시간대 카드에 값과 이유를 보여 준다.
+const FIXED_BAND: Partial<Record<PopMetric, [string, string]>> = {
+  household: ["구분 없음", "거주인구(주민등록 세대수)는 시간대 구분이 없어요."],
+};
+// 사람 수 자료 — 함께 고르면 격자 칸 숫자를 더해 적는다(보행은 상대값, 거주인구는 세대수라 빼고).
+const PEOPLE_METRICS = new Set<PopMetric>(["live", "subway"]);
+// 여러 자료를 함께 골랐을 때 첫 자료(칸 색·숫자·기간 기준)로 삼는 순서.
+const PRIMARY_ORDER: PopMetric[] = ["live", "subway", "walk", "household"];
+// 자료가 있는 달 — /months 의 metrics 에 이 이름이 있어야 고를 수 있다.
+const MONTH_NEED: Record<PopMetric, string> = {
+  flow: "live",
+  people: "live",
+  live: "live",
+  household: "household",
+  subway: "subway",
+  walk: "walk",
+};
+const NO_MONTH_TEXT: Partial<Record<PopMetric, string>> = {
+  household:
+    "거주인구 자료가 아직 없어요 — 어드민에서 행정안전부 세대수 CSV를 올린 달부터 보여요.",
+};
+/** 출처 한 줄 — 유동인구 창 맨 아래와 모바일 시트 색 띠 아래. */
+/** 출처 한 줄(짧게) — 여러 자료를 함께 고르면 출처를 다 적는다. */
+function PopSource({
+  metric,
+  extras = [],
+}: {
+  metric: PopMetric;
+  extras?: PopMetric[];
+}) {
+  return (
+    <p className="text-[10px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
+      출처: {[metric, ...extras].map((m) => SOURCES[m]).join(" · ")}
+    </p>
+  );
+}
 
 const monthLabel = (ym: string) => `${Number(ym.slice(4))}월`;
 
@@ -126,34 +177,53 @@ function valueText(metric: PopMetric, v: number | null): string {
   const n = v >= 10 ? Math.round(v).toLocaleString() : v.toFixed(1);
   // 종합은 여러 자료를 합친 순위라 이름 없이 "20대 남성 · 서울 상위 9%"처럼.
   if (metric === "flow") return "";
-  if (metric === "people") return "생활·체류인구";
+  if (metric === "people") return "생활인구";
   if (metric === "live") return `약 ${n}명`;
+  if (metric === "household") return `${Math.round(v).toLocaleString()}세대`;
   if (metric === "subway") return `시간당 약 ${n}명 승하차`;
   return `보행 ${n}`;
 }
 
-/** 서울 칸 가운데 몇 % 안에 드는지 — 값이 있는 칸 기준. */
-function useRank(values: (number | null)[] | undefined) {
-  return useMemo(() => {
-    const sorted = (values ?? [])
-      .filter((v): v is number => v != null)
-      .sort((a, b) => a - b);
-    return (v: number | null): number | null => {
-      if (v == null || !sorted.length) return null;
-      let lo = 0;
-      let hi = sorted.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (sorted[mid] <= v) lo = mid + 1;
-        else hi = mid;
-      }
-      return Math.max(0.1, ((sorted.length - lo) / sorted.length) * 100);
-    };
-  }, [values]);
+/** 칸 → 동 묶음(동 경계·동 이름). 동 이름은 숫자를 적는 가운데 칸에만. */
+function dongGroups(cells: PopCell[], labelCells: number[]) {
+  const names: (string | null)[] = cells.map(() => null);
+  labelCells.forEach((i) => (names[i] = cells[i][2]));
+  return cellGroups(
+    cells,
+    cells.map((c) => (c[2] ? `${c[1]} ${c[2]}` : null)),
+    names,
+  );
 }
 
-const rankText = (r: number | null) =>
-  r == null ? "" : `서울 상위 ${r < 1 ? r.toFixed(1) : Math.round(r)}%`;
+/** 함께 고른 자료 — 지도에 겹쳐 칠할 값(자료마다 한 장)과, 거주인구가 있으면 옅은 동 경계. */
+function useOverlay(state: PopGridState, cells: PopCell[] | undefined) {
+  const grids = usePopGridValuesList(state.overlayLayers.map((l) => l.query));
+  // 고른 자료 이름 — 조건 목록은 그릴 때마다 새로 만들어져 값으로 견준다.
+  const metricsKey = state.overlayLayers.map((l) => l.metric).join(",");
+  return useMemo<GroupOverlay | null>(() => {
+    const metrics = metricsKey.split(",");
+    const got = grids.flatMap((g, i) =>
+      g && metrics[i] ? [{ ...g, metric: metrics[i] }] : [],
+    );
+    if (!cells || !state.overlay || !got.length) return null;
+    const dong = got.find((g) => g.labelCells)?.labelCells;
+    return {
+      layers: got.map((g) => ({
+        metric: g.metric,
+        values: g.values,
+        breaks: g.breaks,
+      })),
+      groups: dong ? dongGroups(cells, dong) : null,
+    };
+  }, [cells, state.overlay, metricsKey, grids]);
+}
+
+/** 모바일 칸 말풍선의 값 한 줄 — 생활인구는 빼고(시트의 월별 막대로), 거주인구는 세대수만. 서울 순위는 보이지 않는다. */
+function tapValueText(metric: PopMetric, v: number | null): string {
+  if (v == null) return "자료 없음";
+  if (metric === "live") return "";
+  return `${metric === "household" ? "주민등록 " : ""}${valueText(metric, v)}`;
+}
 
 function ChipButton({
   on,
@@ -194,11 +264,14 @@ function ChipButton({
 
 /** 유동인구 창 항목 하나 — 흰 카드에 제목·지금 고른 값(오른쪽)·고르는 칩. 칩 묶음이 둘이면 줄을 나눠 넘긴다. */
 function OptionCard({
+  lead,
   title,
   hint,
   value,
   children,
 }: {
+  /** 제목 앞 — 기간처럼 연도 Select("2025년 기간") */
+  lead?: React.ReactNode;
   title: string;
   /** 제목 옆 작은 설명(예: 여러 달은 평균) */
   hint?: string;
@@ -210,6 +283,7 @@ function OptionCard({
     <section className="flex flex-col gap-[10px] rounded-[16px] bg-surface p-[14px] dark:bg-white/[0.05]">
       <div className="flex items-baseline justify-between gap-[8px]">
         <h3 className="flex min-w-0 items-baseline gap-[6px]">
+          {lead}
           <span className="shrink-0 text-[14px] font-bold text-zinc-900 max-sm:text-[13px]">
             {title}
           </span>
@@ -232,7 +306,7 @@ function OptionCard({
   );
 }
 
-/** 기간 카드의 연도 Select — 작은 회색 알약 버튼, 누르면 아래로 연도 목록. */
+/** 기간 카드 제목 앞 연도 Select — 작은 회색 알약 버튼, 누르면 아래로 연도 목록. */
 function YearSelect({
   years,
   value,
@@ -257,7 +331,7 @@ function YearSelect({
         </Select.Value>
         <Select.Indicator className="static size-[14px] shrink-0 text-zinc-500" />
       </Select.Trigger>
-      <Select.Popover placement="bottom end" className="w-[140px]">
+      <Select.Popover placement="bottom start" className="w-[140px]">
         <ListBox>
           {years.map((y) => (
             <ListBox.Item key={y} id={y} textValue={`${y}년`}>
@@ -300,6 +374,63 @@ function setPopGridOn(on: boolean) {
   window.dispatchEvent(new Event(POP_GRID_EVENT));
 }
 
+// 고른 조건(자료·해·달·시간대·성별·연령) — 새로고침해도 그대로 보이게 이 브라우저에 기억한다.
+const POP_GRID_QUERY_KEY = "admix.map.pop-grid.query";
+
+interface StoredPopQuery {
+  metric: PopMetric;
+  /** 함께 고른 자료 */
+  extras: PopMetric[];
+  /** 예전 저장값(거주인구만 함께 고를 수 있던 때) — 읽기만 한다 */
+  residentOn?: boolean;
+  year: string | null;
+  pickedMonths: string[];
+  band: PopBand;
+  sex: PopSex;
+  ages: PopAge[];
+}
+
+/** 저장해 둔 조건 — 지금 없는 선택지 값은 버린다. 없거나 깨졌으면 null. */
+function loadPopQuery(): Partial<StoredPopQuery> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(POP_GRID_QUERY_KEY);
+    if (!raw) return null;
+    const q = JSON.parse(raw) as Partial<StoredPopQuery>;
+    const ym = (v: unknown) => typeof v === "string" && /^\d{6}$/.test(v);
+    return {
+      metric: METRICS.some((m) => m.key === q.metric) ? q.metric : undefined,
+      extras: Array.isArray(q.extras)
+        ? q.extras.filter((k) => METRICS.some((m) => m.key === k))
+        : q.residentOn === true
+          ? ["household"]
+          : [],
+      year:
+        typeof q.year === "string" && /^\d{4}$/.test(q.year) ? q.year : null,
+      pickedMonths: Array.isArray(q.pickedMonths)
+        ? q.pickedMonths.filter(ym)
+        : [],
+      band: BANDS.some((b) => b.key === q.band) ? q.band : undefined,
+      sex: SEXES.some((x) => x.key === q.sex) ? q.sex : undefined,
+      ages: Array.isArray(q.ages)
+        ? q.ages.filter((a) => AGES.some((x) => x.key === a))
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+const noopSubscribe = () => () => {};
+
+function savePopQuery(q: StoredPopQuery) {
+  try {
+    window.localStorage.setItem(POP_GRID_QUERY_KEY, JSON.stringify(q));
+  } catch {
+    // 저장이 막힌 브라우저(사생활 보호 창 등)는 기억하지 않는다.
+  }
+}
+
 /**
  * 유동인구 층의 켜짐·조건 — 위쪽 줄 "유동인구" 창(PopGridTargetPanel)과 지도 층(PopGridLayer)이 함께 쓴다.
  * 매체 찾기 화면(FixedMediaView)에서 한 번 만들어 둘 다에 넘긴다.
@@ -314,14 +445,21 @@ export function usePopGridState() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data: monthList } = usePopGridMonths(true);
 
+  const [metric, setMetric] = useState<PopMetric>("live");
+  // 함께 고른 자료(METRICS 순서) — 첫 자료(metric) 칸 색 위에 반투명으로 겹쳐 칠한다.
+  const [extras, setExtras] = useState<PopMetric[]>([]);
+  const overlay = extras.length > 0;
+  const picked = [metric, ...extras];
+  // 고른 자료가 없는 달은 뺀다(거주인구는 따로 올린 달에만 있다).
   const years = useMemo(() => {
     const map = new Map<string, string[]>();
     (monthList ?? []).forEach((m) => {
+      if (!m.metrics.includes(MONTH_NEED[metric])) return;
       const y = m.ym.slice(0, 4);
       map.set(y, [...(map.get(y) ?? []), m.ym]);
     });
     return map;
-  }, [monthList]);
+  }, [monthList, metric]);
   const latestYear = [...years.keys()].sort().at(-1) ?? null;
 
   const [year, setYear] = useState<string | null>(null);
@@ -332,40 +470,114 @@ export function usePopGridState() {
   const months = pickedMonths.filter((m) => yearMonths.includes(m));
   const activeMonths = months.length ? months : yearMonths;
 
-  const [metric, setMetric] = useState<PopMetric>("flow");
   const [band, setBand] = useState<PopBand>("all");
   const [sex, setSex] = useState<PopSex>("all");
   const [ages, setAges] = useState<PopAge[]>([]);
+
+  // 기억해 둔 조건(새로고침 전 값) — 서버 그림과 맞추려고 화면이 뜬 뒤 한 번 불러온다(그리는 중에 바로 고쳐 깜빡임 없이).
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const [restored, setRestored] = useState(false);
+  if (hydrated && !restored) {
+    setRestored(true);
+    const q = loadPopQuery();
+    if (q) {
+      if (q.metric) setMetric(q.metric);
+      setExtras(q.extras ?? []);
+      setYear(q.year ?? null);
+      setPickedMonths(q.pickedMonths ?? []);
+      if (q.band) setBand(q.band);
+      if (q.sex) setSex(q.sex);
+      setAges(q.ages ?? []);
+    }
+  }
+
+  // 불러온 다음부터 바뀔 때마다 기억한다.
+  useEffect(() => {
+    if (restored)
+      savePopQuery({ metric, extras, year, pickedMonths, band, sex, ages });
+  }, [restored, metric, extras, year, pickedMonths, band, sex, ages]);
 
   const segOk = SEG_METRICS.has(metric);
   const query = shownYear
     ? {
         months: activeMonths,
         metric,
-        band,
+        // 거주인구(세대수)는 시간대 구분이 없다.
+        band: FIXED_BAND[metric] ? ("all" as PopBand) : band,
         sex: segOk ? sex : ("all" as PopSex),
         ages: segOk ? ages : [],
       }
     : null;
-  const target = segOk ? targetLabel(sex, ages) : "전체(성·연령 구분 없음)";
+  // 자료마다 들어 있는 달.
+  const monthsOf = useMemo(() => {
+    const map = new Map<string, string[]>();
+    (monthList ?? []).forEach((m) =>
+      m.metrics.forEach((k) => map.set(k, [...(map.get(k) ?? []), m.ym])),
+    );
+    return map;
+  }, [monthList]);
+  // 함께 고른 자료의 지도 — 고른 달 가운데 그 자료가 있는 달, 없으면 그 자료의 가장 최근 달(fallback).
+  // 시간대는 첫 자료와 같이(거주인구는 구분 없음), 성·연령은 첫 자료(생활인구)에만 건다.
+  const overlayLayers = extras.flatMap((m) => {
+    const all = monthsOf.get(MONTH_NEED[m]) ?? [];
+    const inPicked = activeMonths.filter((x) => all.includes(x));
+    const ms = inPicked.length ? inPicked : all.slice(-1);
+    if (!ms.length) return [];
+    return [
+      {
+        metric: m,
+        fallback: !inPicked.length,
+        query: {
+          months: ms,
+          metric: m,
+          band: FIXED_BAND[m] ? ("all" as PopBand) : band,
+          sex: "all" as PopSex,
+          ages: [] as PopAge[],
+        },
+      },
+    ];
+  });
+  const target = segOk
+    ? targetLabel(sex, ages)
+    : metric === "household"
+      ? "주민등록"
+      : "전체(성·연령 구분 없음)";
   const metricInfo = METRICS.find((m) => m.key === metric)!;
   const bandLabel = BANDS.find((b) => b.key === band)!.label;
-  // 지금 조건 — 항목 이름(유동인구 창 카드 제목과 같다)을 붙여 "종합"·"전체"가 무엇의 값인지 알게 한다.
+  // 지금 조건 — 항목 이름(유동인구 창 카드 제목과 같다)을 붙여 "생활인구"·"전체"가 무엇의 값인지 알게 한다.
   // 시간대는 하루 전체면, 성별·연령은 고를 수 없는 자료면 뺀다.
+  const pickedLabel = picked
+    .map((k) => METRICS.find((m) => m.key === k)?.label ?? k)
+    .join(" + ");
   const summaryParts = [
-    { label: "자료", value: metricInfo.label },
+    { label: "자료", value: pickedLabel },
+    // 고른 달에 함께 고른 자료가 없어 다른 달로 겹쳐 볼 때 — 그 달을 밝혀 둔다.
+    ...overlayLayers
+      .filter((l) => l.fallback)
+      .map((l) => ({
+        label: METRICS.find((m) => m.key === l.metric)?.label ?? l.metric,
+        value: `${l.query.months[0].slice(0, 4)}년 ${monthLabel(l.query.months[0])} 기준`,
+      })),
     {
       label: "기간",
       value: shownYear ? monthsLabel(shownYear, activeMonths, yearMonths) : "",
     },
-    { label: "시간대", value: band === "all" ? "" : bandLabel },
+    {
+      label: "시간대",
+      value: FIXED_BAND[metric] || band === "all" ? "" : bandLabel,
+    },
     { label: "성별·연령", value: segOk ? target : "" },
   ].filter((p) => p.value);
   const summary = summaryParts.map((p) => `${p.label} ${p.value}`).join(" · ");
 
-  // 처음 조건(종합·최근 해 전체·하루 전체·성별·연령 전체)에서 바꾼 게 있는지 — 유동인구 창 초기화를 잠글지.
+  // 처음 조건(생활인구·최근 해 전체·하루 전체·성별·연령 전체)에서 바꾼 게 있는지 — 유동인구 창 초기화를 잠글지.
   const changed =
-    metric !== "flow" ||
+    metric !== "live" ||
+    overlay ||
     shownYear !== latestYear ||
     months.length > 0 ||
     band !== "all" ||
@@ -388,7 +600,8 @@ export function usePopGridState() {
     reset: () => {
       setYear(null);
       setPickedMonths([]);
-      setMetric("flow");
+      setMetric("live");
+      setExtras([]);
       setBand("all");
       setSex("all");
       setAges([]);
@@ -401,6 +614,8 @@ export function usePopGridState() {
     demo: false,
     /** 올린 달이 하나도 없음 */
     empty: !!monthList && monthList.length === 0,
+    /** 고른 자료(거주인구)가 있는 달이 없음 — 따로 올리는 자료라 올린 달이 있어도 없을 수 있다 */
+    noMonthsForMetric: !!monthList?.length && years.size === 0,
     years,
     shownYear,
     setYear: (y: string) => {
@@ -422,7 +637,33 @@ export function usePopGridState() {
     },
     clearMonths: () => setPickedMonths([]),
     metric,
-    setMetric,
+    setMetric: (key: PopMetric) => {
+      setMetric(key);
+      setExtras([]);
+    },
+    /**
+     * 자료 칩 누르기 — 여러 개를 함께 고를 수 있다(누르면 넣고 빼기). 하나는 늘 골라져 있어야 해서 마지막 하나는 빠지지 않는다.
+     * 첫 자료(칸 색·숫자·기간·성·연령 기준)는 생활인구 → 지하철 → 보행 → 거주인구 순 — 거주인구는 동 단위라 혼자일 때만 첫 자료.
+     */
+    pickMetric: (key: PopMetric) => {
+      const next = picked.includes(key)
+        ? picked.filter((k) => k !== key)
+        : [...picked, key];
+      if (!next.length) return;
+      const first = PRIMARY_ORDER.find((k) => next.includes(k)) ?? next[0];
+      setMetric(first);
+      setExtras(
+        METRICS.map((m) => m.key).filter(
+          (k) => k !== first && next.includes(k),
+        ),
+      );
+    },
+    isPicked: (key: PopMetric) => picked.includes(key),
+    overlay,
+    extras,
+    /** 함께 고른 자료 — 지도에 겹쳐 칠할 값을 받을 조건, 누른 칸 정보의 자료 칸 */
+    overlayLayers,
+    pickedLabel,
     metricInfo,
     band,
     setBand,
@@ -502,13 +743,17 @@ function PopGridControls({ state }: { state: PopGridState }) {
         </p>
       ) : (
         <>
-          <OptionCard title="자료" value={s.metricInfo.label}>
+          <OptionCard
+            title="자료"
+            hint=""
+            value={s.overlay ? `${s.extras.length + 1}개 함께` : s.pickedLabel}
+          >
             <ChipRow>
               {METRICS.map((m) => (
                 <ChipButton
                   key={m.key}
-                  on={s.metric === m.key}
-                  onClick={() => s.setMetric(m.key)}
+                  on={s.isPicked(m.key)}
+                  onClick={() => s.pickMetric(m.key)}
                 >
                   {m.label}
                 </ChipButton>
@@ -517,10 +762,8 @@ function PopGridControls({ state }: { state: PopGridState }) {
           </OptionCard>
 
           <OptionCard
-            title="기간"
-            hint="여러 달은 평균"
-            // 연도는 Select — 어드민이 올린 달이 있는 해만(다음 해 자료를 올리면 저절로 늘어난다).
-            value={
+            // 연도는 제목 앞 Select("2025년 기간") — 어드민이 올린 달이 있는 해만(다음 해 자료를 올리면 저절로 늘어난다).
+            lead={
               s.shownYear && (
                 <YearSelect
                   years={[...s.years.keys()].sort().reverse()}
@@ -528,6 +771,15 @@ function PopGridControls({ state }: { state: PopGridState }) {
                   onChange={s.setYear}
                 />
               )
+            }
+            title="기간"
+            hint="여러 달은 평균"
+            value={
+              !s.months.length
+                ? "1년 전체"
+                : s.months.length <= 3
+                  ? s.months.map(monthLabel).join("·")
+                  : `${s.months.length}개월`
             }
           >
             <ChipRow>
@@ -550,22 +802,30 @@ function PopGridControls({ state }: { state: PopGridState }) {
             </ChipRow>
           </OptionCard>
 
-          <OptionCard
-            title="시간대"
-            value={BANDS.find((b) => b.key === s.band)!.label}
-          >
-            <ChipRow>
-              {BANDS.map((b) => (
-                <ChipButton
-                  key={b.key}
-                  on={s.band === b.key}
-                  onClick={() => s.setBand(b.key)}
-                >
-                  {b.label}
-                </ChipButton>
-              ))}
-            </ChipRow>
-          </OptionCard>
+          {FIXED_BAND[s.metric] ? (
+            <OptionCard title="시간대" value={FIXED_BAND[s.metric]![0]}>
+              <p className="text-[12px] leading-[17px] text-zinc-600 dark:text-[#b4b5bf]">
+                {FIXED_BAND[s.metric]![1]}
+              </p>
+            </OptionCard>
+          ) : (
+            <OptionCard
+              title="시간대"
+              value={BANDS.find((b) => b.key === s.band)!.label}
+            >
+              <ChipRow>
+                {BANDS.map((b) => (
+                  <ChipButton
+                    key={b.key}
+                    on={s.band === b.key}
+                    onClick={() => s.setBand(b.key)}
+                  >
+                    {b.label}
+                  </ChipButton>
+                ))}
+              </ChipRow>
+            </OptionCard>
+          )}
 
           <OptionCard
             title="성별·연령"
@@ -586,14 +846,14 @@ function PopGridControls({ state }: { state: PopGridState }) {
                   <span>{reason}</span>
                   {picked && (
                     <span className="text-zinc-500 dark:text-[#a9aab4]">
-                      고른 {targetLabel(s.sex, s.ages)}은 종합·생활·체류인구에서
-                      그대로 적용돼요.{" "}
+                      고른 {targetLabel(s.sex, s.ages)}은 생활인구에서 그대로
+                      적용돼요.{" "}
                       <button
                         type="button"
-                        onClick={() => s.setMetric("flow")}
+                        onClick={() => s.setMetric("live")}
                         className="font-semibold text-zinc-900 underline underline-offset-2 dark:text-white"
                       >
-                        종합으로 보기
+                        생활인구로 보기
                       </button>
                     </span>
                   )}
@@ -633,6 +893,12 @@ function PopGridControls({ state }: { state: PopGridState }) {
               ))}
             </ChipRow>
           </OptionCard>
+          {s.noMonthsForMetric && NO_MONTH_TEXT[s.metric] && (
+            <p className="text-[12px] text-amber-700">
+              {NO_MONTH_TEXT[s.metric]}
+            </p>
+          )}
+          <PopSource metric={s.metric} extras={s.extras} />
         </>
       )}
     </div>
@@ -683,7 +949,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
     <>
       <div className="flex shrink-0 items-center gap-[12px] px-[20px] pt-[16px] pb-[12px] max-sm:px-[16px] max-sm:pt-[8px]">
         <span className="min-w-0 flex-1 text-[15px] leading-[21px] font-bold text-zinc-900 max-sm:text-[16px] max-sm:leading-[22px]">
-          유동인구
+          인구 분포
         </span>
         {/* 완료 버튼은 없다 — 고르는 즉시 지도에 반영되고, 닫기는 X로. 초기화는 조건이 바뀌었을 때만 누를 수 있다. */}
         <Button
@@ -698,7 +964,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
         <button
           type="button"
           onClick={close}
-          aria-label="유동인구 닫기"
+          aria-label="인구 분포 닫기"
           className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
         >
           <XIcon className="size-[20px]" />
@@ -710,12 +976,12 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
           size="sm"
           isSelected={state.on}
           onChange={state.toggle}
-          aria-label="지도에 유동인구 보기"
+          aria-label="지도에 인구 분포 보기"
           className="w-full rounded-[14px] bg-surface px-[14px] py-[11px] dark:bg-white/[0.05] [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
         >
           <Switch.Content className="w-full justify-between gap-[8px] text-[14px] font-bold text-zinc-900 max-sm:text-[13px]">
             <span>
-              지도에 유동인구 보기
+              지도에 인구 분포 보기
               <span className="ml-[4px] text-[12px] font-medium text-zinc-500">
                 (서울)
               </span>
@@ -770,7 +1036,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
       <Drawer.Backdrop>
         <Drawer.Content placement="bottom">
           <Drawer.Dialog
-            aria-label="유동인구"
+            aria-label="인구 분포"
             className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[calc(10px+env(safe-area-inset-top))] dark:bg-[#24252b]"
           >
             <Drawer.Handle />
@@ -783,7 +1049,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
 }
 
 /**
- * 지도 왼쪽 위 — 인구 분포를 켰을 때만, 고른 조건(예: 자료 종합 · 기간 2025년 전체 · 성별·연령 20대). 누르면 유동인구 창이 열린다.
+ * 지도 왼쪽 위 — 인구 분포를 켰을 때만, 고른 조건(예: 자료 생활인구 · 기간 2025년 전체 · 성별·연령 20대). 누르면 유동인구 창이 열린다.
  * 오른쪽 위 실시간 정보 버튼과 겹치지 않게 폭을 줄이고(--map-right-top-w), 넘치면 항목 단위로 줄을 바꾼다.
  * 높이는 MapArea가 재서 실시간 인구 장소 카드를 그 밑에 붙인다(cardRef).
  * 켜기·끄기는 유동인구 창 맨 위 스위치에서.
@@ -799,15 +1065,19 @@ export function PopGridMapCard({
     <button
       ref={cardRef}
       type="button"
-      onClick={() => state.setTargetOpen(true)}
-      aria-label="유동인구 조건 열기"
+      // 창이 열려 있으면 한 번 더 눌러 닫는다.
+      onClick={() => state.setTargetOpen(!state.targetOpen)}
+      aria-label={
+        state.targetOpen ? "인구 분포 조건 닫기" : "인구 분포 조건 열기"
+      }
+      aria-expanded={state.targetOpen}
       // 유동인구 창이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
       data-filter-toggle
       // data-tour — 매체 찾기 가이드가 밝히는 자리(모바일 인구 분포).
       data-tour="pop-mobile"
       className="absolute top-[12px] left-[12px] z-[2] flex min-h-[30px] max-w-[calc(100%-24px-var(--map-right-top-w,0px))] items-center gap-[4px] rounded-[15px] border-[0.5px] border-white/50 bg-surface/75 py-[6px] pr-[8px] pl-[12px] text-left shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.8] transition-colors hover:bg-surface/90"
     >
-      {/* 항목 이름은 옅게, 값은 진하게 — 예: 자료 종합 · 기간 2025년 전체 · 성별·연령 20대 */}
+      {/* 항목 이름은 옅게, 값은 진하게 — 예: 자료 생활인구 · 기간 2025년 전체 · 성별·연령 20대 */}
       {/* 모바일은 폭이 좁아 항목 단위로 줄을 바꾸므로 사이 점(·)을 빼고 간격만 둔다(줄 앞에 점이 오지 않게). */}
       <span className="flex min-w-0 flex-wrap items-baseline gap-x-[5px] text-[12px] leading-[17px] text-zinc-900 max-sm:gap-x-[8px]">
         {state.summaryParts.map((p, i) => (
@@ -835,7 +1105,6 @@ export function PopGridMapCard({
 export function PopGridSheet({ state }: { state: PopGridState }) {
   const { data: cells } = usePopGridCells(true);
   const { data: grid, isFetching } = usePopGridValues(state.query);
-  const rank = useRank(grid?.values);
   const sel = state.selected;
   const value = sel != null ? (grid?.values[sel] ?? null) : null;
   return (
@@ -874,6 +1143,7 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
               breaks={grid?.breaks ?? []}
               metric={state.metric}
               missingMonths={grid?.missingMonths ?? []}
+              extras={state.extras}
             />
             {/* 본문(Drawer.Body) 안이어야 내용을 밀 때 시트째 끌려 내려가지 않는다. */}
             <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-inherit">
@@ -886,7 +1156,6 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
                     <PopCellSection
                       cell={cells[sel]}
                       value={value}
-                      rankValue={rank(value)}
                       metric={state.metric}
                       query={{
                         metric: state.metric,
@@ -894,8 +1163,8 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
                         sex: state.segOk ? state.sex : "all",
                         ages: state.segOk ? state.ages : [],
                       }}
-                      target={state.target}
                       activeMonths={state.activeMonths}
+                      extras={state.overlay ? state.overlayLayers : null}
                       onClose={() => state.setSelected(null)}
                     />
                   </div>
@@ -909,8 +1178,8 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
                     }}
                     className="flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[17px] bg-surface text-[13px] font-semibold text-zinc-900"
                   >
-                    <TargetIcon className="size-[17px]" />
-                    유동인구 조건 바꾸기
+                    <PopulationGridIcon className="size-[17px]" />
+                    인구 분포 조건 바꾸기
                   </button>
                 </div>
               </ScrollShadow>
@@ -1048,8 +1317,35 @@ export function PopGridLayer({
   const { data: countGrid } = usePopGridValues(
     scored && state.query ? { ...state.query, metric: "live" } : null,
   );
-  const labels = scored ? countGrid?.values : grid?.values;
-  const rank = useRank(grid?.values);
+  // 거주인구(세대수)는 동마다 값이 같아 동 가운데 칸 하나에만 숫자를 적는다.
+  const overlay = useOverlay(state, cells);
+  const labels = useMemo(() => {
+    if (scored) return countGrid?.values;
+    if (!grid?.labelCells) {
+      // 함께 고른 자료 가운데 사람 수(생활인구·지하철)는 칸 숫자에 더한다 — 보행(상대값)·거주인구(세대수)는 색으로만.
+      const add = PEOPLE_METRICS.has(state.metric)
+        ? (overlay?.layers ?? []).filter((l) =>
+            PEOPLE_METRICS.has(l.metric as PopMetric),
+          )
+        : [];
+      if (!add.length || !grid) return grid?.values;
+      return grid.values.map((v, i) => {
+        const parts = [v, ...add.map((l) => l.values[i])].filter(
+          (x): x is number => x != null,
+        );
+        return parts.length ? parts.reduce((a, b) => a + b, 0) : null;
+      });
+    }
+    const out: (number | null)[] = grid.values.map(() => null);
+    grid.labelCells.forEach((i) => (out[i] = grid.values[i]));
+    return out;
+  }, [scored, countGrid, grid, overlay, state.metric]);
+  // 동 단위 자료(거주인구) — 동 경계선·동 이름·누른 동 강조. 동 이름은 숫자를 적는 가운데 칸에만.
+  const labelCells = grid?.labelCells;
+  const groups = useMemo(
+    () => (cells && labelCells ? dongGroups(cells, labelCells) : null),
+    [cells, labelCells],
+  );
   // 모바일 — 칸을 눌러 팝오버를 띄웠는지(자리는 지도 아래쪽 고정). 지도를 움직이면 닫는다.
   // place 가 있으면 누른 자리에 실시간 인구 장소도 겹쳐 있어 먼저 둘 중 볼 것을 고르게 한다(인구 분포를 고르면 바로 시트).
   const [tap, setTap] = useState<{
@@ -1065,6 +1361,8 @@ export function PopGridLayer({
     values: grid?.values ?? null,
     breaks: grid?.breaks ?? [],
     labels: labels ?? null,
+    groups,
+    overlay,
     selected: state.selected,
     realtime,
     soft,
@@ -1133,7 +1431,7 @@ export function PopGridLayer({
           color={lv < 0 ? undefined : POP_LEVELS[lv].color}
           kind="인구 분포"
           title={`${cells[sel][1]} ${cells[sel][2]}`}
-          detail={v != null ? rankText(rank(v)) : "자료 없음"}
+          detail={tapValueText(state.metric, v)}
           onClick={() => {
             setTap(null);
             state.setSheetOpen(true);
@@ -1165,14 +1463,11 @@ export function PopGridLayer({
         <span className="text-[12px] leading-[16px] font-bold whitespace-nowrap">
           {cells[sel][1]} {cells[sel][2]}
         </span>
-        <span className="text-[11px] leading-[15px] whitespace-nowrap tabular-nums">
-          {state.target} {valueText(state.metric, v)}
-          {v != null && (
-            <span className="ml-[4px] text-white/60">
-              · {rankText(rank(v))}
-            </span>
-          )}
-        </span>
+        {tapValueText(state.metric, v) && (
+          <span className="text-[11px] leading-[15px] whitespace-nowrap tabular-nums">
+            {tapValueText(state.metric, v)}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -1188,19 +1483,18 @@ export function PopGridLayer({
     );
   }
   if (isDesktop && sel != null && cells) {
-    // PC — 누른 칸 정보를 지도 오른쪽 아래에 띄운다(칸을 누를 때만, X로 닫는다). 실시간 범례가 있으면 그 위로(--map-live-legend-h).
+    // PC — 누른 칸 정보를 지도에 띄운다(칸을 누를 때만, X로 닫는다). 왼쪽 아래 — 오른쪽은 인구 분포 창이 열리면 가려서. 카카오 로고·축척은 가리지 않게 그 위로 띄운다.
     // data-tour — 매체 찾기 가이드가 밝히는 자리(칸 정보).
     const v = grid?.values[sel] ?? null;
     return (
       <div
         data-tour="pop-cell"
-        className="absolute right-[12px] bottom-[calc(12px+var(--map-live-legend-h,0px))] z-[3] flex max-h-[calc(100%-24px-var(--map-live-legend-h,0px))] w-[360px] flex-col overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
+        className="absolute bottom-[36px] left-[12px] z-[3] flex max-h-[calc(100%-48px)] w-[360px] flex-col overflow-hidden rounded-[20px] border-[0.5px] border-white/50 bg-surface/85 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
       >
         <ScrollShadow size={24} className="min-h-0 flex-1">
           <PopCellSection
             cell={cells[sel]}
             value={v}
-            rankValue={rank(v)}
             metric={state.metric}
             query={{
               metric: state.metric,
@@ -1208,8 +1502,8 @@ export function PopGridLayer({
               sex: state.segOk ? state.sex : "all",
               ages: state.segOk ? state.ages : [],
             }}
-            target={state.target}
             activeMonths={state.activeMonths}
+            extras={state.overlay ? state.overlayLayers : null}
             onClose={() => state.setSelected(null)}
           />
         </ScrollShadow>
@@ -1249,7 +1543,7 @@ function TapChoice({
           {title}
         </span>
         <span className="truncate text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3]">
-          {kind} · {detail}
+          {detail ? `${kind} · ${detail}` : kind}
         </span>
       </span>
       <ChevronDownIcon className="size-[12px] shrink-0 -rotate-90 text-zinc-500" />
@@ -1262,10 +1556,13 @@ function PopLegend({
   breaks,
   metric,
   missingMonths,
+  extras,
 }: {
   breaks: number[];
   metric: PopMetric;
   missingMonths: string[];
+  /** 함께 고른 자료 */
+  extras: PopMetric[];
 }) {
   // 합친 점수(유동인구·생활·체류인구)는 경계 값을 보이지 않는다.
   const unit =
@@ -1275,7 +1572,9 @@ function PopLegend({
         ? ""
         : metric === "live"
           ? "명"
-          : "명/시간";
+          : metric === "household"
+            ? "세대"
+            : "명/시간";
   return (
     <div className="flex flex-col gap-[4px] px-[20px] pb-[12px] max-sm:px-[16px]">
       <div className="flex items-center gap-[8px]">
@@ -1310,27 +1609,59 @@ function PopLegend({
           계산했어요
         </span>
       )}
+      <PopSource metric={metric} extras={extras} />
     </div>
   );
 }
 
+/** 누른 칸 정보에 함께 보일 자료 — 그 자료 지도를 받은 조건(달·시간대). */
+interface ExtraInfo {
+  metric: PopMetric;
+  query: { months: string[]; band: PopBand };
+}
+
+// 월별 막대 색 — 자료마다 다른 색으로 갈라 보인다.
+const BAR_STYLE: Record<PopMetric, { color: string; tint: string }> = {
+  flow: { color: "#f0822f", tint: "bg-[#fff4ea] dark:bg-[#3a2a1c]" },
+  people: { color: "#f0822f", tint: "bg-[#fff4ea] dark:bg-[#3a2a1c]" },
+  live: { color: "#f0822f", tint: "bg-[#fff4ea] dark:bg-[#3a2a1c]" },
+  household: { color: "#5b74d6", tint: "bg-[#eef1fc] dark:bg-[#232a40]" },
+  subway: { color: "#2a9d6e", tint: "bg-[#eaf6f0] dark:bg-[#1c3329]" },
+  walk: { color: "#9a5bd0", tint: "bg-[#f4edfb] dark:bg-[#2f2440]" },
+};
+const BAR_UNIT: Record<PopMetric, string> = {
+  flow: "월별 인구(명)",
+  people: "월별 인구(명)",
+  live: "월별 인구(명)",
+  household: "월별 주민등록 세대수",
+  subway: "월별 승하차(시간당 명)",
+  walk: "월별 보행",
+};
+const metricLabel = (k: PopMetric) =>
+  METRICS.find((m) => m.key === k)?.label ?? "생활인구";
+const inYear = (picked: string[]) => (m: { ym: string }) =>
+  picked.some((a) => a.slice(0, 4) === m.ym.slice(0, 4));
+
+/**
+ * 누른 칸 정보 — 칸(동) 이름, 고른 자료의 월별 막대·출처.
+ * 여러 자료를 함께 고르면 자료마다 이름·색을 달리한 칸을 위아래로 보인다.
+ */
 function PopCellSection({
   cell,
   value,
-  rankValue,
   metric,
   query,
-  target,
   activeMonths,
+  extras = null,
   onClose,
 }: {
   cell: [string, string, string, number[]];
   value: number | null;
-  rankValue: number | null;
   metric: PopMetric;
   query: { metric: PopMetric; band: PopBand; sex: PopSex; ages: PopAge[] };
-  target: string;
   activeMonths: string[];
+  /** 함께 고른 자료 */
+  extras?: ExtraInfo[] | null;
   onClose: () => void;
 }) {
   const { data: trend } = usePopCellTrend(cell[0], query);
@@ -1341,33 +1672,25 @@ function PopCellSection({
     ...query,
     metric: "live",
   });
-  const [tip, setTip] = useState<string | null>(null);
-  // 월별 색 띠 — 인구 수로(점수와 수 툴팁이 따로 놀지 않게). 이 칸 안에서 가장 적은 달 → 많은 달을
-  // 지도 색 띠 앞 다섯 단계(옅은 노랑 → 빨강)로 나눠 칠해, 붐비는 달이 한눈에 보이게.
-  const shown = ((scored ? countTrend : trend)?.months ?? []).filter((m) =>
-    activeMonths.some((a) => a.slice(0, 4) === m.ym.slice(0, 4)),
+  const shown = ((scored ? countTrend : trend)?.months ?? []).filter(
+    inYear(activeMonths),
   );
-  const nums = shown.flatMap((m) => (m.value != null ? [m.value] : []));
-  const lo = Math.min(...nums);
-  const hi = Math.max(...nums);
-  const best = shown.find((m) => m.value != null && m.value === hi) ?? null;
-  const shade = (v: number) =>
-    hi > lo ? Math.min(4, Math.floor(((v - lo) / (hi - lo)) * 5)) : 2;
+  const multi = !!extras?.length;
   return (
-    <div className="flex flex-col gap-[8px] border-t border-zinc-900/5 px-[20px] pt-[10px] pb-[12px] max-sm:px-[16px]">
+    // PC 카드는 위·아래·양옆 여백을 16px로 같게. 모바일 시트는 그대로.
+    <div className="flex flex-col gap-[8px] border-t border-zinc-900/5 p-[16px] max-sm:px-[16px] max-sm:pt-[10px] max-sm:pb-[12px]">
       <div className="flex items-start justify-between gap-[8px]">
         <div className="flex min-w-0 flex-col gap-[2px]">
           <span className="truncate text-[14px] leading-[20px] font-bold text-zinc-900">
             {cell[1]} {cell[2]}
           </span>
-          <span className="text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3] tabular-nums">
-            {target} {valueText(metric, value)}
-            {value != null && (
-              <span className="ml-[4px] text-zinc-500 dark:text-[#a4a5af]">
-                · {rankText(rankValue)}
-              </span>
-            )}
-          </span>
+          {/* 값 줄 — 생활인구는 월별 막대로 충분해 빼고, 거주인구는 세대수만. 서울 순위는 보이지 않는다. */}
+          {!multi && metric !== "live" && value != null && (
+            <span className="text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3] tabular-nums">
+              {metric === "household" && "주민등록 "}
+              {valueText(metric, value)}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -1378,69 +1701,164 @@ function PopCellSection({
           <XIcon className="size-[16px]" />
         </button>
       </div>
-      {shown.length > 0 && (
-        <div className="flex flex-col gap-[6px]">
-          <span className="text-[12px] leading-[16px] text-zinc-600 dark:text-[#b4b5bf]">
-            월별
-            {best && (
-              <>
-                {" · 가장 많은 달 "}
-                <b className="font-bold text-zinc-900">{monthLabel(best.ym)}</b>
-              </>
-            )}
+      <MonthBarsCard
+        {...BAR_STYLE[countMetric]}
+        title={metricLabel(countMetric)}
+        unit={BAR_UNIT[countMetric]}
+        source={SOURCES[metric]}
+        months={shown}
+        activeMonths={activeMonths}
+        metric={countMetric}
+      />
+      {extras?.map((x) => (
+        <ExtraBars key={x.metric} code={cell[0]} extra={x} />
+      ))}
+    </div>
+  );
+}
+
+/** 함께 고른 자료 한 칸 — 그 자료의 칸 추이를 따로 받아 막대로. */
+function ExtraBars({ code, extra }: { code: string; extra: ExtraInfo }) {
+  const { data } = usePopCellTrend(code, {
+    metric: extra.metric,
+    band: extra.query.band,
+    sex: "all",
+    ages: [],
+  });
+  return (
+    <MonthBarsCard
+      {...BAR_STYLE[extra.metric]}
+      title={metricLabel(extra.metric)}
+      unit={BAR_UNIT[extra.metric]}
+      source={SOURCES[extra.metric]}
+      months={(data?.months ?? []).filter(inYear(extra.query.months))}
+      activeMonths={extra.query.months}
+      metric={extra.metric}
+    />
+  );
+}
+
+/**
+ * 누른 칸 정보의 자료 한 칸 — 자료마다 이름·색을 달리해 갈라 보이고,
+ * 월별 값을 0부터 세운 막대로 보인다(달마다 차이가 얼마나 작은지 그대로 보이게).
+ */
+function MonthBarsCard({
+  title,
+  unit,
+  color,
+  tint,
+  months,
+  activeMonths,
+  metric,
+  source,
+}: {
+  title: string;
+  unit: string;
+  /** 자료 출처 — 막대 밑에 작게 */
+  source: string;
+  /** 막대 색 */
+  color: string;
+  /** 칸 바탕(Tailwind 클래스) */
+  tint: string;
+  months: { ym: string; value: number | null }[];
+  activeMonths: string[];
+  /** 툴팁 값 단위 */
+  metric: PopMetric;
+}) {
+  const [tip, setTip] = useState<string | null>(null);
+  const hi = Math.max(0, ...months.map((m) => m.value ?? 0));
+  const best = months.find((m) => m.value != null && m.value === hi) ?? null;
+  return (
+    <div
+      className={cn("flex flex-col gap-[8px] rounded-[12px] p-[10px]", tint)}
+    >
+      <div className="flex items-center justify-between gap-[8px]">
+        <span className="flex min-w-0 items-center gap-[6px]">
+          <span
+            className="size-[8px] shrink-0 rounded-full"
+            style={{ background: color }}
+          />
+          <b className="text-[13px] leading-[18px] font-bold text-zinc-900">
+            {title}
+          </b>
+          <span className="truncate text-[11px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
+            {unit}
           </span>
-          {/* 칸 안에 달 숫자. 고르지 않은 달은 옅게. 칸에 마우스를 올리면(모바일은 누르면) 그달 인구 수 툴팁. */}
-          <div
-            className="relative flex gap-[2px]"
-            onMouseLeave={() => setTip(null)}
-          >
-            {shown.map((m, i) => {
-              const on = activeMonths.includes(m.ym);
-              const lv = m.value == null ? -1 : shade(m.value);
-              const label = `${monthLabel(m.ym)} · ${valueText(countMetric, m.value)}${scored ? " (생활인구)" : ""}`;
-              return (
-                <button
-                  type="button"
-                  key={m.ym}
-                  aria-label={label}
-                  onMouseEnter={() => setTip(m.ym)}
-                  onFocus={() => setTip(m.ym)}
-                  onBlur={() => setTip(null)}
-                  onClick={() => setTip(tip === m.ym ? null : m.ym)}
+        </span>
+        {best && hi > 0 && (
+          <span className="shrink-0 text-[11px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
+            가장 많은 달{" "}
+            <b className="font-bold text-zinc-900">{monthLabel(best.ym)}</b>
+          </span>
+        )}
+      </div>
+      {months.length === 0 ? (
+        <span className="text-[12px] text-zinc-500">자료 없음</span>
+      ) : (
+        <div
+          className="relative flex gap-[3px]"
+          onMouseLeave={() => setTip(null)}
+        >
+          {months.map((m, i) => {
+            const on = activeMonths.includes(m.ym);
+            const pct = m.value != null && hi > 0 ? (m.value / hi) * 100 : 0;
+            const label = `${monthLabel(m.ym)} · ${valueText(metric, m.value)}`;
+            return (
+              <button
+                type="button"
+                key={m.ym}
+                aria-label={label}
+                onMouseEnter={() => setTip(m.ym)}
+                onFocus={() => setTip(m.ym)}
+                onBlur={() => setTip(null)}
+                onClick={() => setTip(tip === m.ym ? null : m.ym)}
+                className="relative flex flex-1 flex-col items-center gap-[3px] outline-none"
+              >
+                <span className="flex h-[52px] w-full items-end">
+                  <span
+                    className={cn(
+                      "w-full rounded-t-[3px] transition-opacity",
+                      !on && "opacity-35",
+                      tip === m.ym && "ring-2 ring-zinc-900/60",
+                    )}
+                    style={{
+                      height: m.value != null ? `max(2px, ${pct}%)` : 0,
+                      background: color,
+                    }}
+                  />
+                </span>
+                <span
                   className={cn(
-                    "relative flex h-[26px] flex-1 items-center justify-center text-[10px] font-semibold tabular-nums outline-none first:rounded-l-[6px] last:rounded-r-[6px] max-sm:h-[24px]",
-                    lv < 0 && "bg-zinc-100 text-zinc-400 dark:bg-zinc-800",
-                    lv >= 4 ? "text-white" : lv >= 0 && "text-[#5a3410]",
-                    !on && "opacity-40",
-                    tip === m.ym && "ring-2 ring-zinc-900/70 ring-inset",
+                    "text-[10px] leading-[12px] font-semibold text-zinc-600 tabular-nums dark:text-[#b4b5bf]",
+                    !on && "opacity-50",
                   )}
-                  style={
-                    lv >= 0 ? { background: POP_LEVELS[lv].color } : undefined
-                  }
                 >
                   {Number(m.ym.slice(4))}
-                  {tip === m.ym && (
-                    // 양 끝 칸은 툴팁이 카드 밖으로 나가지 않게 한쪽으로 붙인다.
-                    <span
-                      role="tooltip"
-                      className={cn(
-                        "pointer-events-none absolute bottom-[calc(100%+4px)] z-10 rounded-[8px] bg-scrim/80 px-[8px] py-[4px] text-[11px] leading-[15px] font-semibold whitespace-nowrap text-white tabular-nums shadow-[0px_3px_10px_rgba(0,0,0,0.2)]",
-                        i < 2
-                          ? "left-0"
-                          : i > shown.length - 3
-                            ? "right-0"
-                            : "left-1/2 -translate-x-1/2",
-                      )}
-                    >
-                      {label}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                </span>
+                {tip === m.ym && (
+                  // 양 끝 막대는 툴팁이 카드 밖으로 나가지 않게 한쪽으로 붙인다.
+                  <span
+                    role="tooltip"
+                    className={cn(
+                      "pointer-events-none absolute bottom-[calc(100%+4px)] z-10 rounded-[8px] bg-scrim/80 px-[8px] py-[4px] text-[11px] leading-[15px] font-semibold whitespace-nowrap text-white tabular-nums shadow-[0px_3px_10px_rgba(0,0,0,0.2)]",
+                      i < 2
+                        ? "left-0"
+                        : i > months.length - 3
+                          ? "right-0"
+                          : "left-1/2 -translate-x-1/2",
+                    )}
+                  >
+                    {label}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
+      <p className="text-[10px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
+        출처: {source}
+      </p>
     </div>
   );
 }

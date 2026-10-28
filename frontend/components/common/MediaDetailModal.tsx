@@ -43,6 +43,7 @@ import { SkeletonLoading } from "@/components/common/SkeletonLoading";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
 import { MediaLocationMapModal } from "./media-detail/MediaLocationMapModal";
+import { NearbyStations } from "./media-detail/NearbyStations";
 import {
   DEFAULT_MEDIA_OPTIONS,
   isOohMedia,
@@ -69,6 +70,7 @@ function ageLabel(age: MediaDetailAgeRatio): string {
 
 /** 인구 카드 제목 — 요일별 그래프가 메인이면 "요일별 유동인구"/"요일별 역 승하차", 아니면 그대로(모바일 탭 이름도 같게). */
 function populationHeading(population: MediaDetailPopulationVM): string {
+  if (population.bandAverages) return "시간대별 유동인구";
   return population.weekdayDaily
     ? population.title.replace(/^[월일]평균/, "요일별")
     : population.title;
@@ -468,6 +470,8 @@ function MediaDetailBody({
               onClose={() => setMapOpen(false)}
             />
           )}
+
+          <NearbyStations stations={vm.nearbyStations} />
 
           {(vm.categoryLarge || vm.salesType) && (
             <div className="flex items-center gap-[10px]">
@@ -1052,12 +1056,43 @@ function PopulationCard({
     cur.value > top.value ? cur : top,
   );
   const topGender = population.femalePct > population.malePct ? "여성" : "남성";
+  // 위 칩 — 연령대 1·2위(비율 높은 순, 0%는 뺀다)와 많은 성별. 예: "30대·20대 남성"
+  const topAges = [...population.ageRatios]
+    .filter((a) => a.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 2)
+    .map(ageLabel)
+    .join("·");
   const weekday = population.weekdayDaily;
+  // 격자 인구 — 인구수(지도 칸 숫자와 같다)를 크게, 아래에 시간대별 그래프.
+  const bands = population.bandAverages;
 
   return (
-    <div className="flex h-[315px] w-full shrink-0 flex-col justify-between gap-[6px] rounded-[16px] border border-tone-f1f1f4 bg-surface px-[20px] py-[12px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]">
-      <div className="flex items-start justify-between gap-[8px]">
-        {weekday ? (
+    // 격자 인구는 모바일에서 높이를 내용만큼 늘린다(고정 315px면 출처 줄이 넘친다).
+    <div
+      className={cn(
+        "flex h-[315px] w-full shrink-0 flex-col justify-between gap-[6px] rounded-[16px] border border-tone-f1f1f4 bg-surface px-[20px] py-[12px] drop-shadow-[0px_4px_10px_rgba(0,0,0,0.02)] md:w-[440px]",
+        bands && "max-sm:h-auto",
+      )}
+    >
+      <div className="flex items-start justify-between gap-[8px] max-sm:gap-[6px]">
+        {bands ? (
+          <div className="flex min-w-0 flex-col gap-[2px]">
+            {/* 제목(무엇을 센 숫자인지) → 큰 숫자 → 기준(동·기간) 순으로 세 줄. 모바일도 같다. */}
+            {/* 모바일은 오른쪽 위 칩과 한 줄에 들어가게 제목을 12px로 줄이고, 더 좁은 폰은 자르지 않고 줄을 넘긴다. */}
+            <p className="text-[13px] leading-[1.4] font-semibold break-keep text-zinc-500 sm:truncate max-sm:text-[12px]">
+              {population.title}
+            </p>
+            <p className="text-[22px] leading-[1.25] font-bold text-zinc-900 max-sm:text-[20px]">
+              {population.populationText}명
+            </p>
+            {population.caption && (
+              <p className="text-[11px] leading-[1.4] font-medium break-keep text-gray-400 sm:truncate">
+                {population.caption}
+              </p>
+            )}
+          </div>
+        ) : weekday ? (
           <div className="flex min-w-0 flex-col gap-[2px] whitespace-nowrap">
             {/* 모바일은 탭 이름이 이미 "요일별 …"이라 제목·칩을 빼고, 기준(상권·분기) 아래에 월평균 버튼. */}
             <div className="flex min-w-0 items-center gap-[6px] max-sm:hidden">
@@ -1111,14 +1146,24 @@ function PopulationCard({
               {population.congestLevel}
             </Chip>
           )}
-          <Chip className="gap-[4px] rounded-[20px] border border-zinc-200 bg-surface px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-zinc-900">
+          <Chip
+            className={cn(
+              "gap-[4px] rounded-[20px] border border-zinc-200 bg-surface px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-zinc-900",
+              // 격자 인구는 모바일에서 긴 제목과 한 줄에 서도록 칩을 줄인다.
+              bands && "max-sm:gap-[3px] max-sm:px-[7px] max-sm:text-[10px]",
+            )}
+          >
             <TrendingUpIcon className="size-[10px]" />
-            {ageLabel(topAge)} {topGender}
+            {topAges || ageLabel(topAge)} {topGender}
           </Chip>
         </div>
       </div>
 
-      {weekday && <WeekdayPopulationChart data={weekday} height={88} />}
+      {bands ? (
+        <WeekdayPopulationChart data={bands} height={84} labelSuffix="" />
+      ) : (
+        weekday && <WeekdayPopulationChart data={weekday} height={88} />
+      )}
 
       <div className="h-px w-full shrink-0 bg-tone-f1f1f4" />
 
@@ -1127,7 +1172,15 @@ function PopulationCard({
         <AgeRatio ageRatios={population.ageRatios} topAge={topAge} />
       </div>
 
-      <PopulationSources sources={population.sources} />
+      <div className="flex shrink-0 flex-col gap-[2px]">
+        {/* 지하철역 안 매체 — 칸 인구와 따로, 역에서 타고 내린 사람 수를 한 줄로 덧붙인다. */}
+        {population.stationText && (
+          <p className="truncate text-[11px] leading-[1.4] font-semibold text-zinc-600">
+            {population.stationText}
+          </p>
+        )}
+        <PopulationSources sources={population.sources} />
+      </div>
     </div>
   );
 }
