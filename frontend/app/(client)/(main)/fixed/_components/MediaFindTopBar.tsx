@@ -11,6 +11,7 @@ import {
   SearchOutlineIcon,
   type IconProps,
 } from "@/components/icons";
+import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import type { PopTarget } from "@/hooks/popGrid";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,8 @@ export function MediaFindTopBar({
   onSortOpen,
   mapExpanded,
   onToggleMapExpanded,
+  compact,
+  onCompactChange,
   showMapToggle = true,
   mobileView,
 }: {
@@ -86,6 +89,9 @@ export function MediaFindTopBar({
   onSortOpen: () => void;
   mapExpanded: boolean;
   onToggleMapExpanded: () => void;
+  /** 간략히 보기(목록 카드를 작게) — onCompactChange가 있고 목록이 보일 때만 정렬 옆에 버튼이 나온다. */
+  compact?: boolean;
+  onCompactChange?: (next: boolean) => void;
   /** 지도 크게 보기 버튼 — 지도가 없는 화면(관심 매체)에선 뺀다. */
   showMapToggle?: boolean;
   /**
@@ -189,6 +195,16 @@ export function MediaFindTopBar({
     />
   );
 
+  // 간략히 보기 — 목록을 다루는 정렬 바로 옆. 지도 팝업 매체 목록의 "간략히 보기" 스위치와 같은 모양.
+  const compactToggle = onCompactChange && !mapExpanded && (
+    <SimpleViewToggle
+      simple={!!compact}
+      onChange={onCompactChange}
+      className="shrink-0"
+      labelClassName="whitespace-nowrap max-sm:text-[12px]"
+    />
+  );
+
   // 모바일은 목록/지도 아래쪽에 뜨는 전환 버튼(MediaFindPanel)을 대신 쓴다.
   const mapToggle = showMapToggle && (
     <Button
@@ -264,12 +280,16 @@ export function MediaFindTopBar({
       </div>
 
       {oneRow ? (
-        // 매체 찾기 — [검색창][정렬] ··· [유동인구][지도 크게 보기], 초기화 없음.
+        // 매체 찾기 — [검색창][정렬][간략히] ··· [타깃][인구 분포][지도 크게 보기], 초기화 없음.
         <>
           <div
-            className={cn("shrink-0", mobileView === "map" && "max-sm:hidden")}
+            className={cn(
+              "flex shrink-0 items-center gap-[10px] max-sm:gap-[8px]",
+              mobileView === "map" && "max-sm:hidden",
+            )}
           >
             {sortSelect}
+            {compactToggle}
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px] max-sm:flex-none">
             {targetButton}
@@ -283,6 +303,7 @@ export function MediaFindTopBar({
           {resetButton}
           <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px]">
             {sortSelect}
+            {compactToggle}
             {mapToggle}
           </div>
         </>

@@ -26,6 +26,7 @@ export function MediaImageCarousel({
   logoClassName = "size-[40px]",
   imageClassName,
   onSlideClick,
+  small,
   children,
 }: {
   slides: (string | undefined)[];
@@ -35,6 +36,8 @@ export function MediaImageCarousel({
   /** 각 사진(img)에 줄 클래스 — 매체 찾기 카드의 hover 확대 등. */
   imageClassName?: string;
   onSlideClick?: (index: number) => void;
+  /** 작은 사진(간략히 보기 88px 등) — 도트를 작게, 장이 많으면(6장 넘음) 도트 대신 "2/8". */
+  small?: boolean;
   children?: ReactNode;
 }) {
   // 이미지 도트 — 시안엔 도트만 있지만 눌러서 바꿀 수 있게 한다.
@@ -45,8 +48,11 @@ export function MediaImageCarousel({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     draggedRef.current = false;
-    // 겹쳐 둔 버튼 위에서 시작한 건 드래그로 보지 않는다.
-    if (slides.length < 2 || (event.target as HTMLElement).closest("button"))
+    // 겹쳐 둔 버튼·체크박스(관심 매체 줄 목록) 위에서 시작한 건 드래그로 보지 않는다 — 끌기가 누름을 가로채지 않게.
+    if (
+      slides.length < 2 ||
+      (event.target as HTMLElement).closest("button, label, input")
+    )
       return;
     dragRef.current = { startX: event.clientX, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -129,23 +135,35 @@ export function MediaImageCarousel({
 
       {children}
 
-      {slides.length > 1 && (
-        <div className="absolute bottom-[9px] left-1/2 flex -translate-x-1/2 items-center gap-[5px]">
-          {slides.map((image, index) => (
-            <Button
-              key={`${image ?? "empty"}-${index}`}
-              aria-label={`${index + 1}번째 이미지`}
-              variant="ghost"
-              onPress={() => setImageIndex(index)}
-              className={cn(
-                "size-[5px] rounded-full bg-surface p-0",
-                index === imageIndex ? "opacity-100" : "opacity-70",
-              )}
-            >
-              {null}
-            </Button>
-          ))}
-        </div>
+      {small && slides.length > 6 ? (
+        <span className="pointer-events-none absolute right-[5px] bottom-[5px] rounded-full bg-black/45 px-[5px] text-[10px] leading-[15px] font-medium text-white tabular-nums">
+          {imageIndex + 1}/{slides.length}
+        </span>
+      ) : (
+        slides.length > 1 && (
+          <div
+            className={cn(
+              "absolute left-1/2 flex -translate-x-1/2 items-center",
+              small ? "bottom-[6px] gap-[4px]" : "bottom-[9px] gap-[5px]",
+            )}
+          >
+            {slides.map((image, index) => (
+              <Button
+                key={`${image ?? "empty"}-${index}`}
+                aria-label={`${index + 1}번째 이미지`}
+                variant="ghost"
+                onPress={() => setImageIndex(index)}
+                className={cn(
+                  "rounded-full bg-surface p-0",
+                  small ? "size-[4px] min-w-0" : "size-[5px]",
+                  index === imageIndex ? "opacity-100" : "opacity-70",
+                )}
+              >
+                {null}
+              </Button>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

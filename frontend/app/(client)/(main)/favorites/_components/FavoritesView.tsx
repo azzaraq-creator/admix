@@ -54,7 +54,9 @@ import {
   useRemoveFavorites,
 } from "@/hooks/favorites";
 import { useMediaFilterOptions } from "@/hooks/media";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useSonner } from "@/hooks/useSonner";
+import { setStoredFlag, useStoredFlag } from "@/hooks/useStoredFlag";
 import { cn } from "@/lib/utils";
 import { formatTotalWithInquiry } from "@/lib/media";
 
@@ -111,6 +113,9 @@ const TOUR_PICKED: Record<string, string[]> = {
  * 매체 카드 격자. 카드의 "선택"으로 여러 매체를 고르고, 아래 고정 바에서 합계를 보며
  * 선택 해제·관심 취소(관심 매체에서 빼기)·기획안에 담기를 한다(회원 전용).
  */
+// 간략히 보기 — 이 브라우저에 기억한다(매체 찾기와 따로).
+const COMPACT_STORAGE_KEY = "admix.favorites.compact";
+
 export function FavoritesView({ member }: { member: boolean }) {
   const router = useRouter();
   const { data: me, isError: meError } = useMe();
@@ -124,6 +129,12 @@ export function FavoritesView({ member }: { member: boolean }) {
   // 정렬 — 매체 찾기와 같은 Select. 첫 옵션은 최근에 담은 순이라 "최근순"으로 부른다.
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+  // 고른 적 없으면 지금처럼 PC는 카드·모바일은 한 줄(버튼도 그에 맞춰 켜짐·꺼짐을 보인다).
+  const storedCompact = useStoredFlag(COMPACT_STORAGE_KEY);
+  const isDesktop = useIsDesktop();
+  const compact = storedCompact ?? !isDesktop;
+  const view: ListView =
+    storedCompact == null ? "auto" : storedCompact ? "rows" : "cards";
   const { setPanelOpen: setMixieOpen } = useMixieChat();
 
   const filterCount = countFilters(filter);
@@ -258,6 +269,8 @@ export function FavoritesView({ member }: { member: boolean }) {
           mapExpanded={false}
           onToggleMapExpanded={() => {}}
           showMapToggle={false}
+          compact={compact}
+          onCompactChange={(on) => setStoredFlag(COMPACT_STORAGE_KEY, on)}
         />
         {filterOpen && (
           <div className="absolute inset-x-0 top-[calc(100%+10px)]">
@@ -339,12 +352,12 @@ export function FavoritesView({ member }: { member: boolean }) {
       {loading ? (
         // 카드(모바일은 한 줄) 자리에 뼈대를 흐리게 깔고, 그 위에 빙글빙글 도는 심볼을 띄운다.
         <SkeletonLoading>
-          <CardGrid>
+          <CardGrid view={view}>
             {Array.from({ length: 6 }, (_, i) => (
               <MediaFindCardSkeleton key={i} />
             ))}
           </CardGrid>
-          <RowList>
+          <RowList view={view}>
             {Array.from({ length: 6 }, (_, i) => (
               <FavoriteRowSkeleton key={i} />
             ))}
@@ -406,7 +419,7 @@ export function FavoritesView({ member }: { member: boolean }) {
         )
       ) : (
         <>
-          <CardGrid>
+          <CardGrid view={view}>
             {rows.map((row, index) => (
               // data-tour — 가이드가 첫 카드를 밝힌다.
               <div
@@ -425,8 +438,8 @@ export function FavoritesView({ member }: { member: boolean }) {
               </div>
             ))}
           </CardGrid>
-          {/* 모바일 — 카드 대신 가로 한 줄 목록(한 화면에 여러 개가 보이게). */}
-          <RowList>
+          {/* 간략히 보기(모바일은 처음부터) — 카드 대신 가로 한 줄 목록(한 화면에 여러 개가 보이게). */}
+          <RowList view={view}>
             {rows.map((row, index) => (
               <div
                 key={row.id}
@@ -480,18 +493,40 @@ export function FavoritesView({ member }: { member: boolean }) {
   );
 }
 
-/** 카드 격자(PC·태블릿) — 매체 찾기 카드(시안 400px)를 화면 폭에 맞춰 칸 수를 정한다(1220px에서 3칸). */
-function CardGrid({ children }: { children: ReactNode }) {
+/**
+ * 보기 방식 — "auto"는 고른 적 없을 때: PC·태블릿은 카드, 모바일은 한 줄 목록(화면 폭으로 CSS가 나눠 첫 화면부터 맞게).
+ * 간략히 보기 버튼을 한 번 누르면 기기와 상관없이 고른 쪽("rows"/"cards")만 보인다.
+ */
+type ListView = "auto" | "cards" | "rows";
+
+/** 카드 격자 — 매체 찾기 카드(시안 400px)를 화면 폭에 맞춰 칸 수를 정한다(1220px에서 3칸). */
+function CardGrid({ view, children }: { view: ListView; children: ReactNode }) {
+  if (view === "rows") return null;
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-[10px] max-sm:hidden">
+    <div
+      className={cn(
+        "grid grid-cols-[repeat(auto-fill,minmax(min(340px,100%),1fr))] gap-[10px]",
+        view === "auto" && "max-sm:hidden",
+      )}
+    >
       {children}
     </div>
   );
 }
 
-/** 한 줄 목록(모바일). */
-function RowList({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-[8px] sm:hidden">{children}</div>;
+/** 한 줄 목록 — 모바일 기본, PC는 간략히 보기를 켰을 때(넓으면 여러 칸). */
+function RowList({ view, children }: { view: ListView; children: ReactNode }) {
+  if (view === "cards") return null;
+  return (
+    <div
+      className={cn(
+        "grid gap-[8px] sm:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] sm:gap-[10px]",
+        view === "auto" && "sm:hidden",
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 // 요약 바 버튼 36px → 곡률 15px.

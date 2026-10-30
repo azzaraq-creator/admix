@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
 import type { MediaItemData } from "@/components/common/MediaItem";
@@ -34,6 +35,7 @@ import {
 } from "@/hooks/media";
 import { type PopTarget, usePopTargets } from "@/hooks/popGrid";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { setStoredFlag, useStoredFlag } from "@/hooks/useStoredFlag";
 import { cn } from "@/lib/utils";
 
 import { FilterChip } from "./MediaFilterPanel";
@@ -50,6 +52,9 @@ import {
   type MapCluster,
   type MapMarker,
 } from "./MapArea";
+
+// 목록 간략히 보기 — 이 브라우저에 기억한다. 고른 적 없으면 큰 카드.
+const COMPACT_STORAGE_KEY = "admix.find.compact";
 
 /** 필터 칩으로 보여 주는 차원 — 관심 매체·이동매체 페이지가 쓴다(매체 찾기는 필터 대신 카테고리 탭·유동인구 창). */
 export const CHIP_DIMS: ChipDimKey[] = [
@@ -182,23 +187,44 @@ export function MediaFindPanel({
   // 카테고리 탭을 한 번이라도 눌렀는지 — 그 뒤부터 선택 알약이 미끄러지는 연출을 켠다(아래 Tabs.Indicator).
   const [tabPressed, setTabPressed] = useState(false);
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
-  // 타깃 목록(어드민 "타깃 관리") — 위쪽 줄 "타깃" 버튼. 인구 분포를 켰고 조건이 타깃과 똑같을 때만 골라진 것으로 본다.
+  const compactList = useStoredFlag(COMPACT_STORAGE_KEY) ?? false;
+  // 타깃 목록(어드민 "타깃 관리") — 위쪽 줄 "타깃" 버튼.
+  // 타깃 버튼으로 고른 것만 골라진 것으로 본다 — 유동인구 창에서 같은 조건을 직접 골라도 타깃으로 바뀌지 않는다.
+  // 고른 뒤 유동인구 창에서 무엇이든(자료·기간·시간대·성별·연령) 바꾸면 풀린다 — 버튼이 "타깃"으로 돌아간다.
+  // (인구 분포를 끄면 버튼에서만 빠지고, 다시 켜면 돌아온다.)
   const { data: targets = [] } = usePopTargets();
+  const [pickedTargetId, setPickedTargetId] = useState<number | null>(null);
   const sameSet = <T,>(a: T[], b: T[]) =>
     a.length === b.length && a.every((x) => b.includes(x));
+  const pickedTarget = targets.find((t) => t.id === pickedTargetId);
+  // 타깃이 정하지 않는 기간·시간대 — 고른 직후 값을 적어 두고 달라지면 푼다.
+  const restKey = popGrid
+    ? `${popGrid.shownYear}|${popGrid.months.join(",")}|${popGrid.band}`
+    : "";
+  const [pickedRestKey, setPickedRestKey] = useState<string | null>(null);
+  if (pickedTarget && popGrid?.on && pickedRestKey == null)
+    setPickedRestKey(restKey);
   const target =
-    (popGrid?.on &&
-      targets.find(
-        (t) =>
-          popGrid.metric === t.metric &&
-          sameSet(popGrid.extras, t.extras) &&
-          // 성별·연령은 생활인구에만 걸린다.
-          (!popGrid.segOk ||
-            (popGrid.sex === t.sex && sameSet(popGrid.ages, t.ages))),
-      )?.id) ||
-    null;
+    popGrid?.on &&
+    pickedTarget &&
+    (pickedRestKey == null || pickedRestKey === restKey) &&
+    popGrid.metric === pickedTarget.metric &&
+    sameSet(popGrid.extras, pickedTarget.extras) &&
+    // 성별·연령은 생활인구에만 걸린다.
+    (!popGrid.segOk ||
+      (popGrid.sex === pickedTarget.sex &&
+        sameSet(popGrid.ages, pickedTarget.ages)))
+      ? pickedTarget.id
+      : null;
+  // 조건을 바꿔 한 번 풀리면 잊는다 — 다시 같은 조건으로 맞춰도 타깃으로 돌아오지 않게(그리는 중에 바로 고친다).
+  if (pickedTarget && popGrid?.on && target == null) {
+    setPickedTargetId(null);
+    setPickedRestKey(null);
+  }
   const pickTarget = (t: PopTarget | null) => {
     if (!popGrid) return;
+    setPickedTargetId(t?.id ?? null);
+    setPickedRestKey(null);
     if (t) {
       popGrid.applyTarget(t);
       popGrid.setOn(true);
@@ -246,14 +272,32 @@ export function MediaFindPanel({
     observer.observe(el);
     return () => observer.disconnect();
   }, [filterOpen]);
-  // PC 창은 Esc로도 닫는다.
+  // PC 창은 Esc로도, 창 밖(목록·다른 버튼)을 눌러도 닫는다.
+  // 빼는 곳: 지도(창을 연 채 지도를 보며 고른다), 인구 분포 버튼(그 버튼이 직접 닫는다),
+  // 창 안에서 연 목록(연도 Select 등 — 창 밖에 따로 뜬다).
+  const popPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!filterOpen || !isDesktop) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") popGrid?.setTargetOpen(false);
     };
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (!t || popPanelRef.current?.contains(t)) return;
+      if (
+        t.closest(
+          '[data-pop-keep-open], [data-filter-toggle], [data-slot="select-popover"]',
+        )
+      )
+        return;
+      popGrid?.setTargetOpen(false);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown, true);
+    };
   }, [filterOpen, isDesktop, popGrid]);
   const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -602,11 +646,13 @@ export function MediaFindPanel({
           filterLabel="인구 분포"
           filterIcon={PopulationGridIcon}
           // 아이콘 그림 둘레에 여백이 있어 기본 간격이면 글자와 떨어져 보인다.
-          filterClassName="gap-[6px] max-sm:gap-[4px]"
+          // 흰 바탕·옅은 그림자 — 회색 검색창·정렬과 보라 타깃 사이에서 눌러 보는 버튼으로 보이게. 올리거나 눌러도 흰색 그대로, 창이 열리면 보라 테두리.
+          filterClassName={cn(
+            "gap-[6px] bg-surface shadow-[0px_1px_4px_rgba(0,0,0,0.06)] max-sm:gap-[4px]",
+            filterOpen && "border-primary-300",
+          )}
           filterOpen={filterOpen}
           onToggleFilter={() => setFilterOpen(!filterOpen)}
-          // 인구 분포를 켰을 때만 고른 자료 수를 버튼 모서리에 띄운다.
-          filterCount={popGrid?.on ? popGrid.extras.length + 1 : 0}
           // 타깃(예: 뷰티 2030)을 고르면 인구 분포를 켜고 조건을 맞춘다.
           targets={targets}
           target={target}
@@ -679,67 +725,70 @@ export function MediaFindPanel({
           탭 줄을 z-20으로 띄운다(유동인구 창 z-30보다는 아래). */}
       <div
         data-tour="find-tabs"
-        className="relative z-20 flex shrink-0 flex-wrap items-center gap-[12px]"
+        className="relative z-20 flex shrink-0 items-center gap-[12px]"
       >
         {/* 매체 찾기 카테고리 탭 — 숫자는 고른 탭과 무관하게 같은 조건(지도 영역·검색어)으로 센다.
-            곡률·크기는 기획안 목록 탭과 같다. 한 줄에 다 안 들어가면 옆으로 밀어 넘긴다(끝은 흐리게). */}
-        <ScrollShadow
-          orientation="horizontal"
-          hideScrollBar
-          size={24}
-          className="max-w-full min-w-0"
+            곡률·크기는 기획안 목록 탭과 같다. 한 줄에 다 안 들어가면 HeroUI Tabs 넘침(overflow) 그대로 —
+            옆으로 밀어 넘기고, 넘친 쪽 끝을 흐리게 하며 ‹ › 버튼으로도 넘긴다(오른쪽 간략히 보기 자리는 남긴다). */}
+        <Tabs
+          className="min-w-0"
+          selectedKey={categoryTab}
+          onSelectionChange={(key) => {
+            setTabPressed(true);
+            onHoverArea?.(null);
+            scrollRef.current?.scrollTo({ top: 0 });
+            commit((q) => {
+              q.delete("category");
+              if (key !== ALL_CATEGORY_TAB) q.set("category", String(key));
+            });
+          }}
         >
-          <Tabs
-            className="w-max"
-            selectedKey={categoryTab}
-            onSelectionChange={(key) => {
-              setTabPressed(true);
-              onHoverArea?.(null);
-              scrollRef.current?.scrollTo({ top: 0 });
-              commit((q) => {
-                q.delete("category");
-                if (key !== ALL_CATEGORY_TAB) q.set("category", String(key));
-              });
-            }}
-          >
-            <Tabs.ListContainer className="w-fit rounded-[17px]">
-              <Tabs.List aria-label="매체 카테고리">
-                {[
-                  { key: ALL_CATEGORY_TAB, label: "전체" },
-                  ...optionsByKey.category.map((o) => ({
-                    key: o.value,
-                    label: o.label,
-                  })),
-                ].map(({ key, label }) => (
-                  <Tabs.Tab
-                    key={key}
-                    id={key}
-                    className="gap-[4px] rounded-[13px] whitespace-nowrap"
-                  >
-                    {label}
-                    {categoryCounts && (
-                      <span className="tabular-nums">
-                        {(key === ALL_CATEGORY_TAB
-                          ? categoryCounts.all
-                          : (categoryCounts.byCategory[key] ?? 0)
-                        ).toLocaleString()}
-                      </span>
-                    )}
-                    {/* HeroUI(react-aria) Tabs.Indicator 는 이전 탭의 위치·폭을 인라인 스타일로 잠깐 두었다가 풀어
+          <Tabs.ListContainer className="w-fit max-w-full rounded-[17px]">
+            <Tabs.List aria-label="매체 카테고리">
+              {[
+                { key: ALL_CATEGORY_TAB, label: "전체" },
+                ...optionsByKey.category.map((o) => ({
+                  key: o.value,
+                  label: o.label,
+                })),
+              ].map(({ key, label }) => (
+                <Tabs.Tab
+                  key={key}
+                  id={key}
+                  className="gap-[4px] rounded-[13px] whitespace-nowrap"
+                >
+                  {label}
+                  {categoryCounts && (
+                    <span className="tabular-nums">
+                      {(key === ALL_CATEGORY_TAB
+                        ? categoryCounts.all
+                        : (categoryCounts.byCategory[key] ?? 0)
+                      ).toLocaleString()}
+                    </span>
+                  )}
+                  {/* HeroUI(react-aria) Tabs.Indicator 는 이전 탭의 위치·폭을 인라인 스타일로 잠깐 두었다가 풀어
                       미끄러지게 한다. 그런데 첫 화면에선 그 값이 지워지지 않고 굳어 개수(예: "18")가 붙기 전 "전체"
                       폭에 멈춰 알약이 짧아진다 — 탭을 한 번 누르기 전까지만 인라인 값보다 우선해 덮는다. */}
-                    <Tabs.Indicator
-                      className={cn(
-                        "rounded-[13px]",
-                        !tabPressed && "h-full! w-full! translate-none!",
-                      )}
-                    />
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
-          </Tabs>
-        </ScrollShadow>
+                  <Tabs.Indicator
+                    className={cn(
+                      "rounded-[13px]",
+                      !tabPressed && "h-full! w-full! translate-none!",
+                    )}
+                  />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
+        {/* 간략히 보기 — 탭 줄 오른쪽 끝(목록이 보일 때만). 지도 팝업 매체 목록의 스위치와 같다. */}
+        {!mapExpanded && (
+          <SimpleViewToggle
+            simple={compactList}
+            onChange={(on) => setStoredFlag(COMPACT_STORAGE_KEY, on)}
+            className="ml-auto shrink-0"
+            labelClassName="whitespace-nowrap max-sm:text-[12px]"
+          />
+        )}
       </div>
 
       <div className="relative flex min-h-0 flex-1 gap-[20px]">
@@ -777,6 +826,7 @@ export function MediaFindPanel({
                 onClick={() => handleItemClick(pinned)}
                 onAddProposal={() => onAddProposal?.(pinned.id)}
                 onHoverChange={areaHover(pinned)}
+                compact={compactList}
               />
             )}
             {isLoading ? (
@@ -787,7 +837,7 @@ export function MediaFindPanel({
                 className="flex shrink-0 flex-col gap-[10px] blur-[3px]"
               >
                 {Array.from({ length: 3 }, (_, i) => (
-                  <MediaFindCardSkeleton key={i} />
+                  <MediaFindCardSkeleton key={i} compact={compactList} />
                 ))}
               </div>
             ) : listRows.length === 0 ? (
@@ -813,6 +863,7 @@ export function MediaFindPanel({
                     onClick={() => handleItemClick(row)}
                     onAddProposal={() => onAddProposal?.(row.id)}
                     onHoverChange={areaHover(row)}
+                    compact={compactList}
                   />
                 ))}
                 {/* 무한스크롤 감지용 1px 줄. 목록 마지막에 gap 10px + 1px만큼
@@ -839,6 +890,8 @@ export function MediaFindPanel({
         )}
 
         <div
+          // 지도를 눌러도 인구 분포 창은 닫지 않는다(위 창 밖 누르기).
+          data-pop-keep-open
           // 모바일 지도는 하단 탭 바 위에서 끝낸다 — 탭 바 밑으로 이어지면 왼쪽 아래 카카오 로고가 가린다.
           className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-tone-eeeeee max-sm:mb-[calc(var(--tabbar-space)+8px)] ${
             mapExpanded ? "block" : "hidden sm:block"
@@ -864,12 +917,13 @@ export function MediaFindPanel({
       {isDesktop && popGrid && (
         // PC·태블릿 유동인구 창 — 위쪽 줄 바로 밑, 오른쪽 끝을 유동인구·지도 크게 보기 버튼 줄에 맞춘다.
         // 늘 붙여 두고 열림만 바꿔, 버튼에서 펼쳐지듯 살짝 내려오며 나타나고 올라가며 사라진다.
-        // 높이는 내용만큼, 길면 화면 아래까지에서 멈추고 창 안에서 스크롤한다. 지도를 눌러도 닫히지 않는다(고르며 지도를 본다).
+        // 높이는 내용만큼, 길면 화면 아래까지에서 멈추고 창 안에서 스크롤한다. 지도 말고 창 밖을 누르면 닫힌다(위 popPanelRef).
         <div
           className="pointer-events-none absolute right-0 bottom-0 z-30 flex w-[400px] max-w-full flex-col"
           style={{ top: topBarHeight + 12 }}
         >
           <div
+            ref={popPanelRef}
             aria-hidden={!filterOpen}
             inert={!filterOpen}
             className={cn(

@@ -52,6 +52,26 @@ function PriceCell({
   );
 }
 
+/** 간략히 보기 금액 한 줄 — "광고비 20,000,000원"(광고비는 1개월, 제작비는 1회). */
+function CompactPrice({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | null;
+}) {
+  return (
+    <p className="flex min-w-0 items-baseline gap-[6px] whitespace-nowrap">
+      <span className="w-[34px] shrink-0 text-[11px] font-medium text-gray-400 max-sm:w-[31px] max-sm:text-[10px]">
+        {label}
+      </span>
+      <span className="truncate text-[14px] font-bold text-tone-2d264b max-sm:text-[13px]">
+        {formatKrw(value)}
+      </span>
+    </p>
+  );
+}
+
 /**
  * 관심 매체 페이지의 고르기 버튼(시안 "04. 관심 매체") — "기획안 담기" 자리에 놓인다.
  * 기획안 상세의 "관심 매체에서 추가하기" 카드도 같은 버튼을 쓴다.
@@ -109,6 +129,7 @@ function MediaFindCardImpl({
   onAddProposal,
   onHoverChange,
   selection,
+  compact,
 }: {
   row: MediaCardRow;
   selected?: boolean;
@@ -123,6 +144,8 @@ function MediaFindCardImpl({
    * 고른 카드는 보라 테두리(2px)로 표시한다.
    */
   selection?: { checked: boolean; onChange: (checked: boolean) => void };
+  /** 간략히 보기(매체 찾기 목록) — 작은 사진 + 이름·주소·광고비 한 줄씩의 가로형 카드. 고르기 모드와는 함께 쓰지 않는다. */
+  compact?: boolean;
 }) {
   const slides =
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
@@ -131,24 +154,124 @@ function MediaFindCardImpl({
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
 
+  const likeButton = (
+    <ToggleButton
+      isIconOnly
+      variant="ghost"
+      aria-label="관심 매체"
+      isSelected={liked}
+      onChange={setLiked}
+      className={cn(
+        compact
+          ? "size-[28px] min-w-0 shrink-0 rounded-[10px] p-0"
+          : "absolute top-[11px] right-[11px] size-[30px] min-w-0 rounded-[12px] p-0",
+        liked
+          ? "bg-tone-fff1f0 data-[selected=true]:bg-tone-fff1f0"
+          : compact
+            ? "bg-gray-100 data-[hovered=true]:bg-gray-200"
+            : "bg-surface data-[hovered=true]:bg-surface",
+      )}
+    >
+      <LoveIcon
+        key={liked ? "on" : "off"}
+        className={cn(
+          "transition-colors",
+          compact ? "size-[15px]" : "size-[17px]",
+          liked
+            ? "animate-[admix-like-pop_280ms_ease-out] text-red-500"
+            : compact
+              ? "text-gray-400"
+              : "text-gray-300",
+        )}
+      />
+    </ToggleButton>
+  );
+
+  const cardClass = cn(
+    // group — hover 때 안쪽 사진을 확대(group-hover)하려고.
+    "group relative w-full shrink-0 cursor-pointer gap-0 overflow-hidden border bg-surface p-0 transition-colors",
+    compact ? "rounded-[14px]" : "rounded-[16px]",
+    // hover — 그림자 대신(목록 스크롤 칸 위아래에 잘려서) 테두리를 검정으로 + 사진 1.1배 확대.
+    // 카드들이 형제라 다음 카드가 위에 그려져, 고른 카드는 z-10으로 올려 보라 테두리가 가리지 않게 한다.
+    selected ? "z-10" : "border-gray-200 shadow-none hover:border-zinc-900",
+    // 고른 카드 — 2px 보라 테두리를 카드 안쪽에 그린다: 테두리 1px + 안쪽 1px 선(after, 사진 위에 얹힘).
+    // 바깥 그림자로 그리면 목록 스크롤 칸 맨 위·아래에서 잘린다. 안쪽 내용은 밀리지 않는다.
+    (selection?.checked || highlighted) &&
+      cn(
+        "z-10 border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:z-20 after:border after:border-primary-500 after:content-['']",
+        compact ? "after:rounded-[13px]" : "after:rounded-[15px]",
+      ),
+  );
+
+  if (compact) {
+    return (
+      <Card
+        onClick={onClick}
+        onMouseEnter={onHoverChange && (() => onHoverChange(true))}
+        onMouseLeave={onHoverChange && (() => onHoverChange(false))}
+        className={cn(cardClass, "flex-row items-stretch gap-[12px] p-[8px]")}
+      >
+        {/* 작은 사진도 큰 카드처럼 끌거나 점을 눌러 넘긴다. */}
+        <MediaImageCarousel
+          slides={slides}
+          sizes="96px"
+          small
+          className="size-[88px] shrink-0 rounded-[10px] max-sm:size-[76px]"
+          imageClassName="group-hover:scale-[1.1]"
+        />
+        {/* 하트는 오른쪽 위에 띄운다 — 줄에 넣으면 하트 높이(28px)만큼 이름 줄이 커져 주소와 벌어진다. */}
+        <div className="relative flex min-w-0 flex-1 flex-col py-[2px] pr-[2px]">
+          <div className="absolute top-0 right-[2px]">{likeButton}</div>
+          <div className="flex min-w-0 items-center pr-[34px]">
+            <div className="flex min-w-0 flex-1 items-center gap-[4px]">
+              {highlighted && (
+                <Chip className="shrink-0 rounded-[6px] bg-primary-500 px-[5px] py-[1px] text-[10px] leading-[14px] font-bold text-white">
+                  검색한 매체
+                </Chip>
+              )}
+              {row.badge && <MediaBadgeChip badge={row.badge} />}
+              <p className="truncate text-[14px] leading-[18px] font-bold text-black max-sm:text-[13px]">
+                {row.name}
+              </p>
+            </div>
+          </div>
+          <p className="mt-[3px] truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
+            {row.mediaSource === "MOVING"
+              ? (area?.label ?? "-")
+              : (row.address ?? "-")}
+          </p>
+          <div className="mt-auto flex items-end justify-between gap-[8px]">
+            {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
+            <div className="flex min-w-0 flex-col gap-[1px]">
+              <CompactPrice label="광고비" value={row.minAdvertisementFeeKrw} />
+              {row.minProductionFeeKrw != null && (
+                <CompactPrice label="제작비" value={row.minProductionFeeKrw} />
+              )}
+            </div>
+            {/* onPress는 카드 클릭으로 번지지 않는다. */}
+            <Button
+              variant="ghost"
+              onPress={() => onAddProposal?.()}
+              aria-label="기획안 담기"
+              className="h-[28px] min-w-0 shrink-0 gap-[6px] rounded-[10px] bg-primary-50 px-[8px] text-primary data-[hovered=true]:bg-primary-100"
+            >
+              <FolderAddIcon className="shrink-0 text-[10px]" />
+              <span className="text-[12px] font-bold max-sm:text-[11px]">
+                담기
+              </span>
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card
       onClick={onClick}
       onMouseEnter={onHoverChange && (() => onHoverChange(true))}
       onMouseLeave={onHoverChange && (() => onHoverChange(false))}
-      className={cn(
-        // group — hover 때 안쪽 사진을 확대(group-hover)하려고.
-        "group relative w-full shrink-0 cursor-pointer gap-0 overflow-hidden rounded-[16px] border bg-surface p-0 transition-colors",
-        // hover — 그림자 대신(목록 스크롤 칸 위아래에 잘려서) 테두리를 검정으로 + 사진 1.1배 확대.
-        // 카드들이 형제라 다음 카드가 위에 그려져, 고른 카드는 z-10으로 올려 보라 테두리가 가리지 않게 한다.
-        selected
-          ? "z-10"
-          : "border-gray-200 shadow-none hover:border-zinc-900",
-        // 고른 카드 — 2px 보라 테두리를 카드 안쪽에 그린다: 테두리 1px + 안쪽 1px 선(after, 사진 위에 얹힘).
-        // 바깥 그림자로 그리면 목록 스크롤 칸 맨 위·아래에서 잘린다. 안쪽 내용은 밀리지 않는다.
-        (selection?.checked || highlighted) &&
-          "z-10 border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:z-20 after:rounded-[15px] after:border after:border-primary-500 after:content-['']",
-      )}
+      className={cardClass}
     >
       <MediaImageCarousel
         slides={slides}
@@ -176,29 +299,7 @@ function MediaFindCardImpl({
               </span>
             </Button>
 
-            <ToggleButton
-              isIconOnly
-              variant="ghost"
-              aria-label="관심 매체"
-              isSelected={liked}
-              onChange={setLiked}
-              className={cn(
-                "absolute top-[11px] right-[11px] size-[30px] min-w-0 rounded-[12px] p-0",
-                liked
-                  ? "bg-tone-fff1f0 data-[selected=true]:bg-tone-fff1f0"
-                  : "bg-surface data-[hovered=true]:bg-surface",
-              )}
-            >
-              <LoveIcon
-                key={liked ? "on" : "off"}
-                className={cn(
-                  "size-[17px] transition-colors",
-                  liked
-                    ? "animate-[admix-like-pop_280ms_ease-out] text-red-500"
-                    : "text-gray-300",
-                )}
-              />
-            </ToggleButton>
+            {likeButton}
           </>
         )}
       </MediaImageCarousel>
@@ -299,11 +400,26 @@ export const MediaFindCard = memo(
     prev.row === next.row &&
     prev.selected === next.selected &&
     prev.highlighted === next.highlighted &&
+    prev.compact === next.compact &&
     !prev.onHoverChange === !next.onHoverChange,
 );
 
 /** 목록을 불러오는 동안 카드 자리를 채우는 뼈대 — MediaFindCard와 같은 크기·배치. */
-export function MediaFindCardSkeleton() {
+export function MediaFindCardSkeleton({ compact }: { compact?: boolean }) {
+  if (compact)
+    return (
+      <Card
+        aria-hidden
+        className="w-full shrink-0 flex-row gap-[12px] rounded-[14px] border border-gray-200 bg-surface p-[8px] shadow-none"
+      >
+        <Skeleton className="size-[88px] shrink-0 rounded-[10px] max-sm:size-[76px]" />
+        <div className="flex flex-1 flex-col gap-[8px] py-[4px]">
+          <Skeleton className="h-[16px] w-[60%] rounded-[6px]" />
+          <Skeleton className="h-[12px] w-[80%] rounded-[6px]" />
+          <Skeleton className="mt-auto h-[18px] w-[40%] rounded-[6px]" />
+        </div>
+      </Card>
+    );
   return (
     <Card
       aria-hidden

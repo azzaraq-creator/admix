@@ -2,8 +2,8 @@
 
 import { Card, Checkbox, Skeleton } from "@heroui/react";
 
-import { MediaThumbnail } from "@/components/common/MediaThumbnail";
-import { LocationFilledIcon, Logo } from "@/components/icons";
+import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
+import { LocationFilledIcon } from "@/components/icons";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 import { formatAdFee } from "@/lib/media";
@@ -35,13 +35,16 @@ export function FavoriteRow({
           : "border-gray-200",
       )}
     >
-      <div className="relative size-[88px] shrink-0">
-        <MediaThumbnail
-          src={row.thumbnailUrl ?? row.images?.[0]}
-          sizes="88px"
-          className="size-full rounded-[10px]"
-          fallback={<Logo className="size-[24px] opacity-30" />}
-        />
+      {/* 사진이 여러 장이면 끌거나 점을 눌러 넘긴다(매체 찾기 간략히 보기와 같다). */}
+      <MediaImageCarousel
+        slides={
+          row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined]
+        }
+        sizes="88px"
+        small
+        logoClassName="size-[24px]"
+        className="size-[88px] shrink-0 rounded-[10px]"
+      >
         {/* 사진 위 체크박스 — 줄 클릭(상세 열기)으로 번지지 않게 막는다. 칸 26px → 곡률 9px. */}
         <div
           className="absolute top-[6px] left-[6px]"
@@ -60,7 +63,7 @@ export function FavoriteRow({
             </Checkbox.Content>
           </Checkbox>
         </div>
-      </div>
+      </MediaImageCarousel>
 
       <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
         <p className="truncate text-[14px] leading-[20px] font-bold text-black">
