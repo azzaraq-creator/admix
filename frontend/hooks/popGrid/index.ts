@@ -300,3 +300,80 @@ export const usePopGridValuesList = (qs: PopGridQuery[]) =>
     })),
     combine: valuesData,
   });
+
+// ---------- 타깃 — 매체 찾기 "타깃" 버튼 목록(고르면 인구 분포 조건을 맞춘다). 어드민 "타깃 관리"에서 만든다.
+
+export interface PopTarget {
+  id: number;
+  label: string;
+  /** 첫 자료(칸 색 기준) */
+  metric: PopMetric;
+  /** 함께 겹쳐 볼 자료 */
+  extras: PopMetric[];
+  /** 성별·연령 — 생활인구에만 걸린다 */
+  sex: PopSex;
+  ages: PopAge[];
+  sortOrder: number;
+  isPublished: boolean;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+export type PopTargetInput = Pick<
+  PopTarget,
+  "label" | "metric" | "extras" | "sex" | "ages" | "sortOrder" | "isPublished"
+>;
+
+export const popTargetApi = {
+  list: () =>
+    api
+      .get<{ targets: PopTarget[] }>("/pop-grid/targets")
+      .then((r) => r.data.targets),
+  adminList: () =>
+    api
+      .get<{ targets: PopTarget[] }>("/admin/pop-grid/targets")
+      .then((r) => r.data.targets),
+  adminCreate: (body: PopTargetInput) =>
+    api.post<PopTarget>("/admin/pop-grid/targets", body).then((r) => r.data),
+  adminUpdate: ({ id, ...body }: PopTargetInput & { id: number }) =>
+    api
+      .put<PopTarget>(`/admin/pop-grid/targets/${id}`, body)
+      .then((r) => r.data),
+  adminDelete: (id: number) =>
+    api.delete(`/admin/pop-grid/targets/${id}`).then((r) => r.data),
+};
+
+// 격자 값(popGridKeys.all)과 따로 둔다 — 타깃을 고쳐도 지도 값을 다시 받지 않게.
+export const popTargetKeys = {
+  all: ["pop-targets"] as const,
+  list: () => [...popTargetKeys.all, "list"] as const,
+  adminList: () => [...popTargetKeys.all, "admin"] as const,
+};
+
+export const usePopTargets = () =>
+  useQuery({
+    queryKey: popTargetKeys.list(),
+    queryFn: popTargetApi.list,
+    staleTime: 10 * 60 * 1000,
+  });
+
+export const useAdminPopTargets = () =>
+  useQuery({
+    queryKey: popTargetKeys.adminList(),
+    queryFn: popTargetApi.adminList,
+  });
+
+const useTargetMutation = <T>(fn: (v: T) => Promise<unknown>) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: popTargetKeys.all }),
+  });
+};
+
+export const useAdminPopTargetCreate = () =>
+  useTargetMutation(popTargetApi.adminCreate);
+export const useAdminPopTargetUpdate = () =>
+  useTargetMutation(popTargetApi.adminUpdate);
+export const useAdminPopTargetDelete = () =>
+  useTargetMutation(popTargetApi.adminDelete);

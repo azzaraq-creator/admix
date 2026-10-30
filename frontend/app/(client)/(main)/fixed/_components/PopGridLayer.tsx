@@ -54,26 +54,31 @@ import {
   useMapPopGrid,
 } from "./useMapPopGrid";
 
-const METRICS: { key: PopMetric; label: string; desc: string }[] = [
+// short — 유동인구 창 "자료" 칩 아래 한 줄 설명(고른 자료만).
+// 보행(상권 골목길, 상대값·분기·새 값 받을 길 없음)은 고를 수 있는 자료에서 뺐다 — 값은 DB에 남아 있다.
+const METRICS: {
+  key: PopMetric;
+  label: string;
+  desc: string;
+  short: string;
+}[] = [
   {
     key: "live",
     label: "생활인구",
     desc: "그 시각에 그 칸에 있던 사람 수(고른 기간·시간대의 한 시각 평균) — 사는 사람·일하는 사람·지나는 사람을 모두 세요",
+    short: "그 칸에 있던 사람 모두",
   },
   {
     key: "household",
     label: "거주인구",
     desc: "행정안전부 주민등록 세대수(행정동) — 동마다 값 하나라 그 동의 칸을 모두 같은 색으로 칠해요",
+    short: "주민등록 세대수",
   },
   {
     key: "subway",
     label: "지하철",
     desc: "지하철역 승하차 인원(시간당) — 역 반경 300m 칸에 나눠 담았어요",
-  },
-  {
-    key: "walk",
-    label: "보행",
-    desc: "상권 골목길 유동인구(분기 값) — 크기를 견주는 상대값이에요",
+    short: "지하철역 승하차 인원",
   },
 ];
 const BANDS: { key: PopBand; label: string }[] = [
@@ -102,7 +107,6 @@ const NO_SEG_REASON: Partial<Record<PopMetric, string>> = {
     "지하철은 교통카드 승하차 자료라 성별·연령 정보가 없어요. 전체 승하차 인원으로 보여요.",
   household:
     "거주인구는 행정안전부 주민등록 세대수라 성별·연령 구분이 없어요. 동 전체 세대수로 보여요.",
-  walk: "보행 자료는 성별과 연령이 따로따로만 있어 '20대 남성'처럼 함께 고를 수 없어요. 전체 인원으로 보여요.",
 };
 // 성·연령 구분이 있는 자료
 const SEG_METRICS = new Set<PopMetric>(["flow", "people", "live"]);
@@ -122,7 +126,7 @@ const FIXED_BAND: Partial<Record<PopMetric, [string, string]>> = {
 // 사람 수 자료 — 함께 고르면 격자 칸 숫자를 더해 적는다(보행은 상대값, 거주인구는 세대수라 빼고).
 const PEOPLE_METRICS = new Set<PopMetric>(["live", "subway"]);
 // 여러 자료를 함께 골랐을 때 첫 자료(칸 색·숫자·기간 기준)로 삼는 순서.
-const PRIMARY_ORDER: PopMetric[] = ["live", "subway", "walk", "household"];
+const PRIMARY_ORDER: PopMetric[] = ["live", "subway", "household"];
 // 자료가 있는 달 — /months 의 metrics 에 이 이름이 있어야 고를 수 있다.
 const MONTH_NEED: Record<PopMetric, string> = {
   flow: "live",
@@ -606,6 +610,18 @@ export function usePopGridState() {
       setSex("all");
       setAges([]);
     },
+    /** 타깃 조건 맞추기(위쪽 줄 "타깃") — 자료(첫 자료·겹쳐 볼 자료)와 성별·연령을 바꾼다. 기간·시간대는 그대로. */
+    applyTarget: (t: {
+      metric: PopMetric;
+      extras: PopMetric[];
+      sex: PopSex;
+      ages: PopAge[];
+    }) => {
+      setMetric(t.metric);
+      setExtras(t.extras.filter((m) => m !== t.metric));
+      setSex(t.sex);
+      setAges([...t.ages]);
+    },
     selected,
     setSelected,
     sheetOpen,
@@ -643,7 +659,7 @@ export function usePopGridState() {
     },
     /**
      * 자료 칩 누르기 — 여러 개를 함께 고를 수 있다(누르면 넣고 빼기). 하나는 늘 골라져 있어야 해서 마지막 하나는 빠지지 않는다.
-     * 첫 자료(칸 색·숫자·기간·성·연령 기준)는 생활인구 → 지하철 → 보행 → 거주인구 순 — 거주인구는 동 단위라 혼자일 때만 첫 자료.
+     * 첫 자료(칸 색·숫자·기간·성·연령 기준)는 생활인구 → 지하철 → 거주인구 순 — 거주인구는 동 단위라 혼자일 때만 첫 자료.
      */
     pickMetric: (key: PopMetric) => {
       const next = picked.includes(key)
@@ -759,6 +775,19 @@ function PopGridControls({ state }: { state: PopGridState }) {
                 </ChipButton>
               ))}
             </ChipRow>
+            <ul
+              role="note"
+              className="flex flex-col gap-[4px] rounded-[12px] bg-zinc-900/[0.05] px-[12px] py-[10px] text-[12px] leading-[17px] text-zinc-600 dark:bg-white/[0.07] dark:text-[#b4b5bf]"
+            >
+              {METRICS.filter((m) => s.isPicked(m.key)).map((m) => (
+                <li key={m.key}>
+                  <span className="font-semibold text-zinc-900 dark:text-white">
+                    {m.label}
+                  </span>{" "}
+                  {m.short}
+                </li>
+              ))}
+            </ul>
           </OptionCard>
 
           <OptionCard

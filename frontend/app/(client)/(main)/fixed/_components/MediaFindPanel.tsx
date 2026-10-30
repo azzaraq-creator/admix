@@ -32,6 +32,7 @@ import {
   type MediaFilterParams,
   type OperatingArea,
 } from "@/hooks/media";
+import { type PopTarget, usePopTargets } from "@/hooks/popGrid";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -181,6 +182,32 @@ export function MediaFindPanel({
   // 카테고리 탭을 한 번이라도 눌렀는지 — 그 뒤부터 선택 알약이 미끄러지는 연출을 켠다(아래 Tabs.Indicator).
   const [tabPressed, setTabPressed] = useState(false);
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_MEDIA_SORT);
+  // 타깃 목록(어드민 "타깃 관리") — 위쪽 줄 "타깃" 버튼. 인구 분포를 켰고 조건이 타깃과 똑같을 때만 골라진 것으로 본다.
+  const { data: targets = [] } = usePopTargets();
+  const sameSet = <T,>(a: T[], b: T[]) =>
+    a.length === b.length && a.every((x) => b.includes(x));
+  const target =
+    (popGrid?.on &&
+      targets.find(
+        (t) =>
+          popGrid.metric === t.metric &&
+          sameSet(popGrid.extras, t.extras) &&
+          // 성별·연령은 생활인구에만 걸린다.
+          (!popGrid.segOk ||
+            (popGrid.sex === t.sex && sameSet(popGrid.ages, t.ages))),
+      )?.id) ||
+    null;
+  const pickTarget = (t: PopTarget | null) => {
+    if (!popGrid) return;
+    if (t) {
+      popGrid.applyTarget(t);
+      popGrid.setOn(true);
+    } else {
+      // 풀기 — 성별·연령만 전체로 되돌린다(자료·기간·시간대·켜짐은 그대로).
+      popGrid.setSex("all");
+      popGrid.setAges([]);
+    }
+  };
   // 지도 보기(모바일)·지도 크게 보기(PC) — URL(view=map)에 남겨 새로고침해도 그대로 둔다.
   const mapExpandedState = sp.get("view") === "map";
   const setMapExpanded = (next: boolean | ((cur: boolean) => boolean)) => {
@@ -201,13 +228,24 @@ export function MediaFindPanel({
   // 유동인구 창은 위쪽 줄 바로 밑에서 시작한다 — 태블릿은 위쪽 줄이 두 줄이라 높이를 재서 맞춘다.
   const topBarRef = useRef<HTMLDivElement>(null);
   const [topBarHeight, setTopBarHeight] = useState(45);
+  // 창 위 말풍선 꼬리 — 인구 분포 버튼 가운데를 가리키게, 창 오른쪽 끝(= 위쪽 줄 오른쪽 끝)에서 버튼 가운데까지.
+  const [arrowRight, setArrowRight] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = topBarRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => setTopBarHeight(el.offsetHeight));
+    const measure = () => {
+      setTopBarHeight(el.offsetHeight);
+      const btn = el.querySelector<HTMLElement>("[data-filter-toggle]");
+      if (!btn || !btn.offsetWidth) return setArrowRight(null);
+      const bar = el.getBoundingClientRect();
+      const b = btn.getBoundingClientRect();
+      setArrowRight(bar.right - (b.left + b.width / 2));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [filterOpen]);
   // PC 창은 Esc로도 닫는다.
   useEffect(() => {
     if (!filterOpen || !isDesktop) return;
@@ -567,6 +605,12 @@ export function MediaFindPanel({
           filterClassName="gap-[6px] max-sm:gap-[4px]"
           filterOpen={filterOpen}
           onToggleFilter={() => setFilterOpen(!filterOpen)}
+          // 인구 분포를 켰을 때만 고른 자료 수를 버튼 모서리에 띄운다.
+          filterCount={popGrid?.on ? popGrid.extras.length + 1 : 0}
+          // 타깃(예: 뷰티 2030)을 고르면 인구 분포를 켜고 조건을 맞춘다.
+          targets={targets}
+          target={target}
+          onTargetChange={popGrid ? pickTarget : undefined}
           sort={sort}
           onSortChange={(next) => {
             setSort(next);
@@ -823,19 +867,27 @@ export function MediaFindPanel({
         // 높이는 내용만큼, 길면 화면 아래까지에서 멈추고 창 안에서 스크롤한다. 지도를 눌러도 닫히지 않는다(고르며 지도를 본다).
         <div
           className="pointer-events-none absolute right-0 bottom-0 z-30 flex w-[400px] max-w-full flex-col"
-          style={{ top: topBarHeight + 8 }}
+          style={{ top: topBarHeight + 12 }}
         >
           <div
             aria-hidden={!filterOpen}
             inert={!filterOpen}
             className={cn(
-              "flex max-h-full min-h-0 origin-top-right flex-col rounded-[20px] shadow-[0px_12px_32px_rgba(0,0,0,0.16)] transition-[opacity,translate,scale] duration-200 ease-out",
+              "relative flex max-h-full min-h-0 origin-top-right flex-col rounded-[20px] shadow-[0px_12px_32px_rgba(0,0,0,0.16)] transition-[opacity,translate,scale] duration-200 ease-out",
               filterOpen
                 ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
                 : "-translate-y-[8px] scale-[0.98] opacity-0",
             )}
           >
             <PopGridTargetPanel state={popGrid} />
+            {arrowRight != null && (
+              // 말풍선 꼬리 — 창과 같은 바탕·테두리의 마름모를 창 위 가장자리에 반쯤 걸친다(창 위에 그려 그 자리 테두리를 덮는다).
+              <span
+                aria-hidden
+                className="absolute -top-[6px] z-[1] size-[12px] rotate-45 rounded-tl-[3px] border-t border-l border-gray-200 bg-[#f3f3f6] dark:border-white/10 dark:bg-[#24252b]"
+                style={{ right: arrowRight - 6 }}
+              />
+            )}
           </div>
         </div>
       )}

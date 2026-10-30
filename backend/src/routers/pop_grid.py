@@ -10,13 +10,13 @@ import re
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from src.config import get_settings
 from src.database import get_db
 from src.models.admin import Admin
-from src.services import household_dong, pop_grid
+from src.services import household_dong, pop_grid, pop_target
 from src.utils.deps import require_permission
 
 router = APIRouter(prefix="/pop-grid", tags=["pop-grid"])
@@ -91,6 +91,12 @@ def get_cell_trend(
     if data is None:
         raise HTTPException(status_code=404, detail="cell not found")
     return data
+
+
+@router.get("/targets")
+def get_targets(db: Session = Depends(get_db)) -> dict:
+    """매체 찾기 "타깃" 목록 — 노출한 것만 순서대로."""
+    return {"targets": pop_target.list_targets(db, published_only=True)}
 
 
 # ---------- 어드민
@@ -194,4 +200,55 @@ def admin_delete_households(
         raise HTTPException(status_code=400, detail="ym 은 YYYYMM")
     if not household_dong.delete_month(db, ym):
         raise HTTPException(status_code=404, detail="month not found")
+    return {"ok": True}
+
+
+# ---------- 어드민 — 타깃(매체 찾기 "타깃" 버튼 목록)
+
+
+@admin_router.get("/targets")
+def admin_list_targets(
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    """노출하지 않는 것까지 모두 — 순서대로."""
+    return {"targets": pop_target.list_targets(db, published_only=False)}
+
+
+@admin_router.post("/targets")
+def admin_create_target(
+    body: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_permission("media")),
+) -> dict:
+    try:
+        return pop_target.create_target(db, body, admin.name or admin.email)
+    except pop_target.PopTargetError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@admin_router.put("/targets/{target_id}")
+def admin_update_target(
+    target_id: int,
+    body: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_permission("media")),
+) -> dict:
+    try:
+        row = pop_target.update_target(db, target_id, body, admin.name or admin.email)
+    except pop_target.PopTargetError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if not row:
+        raise HTTPException(status_code=404, detail="target not found")
+    return row
+
+
+@admin_router.delete("/targets/{target_id}")
+def admin_delete_target(
+    target_id: int,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("media")),
+) -> dict:
+    if not pop_target.delete_target(db, target_id):
+        raise HTTPException(status_code=404, detail="target not found")
     return {"ok": True}

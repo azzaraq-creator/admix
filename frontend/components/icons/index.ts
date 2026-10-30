@@ -71,6 +71,7 @@ export { SearchDuotoneIcon } from "./SearchDuotoneIcon";
 export { SearchOutlineIcon } from "./SearchOutlineIcon";
 export { FilterIcon } from "./FilterIcon";
 export { PopulationGridIcon } from "./PopulationGridIcon";
+export { TargetIcon } from "./TargetIcon";
 export { RotateLeftIcon } from "./RotateLeftIcon";
 export { SortIcon } from "./SortIcon";
 export { MapOutlineIcon } from "./MapOutlineIcon";

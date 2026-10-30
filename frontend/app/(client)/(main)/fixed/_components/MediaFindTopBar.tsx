@@ -11,10 +11,12 @@ import {
   SearchOutlineIcon,
   type IconProps,
 } from "@/components/icons";
+import type { PopTarget } from "@/hooks/popGrid";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
 import { type MediaSortKey, MediaSortSelect } from "./MediaSortSelect";
+import { MediaTargetSelect } from "./MediaTargetSelect";
 
 /** 시안(02. 매체 찾기)의 상단 바 — 높이 45px, 회색 필 스타일로 통일한다.
  *  모바일은 40px(모서리 40/2-3 = 17px)로 줄인다. */
@@ -39,6 +41,9 @@ export function MediaFindTopBar({
   filterClassName,
   filterOpen,
   onToggleFilter,
+  targets = [],
+  target,
+  onTargetChange,
   onReset,
   resetDisabled,
   sort,
@@ -65,6 +70,10 @@ export function MediaFindTopBar({
   filterClassName?: string;
   filterOpen: boolean;
   onToggleFilter: () => void;
+  /** 타깃 버튼(인구 분포 왼쪽) — onTargetChange가 있고 노출한 타깃이 있을 때만 보인다. 고른 타깃(예: 뷰티 2030)대로 인구 분포 조건을 맞춘다. */
+  targets?: PopTarget[];
+  target?: number | null;
+  onTargetChange?: (next: PopTarget | null) => void;
   /** 초기화 버튼 — 한 줄 배치(mobileView, 매체 찾기)에선 PC·모바일 모두 뺀다(검색어는 검색창 X, 타깃은 그 창 안에서 되돌린다). */
   onReset?: () => void;
   /** 검색어·장소·필터 중 되돌릴 것이 하나도 없으면 초기화를 잠근다. */
@@ -100,34 +109,51 @@ export function MediaFindTopBar({
   };
 
   const filterButton = (
-    <Button
-      variant="ghost"
-      onPress={onToggleFilter}
-      aria-expanded={filterOpen}
-      // 필터 패널이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
-      data-filter-toggle
+    // 숫자는 버튼 오른쪽 위 모서리에 걸친 배지 — 버튼 밖으로 나가므로 감싼 칸에 띄운다(버튼이 넘침을 자를 수 있다).
+    <div
       className={cn(
-        PILL,
-        PILL_ACTIVE,
-        "shrink-0 gap-[10px] px-[20px] max-sm:gap-[6px] max-sm:px-[14px]",
-        filterClassName,
+        "relative shrink-0",
         oneRow && mobileView === "list" && "max-sm:hidden",
-        // 필터 패널이 열려 있으면 hover와 같은 흰 배경으로 켜둔다(테두리는 그대로).
-        filterOpen && "bg-surface",
       )}
     >
-      <FilterButtonIcon
-        className={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
-      />
-      <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-zinc-900">
-        {filterLabel}
-      </span>
+      <Button
+        variant="ghost"
+        onPress={onToggleFilter}
+        aria-expanded={filterOpen}
+        // 필터 패널이 바깥 누름으로 닫힐 때 이 버튼은 빼 둔다(눌러서 닫은 뒤 다시 열리지 않게).
+        data-filter-toggle
+        className={cn(
+          PILL,
+          PILL_ACTIVE,
+          "shrink-0 gap-[10px] px-[20px] max-sm:gap-[6px] max-sm:px-[14px]",
+          filterClassName,
+          // 필터 패널이 열려 있으면 hover와 같은 흰 배경으로 켜둔다(테두리는 그대로).
+          filterOpen && "bg-surface",
+        )}
+      >
+        <FilterButtonIcon
+          className={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
+        />
+        <span className="text-[14px] max-sm:text-[12px] font-medium whitespace-nowrap text-zinc-900">
+          {filterLabel}
+        </span>
+      </Button>
       {filterCount > 0 && (
-        <span className="flex size-[24px] shrink-0 items-center justify-center rounded-[9px] bg-primary text-[12px] font-medium text-white max-sm:size-[20px] max-sm:rounded-[7px] max-sm:text-[10px]">
+        <span className="pointer-events-none absolute -top-[6px] -right-[6px] flex size-[20px] items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-white ring-2 ring-surface max-sm:-top-[5px] max-sm:-right-[5px] max-sm:size-[18px] max-sm:text-[10px]">
           {filterCount}
         </span>
       )}
-    </Button>
+    </div>
+  );
+
+  // 모바일 한 줄 배치에선 필터 버튼처럼 지도 보기에서만 보인다.
+  const targetButton = onTargetChange && targets.length > 0 && (
+    <MediaTargetSelect
+      targets={targets}
+      value={target ?? null}
+      onChange={onTargetChange}
+      className={cn(oneRow && mobileView === "list" && "max-sm:hidden")}
+    />
   );
 
   const resetButton = (
@@ -246,6 +272,7 @@ export function MediaFindTopBar({
             {sortSelect}
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-[10px] max-sm:flex-none">
+            {targetButton}
             {filterButton}
             {mapToggle}
           </div>
