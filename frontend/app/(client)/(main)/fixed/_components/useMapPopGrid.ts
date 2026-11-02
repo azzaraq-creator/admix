@@ -456,8 +456,8 @@ function gridBoard(map: KakaoMap) {
           : ctx.moveTo(toX(lat, lng), toY(lat, lng)),
       );
       ctx.strokeStyle = line.color;
-      ctx.globalAlpha = 0.6;
-      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = line.alpha ?? 0.6;
+      ctx.lineWidth = line.width ?? 2.5;
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -568,9 +568,15 @@ function gridBoard(map: KakaoMap) {
   };
 }
 
-/** 격자 위에 다시 그릴 실시간 자료 — 도로 선(위도, 경도)·장소 범위(경도, 위도 고리). */
+/** 격자 위에 다시 그릴 자료 — 도로 현황·차량 선(위도, 경도)·실시간 인구 장소 범위(경도, 위도 고리). */
 export interface PopRealtime {
-  lines: { path: [number, number][]; color: string }[];
+  /** width·alpha 가 없으면 도로 현황 선(2.5px, 0.6) */
+  lines: {
+    path: [number, number][];
+    color: string;
+    width?: number;
+    alpha?: number;
+  }[];
   areas: { rings: [number, number][][]; color: string }[];
 }
 

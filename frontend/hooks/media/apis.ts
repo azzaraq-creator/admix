@@ -384,6 +384,37 @@ export interface TrafficResponse {
   pending: number;
 }
 
+/**
+ * 인구 분포 "차량" — 서울시 교통량 측정 지점 하나의 고른 달 하루 평균 통행량(서버가 날마다 받아 쌓은 값).
+ * value 는 하루 평균 대수(오가는 방향 합).
+ */
+export interface TrafficVolumeSpot {
+  num: string;
+  name: string;
+  lat: number;
+  lng: number;
+  value: number;
+  /** 지점이 있는 도로의 앞뒤 구간(양방향) 꼭짓점 [위도, 경도] 목록들 — 맞는 도로가 없으면 빈 배열(원으로 그린다) */
+  paths: [number, number][][];
+}
+
+export interface TrafficVolumeResponse {
+  /** 고른 달에 받은 날 수 */
+  days: number;
+  spots: TrafficVolumeSpot[];
+}
+
+export interface TrafficVolumeQuery {
+  months: string[];
+}
+
+export interface TrafficVolumeMonths {
+  /** 서버에 서울시 키가 없으면 false */
+  enabled: boolean;
+  /** 받은 날이 있는 달("202610"), 오래된 것부터 */
+  months: string[];
+}
+
 /** 실시간 인구 장소를 눌렀을 때 — 그 범위 안 지하철역·버스정류장의 하루 승하차 인원(서울시, 공개된 가장 최근 날). */
 export interface CrowdTransit {
   name: string;
@@ -421,6 +452,16 @@ export const mediaApi = {
   traffic: (b: CrowdBounds) =>
     api
       .get<TrafficResponse>("/media/traffic", { params: b })
+      .then((r) => r.data),
+  trafficVolume: (q: TrafficVolumeQuery) =>
+    api
+      .get<TrafficVolumeResponse>("/media/traffic-volume", {
+        params: { months: q.months.join(",") },
+      })
+      .then((r) => r.data),
+  trafficVolumeMonths: () =>
+    api
+      .get<TrafficVolumeMonths>("/media/traffic-volume/months")
       .then((r) => r.data),
   crowdTransit: (code: string) =>
     api

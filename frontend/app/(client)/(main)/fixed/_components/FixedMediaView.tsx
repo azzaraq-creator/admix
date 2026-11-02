@@ -31,6 +31,7 @@ import {
   useMediaDetail,
   useMediaCrowd,
   useMediaTraffic,
+  useMediaTrafficVolume,
 } from "@/hooks/media";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 
@@ -347,8 +348,11 @@ export function FixedMediaView() {
   const crowdGray = useCrowdGraySetting();
   const crowdLabels = useCrowdLabelsSetting();
   const trafficOn = useTrafficSetting();
-  // "유동인구" 층 — 켜기는 지도 스위치(MapArea), 조건 창·칩은 검색 줄 아래(MediaFindPanel).
   const popGrid = usePopGridState();
+  // 인구 분포 창의 "차량" — 인구 분포 격자와 따로 켠다. 켰을 때만 받는다.
+  const { data: trafficVolumeData } = useMediaTrafficVolume(
+    popGrid.vehicle.query,
+  );
   // 지도 영역은 실시간 인구·교통을 켰을 때만 상태로 둔다 — 꺼 둔 채로 지도를 옮기거나 확대·축소할 때마다
   // 이 화면 전체(목록 카드 포함)가 다시 그려져 태블릿에서 지도가 버벅였다.
   const [crowdBounds, setCrowdBounds] = useState<MapBoundsPayload | null>(null);
@@ -741,6 +745,12 @@ export function FixedMediaView() {
                         (trafficData.pending > 0 &&
                           trafficData.links.length === 0),
                     }
+            }
+            trafficVolume={
+              // 가이드 중엔 그리지 않는다(가이드 예시 인구 분포와 섞이지 않게).
+              !mapGuide && popGrid.vehicle.query
+                ? (trafficVolumeData?.spots ?? null)
+                : null
             }
             className="size-full"
           />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Popover } from "@heroui/react";
+import { Button, Popover, ScrollShadow } from "@heroui/react";
 import { useState } from "react";
 
 import { SmallCheckIcon, TargetIcon } from "@/components/icons";
@@ -52,48 +52,54 @@ export function MediaTargetSelect({
         className="rounded-[16px] border border-gray-200 bg-surface p-0 shadow-[0px_4px_16px_rgba(0,0,0,0.12)]"
       >
         <Popover.Arrow />
+        {/* 타깃이 많으면 화면 밖으로 넘치지 않게 높이를 막고 목록만 스크롤한다(제목은 고정). */}
         <Popover.Dialog
           aria-label="타깃 고르기"
-          className="flex w-[260px] flex-col gap-[4px] p-[8px] outline-none"
+          className="flex max-h-[min(440px,calc(100dvh-180px))] w-[260px] flex-col gap-[4px] p-[8px] outline-none"
         >
-          <div className="px-[8px] pt-[4px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
+          <div className="shrink-0 px-[8px] pt-[4px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
             타깃
           </div>
-          {targets.map((t) => {
-            const isOn = t.id === value;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                aria-pressed={isOn}
-                onClick={() => {
-                  onChange(isOn ? null : t);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-[10px] rounded-[12px] px-[12px] py-[10px] text-left transition-colors hover:bg-gray-100",
-                  isOn && "bg-primary-50 hover:bg-primary-100",
-                )}
-              >
-                <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                  <span
-                    className={cn(
-                      "text-[14px] max-sm:text-[13px] font-medium text-black",
-                      isOn && "text-primary",
-                    )}
-                  >
-                    {t.label}
+          <ScrollShadow
+            size={24}
+            className="flex min-h-0 flex-1 flex-col gap-[4px] overscroll-contain"
+          >
+            {targets.map((t) => {
+              const isOn = t.id === value;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={isOn}
+                  onClick={() => {
+                    onChange(isOn ? null : t);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-[10px] rounded-[12px] px-[12px] py-[10px] text-left transition-colors hover:bg-gray-100",
+                    isOn && "bg-primary-50 hover:bg-primary-100",
+                  )}
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                    <span
+                      className={cn(
+                        "text-[14px] max-sm:text-[13px] font-medium text-black",
+                        isOn && "text-primary",
+                      )}
+                    >
+                      {t.label}
+                    </span>
+                    <span className="text-[12px] max-sm:text-[11px] text-gray-500">
+                      {popTargetText(t)}
+                    </span>
                   </span>
-                  <span className="text-[12px] max-sm:text-[11px] text-gray-500">
-                    {popTargetText(t)}
-                  </span>
-                </span>
-                {isOn && (
-                  <SmallCheckIcon className="size-[18px] shrink-0 text-primary" />
-                )}
-              </button>
-            );
-          })}
+                  {isOn && (
+                    <SmallCheckIcon className="size-[18px] shrink-0 text-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </ScrollShadow>
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

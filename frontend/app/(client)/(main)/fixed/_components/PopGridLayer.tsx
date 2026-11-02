@@ -26,7 +26,11 @@ import {
   PopulationGridIcon,
   XIcon,
 } from "@/components/icons";
-import type { CrowdPlace } from "@/hooks/media";
+import {
+  type CrowdPlace,
+  type TrafficVolumeQuery,
+  useMediaTrafficVolumeMonths,
+} from "@/hooks/media";
 import {
   type PopAge,
   type PopCell,
@@ -158,6 +162,16 @@ function PopSource({
 
 const monthLabel = (ym: string) => `${Number(ym.slice(4))}월`;
 
+/** 달 목록 → 해마다 달 목록 */
+function byYear(yms: string[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  yms.forEach((ym) => {
+    const y = ym.slice(0, 4);
+    map.set(y, [...(map.get(y) ?? []), ym]);
+  });
+  return map;
+}
+
 /** 고른 대상 한 줄 — "20·30대 남성", "여성", "전체". */
 function targetLabel(sex: PopSex, ages: PopAge[]): string {
   const sexText = sex === "M" ? "남성" : sex === "F" ? "여성" : "";
@@ -174,6 +188,20 @@ function monthsLabel(year: string, picked: string[], all: string[]): string {
   if (picked.length === all.length) return `${year}년 전체`;
   return `${year}년 ${picked.map(monthLabel).join("·")}`;
 }
+
+/** 짧은 기간 — 모바일 조건 카드. 세 달 이상이면 "2025년 1월 외 3개월"(달을 다 적으면 화면 밖으로 넘친다). */
+function monthsShortLabel(
+  year: string,
+  picked: string[],
+  all: string[],
+): string {
+  if (picked.length === all.length || picked.length < 3)
+    return monthsLabel(year, picked, all);
+  return `${year}년 ${monthLabel(picked[0])} 외 ${picked.length - 1}개월`;
+}
+
+/** 지도 왼쪽 위 조건 카드 한 항목 — short 가 있으면 모바일은 그걸 적는다. */
+type SummaryPart = { label: string; value: string; short?: string };
 
 /** 칸 값 한 줄 — 자료마다 단위가 다르다. 유동인구(종합)는 합친 점수라 숫자 없이 서울 순위만 보여 준다. */
 function valueText(metric: PopMetric, v: number | null): string {
@@ -385,6 +413,11 @@ interface StoredPopQuery {
   metric: PopMetric;
   /** 함께 고른 자료 */
   extras: PopMetric[];
+  /** 차량(도로 측정 지점 통행량) 켬 — 인구 분포 격자와 따로 켜고 끈다 */
+  vehicle?: boolean;
+  /** 차량 기간 — 인구 분포 조건과 따로 */
+  vehicleYear?: string | null;
+  vehicleMonths?: string[];
   /** 예전 저장값(거주인구만 함께 고를 수 있던 때) — 읽기만 한다 */
   residentOn?: boolean;
   year: string | null;
@@ -409,6 +442,15 @@ function loadPopQuery(): Partial<StoredPopQuery> | null {
         : q.residentOn === true
           ? ["household"]
           : [],
+      vehicle: q.vehicle === true,
+      vehicleYear:
+        typeof q.vehicleYear === "string" && /^\d{4}$/.test(q.vehicleYear)
+          ? q.vehicleYear
+          : null,
+      vehicleMonths: Array.isArray(q.vehicleMonths)
+        ? q.vehicleMonths.filter(ym)
+        : [],
+
       year:
         typeof q.year === "string" && /^\d{4}$/.test(q.year) ? q.year : null,
       pickedMonths: Array.isArray(q.pickedMonths)
@@ -449,21 +491,64 @@ export function usePopGridState() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data: monthList } = usePopGridMonths(true);
 
+  const { data: vehicleMonthList } = useMediaTrafficVolumeMonths();
+  // 차량(도로 측정 지점 통행량) — 인구 분포 격자와 따로 켜고 끄며, 기간도 따로 고른다(빈 달 = 그해 전체). 하루 평균만.
+  const [vehicle, setVehicle] = useState(false);
+  const [vehicleYear, setVehicleYear] = useState<string | null>(null);
+  const [vehiclePickedMonths, setVehiclePickedMonths] = useState<string[]>(
+    [],
+  );
+  // 서버에 서울시 키가 없으면 차량 칸을 숨긴다.
+  const vehicleOk = vehicleMonthList?.enabled !== false;
+  const vehicleOn = vehicle && vehicleOk;
+  const vehicleYears = useMemo(
+    () => byYear(vehicleMonthList?.months ?? []),
+    [vehicleMonthList],
+  );
+  const vehicleLatestYear = [...vehicleYears.keys()].sort().at(-1) ?? null;
+  const vehicleShownYear =
+    vehicleYear && vehicleYears.has(vehicleYear)
+      ? vehicleYear
+      : vehicleLatestYear;
+  const vehicleYearMonths = vehicleShownYear
+    ? (vehicleYears.get(vehicleShownYear) ?? [])
+    : [];
+  const vehicleMonths = vehiclePickedMonths.filter((m) =>
+    vehicleYearMonths.includes(m),
+  );
+  const vehicleActiveMonths = vehicleMonths.length
+    ? vehicleMonths
+    : vehicleYearMonths;
+  const vehicleQuery: TrafficVolumeQuery | null =
+    vehicleOn && vehicleActiveMonths.length
+      ? { months: vehicleActiveMonths }
+      : null;
+  // 차량 칸을 고르면 켠다 — 고른 결과가 지도에 바로 보이게.
+  const vehiclePick =
+    <A extends unknown[]>(fn: (...args: A) => void) =>
+    (...args: A) => {
+      setVehicle(true);
+      fn(...args);
+    };
+
   const [metric, setMetric] = useState<PopMetric>("live");
   // 함께 고른 자료(METRICS 순서) — 첫 자료(metric) 칸 색 위에 반투명으로 겹쳐 칠한다.
   const [extras, setExtras] = useState<PopMetric[]>([]);
   const overlay = extras.length > 0;
   const picked = [metric, ...extras];
-  // 고른 자료가 없는 달은 뺀다(거주인구는 따로 올린 달에만 있다).
-  const years = useMemo(() => {
+  // 자료마다 들어 있는 달.
+  const monthsOf = useMemo(() => {
     const map = new Map<string, string[]>();
-    (monthList ?? []).forEach((m) => {
-      if (!m.metrics.includes(MONTH_NEED[metric])) return;
-      const y = m.ym.slice(0, 4);
-      map.set(y, [...(map.get(y) ?? []), m.ym]);
-    });
+    (monthList ?? []).forEach((m) =>
+      m.metrics.forEach((k) => map.set(k, [...(map.get(k) ?? []), m.ym])),
+    );
     return map;
-  }, [monthList, metric]);
+  }, [monthList]);
+  // 고른 자료가 없는 달은 뺀다(거주인구는 따로 올린 달에만 있다).
+  const years = useMemo(
+    () => byYear(monthsOf.get(MONTH_NEED[metric]) ?? []),
+    [monthsOf, metric],
+  );
   const latestYear = [...years.keys()].sort().at(-1) ?? null;
 
   const [year, setYear] = useState<string | null>(null);
@@ -491,6 +576,9 @@ export function usePopGridState() {
     if (q) {
       if (q.metric) setMetric(q.metric);
       setExtras(q.extras ?? []);
+      setVehicle(q.vehicle ?? false);
+      setVehicleYear(q.vehicleYear ?? null);
+      setVehiclePickedMonths(q.vehicleMonths ?? []);
       setYear(q.year ?? null);
       setPickedMonths(q.pickedMonths ?? []);
       if (q.band) setBand(q.band);
@@ -502,8 +590,31 @@ export function usePopGridState() {
   // 불러온 다음부터 바뀔 때마다 기억한다.
   useEffect(() => {
     if (restored)
-      savePopQuery({ metric, extras, year, pickedMonths, band, sex, ages });
-  }, [restored, metric, extras, year, pickedMonths, band, sex, ages]);
+      savePopQuery({
+        metric,
+        extras,
+        vehicle,
+        vehicleYear,
+        vehicleMonths: vehiclePickedMonths,
+        year,
+        pickedMonths,
+        band,
+        sex,
+        ages,
+      });
+  }, [
+    restored,
+    metric,
+    extras,
+    vehicle,
+    vehicleYear,
+    vehiclePickedMonths,
+    year,
+    pickedMonths,
+    band,
+    sex,
+    ages,
+  ]);
 
   const segOk = SEG_METRICS.has(metric);
   const query = shownYear
@@ -516,14 +627,6 @@ export function usePopGridState() {
         ages: segOk ? ages : [],
       }
     : null;
-  // 자료마다 들어 있는 달.
-  const monthsOf = useMemo(() => {
-    const map = new Map<string, string[]>();
-    (monthList ?? []).forEach((m) =>
-      m.metrics.forEach((k) => map.set(k, [...(map.get(k) ?? []), m.ym])),
-    );
-    return map;
-  }, [monthList]);
   // 함께 고른 자료의 지도 — 고른 달 가운데 그 자료가 있는 달, 없으면 그 자료의 가장 최근 달(fallback).
   // 시간대는 첫 자료와 같이(거주인구는 구분 없음), 성·연령은 첫 자료(생활인구)에만 건다.
   const overlayLayers = extras.flatMap((m) => {
@@ -557,7 +660,23 @@ export function usePopGridState() {
   const pickedLabel = picked
     .map((k) => METRICS.find((m) => m.key === k)?.label ?? k)
     .join(" + ");
-  const summaryParts = [
+  const vehiclePart: SummaryPart | null =
+    vehicleQuery && vehicleShownYear
+      ? {
+          label: "차량",
+          value: monthsLabel(
+            vehicleShownYear,
+            vehicleActiveMonths,
+            vehicleYearMonths,
+          ),
+          short: monthsShortLabel(
+            vehicleShownYear,
+            vehicleActiveMonths,
+            vehicleYearMonths,
+          ),
+        }
+      : null;
+  const gridParts: SummaryPart[] = [
     { label: "자료", value: pickedLabel },
     // 고른 달에 함께 고른 자료가 없어 다른 달로 겹쳐 볼 때 — 그 달을 밝혀 둔다.
     ...overlayLayers
@@ -569,12 +688,20 @@ export function usePopGridState() {
     {
       label: "기간",
       value: shownYear ? monthsLabel(shownYear, activeMonths, yearMonths) : "",
+      short: shownYear
+        ? monthsShortLabel(shownYear, activeMonths, yearMonths)
+        : "",
     },
     {
       label: "시간대",
       value: FIXED_BAND[metric] || band === "all" ? "" : bandLabel,
     },
     { label: "성별·연령", value: segOk ? target : "" },
+  ];
+  // 지도 왼쪽 위 조건 카드 — 인구 분포를 켰으면 인구 분포 조건, 차량을 켰으면 차량 조건(둘 다면 이어서).
+  const summaryParts = [
+    ...(on ? gridParts : []),
+    ...(vehiclePart ? [vehiclePart] : []),
   ].filter((p) => p.value);
   const summary = summaryParts.map((p) => `${p.label} ${p.value}`).join(" · ");
 
@@ -675,6 +802,32 @@ export function usePopGridState() {
       );
     },
     isPicked: (key: PopMetric) => picked.includes(key),
+    /** 차량 — 인구 분포 창 안 따로 둔 칸(켜기·기간·시간대). ok=false 면 서버에 서울시 키가 없어 숨긴다. */
+    vehicle: {
+      ok: vehicleOk,
+      on: vehicleOn,
+      setOn: setVehicle,
+      years: vehicleYears,
+      shownYear: vehicleShownYear,
+      setYear: vehiclePick((y: string) => {
+        setVehicleYear(y);
+        setVehiclePickedMonths([]);
+      }),
+      yearMonths: vehicleYearMonths,
+      months: vehicleMonths,
+      pickMonth: vehiclePick((ym: string) => {
+        if (!vehicleMonths.length) setVehiclePickedMonths([ym]);
+        else
+          setVehiclePickedMonths(
+            vehicleMonths.includes(ym)
+              ? vehicleMonths.filter((m) => m !== ym)
+              : [...vehicleMonths, ym].sort(),
+          );
+      }),
+      clearMonths: vehiclePick(() => setVehiclePickedMonths([])),
+      /** 차량 지도를 받을 조건 — 끄면 null */
+      query: vehicleQuery,
+    },
     overlay,
     extras,
     /** 함께 고른 자료 — 지도에 겹쳐 칠할 값을 받을 조건, 누른 칸 정보의 자료 칸 */
@@ -727,6 +880,9 @@ export function useGuidePopGrid(
   return {
     ...state,
     on: step !== "off",
+    // 가이드 예시엔 차량을 그리지 않는다(조건 카드에도 인구 분포 조건만).
+    vehicle: { ...state.vehicle, on: false, query: null },
+    summaryParts: state.summaryParts.filter((p) => p.label !== "차량"),
     toggle: noop,
     targetOpen: step === "conditions" && isDesktop,
     setTargetOpen: noop,
@@ -935,6 +1091,85 @@ function PopGridControls({ state }: { state: PopGridState }) {
 }
 
 /**
+ * 인구 분포 창 "차량" 칸 — 서울시 교통량 측정 지점의 하루 평균 통행량을 도로 위 선으로. 인구 분포 격자와 따로 켜고,
+ * 기간(월)도 따로 고른다(고르면 저절로 켠다). 서버에 서울시 키가 없으면 그리지 않는다.
+ */
+function VehicleControls({ state }: { state: PopGridState }) {
+  const v = state.vehicle;
+  if (!v.ok) return null;
+  return (
+    <div className="flex flex-col gap-[10px]">
+      <Switch
+        size="sm"
+        isSelected={v.on}
+        onChange={v.setOn}
+        aria-label="지도에 차량 통행량 보기"
+        className="w-full rounded-[14px] bg-surface px-[14px] py-[11px] dark:bg-white/[0.05] [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+      >
+        <Switch.Content className="w-full justify-between gap-[8px] text-[14px] font-bold text-zinc-900 max-sm:text-[13px]">
+          <span className="flex flex-col gap-[2px]">
+            <span>
+              지도에 차량 통행량 보기
+              <span className="ml-[4px] text-[12px] font-medium text-zinc-500">
+                (서울)
+              </span>
+            </span>
+            <span className="text-[11px] font-normal text-zinc-500 dark:text-[#a9aab4]">
+              측정 지점 하루 평균 통행량
+            </span>
+          </span>
+          <Switch.Control>
+            <Switch.Thumb className="bg-surface!" />
+          </Switch.Control>
+        </Switch.Content>
+      </Switch>
+      <OptionCard
+        lead={
+          v.shownYear && (
+            <YearSelect
+              years={[...v.years.keys()].sort().reverse()}
+              value={v.shownYear}
+              onChange={v.setYear}
+            />
+          )
+        }
+        title="기간"
+        hint="여러 달은 평균"
+        value={
+          !v.months.length
+            ? "1년 전체"
+            : v.months.length <= 3
+              ? v.months.map(monthLabel).join("·")
+              : `${v.months.length}개월`
+        }
+      >
+        <ChipRow>
+          <ChipButton on={!v.months.length} onClick={v.clearMonths}>
+            1년 전체
+          </ChipButton>
+          {Array.from({ length: 12 }, (_, i) => {
+            const ym = `${v.shownYear}${String(i + 1).padStart(2, "0")}`;
+            return (
+              <ChipButton
+                key={ym}
+                on={v.months.includes(ym)}
+                disabled={!v.yearMonths.includes(ym)}
+                onClick={() => v.pickMonth(ym)}
+              >
+                {i + 1}월
+              </ChipButton>
+            );
+          })}
+        </ChipRow>
+      </OptionCard>
+      <p className="text-[10px] leading-[14px] text-zinc-500 dark:text-[#a4a5af]">
+        출처: 서울시 교통량 정보 (간선도로·다리 측정 지점)
+      </p>
+    </div>
+  );
+}
+
+/**
  * "유동인구" — 인구 분포 조건 고르기(켜고 끄기는 지도 위 스위치). 지도를 가리지 않고 함께 보게 한다:
  * PC·태블릿은 목록 칸 자리를 이 칸으로 바꾸고(MediaFindPanel) 지도를 눌러도 닫지 않는다(칸을 눌러 보며 고르게).
  * 모바일은 화면 끝까지 올라오는 Drawer — 손잡이를 끌어내리거나 완료·닫기·뒤로가기로 닫는다.
@@ -956,6 +1191,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
   const picking: PopGridState = {
     ...state,
     setMetric: withOn(state.setMetric),
+    pickMetric: withOn(state.pickMetric),
     setYear: withOn(state.setYear),
     pickMonth: withOn(state.pickMonth),
     clearMonths: withOn(state.clearMonths),
@@ -972,6 +1208,13 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
       className="min-h-0 flex-1 overscroll-contain border-t border-zinc-900/5 px-[20px] pt-[14px] pb-[16px] max-sm:px-[16px] dark:border-white/10"
     >
       <PopGridControls state={picking} />
+      {/* 차량 — 인구 분포 자료와 따로(켜기·기간·시간대). */}
+      <div className="mt-[18px] border-t border-zinc-900/10 pt-[16px] dark:border-white/10">
+        <p className="mb-[10px] text-[15px] leading-[21px] font-bold text-zinc-900 max-sm:text-[14px]">
+          차량
+        </p>
+        <VehicleControls state={state} />
+      </div>
     </ScrollShadow>
   );
   const body = (
@@ -1118,7 +1361,12 @@ export function PopGridMapCard({
             <span className="font-medium text-zinc-500 dark:text-[#a9aab4]">
               {p.label}
             </span>
-            <span className="-ml-[2px] font-bold">{p.value}</span>
+            <span className="-ml-[2px] font-bold max-sm:hidden">
+              {p.value}
+            </span>
+            <span className="-ml-[2px] font-bold sm:hidden">
+              {p.short ?? p.value}
+            </span>
           </span>
         ))}
       </span>

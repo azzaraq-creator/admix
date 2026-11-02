@@ -18,6 +18,7 @@ import {
   type CrowdTransit,
   type OperatingArea,
   type TrafficLink,
+  type TrafficVolumeSpot,
 } from "@/hooks/media";
 import { ChevronDownIcon, XIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -51,6 +52,10 @@ import {
 } from "./PopGridLayer";
 import type { PopRealtime } from "./useMapPopGrid";
 import { TRAFFIC_LEVELS, trafficColor, useMapTraffic } from "./useMapTraffic";
+import {
+  trafficVolumeLines,
+  useMapTrafficVolume,
+} from "./useMapTrafficVolume";
 
 export { geocodeAddress, searchPlaces, type KakaoPlace } from "@/lib/kakaoMap";
 export type {
@@ -123,6 +128,7 @@ export function MapArea({
   highlightArea,
   crowd,
   traffic,
+  trafficVolume,
   popGrid,
   forceLayersOpen = false,
   onLiveViewport,
@@ -169,6 +175,11 @@ export function MapArea({
     /** 아직 불러오는 장소가 있음 */
     loading: boolean;
   };
+  /**
+   * 인구 분포 창의 "차량" — 서울시 교통량 측정 지점의 고른 달 하루 평균 통행량. 차량을 켰을 때만 넘긴다(격자와 따로).
+   * 도로 위 선(굵을수록 많음)과 지점 자리 수로 그린다.
+   */
+  trafficVolume?: TrafficVolumeSpot[] | null;
   /** "유동인구" — 서울 250m 격자의 월별 인구(어드민이 올린 달). 켜기는 지도 스위치, 조건은 검색 줄 아래 유동인구 지도 창. */
   popGrid?: PopGridState;
   /** 실시간 정보 창을 펼친 채로 — 가이드가 실시간 자료를 밝히는 동안. */
@@ -216,6 +227,8 @@ export function MapArea({
   useMapArea({ mapRef, mapReady, area: highlightArea });
 
   const liveOn = !!crowd?.on || !!traffic?.on;
+  // 인구 분포 격자를 그리는 중 — 카카오 도형(선·범위)은 격자 판 아래라 격자 위에 다시 그린다.
+  const gridDrawn = !!popGrid?.on;
   const onLiveViewportRef = useRef(onLiveViewport);
   useEffect(() => {
     onLiveViewportRef.current = onLiveViewport;
@@ -242,7 +255,14 @@ export function MapArea({
     mapRef,
     mapReady,
     links: traffic?.on ? traffic.links : null,
-    strong: !!popGrid?.on,
+    strong: gridDrawn,
+  });
+
+  useMapTrafficVolume({
+    mapRef,
+    mapReady,
+    spots: trafficVolume ?? null,
+    strong: gridDrawn,
   });
 
   // 실시간 인구 장소 범위를 눌러 고른 장소 — 끄면 닫는다. 내용은 늘 최근에 받은 값으로.
@@ -255,8 +275,8 @@ export function MapArea({
 
   const isDesktop = useIsDesktop();
 
-  // 인구 분포를 켠 동안 — 도로 현황 선·실시간 인구 범위를 격자 위에 다시 그린다(카카오 도형은 격자 판 아래 층).
-  const popOn = !!popGrid?.on;
+  // 인구 분포 격자를 그리는 동안 — 도로 현황·차량 선, 실시간 인구 범위를 격자 위에 다시 그린다(카카오 도형은 격자 판 아래 층).
+  const popOn = gridDrawn;
   const rtLinks = traffic?.on ? traffic.links : null;
   const rtPlaces = crowd?.on ? crowd.places : null;
   const crowdRings = useCrowdRings(popOn && !!rtPlaces);
@@ -280,16 +300,19 @@ export function MapArea({
     mapReady,
     places: crowd?.on ? crowd.places : null,
     gray: !!crowd?.gray,
-    strong: !!popGrid?.on,
+    strong: gridDrawn,
     selectedCode: picked?.code,
     onSelect: selectPlace,
   });
   const popRealtime = useMemo<PopRealtime | null>(() => {
     if (!popOn) return null;
-    const lines = (rtLinks ?? []).map((l) => ({
-      path: l.path,
-      color: trafficColor(l.level),
-    }));
+    const lines = [
+      ...(rtLinks ?? []).map((l) => ({
+        path: l.path,
+        color: trafficColor(l.level),
+      })),
+      ...trafficVolumeLines(trafficVolume ?? []),
+    ];
     const areas =
       rtPlaces && crowdRings
         ? rtPlaces.flatMap((pl) => {
@@ -298,7 +321,7 @@ export function MapArea({
           })
         : [];
     return lines.length || areas.length ? { lines, areas } : null;
-  }, [popOn, rtLinks, rtPlaces, crowdRings]);
+  }, [popOn, rtLinks, rtPlaces, crowdRings, trafficVolume]);
   // 실시간 정보 창(오른쪽 위) — 평소엔 접어 두고, 가이드가 밝히는 동안엔 펼친다. 창 밖을 누르면 닫는다.
   const [layersOpen, setLayersOpen] = useState(false);
   const layersShown = layersOpen || forceLayersOpen;
@@ -321,7 +344,8 @@ export function MapArea({
   // 오른쪽 위 실시간 정보 버튼 폭 — 조건 카드가 그 앞에서 줄을 바꾼다.
   const popCardRef = useRef<HTMLButtonElement>(null);
   const [popCardHeight, setPopCardHeight] = useState(30);
-  const popCardShown = !!popGrid?.on;
+  // 조건 카드 — 인구 분포 격자나 차량을 켰을 때.
+  const popCardShown = !!popGrid?.on || !!popGrid?.vehicle.on;
   useLayoutEffect(() => {
     const el = popCardRef.current;
     if (!popCardShown || !el) return;
@@ -382,7 +406,7 @@ export function MapArea({
           crowd?.on && crowd.labels === false && "map-crowd-no-labels",
         )}
       />
-      {popGrid?.on && (
+      {gridDrawn && popGrid && (
         <PopGridLayer
           mapRef={mapRef}
           mapReady={mapReady}
@@ -401,7 +425,7 @@ export function MapArea({
           state={popGrid}
         />
       )}
-      {popGrid?.on && !isDesktop && <PopGridSheet state={popGrid} />}
+      {gridDrawn && popGrid && !isDesktop && <PopGridSheet state={popGrid} />}
       {(crowd || traffic) && (
         // 실시간 정보(실시간 인구·흑백·장소명·도로 현황) — 자주 쓰지 않아 지도 오른쪽 위 버튼 하나로 접어 둔다.
         // 켜진 수를 작은 숫자로. 창 밖을 누르면 닫는다.
@@ -523,7 +547,7 @@ export function MapArea({
           )}
         </div>
       )}
-      {popGrid?.on && (
+      {popCardShown && popGrid && (
         // 인구 분포 조건 — 켰을 때만 고른 조건 한 줄. 누르면 유동인구 창(켜기·끄기도 그 창에서).
         // 실시간 인구·도로 현황은 오른쪽 위 "실시간 정보" 버튼으로 따로 뺐다.
         <PopGridMapCard state={popGrid} cardRef={popCardRef} />

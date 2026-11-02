@@ -11,6 +11,7 @@ import {
   mediaApi,
   type MediaFilterParams,
   type MediaListParams,
+  type TrafficVolumeQuery,
 } from "./apis";
 import { mediaKeys } from "./keys";
 
@@ -219,5 +220,23 @@ export const useCrowdTransit = (code: string | null) =>
     queryKey: mediaKeys.crowdTransit(code),
     queryFn: () => mediaApi.crowdTransit(code as string),
     enabled: !!code,
+    staleTime: 60 * 60 * 1000,
+  });
+
+/** 인구 분포 "차량" — 고른 달의 측정 지점별 하루 평균 통행량. q 가 null 이면 묻지 않는다. */
+export const useMediaTrafficVolume = (q: TrafficVolumeQuery | null) =>
+  useQuery({
+    queryKey: mediaKeys.trafficVolume(q),
+    queryFn: () => mediaApi.trafficVolume(q as TrafficVolumeQuery),
+    enabled: !!q && q.months.length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 60 * 1000,
+  });
+
+/** 인구 분포 "차량" 자료가 있는 달 — 서버가 하루 한 번쯤 새 날을 쌓으므로 오래 둔다. */
+export const useMediaTrafficVolumeMonths = () =>
+  useQuery({
+    queryKey: mediaKeys.trafficVolumeMonths(),
+    queryFn: mediaApi.trafficVolumeMonths,
     staleTime: 60 * 60 * 1000,
   });

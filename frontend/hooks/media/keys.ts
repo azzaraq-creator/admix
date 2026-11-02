@@ -1,4 +1,9 @@
-import type { CrowdBounds, MediaFilterParams, MediaListParams } from "./apis";
+import type {
+  CrowdBounds,
+  MediaFilterParams,
+  MediaListParams,
+  TrafficVolumeQuery,
+} from "./apis";
 
 export const mediaKeys = {
   all: ["media"] as const,
@@ -19,6 +24,10 @@ export const mediaKeys = {
   filterOptions: () => [...mediaKeys.all, "filter-options"] as const,
   crowd: (b: CrowdBounds | null) => [...mediaKeys.all, "crowd", b] as const,
   traffic: (b: CrowdBounds | null) => [...mediaKeys.all, "traffic", b] as const,
+  trafficVolume: (q: TrafficVolumeQuery | null) =>
+    [...mediaKeys.all, "traffic-volume", q] as const,
+  trafficVolumeMonths: () =>
+    [...mediaKeys.all, "traffic-volume", "months"] as const,
   crowdTransit: (code: string | null) =>
     [...mediaKeys.all, "crowd", "transit", code] as const,
   detail: (id: string) => [...mediaKeys.all, "detail", id] as const,

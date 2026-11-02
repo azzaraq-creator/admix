@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from src.config import get_settings
 from src.database import get_db
 from src.schemas.media import (
     MediaCardListResponse,
@@ -15,7 +16,7 @@ from src.schemas.media import (
     MediaFilterOptions,
     PriceHistogramResponse,
 )
-from src.services import media_service, road_traffic, seoul_citydata, transit_sync
+from src.services import media_service, road_traffic, seoul_citydata, traffic_volume, transit_sync
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -238,6 +239,23 @@ def get_traffic(
     캐시가 없는 링크는 뒤에서 가져오고 pending 으로 센다 — 지도는 잠시 뒤 다시 묻는다.
     """
     return road_traffic.traffic_in_bounds(db, neLat, swLat, neLng, swLng)
+
+
+@router.get("/traffic-volume/months")
+def get_traffic_volume_months(db: Session = Depends(get_db)) -> dict:
+    """인구 분포 "차량" 자료가 있는 달(서울시 교통량을 서버가 날마다 받아 쌓은 달, 오래된 것부터). 키가 없으면 enabled=false."""
+    if not get_settings().seoul_openapi_key:
+        return {"enabled": False, "months": []}
+    return {"enabled": True, "months": traffic_volume.months(db)}
+
+
+@router.get("/traffic-volume")
+def get_traffic_volume(
+    months: str = Query(pattern=r"^\d{6}(,\d{6})*$"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """인구 분포 "차량" — 서울시 교통량 측정 지점별 고른 달(쉼표로 여러 달)의 하루 평균 통행량."""
+    return traffic_volume.volumes(db, months.split(","))
 
 
 @router.get("/crowd/{code}/transit")
