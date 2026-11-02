@@ -3,6 +3,7 @@
 import {
   type MediaDetail,
   type MediaNearbyStation,
+  type MediaPackage,
   type MediaPlanOption,
   type MediaPopulation,
   useMediaDetail,
@@ -60,6 +61,8 @@ export type MediaDetailViewModel = {
   badge: "popular" | "new" | null;
   description?: string;
   address?: string;
+  /** 쉘터 정류장 번호 */
+  stopNo: string | null;
   /** 주소를 누르면 뜨는 위치 지도 — 좌표가 있는 고정 매체만. */
   location?: {
     lat: number;
@@ -77,6 +80,7 @@ export type MediaDetailViewModel = {
   population: MediaDetailPopulationVM | null;
   /** 가까운 지하철역 — 주소 밑에 보여 준다. */
   nearbyStations: MediaNearbyStation[];
+  packages: MediaPackage[];
 };
 
 export function formatFee(krw: number | null): string {
@@ -158,6 +162,7 @@ export function toMediaDetailViewModel(
     badge: detail.badge,
     description: detail.description ?? undefined,
     address: detail.address ?? undefined,
+    stopNo: detail.stopNo ?? null,
     location:
       detail.latitude != null && detail.longitude != null
         ? {
@@ -180,6 +185,7 @@ export function toMediaDetailViewModel(
     })),
     planOptions: detail.planOptions ?? [],
     nearbyStations: detail.nearbyStations ?? [],
+    packages: detail.packages ?? [],
     population: pop
       ? {
           // 격자 인구는 출근·낮·퇴근·야간 네 시간대 값을 더한 총 인원이라 "총"을 붙인다.

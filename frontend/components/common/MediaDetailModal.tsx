@@ -44,6 +44,7 @@ import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 
 import { MediaLocationMapModal } from "./media-detail/MediaLocationMapModal";
 import { NearbyStations } from "./media-detail/NearbyStations";
+import { PackageMembers } from "./media-detail/PackageMembers";
 import {
   DEFAULT_MEDIA_OPTIONS,
   isOohMedia,
@@ -410,8 +411,9 @@ function MediaDetailBody({
         )}
 
         <div className="flex w-full min-w-0 flex-1 flex-col items-start gap-[10px]">
-          {/* 칩은 매체명 첫 줄에 맞춘다(매체명이 두 줄이 돼도 가운데로 내려가지 않게). */}
-          <div className="flex min-w-0 items-start gap-[8px]">
+          {/* 칩은 매체명 첫 줄에 맞춘다(매체명이 두 줄이 돼도 가운데로 내려가지 않게).
+              모바일에서 정류장 번호가 있으면 매체명은 다음 줄로 내린다. */}
+          <div className="flex min-w-0 items-start gap-[8px] max-sm:flex-wrap max-sm:gap-y-[6px]">
             {vm.badge && (
               <MediaBadgeChip
                 badge={vm.badge}
@@ -420,7 +422,19 @@ function MediaDetailBody({
                 className="mt-[2px] max-sm:mt-0"
               />
             )}
-            <p className="text-[20px] leading-[28px] font-bold text-black max-sm:text-[17px] max-sm:leading-[24px]">
+            {vm.stopNo && (
+              // 쉘터 정류장 번호 — 현장에서 정류장을 찾을 때 쓰는 번호라 매체명 앞에 진한 알약으로. 다크는 zinc 가 뒤집혀 밝아지므로 어두운 회색을 hex 로 고정.
+              <span className="mt-[3px] inline-flex shrink-0 items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] dark:bg-[#3f3f46] py-[2px] text-[12px] leading-[18px] whitespace-nowrap text-white max-sm:mt-[1px]">
+                <span className="font-medium text-white/70">정류장 번호</span>
+                <span className="font-bold tabular-nums">{vm.stopNo}</span>
+              </span>
+            )}
+            <p
+              className={cn(
+                "text-[20px] leading-[28px] font-bold text-black max-sm:text-[17px] max-sm:leading-[24px]",
+                vm.stopNo && "max-sm:basis-full",
+              )}
+            >
               {vm.name}
             </p>
           </div>
@@ -509,6 +523,8 @@ function MediaDetailBody({
           ) : (
             <PriceBox vm={vm} />
           )}
+
+          <PackageMembers packages={vm.packages} />
 
           {vm.description && (
             <div className="w-full max-sm:hidden">

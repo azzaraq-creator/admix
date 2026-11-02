@@ -34,7 +34,7 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
             ("name", "매체명", None),
             ("second_name", "구분명", None),
             ("media_source", "고정/이동", {"FIXED": "고정", "MOVING": "이동"}),
-            ("sales_type", "판매 유형", {"SINGLE": "단품", "GROUP": "묶음"}),
+            ("sales_type", "판매 유형", {"SINGLE": "단품", "GROUP": "패키지"}),
             ("category_large", "카테고리(대)", None),
             ("category_small", "카테고리(소)", None),
             ("ooh_type", "매체 타입", None),
@@ -63,6 +63,7 @@ SECTIONS: list[tuple[str, list[tuple[str, str, object]]]] = [
             ("city", "시/도 (이동: 운행 시·도)", None),
             ("district", "구/군 (이동: 운행 구)", None),
             ("address_detail", "상세 주소", None),
+            ("stop_no", "정류장 번호", None),
             ("latitude", "위도", None),
             ("longitude", "경도", None),
             ("facing_direction", "매체 방향(도, 북 0·동 90)", None),
@@ -427,8 +428,8 @@ _GUIDE: dict[str, tuple[str, str]] = {
     "name": ("장소·매체 이름. 화면에는 '매체명 구분명'으로 붙어 보입니다.", "신사역"),
     "second_name": ("같은 매체명이 여러 개일 때 구분하는 말. 없으면 비웁니다.", "벽면"),
     "media_source": ("고정 / 이동 중에서 고릅니다.", "고정"),
-    "sales_type": ("단품 / 묶음", "단품"),
-    "category_large": ("기존 카테고리를 쓰면 매체 찾기 필터가 맞게 묶입니다.", "전광판/빌보드"),
+    "sales_type": ("단품 / 패키지", "단품"),
+    "category_large": ("전광판 · 빌보드 · 지하철 · 쉘터 · 버스/택시 중에서 고르면 매체 찾기 필터가 맞게 묶입니다.", "전광판"),
     "category_small": ("카테고리(대)에 속한 소분류.", "전광판"),
     "ooh_type": ("OOH(지면·실물) / DOOH(디지털). DOOH는 상품 제작비가 없는 것으로 저장됩니다.", "DOOH"),
     "exposure_type": ("공간형(실내 공간 안) / 외부형(건물 밖·거리)", "외부형"),
@@ -439,6 +440,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
         "서울 강남구 강남대로 396",
     ),
     "address_detail": ("층·출구 등 자세한 위치. 없으면 비웁니다.", "2층 로비"),
+    "stop_no": ("쉘터의 정류장 번호. 매체 정보에서 주소 아래에 보입니다. 없으면 비웁니다.", "23243"),
     "city": ("이동 매체 필수. 운행 시·도(서울특별시, 경기도 … 또는 전국). 고정 매체는 비웁니다(자동 입력).", "서울특별시"),
     "district": ("이동 매체의 운행 구를 쉼표로(비우면 시·도 전역). 고정 매체는 비웁니다(자동 입력).", "강남구, 서초구"),
     "moving_location_detail": ("이동 매체의 노선·운행 설명.", "146번 간선버스 · 상계동 ~ 강남역"),
@@ -598,7 +600,7 @@ def media_template_xlsx() -> bytes:
         "(공통)", "", "",
         "매체 등록 시트 3행부터 한 줄에 매체 하나, 상품 시트 2행부터 한 줄에 상품 하나를 적습니다. "
         "두 시트의 '연결 번호'가 같으면 그 매체의 상품입니다(매체마다 상품 하나 이상 필수). "
-        "매체 ID는 저장할 때 자동으로 매겨지고(고정 F000001 · 이동 M000001), "
+        "매체 ID는 저장할 때 카테고리에 따라 자동으로 매겨지고(전광판 EB-0001 · 쉘터 SH-0001 등), "
         "광고비·제작비 범위는 상품에서 계산됩니다. 사진은 등록 후 어드민 매체 화면에서 올립니다.",
         "",
     ])
@@ -627,6 +629,7 @@ _OLD_LABELS = {"OOH 유형": "매체 타입"}
 _OLD_VALUES = {
     "exposure_type": {"실내": "INSIDE", "실외": "OUTSIDE"},
     "media_shape": {"곡면형": "CURVED_SHAPE", "비정형": "DIFFERENT_SHAPE"},
+    "sales_type": {"묶음": "GROUP"},
 }
 
 
@@ -936,7 +939,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
             fail(row_no, str(exc.detail))
             continue
         data = {k: v for k, v in data.items() if v is not None}
-        data["media_id"] = ms._next_media_id(db, data.get("media_source"))
+        data["media_id"] = ms._next_media_id(db, data.get("category_large"))
         try:
             with db.begin_nested():
                 media = Media(**data)

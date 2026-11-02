@@ -92,7 +92,7 @@ def shrink_media_image(content: bytes, ext: str) -> bytes:
     except Exception:  # 손상·특이 형식 — 줄이지 못해도 업로드는 막지 않는다
         return content
 
-_SALE_TYPE = {"SINGLE": "단품", "GROUP": "묶음"}
+_SALE_TYPE = {"SINGLE": "단품", "GROUP": "패키지"}
 _EXPOSURE_TYPE = {"INSIDE": "공간형", "OUTSIDE": "외부형"}  # 설치 장소 — 어드민·매체 필터와 같은 표기
 _DURATION_TYPE = {
     "YEARS": "년",
@@ -1029,8 +1029,12 @@ def get_media_filter_options(db: Session, media_source: str | None = "FIXED") ->
         .all()
     )
     price_min, price_max = _price_axis(db, media_source)
+    categories = _distinct(Media.category_large)
+    if media_source != "MOVING":
+        # 매체 찾기 카테고리 탭 — 기본 카테고리는 매체가 없어도(0개) 이 순서로 먼저 보인다.
+        categories = [*BASE_CATEGORIES, *(c for c in categories if c not in BASE_CATEGORIES)]
     return dict(
-        categories=_distinct(Media.category_large),
+        categories=categories,
         ooh_types=_distinct(Media.ooh_type),
         exposure_types=_distinct(Media.exposure_type),
         media_shapes=_distinct(Media.media_shape),
@@ -1369,6 +1373,7 @@ def _nearest_subway_station(db: Session, m: Media) -> tuple[str, str] | None:
 # 다음 역과 거리 차이가 NEARBY_STATION_TIE_M 안이면 그 역까지 둘.
 NEARBY_STATION_MAX_M = 1000
 NEARBY_STATION_TIE_M = 200
+NEARBY_STATION_MAX_COUNT = 3
 # 역 노선 이름 — transit_station 은 철도 법정 노선명(경부선·과천선 등)이라 타는 사람이 아는 이름으로 바꾼다.
 _LINE_NAME = {
     "경부선": "1호선",
@@ -1407,7 +1412,7 @@ def _line_names(lines: str | None) -> list[str]:
 
 def _nearby_stations(db: Session, m: Media) -> list[dict]:
     """매체 좌표에서 가장 가까운 지하철역(NEARBY_STATION_MAX_M 안, 수도권 transit_station) — 이름·노선·직선 거리(10m 단위).
-    다음으로 가까운 역이 NEARBY_STATION_TIE_M 안 차이면 함께(두 역 사이 매체)."""
+    가장 가까운 역과 NEARBY_STATION_TIE_M 안 차이인 역은 함께, 모두 NEARBY_STATION_MAX_COUNT 개까지(역 사이 매체)."""
     if m.latitude is None or m.longitude is None:
         return []
     lat, lng = float(m.latitude), float(m.longitude)
@@ -1434,7 +1439,9 @@ def _nearby_stations(db: Session, m: Media) -> list[dict]:
         prev_d, prev_lines = by_name.get(key, (d, []))
         by_name[key] = (min(d, prev_d), prev_lines + [x for x in _line_names(lines) if x not in prev_lines])
     found = sorted((d, key, ls) for key, (d, ls) in by_name.items())
-    picked = found[:1] + [f for f in found[1:2] if f[0] - found[0][0] <= NEARBY_STATION_TIE_M]
+    picked = found[:1] + [
+        f for f in found[1:NEARBY_STATION_MAX_COUNT] if f[0] - found[0][0] <= NEARBY_STATION_TIE_M
+    ]
     return [{"name": key, "lines": ls, "distanceM": int(round(d / 10) * 10)} for d, key, ls in picked]
 
 
@@ -1679,6 +1686,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         description=m.description,
         # 이동매체는 정해진 위치가 없어 운행 지역을 위치 자리에 보여 준다.
         address=area["label"] if area else _display_address(m),
+        stopNo=m.stop_no,
         # 위치 지도는 고정 매체만 — 이동 매체는 정해진 자리가 없다.
         latitude=float(m.latitude) if fixed and m.latitude is not None else None,
         longitude=float(m.longitude) if fixed and m.longitude is not None else None,
@@ -1693,7 +1701,42 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         population=media_detail_population(db, m),
         # 가까운 지하철역 — 고정 매체만(이동 매체는 정해진 자리가 없다).
         nearbyStations=_nearby_stations(db, m) if fixed else [],
+        packages=_packages(db, m),
     )
+
+
+def _packages(db: Session, m: Media) -> list[dict]:
+    """세트 상품 — 이 매체의 패키지 상품(PM_PACKAGE)마다, 같은 이름의 패키지 상품을 가진 다른 매체들.
+    같은 패키지는 상품명(product_display_name)이 같다(예: 디지털 가로변쉘터 Half A PKG)."""
+    out = []
+    for p in sorted(m.plans, key=lambda p: p.plan_no):
+        if p.product_master_type != "PM_PACKAGE" or not p.product_display_name:
+            continue
+        rows = (
+            db.query(Media.media_id, Media.name, Media.second_name)
+            .join(MediaPlan, MediaPlan.media_id == Media.media_id)
+            .filter(
+                MediaPlan.product_master_type == "PM_PACKAGE",
+                MediaPlan.product_display_name == p.product_display_name,
+                Media.media_id != m.media_id,
+            )
+            .distinct()
+            .order_by(Media.name)
+            .all()
+        )
+        out.append(
+            dict(
+                name=p.product_display_name,
+                adFeeKrw=p.advertisement_fee,
+                deviceQuantity=p.default_device_quantity,
+                surfaceQuantity=p.default_surface_quantity,
+                members=[
+                    dict(id=r.media_id, name=" ".join(x for x in [r.name, r.second_name] if x))
+                    for r in rows
+                ],
+            )
+        )
+    return out
 
 
 def _admin_region(m: Media) -> str:
@@ -1850,7 +1893,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
 
     지금 양식(한글 칸 이름)은 media_excel.import_media_xlsx 가 받고, 영문 양식이면 여기로 넘긴다.
 
-    media_id 칸이 없거나 비어 있으면 고정 F000001·이동 M000001 형식으로 자동 부여한다
+    media_id 칸이 없거나 비어 있으면 카테고리 접두 형식(BB-0001 등)으로 자동 부여한다
     (이 경우 같은 파일을 두 번 올리면 두 번 들어간다).
 
     반환: {total, inserted, skipped, failed, errors}. best-effort — 행별 savepoint 로
@@ -1925,7 +1968,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
                 errors.append({"row": row_no, "media_id": mid, "reason": exc.detail})
             continue
 
-        data["media_id"] = mid or _next_media_id(db, data.get("media_source"))
+        data["media_id"] = mid or _next_media_id(db, data.get("category_large"))
         try:
             with db.begin_nested():
                 db.add(Media(**data))
@@ -2180,23 +2223,41 @@ def _apply_plan_aggregates(m: Media) -> None:
     m.plan_count = len(m.plans)
 
 
-# 매체 ID 자동 부여 — 고정 F000001, 이동 M000001(접두 1자 + 6자리 일련번호).
-_MEDIA_ID_PREFIX = {"FIXED": "F", "MOVING": "M"}
-_MEDIA_ID_DIGITS = 6
+# 매체 ID 자동 부여 — 카테고리(대) 접두 2자 + "-" + 4자리 일련번호(예: 전광판/빌보드 BB-0001).
+# 접두는 예전 원천 매체 ID와 같다. 목록에 없는 카테고리는 기타(ET). 고정·이동이 같은 카테고리면 번호를 함께 쓴다.
+_MEDIA_ID_PREFIX = {
+    "전광판": "EB",
+    "빌보드": "BB",
+    "버스/택시": "BT",
+    "전광판/빌보드": "BB",
+    "지하철": "SB",
+    "공항/기차": "AT",
+    "쇼핑몰/마트": "SM",
+    "정류장": "ST",
+    "엔터테인먼트": "EN",
+    "버스": "BS",
+    "택시": "TX",
+    "쉘터": "SH",
+    "주거/사무공간": "LO",
+    "생활 편의시설": "LF",
+    "기타(이동)": "MV",
+    "기타": "ET",
+}
+_MEDIA_ID_OTHER = "ET"
+_MEDIA_ID_DIGITS = 4
 _MEDIA_ID_RETRIES = 5
 
 
-def _next_media_id(db: Session, media_source: str | None) -> str:
-    """접두(고정 F·이동 M)별 다음 일련번호. 같은 접두의 가장 큰 번호 + 1."""
-    prefix = _MEDIA_ID_PREFIX.get(media_source or "FIXED", "F")
-    pattern = f"^{prefix}[0-9]{{{_MEDIA_ID_DIGITS}}}$"
+def _next_media_id(db: Session, category_large: str | None) -> str:
+    """카테고리 접두별 다음 일련번호. 같은 접두의 가장 큰 번호 + 1."""
+    prefix = _MEDIA_ID_PREFIX.get((category_large or "").strip(), _MEDIA_ID_OTHER)
+    pattern = f"^{prefix}-[0-9]{{{_MEDIA_ID_DIGITS},}}$"
     last = (
-        db.query(func.max(Media.media_id))
+        db.query(func.max(cast(func.substring(Media.media_id, len(prefix) + 2), Integer)))
         .filter(Media.media_id.op("~")(pattern))
         .scalar()
     )
-    seq = int(last[len(prefix):]) + 1 if last else 1
-    return f"{prefix}{seq:0{_MEDIA_ID_DIGITS}d}"
+    return f"{prefix}-{(last or 0) + 1:0{_MEDIA_ID_DIGITS}d}"
 
 
 # 음수가 될 수 없는 숫자 칸, (최소, 최대) 짝, 범위가 정해진 칸.
@@ -2254,7 +2315,7 @@ def _validate_media_values(values: dict) -> None:
 
 
 def create_media(db: Session, payload: dict) -> dict:
-    """매체 등록. media_id 는 받지 않고 고정 F000001·이동 M000001 형식으로 자동 부여한다.
+    """매체 등록. media_id 는 받지 않고 카테고리 접두 형식(BB-0001 등)으로 자동 부여한다.
 
     payload["plans"] 가 있으면 상품도 함께 만들고, 광고비·제작비 범위는 상품에서 계산한다.
     """
@@ -2269,7 +2330,7 @@ def create_media(db: Session, payload: dict) -> dict:
     _validate_media_values(data)
     # 동시에 등록하면 같은 번호가 나올 수 있어, 겹치면 다음 번호로 다시 시도한다.
     for _ in range(_MEDIA_ID_RETRIES):
-        data["media_id"] = _next_media_id(db, data.get("media_source"))
+        data["media_id"] = _next_media_id(db, data.get("category_large"))
         try:
             with db.begin_nested():
                 m = Media(**data)
@@ -2476,12 +2537,23 @@ def set_media_thumbnail(db: Session, media_id: str, image_id: str) -> dict:
     return _serialize_media(m)
 
 
+# 기본 카테고리 — 어드민 선택지·매체 찾기 탭에 매체가 하나도 없어도 이 순서로 먼저 보인다(대분류 → 소분류).
+BASE_CATEGORIES: dict[str, list[str]] = {
+    "전광판": [],
+    "빌보드": [],
+    "지하철": [],
+    "쉘터": ["버스 정류장", "택시 승강장"],
+    "버스/택시": [],
+}
+
+
 def admin_media_field_options(db: Session) -> dict:
-    """어드민 매체 폼 선택지 — 지금 매체들에 들어 있는 값으로 만든다(새 값은 폼에서 직접 추가).
+    """어드민 매체 폼 선택지 — 기본 카테고리(BASE_CATEGORIES) 뒤에 지금 매체들에 들어 있는 값을 붙인다
+    (새 값은 폼에서 직접 추가).
 
     categories: 대분류 → 소분류 목록, grade_methods: 등급 산정 방식.
     """
-    categories: dict[str, list[str]] = {}
+    categories: dict[str, list[str]] = {k: list(v) for k, v in BASE_CATEGORIES.items()}
     pairs = (
         db.query(Media.category_large, Media.category_small)
         .filter(Media.category_large.isnot(None))

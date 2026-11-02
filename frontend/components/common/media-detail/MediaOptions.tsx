@@ -48,6 +48,19 @@ export function planSpecText(
 }
 
 /**
+ * 상품 고르기 칸의 이름 — 보통은 planSpecText. 같은 매체의 상품끼리 그 이름이 겹치면(세트 상품과 개별 면처럼
+ * 영상 길이·송출 수가 같은 상품) 구분이 안 되므로 상품명을 앞에 붙인다.
+ */
+export function planOptionLabel(
+  plan: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">,
+  all: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">[],
+): string {
+  const spec = planSpecText(plan);
+  const same = all.filter((p) => planSpecText(p) === spec).length;
+  return same > 1 && plan.title !== spec ? `${plan.title} · ${spec}` : spec;
+}
+
+/**
  * 고른 옵션으로 계산한 금액 — 광고비 × 개월 수, 제작비 × 제작 수.
  * 기획안 금액 규칙(광고비 × 수량 × 개월 수, 제작비 × 수량 × 제작 수)과 같다(담을 때 수량은 1).
  */
@@ -118,7 +131,7 @@ export function MediaOptionsPriceBox({
               {/* 칸 28px → 곡률 11px. 조절기와 같은 높이·테두리. */}
               <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-tone-ececef bg-surface py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-surface">
                 <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-zinc-900">
-                  {() => planSpecText(totals.plan!)}
+                  {() => planOptionLabel(totals.plan!, vm.planOptions)}
                 </Select.Value>
                 <Select.Indicator className="end-[9px] size-[13px] text-zinc-500" />
               </Select.Trigger>
@@ -128,11 +141,11 @@ export function MediaOptionsPriceBox({
                     <ListBox.Item
                       key={p.planNo}
                       id={String(p.planNo)}
-                      textValue={planSpecText(p)}
+                      textValue={planOptionLabel(p, vm.planOptions)}
                     >
                       {/* 영상 길이·일 송출 수 (금액은 고르면 아래 광고비 줄에 보인다). */}
                       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
-                        {planSpecText(p)}
+                        {planOptionLabel(p, vm.planOptions)}
                       </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>

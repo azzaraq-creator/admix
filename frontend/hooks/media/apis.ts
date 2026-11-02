@@ -143,6 +143,15 @@ export interface MediaNearbyStation {
   distanceM: number;
 }
 
+/** 매체 상세 "세트 상품" — 패키지 상품과 같은 패키지에 묶인 다른 매체 */
+export interface MediaPackage {
+  name: string;
+  adFeeKrw: number | null;
+  deviceQuantity: number | null;
+  surfaceQuantity: number | null;
+  members: { id: string; name: string }[];
+}
+
 export interface MediaDetail {
   id: string;
   name: string;
@@ -167,6 +176,8 @@ export interface MediaDetail {
   facingDirection?: number | null;
   /** 부채꼴 너비(전체 각도, 도). 없으면 기본 너비. */
   facingSpread?: number | null;
+  /** 쉘터 정류장 번호 — 주소 아래에 보인다 */
+  stopNo?: string | null;
   thumbnailUrl: string | null;
   imageUrls: string[];
   sizeText: string | null;
@@ -174,8 +185,9 @@ export interface MediaDetail {
   plans: MediaPlanRow[];
   planOptions: MediaPlanOption[];
   population: MediaPopulation | null;
-  /** 가장 가까운 지하철역(1km 안) — 다음 역과 200m 안 차이면 2개. 고정 매체만 */
+  /** 가까운 지하철역(1km 안) — 가장 가까운 역과 200m 안 차이인 역도 함께, 최대 3개. 고정 매체만 */
   nearbyStations?: MediaNearbyStation[];
+  packages?: MediaPackage[];
 }
 
 export interface MediaFilterParams {

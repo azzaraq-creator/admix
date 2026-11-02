@@ -73,11 +73,14 @@ const MARKER_SRC: Record<string, string> = {
 
 const CATEGORY_TO_ITEM: Record<string, string> = {
   "전광판/빌보드": "전광판&빌보드",
+  전광판: "전광판&빌보드",
+  빌보드: "전광판&빌보드",
   지하철: "지하철",
   "공항/기차": "공항",
   "쇼핑몰/마트": "쇼핑몰&마트",
   정류장: "정류장",
   버스: "정류장",
+  쉘터: "정류장",
   엔터테인먼트: "엔터테인먼트",
   "주거/사무공간": "주거&사무공간",
   "생활 편의시설": "생활&편의시설",
@@ -92,10 +95,25 @@ const SMALL_CATEGORY_TO_ITEM: Record<string, string> = {
   기차역: "기차역",
 };
 
+/**
+ * 카테고리(대)별 색 핀 — 지도에서 카테고리를 색으로 나눠 보게 한다(public/markers/pin/category, 포커스는 focus/).
+ * 기본 아이콘 핀의 보라 원만 카테고리 색으로 바꾼 파일이다. 여기 없는 카테고리는 원래 보라 핀.
+ */
+const CATEGORY_PIN: Record<string, string> = {
+  전광판: "display", // 주황
+  빌보드: "billboard", // 분홍
+  지하철: "subway", // 초록
+  쉘터: "shelter", // 파랑
+  "버스/택시": "bus-taxi", // 노랑
+};
+
 type MarkerCategory = Pick<MapMarker, "categoryLarge" | "categorySmall">;
 
 function markerSrc(category: MarkerCategory, focused = false): string {
   const { categoryLarge, categorySmall } = category;
+  const colored = categoryLarge && CATEGORY_PIN[categoryLarge];
+  if (colored)
+    return `/markers/pin/category/${focused ? "focus/" : ""}${colored}.svg`;
   const item =
     (categorySmall && SMALL_CATEGORY_TO_ITEM[categorySmall]) ||
     (categoryLarge && CATEGORY_TO_ITEM[categoryLarge]) ||

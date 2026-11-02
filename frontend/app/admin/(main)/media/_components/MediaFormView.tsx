@@ -1078,6 +1078,10 @@ function MediaForm({
         spread={allValues.facing_spread ?? ""}
         onDirectionChange={(v) => setValue("facing_direction", v, markDirty)}
         onSpreadChange={(v) => setValue("facing_spread", v, markDirty)}
+        onMove={(la, ln) => {
+          setValue(ADDRESS_KEYS.latitude, String(la), markDirty);
+          setValue(ADDRESS_KEYS.longitude, String(ln), markDirty);
+        }}
         disabled={disabled}
       />
     );

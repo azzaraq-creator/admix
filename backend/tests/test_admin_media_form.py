@@ -45,22 +45,24 @@ def test_validate_rejects_negative_and_reversed_range():
     )
 
 
-def test_create_assigns_prefixed_id_by_source(db):
+def test_create_assigns_prefixed_id_by_category(db):
     s, created = db
-    fixed = ms.create_media(s, {"name": "자동ID 고정", "media_source": "FIXED"})
-    moving = ms.create_media(s, {"name": "자동ID 이동", "media_source": "MOVING"})
-    created += [fixed["media_id"], moving["media_id"]]
-    assert fixed["media_id"].startswith("F") and len(fixed["media_id"]) == 7
-    assert moving["media_id"].startswith("M") and len(moving["media_id"]) == 7
+    board = ms.create_media(s, {"name": "자동ID 빌보드", "category_large": "전광판/빌보드"})
+    bus = ms.create_media(s, {"name": "자동ID 버스", "category_large": "버스", "media_source": "MOVING"})
+    other = ms.create_media(s, {"name": "자동ID 없는 카테고리", "category_large": "새 카테고리"})
+    created += [board["media_id"], bus["media_id"], other["media_id"]]
+    assert board["media_id"].startswith("BB-") and len(board["media_id"]) == 7
+    assert bus["media_id"].startswith("BS-")
+    assert other["media_id"].startswith("ET-")
 
-    again = ms.create_media(s, {"name": "자동ID 고정2", "media_source": "FIXED"})
+    again = ms.create_media(s, {"name": "자동ID 빌보드2", "category_large": "전광판/빌보드"})
     created.append(again["media_id"])
-    assert int(again["media_id"][1:]) == int(fixed["media_id"][1:]) + 1
+    assert int(again["media_id"][3:]) == int(board["media_id"][3:]) + 1
 
     # 직접 넣은 ID는 무시하고 자동으로 매긴다.
     typed = ms.create_media(s, {"media_id": "MY-ID", "name": "직접ID"})
     created.append(typed["media_id"])
-    assert typed["media_id"] != "MY-ID" and typed["media_id"].startswith("F")
+    assert typed["media_id"] != "MY-ID" and typed["media_id"].startswith("ET-")
 
 
 def test_create_requires_name(db):

@@ -155,7 +155,7 @@ def test_import_korean_template_with_plans():
         assert "연결 번호 9인 매체가" in reasons and "기간 단위" in reasons
 
         fixed = by_name["엑셀등록 고정"]
-        assert fixed.media_id.startswith("F")
+        assert fixed.media_id.startswith("BB-")
         assert fixed.sales_type == "SINGLE" and fixed.exposure_type == "OUTSIDE"
         assert [p.product_display_name for p in fixed.plans] == ["빌보드", "랩핑"]
         assert fixed.min_advertisement_fee_krw == 3_000_000
@@ -169,7 +169,7 @@ def test_import_korean_template_with_plans():
         assert {(p.default_device_quantity, p.default_surface_quantity) for p in fixed.plans} == {(1, 1)}
 
         mv = by_name["엑셀등록 이동"]
-        assert mv.media_id.startswith("M") and mv.city == "서울특별시"
+        assert mv.media_id.startswith("BB-") and mv.city == "서울특별시"
         assert len(mv.plans) == 1 and mv.plans[0].production_fee is None
         assert mv.any_production_fee_yn is False
     finally:

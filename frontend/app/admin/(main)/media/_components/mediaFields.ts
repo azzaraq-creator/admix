@@ -1,5 +1,5 @@
 // 광고 매체(media) 전 컬럼 폼 필드 정의 — 백엔드 media 테이블과 1:1.
-// created_at/updated_at(자동)은 제외. media_id는 서버가 자동 부여(고정 F000001·이동 M000001)하고 폼에서는 보기만 한다.
+// created_at/updated_at(자동)은 제외. media_id는 서버가 카테고리에 따라 자동 부여(BB-0001 등)하고 폼에서는 보기만 한다.
 // 화면에서는 성격별 구역(MEDIA_SECTIONS)으로 묶어 보여 준다. 선택지 값은 원천 데이터(ADMIX_최종본_v3)에 실제로
 // 들어 있는 값이고, 목록에 없는 기존 값은 폼이 지우지 않고 그대로 보여 준다.
 
@@ -68,7 +68,7 @@ export const MEDIA_ID_FIELD: MediaFieldDef = {
   label: "매체 ID",
   type: "text",
   placeholder: "저장하면 자동으로 매겨집니다",
-  help: "직접 입력하지 않습니다. 고정 매체는 F000001, 이동 매체는 M000001 형식으로 자동 부여됩니다.",
+  help: "직접 입력하지 않습니다. 카테고리(대)에 따라 앞 글자가 붙어 자동 부여됩니다(예: 전광판 EB-0001, 빌보드 BB-0001, 쉘터 SH-0001).",
 };
 
 const GRADE_OPTIONS: MediaFieldOption[] = ["S", "A", "B", "C", "D"].map(
@@ -162,7 +162,7 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         type: "select",
         options: [
           { value: "SINGLE", label: "단품 (매체 하나)" },
-          { value: "GROUP", label: "묶음 (여러 매체를 한 상품으로)" },
+          { value: "GROUP", label: "패키지 (여러 매체를 한 상품으로)" },
         ],
       },
       {
@@ -252,11 +252,18 @@ export const MEDIA_SECTIONS: MediaFieldSection[] = [
         placeholder: "예: 2층 로비, 3번 출구 앞",
       },
       {
+        key: "stop_no",
+        label: "정류장 번호",
+        type: "text",
+        placeholder: "예: 23243",
+        help: "쉘터 매체의 정류장 번호입니다. 매체 정보에서 주소 아래에 보입니다.",
+      },
+      {
         key: "latitude",
         required: "FIXED",
         label: "위도",
         type: "number",
-        help: "지도 핀 위치입니다. 주소를 고르면 자동으로 채워집니다.",
+        help: "지도 핀 위치입니다. 주소를 고르면 자동으로 채워지고, 아래 매체 방향 지도의 \"위치 옮기기\"로 직접 옮길 수도 있습니다.",
       },
       { key: "longitude", required: "FIXED", label: "경도", type: "number" },
       // 방향·너비는 한 칸(지도 편집기, FacingDirectionEditor)으로 그린다 — 너비(facing_spread)는 짝으로 묶어 따로 그리지 않는다.

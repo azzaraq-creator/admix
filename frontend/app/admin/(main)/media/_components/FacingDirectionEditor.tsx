@@ -101,6 +101,7 @@ function DraftNumberInput({
 /**
  * 어드민 "매체 방향" — 매체 좌표 지도에서 부채꼴을 보며 방향·너비를 정한다.
  * 지도를 누르면 매체에서 그쪽으로 방향이 정해지고, 슬라이더·숫자·8방향 버튼으로도 고친다.
+ * "위치 옮기기"를 켜면 지도를 누른 자리로 매체 위치(위도·경도)가 옮겨진다 — 엑셀 좌표가 어긋난 매체를 바로잡을 때.
  * 사용자 매체 정보 팝업의 위치 지도와 같은 그림(mediaFan)이라 보이는 그대로 나간다.
  * 값은 폼 문자열로 주고받는다(방향 facing_direction, 너비 facing_spread — 둘 다 도).
  */
@@ -111,6 +112,7 @@ export function FacingDirectionEditor({
   spread: spreadRaw,
   onDirectionChange,
   onSpreadChange,
+  onMove,
   disabled,
 }: {
   /** 매체 좌표 — 없으면 지도 대신 "주소를 먼저 골라 주세요" */
@@ -120,8 +122,11 @@ export function FacingDirectionEditor({
   spread: string;
   onDirectionChange: (next: string) => void;
   onSpreadChange: (next: string) => void;
+  /** 지도에서 고른 새 매체 위치 — 없으면 위치 옮기기를 보이지 않는다 */
+  onMove?: (lat: number, lng: number) => void;
   disabled?: boolean;
 }) {
+  const [moving, setMoving] = useState(false);
   const direction = toNum(directionRaw);
   const spreadValue = toNum(spreadRaw);
   const spread = spreadValue ?? DEFAULT_FACING_SPREAD;
@@ -146,6 +151,9 @@ export function FacingDirectionEditor({
           direction={direction}
           spread={spread}
           onPick={disabled ? undefined : pickDirection}
+          onMove={disabled ? undefined : onMove}
+          moving={moving && !disabled}
+          onMovingChange={setMoving}
         />
       ) : (
         <p className="flex h-[120px] items-center justify-center rounded-[8px] bg-gray-50 text-[13px] text-gray-500">
@@ -254,12 +262,19 @@ function FacingMap({
   direction,
   spread,
   onPick,
+  onMove,
+  moving = false,
+  onMovingChange,
 }: {
   lat: number;
   lng: number;
   direction: number | null;
   spread: number;
   onPick?: (deg: number) => void;
+  onMove?: (lat: number, lng: number) => void;
+  /** 켜져 있으면 지도를 누른 자리로 매체를 옮긴다(방향 대신) */
+  moving?: boolean;
+  onMovingChange?: (next: boolean) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
@@ -267,11 +282,13 @@ function FacingMap({
   const markRef = useRef<HTMLDivElement | null>(null);
   // 지도 click 핸들러는 처음 한 번만 단다 — 최신 onPick·좌표는 ref 로 본다.
   const pickRef = useRef(onPick);
+  const moveRef = useRef(moving ? onMove : undefined);
   const posRef = useRef({ lat, lng });
   const [status, setStatus] = useState<Status>("loading");
 
   useEffect(() => {
     pickRef.current = onPick;
+    moveRef.current = moving ? onMove : undefined;
     posRef.current = { lat, lng };
   });
 
@@ -298,7 +315,14 @@ function FacingMap({
           });
           overlay.setMap(map);
           maps.event.addListener(map, "click", (e) => {
-            if (!e || !pickRef.current) return;
+            if (!e) return;
+            if (moveRef.current) {
+              // 소수 7자리(약 1cm)면 충분하다.
+              const round = (v: number) => Math.round(v * 1e7) / 1e7;
+              moveRef.current(round(e.latLng.getLat()), round(e.latLng.getLng()));
+              return;
+            }
+            if (!pickRef.current) return;
             const { lat: a, lng: b } = posRef.current;
             pickRef.current(
               bearingDeg(a, b, e.latLng.getLat(), e.latLng.getLng()),
@@ -361,11 +385,30 @@ function FacingMap({
             : "지도를 불러오지 못했어요."}
         </p>
       ) : (
-        onPick && (
-          <span className="pointer-events-none absolute top-[10px] left-[10px] z-[2] rounded-full bg-white/90 px-[10px] py-[4px] text-[12px] font-medium text-gray-700 shadow-[0px_2px_8px_rgba(0,0,0,0.15)]">
-            지도를 누르면 매체에서 그쪽으로 방향이 정해져요
-          </span>
-        )
+        <>
+          {(moving || onPick) && (
+            <span
+              className={cn(
+                "pointer-events-none absolute top-[10px] left-[10px] z-[2] rounded-full px-[10px] py-[4px] text-[12px] font-medium shadow-[0px_2px_8px_rgba(0,0,0,0.15)]",
+                moving ? "bg-primary text-white" : "bg-white/90 text-gray-700",
+              )}
+            >
+              {moving
+                ? "지도를 누르면 그 자리로 매체 위치가 옮겨져요"
+                : "지도를 누르면 매체에서 그쪽으로 방향이 정해져요"}
+            </span>
+          )}
+          {onMove && onMovingChange && (
+            <Button
+              size="sm"
+              variant={moving ? "primary" : "tertiary"}
+              onPress={() => onMovingChange(!moving)}
+              className="absolute top-[8px] right-[8px] z-[2] shadow-[0px_2px_8px_rgba(0,0,0,0.15)]"
+            >
+              {moving ? "옮기기 끝" : "위치 옮기기"}
+            </Button>
+          )}
+        </>
       )}
     </div>
   );

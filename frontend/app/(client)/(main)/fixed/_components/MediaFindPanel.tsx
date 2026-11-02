@@ -20,6 +20,7 @@ import {
   type MediaFilterState,
 } from "@/components/common/mediaFilter/filterConfig";
 import {
+  ArrowUpIcon,
   ListIcon,
   MapOutlineIcon,
   PopulationGridIcon,
@@ -104,6 +105,8 @@ const ENTRY_SETTLE_MS = 300;
 
 // 매체 찾기 카테고리 탭 — "전체"는 category 파라미터 없음. 고른 탭은 category 필터 하나로 URL에 남는다.
 const ALL_CATEGORY_TAB = "__all__";
+// 목록을 이만큼(px) 넘게 내리면 "맨 위로" 버튼을 띄운다.
+const SCROLL_TOP_SHOW_PX = 400;
 // 카테고리가 여러 개 걸린 링크 — 어느 탭과도 맞지 않는 값이라 아무 탭도 골라 보이지 않는다.
 const MIXED_CATEGORY_TAB = "__mixed__";
 
@@ -301,6 +304,8 @@ export function MediaFindPanel({
   }, [filterOpen, isDesktop, popGrid]);
   const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 목록을 어느 정도 내렸으면 "맨 위로" 버튼을 띄운다(믹시 채팅의 "맨 아래로"와 같은 모양).
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
   // Enter 키워드 검색 직후, 새 클러스터 결과가 도착하면 그 결과로 지도를 fit하도록 예약.
@@ -796,6 +801,9 @@ export function MediaFindPanel({
           // 목록이 위아래로 더 있으면 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
           <ScrollShadow
             ref={scrollRef}
+            onScroll={(e) =>
+              setShowScrollTop(e.currentTarget.scrollTop > SCROLL_TOP_SHOW_PX)
+            }
             hideScrollBar
             size={32}
             // 카드 hover 그림자가 이 스크롤 컨테이너에 잘려서, 좌우는 패딩으로 자리를
@@ -876,6 +884,25 @@ export function MediaFindPanel({
               </>
             )}
           </ScrollShadow>
+        )}
+        {!mapExpanded && (
+          // 목록 맨 위로 — 목록 칸 아래 가운데(모바일은 가운데 지도 보기 버튼과 겹치지 않게 오른쪽 아래).
+          <button
+            type="button"
+            aria-label="목록 맨 위로 스크롤"
+            tabIndex={showScrollTop ? 0 : -1}
+            onClick={() =>
+              scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+            }
+            className={cn(
+              "absolute bottom-[16px] z-10 flex size-[36px] items-center justify-center rounded-full bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 max-sm:right-0 max-sm:bottom-[calc(var(--tabbar-space)+22px)] sm:left-[calc(25%-5px)] sm:-translate-x-1/2 lg:left-[210px]",
+              showScrollTop
+                ? "translate-y-0 opacity-100"
+                : "pointer-events-none translate-y-[6px] opacity-0",
+            )}
+          >
+            <ArrowUpIcon strokeWidth={1.8} className="size-[16px]" />
+          </button>
         )}
         {!isDesktop && popGrid && (
           // 모바일 유동인구 창 Drawer — 늘 붙여 두고 열림만 바꾼다(닫힐 때 내려가는 움직임이 보이게).

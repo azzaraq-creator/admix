@@ -225,6 +225,21 @@ class MediaNearbyStation(BaseModel):
     distanceM: int
 
 
+class MediaPackageMember(BaseModel):
+    id: str
+    name: str
+
+
+class MediaPackage(BaseModel):
+    """매체 상세 "세트 상품" — 이 매체가 든 패키지 상품과 같은 패키지에 묶인 다른 매체들."""
+
+    name: str  # "디지털 가로변쉘터 Half A PKG"
+    adFeeKrw: int | None = None
+    deviceQuantity: int | None = None
+    surfaceQuantity: int | None = None
+    members: list[MediaPackageMember]
+
+
 class MediaDetail(BaseModel):
     id: str
     name: str
@@ -241,6 +256,8 @@ class MediaDetail(BaseModel):
     oohType: str | None = None
     description: str | None
     address: str | None
+    # 쉘터 정류장 번호 — 주소 아래에 보인다.
+    stopNo: str | None = None
     # 고정 매체 좌표·방향 — 매체 정보 팝업에서 주소를 누르면 뜨는 위치 지도(이동 매체는 없음).
     latitude: float | None = None
     longitude: float | None = None
@@ -254,3 +271,4 @@ class MediaDetail(BaseModel):
     planOptions: list[MediaPlanOption] = []
     population: MediaPopulation | None
     nearbyStations: list[MediaNearbyStation] = []
+    packages: list[MediaPackage] = []
