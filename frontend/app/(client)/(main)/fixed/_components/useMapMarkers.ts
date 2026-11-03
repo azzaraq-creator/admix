@@ -18,12 +18,42 @@ import {
 } from "./mapTypes";
 
 /**
- * 매체명 말풍선 — 핀·숫자핀과 같은 반투명(70%) 보라 바탕에 또렷한 흰 글자, 테두리 없이 아래 뾰족한 꼬리.
- * 선택(포커스)되면 핀 포커스와 같은 진한 보라를 불투명하게. 이름이 길면 말줄임(전체 이름은 title).
+ * 카테고리(대)별 지도 색 — 색 핀(CATEGORY_PIN) 원과 같은 색. [반투명(70%) 바탕 RGB, 선택(포커스) 진한 색].
+ * 말풍선·숫자핀(클러스터·겹침 묶음)도 이 색을 쓴다. 여기 없는 카테고리·섞인 묶음은 기본 보라.
+ */
+const CATEGORY_COLOR: Record<string, [string, string]> = {
+  전광판: ["247,103,7", "#D9480F"], // 주황
+  빌보드: ["230,73,128", "#C2255C"], // 분홍
+  지하철: ["47,158,68", "#2B8A3E"], // 초록
+  쉘터: ["28,126,214", "#1864AB"], // 파랑
+  "버스/택시": ["245,159,0", "#E67700"], // 노랑
+};
+const DEFAULT_COLOR: [string, string] = ["122,63,224", "#5b21c4"]; // 보라
+
+function pinBackground(
+  categoryLarge: string | null | undefined,
+  selected: boolean,
+): string {
+  const [rgb, strong] =
+    (categoryLarge && CATEGORY_COLOR[categoryLarge]) || DEFAULT_COLOR;
+  return selected ? strong : `rgba(${rgb},0.7)`;
+}
+
+/** 겹침 묶음 매체가 모두 같은 카테고리면 그 카테고리(색을 맞춘다), 섞이면 null. */
+function sharedCategory(members: MapMarker[]): string | null {
+  const first = members[0]?.categoryLarge ?? null;
+  return members.every((m) => (m.categoryLarge ?? null) === first)
+    ? first
+    : null;
+}
+
+/**
+ * 매체명 말풍선 — 핀·숫자핀과 같은 반투명(70%) 카테고리 색 바탕에 또렷한 흰 글자, 테두리 없이 아래 뾰족한 꼬리.
+ * 선택(포커스)되면 핀 포커스와 같은 진한 색을 불투명하게. 이름이 길면 말줄임(전체 이름은 title).
  * 바깥 상자(아래 여백 = 꼬리 길이)의 아래 가운데가 매체 위치다(yAnchor 1).
  */
-function bubbleCss(selected: boolean) {
-  const bg = selected ? "#5b21c4" : "rgba(122,63,224,0.7)";
+function bubbleCss(selected: boolean, categoryLarge?: string | null) {
+  const bg = pinBackground(categoryLarge, selected);
   return {
     wrap: "position:relative;padding-bottom:6px;cursor:pointer;",
     // 그림자는 상자 밖에만 생기는 box-shadow — drop-shadow 는 반투명 바탕 안으로 비쳐 탁해진다.
@@ -40,13 +70,17 @@ function createBubble(m: MapMarker) {
   box.textContent = m.name;
   box.title = m.name;
   el.append(box, tail);
-  styleBubble(el, false);
+  styleBubble(el, false, m.categoryLarge);
   return el;
 }
 
-function styleBubble(el: HTMLDivElement, selected: boolean) {
+function styleBubble(
+  el: HTMLDivElement,
+  selected: boolean,
+  categoryLarge?: string | null,
+) {
   const [box, tail] = Array.from(el.children) as HTMLDivElement[];
-  const css = bubbleCss(selected);
+  const css = bubbleCss(selected, categoryLarge);
   el.style.cssText = css.wrap;
   box.style.cssText = css.box;
   tail.style.cssText = css.tail;
@@ -151,10 +185,14 @@ function groupKeyOf(lat: number, lng: number): string {
   )}`;
 }
 
-// 숫자핀(클러스터·겹침 그룹) 공통 디자인 — 테두리 없는 반투명(70%) 보라 원 + 흰 숫자, 옅은 그림자 하나.
-// 선택(팝업 열림·포커스)은 단일 핀 포커스와 같이 한 단계 진한 보라.
-function numberPinCss(size: number, selected: boolean): string {
-  return `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.4)}px;font-weight:700;letter-spacing:-0.5px;cursor:pointer;color:#ffffff;background:${selected ? "#5b21c4" : "rgba(122,63,224,0.7)"};backdrop-filter:blur(2px);box-shadow:0 1px 3px rgba(26,16,37,${selected ? 0.32 : 0.22});`;
+// 숫자핀(클러스터·겹침 그룹) 공통 디자인 — 테두리 없는 반투명(70%) 원 + 흰 숫자, 옅은 그림자 하나.
+// 색은 묶인 매체 카테고리 핀 색(섞이면 보라). 선택(팝업 열림·포커스)은 단일 핀 포커스와 같이 한 단계 진하게.
+function numberPinCss(
+  size: number,
+  selected: boolean,
+  categoryLarge?: string | null,
+): string {
+  return `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;font-size:${Math.round(size * 0.4)}px;font-weight:700;letter-spacing:-0.5px;cursor:pointer;color:#ffffff;background:${pinBackground(categoryLarge, selected)};backdrop-filter:blur(2px);box-shadow:0 1px 3px rgba(26,16,37,${selected ? 0.32 : 0.22});`;
 }
 
 export function useMapMarkers({
@@ -197,6 +235,7 @@ export function useMapMarkers({
       el: HTMLDivElement;
       key: string;
       size: number;
+      category: string | null;
       memberIds: string[];
       lat: number;
       lng: number;
@@ -316,8 +355,9 @@ export function useMapMarkers({
         const size =
           members.length >= 100 ? 38 : members.length >= 10 ? 34 : 30;
         const selected = key === selectedGroupKeyRef.current;
+        const category = sharedCategory(members);
         const el = document.createElement("div");
-        el.style.cssText = numberPinCss(size, selected);
+        el.style.cssText = numberPinCss(size, selected, category);
         el.textContent = String(members.length);
         el.addEventListener("click", () => onGroupClickRef.current?.(members));
         const overlay = new maps.CustomOverlay({
@@ -334,6 +374,7 @@ export function useMapMarkers({
           el,
           key,
           size,
+          category,
           memberIds: members.map((mm) => mm.id),
           lat: first.lat,
           lng: first.lng,
@@ -380,7 +421,7 @@ export function useMapMarkers({
     clusters.forEach((c) => {
       const size = c.count >= 100 ? 46 : c.count >= 10 ? 38 : 32;
       const el = document.createElement("div");
-      el.style.cssText = numberPinCss(size, false);
+      el.style.cssText = numberPinCss(size, false, c.categoryLarge);
       el.textContent = String(c.count);
       el.addEventListener("click", () => {
         programmaticMoveRef.current = true;
@@ -406,7 +447,7 @@ export function useMapMarkers({
     for (const g of groupOverlaysRef.current) {
       const sel =
         g.key === selectedGroupKey || g.key === focusedGroupKeyRef.current;
-      g.el.setAttribute("style", numberPinCss(g.size, sel));
+      g.el.setAttribute("style", numberPinCss(g.size, sel, g.category));
     }
   }, [selectedGroupKey]);
 
@@ -420,7 +461,7 @@ export function useMapMarkers({
     const shown = shownFocusRef.current;
     if (shown === focusId) return;
 
-    // 단일 핀 강조 — 마커는 흰 링 이미지, 말풍선은 보라 바탕으로 바꾸고 맨 위로 올린다.
+    // 단일 핀 강조 — 마커는 흰 링 이미지, 말풍선은 진한 카테고리 색 바탕으로 바꾸고 맨 위로 올린다.
     const setFocused = (entry: MarkerEntry, focused: boolean) => {
       if (entry.marker) {
         entry.marker.setImage(
@@ -429,7 +470,7 @@ export function useMapMarkers({
         entry.marker.setZIndex(focused ? 10 : 1);
       }
       if (entry.bubble) {
-        styleBubble(entry.bubble.el, focused);
+        styleBubble(entry.bubble.el, focused, entry.data.categoryLarge);
         entry.bubble.overlay.setZIndex(focused ? 10 : 2);
       }
     };
@@ -451,7 +492,7 @@ export function useMapMarkers({
       for (const g of groupOverlaysRef.current) {
         const sel =
           g.key === selectedGroupKeyRef.current || g.key === nextGroupKey;
-        g.el.setAttribute("style", numberPinCss(g.size, sel));
+        g.el.setAttribute("style", numberPinCss(g.size, sel, g.category));
       }
     }
 

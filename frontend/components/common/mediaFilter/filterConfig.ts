@@ -51,8 +51,7 @@ const VALUE_LABELS: Partial<Record<ChipDimKey, Record<string, string>>> = {
     DIFFERENT_SHAPE: "변형",
   },
   saleType: {
-    PM_INDIVIDUAL: "개별",
-    PM_NETWORK: "네트워크",
+    PM_INDIVIDUAL: "단품",
     PM_PACKAGE: "패키지",
   },
 };

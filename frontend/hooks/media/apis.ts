@@ -149,7 +149,12 @@ export interface MediaPackage {
   adFeeKrw: number | null;
   deviceQuantity: number | null;
   surfaceQuantity: number | null;
-  members: { id: string; name: string }[];
+  members: {
+    id: string;
+    name: string;
+    lat: number | null;
+    lng: number | null;
+  }[];
 }
 
 export interface MediaDetail {
@@ -240,6 +245,8 @@ export interface MediaClusterDto {
   lat: number;
   lng: number;
   count: number;
+  /** 묶인 매체가 모두 같은 카테고리(대)일 때만 — 지도가 그 카테고리 색으로 칠한다. */
+  categoryLarge?: string | null;
 }
 
 export interface MediaClusterResponse {

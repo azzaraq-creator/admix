@@ -481,6 +481,7 @@ function MediaDetailBody({
               lng={vm.location.lng}
               direction={vm.location.direction}
               spread={vm.location.spread}
+              members={packageMembers(vm.packages)}
               onClose={() => setMapOpen(false)}
             />
           )}
@@ -524,7 +525,14 @@ function MediaDetailBody({
             <PriceBox vm={vm} />
           )}
 
-          <PackageMembers packages={vm.packages} />
+          <PackageMembers
+            packages={vm.packages}
+            current={
+              vm.location
+                ? { name: vm.name, lat: vm.location.lat, lng: vm.location.lng }
+                : null
+            }
+          />
 
           {vm.description && (
             <div className="w-full max-sm:hidden">
@@ -562,6 +570,17 @@ function MediaDetailBody({
   );
 }
 
+/** 이 매체가 든 패키지들에 함께 묶인 매체 — 패키지가 여럿이면 한 번씩만. */
+function packageMembers(packages: MediaDetailViewModel["packages"]) {
+  const seen = new Set<string>();
+  return packages.flatMap((p) =>
+    p.members.filter((m) => !seen.has(m.id) && seen.add(m.id)),
+  );
+}
+
+/** 매체 정보 값이 이보다 길면 PC 반 칸에서 줄이 바뀐다 — 한 줄을 다 쓰게 한다. */
+const LONG_SPEC_VALUE = 14;
+
 /** 매체 정보(스펙) — 매체 유형 칩, 안내 문구, 항목 격자. */
 function SpecSection({
   oohType,
@@ -577,14 +596,23 @@ function SpecSection({
   scrollable?: boolean;
 }) {
   const grid = (
+    // 모바일도 반 칸씩 — 반 칸에 이름·값이 나란히 안 들어가 이름 아래 값을 둔다.
     <div className="grid grid-cols-2 gap-[12px] max-sm:gap-[8px]">
       {specs.map(([label, value]) => (
+        // PC는 이름과 값을 한 줄에. 값이 길면 한 줄을 다 쓴다.
         <div
           key={label}
-          className="flex min-w-0 flex-col gap-[4px] rounded-[10px] border border-tone-ececef bg-gray-50 p-[12px] font-semibold max-sm:p-[10px]"
+          className={cn(
+            "flex min-w-0 items-baseline justify-between gap-[8px] rounded-[10px] border border-tone-ececef bg-gray-50 px-[12px] py-[9px] font-semibold max-sm:flex-col max-sm:items-start max-sm:justify-start max-sm:gap-[2px] max-sm:px-[10px] max-sm:py-[8px]",
+            value.length > LONG_SPEC_VALUE && "col-span-2",
+          )}
         >
-          <p className="text-[11px] tracking-[0.6px] text-zinc-400">{label}</p>
-          <p className="text-[13px] break-keep text-zinc-900">{value}</p>
+          <p className="shrink-0 text-[11px] tracking-[0.6px] whitespace-nowrap text-zinc-400">
+            {label}
+          </p>
+          <p className="min-w-0 text-right text-[13px] break-keep text-zinc-900 max-sm:text-left">
+            {value}
+          </p>
         </div>
       ))}
     </div>

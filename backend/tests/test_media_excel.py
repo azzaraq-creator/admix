@@ -103,7 +103,7 @@ def test_template_layout():
 
 
 def _plan(link, name, ad=None, prod=None, **kw):
-    return {"연결 번호": link, "상품명": name, "판매 방식": kw.get("master", "개별"),
+    return {"연결 번호": link, "상품명": name, "판매 방식": kw.get("master", "단품"),
             "계약 기간": 1, "기간 단위": "개월", "광고비(원)": ad, "제작비(원)": prod}
 
 

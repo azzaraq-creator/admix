@@ -29,35 +29,39 @@ export function isOohMedia(oohType: string | null): boolean {
 }
 
 /**
- * 상품 이름 — 영상 상품(DOOH)은 "영상 20초, 일 100회 송출", 영상이 아닌 상품(OOH 등
- * 영상 길이·송출 수가 둘 다 없음)은 상품명. 하나만 있으면 있는 쪽만 보여 준다.
+ * 상품 이름 — 영상 상품(DOOH)은 "영상 20초", 영상 길이가 없는 상품(OOH 등)은 상품명.
+ * 일 송출 수는 매체 정보 "일 송출 수" 칸에 따로 보인다.
  */
 export function planSpecText(
-  plan: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">,
+  plan: Pick<MediaPlanOption, "exposureSeconds" | "title">,
 ): string {
-  if (plan.exposureSeconds == null && plan.dailyBroadcasts == null) {
-    return plan.title;
-  }
-  return [
-    plan.exposureSeconds != null && `영상 ${plan.exposureSeconds}초`,
-    plan.dailyBroadcasts != null &&
-      `일 ${plan.dailyBroadcasts.toLocaleString()}회 송출`,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  return plan.exposureSeconds != null
+    ? `영상 ${plan.exposureSeconds}초`
+    : plan.title;
 }
 
 /**
- * 상품 고르기 칸의 이름 — 보통은 planSpecText. 같은 매체의 상품끼리 그 이름이 겹치면(세트 상품과 개별 면처럼
- * 영상 길이·송출 수가 같은 상품) 구분이 안 되므로 상품명을 앞에 붙인다.
+ * 상품 고르기 칸의 이름 — 보통은 planSpecText. 같은 매체의 상품끼리 그 이름이 겹치면(패키지와 단품 면처럼
+ * 영상 길이가 같은 상품) 구분이 안 되므로 상품명을 앞에 붙인다.
  */
 export function planOptionLabel(
-  plan: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">,
-  all: Pick<MediaPlanOption, "exposureSeconds" | "dailyBroadcasts" | "title">[],
+  plan: Pick<MediaPlanOption, "exposureSeconds" | "title">,
+  all: Pick<MediaPlanOption, "exposureSeconds" | "title">[],
 ): string {
   const spec = planSpecText(plan);
   const same = all.filter((p) => planSpecText(p) === spec).length;
-  return same > 1 && plan.title !== spec ? `${plan.title} · ${spec}` : spec;
+  return same > 1 && plan.title !== spec
+    ? `${shortPlanTitle(plan.title)} · ${spec}`
+    : spec;
+}
+
+/**
+ * 상품 고르기 칸에 붙일 짧은 상품명 — 패키지 이름 "디지털 가로변쉘터 Half A PKG"는 칸에 비해 길어
+ * 구분되는 끝부분 "A PKG"만 쓴다. 그 밖의 상품명은 그대로.
+ */
+function shortPlanTitle(title: string): string {
+  const pkg = title.match(/\b([A-Z])\s*PKG$/);
+  return pkg ? `${pkg[1]} PKG` : title;
 }
 
 /**

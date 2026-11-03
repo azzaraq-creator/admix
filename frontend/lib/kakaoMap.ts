@@ -60,7 +60,14 @@ export interface KakaoMap {
   getCenter: () => KakaoLatLng;
   setLevel: (level: number) => void;
   getLevel: () => number;
-  setBounds: (bounds: KakaoLatLngBounds) => void;
+  /** 여백(px)은 위·오른쪽·아래·왼쪽 순 — 빼면 기본 여백. */
+  setBounds: (
+    bounds: KakaoLatLngBounds,
+    paddingTop?: number,
+    paddingRight?: number,
+    paddingBottom?: number,
+    paddingLeft?: number,
+  ) => void;
   getBounds: () => KakaoLatLngBounds;
   getProjection: () => KakaoProjection;
 }

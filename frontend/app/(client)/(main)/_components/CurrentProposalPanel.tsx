@@ -428,7 +428,6 @@ function toRow(item: ProposalItem, override?: ItemOptions): Row {
 const planText = (plan: PlanOption) =>
   planSpecText({
     exposureSeconds: plan.exposure_seconds ?? null,
-    dailyBroadcasts: plan.daily_broadcasts ?? null,
     title: plan.product_display_name ?? plan.product_name ?? "-",
   });
 

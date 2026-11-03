@@ -30,6 +30,7 @@ export interface MapCluster {
   lat: number;
   lng: number;
   count: number;
+  categoryLarge?: string | null;
 }
 
 export interface MoveTarget {

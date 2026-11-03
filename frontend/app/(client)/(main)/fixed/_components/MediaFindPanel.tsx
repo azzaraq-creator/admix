@@ -434,6 +434,7 @@ export function MediaFindPanel({
         lat: c.lat,
         lng: c.lng,
         count: c.count,
+        categoryLarge: c.categoryLarge,
       })),
     });
   }, [clusterData, onMapData]);

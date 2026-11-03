@@ -111,6 +111,7 @@ class MediaCluster(BaseModel):
     lat: float
     lng: float
     count: int
+    categoryLarge: str | None = None  # 묶인 매체가 모두 같은 카테고리일 때만
 
 
 class MediaClusterResponse(BaseModel):
@@ -228,6 +229,8 @@ class MediaNearbyStation(BaseModel):
 class MediaPackageMember(BaseModel):
     id: str
     name: str
+    lat: float | None = None  # 패키지 지도에 말풍선으로 보인다
+    lng: float | None = None
 
 
 class MediaPackage(BaseModel):

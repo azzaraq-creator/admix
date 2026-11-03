@@ -66,7 +66,7 @@ def list_favorite_cards(
     )
     rows = (
         _apply_media_sort(base, sort, latest=MediaFavorite.created_at)
-        .options(selectinload(Media.images))
+        .options(selectinload(Media.images), selectinload(Media.plans))
         .all()
     )
     return [_media_card(m) for m in rows]

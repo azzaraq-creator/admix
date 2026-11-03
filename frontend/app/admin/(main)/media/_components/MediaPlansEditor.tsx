@@ -15,9 +15,8 @@ import { HERO_ERROR_CLASS, HeroField, HeroSelect } from "./heroFields";
  */
 
 export const PLAN_MASTER_TYPES = [
-  { value: "PM_INDIVIDUAL", label: "개별" },
+  { value: "PM_INDIVIDUAL", label: "단품" },
   { value: "PM_PACKAGE", label: "패키지" },
-  { value: "PM_NETWORK", label: "네트워크" },
 ];
 const DURATION_TYPES = [
   { value: "MONTHS", label: "개월" },

@@ -4,7 +4,8 @@ import { Modal } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
 import { CloseMediumIcon } from "@/components/icons";
-import { loadKakaoSdk } from "@/lib/kakaoMap";
+import { type KakaoMap, loadKakaoSdk } from "@/lib/kakaoMap";
+import { cn } from "@/lib/utils";
 
 import {
   MAX_FACING_SPREAD,
@@ -12,12 +13,22 @@ import {
   directionName,
   drawMediaMark,
 } from "./mediaFan";
+import {
+  CURRENT_ID,
+  type BubbleOverlay,
+  type PackageMember,
+  MemberList,
+  addNameBubble,
+  focusMember,
+  memberPoints,
+} from "./packageMapParts";
 
 type Status = "loading" | "ready" | "error";
 
 /**
  * 매체 위치 지도 — 매체 정보 팝업에서 주소를 누르면 그 위에 띄운다.
  * 매체 자리에 동그라미를, 매체 방향(어드민 "매체 방향")이 있으면 그쪽으로 정한 너비만큼 부채꼴을 그린다.
+ * 패키지 매체면 같은 패키지에 묶인 매체들도 이름 말풍선으로 함께 보이고, 아래 목록에서 누르면 그 자리로 간다.
  * 닫히면 부모가 바로 언마운트한다.
  */
 export function MediaLocationMapModal({
@@ -27,6 +38,7 @@ export function MediaLocationMapModal({
   lng,
   direction,
   spread,
+  members = [],
   onClose,
 }: {
   name: string;
@@ -36,8 +48,11 @@ export function MediaLocationMapModal({
   direction: number | null;
   /** 부채꼴 너비(전체 각도, 도) — 없으면 기본 너비. */
   spread: number | null;
+  /** 같은 패키지에 묶인 매체(이 매체 빼고) — 없으면 이 매체만. */
+  members?: PackageMember[];
   onClose: () => void;
 }) {
+  const [focusId, setFocusId] = useState<string | null>(null);
   return (
     <Modal
       isOpen
@@ -52,7 +67,7 @@ export function MediaLocationMapModal({
         >
           <Modal.Dialog
             aria-label="매체 위치"
-            className="w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+            className="max-h-[min(860px,calc(100dvh-80px))] w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
           >
             <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
               <CloseMediumIcon className="size-[24px]" />
@@ -69,13 +84,24 @@ export function MediaLocationMapModal({
               )}
             </div>
 
-            <Modal.Body className="m-0 p-0">
+            <Modal.Body className="m-0 flex min-h-0 flex-1 flex-col gap-[8px] overflow-hidden p-0">
               <LocationMap
+                name={name}
                 lat={lat}
                 lng={lng}
                 direction={direction}
                 spread={spread}
+                members={members}
+                focusId={focusId}
               />
+              {members.length > 0 && (
+                <MemberList
+                  current={{ id: CURRENT_ID, name, lat, lng }}
+                  members={members}
+                  focusId={focusId}
+                  onFocus={setFocusId}
+                />
+              )}
             </Modal.Body>
           </Modal.Dialog>
         </Modal.Container>
@@ -85,22 +111,33 @@ export function MediaLocationMapModal({
 }
 
 function LocationMap({
+  name,
   lat,
   lng,
   direction,
   spread,
+  members,
+  focusId,
 }: {
+  name: string;
   lat: number;
   lng: number;
   direction: number | null;
   spread: number | null;
+  members: PackageMember[];
+  focusId: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("loading");
   const allAround = spread != null && spread >= MAX_FACING_SPREAD;
+  // 팝업이 열려 있는 동안 패키지 목록은 그대로라 처음 값으로 그린다.
+  const pointsRef = useRef(memberPoints(members));
+  const mapRef = useRef<KakaoMap | null>(null);
+  const overlaysRef = useRef(new Map<string, BubbleOverlay>());
 
   useEffect(() => {
     let cancelled = false;
+    let observer: ResizeObserver | null = null;
     loadKakaoSdk()
       .then(() => {
         const maps = window.kakao?.maps;
@@ -119,6 +156,32 @@ function LocationMap({
             xAnchor: 0.5,
             yAnchor: 0.5,
           }).setMap(map);
+          mapRef.current = map;
+          const others = pointsRef.current;
+          if (others.length > 0) {
+            // 패키지 매체 — 이 매체와 함께 모두 보이게 맞추고, 팝업 크기가 바뀌면 다시 맞춘다.
+            // 말풍선이 점 위로 서 있으니 위쪽 여백을 더 준다.
+            // 말풍선이 겹치면 이 매체를 찾기 어려워 보라 말풍선도 단다.
+            addNameBubble(
+              maps,
+              map,
+              { id: CURRENT_ID, name, lat, lng, current: true },
+              overlaysRef.current,
+            );
+            const bounds = new maps.LatLngBounds();
+            bounds.extend(position);
+            for (const p of others) {
+              bounds.extend(new maps.LatLng(p.lat, p.lng));
+              addNameBubble(maps, map, p, overlaysRef.current);
+            }
+            const fit = () => {
+              map.relayout();
+              map.setBounds(bounds, 48, 24, 16, 24);
+            };
+            fit();
+            observer = new ResizeObserver(fit);
+            observer.observe(container);
+          }
           setStatus("ready");
         });
       })
@@ -127,11 +190,31 @@ function LocationMap({
       });
     return () => {
       cancelled = true;
+      observer?.disconnect();
     };
-  }, [lat, lng, direction, spread]);
+  }, [name, lat, lng, direction, spread]);
+
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    const point =
+      focusId === CURRENT_ID
+        ? { id: CURRENT_ID, name, lat, lng }
+        : pointsRef.current.find((p) => p.id === focusId);
+    if (maps && map && point) {
+      focusMember(maps, map, overlaysRef.current, point);
+    }
+  }, [focusId, name, lat, lng]);
 
   return (
-    <div className="relative h-[440px] overflow-hidden rounded-[12px] bg-tone-ededef max-sm:h-[60vh]">
+    <div
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-[12px] bg-tone-ededef",
+        members.length > 0
+          ? "h-[280px] max-sm:h-[33vh]"
+          : "h-[440px] max-sm:h-[60vh]",
+      )}
+    >
       <div ref={ref} className="h-full w-full" />
       {status !== "ready" && (
         <p className="absolute inset-0 flex items-center justify-center text-[13px] text-tone-6c757d">

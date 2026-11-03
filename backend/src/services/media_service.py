@@ -93,6 +93,19 @@ def shrink_media_image(content: bytes, ext: str) -> bytes:
         return content
 
 _SALE_TYPE = {"SINGLE": "단품", "GROUP": "패키지"}
+
+
+def _daily_broadcasts(p: MediaPlan) -> int | None:
+    """일 송출 수 — 직접 입력값 우선, 없으면 자동 계산값, 그것도 없으면 노출 횟수.
+    원천은 모르는 값을 0으로 채워 두므로 0은 "정보 없음"(None)."""
+    return p.broadcasts_count_manual or p.broadcasts_count_auto or p.exposure_count or None
+
+
+def _sale_type_label(m: Media) -> str | None:
+    """매체 찾기 카드·매체 정보의 판매 형태 — 패키지 매체라도 단품 상품을 함께 팔면(디지털 가로변쉘터) "단품·패키지"."""
+    if m.sales_type == "GROUP" and any(p.product_master_type == "PM_INDIVIDUAL" for p in m.plans):
+        return "단품·패키지"
+    return _SALE_TYPE.get(m.sales_type, m.sales_type)
 _EXPOSURE_TYPE = {"INSIDE": "공간형", "OUTSIDE": "외부형"}  # 설치 장소 — 어드민·매체 필터와 같은 표기
 _DURATION_TYPE = {
     "YEARS": "년",
@@ -202,11 +215,14 @@ def _minutes(hhmm: str) -> int:
     return hours * 60 + mins
 
 
-def operation_text(m: Media) -> str | None:
-    """DOOH 운영 시간 — "06:00 ~ 24:00 (18시간)". 종료가 시작보다 이르면 다음 날까지로 센다."""
+def operation_text(m: Media, with_length: bool = True) -> str | None:
+    """DOOH 운영 시간 — "06:00 ~ 24:00 (18시간)". 종료가 시작보다 이르면 다음 날까지로 센다.
+    with_length=False 면 "06:00 ~ 24:00"만(매체 정보 반 칸에 한 줄로 들어가게)."""
     start, end = m.operation_start_time, m.operation_end_time
     if not start or not end:
         return None
+    if not with_length:
+        return f"{start} ~ {end}"
     span = (_minutes(end) - _minutes(start)) % (24 * 60) or 24 * 60
     hours, mins = divmod(span, 60)
     length = f"{hours}시간" + (f" {mins}분" if mins else "")
@@ -319,7 +335,7 @@ def _media_card(m: Media) -> dict:
         address=_display_address(m),
         categoryLarge=m.category_large,
         categorySmall=m.category_small,
-        salesType=_SALE_TYPE.get(m.sales_type, m.sales_type),
+        salesType=_sale_type_label(m),
         thumbnailUrl=images[0] if images else None,
         images=images,
         badge=_media_badge(m),
@@ -371,7 +387,7 @@ def list_moving_media(
         keyword=keyword,
         regions=regions,
     )
-    rows = _apply_media_sort(base, sort).options(selectinload(Media.images)).all()
+    rows = _apply_media_sort(base, sort).options(selectinload(Media.images), selectinload(Media.plans)).all()
     return [_media_card(m) for m in rows]
 
 
@@ -817,7 +833,7 @@ def list_fixed_media(
     total = counts[source]
     rows = (
         _apply_media_sort(base, sort)
-        .options(selectinload(Media.images))
+        .options(selectinload(Media.images), selectinload(Media.plans))
         .limit(limit)
         .offset(offset)
         .all()
@@ -979,11 +995,14 @@ def list_fixed_clusters(
                 marker_points.extend(members)
             else:
                 n = len(members)
+                # 모두 같은 카테고리면 지도가 그 카테고리 핀 색으로 칠한다(섞이면 None — 기본 보라).
+                cats = {m[0].category_large for m in members}
                 clusters.append(
                     dict(
                         lat=sum(m[1] for m in members) / n,
                         lng=sum(m[2] for m in members) / n,
                         count=n,
+                        categoryLarge=cats.pop() if len(cats) == 1 else None,
                     )
                 )
 
@@ -1623,7 +1642,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
     add("매체 카테고리", m.category_small)
     add("타입", m.ooh_type)
     add("설치 장소", _EXPOSURE_TYPE.get(m.exposure_type, m.exposure_type))
-    add("판매 형태", _SALE_TYPE.get(m.sales_type, m.sales_type))
+    add("판매 형태", _sale_type_label(m))
     add("고정/이동", "이동" if m.media_source == "MOVING" else "고정")
     area = _operating_area(m)
     if area:
@@ -1636,7 +1655,10 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
     if m.spec_resolution_width and m.spec_resolution_height:
         add("해상도", f"{m.spec_resolution_width} × {m.spec_resolution_height} px")
     add("소재 형식", ", ".join(MATERIAL_FORMATS.get(f, f) for f in (m.material_formats or [])))
-    add("운영 시간", operation_text(m))
+    add("운영 시간", operation_text(m, with_length=False))
+    # 일 송출 수 — 상품 옵션 이름에서 빼고 여기 모아 둔다(상품마다 다르면 "100회 · 120회").
+    plays = sorted({n for n in (_daily_broadcasts(p) for p in m.plans) if n})
+    add("일 송출 수", " · ".join(f"{n:,}회" for n in plays))
 
     plans = [
         dict(
@@ -1658,14 +1680,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
             productionFeeKrw=p.production_fee,
             exposureSeconds=p.exposure_duration_seconds,
             exposureCount=p.exposure_count,
-            # 일 송출 수 — 직접 입력값 우선, 없으면 자동 계산값, 그것도 없으면 노출 횟수.
-            # 원천은 모르는 값을 0으로 채워 두므로 0은 "정보 없음"(None)으로 내보낸다.
-            dailyBroadcasts=(
-                p.broadcasts_count_manual
-                or p.broadcasts_count_auto
-                or p.exposure_count
-                or None
-            ),
+            dailyBroadcasts=_daily_broadcasts(p),
             durationText=_duration_text(p),
         )
         for p in sorted(m.plans, key=lambda p: p.plan_no)
@@ -1681,7 +1696,7 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
         minProductionFeeKrw=m.min_production_fee_krw,
         categoryLarge=m.category_large,
         categorySmall=m.category_small,
-        salesType=_SALE_TYPE.get(m.sales_type, m.sales_type),
+        salesType=_sale_type_label(m),
         oohType=m.ooh_type,
         description=m.description,
         # 이동매체는 정해진 위치가 없어 운행 지역을 위치 자리에 보여 준다.
@@ -1707,17 +1722,22 @@ def get_media_detail(db: Session, media_id: str) -> dict | None:
 
 def _packages(db: Session, m: Media) -> list[dict]:
     """세트 상품 — 이 매체의 패키지 상품(PM_PACKAGE)마다, 같은 이름의 패키지 상품을 가진 다른 매체들.
-    같은 패키지는 상품명(product_display_name)이 같다(예: 디지털 가로변쉘터 Half A PKG)."""
+    같은 패키지는 상품명(product_display_name)이 같다(예: 디지털 가로변쉘터 Half A PKG).
+    판매 형태가 패키지(GROUP)인 매체끼리만 본다 — 원천 매체는 "영상(30초)"처럼 흔한 이름의 패키지 상품이 많아
+    이름만 보면 상관없는 매체끼리 묶인다."""
     out = []
+    if m.sales_type != "GROUP":
+        return out
     for p in sorted(m.plans, key=lambda p: p.plan_no):
         if p.product_master_type != "PM_PACKAGE" or not p.product_display_name:
             continue
         rows = (
-            db.query(Media.media_id, Media.name, Media.second_name)
+            db.query(Media.media_id, Media.name, Media.second_name, Media.latitude, Media.longitude)
             .join(MediaPlan, MediaPlan.media_id == Media.media_id)
             .filter(
                 MediaPlan.product_master_type == "PM_PACKAGE",
                 MediaPlan.product_display_name == p.product_display_name,
+                Media.sales_type == "GROUP",
                 Media.media_id != m.media_id,
             )
             .distinct()
@@ -1731,7 +1751,12 @@ def _packages(db: Session, m: Media) -> list[dict]:
                 deviceQuantity=p.default_device_quantity,
                 surfaceQuantity=p.default_surface_quantity,
                 members=[
-                    dict(id=r.media_id, name=" ".join(x for x in [r.name, r.second_name] if x))
+                    dict(
+                        id=r.media_id,
+                        name=" ".join(x for x in [r.name, r.second_name] if x),
+                        lat=r.latitude,
+                        lng=r.longitude,
+                    )
                     for r in rows
                 ],
             )
@@ -2123,7 +2148,7 @@ _PLAN_EDITABLE = (
     "default_device_quantity",
     "default_surface_quantity",
 )
-_PLAN_MASTER_TYPES = {"PM_INDIVIDUAL", "PM_PACKAGE", "PM_NETWORK"}
+_PLAN_MASTER_TYPES = {"PM_INDIVIDUAL", "PM_PACKAGE"}
 _PLAN_DURATION_TYPES = {"YEARS", "MONTHS", "WEEKS", "DAYS"}
 _PLAN_NON_NEGATIVE = (
     "advertisement_fee",

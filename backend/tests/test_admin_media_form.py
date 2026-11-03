@@ -252,7 +252,7 @@ def test_spec_shown_in_detail(db):
     features = {f["label"]: f["value"] for f in detail["features"]}
     assert features["해상도"] == "1920 × 1080 px"
     assert features["소재 형식"] == "영상(MP4), 스틸컷(JPG·PNG)"
-    assert features["운영 시간"] == "06:00 ~ 24:00 (18시간)"
+    assert features["운영 시간"] == "06:00 ~ 24:00"
 
     # 규격을 지우면 단위도 비운다.
     cleared = ms.update_media(s, m["media_id"], {"spec_width": None, "spec_height": None})
@@ -281,7 +281,7 @@ def test_operation_time_and_formats_validation(db):
     )
     created.append(night["media_id"])
     detail = ms.get_media_detail(s, night["media_id"])
-    assert {"label": "운영 시간", "value": "18:00 ~ 02:30 (8시간 30분)"} in detail["features"]
+    assert {"label": "운영 시간", "value": "18:00 ~ 02:30"} in detail["features"]
 
 
 def test_preview_uses_form_values_without_saving(db):

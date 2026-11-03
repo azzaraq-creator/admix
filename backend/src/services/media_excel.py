@@ -203,7 +203,7 @@ UNUSED_COLUMNS = frozenset(
 _PHOTO_SECTION = ("사진", ["대표 이미지 URL", "사진 수"])
 
 # "상품" 시트 칸 — 어드민 매체 폼의 상품 칸과 같다(media_service._PLAN_EDITABLE).
-PLAN_MASTER_TYPES = {"PM_INDIVIDUAL": "개별", "PM_PACKAGE": "패키지", "PM_NETWORK": "네트워크"}
+PLAN_MASTER_TYPES = {"PM_INDIVIDUAL": "단품", "PM_PACKAGE": "패키지"}
 PLAN_DURATION_TYPES = {"MONTHS": "개월", "WEEKS": "주", "YEARS": "년", "DAYS": "일"}
 PLAN_COLUMNS: list[tuple[str, str, object]] = [
     ("product_display_name", "상품명", None),
@@ -477,7 +477,7 @@ _GUIDE: dict[str, tuple[str, str]] = {
 }
 _PLAN_GUIDE: dict[str, tuple[str, str]] = {
     "product_display_name": ("상품 이름. 매체 상세·기획안에 보입니다.", "영상(20초)"),
-    "product_master_type": ("개별 / 패키지 / 네트워크 — 매체 찾기 '판매 유형' 필터에 쓰입니다.", "개별"),
+    "product_master_type": ("단품 / 패키지 — 매체 찾기 '판매 유형' 필터에 쓰입니다.", "단품"),
     "contractual_duration": ("1 이상 정수.", "1"),
     "contractual_duration_type": ("개월 / 주 / 년 / 일", "개월"),
     "advertisement_fee": ("계약 기간 동안의 광고비(원). 비우면 서비스 화면에 '별도 문의'로 보입니다.", "4000000"),
@@ -630,6 +630,7 @@ _OLD_VALUES = {
     "exposure_type": {"실내": "INSIDE", "실외": "OUTSIDE"},
     "media_shape": {"곡면형": "CURVED_SHAPE", "비정형": "DIFFERENT_SHAPE"},
     "sales_type": {"묶음": "GROUP"},
+    "product_master_type": {"개별": "PM_INDIVIDUAL"},
 }
 
 
@@ -735,7 +736,7 @@ def _parse_plan_cell(key: str, conv, raw):
     if key in _PLAN_TEXT:
         return text
     if isinstance(conv, dict):
-        return _choice_value(conv, text)
+        return _choice_value(conv, text, _OLD_VALUES.get(key))
     text = text.replace(",", "").replace("원", "").strip()
     try:
         number = float(text)
