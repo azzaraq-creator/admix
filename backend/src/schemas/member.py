@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 # 회원 유형(가입 1단계) — 광고주 / 광고 대행사 / 매체사 / 일반.
-MemberCategory = Literal["advertiser", "agency", "media_owner", "general"]
+MemberCategory = Literal["advertiser", "agency", "media_owner", "general", "partner"]
 
 
 class MemberRow(BaseModel):

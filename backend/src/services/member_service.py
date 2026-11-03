@@ -28,6 +28,7 @@ _CATEGORY = {
     "agency": "광고 대행사",
     "media_owner": "매체사",
     "general": "일반",
+    "partner": "제휴사",
 }
 _PROPOSAL_STATUS = {
     "cancelled": "취소",

@@ -80,6 +80,7 @@ const CATEGORY_COLOR: Record<MemberCategory, ChipColor> = {
   agency: "success",
   media_owner: "warning",
   general: "default",
+  partner: "danger",
 };
 
 /** 파일 상태 — 저장 대기(아직 안 올림)·검토 중·인증 완료·인증 반려. */

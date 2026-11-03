@@ -1,8 +1,11 @@
 /** 회원 유형 — 백엔드 users.member_category 값과 같다. */
 export type MemberCategory =
-  "advertiser" | "agency" | "media_owner" | "general";
+  "advertiser" | "agency" | "media_owner" | "general" | "partner";
 
-/** 시안(00. 회원가입 - 회원 유형 선택)의 카드 순서·문구. */
+/**
+ * 시안(00. 회원가입 - 회원 유형 선택)의 카드 순서·문구.
+ * 제휴사(매장·콜라보)는 가입 화면에서 구분선 아래 따로 보인다(PARTNER_CATEGORY).
+ */
 export const MEMBER_CATEGORIES: {
   value: MemberCategory;
   label: string;
@@ -28,7 +31,15 @@ export const MEMBER_CATEGORIES: {
     label: "일반",
     description: ["서비스를 둘러보고", "이용하려는 개인 사용자"],
   },
+  {
+    value: "partner",
+    label: "제휴사",
+    description: ["매장 · 콜라보 등", "ADMIX와 제휴하는 파트너"],
+  },
 ];
+
+/** 가입 화면에서 구분선 아래 따로 두는 유형. */
+export const PARTNER_CATEGORY: MemberCategory = "partner";
 
 export const MEMBER_CATEGORY_LABEL: Record<MemberCategory, string> =
   Object.fromEntries(
