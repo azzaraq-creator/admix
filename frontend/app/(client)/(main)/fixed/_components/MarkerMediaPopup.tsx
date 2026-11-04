@@ -268,12 +268,9 @@ export function MediaPopupCard({
                     {rankBadge}
                   </span>
                 )}
-                {/* 쉘터 정류장 번호 — 매체명 바로 앞, 매체명이 여러 줄이어도 첫 줄에 맞춘다. */}
+                {/* 쉘터 정류장 번호 — 매체명 바로 앞, 매체명과 세로 가운데를 맞춘다. */}
                 {row.stopNo && (
-                  <StopNoChip
-                    stopNo={row.stopNo}
-                    className="mt-[2px] self-start"
-                  />
+                  <StopNoChip stopNo={row.stopNo} className="self-center" />
                 )}
                 {name}
                 <LikeButton liked={liked} onToggle={toggleLiked} />
