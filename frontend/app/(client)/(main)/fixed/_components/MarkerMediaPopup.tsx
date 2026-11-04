@@ -268,12 +268,16 @@ export function MediaPopupCard({
                     {rankBadge}
                   </span>
                 )}
+                {/* 쉘터 정류장 번호 — 매체명 바로 앞, 매체명이 여러 줄이어도 첫 줄에 맞춘다. */}
+                {row.stopNo && (
+                  <StopNoChip
+                    stopNo={row.stopNo}
+                    className="mt-[2px] self-start"
+                  />
+                )}
                 {name}
                 <LikeButton liked={liked} onToggle={toggleLiked} />
               </div>
-              {row.stopNo && (
-                <StopNoChip stopNo={row.stopNo} className="self-start" />
-              )}
               {row.address && (
                 <div className="flex items-start gap-[3px]">
                   <LocationFilledIcon className="mt-[2px] size-[12px] shrink-0 text-tone-6c757d" />

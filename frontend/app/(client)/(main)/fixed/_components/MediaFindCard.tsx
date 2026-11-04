@@ -231,20 +231,18 @@ function MediaFindCardImpl({
                 </Chip>
               )}
               {row.badge && <MediaBadgeChip badge={row.badge} />}
+              {/* 쉘터 정류장 번호 — 매체명 바로 앞(매체 정보 팝업과 같은 자리). */}
+              {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
               <p className="truncate text-[14px] leading-[18px] font-bold text-black max-sm:text-[13px]">
                 {row.name}
               </p>
             </div>
           </div>
-          {/* 쉘터는 주소 앞에 정류장 번호 — 주소가 길면 주소가 줄어든다. */}
-          <div className="mt-[3px] flex min-w-0 items-center gap-[4px]">
-            {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
-            <p className="truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
-              {row.mediaSource === "MOVING"
-                ? (area?.label ?? "-")
-                : (row.address ?? "-")}
-            </p>
-          </div>
+          <p className="mt-[3px] truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
+            {row.mediaSource === "MOVING"
+              ? (area?.label ?? "-")
+              : (row.address ?? "-")}
+          </p>
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
             <div className="flex min-w-0 flex-col gap-[1px]">
@@ -317,6 +315,8 @@ function MediaFindCardImpl({
             </Chip>
           )}
           {row.badge && <MediaBadgeChip badge={row.badge} />}
+          {/* 쉘터 정류장 번호 — 매체명 바로 앞(매체 정보 팝업과 같은 자리). */}
+          {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
           <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
             {row.name}
           </p>
@@ -336,11 +336,7 @@ function MediaFindCardImpl({
             </span>
           </div>
         ) : (
-          <div className="mt-[5px] flex min-w-0 items-center gap-[3px]">
-            {/* 쉘터는 주소 앞에 정류장 번호 — 주소가 길면 주소가 줄어든다. */}
-            {row.stopNo && (
-              <StopNoChip stopNo={row.stopNo} className="mr-[3px]" />
-            )}
+          <div className="mt-[5px] flex items-center gap-[3px]">
             <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
             <span className="truncate text-[12px] max-sm:text-[11px] text-tone-6c757d">
               {row.address ?? "-"}
