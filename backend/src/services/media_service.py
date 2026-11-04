@@ -343,6 +343,7 @@ def _media_card(m: Media) -> dict:
         lng=float(m.longitude) if m.longitude is not None else None,
         mediaSource=m.media_source or "FIXED",
         operatingArea=_operating_area(m),
+        stopNo=m.stop_no,
     )
 
 
@@ -906,6 +907,7 @@ def _marker_from_row(
         thumbnailUrl=images[0] if images else None,
         images=images,
         badge=badge,
+        stopNo=r.stop_no,
     )
 
 
@@ -968,6 +970,7 @@ def list_fixed_clusters(
         Media.is_newly_built_yn,
         Media.source_created_at,
         Media.created_at,
+        Media.stop_no,
     ).all()
 
     points = [

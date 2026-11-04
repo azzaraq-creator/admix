@@ -1,22 +1,12 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
-import { loadKakaoSdk } from "@/lib/kakaoMap";
+import {
+  KakaoMapRoadviewLink,
+  RoadviewView,
+} from "@/components/common/RoadviewView";
 import { cn } from "@/lib/utils";
-
-// 매체 좌표에서 이 거리(m) 안 가장 가까운 로드뷰를 띄운다.
-const ROADVIEW_RADIUS_M = 50;
-
-type Status = "loading" | "ready" | "none" | "error";
-
-/** a → b 방위각(도, 북쪽 0·시계 방향) — 로드뷰를 매체 쪽으로 돌릴 때 쓴다. */
-function bearing(aLat: number, aLng: number, bLat: number, bLng: number) {
-  const dx = (bLng - aLng) * Math.cos((aLat * Math.PI) / 180);
-  const dy = bLat - aLat;
-  return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
-}
 
 /**
  * 어드민 등급·추천 탭 — 매체 좌표의 카카오 로드뷰. 현장에 가지 않고 가시거리·가림·보는 방향·설치 높이·
@@ -60,82 +50,14 @@ export function RoadviewPanel({
             )}
           </span>
         </button>
-        <a
-          href={`https://map.kakao.com/link/roadview/${lat},${lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[12px] font-semibold text-primary-600 hover:underline"
-        >
-          카카오맵에서 크게 보기
-        </a>
+        <KakaoMapRoadviewLink lat={lat} lng={lng} />
       </div>
-      {open && <RoadviewView lat={lat} lng={lng} />}
-    </div>
-  );
-}
-
-/** 로드뷰 화면 — 펼쳤을 때만 그린다. */
-function RoadviewView({ lat, lng }: { lat: number; lng: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [status, setStatus] = useState<Status>("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-    loadKakaoSdk()
-      .then(() => {
-        const maps = window.kakao?.maps;
-        if (!maps || cancelled) return;
-        maps.load(() => {
-          const container = ref.current;
-          if (cancelled || !container) return;
-          const position = new maps.LatLng(lat, lng);
-          new maps.RoadviewClient().getNearestPanoId(
-            position,
-            ROADVIEW_RADIUS_M,
-            (panoId) => {
-              if (cancelled) return;
-              if (panoId == null) {
-                setStatus("none");
-                return;
-              }
-              // 좌표를 바꿔 다시 열 때 이전 로드뷰를 지운다.
-              container.replaceChildren();
-              const roadview = new maps.Roadview(container);
-              roadview.setPanoId(panoId, position);
-              maps.event.addListener(roadview, "init", () => {
-                if (cancelled) return;
-                const at = roadview.getPosition();
-                roadview.setViewpoint({
-                  pan: bearing(at.getLat(), at.getLng(), lat, lng),
-                  tilt: 0,
-                  zoom: 0,
-                });
-                new maps.Marker({ position }).setMap(roadview);
-              });
-              setStatus("ready");
-            },
-          );
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [lat, lng]);
-
-  return (
-    <div className="relative h-[360px] overflow-hidden rounded-[8px] bg-gray-50 max-sm:h-[240px]">
-      <div ref={ref} className="h-full w-full" />
-      {status !== "ready" && (
-        <p className="absolute inset-0 flex items-center justify-center px-[16px] text-center text-[13px] text-gray-500">
-          {status === "loading"
-            ? "로드뷰를 불러오는 중…"
-            : status === "none"
-              ? `매체 위치 ${ROADVIEW_RADIUS_M}m 안에 로드뷰가 없어요.`
-              : "로드뷰를 불러오지 못했어요."}
-        </p>
+      {open && (
+        <RoadviewView
+          lat={lat}
+          lng={lng}
+          className="h-[360px] max-sm:h-[240px]"
+        />
       )}
     </div>
   );

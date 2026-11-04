@@ -65,6 +65,8 @@ class MediaCardRow(BaseModel):
     # FIXED(고정) | MOVING(이동). 이동매체는 좌표 대신 operatingArea 를 쓴다.
     mediaSource: str = "FIXED"
     operatingArea: OperatingArea | None = None
+    # 쉘터 정류장 번호 — 목록·지도 카드에도 보인다.
+    stopNo: str | None = None
 
 
 class MediaSourceCounts(BaseModel):
@@ -105,6 +107,8 @@ class MediaMarker(BaseModel):
     thumbnailUrl: str | None = None
     images: list[str] = []
     badge: str | None = None
+    # 쉘터 정류장 번호 — 지도 팝업 카드에 보인다.
+    stopNo: str | None = None
 
 
 class MediaCluster(BaseModel):

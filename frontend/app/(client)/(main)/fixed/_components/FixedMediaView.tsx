@@ -69,6 +69,7 @@ function markerToCardRow(m: MapMarker): MediaCardRow {
     badge: m.badge ?? null,
     lat: m.lat,
     lng: m.lng,
+    stopNo: m.stopNo ?? null,
   };
 }
 
@@ -525,6 +526,7 @@ export function FixedMediaView() {
             badge: popupDetail.badge,
             lat: null,
             lng: null,
+            stopNo: popupDetail.stopNo ?? null,
           },
         ]
       : [];

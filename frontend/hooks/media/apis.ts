@@ -60,6 +60,8 @@ export interface MediaCardRow {
   /** 이동매체는 좌표가 없고 operatingArea로 운행 지역을 보여 준다. 지도 마커에서 만든 행은 비어 있다. */
   mediaSource?: "FIXED" | "MOVING";
   operatingArea?: OperatingArea | null;
+  /** 쉘터 정류장 번호 — 목록·지도 카드에 작은 알약으로 보인다. */
+  stopNo?: string | null;
 }
 
 /** 매체 찾기 탭 — 전체(null)·고정·이동. */
@@ -239,6 +241,7 @@ export interface MediaMarkerDto {
   thumbnailUrl: string | null;
   images: string[];
   badge: "popular" | "new" | null;
+  stopNo?: string | null;
 }
 
 export interface MediaClusterDto {

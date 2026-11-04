@@ -429,6 +429,7 @@ export function MediaFindPanel({
         thumbnailUrl: m.thumbnailUrl,
         images: m.images,
         badge: m.badge,
+        stopNo: m.stopNo,
       })),
       clusters: clusterData.clusters.map((c) => ({
         lat: c.lat,

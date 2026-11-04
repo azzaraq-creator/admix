@@ -2,7 +2,11 @@
 
 import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 
+import { PersonStanding } from "lucide-react";
+
 import { formatAdFee } from "@/lib/media";
+import { kakaoRoadviewUrl } from "@/components/common/RoadviewView";
+import { StopNoChip } from "@/components/common/StopNoChip";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
@@ -102,6 +106,7 @@ export function MediaPopupCard({
   tag,
   onSelect,
   onAddProposal,
+  roadview = false,
 }: {
   row: MediaCardRow;
   simple: boolean;
@@ -113,6 +118,8 @@ export function MediaPopupCard({
   tag?: string;
   onSelect?: () => void;
   onAddProposal?: () => void;
+  /** 매체 자리 카카오맵 로드뷰를 새 탭으로 여는 버튼을 단다(지도 팝업). 좌표가 없으면 안 단다. */
+  roadview?: boolean;
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
@@ -154,6 +161,11 @@ export function MediaPopupCard({
       {tag}
     </Chip>
   );
+  // 카드를 누르면 상세가 열리므로, 로드뷰 링크 클릭은 카드로 번지지 않게 막는다.
+  const roadviewAt =
+    roadview && row.lat != null && row.lng != null
+      ? { lat: row.lat, lng: row.lng }
+      : null;
   const rankBadge = rank != null && (
     <span className="mt-[1px] inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[11px] leading-none font-bold text-white tabular-nums">
       {rank}
@@ -185,10 +197,25 @@ export function MediaPopupCard({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-[4px] gap-y-[2px]">
           <div className="flex min-w-0 items-center gap-[4px]">
             {rankBadge && <span className="mr-[2px] flex">{rankBadge}</span>}
+            {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
             {name}
           </div>
           <div className="col-start-2 row-start-1 flex gap-[4px] sm:row-span-2">
             <LikeButton liked={liked} onToggle={toggleLiked} />
+            {roadviewAt && (
+              // 간략히 보기는 아이콘만 — 옆 버튼들과 같은 밝은 회색 바탕.
+              <a
+                href={kakaoRoadviewUrl(roadviewAt.lat, roadviewAt.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="카카오 로드뷰로 보기"
+                title="카카오 로드뷰로 보기"
+                onClick={(e) => e.stopPropagation()}
+                className="flex size-[28px] shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
+              >
+                <PersonStanding className="size-[16px]" />
+              </a>
+            )}
             <Button
               isIconOnly
               variant="ghost"
@@ -216,7 +243,23 @@ export function MediaPopupCard({
               sizes="96px"
               logoClassName="size-[24px]"
               className="size-[96px] shrink-0 rounded-[10px]"
-            />
+            >
+              {roadviewAt && (
+                // 사진 왼쪽 위 작은 칩 — 아래쪽은 사진 넘김 점 자리라 위에 둔다. 누르면 카카오맵 로드뷰가 새 탭으로.
+                <a
+                  href={kakaoRoadviewUrl(roadviewAt.lat, roadviewAt.lng)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="카카오 로드뷰로 보기"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="absolute top-[5px] left-[5px] flex h-[20px] items-center gap-[2px] rounded-full bg-black/55 pr-[7px] pl-[5px] text-[10px] font-semibold text-white backdrop-blur-[4px] transition-colors hover:bg-black/75"
+                >
+                  <PersonStanding className="size-[12px] shrink-0" />
+                  로드뷰
+                </a>
+              )}
+            </MediaImageCarousel>
             <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
               {/* 모바일은 매체명이 여러 줄로 내려가도 순위 번호를 첫 줄에 맞춘다(가운데 정렬 대신 위). */}
               <div className="flex items-center gap-[4px] max-sm:items-start">
@@ -228,6 +271,9 @@ export function MediaPopupCard({
                 {name}
                 <LikeButton liked={liked} onToggle={toggleLiked} />
               </div>
+              {row.stopNo && (
+                <StopNoChip stopNo={row.stopNo} className="self-start" />
+              )}
               {row.address && (
                 <div className="flex items-start gap-[3px]">
                   <LocationFilledIcon className="mt-[2px] size-[12px] shrink-0 text-tone-6c757d" />
@@ -347,6 +393,7 @@ export function MarkerMediaPopup({
             tag={row.id === highlightId ? "검색한 매체" : undefined}
             onSelect={() => onSelect?.(row)}
             onAddProposal={() => onAddProposal?.(row)}
+            roadview
           />
         ))}
       </ScrollShadow>

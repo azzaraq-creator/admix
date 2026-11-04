@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
 import { MovingChip } from "@/components/common/MovingChip";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
+import { StopNoChip } from "@/components/common/StopNoChip";
 
 // 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
 const formatKrw = formatAdFee;
@@ -235,11 +236,15 @@ function MediaFindCardImpl({
               </p>
             </div>
           </div>
-          <p className="mt-[3px] truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
-            {row.mediaSource === "MOVING"
-              ? (area?.label ?? "-")
-              : (row.address ?? "-")}
-          </p>
+          {/* 쉘터는 주소 앞에 정류장 번호 — 주소가 길면 주소가 줄어든다. */}
+          <div className="mt-[3px] flex min-w-0 items-center gap-[4px]">
+            {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
+            <p className="truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
+              {row.mediaSource === "MOVING"
+                ? (area?.label ?? "-")
+                : (row.address ?? "-")}
+            </p>
+          </div>
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
             <div className="flex min-w-0 flex-col gap-[1px]">
@@ -331,7 +336,11 @@ function MediaFindCardImpl({
             </span>
           </div>
         ) : (
-          <div className="mt-[5px] flex items-center gap-[3px]">
+          <div className="mt-[5px] flex min-w-0 items-center gap-[3px]">
+            {/* 쉘터는 주소 앞에 정류장 번호 — 주소가 길면 주소가 줄어든다. */}
+            {row.stopNo && (
+              <StopNoChip stopNo={row.stopNo} className="mr-[3px]" />
+            )}
             <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
             <span className="truncate text-[12px] max-sm:text-[11px] text-tone-6c757d">
               {row.address ?? "-"}

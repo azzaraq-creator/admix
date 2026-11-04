@@ -13,6 +13,7 @@ export interface MapMarker {
   thumbnailUrl?: string | null;
   images?: string[];
   badge?: "popular" | "new" | null;
+  stopNo?: string | null;
 }
 
 export type MapMoveType = "program" | "zoom" | "drag";
