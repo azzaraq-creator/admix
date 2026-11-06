@@ -33,7 +33,7 @@ export function SignupCompleteView() {
           <CardHeading
             center
             title="회원가입이 완료되었어요!"
-            description="ADMIX에서 원하는 옥외광고 매체를 찾아보세요"
+            description="admix에서 원하는 옥외광고 매체를 찾아보세요"
           />
 
           {/* 모바일은 요약 줄이 좁아 이메일이 잘리므로, 한 박스 안에 가입한 이메일을 크게 두고
@@ -82,7 +82,7 @@ export function SignupCompleteView() {
         </div>
 
         <PrimaryAction
-          label="ADMIX 시작하기"
+          label="admix 시작하기"
           onPress={() => router.push("/")}
         />
       </SignupCard>

@@ -12,6 +12,7 @@ import {
   ToggleButton,
 } from "@heroui/react";
 
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { formatAdFee } from "@/lib/media";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
@@ -154,6 +155,8 @@ function MediaFindCardImpl({
   const { liked, setLiked } = useFavorite(row.id, { notifyName: row.name });
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
+  // 콜라보 매장 — 광고비·기획안 담기 대신 "매장 정보 새 탭" 안내(누르면 매장 상세가 새 탭으로 열린다).
+  const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
 
   const likeButton = (
     <ToggleButton
@@ -245,24 +248,36 @@ function MediaFindCardImpl({
           </p>
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
-            <div className="flex min-w-0 flex-col gap-[1px]">
-              <CompactPrice label="광고비" value={row.minAdvertisementFeeKrw} />
-              {row.minProductionFeeKrw != null && (
-                <CompactPrice label="제작비" value={row.minProductionFeeKrw} />
-              )}
-            </div>
+            {partners ? (
+              <PartnersOpenHint />
+            ) : (
+              <div className="flex min-w-0 flex-col gap-[1px]">
+                <CompactPrice
+                  label="광고비"
+                  value={row.minAdvertisementFeeKrw}
+                />
+                {row.minProductionFeeKrw != null && (
+                  <CompactPrice
+                    label="제작비"
+                    value={row.minProductionFeeKrw}
+                  />
+                )}
+              </div>
+            )}
             {/* onPress는 카드 클릭으로 번지지 않는다. */}
-            <Button
-              variant="ghost"
-              onPress={() => onAddProposal?.()}
-              aria-label="기획안 담기"
-              className="h-[28px] min-w-0 shrink-0 gap-[6px] rounded-[10px] bg-primary-50 px-[8px] text-primary data-[hovered=true]:bg-primary-100"
-            >
-              <FolderAddIcon className="shrink-0 text-[10px]" />
-              <span className="text-[12px] font-bold max-sm:text-[11px]">
-                담기
-              </span>
-            </Button>
+            {!partners && (
+              <Button
+                variant="ghost"
+                onPress={() => onAddProposal?.()}
+                aria-label="기획안 담기"
+                className="h-[28px] min-w-0 shrink-0 gap-[6px] rounded-[10px] bg-primary-50 px-[8px] text-primary data-[hovered=true]:bg-primary-100"
+              >
+                <FolderAddIcon className="shrink-0 text-[10px]" />
+                <span className="text-[12px] font-bold max-sm:text-[11px]">
+                  담기
+                </span>
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -291,16 +306,18 @@ function MediaFindCardImpl({
           <>
             {/* 정렬(inline-flex·가운데)·줄바꿈 금지는 HeroUI Button 기본값이라 따로 주지 않는다.
             onPress는 카드 클릭으로 번지지 않는다. */}
-            <Button
-              variant="ghost"
-              onPress={() => onAddProposal?.()}
-              className="absolute top-[11px] left-[11px] h-[30px] gap-[6px] rounded-[12px] bg-surface px-[12px] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
-            >
-              <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
-              <span className="text-[12px] max-sm:text-[11px] font-bold text-zinc-900">
-                기획안 담기
-              </span>
-            </Button>
+            {!partners && (
+              <Button
+                variant="ghost"
+                onPress={() => onAddProposal?.()}
+                className="absolute top-[11px] left-[11px] h-[30px] gap-[6px] rounded-[12px] bg-surface px-[12px] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
+              >
+                <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
+                <span className="text-[12px] max-sm:text-[11px] font-bold text-zinc-900">
+                  기획안 담기
+                </span>
+              </Button>
+            )}
 
             {likeButton}
           </>
@@ -370,24 +387,39 @@ function MediaFindCardImpl({
 
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
-      <div className="p-[10px] flex items-center gap-[20px]">
-        <PriceCell
-          label="광고비 / 1개월"
-          value={row.minAdvertisementFeeKrw}
-          // 시안은 광고비 칸 270px 고정이지만, 두 금액이 모두 크면(98,000,000원 · 4,000,000원) 제작비가
-          // 들어갈 자리가 모자라 깨진다. 제작비는 자기 폭만큼, 광고비가 남는 폭을 쓴다(둘 다 오른쪽 정렬).
-          className="min-w-0 flex-1"
-        />
-        {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
-        {row.minProductionFeeKrw != null && (
+      {partners ? (
+        <div className="flex items-center p-[10px]">
+          <PartnersOpenHint />
+        </div>
+      ) : (
+        <div className="p-[10px] flex items-center gap-[20px]">
           <PriceCell
-            label="제작비 / 1회"
-            value={row.minProductionFeeKrw}
-            className="min-w-[89px] shrink-0"
+            label="광고비 / 1개월"
+            value={row.minAdvertisementFeeKrw}
+            // 시안은 광고비 칸 270px 고정이지만, 두 금액이 모두 크면(98,000,000원 · 4,000,000원) 제작비가
+            // 들어갈 자리가 모자라 깨진다. 제작비는 자기 폭만큼, 광고비가 남는 폭을 쓴다(둘 다 오른쪽 정렬).
+            className="min-w-0 flex-1"
           />
-        )}
-      </div>
+          {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
+          {row.minProductionFeeKrw != null && (
+            <PriceCell
+              label="제작비 / 1회"
+              value={row.minProductionFeeKrw}
+              className="min-w-[89px] shrink-0"
+            />
+          )}
+        </div>
+      )}
     </Card>
+  );
+}
+
+/** 콜라보 카드 아래 줄 — 누르면 매장 정보가 새 탭으로 열린다는 안내. */
+function PartnersOpenHint() {
+  return (
+    <span className="text-[12px] font-semibold text-amber-800 max-sm:text-[11px]">
+      매장 정보 보기 ↗
+    </span>
   );
 }
 

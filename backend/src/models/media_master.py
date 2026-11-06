@@ -105,7 +105,7 @@ class Media(Base):
     properties_count = Column(Integer, nullable=True)
     properties_summary = Column(Text, nullable=True)
     properties_extra_json = Column(JSONB(none_as_null=True), nullable=True)
-    final_grade = Column(String(10), nullable=True, index=True)  # ADMIX S~D 또는 KT 판매 등급(SA+ 등, 쉘터)
+    final_grade = Column(String(10), nullable=True, index=True)  # admix S~D 또는 KT 판매 등급(SA+ 등, 쉘터)
     feature = Column(String(100), nullable=True)
     quality_score = Column(Numeric, nullable=True)
     gangnam_dong_grade = Column(String(1), nullable=True)

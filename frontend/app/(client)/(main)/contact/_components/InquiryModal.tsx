@@ -27,21 +27,6 @@ import { cn } from "@/lib/utils";
 const CONTENT_PLACEHOLDER =
   "• 화장품 신제품 홍보하려고 하는데 강남 성수 지역에 MZ 타켓으로 7-8월 캠페인 생각하고 있어요.\n• 중고차 앱 프로모션 생각합니다.\n• 서울 중요 지역 3곳 2040 대상으로 1달간 영상광고 집행 하려고 합니다.";
 
-// 입력칸 — 로그인·프로필 창과 같은 ADMIX 입력칸(회색 칸, 올리거나 입력 중이면 흰 바탕,
-// 입력 중엔 1px 보라 테두리, 잘못된 값이면 1px 빨간 테두리 — HeroUI가 바깥에 더 그리는 빨간 외곽선은 꺼
-// 굵어지거나 스크롤 영역 가장자리에서 잘리지 않게 한다). 40px → 곡률 17px.
-const FIELD_CLASS =
-  "w-full border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! max-sm:px-[14px] max-sm:text-[13px] " +
-  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
-const INPUT_CLASS = cn(FIELD_CLASS, "h-[40px] rounded-[17px]");
-// 내용 칸은 여러 줄이라 곡률은 카드 칸(12px)과 같게.
-const TEXTAREA_CLASS = cn(
-  FIELD_CLASS,
-  "min-h-[160px] resize-none rounded-[12px] py-[12px] leading-[1.6]",
-);
-const LABEL_CLASS = "text-[13px] font-medium text-gray-700 max-sm:text-[12px]";
-const ERROR_CLASS = "text-[12px] text-danger max-sm:text-[11px]";
-
 // 하단 버튼 — 매체 정보·기획안에 담기 팝업 하단 버튼과 같은 모양(13px, 곡률 15px).
 const ACTION_CLASS =
   "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
@@ -87,16 +72,17 @@ function Field({
       fullWidth
       className="flex flex-col gap-[6px]"
     >
-      <Label className={LABEL_CLASS}>
+      <Label>
         {label}
         {required && <span className="ml-[2px] text-danger">*</span>}
       </Label>
       <Input
         inputMode={inputMode}
         placeholder={placeholder}
-        className={INPUT_CLASS}
+        fullWidth
+        className="h-[40px] rounded-[17px]"
       />
-      <FieldError className={ERROR_CLASS}>{error}</FieldError>
+      <FieldError>{error}</FieldError>
     </TextField>
   );
 }
@@ -258,14 +244,15 @@ function InquiryForm({
               fullWidth
               className="flex flex-col gap-[6px]"
             >
-              <Label className={LABEL_CLASS}>
+              <Label>
                 내용<span className="ml-[2px] text-danger">*</span>
               </Label>
               <TextArea
                 placeholder={CONTENT_PLACEHOLDER}
-                className={TEXTAREA_CLASS}
+                fullWidth
+                className="min-h-[160px] resize-none"
               />
-              <FieldError className={ERROR_CLASS}>{errors.content}</FieldError>
+              <FieldError>{errors.content}</FieldError>
             </TextField>
           </div>
         </section>
@@ -304,7 +291,7 @@ function InquiryForm({
 }
 
 /**
- * 문의하기 — HeroUI Modal. 모양은 ADMIX 팝업(매체 정보·기획안에 담기)과 같다:
+ * 문의하기 — HeroUI Modal. 모양은 admix 팝업(매체 정보·기획안에 담기)과 같다:
  * 모서리 20px, 회색 원형 닫기, 16px 제목 + 12px 설명, 회색 입력칸, 오른쪽 아래 취소/제출.
  * 본문은 "보내는 사람"(2×2)과 "문의 내용"(제목·내용 전체 폭) 두 섹션을 구분선으로 나눈다.
  */

@@ -10,13 +10,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-# 회원 유형(가입 1단계) — 광고주 / 광고 대행사 / 매체사 / 일반.
+# 회원 유형(가입 1단계) — 일반 / 광고주 / 대행사 / 매체사 / 제휴사(콜라보).
 MemberCategory = Literal["advertiser", "agency", "media_owner", "general", "partner"]
 
 
 class MemberRow(BaseModel):
     no: str
-    # 회원 유형(광고주/광고 대행사/매체사/일반) 한글 표시값.
+    # 회원 유형(일반/광고주/대행사/매체사/제휴사(콜라보)) 한글 표시값.
     category: str
     loginId: str
     company: str

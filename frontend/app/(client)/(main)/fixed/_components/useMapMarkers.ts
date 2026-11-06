@@ -27,6 +27,7 @@ const CATEGORY_COLOR: Record<string, [string, string]> = {
   지하철: ["47,158,68", "#2B8A3E"], // 초록
   쉘터: ["28,126,214", "#1864AB"], // 파랑
   "버스/택시": ["245,159,0", "#E67700"], // 노랑
+  "콜라보": ["156,91,46", "#7A3E14"], // 커피색 — 제휴 매장
 };
 const DEFAULT_COLOR: [string, string] = ["122,63,224", "#5b21c4"]; // 보라
 
@@ -139,6 +140,7 @@ const CATEGORY_PIN: Record<string, string> = {
   지하철: "subway", // 초록
   쉘터: "shelter", // 파랑
   "버스/택시": "bus-taxi", // 노랑
+  "콜라보": "cafe", // 커피색 + 커피잔
 };
 
 type MarkerCategory = Pick<MapMarker, "categoryLarge" | "categorySmall">;

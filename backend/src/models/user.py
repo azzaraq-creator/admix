@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from src.database import Base
@@ -46,6 +46,11 @@ class User(Base):
         String(20), nullable=False, default="general", server_default="general"
     )
     company_name = Column(String(200), nullable=True)
+    # 제휴사(콜라보) 기본협약 동의 — 동의 시각 · 협약 버전(065). 비어 있으면 아직 동의 전(로그인 시 이어서 하기 창).
+    partner_agreed_at = Column(DateTime(timezone=True), nullable=True)
+    partner_agreement_version = Column(String(20), nullable=True)
+    # 동의 전 진행 상태(화면이 정한 JSON — 단계 · 읽은 주제 · 별지 확인 등). 다시 로그인하면 여기서 이어서 한다.
+    partner_agreement_progress = Column(JSONB, nullable=True)
     position = Column(String(100), nullable=True)
     industry = Column(String(100), nullable=True)
     marketing_consent = Column(Boolean, nullable=False, default=False)

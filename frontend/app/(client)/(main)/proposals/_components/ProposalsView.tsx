@@ -142,7 +142,7 @@ export function ProposalsView() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  // 삭제 확인·모바일 미지원 안내는 HeroUI Modal 확인창(ADMIX 팝업 모양).
+  // 삭제 확인·모바일 미지원 안내는 HeroUI Modal 확인창(admix 팝업 모양).
   const { confirm: confirmDelete, confirmDialog: deleteDialog } =
     useModalConfirm();
   const { showLimitDialog, limitDialog } = useProposalLimitDialog();
@@ -401,8 +401,6 @@ export function ProposalsView() {
           </Tabs.ListContainer>
         </Tabs>
 
-        {/* 검색 40px → 곡률 17px. 매체 찾기 검색바와 같은 회색 칸.
-            포커스 표시는 HeroUI 기본 2px 링 대신 테두리 색만 바꾼 1px. */}
         <SearchField
           aria-label="기획안 검색"
           value={query}
@@ -412,14 +410,10 @@ export function ProposalsView() {
           }}
           className="w-full sm:w-[350px]"
         >
-          <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
-            <SearchOutlineIcon className="size-[18px] shrink-0 text-tone-6c757d" />
-            <SearchField.Input
-              placeholder="기획안명으로 검색해 보세요"
-              className="px-0 text-[14px] placeholder:text-zinc-400"
-            />
-            {/* HeroUI 기본 me-2를 빼서 좌우 여백을 칸의 px-[12px]로 맞춘다. */}
-            <SearchField.ClearButton className="me-0" />
+          <SearchField.Group className="h-[40px] rounded-[17px]">
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="기획안명으로 검색해 보세요" />
+            <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
       </div>

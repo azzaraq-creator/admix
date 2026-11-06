@@ -25,6 +25,7 @@ import re
 from sqlalchemy.orm import Session
 
 from src.models.media import KeywordCategory, MediaItem, MediaKeyword
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
 from src.models.media_master import Media
 
 log = logging.getLogger(__name__)
@@ -313,6 +314,9 @@ def sync_media_ids(db: Session, media_ids: list[str]) -> None:
     try:
         dictionary = _load_dictionary(db)
         for m in db.query(Media).filter(Media.media_id.in_(media_ids)).all():
+            # 콜라보 매장 줄은 AI 추천 대상이 아니라 검색 표에 넣지 않는다(partners_service).
+            if m.category_large == PARTNERS_MEDIA_CATEGORY:
+                continue
             sync_media_item(db, m, dictionary)
         db.commit()
     except Exception:  # noqa: BLE001

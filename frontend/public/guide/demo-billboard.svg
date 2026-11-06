@@ -32,7 +32,7 @@
   </g>
   <rect x="252" y="92" width="336" height="182" rx="6" fill="#2a2f45"/>
   <rect x="262" y="102" width="316" height="162" rx="3" fill="url(#screen)"/>
-  <text x="420" y="180" text-anchor="middle" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="46" font-weight="800" fill="#fff">ADMIX</text>
+  <text x="420" y="180" text-anchor="middle" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="46" font-weight="800" fill="#fff">admix</text>
   <text x="420" y="222" text-anchor="middle" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="20" font-weight="600" fill="#fff" fill-opacity="0.85">가이드용 예시 매체</text>
   <rect x="0" y="388" width="840" height="12" fill="#8b93ad"/>
 </svg>

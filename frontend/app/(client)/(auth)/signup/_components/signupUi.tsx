@@ -83,7 +83,7 @@ export function CardHeading({
   );
 }
 
-/** 입력칸 라벨(HeroUI Label) — 필수 항목은 빨간 *. */
+/** 입력칸 라벨(HeroUI Label) — 필수 항목은 HeroUI 기본 * 표시(isRequired). */
 export function FieldLabel({
   required,
   children,
@@ -91,25 +91,8 @@ export function FieldLabel({
   required?: boolean;
   children: ReactNode;
 }) {
-  return (
-    <Label className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
-      {children}
-      {required && <span className="font-bold text-[#e23535]">*</span>}
-    </Label>
-  );
+  return <Label isRequired={required}>{children}</Label>;
 }
-
-/**
- * HeroUI Input 덮어쓰기 — 높이 44px(곡률 19px), 기본 그림자 없음.
- * 읽기 전용(인증된 이메일 등)은 회색 바탕, 잘못된 값이면 빨간 테두리.
- */
-export const INPUT_CLASS = cn(
-  "h-[44px] w-full border border-tone-ececef bg-surface px-[14px] text-[14px] text-zinc-900 [box-shadow:none]!",
-  RADIUS.h44,
-  "placeholder:text-zinc-400 data-[focused=true]:border-primary-500",
-  "read-only:bg-zinc-100 read-only:text-zinc-500 data-[disabled=true]:bg-zinc-100",
-  "data-[invalid=true]:border-[#dc2626]",
-);
 
 /**
  * 입력칸 옆 작은 버튼(106×44px). 카드 하단 "다음"(보라 채움)과 구분되게 톤을 나눈다.
@@ -191,7 +174,7 @@ export function PrimaryAction({
   );
 }
 
-/** 입력칸 아래 안내·오류 문구(11px, HeroUI Description). */
+/** 입력칸 아래 안내·오류 문구(HeroUI Description 기본 모양, 오류·성공만 색). */
 export function FieldMessage({
   tone = "muted",
   children,
@@ -202,10 +185,8 @@ export function FieldMessage({
   return (
     <Description
       className={cn(
-        "text-[11px]",
-        tone === "error" && "text-[#dc2626]",
-        tone === "success" && "font-medium text-[#16a34a]",
-        tone === "muted" && "text-zinc-400",
+        tone === "error" && "text-danger",
+        tone === "success" && "text-success",
       )}
     >
       {children}

@@ -7,6 +7,7 @@ import {
   Chip,
   Label,
   Separator,
+  Tooltip,
 } from "@heroui/react";
 import { useState, type ReactNode } from "react";
 
@@ -111,9 +112,15 @@ function TermBadge({ required }: { required: boolean }) {
 export function TermsStep({
   pending,
   error,
+  hint,
+  submitLabel = "가입 완료",
   onSubmit,
 }: {
   pending: boolean;
+  /** 가입 완료 버튼 위 말풍선(HeroUI Tooltip, 이 단계에 있는 동안 계속 열어 둔다) — 제휴사(콜라보)의 "협약·매장 등록으로 넘어가요". */
+  hint?: string;
+  /** 가입 완료 버튼 글자 — 제휴사(콜라보)는 "협약·매장 등록하기". */
+  submitLabel?: string;
   error: string;
   onSubmit: (marketingConsent: boolean) => void;
 }) {
@@ -127,6 +134,16 @@ export function TermsStep({
     selected.includes(term.key),
   );
   const marketing = selected.includes(MARKETING_KEY);
+
+  const submitButton = (
+    <PrimaryAction
+      label={submitLabel}
+      note="필수 약관에 모두 동의해야 가입을 완료할 수 있어요"
+      disabled={!requiredDone}
+      pending={pending}
+      onPress={() => onSubmit(marketing)}
+    />
+  );
 
   return (
     <SignupCard>
@@ -230,13 +247,20 @@ export function TermsStep({
 
       <TermsModal tab={openTerm} onClose={() => setOpenTerm(null)} />
 
-      <PrimaryAction
-        label="가입 완료"
-        note="필수 약관에 모두 동의해야 가입을 완료할 수 있어요"
-        disabled={!requiredDone}
-        pending={pending}
-        onPress={() => onSubmit(marketing)}
-      />
+      {hint ? (
+        // 말풍선이 위 체크 줄을 가리지 않게 자리를 비워 둔다(유형 단계와 같다).
+        <div className="flex w-full flex-col max-sm:mt-auto sm:mt-[34px]">
+          <Tooltip isOpen delay={0} closeDelay={0}>
+            {submitButton}
+            <Tooltip.Content showArrow placement="top">
+              <Tooltip.Arrow />
+              {hint}
+            </Tooltip.Content>
+          </Tooltip>
+        </div>
+      ) : (
+        submitButton
+      )}
     </SignupCard>
   );
 }

@@ -7,9 +7,12 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 
+import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { MediaEmptyResults } from "@/components/common/MediaEmptyResults";
@@ -91,12 +94,10 @@ function parseBounds(
   };
 }
 
-// 장소 클릭 시 그 좌표 ±반경(도)으로 리스트/지도를 스코프.
-const PLACE_RADIUS_DEG = 0.02;
-// 매체 후보 클릭 포커스 — 그 좌표 ±반경(도, 장소보다 좁게)으로 스코프.
+// 장소·매체 후보를 고르면 그 좌표 ±반경(도)으로 리스트/지도를 스코프.
 const MEDIA_FOCUS_RADIUS_DEG = 0.005;
-// 백엔드는 zoom_level<=1에서만 클러스터를 분해(개별 핀). 매체 포커스는 이 레벨로
-// 고정해야 대상이 클러스터 버블에 흡수되지 않고 개별 핀으로 떠 하이라이트된다.
+// 백엔드는 zoom_level<=1에서만 클러스터를 분해(개별 핀). 장소·매체 포커스는 이 레벨로
+// 고정해야 대상이 클러스터 버블에 흡수되지 않고 개별 핀으로 뜬다(장소는 가게 하나를 찾는 경우가 많아 가까이).
 const MEDIA_FOCUS_ZOOM_LEVEL = 1;
 // 리스트 클릭 → 그 매체 위치로 줌인할 때 쓰는 레벨.
 const FOCUS_ZOOM_LEVEL = 3;
@@ -179,11 +180,18 @@ export function MediaFindPanel({
   const pinId = sp.get("pin");
 
   const [location, setLocation] = useState(() => keyword ?? "");
+  // 자동완성 결과가 어떤 검색어 것인지·늦게 온 결과를 버리는 순번·기다리는 디바운스 타이머.
+  // Enter를 디바운스 전에 눌러도 바로 조회해 자동완성을 열 수 있게 한다.
+  const sugForRef = useRef("");
+  const sugSeqRef = useRef(0);
+  const sugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [placeSug, setPlaceSug] = useState<KakaoPlace[]>([]);
   const [mediaSug, setMediaSug] = useState<MediaCardRow[]>([]);
   // 고른 매체의 카드 정보 — 고정 영역이 넓어 목록 첫 페이지에 없을 수도 있어 따로 들고 있는다.
   const [pinnedRow, setPinnedRow] = useState<MediaCardRow | null>(null);
   const [showSug, setShowSug] = useState(false);
+  // 방향키로 고른 자동완성 칸 — 매체 후보 다음에 장소 후보를 이어 센다. -1은 아무것도 안 고름.
+  const [activeSug, setActiveSug] = useState(-1);
   // 유동인구 창 — 인구 분포 카드·모바일 시트에서도 열 수 있어 인구 분포 상태에 둔다.
   const filterOpen = !!popGrid?.targetOpen;
   const setFilterOpen = (open: boolean) => popGrid?.setTargetOpen(open);
@@ -387,6 +395,7 @@ export function MediaFindPanel({
           onHoverArea?.(hovered ? (row.operatingArea ?? null) : null)
       : undefined;
 
+  const openPartners = useOpenPartners();
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
       id: row.id,
@@ -395,7 +404,9 @@ export function MediaFindPanel({
       images: row.images,
       popular: row.badge === "popular",
     };
-    onSelectMedia?.(item);
+    // 콜라보 매장은 매체 정보 창 대신 매장 상세를 새 탭으로(광고주·제휴사만, 그 외는 안내 창).
+    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openPartners(row.id);
+    else onSelectMedia?.(item);
     onFocusMedia?.(row.id);
     const c = coordsById.get(row.id);
     // rescope=false: 리스트(검색 영역)는 고정, 지도만 그 매체로 줌인.
@@ -504,19 +515,27 @@ export function MediaFindPanel({
     const timer = setTimeout(
       async () => {
         if (!q) {
+          sugForRef.current = "";
           setPlaceSug([]);
           setMediaSug([]);
           return;
         }
+        // Enter가 먼저 같은 검색어로 받아 왔으면 다시 받지 않는다(고른 칸이 풀리지 않게).
+        if (sugForRef.current === q) return;
+        const seq = ++sugSeqRef.current;
         const [places, media] = await Promise.all([
           searchPlaces(q, 5),
           mediaApi.fixedList(5, 0, { keyword: q }),
         ]);
+        if (sugSeqRef.current !== seq) return;
+        sugForRef.current = q;
         setPlaceSug(places);
         setMediaSug(media.items);
+        setActiveSug(-1);
       },
       q ? 250 : 0,
     );
+    sugTimerRef.current = timer;
     return () => clearTimeout(timer);
   }, [location]);
 
@@ -540,24 +559,27 @@ export function MediaFindPanel({
   ) => {
     setLocation(label);
     setShowSug(false);
-    const radius = focusId ? MEDIA_FOCUS_RADIUS_DEG : PLACE_RADIUS_DEG;
+    const radius = MEDIA_FOCUS_RADIUS_DEG;
     commit((q) => {
       q.delete("kw"); // bbox 스코프는 키워드 검색과 상호배제
       q.set("place", label);
       if (focusId) q.set("pin", focusId);
       else q.delete("pin");
+      // 장소는 그 자리에 빨간 점을 찍는다 — 지도를 옮겨 장소 칩이 떨어져도 남고, 새로 검색하거나 지우면 사라진다.
+      if (focusId) q.delete("spot");
+      else q.set("spot", `${lat},${lng}`);
       q.set("neLat", String(lat + radius));
       q.set("swLat", String(lat - radius));
       q.set("neLng", String(lng + radius));
       q.set("swLng", String(lng - radius));
-      // 매체 포커스는 디클러스터 레벨을 URL에 즉시 반영 → 클러스터 쿼리가 바로 개별 핀 반환
+      // 디클러스터 레벨을 URL에 즉시 반영 → 클러스터 쿼리가 바로 개별 핀 반환
       // (비동기 auto-commit에 의존하면 기존 zoom으로 조회돼 클러스터에 묻힘).
-      if (focusId) q.set("zoom", String(MEDIA_FOCUS_ZOOM_LEVEL));
+      q.set("zoom", String(MEDIA_FOCUS_ZOOM_LEVEL));
     });
     onRequestMapMove?.({
       lat,
       lng,
-      level: focusId ? MEDIA_FOCUS_ZOOM_LEVEL : 5,
+      level: MEDIA_FOCUS_ZOOM_LEVEL,
       rescope: true,
       focusId,
     });
@@ -577,7 +599,10 @@ export function MediaFindPanel({
       // 좌표가 없으면 지도 영역은 그대로 두고 고정만 한다.
       setLocation(row.name);
       setShowSug(false);
-      commit((q) => q.set("pin", row.id));
+      commit((q) => {
+        q.set("pin", row.id);
+        q.delete("spot");
+      });
       onFocusMedia?.(row.id);
     }
   };
@@ -594,6 +619,7 @@ export function MediaFindPanel({
       params.delete("kw");
       params.delete("place");
       params.delete("pin");
+      params.delete("spot");
       if (view) {
         for (const k of BBOX_KEYS)
           params.set(k, String(Math.round(view[k] * 1e6) / 1e6));
@@ -601,25 +627,107 @@ export function MediaFindPanel({
     });
   };
 
-  const handleSubmit = () => {
+  // 친 글자 그대로 매체명·주소 검색 — 자동완성 맨 아래 "선택 안 하고 검색하기", 또는 Enter에 맞는 후보가 없을 때.
+  const searchAsTyped = (q: string) => {
+    const prev = sp.get("kw");
+    // 키워드가 실제로 바뀔 때만(=refetch가 일어날 때만) fit 예약. 같은 키워드 재입력은
+    // URL 무변화 → 결과 무변화라 예약해두면 flag가 고아로 남아 엉뚱한 refit을 유발한다.
+    if (q !== prev) pendingFitRef.current = true;
+    setShowSug(false);
+    setActiveSug(-1);
+    commit((params) => {
+      params.set("kw", q);
+      params.delete("place");
+      params.delete("pin");
+      params.delete("spot");
+      for (const k of BBOX_KEYS) params.delete(k);
+    });
+  };
+
+  // Enter — 친 글자를 이름에 포함하거나 정확히 같은 후보(매체·장소)가 있으면 바로 검색하지 않고 자동완성을 열어
+  // 그 후보에 커서를 둔다(한 번 더 Enter면 고른다). 맞는 후보가 없으면 친 글자 그대로 검색한다.
+  const handleSubmit = async () => {
     const q = location.trim();
     if (!q) {
       clearKeyword();
       return;
     }
-    const prev = sp.get("kw");
-    // 키워드가 실제로 바뀔 때만(=refetch가 일어날 때만) fit 예약. 같은 키워드 재입력은
-    // URL 무변화 → 결과 무변화라 예약해두면 flag가 고아로 남아 엉뚱한 refit을 유발한다.
-    if (q && q !== prev) pendingFitRef.current = true;
-    setShowSug(false);
-    commit((params) => {
-      if (q) params.set("kw", q);
-      else params.delete("kw");
-      params.delete("place");
-      params.delete("pin");
-      for (const k of BBOX_KEYS) params.delete(k);
-    });
+    let media = mediaSug;
+    let places = placeSug;
+    if (sugForRef.current !== q) {
+      // 디바운스 전에 Enter — 기다리지 않고 지금 받아 온다.
+      if (sugTimerRef.current) clearTimeout(sugTimerRef.current);
+      const seq = ++sugSeqRef.current;
+      [places, media] = await Promise.all([
+        searchPlaces(q, 5).catch(() => []),
+        mediaApi
+          .fixedList(5, 0, { keyword: q })
+          .then((r) => r.items)
+          .catch(() => []),
+      ]);
+      // 기다리는 사이 다시 입력했으면 이 결과는 버린다.
+      if (sugSeqRef.current !== seq) return;
+      sugForRef.current = q;
+      setPlaceSug(places);
+      setMediaSug(media);
+    }
+    const norm = (v: string) => v.replace(/\s+/g, "").toLowerCase();
+    const nq = norm(q);
+    const names = [...media.map((m) => m.name), ...places.map((p) => p.name)];
+    const exact = names.findIndex((n) => norm(n) === nq);
+    const best =
+      exact >= 0 ? exact : names.findIndex((n) => norm(n).includes(nq));
+    if (best >= 0) {
+      setShowSug(true);
+      setActiveSug(best);
+      return;
+    }
+    searchAsTyped(q);
   };
+
+  // 자동완성 — ↑↓로 칸을 옮기고 Enter로 고른다, Esc는 닫기. 닫혀 있으면 ↑↓가 다시 연다.
+  const sugCount = mediaSug.length + placeSug.length;
+  // ↑↓로 오가는 칸 — 후보 + 맨 아래 "선택 안 하고 검색하기"(인덱스 sugCount).
+  const sugNavCount = sugCount + 1;
+  const pickSug = (i: number) => {
+    if (i === sugCount) searchAsTyped(location.trim());
+    else if (i < mediaSug.length) selectMediaSug(mediaSug[i]);
+    else if (placeSug[i - mediaSug.length])
+      selectPlace(placeSug[i - mediaSug.length]);
+  };
+  const handleSugKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    const down = event.key === "ArrowDown";
+    if (down || event.key === "ArrowUp") {
+      if (sugCount === 0) return;
+      event.preventDefault();
+      if (!showSug) {
+        setShowSug(true);
+        setActiveSug(down ? 0 : sugNavCount - 1);
+        return;
+      }
+      setActiveSug((i) =>
+        down ? (i + 1) % sugNavCount : i <= 0 ? sugNavCount - 1 : i - 1,
+      );
+      return;
+    }
+    if (!showSug || sugCount === 0) return;
+    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+      if (activeSug < 0 || activeSug >= sugNavCount) return;
+      event.preventDefault();
+      pickSug(activeSug);
+      setActiveSug(-1);
+    } else if (event.key === "Escape") {
+      setShowSug(false);
+      setActiveSug(-1);
+    }
+  };
+  // 고른 칸이 목록 밖에 있으면 보이게 스크롤한다.
+  useEffect(() => {
+    if (activeSug < 0) return;
+    searchBoxRef.current
+      ?.querySelector(`[data-sug-index="${activeSug}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeSug]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -644,11 +752,15 @@ export function MediaFindPanel({
         <MediaFindTopBar
           keyword={location}
           onKeywordChange={(v) => {
+            // 기다리던 Enter 조회 결과는 버린다(입력이 바뀌었으니).
+            sugSeqRef.current += 1;
+            setActiveSug(-1);
             setLocation(v);
             setShowSug(true);
           }}
           onKeywordSubmit={handleSubmit}
           onKeywordClear={clearKeyword}
+          onKeywordKeyDown={handleSugKeyDown}
           searchBoxRef={searchBoxRef}
           filterLabel="인구 분포"
           filterIcon={PopulationGridIcon}
@@ -684,12 +796,17 @@ export function MediaFindPanel({
                       <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
                         매체
                       </div>
-                      {mediaSug.map((m) => (
+                      {mediaSug.map((m, i) => (
                         <button
                           key={`media-${m.id}`}
                           type="button"
+                          data-sug-index={i}
                           onClick={() => selectMediaSug(m)}
-                          className="flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black hover:bg-gray-100"
+                          onMouseMove={() => setActiveSug(i)}
+                          className={cn(
+                            "flex w-full px-[16px] py-[8px] text-left text-[14px] max-sm:text-[13px] text-black",
+                            activeSug === i && "bg-gray-100",
+                          )}
                         >
                           {m.name}
                         </button>
@@ -705,8 +822,13 @@ export function MediaFindPanel({
                         <button
                           key={`place-${i}`}
                           type="button"
+                          data-sug-index={mediaSug.length + i}
                           onClick={() => selectPlace(p)}
-                          className="flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left hover:bg-gray-100"
+                          onMouseMove={() => setActiveSug(mediaSug.length + i)}
+                          className={cn(
+                            "flex w-full flex-col items-start gap-[2px] px-[16px] py-[8px] text-left",
+                            activeSug === mediaSug.length + i && "bg-gray-100",
+                          )}
                         >
                           <span className="text-[14px] max-sm:text-[13px] text-black">
                             {p.name}
@@ -721,6 +843,19 @@ export function MediaFindPanel({
                     </div>
                   )}
                 </ScrollShadow>
+                {/* 후보를 고르지 않고 친 글자 그대로 매체명·주소 검색. */}
+                <button
+                  type="button"
+                  data-sug-index={sugCount}
+                  onClick={() => searchAsTyped(location.trim())}
+                  onMouseMove={() => setActiveSug(sugCount)}
+                  className={cn(
+                    "flex w-full items-center justify-center gap-[6px] border-t border-gray-200 px-[16px] py-[10px] text-[13px] font-medium text-gray-600 max-sm:text-[12px]",
+                    activeSug === sugCount && "bg-gray-100 text-black",
+                  )}
+                >
+                  선택 안 하고 검색하기
+                </button>
               </div>
             ) : null
           }
@@ -860,7 +995,13 @@ export function MediaFindPanel({
                       ? "검색어를 바꾸거나, 지도를 옮겨 다시 찾아보세요."
                       : "지도를 옮기거나 축소해 다른 지역을 찾아보세요."
                   }
-                  onReset={searched ? handleReset : undefined}
+                  // 장소로 찾은 뒤 지도를 옮기면 장소 칩(place)은 떨어지지만 검색창 글자·고른 매체는
+                  // 남아 있다 — 그때도 초기화 버튼을 둔다.
+                  onReset={
+                    searched || location.trim() || sp.get("pin")
+                      ? handleReset
+                      : undefined
+                  }
                 />
               )
             ) : (

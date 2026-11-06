@@ -7,7 +7,7 @@
 |---|---|
 | **화면** | 고정매체 (지도 기반 매체 탐색) · `/fixed` |
 | **진입** | 홈 LNB "고정 매체" 클릭 · 홈에서 프롬프트 입력 후 진입 |
-| **Figma** | AI 매체추천 [1058-27112](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=1058-27112&m=dev) · 매체 검색 [441-17654](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=441-17654&m=dev) · 검색 필터 펼침 [725-12353](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=725-12353&m=dev) · 매체 상세 팝업 [2249-1067](https://www.figma.com/design/yf2s68AfkHlina2rAl1ptb/ADMIX-Design?node-id=2249-1067) (신규 ADMIX-Design 파일, "02. 매체 상세") · 참고 PRD [1422-31386](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=1422-31386&m=dev) |
+| **Figma** | AI 매체추천 [1058-27112](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=1058-27112&m=dev) · 매체 검색 [441-17654](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=441-17654&m=dev) · 검색 필터 펼침 [725-12353](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=725-12353&m=dev) · 매체 상세 팝업 [2249-1067](https://www.figma.com/design/yf2s68AfkHlina2rAl1ptb/admix-Design?node-id=2249-1067) (신규 admix-Design 파일, "02. 매체 상세") · 참고 PRD [1422-31386](https://www.figma.com/design/z4QnuGbOaDJzqd5kyx5Udv/?node-id=1422-31386&m=dev) |
 | **상태/작성자** | `draft` · LaLa · 2026-06-16 |
 | **관련 화면** | 홈(`/`), AI 매체추천 정책서(`ai-media-recommend.md`), 매체 상세 화면(`/media/[id]`) |
 

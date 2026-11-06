@@ -402,14 +402,14 @@ def send_custom_proposal_email(
     base = get_settings().email_link_base
     my_url = f"{base}/proposals/{proposal_id}" if base else ""
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
         if base
-        else 'ADMIX<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#00AAA4">●</span>'
     )
     title = proposal_title or "기획안"
 
-    subject = "[ADMIX] 새로운 맞춤제안이 도착했습니다."
+    subject = "[admix] 새로운 맞춤제안이 도착했습니다."
     text_lines = [
         "안녕하세요.",
         "회원님이 제출한 기획안을 검토한 후 광고 매체 및 집행 조건을 반영하여 "
@@ -421,7 +421,7 @@ def send_custom_proposal_email(
     ]
     if my_url:
         text_lines.append(my_url)
-    text_lines += ["", "감사합니다.", "", "ADMIX 드림"]
+    text_lines += ["", "감사합니다.", "", "admix 드림"]
     text = "\n".join(text_lines)
 
     safe_title = escape(title)
@@ -455,7 +455,7 @@ def send_custom_proposal_email(
           </tr>
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
-              [ADMIX] 새로운 맞춤제안이 도착했습니다.
+              [admix] 새로운 맞춤제안이 도착했습니다.
             </td>
           </tr>
           <tr>
@@ -471,7 +471,7 @@ def send_custom_proposal_email(
             <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
               기획안은 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
-              ADMIX 드림{button_html}
+              admix 드림{button_html}
             </td>
           </tr>
         </table>
@@ -494,14 +494,14 @@ def send_contract_completed_email(
     base = get_settings().email_link_base
     my_url = f"{base}/proposals/{proposal_id}" if base else ""
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
         if base
-        else 'ADMIX<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#00AAA4">●</span>'
     )
     title = proposal_title or "기획안"
 
-    subject = "[ADMIX] 광고 계약이 완료되었습니다"
+    subject = "[admix] 광고 계약이 완료되었습니다"
     text_lines = [
         "안녕하세요.",
         "회원님이 요청하신 광고 계약이 완료되었습니다.",
@@ -513,7 +513,7 @@ def send_contract_completed_email(
     ]
     if my_url:
         text_lines.append(my_url)
-    text_lines += ["", "감사합니다.", "", "ADMIX 드림"]
+    text_lines += ["", "감사합니다.", "", "admix 드림"]
     text = "\n".join(text_lines)
 
     safe_title = escape(title)
@@ -547,7 +547,7 @@ def send_contract_completed_email(
           </tr>
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
-              [ADMIX] 광고 계약이 완료되었습니다
+              [admix] 광고 계약이 완료되었습니다
             </td>
           </tr>
           <tr>
@@ -564,7 +564,7 @@ def send_contract_completed_email(
               아래 버튼을 통해 최종 기획안을 확인해 보세요.<br><br>
               기획안은 서비스 내 {my_proposal}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
-              ADMIX 드림{button_html}
+              admix 드림{button_html}
             </td>
           </tr>
         </table>

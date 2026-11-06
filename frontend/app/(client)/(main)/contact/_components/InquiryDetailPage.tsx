@@ -143,7 +143,7 @@ export function InquiryDetailPage({
             {inquiry.content}
           </p>
 
-          {/* 답변 — 채팅 메시지처럼: 왼쪽 프로필(ADMIX 로고) + 이름·시각 + 연회색 말풍선.
+          {/* 답변 — 채팅 메시지처럼: 왼쪽 프로필(admix 로고) + 이름·시각 + 연회색 말풍선.
               대기 중이면 같은 자리에 "입력 중" 점 세 개 말풍선과 안내 한 줄. */}
           <Separator className="bg-tone-f1f1f3" />
           <div className="flex gap-[12px]">
@@ -153,7 +153,7 @@ export function InquiryDetailPage({
             <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
               <p className="flex items-baseline gap-[8px]">
                 <span className="text-[14px] font-semibold text-zinc-900">
-                  {inquiry.answererName || "ADMIX 고객지원"}
+                  {inquiry.answererName || "admix 고객지원"}
                 </span>
                 {inquiry.answer && (
                   <span className="text-[12px] text-zinc-400">

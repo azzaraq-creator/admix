@@ -1,12 +1,18 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { useRegister, useSnsLogin, type SnsProvider } from "@/hooks/auth";
-import type { MemberCategory } from "@/lib/memberCategory";
+import { isMemberCategory, type MemberCategory } from "@/lib/memberCategory";
 import { setTokens } from "@/lib/userToken";
 
-import { CategoryStep } from "./CategoryStep";
+import {
+  CategoryStep,
+  PARTNER_AGREEMENT_HREF,
+  PARTNER_TERMS_HINT,
+  PARTNER_TERMS_LABEL,
+} from "./CategoryStep";
 import { EmailVerifyStep } from "./EmailVerifyStep";
 import { EMPTY_SIGNUP_INFO, InfoStep, type SignupInfo } from "./InfoStep";
 import { MethodStep } from "./MethodStep";
@@ -27,14 +33,25 @@ const STEP_INDEX: Record<Step, number> = {
 
 /**
  * /signup — 시안(00. 회원가입) 흐름: 유형 → 방식 → 이메일 인증 → 회원정보 → 약관.
+ * 제휴사(콜라보)도 같은 흐름을 탄다 — 다만 방식에서 소셜 가입은 보류라 이메일만 보이고, 회원정보는 회사명 없이 사업자등록증(선택, 추후 인증 필요)만 받으며,
+ *   약관 동의 버튼은 "협약·매장 등록하기"(위에 말풍선), 가입이 끝나면 완료 화면 대신 기본협약 동의(/partners/join/agreement)로 간다.
+ *   가입·협약 소개의 "시작하기"로 온 경우(/signup?category=partner)는 유형 · 방식을 건너뛰고 이메일부터 시작한다.
  * 방식에서 카카오·네이버를 고르면 소셜 로그인 후 /signup/sns(SnsSignupWizard)에서 이어간다.
  */
 export function EmailSignupWizard() {
   const registerMutation = useRegister();
   const finish = useFinishSignup();
 
-  const [step, setStep] = useState<Step>("category");
-  const [category, setCategory] = useState<MemberCategory | null>(null);
+  // /signup?category=… — 유형을 미리 골라 둔 링크.
+  const searchParams = useSearchParams();
+  const preset = searchParams.get("category");
+  const [category, setCategory] = useState<MemberCategory | null>(() =>
+    isMemberCategory(preset) ? preset : null,
+  );
+  const partner = category === "partner";
+  const [step, setStep] = useState<Step>(() =>
+    preset === "partner" ? "email" : "category",
+  );
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [info, setInfo] = useState<SignupInfo>(EMPTY_SIGNUP_INFO);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -64,7 +81,8 @@ export function EmailSignupWizard() {
         marketing_consent: marketingConsent,
       });
       setTokens(res.access_token, res.refresh_token, true);
-      await finish(info.file);
+      // 제휴사(콜라보)는 버튼("협약·매장 등록하기")대로 가입이 끝나면 바로 기본협약 동의로.
+      await finish(info.file, partner ? PARTNER_AGREEMENT_HREF : undefined);
     } catch (error) {
       const detail = errorDetail(error);
       setSubmitting(false);
@@ -81,7 +99,8 @@ export function EmailSignupWizard() {
   };
 
   const back: Partial<Record<Step, Step>> = {
-    email: "method",
+    // 소개에서 온 제휴사(콜라보)는 이메일 단계에서 시작하므로 그 앞으로는 돌아가지 않는다.
+    email: preset === "partner" ? undefined : "method",
     info: "email",
     terms: "info",
   };
@@ -103,6 +122,8 @@ export function EmailSignupWizard() {
         <MethodStep
           category={category}
           snsPending={sns.pending}
+          // 제휴사(콜라보)는 소셜 가입 보류 — 이메일만.
+          emailOnly={partner}
           onChangeCategory={() => setStep("category")}
           onSns={handleSns}
           onEmail={() => {
@@ -126,6 +147,7 @@ export function EmailSignupWizard() {
           email={verifiedEmail}
           needPassword
           showBizCert={category !== "general"}
+          partner={partner}
           initial={info}
           serverError={
             phoneError ? { field: "phone", message: phoneError } : null
@@ -141,6 +163,8 @@ export function EmailSignupWizard() {
         <TermsStep
           pending={submitting}
           error={submitError}
+          hint={partner ? PARTNER_TERMS_HINT : undefined}
+          submitLabel={partner ? PARTNER_TERMS_LABEL : undefined}
           onSubmit={handleSubmit}
         />
       )}

@@ -25,9 +25,12 @@ const MENU_ICON = "size-[16px] shrink-0 text-gray-500";
 export function ProfileMenu({
   onNavigate,
   withTheme = false,
+  profileHref = "/profile",
 }: {
   onNavigate?: () => void;
   withTheme?: boolean;
+  /** 내 정보 주소 — 콜라보 화면은 사이드바를 유지하려고 /partners/profile. */
+  profileHref?: string;
 }) {
   const router = useRouter();
   const logout = useLogout();
@@ -46,7 +49,7 @@ export function ProfileMenu({
       }}
     >
       {withTheme ? <ThemeSubmenu /> : null}
-      <Dropdown.Item id="/profile" textValue="내 정보">
+      <Dropdown.Item id={profileHref} textValue="내 정보">
         <ProfileFilledIcon className={MENU_ICON} />
         <span className="text-sm font-medium text-black">내 정보</span>
       </Dropdown.Item>

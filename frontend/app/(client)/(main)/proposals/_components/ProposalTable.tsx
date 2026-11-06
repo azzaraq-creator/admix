@@ -66,7 +66,7 @@ export function StatusBadge({ status }: { status: Status }) {
   );
 }
 
-/** 표지 — 샘플 이미지 위에 어두운 막 + "ADMIX 기획안 / 연도". */
+/** 표지 — 샘플 이미지 위에 어두운 막 + "admix 기획안 / 연도". */
 function Cover({ year }: { year: string }) {
   return (
     <div className="relative h-[50px] w-[70px] overflow-hidden rounded-[8px] bg-scrim">
@@ -78,7 +78,7 @@ function Cover({ year }: { year: string }) {
       />
       <div className="absolute inset-0 flex flex-col justify-between bg-scrim/50 p-[4px_6px] text-[10px] leading-none font-semibold text-white">
         <span>
-          ADMIX
+          admix
           <br />
           기획안
         </span>
@@ -800,7 +800,7 @@ export function ProposalTable({
                           : undefined
                       }
                       aria-label={`${proposal.title} PPT 다운로드`}
-                      className="h-[32px] w-[80px] gap-[5px] rounded-[13px] border-tone-ececef bg-surface px-0 text-[12px] font-semibold text-black"
+                      className="h-[32px] w-[80px] gap-[5px] rounded-[13px] px-0"
                     >
                       {/* HeroUI isPending은 누름만 막고 스피너는 그리지 않아, 받는 동안 아이콘 자리에 직접 돌린다. */}
                       {downloadingId === proposal.id ? (
@@ -819,7 +819,7 @@ export function ProposalTable({
                     {/* 버튼 30px → 곡률 12px. */}
                     <Button
                       isIconOnly
-                      variant="outline"
+                      variant="danger-soft"
                       size="sm"
                       onPress={() => onDelete(proposal)}
                       data-tour={
@@ -828,7 +828,7 @@ export function ProposalTable({
                           : undefined
                       }
                       aria-label={`${proposal.title} 삭제`}
-                      className="h-[30px] w-[40px] min-w-0 rounded-[12px] border-tone-ececef bg-surface p-0 text-[#dc2626]"
+                      className="h-[30px] w-[40px] min-w-0 rounded-[12px]"
                     >
                       <TrashOutlineIcon className="size-[18px]" />
                     </Button>

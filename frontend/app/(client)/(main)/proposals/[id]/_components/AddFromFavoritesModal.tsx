@@ -181,13 +181,10 @@ export function AddFromFavoritesModal({
                 onChange={setQuery}
                 className="w-full max-w-[420px]"
               >
-                <SearchField.Group className="h-[36px] gap-[10px] rounded-[15px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:bg-surface focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
-                  <SearchOutlineIcon className="size-[16px] shrink-0 text-tone-6c757d" />
-                  <SearchField.Input
-                    placeholder="매체명·주소로 검색해 보세요"
-                    className="px-0 text-[13px] placeholder:text-zinc-400"
-                  />
-                  <SearchField.ClearButton className="me-0" />
+                <SearchField.Group className="h-[36px] rounded-[15px]">
+                  <SearchField.SearchIcon />
+                  <SearchField.Input placeholder="매체명·주소로 검색해 보세요" />
+                  <SearchField.ClearButton />
                 </SearchField.Group>
               </SearchField>
 

@@ -238,14 +238,6 @@ function AmountCell({
   );
 }
 
-// 입력 칸 공통 모양 — 기획안 패널·문의 창과 같은 ADMIX 입력칸(옅은 회색 칸 + 1px 회색 테두리, 그림자 없음,
-// 올리거나 입력 중이면 흰 바탕, 입력 중엔 1px 보라 테두리). 46px → 곡률 19px(높이의 약 0.42배).
-const FIELD_BOX =
-  "flex h-[46px] min-h-0 items-center rounded-[19px] border border-tone-ececef bg-tone-f7f7f8 shadow-none transition-colors hover:bg-surface data-[hovered=true]:bg-surface focus-within:border-focus focus-within:bg-surface data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface";
-// 입력 칸 안의 작은 버튼(−·+·달력) — 칸 곡률에 맞춰 동그랗게.
-const FIELD_BUTTON =
-  "flex size-[34px] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent p-0 text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-gray-100 data-[hovered=true]:text-gray-900";
-
 function planLabel(plan: PlanOption): string {
   return (
     plan.product_display_name ?? plan.product_name ?? `상품 ${plan.plan_no}`
@@ -271,14 +263,11 @@ export function PlanSelect({
       }}
       className="w-full min-w-0"
     >
-      <Select.Trigger
-        className={cn(FIELD_BOX, "w-full py-0 ps-[14px] pe-[40px]")}
-      >
-        {/* 고른 항목의 목록 모양(작은 글씨) 대신 칸 크기에 맞춘 글자로 보여 준다. */}
-        <Select.Value className="truncate text-left text-[18px] font-semibold leading-[1.4] tracking-[-0.45px] text-gray-900">
+      <Select.Trigger className="h-[46px] min-h-0 w-full items-center rounded-[20px]">
+        <Select.Value className="truncate">
           {() => planLabel(current)}
         </Select.Value>
-        <Select.Indicator className="end-[14px] size-[18px] text-zinc-500" />
+        <Select.Indicator />
       </Select.Trigger>
       <Select.Popover className="min-w-[var(--trigger-width)]">
         <ListBox>
@@ -288,9 +277,7 @@ export function PlanSelect({
               id={String(plan.plan_no)}
               textValue={planLabel(plan)}
             >
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
-                {planLabel(plan)}
-              </span>
+              <span className="min-w-0 flex-1 truncate">{planLabel(plan)}</span>
               <ListBox.ItemIndicator />
             </ListBox.Item>
           ))}
@@ -330,7 +317,7 @@ function ProductCell({
 }
 
 // 숫자 입력(개월 수·제작 수) — −·+ 버튼과 직접 입력. 비우고 나가면 1로 되돌린다.
-// compact 는 제작비 칸처럼 금액 아래에 붙는 작은 크기.
+// compact 는 제작비 칸처럼 금액 아래에 붙는 낮은 칸(38px).
 function CountField({
   label,
   unit,
@@ -346,10 +333,6 @@ function CountField({
   compact?: boolean;
   onChange?: (value: number) => void;
 }) {
-  const button = cn(
-    FIELD_BUTTON,
-    compact ? "size-[28px] [&_svg]:size-[12px]" : "[&_svg]:size-[14px]",
-  );
   return (
     <NumberField
       aria-label={label}
@@ -364,29 +347,16 @@ function CountField({
     >
       <NumberField.Group
         className={cn(
-          FIELD_BOX,
-          "w-full px-[4px]",
-          compact && "h-[38px] rounded-[16px] px-[3px]",
+          "h-[46px] w-full rounded-[20px]",
+          compact && "h-[38px] rounded-[16px]",
         )}
       >
-        <NumberField.DecrementButton className={button} />
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-[2px]">
-          <NumberField.Input
-            className={cn(
-              "w-[28px] min-w-0 bg-transparent p-0 text-right font-semibold text-gray-900 tabular-nums shadow-none outline-none",
-              compact ? "text-[16px]" : "text-[18px]",
-            )}
-          />
-          <span
-            className={cn(
-              "font-medium text-gray-500",
-              compact ? "text-[14px]" : "text-[15px]",
-            )}
-          >
-            {unit}
-          </span>
+        <NumberField.DecrementButton />
+        <div className="flex min-w-0 items-center">
+          <NumberField.Input className="min-w-0 flex-1 text-right" />
+          <span className="shrink-0 pe-3">{unit}</span>
         </div>
-        <NumberField.IncrementButton className={button} />
+        <NumberField.IncrementButton />
       </NumberField.Group>
     </NumberField>
   );
@@ -495,41 +465,21 @@ function StartDatePicker({
         }}
         className="w-[204px] shrink-0"
       >
-        <DateField.Group
-          className={cn(
-            FIELD_BOX,
-            "w-full gap-[4px] ps-[14px] pe-[5px]",
-            empty &&
-              "border-0 px-0 data-[hovered=true]:bg-gray-100 hover:bg-gray-100",
-          )}
-        >
+        <DateField.Group className="h-[46px] w-full rounded-[20px]">
           {empty && (
-            <DatePicker.Trigger className="flex h-full w-full min-w-0 items-center justify-center gap-[8px] bg-transparent p-0 text-[18px] font-semibold tracking-[-0.45px] text-gray-600">
-              <CalendarIcon className="size-[18px] text-gray-400" />
+            <DatePicker.Trigger className="h-full min-w-0 justify-center gap-[8px]">
+              <CalendarIcon className="size-4" />
               미정
             </DatePicker.Trigger>
           )}
           {/* 비어 있는 동안 연·월·일 칸은 화면에서 숨긴다(키보드로 들어가 입력하면 값이 생겨 다시 보인다). */}
-          <DateField.Input
-            className={cn(
-              "min-w-0 flex-1 text-[18px] font-semibold tracking-[-0.45px] text-gray-900 tabular-nums",
-              empty && "sr-only",
-            )}
-          >
-            {(segment) => (
-              <DateField.Segment
-                segment={segment}
-                className="rounded-[4px] px-[1px] data-[placeholder=true]:font-medium data-[placeholder=true]:text-placeholder data-[focused=true]:bg-primary-100 data-[focused=true]:text-primary-800"
-              />
-            )}
+          <DateField.Input className={cn("min-w-0 flex-1", empty && "sr-only")}>
+            {(segment) => <DateField.Segment segment={segment} />}
           </DateField.Input>
           {!empty && (
             <DateField.Suffix>
-              <DatePicker.Trigger
-                aria-label="달력 열기"
-                className={FIELD_BUTTON}
-              >
-                <CalendarIcon className="size-[18px]" />
+              <DatePicker.Trigger aria-label="달력 열기">
+                <CalendarIcon className="size-4" />
               </DatePicker.Trigger>
             </DateField.Suffix>
           )}

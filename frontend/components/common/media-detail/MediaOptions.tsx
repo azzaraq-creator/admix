@@ -132,12 +132,12 @@ export function MediaOptionsPriceBox({
               }}
               className="min-w-0 flex-1"
             >
-              {/* 칸 28px → 곡률 11px. 조절기와 같은 높이·테두리. */}
-              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-tone-ececef bg-surface py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-surface">
-                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-zinc-900">
+              {/* 옵션 칸은 모두 32px(곡률 13px) · 13px 글자로 맞춘다 — 기본 최소 높이·위아래 여백을 풀어야 이 높이에 들어간다. */}
+              <Select.Trigger className="h-[32px] min-h-0 w-full items-center rounded-[13px] py-0 text-[13px]">
+                <Select.Value className="truncate text-[13px]">
                   {() => planOptionLabel(totals.plan!, vm.planOptions)}
                 </Select.Value>
-                <Select.Indicator className="end-[9px] size-[13px] text-zinc-500" />
+                <Select.Indicator />
               </Select.Trigger>
               <Select.Popover className="min-w-[var(--trigger-width)]">
                 <ListBox>
@@ -148,7 +148,7 @@ export function MediaOptionsPriceBox({
                       textValue={planOptionLabel(p, vm.planOptions)}
                     >
                       {/* 영상 길이·일 송출 수 (금액은 고르면 아래 광고비 줄에 보인다). */}
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
+                      <span className="min-w-0 flex-1 truncate">
                         {planOptionLabel(p, vm.planOptions)}
                       </span>
                       <ListBox.ItemIndicator />
@@ -205,13 +205,13 @@ export function MediaOptionsPriceBox({
   );
 }
 
-const ROW = "flex min-h-[28px] items-center gap-[10px]";
+const ROW = "flex min-h-[32px] items-center gap-[10px]";
 const ROW_LABEL =
   "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-zinc-400";
 const ROW_AMOUNT =
   "min-w-0 flex-1 text-right text-[15px] font-bold whitespace-nowrap text-zinc-900 max-sm:text-[14px]";
 
-// 조절기 28px → 곡률 11px, 양옆 −·+ 버튼은 칸 안에 붙인다.
+// 조절기 32px → 곡률 13px. 상품 Select와 같은 높이 · 글자 크기, 양옆 −·+ 버튼은 32px 정사각형.
 export function Stepper({
   label,
   unit,
@@ -238,13 +238,18 @@ export function Stepper({
       }
       className="shrink-0"
     >
-      <NumberField.Group className="flex h-[28px] w-[104px] items-center rounded-[11px] border border-tone-ececef bg-surface p-[2px] shadow-none">
-        <NumberField.DecrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-zinc-100 [&_svg]:size-[11px]" />
+      {/* 양쪽 버튼(32px씩) 사이 가운데에 "숫자 + 단위"를 붙여 둔다(예: 1개월).
+          숫자 칸은 자릿수만큼만 넓혀 단위와 함께 정확히 가운데에 오게 하고, −·+ 아이콘은 글자(13px)에 맞춰 14px. */}
+      <NumberField.Group className="h-[32px] w-[132px] rounded-[13px] text-[13px] font-medium">
+        <NumberField.DecrementButton className="w-[32px] [&_svg]:size-[14px]" />
         <div className="flex min-w-0 flex-1 items-center justify-center gap-[1px]">
-          <NumberField.Input className="w-[24px] min-w-0 bg-transparent p-0 text-right text-[12px] font-bold text-zinc-900 tabular-nums shadow-none outline-none" />
-          <span className="text-[12px] font-medium text-zinc-500">{unit}</span>
+          <NumberField.Input
+            style={{ width: `${Math.max(String(value).length, 1) + 0.2}ch` }}
+            className="h-full min-w-0 px-0 text-center text-[13px] font-medium"
+          />
+          <span className="shrink-0">{unit}</span>
         </div>
-        <NumberField.IncrementButton className="size-[22px] min-w-0 shrink-0 rounded-[9px] bg-transparent text-zinc-500 data-[disabled=true]:opacity-40 data-[hovered=true]:bg-zinc-100 [&_svg]:size-[11px]" />
+        <NumberField.IncrementButton className="w-[32px] [&_svg]:size-[14px]" />
       </NumberField.Group>
     </NumberField>
   );

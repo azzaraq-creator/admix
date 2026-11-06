@@ -27,7 +27,7 @@ export function ThanksTemplate() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/service/admix-text-logo.svg"
-          alt="ADMIX"
+          alt="admix"
           className="mt-[48px] h-[44px] w-auto opacity-80 brightness-0 invert"
         />
       </div>

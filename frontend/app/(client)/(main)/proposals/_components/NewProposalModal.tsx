@@ -8,12 +8,6 @@ import { XIcon } from "@/components/icons";
 /** 기획안 이름 최대 길이 — 목록·PPT 표지에서 한눈에 보이도록 넉넉히 제한한다. */
 const MAX_NAME_LENGTH = 50;
 
-// 입력칸 44px → 곡률 19px. 로그인 창처럼 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
-// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다.
-const FIELD_CLASS =
-  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
-
 // 버튼 40px → 곡률 17px. 오른쪽 아래에 내용 폭만큼 나란히 둔다.
 const ACTION_CLASS =
   "h-[40px] min-w-[76px] rounded-[17px] px-[18px] text-[14px] font-semibold";
@@ -151,12 +145,11 @@ export function NewProposalModal({
                     placeholder="예) 2026 하반기 강남 옥외광고"
                     // 모바일 키보드의 엔터 키를 "완료"로 표시한다 — 누르면 바로 만들어진다.
                     enterKeyHint="done"
-                    className={FIELD_CLASS}
+                    fullWidth
+                    className="h-[44px] rounded-[19px]"
                   />
                   <div className="flex items-start justify-between gap-[8px] px-[4px]">
-                    <FieldError className="text-[12px] text-danger">
-                      {error}
-                    </FieldError>
+                    <FieldError>{error}</FieldError>
                     <span className="ml-auto shrink-0 text-[12px] text-gray-400">
                       {name.length}/{MAX_NAME_LENGTH}
                     </span>

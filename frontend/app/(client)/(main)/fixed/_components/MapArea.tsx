@@ -34,6 +34,7 @@ import type {
 import { POPUP_BG_CLASS } from "./MarkerMediaPopup";
 import { useKakaoMap } from "./useKakaoMap";
 import { useMapArea } from "./useMapArea";
+import { useMapSpot } from "./useMapSpot";
 import { CrowdTransitSections } from "./CrowdTransitSections";
 import {
   CROWD_LEVELS,
@@ -52,10 +53,7 @@ import {
 } from "./PopGridLayer";
 import type { PopRealtime } from "./useMapPopGrid";
 import { TRAFFIC_LEVELS, trafficColor, useMapTraffic } from "./useMapTraffic";
-import {
-  trafficVolumeLines,
-  useMapTrafficVolume,
-} from "./useMapTrafficVolume";
+import { trafficVolumeLines, useMapTrafficVolume } from "./useMapTrafficVolume";
 
 export { geocodeAddress, searchPlaces, type KakaoPlace } from "@/lib/kakaoMap";
 export type {
@@ -133,6 +131,7 @@ export function MapArea({
   forceLayersOpen = false,
   onLiveViewport,
   demoPlace,
+  searchSpot,
 }: {
   className?: string;
   markers?: MapMarker[];
@@ -196,6 +195,8 @@ export function MapArea({
     /** 먼저 그려 자리를 재고, 밝힌 자리가 옮겨 갈 때 드러낸다. */
     visible: boolean;
   } | null;
+  /** 검색해서 고른 장소 — 그 자리에 빨간 점을 찍는다. */
+  searchSpot?: { lat: number; lng: number } | null;
 }) {
   const markerObjsRef = useRef<MarkerEntry[]>([]);
 
@@ -225,6 +226,7 @@ export function MapArea({
   });
 
   useMapArea({ mapRef, mapReady, area: highlightArea });
+  useMapSpot({ mapRef, mapReady, spot: searchSpot });
 
   const liveOn = !!crowd?.on || !!traffic?.on;
   // 인구 분포 격자를 그리는 중 — 카카오 도형(선·범위)은 격자 판 아래라 격자 위에 다시 그린다.
@@ -426,13 +428,14 @@ export function MapArea({
         />
       )}
       {gridDrawn && popGrid && !isDesktop && <PopGridSheet state={popGrid} />}
-      {(crowd || traffic) && (
-        // 실시간 정보(실시간 인구·흑백·장소명·도로 현황) — 자주 쓰지 않아 지도 오른쪽 위 버튼 하나로 접어 둔다.
-        // 켜진 수를 작은 숫자로. 창 밖을 누르면 닫는다.
-        <div
-          ref={layersBoxRef}
-          className="absolute top-[12px] right-[12px] z-[2] flex flex-col items-end gap-[8px]"
-        >
+      {/* 오른쪽 위 버튼 칸 — 실시간 정보, 펼친 실시간 정보 창·범례는 그 아래. */}
+      <div
+        ref={layersBoxRef}
+        className="absolute top-[12px] right-[12px] z-[2] flex flex-col items-end gap-[8px]"
+      >
+        {(crowd || traffic) && (
+          // 실시간 정보(실시간 인구·흑백·장소명·도로 현황) — 자주 쓰지 않아 지도 오른쪽 위 버튼 하나로 접어 둔다.
+          // 켜진 수를 작은 숫자로. 창 밖을 누르면 닫는다.
           <button
             ref={layersButtonRef}
             type="button"
@@ -465,88 +468,88 @@ export function MapArea({
               )}
             />
           </button>
-          {layersShown && (
-            <div
-              data-tour="map-realtime"
-              className="flex w-[210px] flex-col gap-[10px] rounded-[16px] border-[0.5px] border-white/50 bg-surface/85 px-[14px] py-[12px] shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
-            >
-              {/* 모바일은 버튼이 아이콘뿐이라 창 맨 위에 이름을 단다. */}
-              <span className="-mb-[2px] text-[11px] font-semibold text-zinc-500 sm:hidden">
-                실시간 정보 (서울)
-              </span>
-              {crowd && (
+        )}
+        {(crowd || traffic) && layersShown && (
+          <div
+            data-tour="map-realtime"
+            className="flex w-[210px] flex-col gap-[10px] rounded-[16px] border-[0.5px] border-white/50 bg-surface/85 px-[14px] py-[12px] shadow-[0px_8px_24px_0px_rgba(0,0,0,0.14)] backdrop-blur-[14px] backdrop-saturate-[1.8]"
+          >
+            {/* 모바일은 버튼이 아이콘뿐이라 창 맨 위에 이름을 단다. */}
+            <span className="-mb-[2px] text-[11px] font-semibold text-zinc-500 sm:hidden">
+              실시간 정보 (서울)
+            </span>
+            {crowd && (
+              <LayerSwitch
+                label="실시간 인구"
+                isSelected={crowd.on}
+                onChange={crowd.onToggle}
+                ariaLabel="실시간 인구 보기"
+              />
+            )}
+            {crowd?.on && (
+              // 실시간 인구를 켰을 때만 — 범위 밖 흑백, 장소 이름표(끄면 범위 색만 남아 격자·핀이 안 가려진다).
+              <div className="-mt-[2px] flex flex-col gap-[8px] border-l-2 border-zinc-900/10 pl-[10px] dark:border-white/15">
                 <LayerSwitch
-                  label="실시간 인구"
-                  isSelected={crowd.on}
-                  onChange={crowd.onToggle}
-                  ariaLabel="실시간 인구 보기"
+                  label="흑백"
+                  sub
+                  isSelected={crowd.gray}
+                  onChange={crowd.onToggleGray}
+                  ariaLabel="범위 밖 흑백으로 보기"
                 />
-              )}
-              {crowd?.on && (
-                // 실시간 인구를 켰을 때만 — 범위 밖 흑백, 장소 이름표(끄면 범위 색만 남아 격자·핀이 안 가려진다).
-                <div className="-mt-[2px] flex flex-col gap-[8px] border-l-2 border-zinc-900/10 pl-[10px] dark:border-white/15">
+                {crowd.onToggleLabels && (
                   <LayerSwitch
-                    label="흑백"
+                    label="장소명"
                     sub
-                    isSelected={crowd.gray}
-                    onChange={crowd.onToggleGray}
-                    ariaLabel="범위 밖 흑백으로 보기"
+                    isSelected={crowd.labels !== false}
+                    onChange={crowd.onToggleLabels}
+                    ariaLabel="실시간 인구 장소명 보기"
                   />
-                  {crowd.onToggleLabels && (
-                    <LayerSwitch
-                      label="장소명"
-                      sub
-                      isSelected={crowd.labels !== false}
-                      onChange={crowd.onToggleLabels}
-                      ariaLabel="실시간 인구 장소명 보기"
-                    />
-                  )}
-                </div>
-              )}
-              {traffic && (
-                // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
-                <LayerSwitch
-                  label="도로 현황"
-                  isSelected={traffic.on}
-                  onChange={traffic.onToggle}
-                  ariaLabel="도로 현황 보기"
-                />
-              )}
-            </div>
-          )}
-          {liveLegendShown && (
-            // 범례(PC) — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
-            // 모바일은 지도가 좁아 범례를 띄우지 않는다(장소 이름표에 혼잡도가 적혀 있다).
-            // 오른쪽 위 실시간 정보 버튼(창을 펼쳤으면 창) 바로 밑 — 오른쪽 아래는 누른 칸 정보 카드 자리.
-            <div className="flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]">
-              {crowd?.on && (
-                <>
-                  <LegendRow levels={CROWD_LEVELS} />
-                  <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
-                    {crowd.loading
-                      ? "서울시 실시간 혼잡도를 불러오는 중…"
-                      : crowd.places.length === 0
-                        ? "이 지역엔 서울시 주요 장소가 없어요"
-                        : "서울시 주요 장소 실시간 혼잡도 · 5분마다 갱신"}
-                  </span>
-                </>
-              )}
-              {traffic?.on && (
-                <>
-                  <LegendRow levels={TRAFFIC_LEVELS} line />
-                  <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
-                    {traffic.loading
-                      ? "서울시 도로 현황을 불러오는 중…"
-                      : traffic.links.length === 0
-                        ? "이 지역엔 서울시 도로 정보가 없어요"
-                        : "서울시 실시간 도로 소통(주요 도로) · 5분마다 갱신"}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                )}
+              </div>
+            )}
+            {traffic && (
+              // 도로 현황 — 서울시 도로 구간을 속도로 정한 소통 등급 색(원활·서행·정체) 선으로.
+              <LayerSwitch
+                label="도로 현황"
+                isSelected={traffic.on}
+                onChange={traffic.onToggle}
+                ariaLabel="도로 현황 보기"
+              />
+            )}
+          </div>
+        )}
+        {(crowd || traffic) && liveLegendShown && (
+          // 범례(PC) — 실시간 인구 혼잡도 4단계·도로 현황 3단계. 장소 표시에 마우스를 올리면 인구·기준 시각이 보인다.
+          // 모바일은 지도가 좁아 범례를 띄우지 않는다(장소 이름표에 혼잡도가 적혀 있다).
+          // 오른쪽 위 실시간 정보 버튼(창을 펼쳤으면 창) 바로 밑 — 오른쪽 아래는 누른 칸 정보 카드 자리.
+          <div className="flex flex-col gap-[4px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/40 px-[10px] py-[8px] text-[11px] shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]">
+            {crowd?.on && (
+              <>
+                <LegendRow levels={CROWD_LEVELS} />
+                <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
+                  {crowd.loading
+                    ? "서울시 실시간 혼잡도를 불러오는 중…"
+                    : crowd.places.length === 0
+                      ? "이 지역엔 서울시 주요 장소가 없어요"
+                      : "서울시 주요 장소 실시간 혼잡도 · 5분마다 갱신"}
+                </span>
+              </>
+            )}
+            {traffic?.on && (
+              <>
+                <LegendRow levels={TRAFFIC_LEVELS} line />
+                <span className="text-[10px] text-gray-500 dark:text-[#b9bac4]">
+                  {traffic.loading
+                    ? "서울시 도로 현황을 불러오는 중…"
+                    : traffic.links.length === 0
+                      ? "이 지역엔 서울시 도로 정보가 없어요"
+                      : "서울시 실시간 도로 소통(주요 도로) · 5분마다 갱신"}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
       {popCardShown && popGrid && (
         // 인구 분포 조건 — 켰을 때만 고른 조건 한 줄. 누르면 유동인구 창(켜기·끄기도 그 창에서).
         // 실시간 인구·도로 현황은 오른쪽 위 "실시간 정보" 버튼으로 따로 뺐다.

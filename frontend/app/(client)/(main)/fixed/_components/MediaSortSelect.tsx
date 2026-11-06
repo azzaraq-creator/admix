@@ -3,7 +3,6 @@
 import { ListBox, Select } from "@heroui/react";
 
 import { SortIcon } from "@/components/icons";
-import { cn } from "@/lib/utils";
 
 // 고른 값은 목록 조회의 sort 파라미터로 그대로 넘긴다(백엔드 MEDIA_SORT_KEYS 와 같은 값).
 // "비율이 높은 순"(성별·연령대 비율)은 뺐다 — 타겟 맞춤 추천은 AI 믹시로 유도한다.
@@ -32,16 +31,13 @@ export function mediaSortLabel(
 }
 
 /**
- * 상단 바의 정렬 Select — 버튼(트리거)은 상단 바의 회색 필 모양(triggerClassName)을 받고,
- * 누르면 아래로 옵션 목록이 열린다.
+ * 상단 바의 정렬 Select — HeroUI 기본 Select 모양, 누르면 아래로 옵션 목록이 열린다.
  */
 export function MediaSortSelect({
   value,
   onChange,
   latestLabel,
   onOpenChange,
-  triggerClassName,
-  iconClassName,
 }: {
   value: MediaSortKey;
   onChange: (next: MediaSortKey) => void;
@@ -49,8 +45,6 @@ export function MediaSortSelect({
   latestLabel?: string;
   /** 열릴 때 필터 패널을 닫는 데 쓴다. */
   onOpenChange?: (open: boolean) => void;
-  triggerClassName?: string;
-  iconClassName?: string;
 }) {
   return (
     <Select
@@ -62,18 +56,13 @@ export function MediaSortSelect({
       }}
       className="min-w-0 shrink-0 max-sm:shrink"
     >
-      {/* 필드 모양(최소 높이·그림자)을 풀고 상단 바 필 모양을 입힌다. */}
-      <Select.Trigger
-        className={cn(
-          triggerClassName,
-          "min-h-0 shadow-none data-[open=true]:bg-surface",
-        )}
-      >
-        <SortIcon className={iconClassName} />
-        <Select.Value className="min-w-0 text-[14px] font-medium whitespace-nowrap text-gray-900 max-sm:truncate max-sm:text-[12px]">
+      {/* 높이는 상단 바 다른 버튼(PC 45px·모바일 40px)과 맞춘다. */}
+      <Select.Trigger className="h-[45px] min-h-0 items-center gap-[10px] rounded-[19.5px] max-sm:h-[40px] max-sm:rounded-[17px] max-sm:min-w-0 max-sm:gap-[6px]">
+        <SortIcon className="size-4 shrink-0" />
+        <Select.Value className="min-w-0 whitespace-nowrap max-sm:truncate">
           {mediaSortLabel(value, latestLabel)}
         </Select.Value>
-        <Select.Indicator className="static shrink-0 text-gray-500 max-sm:size-[14px]" />
+        <Select.Indicator />
       </Select.Trigger>
       <Select.Popover placement="bottom end" className="w-[260px]">
         <ListBox>

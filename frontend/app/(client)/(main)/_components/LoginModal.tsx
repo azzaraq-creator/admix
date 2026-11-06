@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type SVGProps } from "react";
 
@@ -20,7 +21,11 @@ import { ChevronRightIcon, EyeIcon, XIcon } from "@/components/icons";
 import { LogoFullDark } from "@/components/icons/LogoFull";
 import { authApi, authKeys, useLogin, useSnsLogin } from "@/hooks/auth";
 import { getUserToken, setTokens } from "@/lib/userToken";
+import { cn } from "@/lib/utils";
+import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
+import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 
+import { collabScript } from "./collabFont";
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
@@ -57,13 +62,6 @@ function NaverIcon(props: SVGProps<SVGSVGElement>) {
 // 곡률 규칙: 높이/2 - 3px. 입력칸·버튼 모두 HeroUI 기본 높이 36px → 15px.
 const CONTROL_RADIUS = "rounded-[15px]";
 
-// 입력칸 — 매체 찾기 검색바와 같은 회색 필(gray-100 바탕·gray-200 테두리)로 두고,
-// 마우스를 올리거나 입력 중이면 흰 바탕이 된다. 포커스 링 대신 1px 테두리가 보라색으로 바뀌고, 잘못된 입력이면 테두리만 빨갛게.
-const FIELD_CLASS =
-  `${CONTROL_RADIUS} border border-gray-200 bg-gray-100 text-[14px] text-gray-900 [box-shadow:none]! transition-colors ` +
-  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface data-[focused=true]:bg-surface " +
-  "data-[focus-within=true]:bg-surface focus-within:border-focus focus-within:bg-surface focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
-
 // 간편 로그인 — 각 소셜 브랜드 색(카카오 노랑·네이버 초록). 크기는 HeroUI 기본 버튼(md) 그대로.
 const SNS_BUTTON_CLASS = `gap-[6px] text-[14px] font-semibold ${CONTROL_RADIUS}`;
 
@@ -71,7 +69,17 @@ function getErrorStatus(error: unknown): number | undefined {
   return (error as { response?: { status?: number } })?.response?.status;
 }
 
-export function LoginModal() {
+/**
+ * 로그인 창 — admix 화면과 콜라보(/partners) 화면이 같이 쓴다.
+ * partners: 로고 아래 Collaboration(콜라보 사이드바 로고와 같은 모양) · 콜라보 문구 · 간편 로그인 없음 ·
+ * 회원가입은 가입·협약 페이지(/partners/join)로.
+ */
+export function LoginModal({
+  variant = "default",
+}: {
+  variant?: "default" | "partners";
+}) {
+  const partners = variant === "partners";
   const router = useRouter();
   const queryClient = useQueryClient();
   const open = useLoginModalOpen();
@@ -120,15 +128,17 @@ export function LoginModal() {
         remember: keepLoggedIn,
       });
       setTokens(res.access_token, res.refresh_token, keepLoggedIn);
+      // 진행 중인 기본협약 창 — 로그인할 때마다 다시 묻는다.
+      resetPartnerResume();
       // 로그인(기존 회원)은 게스트 기획안을 승계하지 않는다 — 무관한 잔여
       // 게스트 세션이 딸려오는 것 방지. 승계는 회원가입(이메일/소셜 신규)만.
       // 로그인 직후 me 캐시를 즉시 채워 사이드바가 바로 반영되도록 한다.
       // useMe 는 enabled:!!token 이라 로그인 전엔 disabled 상태이고,
       // disabled 옵저버는 invalidate 로 refetch 되지 않으므로 fetchQuery 로 강제 조회.
       // me 조회 실패가 로그인 성공을 뒤집지 않도록 catch 로 흡수.
-      await queryClient
+      const me = await queryClient
         .fetchQuery({ queryKey: authKeys.me, queryFn: authApi.me })
-        .catch(() => {});
+        .catch(() => null);
       setEmail("");
       setPassword("");
       setLoginModalOpen(false);
@@ -136,6 +146,11 @@ export function LoginModal() {
       // 게스트로 이미 캐시된 쿼리(예: 내 기획안)이 그대로 남는다. 사이드바(useMe)만
       // 반영되고 페이지는 비회원처럼 보이는 문제 → 로그인 시점에 강제 재동기화.
       queryClient.invalidateQueries();
+      // admix 화면에서 제휴사(콜라보)로 로그인하면 매장용 대시보드로 보낸다(콜라보 화면 로그인은 그 자리에 둔다).
+      if (!partners && me?.member_category === "partner") {
+        router.push(PARTNERS_DASHBOARD_HREF);
+        return;
+      }
       router.refresh();
     } catch (error) {
       if (getErrorStatus(error) === 403) {
@@ -176,9 +191,15 @@ export function LoginModal() {
               </Modal.CloseTrigger>
 
               <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
-                <LogoFullDark className="h-[28px]" />
+                {partners ? (
+                  <PartnersLoginLogo />
+                ) : (
+                  <LogoFullDark className="h-[28px]" />
+                )}
                 <p className="text-[13px] leading-[20px] text-gray-500">
-                  로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요
+                  {partners
+                    ? "로그인하고 콜라보 매장과 협업 제안을 관리하세요"
+                    : "로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요"}
                 </p>
               </Modal.Header>
 
@@ -201,7 +222,7 @@ export function LoginModal() {
                     fullWidth
                   >
                     {/* 라벨 없이 placeholder로 안내한다. */}
-                    <Input placeholder="이메일" className={FIELD_CLASS} />
+                    <Input placeholder="이메일" className="rounded-[15px]" />
                   </TextField>
 
                   <TextField
@@ -216,12 +237,9 @@ export function LoginModal() {
                     aria-label="비밀번호"
                     fullWidth
                   >
-                    <InputGroup className={FIELD_CLASS}>
-                      <InputGroup.Input
-                        placeholder="비밀번호"
-                        className="bg-transparent text-[14px] text-gray-900 placeholder:text-gray-400"
-                      />
-                      <InputGroup.Suffix className="pr-[4px]">
+                    <InputGroup fullWidth className="rounded-[15px]">
+                      <InputGroup.Input placeholder="비밀번호" />
+                      <InputGroup.Suffix>
                         <Button
                           isIconOnly
                           variant="ghost"
@@ -279,36 +297,41 @@ export function LoginModal() {
                   </Button>
                 </form>
 
-                <div className="flex items-center gap-[12px]">
-                  <Separator className="flex-1 bg-stroke" />
-                  <span className="text-[12px] font-medium text-gray-400">
-                    간편 로그인
-                  </span>
-                  <Separator className="flex-1 bg-stroke" />
-                </div>
+                {/* 간편 로그인 — 콜라보 화면에서는 뺀다(이메일 로그인만). */}
+                {!partners && (
+                  <>
+                    <div className="flex items-center gap-[12px]">
+                      <Separator className="flex-1 bg-stroke" />
+                      <span className="text-[12px] font-medium text-gray-400">
+                        간편 로그인
+                      </span>
+                      <Separator className="flex-1 bg-stroke" />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-[8px]">
-                  <Button
-                    variant="ghost"
-                    fullWidth
-                    isDisabled={snsPending}
-                    onPress={() => handleSnsLogin("kakao")}
-                    className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
-                  >
-                    <KakaoIcon className="size-[18px] shrink-0" />
-                    카카오
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    fullWidth
-                    isDisabled={snsPending}
-                    onPress={() => handleSnsLogin("naver")}
-                    className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
-                  >
-                    <NaverIcon className="size-[18px] shrink-0" />
-                    네이버
-                  </Button>
-                </div>
+                    <div className="grid grid-cols-2 gap-[8px]">
+                      <Button
+                        variant="ghost"
+                        fullWidth
+                        isDisabled={snsPending}
+                        onPress={() => handleSnsLogin("kakao")}
+                        className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
+                      >
+                        <KakaoIcon className="size-[18px] shrink-0" />
+                        카카오
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        fullWidth
+                        isDisabled={snsPending}
+                        onPress={() => handleSnsLogin("naver")}
+                        className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
+                      >
+                        <NaverIcon className="size-[18px] shrink-0" />
+                        네이버
+                      </Button>
+                    </div>
+                  </>
+                )}
               </Modal.Body>
 
               {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
@@ -317,7 +340,8 @@ export function LoginModal() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onPress={() => goTo("/signup")}
+                  // 콜라보 화면에서는 가입·협약 페이지로.
+                  onPress={() => goTo(partners ? "/partners/join" : "/signup")}
                   className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
                 >
                   회원가입
@@ -363,5 +387,40 @@ export function LoginModal() {
         </Modal.Backdrop>
       </Modal>
     </>
+  );
+}
+
+/**
+ * 콜라보 로그인 창 로고 — /partners 사이드바 로고(PartnersSidebar의 PartnersLogo)와 같은 모양:
+ * 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(HS활공명조, 굵게).
+ */
+function PartnersLoginLogo() {
+  return (
+    <span className="flex items-center gap-[10px]">
+      <Image
+        src="/service/symbol.svg"
+        alt=""
+        width={36}
+        height={37}
+        className="h-[36px] w-auto shrink-0"
+      />
+      <span className="flex flex-col items-start gap-[5px]">
+        <Image
+          src="/service/admix-text-logo.svg"
+          alt="admix"
+          width={57}
+          height={16}
+          className="h-[16px] w-auto dark:brightness-0 dark:invert"
+        />
+        <span
+          className={cn(
+            collabScript.className,
+            "text-[13px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-gray-400",
+          )}
+        >
+          Collaboration
+        </span>
+      </span>
+    </span>
   );
 }

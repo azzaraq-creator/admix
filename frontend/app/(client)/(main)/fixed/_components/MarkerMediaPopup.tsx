@@ -4,6 +4,7 @@ import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 
 import { PersonStanding } from "lucide-react";
 
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { formatAdFee } from "@/lib/media";
 import { kakaoRoadviewUrl } from "@/components/common/RoadviewView";
 import { StopNoChip } from "@/components/common/StopNoChip";
@@ -123,34 +124,26 @@ export function MediaPopupCard({
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
+  // 콜라보 매장은 금액 · 기획안 담기가 없다(누르면 매장 상세가 새 탭으로).
+  const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
   // 지도 팝업과 믹시 추천 목록(ChatMediaList)이 이 카드를 같이 쓴다.
   const { liked, toggle: toggleLiked } = useFavorite(row.id, {
     notifyName: row.name,
   });
 
-  // 매체명은 줄임(...) 없이 아래로 줄바꿈한다. 안에 버튼(찜·담기)이 있어 카드 자체는
-  // 버튼이 될 수 없으므로, 키보드는 매체명 버튼으로 상세를 연다.
-  // HeroUI Button의 기본 높이·패딩·가운데 정렬·줄바꿈 금지를 풀어 글자처럼 보이게 한다.
-  // 간략히 보기는 카드를 납작하게 두려고 한 줄로 줄인다(넘치면 말줄임, 전체 이름은 title로).
+  // 안에 버튼(찜·담기)이 있어 카드 자체는 버튼이 될 수 없으므로, 키보드는 매체명 버튼으로 상세를 연다.
+  // HeroUI Button의 기본 높이·패딩·가운데 정렬을 풀어 글자처럼 보이게 한다.
   const name = (
+    // 매체명은 늘 한 줄 — 넘치면 말줄임(...), 전체 이름은 마우스를 올리면(title) 보인다.
     <Button
       variant="ghost"
       onPress={() => onSelect?.()}
-      className={cn(
-        "h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] max-sm:text-[14px] leading-[20px] font-bold text-black data-[hovered=true]:bg-transparent",
-        simple
-          ? "whitespace-nowrap"
-          : "break-keep wrap-anywhere whitespace-normal",
-      )}
+      className="h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] leading-[20px] font-bold whitespace-nowrap text-black data-[hovered=true]:bg-transparent max-sm:text-[14px]"
     >
-      {simple ? (
-        <span className="min-w-0 truncate" title={row.name}>
-          {row.name}
-        </span>
-      ) : (
-        row.name
-      )}
+      <span className="min-w-0 truncate" title={row.name}>
+        {row.name}
+      </span>
     </Button>
   );
 
@@ -216,22 +209,33 @@ export function MediaPopupCard({
                 <PersonStanding className="size-[16px]" />
               </a>
             )}
-            <Button
-              isIconOnly
-              variant="ghost"
-              aria-label="기획안 담기"
-              onPress={() => onAddProposal?.()}
-              // 옆 관심 버튼과 같은 밝은 회색 바탕.
-              className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-gray-100 p-0 data-[hovered=true]:bg-gray-200"
-            >
-              <FolderAddIcon className="size-[16px] text-primary" />
-            </Button>
+            {!partners && (
+              <Button
+                isIconOnly
+                variant="ghost"
+                aria-label="기획안 담기"
+                onPress={() => onAddProposal?.()}
+                // 옆 관심 버튼과 같은 밝은 회색 바탕.
+                className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-gray-100 p-0 data-[hovered=true]:bg-gray-200"
+              >
+                <FolderAddIcon className="size-[16px] text-primary" />
+              </Button>
+            )}
           </div>
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
           <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
-            <InlinePrice label="광고비" value={row.minAdvertisementFeeKrw} />
-            {row.minProductionFeeKrw != null && (
-              <InlinePrice label="제작비" value={row.minProductionFeeKrw} />
+            {partners ? (
+              <PartnersOpenHint />
+            ) : (
+              <>
+                <InlinePrice
+                  label="광고비"
+                  value={row.minAdvertisementFeeKrw}
+                />
+                {row.minProductionFeeKrw != null && (
+                  <InlinePrice label="제작비" value={row.minProductionFeeKrw} />
+                )}
+              </>
             )}
           </div>
         </div>
@@ -261,14 +265,14 @@ export function MediaPopupCard({
               )}
             </MediaImageCarousel>
             <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
-              {/* 모바일은 매체명이 여러 줄로 내려가도 순위 번호를 첫 줄에 맞춘다(가운데 정렬 대신 위). */}
-              <div className="flex items-center gap-[4px] max-sm:items-start">
+              {/* 매체명은 한 줄이라 순위 번호·정류장 번호·하트를 모두 세로 가운데에 맞춘다. */}
+              <div className="flex items-center gap-[4px]">
                 {rankBadge && (
-                  <span className="mr-[2px] flex [&>span]:mt-0 max-sm:[&>span]:mt-[1px]">
+                  <span className="mr-[2px] flex [&>span]:mt-0">
                     {rankBadge}
                   </span>
                 )}
-                {/* 쉘터 정류장 번호 — 매체명 바로 앞, 매체명과 세로 가운데를 맞춘다. */}
+                {/* 쉘터 정류장 번호 — 매체명 바로 앞. */}
                 {row.stopNo && (
                   <StopNoChip stopNo={row.stopNo} className="self-center" />
                 )}
@@ -299,35 +303,50 @@ export function MediaPopupCard({
             </div>
           </div>
 
-          <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
-            <div className="flex gap-[16px]">
-              <PriceCell
-                label="광고비 / 1개월"
-                value={row.minAdvertisementFeeKrw}
-              />
-              {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
-              {row.minProductionFeeKrw != null && (
-                <PriceCell
-                  label="제작비 / 1회"
-                  value={row.minProductionFeeKrw}
-                />
-              )}
+          {partners ? (
+            <div className="mt-[10px] border-t border-gray-200 pt-[8px]">
+              <PartnersOpenHint />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onPress={() => onAddProposal?.()}
-              className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-gray-200 px-[10px]"
-            >
-              <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
-              <span className="text-[12px] max-sm:text-[11px] font-bold text-zinc-900">
-                기획안 담기
-              </span>
-            </Button>
-          </div>
+          ) : (
+            <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
+              <div className="flex gap-[16px]">
+                <PriceCell
+                  label="광고비 / 1개월"
+                  value={row.minAdvertisementFeeKrw}
+                />
+                {/* 제작비가 없으면(DOOH 등) 칸째 뺀다. */}
+                {row.minProductionFeeKrw != null && (
+                  <PriceCell
+                    label="제작비 / 1회"
+                    value={row.minProductionFeeKrw}
+                  />
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => onAddProposal?.()}
+                className="h-[30px] shrink-0 gap-[5px] rounded-[12px] border-gray-200 px-[10px]"
+              >
+                <FolderAddIcon className="shrink-0 text-[12px] text-primary max-sm:text-[11px]" />
+                <span className="text-[12px] max-sm:text-[11px] font-bold text-zinc-900">
+                  기획안 담기
+                </span>
+              </Button>
+            </div>
+          )}
         </>
       )}
     </Card>
+  );
+}
+
+/** 콜라보 매장 — 금액 · 기획안 담기 대신, 누르면 매장 정보가 새 탭으로 열린다는 안내. */
+function PartnersOpenHint() {
+  return (
+    <span className="text-[12px] font-semibold text-amber-800 max-sm:text-[11px]">
+      매장 정보 보기 ↗
+    </span>
   );
 }
 

@@ -25,10 +25,10 @@ from src.schemas.member import (
 
 _CATEGORY = {
     "advertiser": "광고주",
-    "agency": "광고 대행사",
+    "agency": "대행사",
     "media_owner": "매체사",
     "general": "일반",
-    "partner": "제휴사",
+    "partner": "제휴사(콜라보)",
 }
 _PROPOSAL_STATUS = {
     "cancelled": "취소",

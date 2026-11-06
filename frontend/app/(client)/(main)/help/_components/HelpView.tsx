@@ -165,7 +165,7 @@ export function HelpView() {
             약관 및 정책
           </h1>
           <p className="text-[12px] leading-[18px] text-gray-500 max-sm:break-keep sm:text-[14px] sm:leading-[inherit]">
-            ADMIXAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수
+            admixAI 서비스 이용과 개인정보·위치정보 처리에 관한 약관을 확인할 수
             있어요.
           </p>
         </header>

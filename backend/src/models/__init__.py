@@ -16,10 +16,12 @@ from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import PasswordReset, RefreshToken, SocialAccount, User
 from src.models.ai_recommend_job import AiRecommendJob
+from src.models.partners_store import PartnersStore
 
 __all__ = [
     "AdMessage",
     "AiRecommendJob",
+    "PartnersStore",
     "AdSession",
     "MessageRole",
     "KeywordCategory",

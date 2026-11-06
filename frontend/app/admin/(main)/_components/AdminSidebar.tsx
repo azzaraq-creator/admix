@@ -26,6 +26,8 @@ type NavGroup = { label: string; links: NavLink[] };
 const NAV: (NavLink | NavGroup)[] = [
   { label: "대시보드", href: "/admin", permKey: "dashboard" },
   { label: "광고 매체 관리", href: "/admin/media", permKey: "media" },
+  // 제휴사(콜라보) 매장 — 매체 찾기 "콜라보" 줄도 여기서 함께 관리된다.
+  { label: "콜라보 매장 관리", href: "/admin/cafe-stores", permKey: "media" },
   {
     label: "인구 분포 관리",
     links: [

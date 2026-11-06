@@ -1,10 +1,12 @@
 "use client";
 
-import { Description, Label, Radio, RadioGroup } from "@heroui/react";
+import { Description, Label, Radio, RadioGroup, Tooltip } from "@heroui/react";
+import { Fragment } from "react";
 
+import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
+import { CircleQuestionIcon } from "@/components/icons";
 import {
   MEMBER_CATEGORIES,
-  PARTNER_CATEGORY,
   isMemberCategory,
   type MemberCategory,
 } from "@/lib/memberCategory";
@@ -15,6 +17,29 @@ import {
   PrimaryAction,
   SignupCard,
 } from "./signupUi";
+
+/** 가입 화면 유형 묶음 — 일반 | 광고주 · 대행사 | 매체사 · 제휴사(콜라보). 묶음 사이에 구분선. */
+const CATEGORY_GROUPS: MemberCategory[][] = [
+  ["general"],
+  ["advertiser", "agency"],
+  ["media_owner", "partner"],
+];
+
+/** 고르면 다음 버튼 위 말풍선으로 알려 주는 유형. */
+const CATEGORY_HINT: Partial<Record<MemberCategory, string>> = {
+  general: "회원 유형은 나중에 변경할 수 있어요.",
+};
+
+/** 제휴사(콜라보) 가입 마지막(약관 동의) 버튼 위 말풍선 — 가입이 끝나면 기본협약 동의 → 매장 등록으로 간다. */
+export const PARTNER_TERMS_HINT =
+  "누르면 가입이 끝나고 협약·매장 등록으로 넘어가요.";
+/** 제휴사(콜라보) 약관 동의 단계 버튼 글자. */
+export const PARTNER_TERMS_LABEL = "협약·매장 등록하기";
+
+/** 제휴사(콜라보) 이메일 가입 — 이메일 인증부터. */
+export const PARTNER_SIGNUP_HREF = "/signup?category=partner";
+/** 제휴사(콜라보) 가입이 끝나면 가는 기본협약 동의. */
+export const PARTNER_AGREEMENT_HREF = "/partners/join/agreement";
 
 /**
  * 1단계 — 시안(00. 회원가입 - 회원 유형 선택).
@@ -30,12 +55,22 @@ export function CategoryStep({
   onChange: (next: MemberCategory) => void;
   onNext: () => void;
 }) {
+  const hint = value ? CATEGORY_HINT[value] : undefined;
   return (
     <SignupCard>
       <CardHeading
         title="회원 유형을 선택해 주세요"
-        description="가입 유형은 가입 후에도 회원 정보에서 변경 요청할 수 있습니다."
+        description="가입 후에도 회원 정보에서 언제든 회원 유형을 바꿀 수 있어요."
       />
+      {/* 유형별로 쓸 수 있는 기능 — 플랜 비교 표 창. 아이콘 + 짧은 문구 알약. */}
+      <button
+        type="button"
+        onClick={openMemberPlanModal}
+        className="-mt-[8px] inline-flex items-center gap-[4px] self-start rounded-full bg-gray-100 py-[5px] pr-[10px] pl-[8px] text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 max-sm:-mt-[4px]"
+      >
+        <CircleQuestionIcon aria-hidden className="size-[14px]" />
+        유형 비교
+      </button>
 
       <RadioGroup
         aria-label="회원 유형"
@@ -44,70 +79,73 @@ export function CategoryStep({
           if (isMemberCategory(next)) onChange(next);
         }}
         // 라디오 색은 globals.css 대신 HeroUI 기본값(HEROUI_ACCENT_SCOPE)을 쓴다.
-        className={`flex w-full flex-col gap-[12px] max-sm:min-h-0 max-sm:flex-1 max-sm:gap-[8px] sm:gap-[16px] ${HEROUI_ACCENT_SCOPE}`}
+        className={`flex w-full flex-col gap-[12px] sm:gap-[14px] ${HEROUI_ACCENT_SCOPE}`}
       >
-        {/* 광고주·대행사·매체사·일반은 시안의 2×2 배치.
-            모바일은 남는 세로 공간이 있으면 카드를 정사각형(칸 폭)까지 키우고, 모자라면 내용 높이로 둔다.
-            격자는 정사각형 두 줄(100cqw)까지만 늘어나 구분선·제휴사 카드가 바로 아래 붙는다. */}
-        <div className="grid w-full grid-cols-2 gap-[12px] max-sm:max-h-[100cqw] max-sm:min-h-0 max-sm:flex-1 max-sm:auto-rows-[minmax(auto,calc((100cqw-8px)/2))] max-sm:content-start max-sm:gap-[8px] sm:gap-[16px]">
-          {MEMBER_CATEGORIES.filter((c) => c.value !== PARTNER_CATEGORY).map(
-            (category) => (
-              <CategoryCard key={category.value} category={category} />
-            ),
-          )}
-        </div>
-        {/* 제휴사(매장·콜라보)는 구분선 아래 한 줄 넓은 카드로 따로 둔다. */}
-        <div role="separator" className="h-px w-full shrink-0 bg-gray-200" />
-        {MEMBER_CATEGORIES.filter((c) => c.value === PARTNER_CATEGORY).map(
-          (category) => (
-            <CategoryCard key={category.value} category={category} wide />
-          ),
-        )}
+        {/* 한 줄에 한 유형씩 세로로 — 일반 | 광고주 · 대행사 | 매체사 · 제휴사(콜라보), 묶음 사이는 구분선. */}
+        {CATEGORY_GROUPS.map((group, i) => (
+          <Fragment key={group.join("-")}>
+            {i > 0 && (
+              <div
+                role="separator"
+                className="h-px w-full shrink-0 bg-gray-200"
+              />
+            )}
+            <div className="flex w-full flex-col gap-[8px] sm:gap-[10px]">
+              {group.map((value) => {
+                const category = MEMBER_CATEGORIES.find(
+                  (c) => c.value === value,
+                );
+                return category ? (
+                  <CategoryCard key={value} category={category} />
+                ) : null;
+              })}
+            </div>
+          </Fragment>
+        ))}
       </RadioGroup>
 
-      <PrimaryAction label="다음" disabled={!value} onPress={onNext} />
+      {/* 일반 · 제휴사(콜라보)를 고르면 다음 버튼 바로 위에 HeroUI 툴팁으로 알려 준다
+          (일반: 나중에 바꿀 수 있음. 제휴사 안내는 약관 동의 버튼 "협약·매장 등록하기"로 옮겼다).
+          누르는 창이 아닌 안내라 Popover 대신 Tooltip — 마우스와 상관없이 고른 동안 열어 둔다(isOpen 고정).
+          PC는 툴팁이 위 카드를 가리지 않게 자리를 미리 비워 둔다(고를 때 버튼이 밀리지 않게 항상). */}
+      <div className="flex w-full flex-col max-sm:mt-auto sm:mt-[34px]">
+        <Tooltip isOpen={!!hint} delay={0} closeDelay={0}>
+          <PrimaryAction label="다음" disabled={!value} onPress={onNext} />
+          <Tooltip.Content showArrow placement="top">
+            <Tooltip.Arrow />
+            {hint}
+          </Tooltip.Content>
+        </Tooltip>
+      </div>
     </SignupCard>
   );
 }
 
-/** 회원 유형 카드 — 카드 전체를 누를 수 있게 Radio.Content를 카드 모양으로 만든다. wide 는 한 줄 넓은 카드(제휴사). */
+/** 회원 유형 카드(한 줄) — 왼쪽 라디오 · 이름, 오른쪽 끝 설명. 카드 전체를 누를 수 있게 Radio.Content를 카드 모양으로 만든다. */
 function CategoryCard({
   category,
-  wide = false,
 }: {
   category: (typeof MEMBER_CATEGORIES)[number];
-  wide?: boolean;
 }) {
   return (
-    <Radio
-      value={category.value}
-      // 모바일은 같은 줄 카드 높이를 맞춘다(줄 높이만큼 늘린 틀을 카드가 채운다).
-      // HeroUI 세로 RadioGroup은 항목마다 위 여백 16px을 준다. 2×2 격자에선 줄 사이가
-      // 벌어지기만 해서 모바일은 없앤다. 넓은 카드는 구분선 간격만 둔다.
-      className={`group w-full max-sm:mt-0 max-sm:flex ${wide ? "mt-0" : ""}`}
-    >
-      {/* 카드(148px)는 컨테이너라 시안 곡률 16px을 그대로 둔다. 넓은 카드는 내용 높이. */}
-      <Radio.Content
-        className={`grid w-full cursor-pointer grid-cols-[1fr_auto] content-start gap-x-[8px] gap-y-[10px] rounded-[16px] border border-gray-200 bg-surface p-[16px] shadow-[0px_10px_12px_rgba(0,0,0,0.05)] transition-colors group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50 group-data-[selected=true]:shadow-[0px_10px_10px_rgba(163,59,209,0.1)] data-[hovered=true]:border-gray-300 max-sm:h-auto max-sm:flex-1 max-sm:gap-y-[6px] max-sm:p-[12px] sm:p-[20px] ${wide ? "sm:gap-y-[6px]" : "h-[148px] sm:[@media(max-height:820px)]:h-[120px]"}`}
-      >
-        <Label className="cursor-pointer text-[16px] font-bold whitespace-nowrap text-gray-900 max-sm:text-[17px]">
-          {category.label}
-        </Label>
-        {/* 라디오 표시는 HeroUI 기본 스타일 그대로 쓴다. */}
-        <Radio.Control>
+    // HeroUI 세로 RadioGroup은 항목마다 위 여백을 준다 — 간격은 묶음(gap)이 맡으므로 없앤다.
+    <Radio value={category.value} className="group mt-0 w-full">
+      {/* 카드 높이 약 60px → 곡률 (60/2)-3 ≈ 16px(컨테이너라 시안 곡률 그대로). */}
+      <Radio.Content className="flex w-full cursor-pointer items-center gap-[12px] rounded-[16px] border border-gray-200 bg-surface px-[16px] py-[12px] shadow-[0px_6px_10px_rgba(0,0,0,0.04)] transition-colors group-data-[selected=true]:border-gray-900 data-[hovered=true]:border-gray-300 group-data-[selected=true]:data-[hovered=true]:border-gray-900 max-sm:px-[14px] max-sm:py-[10px] sm:px-[20px] sm:py-[14px]">
+        {/* 라디오 표시는 HeroUI 기본 스타일 — 맨 왼쪽. HeroUI 기본은 테두리 두께가 0이라 안 고른 원이 흰 카드에서 안 보여서 회색 테두리를 준다. */}
+        <Radio.Control className="shrink-0 border-[1.5px] border-gray-300 group-data-[selected=true]:border-transparent">
           <Radio.Indicator />
         </Radio.Control>
-        {/* 모바일·넓은 카드는 줄을 나누지 않고 이어 쓰되, 단어 중간에서 끊기지 않게 한다. */}
-        <Description className="col-span-2 ps-0 text-[13px] leading-[1.5] text-gray-500 max-sm:text-[13px] max-sm:break-keep">
-          {category.description.map((line) => (
-            <span
-              key={line}
-              className={wide ? "inline" : "block max-sm:inline"}
-            >
-              {line}{" "}
-            </span>
-          ))}
-        </Description>
+        {/* PC는 이름 왼쪽 · 설명 오른쪽 끝, 모바일은 이름 아래 설명. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-[2px] sm:flex-row sm:items-baseline sm:justify-between sm:gap-[10px]">
+          <Label className="shrink-0 cursor-pointer text-[16px] font-bold whitespace-nowrap text-gray-900 max-sm:text-[15px]">
+            {category.label}
+          </Label>
+          {/* 설명은 한 줄로 이어 쓰되, 좁으면 단어 단위로 내려간다. */}
+          <Description className="ps-0 text-[13px] sm:text-right leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]">
+            {category.description.join(" ")}
+          </Description>
+        </div>
       </Radio.Content>
     </Radio>
   );

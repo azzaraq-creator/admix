@@ -42,7 +42,7 @@ const ACTION_CLASS =
 
 /**
  * 확인창 — useConfirm과 같은 사용법(`await confirm({...})` → true/false)을 HeroUI Modal로.
- * 모양은 ADMIX 팝업(매체 정보·기획안에 담기)과 같다: 모서리 20px, 회색 원형 닫기, 16px 제목.
+ * 모양은 admix 팝업(매체 정보·기획안에 담기)과 같다: 모서리 20px, 회색 원형 닫기, 16px 제목.
  */
 export function useModalConfirm() {
   const [open, setOpen] = useState(false);

@@ -18,6 +18,8 @@ import {
   MediaDetailModal,
   MediaDetailPreview,
 } from "@/components/common/MediaDetailModal";
+import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
   type TourStep,
@@ -306,6 +308,12 @@ export function FixedMediaView() {
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(
     null,
   );
+  const openPartners = useOpenPartners();
+  // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 상세를 새 탭으로(광고주·제휴사만, 그 외는 안내 창).
+  const selectPopupRow = (row: MediaCardRow) => {
+    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openPartners(row.id);
+    else setSelectedMedia(cardRowToItem(row));
+  };
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [clusters, setClusters] = useState<MapCluster[]>([]);
   // 진입 시 지도 위치 — URL에 조회 영역(bbox)이 남아 있으면(새로고침·공유 링크) 그 영역의
@@ -535,6 +543,14 @@ export function FixedMediaView() {
   // 검색해서 고른 매체(URL pin) — 지도 팝업(같은 주소 묶음 포함)에서 하이라이트한다.
   // 지도를 직접 옮기면 pin이 지워져 하이라이트도 사라진다.
   const searchedId = searchParams.get("pin");
+  // 검색해서 고른 장소 자리("위도,경도") — 지도에 빨간 점으로 찍는다.
+  const spotParam = searchParams.get("spot");
+  const searchSpot = useMemo(() => {
+    const [lat, lng] = (spotParam ?? "").split(",").map(Number);
+    return spotParam && Number.isFinite(lat) && Number.isFinite(lng)
+      ? { lat, lng }
+      : null;
+  }, [spotParam]);
 
   // 팝업이 열린 핀을 다시 누르면 닫는다(선택도 푼다).
   const handleMarkerClick = (id: string) => {
@@ -664,6 +680,7 @@ export function FixedMediaView() {
             selectedGroup={groupPopup}
             autoFit={false}
             moveTarget={moveTarget}
+            searchSpot={searchSpot}
             onBoundsChange={handleBoundsChange}
             onClusterClick={handleClusterClick}
             onGroupClick={handleGroupClick}
@@ -684,7 +701,7 @@ export function FixedMediaView() {
                   rows={groupRows}
                   highlightId={searchedId}
                   // 상세 팝업을 닫으면 보던 묶음 목록으로 돌아오도록 목록 팝업은 열어 둔다.
-                  onSelect={(row) => setSelectedMedia(cardRowToItem(row))}
+                  onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                 />
               ) : popupId ? (
@@ -694,7 +711,7 @@ export function FixedMediaView() {
                   rows={popupRows}
                   highlightId={searchedId}
                   // 상세 팝업을 닫으면 보던 지도 팝업으로 돌아오도록 지도 팝업은 열어 둔다.
-                  onSelect={(row) => setSelectedMedia(cardRowToItem(row))}
+                  onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                 />
               ) : null

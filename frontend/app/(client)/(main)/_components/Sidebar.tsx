@@ -16,11 +16,13 @@ import {
   MixieIcon,
   ProfileAvatarIcon,
 } from "@/components/icons";
+import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
 import { openPageTour, useHasPageTour } from "@/components/common/PageTour";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { cn } from "@/lib/utils";
 
+import { collabScript } from "./collabFont";
 import { CurrentProposalButton } from "./CurrentProposalButton";
 import {
   setLnbCollapsed,
@@ -33,6 +35,7 @@ import { GUEST_AVATAR_CLASS, ProfileMenu } from "./ProfileMenu";
 import { ThemeMenu } from "./ThemeMenu";
 import { openLoginModal } from "./useLoginModal";
 import { useMixieChat } from "./useMixieChat";
+
 
 export type MenuItem = {
   key: string;
@@ -121,6 +124,7 @@ export function Sidebar({ member = false }: { member?: boolean }) {
     if (window.innerWidth < 640) setLnbExpanded(false);
   };
   const menuLink = useMenuLink();
+  const openPartners = useOpenPartners();
 
   return (
     <>
@@ -274,6 +278,76 @@ export function Sidebar({ member = false }: { member?: boolean }) {
                   </li>
                 );
               })}
+            </ul>
+
+            {/* 콜라보는 새 탭으로 열리는 별도 서비스라 위 메뉴들과 구분선으로 나눈다.
+                콜라보 줄은 44px로 높아 글자 위가 이미 비므로, 구분선 아래 여백은 줄인다(15 → 4px). */}
+            <hr className="mt-[15px] mb-[4px] border-t border-gray-200" />
+
+            <ul className="flex flex-col gap-[3px]">
+              {/* 콜라보 — 늘 새 탭(/partners)으로 연다. 광고주·제휴사(콜라보)만 쓰고, 그 외 회원은 안내 창.
+                  비회원은 가입을 권하는 /partners 화면을 그대로 연다. */}
+              <li>
+                <a
+                  href="/partners"
+                  target="_blank"
+                  rel="noopener"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openPartners();
+                    handleNavClick();
+                  }}
+                  aria-label="콜라보 (새 탭)"
+                  // 영어 글자라 한글 이름은 마우스를 올리면 늘 보여 준다.
+                  title="콜라보 (새 탭)"
+                  // 다른 메뉴와 같은 줄 모양이지만 마우스를 올려도 연보라 바탕은 깔지 않는다 —
+                  // 대신 글자 밑에 가는 밑줄이 왼쪽부터 그어지고 ↗가 오른쪽 위로 살짝 움직이며 진해진다.
+                  className={cn(
+                    NAV_ROW,
+                    "group/collabo h-[44px] text-gray-900",
+                  )}
+                >
+                  {/* 아이콘 없이 HS활공명조 "Collaboration" — 18px, 진한 회색 글자.
+                      접으면(PC만) 같은 글꼴 "C" 한 글자가 아이콘 자리에 남는다. */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      collabScript.className,
+                      "hidden w-[18px] shrink-0 text-center text-[20px] font-bold leading-none text-gray-900",
+                      collapsed && "sm:inline",
+                    )}
+                  >
+                    C
+                  </span>
+                  <span
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center justify-between gap-[6px]",
+                      fadeLabel(collapsed),
+                      collapsed && "sm:hidden",
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        collabScript.className,
+                        // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(가짜 굵기).
+                        "relative text-[18px] font-bold leading-none tracking-[0.04em] whitespace-nowrap text-gray-900",
+                      )}
+                    >
+                      Collaboration
+                      {/* 마우스를 올리면 왼쪽부터 그어지는 밑줄 */}
+                      <span className="absolute -bottom-[4px] left-0 h-px w-full origin-left scale-x-0 bg-gray-900 transition-transform duration-300 ease-out group-hover/collabo:scale-x-100" />
+                    </span>
+                    {/* 새 탭으로 열린다는 표시 */}
+                    <span
+                      aria-hidden
+                      className="text-[12px] text-gray-400 transition-[translate,color] duration-300 ease-out group-hover/collabo:translate-x-[2px] group-hover/collabo:-translate-y-[2px] group-hover/collabo:text-gray-900"
+                    >
+                      ↗
+                    </span>
+                  </span>
+                </a>
+              </li>
             </ul>
           </div>
 

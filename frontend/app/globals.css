@@ -225,11 +225,48 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--app-radius) * 0.6);
-  --radius-md: calc(var(--app-radius) * 0.8);
-  --radius-lg: var(--app-radius);
-  --radius-xl: calc(var(--app-radius) * 1.4);
-  --radius-2xl: calc(var(--app-radius) * 1.8);
+  /* --app-radius-* 를 주면 그 값을 쓴다 — HeroUI 입력 부품 영역에서 HeroUI 기본 곡률로 되돌릴 때(아래). */
+  --radius-sm: var(--app-radius-sm, calc(var(--app-radius) * 0.6));
+  --radius-md: var(--app-radius-md, calc(var(--app-radius) * 0.8));
+  --radius-lg: var(--app-radius-lg, var(--app-radius));
+  --radius-xl: var(--app-radius-xl, calc(var(--app-radius) * 1.4));
+  --radius-2xl: var(--app-radius-2xl, calc(var(--app-radius) * 1.8));
+}
+
+/* HeroUI 입력 부품(Input · Select · SearchField · TimeField · Autocomplete …)은 HeroUI 기본 모양 그대로 쓴다.
+   위에서 프로젝트용으로 바꾼 Tailwind 토큰(accent 색 · 곡률 · 바탕/글자/테두리 색)을 이 부품 안에서만 HeroUI 값으로 되돌린다.
+   Select · Autocomplete 목록(popover)은 body 에 따로 붙으므로 popover 클래스도 함께 둔다.
+   shadcn(관리자 일부) · 다른 HeroUI 부품(Button · Radio 등)은 그대로다. */
+:where(
+    .input,
+    .textfield,
+    .textarea,
+    .input-group,
+    .select,
+    .select__popover,
+    .autocomplete,
+    .autocomplete__popover,
+    .combo-box,
+    .combo-box__popover,
+    .search-field,
+    .time-field,
+    .date-field,
+    .date-input-group,
+    .date-picker,
+    .date-picker__popover,
+    .number-field,
+    .input-otp
+  ) {
+  --app-accent: var(--accent);
+  --app-accent-foreground: var(--accent-foreground);
+  --app-background: var(--background);
+  --app-foreground: var(--foreground);
+  --app-border: var(--border);
+  --app-radius-sm: calc(var(--radius) * 0.5);
+  --app-radius-md: calc(var(--radius) * 0.75);
+  --app-radius-lg: var(--radius);
+  --app-radius-xl: calc(var(--radius) * 1.5);
+  --app-radius-2xl: calc(var(--radius) * 2);
 }
 
 :root,

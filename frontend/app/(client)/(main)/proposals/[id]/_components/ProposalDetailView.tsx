@@ -830,7 +830,7 @@ function ProposalEditorView({ id }: { id: string }) {
               </span>
             </button>
             {editing ? (
-              // 이름 수정 — 새 기획안 만들기 창과 같은 HeroUI 입력칸(흰 바탕, 입력 중 보라 1px 테두리).
+              // 이름 수정 — 새 기획안 만들기 창과 같은 HeroUI 기본 입력칸.
               // 높이는 제목 줄(24px × 1.4 ≈ 34px)과 같게 해 수정을 눌러도 아래 줄이 움직이지 않는다.
               // 칸 안 오른쪽에 글자 수, 옆에 취소·저장. Enter 저장 / Esc 취소, 칸 밖을 누르면 저장.
               <TextField
@@ -855,7 +855,9 @@ function ProposalEditorView({ id }: { id: string }) {
                         if (event.key === "Enter") void commitRename();
                         if (event.key === "Escape") cancelRename();
                       }}
-                      className="h-[34px] w-full rounded-[13px] border border-gray-200 bg-surface pr-[56px] pl-[12px] text-[20px] leading-none font-semibold text-black [box-shadow:none]! transition-colors focus:border-focus data-[invalid=true]:border-danger data-[invalid=true]:outline-none"
+                      fullWidth
+                      // 오른쪽 안에 겹쳐 둔 글자 수 자리만큼 비운다.
+                      className="h-[34px] rounded-[14px] pr-[56px]"
                     />
                     <span className="pointer-events-none absolute top-1/2 right-[14px] -translate-y-1/2 text-[12px] text-gray-400">
                       {draft.length}/{MAX_TITLE_LENGTH}
@@ -1010,10 +1012,11 @@ function ProposalEditorView({ id }: { id: string }) {
           >
             {/* 도구 버튼 35px → 곡률 15px(시안 값). */}
             <HeroButton
-              variant="ghost"
+              variant="outline"
+              size="sm"
               onPress={() => void handleDownload()}
               isPending={downloading}
-              className="h-[35px] gap-[5px] rounded-[15px] border border-tone-ececef bg-surface px-[10px] text-[12px] font-medium text-black data-[hovered=true]:bg-zinc-50"
+              className="h-[35px] gap-[5px] rounded-[15px]"
             >
               {/* HeroUI isPending은 누름만 막고 스피너는 그리지 않아, 받는 동안 아이콘 자리에 직접 돌린다. */}
               {downloading ? (
@@ -1035,9 +1038,10 @@ function ProposalEditorView({ id }: { id: string }) {
             {/* 제출 완료(시안)엔 다운로드만 — 제출·계약된 기획안은 지우지 않는다. */}
             {!locked && (
               <HeroButton
-                variant="ghost"
+                variant="danger-soft"
+                size="sm"
                 onPress={() => void handleDelete()}
-                className="h-[35px] gap-[5px] rounded-[15px] border border-tone-ececef bg-surface px-[10px] text-[12px] text-[#dc2626] data-[hovered=true]:bg-tone-fef2f2"
+                className="h-[35px] gap-[5px] rounded-[15px]"
               >
                 <TrashOutlineIcon className="size-[18px]" />
                 삭제

@@ -67,7 +67,7 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
             </span>
             사업자등록번호 635-86-01172
           </p>
-          <p>© {new Date().getFullYear()} ADMIX. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} admix. All rights reserved.</p>
         </div>
       </div>
     </footer>

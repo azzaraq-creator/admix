@@ -1,14 +1,12 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, SearchField } from "@heroui/react";
 import type { ComponentType, KeyboardEvent, ReactNode, RefObject } from "react";
 
 import {
-  CloseSmallIcon,
   FilterIcon,
   MapOutlineIcon,
   RotateLeftIcon,
-  SearchOutlineIcon,
   type IconProps,
 } from "@/components/icons";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
@@ -34,6 +32,7 @@ export function MediaFindTopBar({
   onKeywordChange,
   onKeywordSubmit,
   onKeywordClear,
+  onKeywordKeyDown,
   searchBoxRef,
   suggestionSlot,
   filterCount = 0,
@@ -63,6 +62,8 @@ export function MediaFindTopBar({
   onKeywordSubmit: () => void;
   /** 검색창 X — 검색어를 지우고 검색 결과도 되돌린다(빈 칸에서 Enter와 같다). */
   onKeywordClear: () => void;
+  /** 검색창 키 입력을 먼저 받는다(자동완성 방향키 등) — preventDefault 하면 기본 처리(Enter 검색)를 건너뛴다. */
+  onKeywordKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   searchBoxRef: RefObject<HTMLDivElement | null>;
   suggestionSlot?: ReactNode;
   filterCount?: number;
@@ -104,6 +105,8 @@ export function MediaFindTopBar({
   const oneRow = mobileView != null;
   const isNarrow = !useIsDesktop();
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    onKeywordKeyDown?.(event);
+    if (event.defaultPrevented) return;
     if (event.key === "Escape") return;
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
@@ -186,12 +189,6 @@ export function MediaFindTopBar({
       onChange={onSortChange}
       latestLabel={sortLatestLabel}
       onOpenChange={(open) => open && onSortOpen()}
-      triggerClassName={cn(
-        PILL,
-        PILL_ACTIVE,
-        "gap-[10px] px-[20px] max-sm:min-w-0 max-sm:gap-[6px] max-sm:px-[14px]",
-      )}
-      iconClassName={cn(PILL_ICON, "text-zinc-900 max-sm:size-[17px]")}
     />
   );
 
@@ -236,46 +233,38 @@ export function MediaFindTopBar({
           oneRow && "max-sm:basis-auto",
         )}
       >
-        {/* 돋보기의 좌측 여백은 상하 여백과 같아야 한다 — 테두리 1px을 뺀 안쪽
-            높이 43px에서 20px 아이콘이 가운데 서면 위아래가 11.5px씩이다. */}
-        <div
-          className={cn(
-            PILL,
-            PILL_ACTIVE,
-            // 모바일(안쪽 38px)은 (38 - 20) / 2 = 9px.
-            "w-full gap-[14px] pr-[20px] pl-[11.5px] focus-within:border-focus focus-within:bg-surface max-sm:gap-[10px] max-sm:pr-[16px] max-sm:pl-[9px]",
-          )}
+        <SearchField
+          aria-label="매체 검색"
+          value={keyword}
+          onChange={onKeywordChange}
+          onClear={onKeywordClear}
+          fullWidth
         >
-          <SearchOutlineIcon
-            className={cn(PILL_ICON, "text-gray-500 max-sm:size-[18px]")}
-          />
-          <input
-            value={keyword}
-            onChange={(event) => onKeywordChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            // 모바일 키보드의 엔터 키를 "검색"으로 표시한다.
-            enterKeyHint="search"
-            // 모바일 한 줄 배치는 검색창이 좁아 안내 문구를 줄인다.
-            placeholder={
-              oneRow && isNarrow
-                ? "매체명·지역·주소 검색"
-                : "매체명, 지역, 주소로 검색해 보세요"
-            }
-            aria-label="매체 검색"
-            className="min-w-0 flex-1 bg-transparent text-[14px] max-sm:text-[13px] text-gray-900 outline-none placeholder:text-gray-400"
-          />
-          {/* 검색어 지우기 — 글자가 있을 때만. 버튼 22px → 곡률 원형. */}
-          {keyword && (
-            <button
-              type="button"
-              aria-label="검색어 지우기"
-              onClick={onKeywordClear}
-              className="-mr-[6px] flex size-[22px] shrink-0 items-center justify-center rounded-full bg-gray-300 text-white transition-colors hover:bg-gray-400 max-sm:-mr-[4px] max-sm:size-[20px]"
-            >
-              <CloseSmallIcon className="size-[14px] max-sm:size-[12px]" />
-            </button>
-          )}
-        </div>
+          {/* 높이는 상단 바 알약(PILL)과 같게 — PC 45px, 모바일 40px. */}
+          <SearchField.Group className="h-[45px] rounded-[19.5px] max-sm:h-[40px] max-sm:rounded-[17px]">
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              // Enter(검색·자동완성 고르기)·방향키는 handleKeyDown이 맡는다(SearchField에 onSubmit을 주지 않아 Enter는 그대로 넘어온다).
+              onKeyDown={handleKeyDown}
+              // Esc는 예전처럼 자동완성만 닫는다 — SearchField 기본 동작(검색어 지우기)보다 먼저 받아 막는다.
+              onKeyDownCapture={(event) => {
+                if (event.key !== "Escape") return;
+                event.stopPropagation();
+                onKeywordKeyDown?.(event);
+              }}
+              // 모바일 키보드의 엔터 키를 "검색"으로 표시한다.
+              enterKeyHint="search"
+              // 모바일 한 줄 배치는 검색창이 좁아 안내 문구를 줄인다.
+              placeholder={
+                oneRow && isNarrow
+                  ? "매체명·지역·주소 검색"
+                  : "매체명, 지역, 주소로 검색해 보세요"
+              }
+              className="min-w-0"
+            />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
         {suggestionSlot}
       </div>
 

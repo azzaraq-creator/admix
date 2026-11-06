@@ -8,7 +8,7 @@ import "./globals.css";
 const isDev = process.env.NODE_ENV === "development";
 
 export const metadata: Metadata = {
-  title: "ADMIX",
+  title: "admix",
   description: "옥외광고 추천서비스",
   icons: {
     icon: isDev

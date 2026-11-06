@@ -9,20 +9,14 @@ import {
   Label,
   TextField,
 } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { OTP_SLOT_CLASS } from "@/components/common/otpSlotClass";
 import { CircleCheckIcon } from "@/components/icons";
 import { authApi, authKeys } from "@/hooks/auth";
 import { useSonner } from "@/hooks/useSonner";
 import { cn } from "@/lib/utils";
 
-import {
-  MODAL_ERROR_CLASS,
-  MODAL_INPUT_CLASS,
-  MODAL_LABEL_CLASS,
-  ProfileModalShell,
-} from "./ProfileModalShell";
+import { MODAL_ERROR_CLASS, ProfileModalShell } from "./ProfileModalShell";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 백엔드가 발급하는 인증번호 자릿수(6자리 숫자). */
@@ -70,6 +64,7 @@ export function ContactEmailChangeModal({
   const [now, setNow] = useState(() => Date.now());
   const [emailError, setEmailError] = useState("");
   const [codeError, setCodeError] = useState("");
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   const cooldownLeft = cooldownUntil - now;
   const remaining = expiresAt - now;
@@ -138,6 +133,9 @@ export function ContactEmailChangeModal({
       setVerified(true);
     } catch (caught) {
       setCodeError(errorDetail(caught) ?? "인증번호가 올바르지 않습니다.");
+      // 6칸이 꽉 차 있으면 칸을 눌러도 마지막 자리만 바뀌어 고치기 어렵다 — 비우고 첫 칸부터 다시 받는다.
+      setCode("");
+      codeInputRef.current?.focus();
     } finally {
       setConfirmPending(false);
     }
@@ -202,17 +200,12 @@ export function ContactEmailChangeModal({
           fullWidth
           className="flex flex-col gap-[6px]"
         >
-          <Label className={MODAL_LABEL_CLASS}>새 이메일</Label>
+          <Label>새 이메일</Label>
           <div className="flex gap-[8px]">
             <Input
-              className={cn(
-                MODAL_INPUT_CLASS,
-                // 모바일은 아래 인증번호 6칸(최대 36×6 + 4×5 = 236px)과 폭을 맞춘다.
-                // 화면이 넓으면 남는 폭은 버튼이 채우고, 좁으면 입력칸이 줄어든다(버튼은 최소 48px).
-                "max-sm:w-auto max-sm:flex-[0_1_236px]",
-                // 잠긴 칸은 올리거나 눌러도 흰색으로 바뀌지 않게 회색 그대로 둔다.
-                sent && "cursor-default bg-gray-100!",
-              )}
+              // 모바일은 아래 인증번호 칸 묶음(236px)과 폭을 맞춘다.
+              // 화면이 넓으면 남는 폭은 버튼이 채우고, 좁으면 입력칸이 줄어든다(버튼은 최소 48px).
+              className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px] max-sm:w-auto max-sm:flex-[0_1_236px]"
             />
             <Button
               variant="secondary"
@@ -224,14 +217,15 @@ export function ContactEmailChangeModal({
               {sendLabel}
             </Button>
           </div>
-          <FieldError className={MODAL_ERROR_CLASS}>{emailError}</FieldError>
+          <FieldError>{emailError}</FieldError>
         </TextField>
 
         <div className="flex flex-col gap-[6px]">
-          <Label className={MODAL_LABEL_CLASS}>인증번호</Label>
+          <Label>인증번호</Label>
           <div className="flex gap-[8px]">
             {/* HeroUI InputOTP — 회원가입 인증번호와 같은 숫자 6칸. */}
             <InputOTP
+              ref={codeInputRef}
               aria-label="인증번호"
               maxLength={CODE_LENGTH}
               pattern="^\d+$"
@@ -244,20 +238,14 @@ export function ContactEmailChangeModal({
               }}
               isDisabled={!sent || verified}
               isInvalid={!!codeError}
-              // 전송 전(비활성)에도 칸이 흐려지지 않게 HeroUI 기본 반투명을 끈다.
-              className="min-w-0 flex-1 data-[disabled=true]:opacity-100 max-sm:flex-[0_1_236px]"
+              className="min-w-0 flex-1 max-sm:flex-[0_1_236px]"
             >
-              <InputOTP.Group className="w-full gap-[6px] max-sm:gap-[4px]">
+              <InputOTP.Group className="w-full">
                 {Array.from({ length: CODE_LENGTH }, (_, index) => (
                   <InputOTP.Slot
                     key={index}
                     index={index}
-                    className={cn(
-                      OTP_SLOT_CLASS,
-                      // 모바일은 화면이 넓어도 칸이 옆으로 늘어나지 않게 정사각형(36px)까지만 키운다.
-                      // 화면이 좁으면 그보다 줄어든다.
-                      "h-[40px] rounded-[14px] text-[15px] max-sm:h-[36px] max-sm:max-w-[36px] max-sm:rounded-[12px] max-sm:text-[14px]",
-                    )}
+                    className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
                   />
                 ))}
               </InputOTP.Group>

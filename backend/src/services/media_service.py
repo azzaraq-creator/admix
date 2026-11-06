@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from src.config import get_settings
 from src.services import ai_index, grade_suggest, popularity
 from src.models.media_image import MediaImage
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.services import operating_area as oa
@@ -1055,6 +1056,8 @@ def get_media_filter_options(db: Session, media_source: str | None = "FIXED") ->
     if media_source != "MOVING":
         # 매체 찾기 카테고리 탭 — 기본 카테고리는 매체가 없어도(0개) 이 순서로 먼저 보인다.
         categories = [*BASE_CATEGORIES, *(c for c in categories if c not in BASE_CATEGORIES)]
+        # 콜라보는 매장이 없어도 맨 끝 탭으로 둔다.
+        categories = [*(c for c in categories if c != PARTNERS_MEDIA_CATEGORY), PARTNERS_MEDIA_CATEGORY]
     return dict(
         categories=categories,
         ooh_types=_distinct(Media.ooh_type),
@@ -1808,6 +1811,8 @@ def list_media(
             MediaPlan,
             and_(MediaPlan.media_id == Media.media_id, MediaPlan.plan_no == 1),
         )
+        # 콜라보 매장 줄은 "콜라보 매장 관리"에서 다룬다.
+        .filter(_not_partners())
         .order_by(Media.media_id)
         .all()
     )
@@ -2270,6 +2275,7 @@ _MEDIA_ID_PREFIX = {
     "생활 편의시설": "LF",
     "기타(이동)": "MV",
     "기타": "ET",
+    "콜라보": "CF",
 }
 _MEDIA_ID_OTHER = "ET"
 _MEDIA_ID_DIGITS = 4
@@ -2565,6 +2571,10 @@ def set_media_thumbnail(db: Session, media_id: str, image_id: str) -> dict:
     return _serialize_media(m)
 
 
+# 제휴사(콜라보) 매장 — cafe_store 를 저장하면 이 카테고리로 media 줄이 함께 생긴다(partners_service.sync_media).
+# 매체 찾기 탭 맨 끝에 늘 보이고, 어드민 매체 관리·폼 선택지·AI 추천에서는 빠진다(콜라보 매장 관리에서 다룬다).
+
+
 # 기본 카테고리 — 어드민 선택지·매체 찾기 탭에 매체가 하나도 없어도 이 순서로 먼저 보인다(대분류 → 소분류).
 BASE_CATEGORIES: dict[str, list[str]] = {
     "전광판": [],
@@ -2573,6 +2583,11 @@ BASE_CATEGORIES: dict[str, list[str]] = {
     "쉘터": ["버스 정류장", "택시 승강장"],
     "버스/택시": [],
 }
+
+
+def _not_partners():
+    """콜라보 매장 줄이 아닌 매체 — 카테고리가 비어 있는 매체도 남긴다."""
+    return or_(Media.category_large.is_(None), Media.category_large != PARTNERS_MEDIA_CATEGORY)
 
 
 def admin_media_field_options(db: Session) -> dict:
@@ -2584,7 +2599,7 @@ def admin_media_field_options(db: Session) -> dict:
     categories: dict[str, list[str]] = {k: list(v) for k, v in BASE_CATEGORIES.items()}
     pairs = (
         db.query(Media.category_large, Media.category_small)
-        .filter(Media.category_large.isnot(None))
+        .filter(Media.category_large.isnot(None), Media.category_large != PARTNERS_MEDIA_CATEGORY)
         .distinct()
         .order_by(Media.category_large, Media.category_small)
         .all()

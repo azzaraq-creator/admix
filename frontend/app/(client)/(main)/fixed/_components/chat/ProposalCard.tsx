@@ -105,8 +105,10 @@ export function ProposalCard({ proposal }: { proposal: V2ProposalRef }) {
 
       {/* 버튼 40px → 곡률 17px. */}
       <Button
+        variant="primary"
+        fullWidth
         onPress={() => router.push(`/proposals/${proposal.id}`)}
-        className="h-[40px] w-full gap-[4px] rounded-[17px] bg-primary text-[14px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600 max-sm:text-[13px]"
+        className="h-[40px] rounded-[17px]"
       >
         기획안 보기
         <ChevronRightIcon className="size-[16px]" />

@@ -43,6 +43,8 @@ class ProfileUpdateRequest(BaseModel):
     company_name: str | None = None
     phone: str | None = None
     marketing_consent: bool | None = None
+    # 회원 유형 — 가입 후에도 회원 정보에서 언제든 바꿀 수 있다. 사업자 인증 상태는 그대로 둔다.
+    member_category: MemberCategory | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -76,6 +78,8 @@ class UserResponse(BaseModel):
     marketing_consent: bool = False
     created_at: datetime
     business_registration: BusinessRegistrationOut | None = None
+    # 제휴사(콜라보) 기본협약 동의 시각 — 없으면 동의 전.
+    partner_agreed_at: datetime | None = None
 
 
 class OAuthUrlResponse(BaseModel):

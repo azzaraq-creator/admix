@@ -338,7 +338,7 @@ function OptionCard({
   );
 }
 
-/** 기간 카드 제목 앞 연도 Select — 작은 회색 알약 버튼, 누르면 아래로 연도 목록. */
+/** 기간 카드 제목 앞 연도 Select — HeroUI 기본 Select, 누르면 아래로 연도 목록. */
 function YearSelect({
   years,
   value,
@@ -357,11 +357,10 @@ function YearSelect({
       }}
       className="-my-[4px] shrink-0"
     >
-      <Select.Trigger className="flex h-[28px] min-h-0 items-center gap-[4px] rounded-full border-0 bg-zinc-900/[0.05] pr-[8px] pl-[12px] text-[13px] font-semibold text-zinc-900 shadow-none hover:bg-zinc-900/[0.09] data-[open=true]:bg-zinc-900/[0.09] max-sm:text-[12px] dark:bg-white/[0.08] dark:text-white">
-        <Select.Value className="text-[13px] font-semibold whitespace-nowrap text-zinc-900 max-sm:text-[12px] dark:text-white">
-          {value}년
-        </Select.Value>
-        <Select.Indicator className="static size-[14px] shrink-0 text-zinc-500" />
+      {/* 기존 높이 28px 유지 — 기본 최소 높이·위아래 여백을 풀어야 이 높이에 들어간다. */}
+      <Select.Trigger className="h-[28px] min-h-0 items-center rounded-[11px] py-0">
+        <Select.Value className="whitespace-nowrap">{value}년</Select.Value>
+        <Select.Indicator />
       </Select.Trigger>
       <Select.Popover placement="bottom start" className="w-[140px]">
         <ListBox>

@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Popover, ScrollShadow, Spinner, Tooltip } from "@heroui/react";
+import {
+  Button,
+  Popover,
+  ScrollShadow,
+  Spinner,
+  InputGroup,
+  Tooltip,
+} from "@heroui/react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -73,15 +80,16 @@ function PanelWelcome({ onPick }: { onPick: (text: string) => void }) {
           이런 질문은 어떠세요?
         </p>
         {PANEL_SUGGESTIONS.map((suggestion) => (
-          // 높이 32px → 모서리 13px
-          <button
+          // HeroUI Button 기본 모양 — 높이 32px(sm) → 모서리 13px. 질문이 길면 줄바꿈되게 높이는 내용만큼.
+          <Button
             key={suggestion}
-            type="button"
-            onClick={() => onPick(suggestion)}
-            className="rounded-[13px] border border-gray-200 bg-surface px-[12px] py-[6px] text-left text-[12px] leading-[17px] text-gray-600 sm:text-[13px] sm:leading-[18px] transition-colors hover:border-gray-300 hover:text-gray-900"
+            variant="outline"
+            size="sm"
+            onPress={() => onPick(suggestion)}
+            className="h-auto min-h-[32px] rounded-[13px] text-left whitespace-normal"
           >
             {suggestion}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -258,14 +266,12 @@ export function HomeChat({
   const disabled = chat.restoring || chat.limitReached;
   const widthClass = isPanel ? "w-full" : "w-full max-w-[860px]";
   // 전송 버튼 모양 — 모바일 작성 중 안내용 버튼(팝오버)도 같은 자리·모양을 쓴다.
-  const sendButtonClass = `data-[pending=true]:pointer-events-auto ${
+  // 전송 버튼 — InputGroup 오른쪽(Suffix)에 둔다. 모바일 작성 중 안내용 버튼(팝오버)도 같은 모양.
+  // 패널 36px(곡률 15px), 홈은 모드 탭과 같은 PC 40px(17px) · 모바일 36px(15px).
+  const sendButtonClass = `data-[pending=true]:pointer-events-auto shrink-0 ${
     isPanel
-      ? "absolute top-[4px] right-[4px] size-[36px] rounded-[15px]"
-      : // 모드 탭과 같은 높이 40px(모서리 40/2-3 = 17px). 56px 입력바 안에서 위아래 8px로
-        // 가운데에 두고, 오른쪽 여백도 같은 8px로 맞춘다.
-        // 모바일은 두 줄 입력바의 아래 줄에 모드 탭과 같은 36px(모서리 15px)로 두고,
-        // 오른쪽·아래 여백은 글자 여백과 같은 12px, 탭과는 8px 띄운다.
-        "absolute right-[11px] bottom-[11px] size-[36px] rounded-[15px] sm:top-[8px] sm:right-[8px] sm:bottom-auto sm:size-[40px] sm:rounded-[17px]"
+      ? "size-[36px] rounded-[15px]"
+      : "size-[36px] rounded-[15px] sm:size-[40px] sm:rounded-[17px]"
   }`;
 
   return (
@@ -318,13 +324,14 @@ export function HomeChat({
             ),
           )}
           {chat.limitReached && chat.limitCta && (
-            <button
-              type="button"
-              onClick={handleLimitCta}
-              className="self-start rounded-[12px] bg-primary px-[16px] py-[10px] text-[14px] font-medium text-white"
+            // HeroUI Button 기본 모양 — 높이 40px → 모서리 17px.
+            <Button
+              variant="primary"
+              onPress={handleLimitCta}
+              className="h-[40px] self-start rounded-[17px]"
             >
               {chat.limitCta}
-            </button>
+            </Button>
           )}
           <div
             ref={spacerRef}
@@ -357,114 +364,117 @@ export function HomeChat({
         >
           <ArrowDownIcon strokeWidth={1.8} className="size-[15px]" />
         </button>
-        {/* 모바일 홈 입력바는 테두리 상자를 이 wrapper가 맡는다. textarea 자체에 아래 여백을 주면
-            여러 줄 입력 시 글자가 그 여백(탭·전송 버튼 자리)까지 스크롤돼 버튼 밑에 깔리므로,
-            textarea는 글자 칸만 차지하고 버튼 줄은 wrapper 여백에 둔다.
-            여백은 테두리 1px을 더해 상하좌우 12px(11 + 1), 아래는 버튼 36 + 틈 10 + 11 = 57. */}
+        {/* HeroUI InputGroup(TextArea + 전송 버튼) — 모양은 HeroUI 기본, 높이·곡률(높이/2 - 3px)만 원래대로.
+            HeroUI Suffix 기본 위 여백(8px)을 풀어 버튼을 세로 가운데에 둔다.
+            패널: 한 줄 44px(곡률 19px), 글자 왼쪽 16px, 전송 36px — 둘레 4px.
+            홈: PC 한 줄 56px(곡률 25px) — 글자(왼쪽 16px) · 모드 탭 · 전송(40px, 둘레 8px).
+                모바일은 두 줄 — 위 글자, 아래 줄에 모드 탭 · 전송(36px). */}
         <div
           data-tour={isPanel ? undefined : "home-input"}
-          className={
-            isPanel
-              ? "relative"
-              : "relative max-sm:rounded-[25px] max-sm:border max-sm:border-gray-300 max-sm:bg-surface max-sm:px-[11px] max-sm:pt-[11px] max-sm:pb-[57px]"
-          }
+          className="relative"
         >
-          <textarea
-            value={value}
-            onChange={(event) =>
-              setValue(event.target.value.slice(0, MAX_LENGTH))
-            }
-            onKeyDown={handleKeyDown}
-            rows={1}
-            maxLength={MAX_LENGTH}
-            disabled={disabled}
-            aria-label="믹시에게 이어서 묻기"
-            placeholder={
-              chat.limitReached
-                ? "대화 한도에 도달했어요"
-                : chat.restoring
-                  ? "이전 대화 복원 중..."
-                  : chat.messages.length > 0
-                    ? "믹시에게 이어서 물어보세요"
-                    : "믹시에게 물어보세요"
-            }
-            className={`w-full resize-none text-black max-sm:block outline-none [scrollbar-width:none] placeholder:text-zinc-400 disabled:opacity-60 [&::-webkit-scrollbar]:hidden ${
+          <InputGroup
+            fullWidth
+            className={
               isPanel
-                ? // 높이 44px → 모서리 19px. 매체 찾기 검색바와 같게 회색 칸 + gray-200
-                  // 테두리로 두고, 마우스를 올리거나 선택하면 테두리는 그대로 배경만 흰색이 된다.
-                  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 py-[10px] pr-[48px] pl-[16px] text-sm leading-[22px] transition-colors hover:bg-surface focus:bg-surface sm:text-[14px]"
-                : // 홈 입력바는 검색 탭 입력바(AiSearchBox 검색 모드)와 같은 흰 바탕 + 1px 회색(#c3c7d6)
-                  // 테두리. 회색 바탕이면 같은 회색 계열인 모드 탭이 묻혀 보이지 않는다.
-                  // 오른쪽에 전송 버튼과 모드 탭이 있으면 글자가 그 밑으로 들어가지 않게 여백을 넓힌다.
-                  // 높이 56px(모서리 56/2-3 = 25px). 탭·전송 버튼(40px) 둘레 여백 8px에 맞췄다.
-                  // 오른쪽 여백 = 끝 8 + 전송 40 + 간격 10 + 탭 127 + 글자와 틈 11.
-                  // 모바일(<sm)은 그 여백을 빼면 글자 칸이 140px도 안 남아, 두 줄로 나눠
-                  // 위엔 입력(한 줄, 넘치면 안에서 스크롤), 아래 줄에 탭·전송 버튼(36px)을 둔다.
-                  // 테두리·여백은 위 wrapper가 맡는다.
-                  `h-[24px] bg-transparent p-0 text-base leading-[24px] sm:h-[56px] sm:rounded-[25px] sm:border sm:border-gray-300 sm:bg-surface sm:py-[15px] sm:pl-[16px] sm:text-[15px] sm:leading-[24px] ${
-                    modeToggle ? "sm:pr-[196px]" : "sm:pr-[60px]"
-                  }`
-            }`}
-          />
-          {/* 답변 작성 중엔 isPending — 누르기는 막되(비활성) 마우스는 받아서 툴팁을 띄운다.
-              isDisabled면 hover도 끊겨 툴팁이 안 뜨므로, 작성 중일 땐 isDisabled를 풀어 둔다.
-              HeroUI는 pending 버튼에 pointer-events:none을 걸어 hover까지 막으므로 되돌린다
-              (누르기는 React Aria의 isPending이 따로 막는다). */}
-          {/* 모드 탭(높이 40px) — 전송 버튼(40px, 오른쪽 8px)과 높이·세로 위치를 맞추고 10px 띄운다. */}
-          {!isPanel && modeToggle && (
-            <div className="absolute right-[55px] bottom-[11px] sm:top-[8px] sm:right-[58px] sm:bottom-auto">
-              {modeToggle}
-            </div>
-          )}
-          <Tooltip delay={0} isDisabled={!chat.running}>
-            <Button
-              isIconOnly
-              variant="primary"
-              size="sm"
-              isPending={chat.running}
-              isDisabled={
-                !chat.running && (value.trim().length === 0 || disabled)
+                ? "h-[44px] items-center rounded-[19px]"
+                : "h-auto flex-wrap items-center rounded-[25px] sm:h-[56px] sm:flex-nowrap"
+            }
+          >
+            <InputGroup.TextArea
+              value={value}
+              onChange={(event) =>
+                setValue(event.target.value.slice(0, MAX_LENGTH))
               }
-              onPress={send}
-              aria-label="전송"
-              className={cn(sendButtonClass, chat.running && "max-sm:hidden")}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              maxLength={MAX_LENGTH}
+              disabled={disabled}
+              aria-label="믹시에게 이어서 묻기"
+              placeholder={
+                chat.limitReached
+                  ? "대화 한도에 도달했어요"
+                  : chat.restoring
+                    ? "이전 대화 복원 중..."
+                    : chat.messages.length > 0
+                      ? "믹시에게 이어서 물어보세요"
+                      : "믹시에게 물어보세요"
+              }
+              className={
+                isPanel
+                  ? "resize-none py-[12px] pl-[16px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "h-[48px] min-w-0 resize-none basis-full pt-[12px] pb-0 [scrollbar-width:none] sm:h-[56px] sm:basis-auto sm:py-[18px] sm:pl-[16px] [&::-webkit-scrollbar]:hidden"
+              }
+            />
+            <InputGroup.Suffix
+              className={
+                isPanel
+                  ? "items-center self-stretch rounded-none py-0 pr-[4px] pl-[8px]"
+                  : "gap-[8px] rounded-none max-sm:w-full max-sm:justify-end max-sm:pt-[10px] max-sm:pr-[12px] max-sm:pb-[12px] sm:items-center sm:gap-[10px] sm:self-stretch sm:py-0 sm:pr-[8px] sm:pl-[10px]"
+              }
             >
-              {chat.running ? (
-                <Spinner size="sm" color="current" />
-              ) : (
-                <ArrowUpIcon
-                  className={
-                    isPanel ? "size-[18px]" : "size-[18px] sm:size-[20px]"
+              {!isPanel && modeToggle}
+              {/* 답변 작성 중엔 isPending — 누르기는 막되(비활성) 마우스는 받아서 툴팁을 띄운다.
+                  isDisabled면 hover도 끊겨 툴팁이 안 뜨므로, 작성 중일 땐 isDisabled를 풀어 둔다.
+                  HeroUI는 pending 버튼에 pointer-events:none을 걸어 hover까지 막으므로 되돌린다
+                  (누르기는 React Aria의 isPending이 따로 막는다). */}
+              <Tooltip delay={0} isDisabled={!chat.running}>
+                <Button
+                  isIconOnly
+                  variant="primary"
+                  size="sm"
+                  isPending={chat.running}
+                  isDisabled={
+                    !chat.running && (value.trim().length === 0 || disabled)
                   }
-                />
+                  onPress={send}
+                  aria-label="전송"
+                  className={cn(
+                    sendButtonClass,
+                    chat.running && "max-sm:hidden",
+                  )}
+                >
+                  {chat.running ? (
+                    <Spinner size="sm" color="current" />
+                  ) : (
+                    <ArrowUpIcon
+                      className={
+                        isPanel ? "size-[18px]" : "size-[18px] sm:size-[20px]"
+                      }
+                    />
+                  )}
+                </Button>
+                <Tooltip.Content>믹시가 답변을 준비 중이에요</Tooltip.Content>
+              </Tooltip>
+              {/* 모바일은 hover가 없어 툴팁이 뜨지 않는다. 작성 중엔 같은 모양의 버튼을 대신 두고,
+                  누르면 팝오버로 알린다(작성 중 버튼은 누르기가 막혀 팝오버를 열 수 없다). */}
+              {chat.running && (
+                <Popover>
+                  <Button
+                    isIconOnly
+                    variant="primary"
+                    size="sm"
+                    aria-label="믹시가 답변을 준비 중이에요"
+                    className={cn(sendButtonClass, "sm:hidden")}
+                  >
+                    <Spinner size="sm" color="current" />
+                  </Button>
+                  <Popover.Content
+                    placement="top end"
+                    className="rounded-[12px]"
+                  >
+                    <Popover.Dialog className="px-[12px] py-[8px] text-[12px] font-medium text-gray-900">
+                      믹시가 답변을 준비 중이에요
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
               )}
-            </Button>
-            <Tooltip.Content>믹시가 답변을 준비 중이에요</Tooltip.Content>
-          </Tooltip>
-          {/* 모바일은 hover가 없어 툴팁이 뜨지 않는다. 작성 중엔 같은 모양의 버튼을 대신 두고,
-              누르면 팝오버로 알린다(작성 중 버튼은 누르기가 막혀 팝오버를 열 수 없다). */}
-          {chat.running && (
-            <Popover>
-              <Button
-                isIconOnly
-                variant="primary"
-                size="sm"
-                aria-label="믹시가 답변을 준비 중이에요"
-                className={cn(sendButtonClass, "sm:hidden")}
-              >
-                <Spinner size="sm" color="current" />
-              </Button>
-              <Popover.Content placement="top end" className="rounded-[12px]">
-                <Popover.Dialog className="px-[12px] py-[8px] text-[12px] font-medium text-gray-900">
-                  믹시가 답변을 준비 중이에요
-                </Popover.Dialog>
-              </Popover.Content>
-            </Popover>
-          )}
+            </InputGroup.Suffix>
+          </InputGroup>
         </div>
         {isPanel && (
           // 모바일은 위 여백을 아래(하단 바 여백 10px)와 같게 둔다.
-          <p className="text-center text-[11px] leading-[16px] text-gray-400 max-sm:mt-[10px]">
+          <p className="mt-[8px] text-center text-[11px] leading-[16px] text-gray-400 max-sm:mt-[10px]">
             AI 학습 데이터 기반의 답변으로, 실제와 차이가 있을 수 있습니다.
           </p>
         )}

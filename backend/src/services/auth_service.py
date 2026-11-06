@@ -87,7 +87,10 @@ def update_profile(
     company_name: str | None = None,
     phone: str | None = None,
     marketing_consent: bool | None = None,
+    member_category: str | None = None,
 ) -> User:
+    if member_category is not None:
+        user.member_category = member_category
     if name is not None:
         user.name = name
     if company_name is not None:
@@ -204,12 +207,12 @@ def send_password_reset_email(email: str, token: str) -> None:
     seconds = PASSWORD_RESET_TTL_SECONDS
     expiry = f"{seconds // 3600}시간" if seconds % 3600 == 0 else f"{seconds // 60}분"
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
         if base
-        else 'ADMIX<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#00AAA4">●</span>'
     )
-    subject = "[ADMIX] 새로운 비밀번호를 재설정해주세요"
+    subject = "[admix] 새로운 비밀번호를 재설정해주세요"
     text = (
         "안녕하세요.\n"
         "회원님의 비밀번호 재설정 요청이 접수되었습니다.\n"
@@ -218,7 +221,7 @@ def send_password_reset_email(email: str, token: str) -> None:
         f"링크는 보안을 위해 {expiry} 후 만료됩니다.\n"
         "만약 비밀번호 재설정을 요청하지 않으셨다면 본 메일을 무시해 주세요.\n"
         "감사합니다.\n\n"
-        "ADMIX 드림"
+        "admix 드림"
     )
     html = f"""\
 <div style="margin:0;padding:0;background-color:#000000">
@@ -233,7 +236,7 @@ def send_password_reset_email(email: str, token: str) -> None:
           </tr>
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
-              [ADMIX] 새로운 비밀번호를 재설정해주세요
+              [admix] 새로운 비밀번호를 재설정해주세요
             </td>
           </tr>
           <tr>
@@ -259,7 +262,7 @@ def send_password_reset_email(email: str, token: str) -> None:
               링크는 보안을 위해 {expiry} 후 만료됩니다.<br>
               만약 비밀번호 재설정을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
               감사합니다.<br><br>
-              ADMIX 드림
+              admix 드림
             </td>
           </tr>
         </table>
@@ -304,12 +307,12 @@ def send_email_verification_code(email: str, code: str) -> None:
     minutes = EMAIL_CODE_TTL_SECONDS // 60
     base = settings.email_link_base
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
         if base
-        else 'ADMIX<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#00AAA4">●</span>'
     )
-    subject = "[ADMIX] 이메일 인증코드를 확인해주세요"
+    subject = "[admix] 이메일 인증코드를 확인해주세요"
     text = (
         "안녕하세요.\n"
         "회원가입을 위한 이메일 인증 요청이 접수되었습니다.\n"
@@ -318,7 +321,7 @@ def send_email_verification_code(email: str, code: str) -> None:
         f"인증코드는 보안을 위해 {minutes}분 후 만료됩니다.\n"
         "만약 이메일 인증을 요청하지 않으셨다면 본 메일을 무시해 주세요.\n"
         "감사합니다.\n\n"
-        "ADMIX 드림"
+        "admix 드림"
     )
     html = f"""\
 <div style="margin:0;padding:0;background-color:#000000">
@@ -333,7 +336,7 @@ def send_email_verification_code(email: str, code: str) -> None:
           </tr>
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
-              [ADMIX] 이메일 인증코드를 확인해주세요
+              [admix] 이메일 인증코드를 확인해주세요
             </td>
           </tr>
           <tr>
@@ -354,7 +357,7 @@ def send_email_verification_code(email: str, code: str) -> None:
               인증코드는 보안을 위해 {minutes}분 후 만료됩니다.<br>
               만약 이메일 인증을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
               감사합니다.<br><br>
-              ADMIX 드림
+              admix 드림
             </td>
           </tr>
         </table>

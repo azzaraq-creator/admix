@@ -45,7 +45,7 @@ export function CoverTemplate({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/service/admix-text-logo.svg"
-          alt="ADMIX"
+          alt="admix"
           className="h-[56px] w-auto brightness-0 invert"
         />
         <span className="h-[40px] w-[2px] bg-white/30" />

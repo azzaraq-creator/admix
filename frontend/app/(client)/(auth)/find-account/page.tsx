@@ -9,7 +9,6 @@ import { SignupShell } from "@/app/(client)/(auth)/signup/_components/SignupShel
 import {
   CardHeading,
   FieldLabel,
-  INPUT_CLASS,
   PrimaryAction,
   SignupCard,
 } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -22,7 +21,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * 비밀번호 찾기 — 로그인 창의 "비밀번호 재설정"에서 온다.
- * 회원가입과 같은 ADMIX 인증 화면 틀(흰 상단 바·회색 바탕·가운데 흰 카드, HeroUI)을 쓴다.
+ * 회원가입과 같은 admix 인증 화면 틀(흰 상단 바·회색 바탕·가운데 흰 카드, HeroUI)을 쓴다.
  * 1) 이메일 입력 → 재설정 메일 전송  2) 전송 완료 안내(다시 보내기·로그인으로).
  */
 export default function FindAccountPage() {
@@ -145,10 +144,8 @@ export default function FindAccountPage() {
             className="gap-[8px]"
           >
             <FieldLabel required>이메일</FieldLabel>
-            <Input className={INPUT_CLASS} />
-            <FieldError className="text-[11px] text-[#dc2626]">
-              {errorMsg}
-            </FieldError>
+            <Input className="h-[44px] rounded-[19px]" />
+            <FieldError>{errorMsg}</FieldError>
           </TextField>
           <PrimaryAction
             type="submit"

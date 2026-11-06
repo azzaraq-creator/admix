@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
+import type { MemberCategory } from "@/lib/memberCategory";
 import { clearSessionId } from "@/lib/session";
 import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
@@ -85,6 +86,7 @@ export const useUpdateProfile = () => {
       company_name?: string;
       phone?: string;
       marketing_consent?: boolean;
+      member_category?: MemberCategory;
     }) => authApi.updateProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, TextArea } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
@@ -73,8 +73,7 @@ export function AiSearchBox({
   return (
     // 테두리 두께(2px)는 두 모드가 같다 — 검색 모드의 1px 회색은 globals.css(.admix-ai-border)가
     // 흰 상자를 1px 넓혀 만든다. 그래서 모드를 바꿔도 안쪽 상자가 움직이지 않는다.
-    // 여백은 대화 입력바(HomeChat)와 같게 — 모바일 상하좌우 12px, PC는 탭·전송 버튼이
-    // 테두리에서 8px, 글자는 왼쪽 16px·위 15px(오른쪽도 16px이 되게 textarea에 8px 더함).
+    // 안쪽 여백은 모바일 상하좌우 12px, PC 8px — HeroUI TextArea와 탭·전송 버튼이 같은 여백에 선다.
     <div
       data-tour="home-input"
       className="admix-ai-border w-full max-w-[860px] max-sm:flex max-sm:flex-col"
@@ -87,10 +86,12 @@ export function AiSearchBox({
             return;
           textareaRef.current?.focus();
         }}
-        className="relative flex min-h-[140px] flex-col rounded-[25px] bg-surface px-[12px] pt-[12px] pb-[12px] max-sm:flex-1 sm:min-h-[94px] sm:pt-[15px] sm:pr-[8px] sm:pb-[8px] sm:pl-[16px]"
+        className="relative flex min-h-[140px] flex-col rounded-[25px] bg-surface px-[12px] pt-[12px] pb-[12px] max-sm:flex-1 sm:min-h-[94px] sm:p-[8px]"
       >
-        <textarea
+        {/* HeroUI TextArea — 기본 모양은 끄고(테두리 없음) 상자에 맞춘다. 크기 조절 손잡이도 끈다(resize-none). */}
+        <TextArea
           ref={textareaRef}
+          fullWidth
           value={value}
           onChange={(event) =>
             onValueChange(event.target.value.slice(0, MAX_LENGTH))
@@ -104,7 +105,10 @@ export function AiSearchBox({
               ? "지역이나 매체명을 검색해 보세요"
               : "지역, 예산, 타겟, 광고 목적을 입력해 보세요"
           }
-          className="max-h-[110px] w-full resize-none sm:pr-[8px] bg-transparent text-base leading-[24px] sm:text-[15px] sm:leading-[22px] text-black outline-none placeholder:text-zinc-400 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          // HeroUI 기본 입력칸 모양(회색 바탕·1px 테두리·그림자·포커스 링)은 끈다 — 바깥 그라데이션 상자가 곧 입력칸이다.
+          // 칸은 상자 폭을 꽉 채우고(fullWidth), 남는 높이도 채워 탭·전송 버튼 바로 위까지 닿는다(flex-1).
+          // 글자 위치는 예전과 같게 — 모바일은 상자 여백(12px) 그대로, PC는 왼쪽 16px · 위 15px(상자 8px + 칸 8·7px).
+          className="max-h-[110px] min-h-0 flex-1 resize-none rounded-none border-0! bg-transparent! p-0 text-base leading-[24px] text-black shadow-none! ring-0! outline-none placeholder:text-zinc-400 [scrollbar-width:none] max-sm:max-h-none sm:px-[8px] sm:pt-[7px] sm:text-[15px] sm:leading-[22px] [&::-webkit-scrollbar]:hidden"
         />
 
         {/* 시안: 전환 탭과 전송 버튼을 오른쪽 아래에 10px 간격으로 나란히 둔다. */}

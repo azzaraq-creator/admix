@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { CurrentProposalPanel } from "./CurrentProposalPanel";
+import { PartnerResumeModal } from "@/app/(client)/partners/_components/PartnerResumeModal";
+
 import { LoginModal } from "./LoginModal";
 import { MixieChatPanel } from "./MixieChatPanel";
 import { MobileTabBar } from "./MobileTabBar";
@@ -40,6 +42,7 @@ export async function ClientShell({ children }: { children: ReactNode }) {
             <MobileTabBar />
           </div>
           <LoginModal />
+          <PartnerResumeModal />
           <CurrentProposalPanel />
           <PageTourHost />
         </div>

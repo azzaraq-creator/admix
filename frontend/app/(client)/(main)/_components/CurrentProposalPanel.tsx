@@ -268,8 +268,7 @@ function ProposalBody({
             setCurrentProposalId(String(key));
           }}
         >
-          {/* 칸 44px → 곡률 19px(기획안 담기 창 입력칸과 같다). */}
-          <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px] border border-tone-ececef bg-tone-f7f7f8 ps-[12px] pe-[36px] shadow-none data-[hovered=true]:bg-surface">
+          <Select.Trigger className="h-[44px] w-full gap-[10px] rounded-[19px]">
             {/* 기획안 아이콘 — 위 "현재 기획안" 열린 폴더(보라)와 겹치지 않게 흰 칸에 짙은 회색. 칸 26px → 곡률 10px. */}
             <span className="flex size-[26px] shrink-0 items-center justify-center rounded-[10px] border border-tone-ececef bg-surface text-gray-700">
               <CollectionIcon className="size-[15px]" />
@@ -277,9 +276,7 @@ function ProposalBody({
             <Select.Value className="flex min-w-0 flex-1 items-center gap-[6px]">
               {({ selectedText }) => (
                 <>
-                  <span className="truncate text-[14px] font-semibold text-zinc-900">
-                    {selectedText}
-                  </span>
+                  <span className="truncate">{selectedText}</span>
                   {newIds.includes(proposalId) && <NewBadge />}
                   <span className="shrink-0 text-[12px] font-medium text-zinc-500">
                     매체 {detail?.media_count ?? 0}개
@@ -287,7 +284,7 @@ function ProposalBody({
                 </>
               )}
             </Select.Value>
-            <Select.Indicator className="end-[14px] text-zinc-500" />
+            <Select.Indicator />
           </Select.Trigger>
           <Select.Popover className="min-w-[var(--trigger-width)]">
             <ListBox>
@@ -300,7 +297,7 @@ function ProposalBody({
                   className="pe-[32px]"
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-[6px]">
-                    <span className="truncate text-[14px]">{p.title}</span>
+                    <span className="truncate">{p.title}</span>
                     {newIds.includes(p.id) && <NewBadge />}
                   </span>
                   <span className="shrink-0 text-[12px] text-zinc-500">
@@ -432,7 +429,7 @@ const planText = (plan: PlanOption) =>
   });
 
 // 매체 정보 팝업 가격 칸과 같은 줄 모양.
-const ROW = "flex min-h-[28px] items-center gap-[10px]";
+const ROW = "flex min-h-[32px] items-center gap-[10px]";
 const ROW_LABEL =
   "w-[38px] shrink-0 text-[12px] font-semibold whitespace-nowrap text-zinc-400";
 const ROW_AMOUNT =
@@ -489,11 +486,12 @@ function ItemCard({
               }}
               className="min-w-0 flex-1"
             >
-              <Select.Trigger className="h-[28px] min-h-0 w-full rounded-[11px] border border-tone-ececef bg-surface py-0 ps-[10px] pe-[28px] shadow-none data-[hovered=true]:bg-surface">
-                <Select.Value className="truncate text-[12px] leading-[26px] font-medium text-zinc-900">
+              {/* 매체 정보 팝업 옵션과 같게 32px(곡률 13px) · 13px 글자 — 개월 수 조절기와 높이를 맞춘다. */}
+              <Select.Trigger className="h-[32px] min-h-0 w-full items-center rounded-[13px] py-0 text-[13px]">
+                <Select.Value className="truncate text-[13px]">
                   {() => planText(plan)}
                 </Select.Value>
-                <Select.Indicator className="end-[9px] size-[13px] text-zinc-500" />
+                <Select.Indicator />
               </Select.Trigger>
               <Select.Popover className="min-w-[var(--trigger-width)]">
                 <ListBox>
@@ -503,7 +501,7 @@ function ItemCard({
                       id={String(p.plan_no)}
                       textValue={planText(p)}
                     >
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
+                      <span className="min-w-0 flex-1 truncate">
                         {planText(p)}
                       </span>
                       <ListBox.ItemIndicator />

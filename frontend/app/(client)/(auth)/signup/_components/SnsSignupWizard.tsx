@@ -21,7 +21,12 @@ const PLACEHOLDER_EMAIL_SUFFIX = "@social.local";
 
 type Step = "category" | "email" | "info" | "terms";
 
-const STEP_INDEX: Record<Step, number> = { category: 0, email: 2, info: 3, terms: 4 };
+const STEP_INDEX: Record<Step, number> = {
+  category: 0,
+  email: 2,
+  info: 3,
+  terms: 4,
+};
 
 /**
  * /signup/sns — 카카오·네이버로 처음 로그인한 계정의 가입 마무리.
@@ -52,17 +57,24 @@ export function SnsSignupWizard() {
 function SnsSignupFlow({ me }: { me: MeResponse }) {
   const finish = useFinishSignup();
 
-  const providerEmail = me.email.endsWith(PLACEHOLDER_EMAIL_SUFFIX) ? null : me.email;
-  // 흐름은 들어온 순간 한 번 정한다(단계 진행 중 바뀌지 않게).
-  const [flow] = useState<Step[]>(() => [
-    ...(loadSignupCategory() ? [] : (["category"] as const)),
+  const providerEmail = me.email.endsWith(PLACEHOLDER_EMAIL_SUFFIX)
+    ? null
+    : me.email;
+  // 유형 · 이메일 단계를 거칠지는 들어온 순간 한 번 정한다(단계 진행 중 바뀌지 않게).
+  const [needCategory] = useState(() => !loadSignupCategory());
+  const [category, setCategory] = useState<MemberCategory | null>(() =>
+    loadSignupCategory(),
+  );
+  const flow: Step[] = [
+    ...(needCategory ? (["category"] as const) : []),
     ...(providerEmail ? [] : (["email"] as const)),
     "info",
     "terms",
-  ]);
+  ];
   const [step, setStep] = useState<Step>(flow[0]);
-  const [category, setCategory] = useState<MemberCategory | null>(() => loadSignupCategory());
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(providerEmail);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(
+    providerEmail,
+  );
   const [info, setInfo] = useState<SignupInfo>({
     ...EMPTY_SIGNUP_INFO,
     name: me.name ?? "",
@@ -98,12 +110,17 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
         setStep("info");
         return;
       }
-      setSubmitError(detail ?? "가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      setSubmitError(
+        detail ?? "가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     }
   };
 
   return (
-    <SignupShell step={STEP_INDEX[step]} onBack={prev ? () => setStep(prev) : undefined}>
+    <SignupShell
+      step={STEP_INDEX[step]}
+      onBack={prev ? () => setStep(prev) : undefined}
+    >
       {step === "category" && (
         <CategoryStep value={category} onChange={setCategory} onNext={next} />
       )}
@@ -121,7 +138,9 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
           needPassword={false}
           showBizCert={category !== "general"}
           initial={info}
-          serverError={phoneError ? { field: "phone", message: phoneError } : null}
+          serverError={
+            phoneError ? { field: "phone", message: phoneError } : null
+          }
           onNext={(values) => {
             setInfo(values);
             if (values.phone !== info.phone) setPhoneError(null);
@@ -130,7 +149,11 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
         />
       )}
       {step === "terms" && (
-        <TermsStep pending={submitting} error={submitError} onSubmit={handleSubmit} />
+        <TermsStep
+          pending={submitting}
+          error={submitError}
+          onSubmit={handleSubmit}
+        />
       )}
     </SignupShell>
   );

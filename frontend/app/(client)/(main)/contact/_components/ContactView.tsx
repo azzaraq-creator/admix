@@ -12,7 +12,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { SearchOutlineIcon, WriteIcon } from "@/components/icons";
+import { WriteIcon } from "@/components/icons";
 import { Footer } from "@/components/layout/Footer";
 import { useMe } from "@/hooks/auth";
 import { useSonner } from "@/hooks/useSonner";
@@ -253,20 +253,16 @@ export function ContactView({ member = false }: { member?: boolean }) {
                   onChange={setStatusFilter}
                 />
               )}
-              {/* 기획안 검색창과 같은 회색 칸. */}
               <SearchField
                 aria-label={searchPlaceholder}
                 value={searchQuery}
                 onChange={setSearchQuery}
                 className="min-w-0 flex-1 sm:w-[350px] sm:flex-none"
               >
-                <SearchField.Group className="h-[40px] gap-[12px] rounded-[17px] border border-gray-200 bg-gray-100 px-[12px] shadow-none focus-within:border-focus focus-within:ring-0 data-[focus-within=true]:border-focus data-[focus-within=true]:bg-surface data-[focus-within=true]:ring-0">
-                  <SearchOutlineIcon className="size-[18px] shrink-0 text-tone-6c757d" />
-                  <SearchField.Input
-                    placeholder={searchPlaceholder}
-                    className="px-0 text-[14px] placeholder:text-zinc-400"
-                  />
-                  <SearchField.ClearButton className="me-0" />
+                <SearchField.Group className="h-[40px] rounded-[17px]">
+                  <SearchField.SearchIcon />
+                  <SearchField.Input placeholder={searchPlaceholder} />
+                  <SearchField.ClearButton />
                 </SearchField.Group>
               </SearchField>
               {activeTab === "history" && (

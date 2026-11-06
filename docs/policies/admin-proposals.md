@@ -120,7 +120,7 @@
 - **규칙**:
   - "목록" → `/admin/proposals`.
   - **집행 수락**: 확인 모달("집행을 수락하시겠습니까?" / "수락하면 기획안 상태가 계약 완료로 변경됩니다.") → 확인 시 `POST /admin/proposals/{id}/accept` → 상태 `contracted`(계약 완료). 성공 토스트 "집행이 수락되었습니다.".
-  - **계약 완료 이메일 발송**(2026-07-27): 수락 성공 시 기획안 소유 회원의 이메일로 "[ADMIX] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`). 본문: 안녕하세요 → 계약 완료 안내 → 기획안명 → "내 기획안 확인하기" 버튼(→ `{email_link_base}/proposals/{id}`). 맞춤제안 도착 메일과 동일 다크 템플릿. 회원 이메일이 없으면(비회원 등) 발송 생략. Figma node 1283-31901.
+  - **계약 완료 이메일 발송**(2026-07-27): 수락 성공 시 기획안 소유 회원의 이메일로 "[admix] 광고 계약이 완료되었습니다" 알림을 BackgroundTask로 발송(`send_contract_completed_email`). 본문: 안녕하세요 → 계약 완료 안내 → 기획안명 → "내 기획안 확인하기" 버튼(→ `{email_link_base}/proposals/{id}`). 맞춤제안 도착 메일과 동일 다크 템플릿. 회원 이메일이 없으면(비회원 등) 발송 생략. Figma node 1283-31901.
   - 이미 계약 완료(`accepted`)면 버튼 라벨 "계약 완료" + 비활성. 진행 중에도 비활성.
   - 수락 취소/되돌리기 없음(계약완료는 종착). **✅ 2026-07-30 상태 가드 추가** — `update_status`에 `assert_status_mutable` + 상태 화이트리스트 적용. 계약완료(`contracted`)·취소(`cancelled`) 건은 accept 재호출 시 400 거부(이전엔 상태 무관하게 contracted로 덮어씀). `new`·`execution_requested`·`custom`에서만 수락 가능.
 

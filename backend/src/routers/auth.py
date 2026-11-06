@@ -143,6 +143,7 @@ def update_me(
         company_name=body.company_name,
         phone=body.phone,
         marketing_consent=body.marketing_consent,
+        member_category=body.member_category,
     )
 
 

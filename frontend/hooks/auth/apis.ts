@@ -55,6 +55,8 @@ export interface MeResponse {
   marketing_consent: boolean;
   created_at: string;
   business_registration: BusinessRegistration | null;
+  /** 제휴사(콜라보) 기본협약 동의 시각 — null 이면 아직 동의 전(로그인 시 이어서 하기 창). */
+  partner_agreed_at?: string | null;
 }
 
 export const authApi = {
@@ -138,6 +140,7 @@ export const authApi = {
     company_name?: string;
     phone?: string;
     marketing_consent?: boolean;
+    member_category?: MemberCategory;
   }) => api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
   withdraw: () => api.delete("/auth/me"),
 };

@@ -10,12 +10,7 @@ import {
 import { useChangePassword } from "@/hooks/auth";
 import { useSonner } from "@/hooks/useSonner";
 
-import {
-  MODAL_ERROR_CLASS,
-  MODAL_INPUT_CLASS,
-  MODAL_LABEL_CLASS,
-  ProfileModalShell,
-} from "./ProfileModalShell";
+import { ProfileModalShell } from "./ProfileModalShell";
 
 type FieldKey = "current" | "next" | "confirm";
 
@@ -149,8 +144,8 @@ export function PasswordChangeModal({
               fullWidth
               className="flex flex-col gap-[6px]"
             >
-              <Label className={MODAL_LABEL_CLASS}>{field.label}</Label>
-              <Input className={MODAL_INPUT_CLASS} />
+              <Label>{field.label}</Label>
+              <Input className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]" />
               {/* 새 비밀번호는 회원가입처럼 조건마다 맞는지 칩으로 바로 보여 준다. */}
               {/* 모바일은 칩 네 개가 한 줄에 가깝게 들어가도록 간격을 줄인다. */}
               {field.key === "next" && (
@@ -159,9 +154,7 @@ export function PasswordChangeModal({
                   className="max-sm:gap-x-[4px] max-sm:gap-y-[6px]"
                 />
               )}
-              <FieldError className={MODAL_ERROR_CLASS}>
-                {fieldError}
-              </FieldError>
+              <FieldError>{fieldError}</FieldError>
             </TextField>
           );
         })}

@@ -1,11 +1,9 @@
 "use client";
 
 import { FieldError, Input, InputOTP, TextField } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { OTP_SLOT_CLASS } from "@/components/common/otpSlotClass";
 import { authApi } from "@/hooks/auth";
-import { cn } from "@/lib/utils";
 
 import { MatchCheckIcon } from "./signupIcons";
 
@@ -13,9 +11,7 @@ import {
   CardHeading,
   FieldLabel,
   FieldMessage,
-  INPUT_CLASS,
   PrimaryAction,
-  RADIUS,
   SideButton,
   SignupCard,
   errorDetail,
@@ -67,6 +63,7 @@ export function EmailVerifyStep({
   const [now, setNow] = useState(() => Date.now());
   const [emailError, setEmailError] = useState("");
   const [codeError, setCodeError] = useState("");
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   const verified = verifiedEmail !== null && verifiedEmail === email;
   const sent = sendCount > 0;
@@ -123,6 +120,9 @@ export function EmailVerifyStep({
       onVerified(email);
     } catch (error) {
       setCodeError(errorDetail(error) ?? "인증번호가 올바르지 않습니다.");
+      // 6칸이 꽉 차 있으면 칸을 눌러도 마지막 자리만 바뀌어 고치기 어렵다 — 비우고 첫 칸부터 다시 받는다.
+      setCode("");
+      codeInputRef.current?.focus();
     } finally {
       setConfirmPending(false);
     }
@@ -172,7 +172,7 @@ export function EmailVerifyStep({
         <div className="flex w-full gap-[12px] max-sm:gap-[8px]">
           <Input
             placeholder="이메일을 입력해 주세요."
-            className={INPUT_CLASS}
+            className="h-[44px] rounded-[19px]"
           />
           <SideButton
             onPress={handleSend}
@@ -182,9 +182,7 @@ export function EmailVerifyStep({
             {sendLabel}
           </SideButton>
         </div>
-        <FieldError className="text-[11px] text-[#dc2626]">
-          {emailError}
-        </FieldError>
+        <FieldError>{emailError}</FieldError>
       </TextField>
       {sent && !verified && resendsLeft <= 0 && (
         <FieldMessage tone="error">
@@ -195,8 +193,9 @@ export function EmailVerifyStep({
       <div className="flex w-full flex-col gap-[8px]">
         <FieldLabel>인증번호</FieldLabel>
         <div className="flex w-full gap-[12px] max-sm:gap-[8px]">
-          {/* HeroUI InputOTP — 숫자 6칸. 칸 높이는 옆 버튼과 같은 44px(곡률 19px). */}
+          {/* HeroUI InputOTP — 숫자 6칸. */}
           <InputOTP
+            ref={codeInputRef}
             aria-label="인증번호"
             maxLength={CODE_LENGTH}
             pattern="^\d+$"
@@ -209,21 +208,14 @@ export function EmailVerifyStep({
             }}
             isDisabled={!sent || verified}
             isInvalid={!!codeError}
-            // 전송 전(비활성)에도 칸이 흐려지지 않게 HeroUI 기본 반투명을 끈다.
-            className="min-w-0 flex-1 data-[disabled=true]:opacity-100"
+            className="min-w-0 flex-1"
           >
-            <InputOTP.Group className="w-full gap-[6px] max-sm:gap-[4px]">
+            <InputOTP.Group className="w-full">
               {Array.from({ length: CODE_LENGTH }, (_, index) => (
                 <InputOTP.Slot
                   key={index}
                   index={index}
-                  className={cn(
-                    OTP_SLOT_CLASS,
-                    "h-[44px] text-[16px]",
-                    RADIUS.h44,
-                    // 모바일은 칸 폭이 좁아(27~36px) 44px 곡률이면 알약처럼 보여 곡률을 줄인다.
-                    "max-sm:rounded-[12px]",
-                  )}
+                  className="h-[44px] rounded-[19px]"
                 />
               ))}
             </InputOTP.Group>

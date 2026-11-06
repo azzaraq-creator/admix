@@ -34,12 +34,6 @@ import { cn } from "@/lib/utils";
 /** 기획안 이름 최대 길이 — 새 기획안 만들기 창(NewProposalModal)과 같다. */
 const MAX_NAME_LENGTH = 50;
 
-// 입력칸 44px → 곡률 19px. 새 기획안 만들기 창과 같게 평소 회색, 마우스를 올리거나 입력 중이면 흰 바탕.
-// 입력 중에는 1px 테두리가 보라색(HeroUI 포커스 색)으로 바뀐다 — 기획안 검색창과 같은 방식.
-const FIELD_CLASS =
-  "h-[44px] rounded-[19px] border border-gray-200 bg-gray-100 px-[16px] text-[14px] text-gray-900 [box-shadow:none]! transition-colors " +
-  "placeholder:text-gray-400 hover:bg-surface data-[hovered=true]:bg-surface focus:border-focus data-[focused=true]:bg-surface data-[invalid=true]:border-danger data-[invalid=true]:outline-none";
-
 // 하단 버튼 — 매체 정보 팝업 하단 버튼(닫기·기획안 담기)과 같은 모양.
 const ACTION_CLASS =
   "h-auto rounded-[15px] px-[14px] py-[10px] text-[13px] font-medium";
@@ -252,12 +246,11 @@ export function AddToProposalModal({
                     >
                       <Input
                         placeholder="예) 2026 하반기 강남 옥외광고"
-                        className={FIELD_CLASS}
+                        fullWidth
+                        className="h-[44px] rounded-[19px]"
                       />
                       <div className="flex items-start justify-between gap-[8px] px-[4px]">
-                        <FieldError className="text-[12px] text-danger">
-                          {nameError}
-                        </FieldError>
+                        <FieldError>{nameError}</FieldError>
                         <span className="ml-auto shrink-0 text-[12px] text-gray-400">
                           {newName.length}/{MAX_NAME_LENGTH}
                         </span>

@@ -158,7 +158,7 @@ export function ServiceIntroView() {
             <div className="flex flex-col">
               <div className="flex items-center justify-center bg-primary px-[10px] py-[12px] sm:py-[20px]">
                 <p className="text-[18px] font-semibold leading-[28px] tracking-[-0.04px] text-white">
-                  ADMIX
+                  admix
                 </p>
               </div>
               <div

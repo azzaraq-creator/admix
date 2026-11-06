@@ -6,6 +6,7 @@ import {
   Description,
   FieldError,
   Input,
+  InputGroup,
   TextField,
 } from "@heroui/react";
 import { useRef, useState, type DragEvent } from "react";
@@ -28,7 +29,6 @@ import {
   CardHeading,
   FieldLabel,
   FieldMessage,
-  INPUT_CLASS,
   PrimaryAction,
   RADIUS,
   SignupCard,
@@ -65,9 +65,7 @@ function bizFileError(file: File): string | null {
   return null;
 }
 
-const FIELD_ERROR = "text-[11px] text-[#dc2626]";
-
-/** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — 입력칸 44px 안에 28px로 세워 위아래·오른쪽 8px, 곡률 28/2 - 3 = 11px. */
+/** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — InputGroup.Suffix 안에 둔다. */
 function PasswordToggle({
   shown,
   onToggle,
@@ -82,7 +80,7 @@ function PasswordToggle({
       size="sm"
       aria-label={shown ? "비밀번호 숨기기" : "비밀번호 보기"}
       onPress={onToggle}
-      className="absolute top-1/2 right-[8px] size-[28px] min-w-0 -translate-y-1/2 rounded-[11px] text-zinc-400 data-[hovered=true]:text-zinc-900"
+      className="size-[28px] min-w-0 rounded-[11px] text-zinc-400 data-[hovered=true]:text-zinc-900"
     >
       <EyeIcon off={shown} className="size-[16px]" />
     </Button>
@@ -94,6 +92,7 @@ export function InfoStep({
   email,
   needPassword,
   showBizCert,
+  partner = false,
   initial,
   serverError,
   onNext,
@@ -103,6 +102,8 @@ export function InfoStep({
   needPassword: boolean;
   /** 일반 회원에게는 사업자등록증 칸을 보이지 않는다. */
   showBizCert: boolean;
+  /** 제휴사(콜라보) — "정보 추가 입력"(회사명) 없이 사업자등록증만, 필수는 아니고 추후 인증이 필요하다고 알린다. */
+  partner?: boolean;
   initial: SignupInfo;
   /** 가입 요청에서 돌아온 오류(예: 이미 가입된 전화번호). */
   serverError?: { field: "phone"; message: string } | null;
@@ -183,6 +184,94 @@ export function InfoStep({
         ? serverError.message
         : "";
 
+  /** 사업자등록증 칸 — 일반 가입은 "정보 추가 입력" 상자 안, 제휴사(콜라보)는 상자 없이 이것만. */
+  const bizCert = (
+    <div className="flex w-full flex-col gap-[8px]">
+      <p className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
+        사업자등록증
+      </p>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={BIZ_FILE_EXTENSIONS.join(",")}
+        className="hidden"
+        onChange={(event) => {
+          pickFile(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+      {values.file ? (
+        <div
+          className={cn(
+            "flex h-[44px] w-full items-center justify-between gap-[10px] border border-tone-ececef pr-[4px] pl-[14px]",
+            RADIUS.h44,
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-[8px]">
+            <FileIcon className="size-[18px] shrink-0 text-gray-500" />
+            <span className="truncate text-[13px] text-zinc-900">
+              {values.file.name}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onPress={() => set("file", null)}
+            className={cn(
+              "h-[36px] shrink-0 px-[12px] text-[12px] text-gray-500 data-[hovered=true]:text-gray-900",
+              RADIUS.h36,
+            )}
+          >
+            삭제
+          </Button>
+        </div>
+      ) : (
+        // HeroUI에는 파일 드롭존 컴포넌트가 없어 이 영역만 직접 만든다.
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="사업자등록증 파일 선택"
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          className={cn(
+            "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-gray-400 transition-colors",
+            dragging
+              ? "border-primary-500 bg-primary-50"
+              : "border-gray-200 bg-zinc-50 hover:border-gray-300",
+          )}
+        >
+          <UploadIcon className="size-[20px]" />
+          <p className="text-[13px]">파일을 선택하거나 드래그하세요</p>
+          <p className="text-[11px]">PDF, PNG, JPG 파일만 가능합니다.</p>
+        </div>
+      )}
+      {fileError ? (
+        <FieldMessage tone="error">{fileError}</FieldMessage>
+      ) : partner ? (
+        <FieldMessage>
+          지금 올리지 않아도 가입할 수 있어요. 다만 콜라보에 참여하려면 추후
+          사업자등록증 인증을 받아야 해요(가입 후 마이페이지에서 올릴 수
+          있어요).
+        </FieldMessage>
+      ) : (
+        <FieldMessage>
+          사업자등록증은 검토 후 3영업일 이내 담당자가 확인 후 반영이 됩니다.
+        </FieldMessage>
+      )}
+    </div>
+  );
+
   return (
     <SignupCard>
       <CardHeading
@@ -200,19 +289,21 @@ export function InfoStep({
       >
         <TextField value={email} isReadOnly fullWidth className="gap-[8px]">
           <FieldLabel required>이메일</FieldLabel>
-          <div className="relative">
-            <Input className={cn(INPUT_CLASS, "pr-[96px]")} />
-            {/* 배지 20px → 곡률 7px. */}
-            <Chip
-              className={cn(
-                "absolute top-1/2 right-[14px] h-[20px] -translate-y-1/2 gap-[4px] bg-tone-f0fdf4 py-0 pr-[10px] pl-[8px] text-[11px] font-semibold text-[#16a34a]",
-                RADIUS.h20,
-              )}
-            >
-              인증 완료
-              <SmallCheckIcon className="size-[10px]" />
-            </Chip>
-          </div>
+          <InputGroup fullWidth className="h-[44px] rounded-[19px]">
+            <InputGroup.Input />
+            <InputGroup.Suffix>
+              {/* 배지 20px → 곡률 7px. */}
+              <Chip
+                className={cn(
+                  "h-[20px] gap-[4px] bg-tone-f0fdf4 py-0 pr-[10px] pl-[8px] text-[11px] font-semibold text-[#16a34a]",
+                  RADIUS.h20,
+                )}
+              >
+                인증 완료
+                <SmallCheckIcon className="size-[10px]" />
+              </Chip>
+            </InputGroup.Suffix>
+          </InputGroup>
         </TextField>
 
         {needPassword && (
@@ -227,16 +318,15 @@ export function InfoStep({
               className="gap-[8px]"
             >
               <FieldLabel required>비밀번호</FieldLabel>
-              <div className="relative">
-                <Input
-                  placeholder="영문, 숫자, 특수문자 포함 8자 이상"
-                  className={cn(INPUT_CLASS, "pr-[44px]")}
-                />
-                <PasswordToggle
-                  shown={showPassword}
-                  onToggle={() => setShowPassword((prev) => !prev)}
-                />
-              </div>
+              <InputGroup fullWidth className="h-[44px] rounded-[19px]">
+                <InputGroup.Input placeholder="영문, 숫자, 특수문자 포함 8자 이상" />
+                <InputGroup.Suffix>
+                  <PasswordToggle
+                    shown={showPassword}
+                    onToggle={() => setShowPassword((prev) => !prev)}
+                  />
+                </InputGroup.Suffix>
+              </InputGroup>
               <div className="flex flex-wrap gap-[8px]">
                 {PASSWORD_RULES.map((rule) => (
                   <RuleChip
@@ -266,16 +356,15 @@ export function InfoStep({
               className="gap-[8px]"
             >
               <FieldLabel required>비밀번호 확인</FieldLabel>
-              <div className="relative">
-                <Input
-                  placeholder="비밀번호를 한번 더 입력해 주세요."
-                  className={cn(INPUT_CLASS, "pr-[44px]")}
-                />
-                <PasswordToggle
-                  shown={showPasswordConfirm}
-                  onToggle={() => setShowPasswordConfirm((prev) => !prev)}
-                />
-              </div>
+              <InputGroup fullWidth className="h-[44px] rounded-[19px]">
+                <InputGroup.Input placeholder="비밀번호를 한번 더 입력해 주세요." />
+                <InputGroup.Suffix>
+                  <PasswordToggle
+                    shown={showPasswordConfirm}
+                    onToggle={() => setShowPasswordConfirm((prev) => !prev)}
+                  />
+                </InputGroup.Suffix>
+              </InputGroup>
               {passwordMatch ? (
                 <div className="flex items-center justify-between">
                   <FieldMessage tone="success">
@@ -284,9 +373,7 @@ export function InfoStep({
                   <MatchCheckIcon className="size-[14px] text-[#16a34a]" />
                 </div>
               ) : (
-                <FieldError className={FIELD_ERROR}>
-                  {errors.passwordConfirm}
-                </FieldError>
+                <FieldError>{errors.passwordConfirm}</FieldError>
               )}
             </TextField>
           </>
@@ -301,8 +388,11 @@ export function InfoStep({
           className="gap-[8px]"
         >
           <FieldLabel required>이름</FieldLabel>
-          <Input placeholder="이름을 입력해 주세요." className={INPUT_CLASS} />
-          <FieldError className={FIELD_ERROR}>{errors.name}</FieldError>
+          <Input
+            placeholder="이름을 입력해 주세요."
+            className="h-[44px] rounded-[19px]"
+          />
+          <FieldError>{errors.name}</FieldError>
         </TextField>
 
         <TextField
@@ -321,115 +411,39 @@ export function InfoStep({
           className="gap-[8px]"
         >
           <FieldLabel required>연락처</FieldLabel>
-          <Input placeholder="010-1234-5678" className={INPUT_CLASS} />
-          <FieldError className={FIELD_ERROR}>
-            {phoneServerError || errors.phone}
-          </FieldError>
+          <Input
+            placeholder="010-1234-5678"
+            className="h-[44px] rounded-[19px]"
+          />
+          <FieldError>{phoneServerError || errors.phone}</FieldError>
           {!phoneServerError && !(submitted && errors.phone) && (
-            <Description className="text-[11px] text-zinc-400">
+            <Description>
               {"숫자만 입력하면 '-'는 자동으로 들어갑니다."}
             </Description>
           )}
         </TextField>
 
-        <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">
-          <p className="text-[13px] font-semibold text-zinc-900">
-            정보 추가 입력
-          </p>
-          <TextField
-            aria-label="회사명"
-            autoComplete="organization"
-            value={values.company}
-            onChange={(value) => set("company", value)}
-            fullWidth
-          >
-            <Input placeholder="회사명" className={INPUT_CLASS} />
-          </TextField>
+        {/* 제휴사(콜라보)는 회사명 등 "정보 추가 입력" 상자 없이 사업자등록증(선택)만 받는다. */}
+        {partner ? (
+          bizCert
+        ) : (
+          <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">
+            <p className="text-[13px] font-semibold text-zinc-900">
+              정보 추가 입력
+            </p>
+            <TextField
+              aria-label="회사명"
+              autoComplete="organization"
+              value={values.company}
+              onChange={(value) => set("company", value)}
+              fullWidth
+            >
+              <Input placeholder="회사명" className="h-[44px] rounded-[19px]" />
+            </TextField>
 
-          {showBizCert && (
-            <div className="flex w-full flex-col gap-[8px]">
-              <p className="text-[13px] font-medium text-gray-900">
-                사업자등록증
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={BIZ_FILE_EXTENSIONS.join(",")}
-                className="hidden"
-                onChange={(event) => {
-                  pickFile(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
-              {values.file ? (
-                <div
-                  className={cn(
-                    "flex h-[44px] w-full items-center justify-between gap-[10px] border border-tone-ececef pr-[4px] pl-[14px]",
-                    RADIUS.h44,
-                  )}
-                >
-                  <div className="flex min-w-0 items-center gap-[8px]">
-                    <FileIcon className="size-[18px] shrink-0 text-gray-500" />
-                    <span className="truncate text-[13px] text-zinc-900">
-                      {values.file.name}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => set("file", null)}
-                    className={cn(
-                      "h-[36px] shrink-0 px-[12px] text-[12px] text-gray-500 data-[hovered=true]:text-gray-900",
-                      RADIUS.h36,
-                    )}
-                  >
-                    삭제
-                  </Button>
-                </div>
-              ) : (
-                // HeroUI에는 파일 드롭존 컴포넌트가 없어 이 영역만 직접 만든다.
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="사업자등록증 파일 선택"
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                  className={cn(
-                    "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-gray-400 transition-colors",
-                    dragging
-                      ? "border-primary-500 bg-primary-50"
-                      : "border-gray-200 bg-zinc-50 hover:border-gray-300",
-                  )}
-                >
-                  <UploadIcon className="size-[20px]" />
-                  <p className="text-[13px]">파일을 선택하거나 드래그하세요</p>
-                  <p className="text-[11px]">
-                    PDF, PNG, JPG 파일만 가능합니다.
-                  </p>
-                </div>
-              )}
-              {fileError ? (
-                <FieldMessage tone="error">{fileError}</FieldMessage>
-              ) : (
-                <FieldMessage>
-                  사업자등록증은 검토 후 3영업일 이내 담당자가 확인 후 반영이
-                  됩니다.
-                </FieldMessage>
-              )}
-            </div>
-          )}
-        </div>
+            {showBizCert && bizCert}
+          </div>
+        )}
 
         <PrimaryAction type="submit" label="다음" pending={checkingPhone} />
       </form>

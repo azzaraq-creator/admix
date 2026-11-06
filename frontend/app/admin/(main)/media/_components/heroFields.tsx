@@ -54,9 +54,8 @@ export function HeroField({
     <div
       className={cn("flex min-w-0 flex-col gap-[6px]", wide && "col-span-2")}
     >
-      <Label className="text-sm font-medium leading-[20px] text-tone-2a2a2a">
+      <Label isRequired={required}>
         {label}
-        {required && <span className="text-[#d65856]"> *</span>}
         {extra && <span className="text-disabled"> {extra}</span>}
       </Label>
       {children}
@@ -64,9 +63,7 @@ export function HeroField({
         <p className={HERO_ERROR_CLASS}>{error}</p>
       ) : (
         help && (
-          <Description className="text-xs leading-[16px] text-disabled">
-            {help}
-          </Description>
+          <Description>{help}</Description>
         )
       )}
     </div>

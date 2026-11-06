@@ -1,4 +1,4 @@
-import { Spinner } from "@heroui/react";
+import { Button, Spinner } from "@heroui/react";
 import { useState } from "react";
 
 import type { MediaItemData } from "@/components/common/MediaItem";
@@ -141,9 +141,10 @@ export function AssistantBubble({
           </div>
         )}
       {message.response_type === "media_detail" && message.media?.media_id && (
-        <button
-          type="button"
-          onClick={() =>
+        <Button
+          variant="outline"
+          size="sm"
+          onPress={() =>
             onOpenDetail?.({
               id: message.media!.media_id as string,
               name: message.media!.name ?? "",
@@ -153,10 +154,10 @@ export function AssistantBubble({
                 : [],
             })
           }
-          className="mt-1 inline-flex items-center justify-center rounded-[8px] border border-primary px-[14px] py-[6px] text-sm font-medium text-primary transition-colors hover:bg-secondary"
+          className="mt-1 rounded-[13px]"
         >
           상세보기
-        </button>
+        </Button>
       )}
     </div>
   );

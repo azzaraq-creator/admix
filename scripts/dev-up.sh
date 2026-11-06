@@ -45,4 +45,5 @@ fi
 cd "$ROOT/frontend"
 [ -d node_modules ] || npm install
 echo "http://localhost:3000  (Ctrl+C 로 프런트만 종료)"
-exec npm run dev
+# CPU 과부하 방지를 위해 Webpack으로 실행(Next 16 기본값인 Turbopack 대신).
+exec npm run dev -- --webpack

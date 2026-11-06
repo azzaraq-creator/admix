@@ -257,14 +257,14 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
     base = get_settings().email_link_base
     my_url = f"{base}/contact?tab=history" if base else ""
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="ADMIX" '
+        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
         'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
         if base
-        else 'ADMIX<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#00AAA4">●</span>'
     )
     title = subject or "문의"
 
-    mail_subject = "[ADMIX] 문의하신 내용에 대한 답변이 등록되었습니다."
+    mail_subject = "[admix] 문의하신 내용에 대한 답변이 등록되었습니다."
     text_lines = [
         "안녕하세요.",
         "문의해 주신 내용에 대한 답변이 등록되어 안내드립니다.",
@@ -275,7 +275,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
     ]
     if my_url:
         text_lines.append(my_url)
-    text_lines += ["", "감사합니다.", "", "ADMIX 드림"]
+    text_lines += ["", "감사합니다.", "", "admix 드림"]
     text = "\n".join(text_lines)
 
     safe_title = escape(title)
@@ -309,7 +309,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
           </tr>
           <tr>
             <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
-              [ADMIX] 문의하신 내용에 대한 답변이 등록되었습니다.
+              [admix] 문의하신 내용에 대한 답변이 등록되었습니다.
             </td>
           </tr>
           <tr>
@@ -325,7 +325,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
             <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
               답변 내용은 서비스 내 {my_inquiry}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
-              ADMIX 드림{button_html}
+              admix 드림{button_html}
             </td>
           </tr>
         </table>

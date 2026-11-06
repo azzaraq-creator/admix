@@ -50,16 +50,17 @@ import {
 import { clearUserToken } from "@/lib/userToken";
 import { cn } from "@/lib/utils";
 
+import { CategoryChangeModal } from "./CategoryChangeModal";
 import { ContactEmailChangeModal } from "./ContactEmailChangeModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
 
 /*
- * 피그마 "10_My_Profile"(ADMIX Wireframe) 기준.
+ * 피그마 "10_My_Profile"(admix Wireframe) 기준.
  * - 계정 정보: 가입 시 확인된 값(읽기 전용).
  * - 회원 정보: 이름·전화번호·회사 이름은 "수정"을 눌러 그 자리에서 고치고, 사업자등록증 파일과
  *   마케팅 수신 동의까지 모아 아래 "저장하기"로 한 번에 저장한다. 연락받을 이메일·비밀번호는
  *   인증이 필요해 기존 모달로 바꾼다.
- * 겉모양은 ADMIX 톤 — 연회색 바탕 위 둥근 흰 카드, 검색바와 같은 회색 입력칸(선택·수정 중엔 흰색),
+ * 겉모양은 admix 톤 — 연회색 바탕 위 둥근 흰 카드, 검색바와 같은 회색 입력칸(선택·수정 중엔 흰색),
  * 보라는 강조(아바타·저장하기·스위치·상태)에만 쓴다. 문구는 "~어요" 말투.
  * 곡률 규칙: 높이/2 - 3px (입력칸·큰 버튼 40px → 17px, 작은 버튼 32px → 13px).
  */
@@ -134,27 +135,16 @@ const FILE_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 const FILE_ACCEPT = "application/pdf,image/png,image/jpeg";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-// 회색 입력칸과 구분되게 흰 바탕 + 테두리(outline)로 둔다.
-const SMALL_BUTTON =
-  "h-[32px] min-w-0 shrink-0 rounded-[13px] border border-gray-200 bg-surface px-[12px] text-[13px] font-medium text-gray-700 data-[hovered=true]:bg-gray-50 max-sm:text-[12px]";
-// 파일 선택은 "수정"(흰 바탕 테두리)과 구분되게 테두리 없는 회색 바탕으로 둔다.
+// 버튼은 HeroUI 기본 모양 그대로 — 높이와 곡률(높이/2 - 3px)만 정한다.
 const UPLOAD_BUTTON =
-  "h-[32px] min-w-0 shrink-0 rounded-[13px] bg-gray-200 px-[14px] text-[13px] font-medium text-gray-800 data-[hovered=true]:bg-gray-300 max-sm:h-[30px] max-sm:rounded-[12px] max-sm:text-[12px]";
+  "h-[32px] min-w-0 shrink-0 rounded-[13px] max-sm:h-[30px] max-sm:rounded-[12px]";
 // "수정"과 X(취소)가 같은 자리에서 바뀌므로 폭을 고정해 입력칸 폭이 흔들리지 않게 한다.
 const EDIT_TOGGLE_WIDTH = "w-[56px] px-0";
-// 입력칸 옆 버튼은 입력칸(40px)과 높이·곡률을 맞춘다.
-// 모바일은 입력칸이 36px이라 같이 줄인다(곡률 36/2-3 = 15px).
-const FIELD_BUTTON = cn(
-  SMALL_BUTTON,
-  "h-[40px] rounded-[17px] px-[14px] max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[12px]",
-);
+// 입력칸 옆 버튼은 입력칸(40px)과 높이·곡률을 맞춘다. 모바일은 입력칸이 36px이라 같이 줄인다.
+const FIELD_BUTTON =
+  "h-[40px] min-w-0 shrink-0 rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]";
 const FOOTER_BUTTON =
-  "h-[40px] rounded-[17px] text-[14px] font-semibold max-sm:h-[36px] max-sm:rounded-[15px] max-sm:text-[13px]";
-// 읽기 전용일 땐 검색바처럼 회색 칸, 고치는 중엔 흰 바탕 + 옅은 보라 테두리.
-const FIELD_INPUT =
-  "h-[40px] w-full rounded-[17px] border px-[16px] text-[14px] text-gray-900 transition-colors [box-shadow:none]! placeholder:text-gray-400 max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[14px] max-sm:text-[13px]";
-const FIELD_READONLY = "cursor-default border-transparent bg-gray-100";
-const FIELD_EDITING = "border-primary-300 bg-surface focus:border-focus";
+  "h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]";
 
 /** 작은 배지 — HeroUI Chip(soft). */
 function Badge({
@@ -303,7 +293,9 @@ export function ProfileView() {
   const { confirm, confirmDialog } = useAlertConfirm();
   const { success, error: toastError } = useSonner();
 
-  const [modal, setModal] = useState<"password" | "email" | null>(null);
+  const [modal, setModal] = useState<
+    "password" | "email" | "category" | null
+  >(null);
 
   // 저장 전 고친 값(수정 중인 항목만 담긴다). 저장하거나 취소하면 비운다.
   const [drafts, setDrafts] = useState<Partial<Record<EditableKey, string>>>(
@@ -531,11 +523,11 @@ export function ProfileView() {
               setDrafts((prev) => ({ ...prev, [key]: next }));
               if (key === "phone") setPhoneError(null);
             }}
-            className={cn(
-              FIELD_INPUT,
-              editing ? FIELD_EDITING : FIELD_READONLY,
-              invalid && "border-danger bg-surface",
-            )}
+            aria-invalid={invalid || undefined}
+            // 읽기 전용일 땐 HeroUI secondary(회색 칸), 고치는 중엔 기본(primary).
+            variant={editing ? "primary" : "secondary"}
+            fullWidth
+            className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
           />
           {invalid && (
             <p className="text-[12px] text-danger max-sm:text-[11px]">
@@ -552,7 +544,7 @@ export function ProfileView() {
             onPress={() => cancelEdit(key)}
             className={cn(FIELD_BUTTON, EDIT_TOGGLE_WIDTH)}
           >
-            <XIcon className="size-[16px] text-gray-500" />
+            <XIcon className="size-[16px]" />
           </Button>
         ) : (
           <Button
@@ -609,6 +601,14 @@ export function ProfileView() {
                 >
                   {category?.label ?? "-"}
                 </Badge>
+                {/* 회원 유형은 가입 후에도 언제든 직접 바꾼다. */}
+                <button
+                  type="button"
+                  onClick={() => setModal("category")}
+                  className="shrink-0 text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  유형 변경
+                </button>
                 {/* 사업자 인증 완료 — 초록 인증 배지 아이콘만 두고 설명은 툴팁으로. 키보드로도 열리게 포커스를 받는다.
                     터치 기기(모바일)는 hover가 없어 툴팁이 뜨지 않으므로, 눌러서 여는 팝오버로 대신한다. */}
                 {bizStatus === "verified" && (
@@ -665,7 +665,9 @@ export function ProfileView() {
               aria-label="연락받을 이메일"
               value={me?.email ?? ""}
               readOnly
-              className={cn(FIELD_INPUT, FIELD_READONLY)}
+              variant="secondary"
+              fullWidth
+              className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
             />
             {/* 이메일 가입 계정은 연락받을 이메일 = 가입 아이디라 변경 불가. SNS 계정만 인증 후 변경. */}
             {snsProvider && (
@@ -692,11 +694,9 @@ export function ProfileView() {
                   : undefined
               }
               readOnly
-              className={cn(
-                FIELD_INPUT,
-                FIELD_READONLY,
-                !snsProvider && "tracking-[2px]",
-              )}
+              variant="secondary"
+              fullWidth
+              className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
             />
             {!snsProvider && (
               <Button
@@ -870,7 +870,7 @@ export function ProfileView() {
               onPress={handleSave}
               className={cn(
                 FOOTER_BUTTON,
-                "w-[120px] bg-primary text-white max-sm:w-auto max-sm:flex-[7]",
+                "w-[120px] max-sm:w-auto max-sm:flex-[7]",
               )}
             >
               저장하기
@@ -896,6 +896,11 @@ export function ProfileView() {
         <ContactEmailChangeModal
           open={modal === "email"}
           onOpenChange={(open) => !open && setModal(null)}
+        />
+        <CategoryChangeModal
+          open={modal === "category"}
+          onOpenChange={(open) => !open && setModal(null)}
+          current={me?.member_category}
         />
         {confirmDialog}
       </div>
@@ -974,7 +979,7 @@ function FileRow({
             aria-label={removeLabel}
             onPress={onRemove}
             isDisabled={removeDisabled}
-            className="size-[32px] min-w-0 shrink-0 rounded-[13px] p-0 data-[hovered=true]:bg-tone-fef2f2"
+            className="size-[32px] min-w-0 shrink-0 rounded-[13px]"
           >
             <Image src="/icons/trash.svg" alt="" width={18} height={18} />
           </Button>
