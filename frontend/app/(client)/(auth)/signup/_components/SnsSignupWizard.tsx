@@ -101,7 +101,10 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
         phone: info.phone,
         company_name: info.company.trim() || undefined,
       });
-      await finish(info.file);
+      await finish(
+        info.file,
+        category === "advertiser" ? info.brandImage : null,
+      );
     } catch (error) {
       const detail = errorDetail(error);
       setSubmitting(false);
@@ -137,6 +140,7 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
           email={verifiedEmail}
           needPassword={false}
           showBizCert={category !== "general"}
+          brandImage={category === "advertiser"}
           initial={info}
           serverError={
             phoneError ? { field: "phone", message: phoneError } : null

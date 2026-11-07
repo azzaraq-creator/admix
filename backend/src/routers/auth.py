@@ -33,7 +33,7 @@ from src.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from src.services import auth_service, member_service, proposal_service
+from src.services import auth_service, member_service, partners_service, proposal_service
 from src.utils.deps import get_current_user, get_current_user_optional_lenient
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -126,6 +126,33 @@ def cancel_business_registration(
     db: Session = Depends(get_db),
 ) -> User:
     member_service.cancel_license(db, current_user.id)
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/me/brand-image", response_model=UserResponse)
+def upload_brand_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """광고주 브랜드 사진 올리기(바꾸기) — 가입 직후(선택) · 내 정보에서. 광고주만."""
+    if current_user.member_category != "advertiser":
+        raise HTTPException(status_code=403, detail="광고주 회원만 브랜드 사진을 올릴 수 있어요.")
+    current_user.brand_image_url = partners_service.upload_image(file, folder="brand")
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.delete("/me/brand-image", response_model=UserResponse)
+def delete_brand_image(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """브랜드 사진 지우기 — 콜라보 화면엔 기본 "C" 이미지가 보인다."""
+    current_user.brand_image_url = None
+    db.commit()
     db.refresh(current_user)
     return current_user
 

@@ -46,6 +46,13 @@ class OperatingArea(BaseModel):
     bounds: OperatingBounds | None = None
 
 
+class PartnersCardInfo(BaseModel):
+    """콜라보 매장 카드 아래 칸 — 제휴사 '내 매장'의 광고주 미리보기와 같은 값(운영 시간 · 매장 특징)."""
+
+    businessHours: str | None = None
+    tags: list[str] = []
+
+
 class MediaCardRow(BaseModel):
     id: str
     name: str
@@ -67,6 +74,8 @@ class MediaCardRow(BaseModel):
     operatingArea: OperatingArea | None = None
     # 쉘터 정류장 번호 — 목록·지도 카드에도 보인다.
     stopNo: str | None = None
+    # 콜라보 매장만 — 광고비 대신 운영 시간 · 매장 특징을 보여 준다.
+    partners: PartnersCardInfo | None = None
 
 
 class MediaSourceCounts(BaseModel):
@@ -109,6 +118,8 @@ class MediaMarker(BaseModel):
     badge: str | None = None
     # 쉘터 정류장 번호 — 지도 팝업 카드에 보인다.
     stopNo: str | None = None
+    # 콜라보 매장만 — 지도 팝업 카드의 운영 시간 · 매장 특징.
+    partners: PartnersCardInfo | None = None
 
 
 class MediaCluster(BaseModel):

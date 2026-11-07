@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import {
   Button,
@@ -25,7 +25,15 @@ import { useFavorite } from "@/hooks/favorites";
 import type { MediaCardRow } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 import { MediaBadgeChip } from "@/components/common/MediaBadgeChip";
+import {
+  PartnersCardDetails,
+  PartnersHoursLine,
+} from "@/components/common/PartnersCardDetails";
 import { MovingChip } from "@/components/common/MovingChip";
+import {
+  PartnersAccessMark,
+  type PartnersCardAccess,
+} from "@/components/common/PartnersAccessMark";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 import { StopNoChip } from "@/components/common/StopNoChip";
 
@@ -132,6 +140,7 @@ function MediaFindCardImpl({
   onHoverChange,
   selection,
   compact,
+  partnersAccess,
 }: {
   row: MediaCardRow;
   selected?: boolean;
@@ -148,6 +157,12 @@ function MediaFindCardImpl({
   selection?: { checked: boolean; onChange: (checked: boolean) => void };
   /** 간략히 보기(매체 찾기 목록) — 작은 사진 + 이름·주소·광고비 한 줄씩의 가로형 카드. 고르기 모드와는 함께 쓰지 않는다. */
   compact?: boolean;
+  /**
+   * 콜라보 매장 카드를 누를 수 있는지(매체 찾기 목록) — 기획안 담기 자리에 표시를 두고, 카드에 마우스를 올리면 툴팁.
+   * open: 누르면 매장 상세가 새 탭으로, locked: 광고주·제휴사(콜라보) 회원이 아니라 보이기만 하고 눌리지 않는다.
+   * 관심 매체 페이지는 눌러도 매체 정보 창이 떠서 주지 않는다(표시 없음, 전처럼 눌림).
+   */
+  partnersAccess?: PartnersCardAccess;
 }) {
   const slides =
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
@@ -155,8 +170,26 @@ function MediaFindCardImpl({
   const { liked, setLiked } = useFavorite(row.id, { notifyName: row.name });
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
-  // 콜라보 매장 — 광고비·기획안 담기 대신 "매장 정보 새 탭" 안내(누르면 매장 상세가 새 탭으로 열린다).
+  // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
+  const access = partners ? partnersAccess : undefined;
+  const locked = access === "locked";
+  // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다(콜라보 카드만 상태를 바꾼다).
+  const [hovered, setHovered] = useState(false);
+  const handleHover = (next: boolean) => {
+    if (access) setHovered(next);
+    onHoverChange?.(next);
+  };
+  const hoverProps =
+    access || onHoverChange
+      ? {
+          onMouseEnter: () => handleHover(true),
+          onMouseLeave: () => handleHover(false),
+        }
+      : {};
+  // 못 여는 콜라보 카드는 눌리지 않고, 누를 수 있어 보이는 hover(검정 테두리·사진 확대)도 뺀다.
+  const handleClick = locked ? undefined : onClick;
+  const imageHover = locked ? undefined : "group-hover:scale-[1.1]";
 
   const likeButton = (
     <ToggleButton
@@ -193,11 +226,17 @@ function MediaFindCardImpl({
 
   const cardClass = cn(
     // group — hover 때 안쪽 사진을 확대(group-hover)하려고.
-    "group relative w-full shrink-0 cursor-pointer gap-0 overflow-hidden border bg-surface p-0 transition-colors",
+    "group relative w-full shrink-0 gap-0 overflow-hidden border bg-surface p-0 transition-colors",
+    locked ? "cursor-default" : "cursor-pointer",
     compact ? "rounded-[14px]" : "rounded-[16px]",
     // hover — 그림자 대신(목록 스크롤 칸 위아래에 잘려서) 테두리를 검정으로 + 사진 1.1배 확대.
     // 카드들이 형제라 다음 카드가 위에 그려져, 고른 카드는 z-10으로 올려 보라 테두리가 가리지 않게 한다.
-    selected ? "z-10" : "border-gray-200 shadow-none hover:border-zinc-900",
+    selected
+      ? "z-10"
+      : cn(
+          "border-gray-200 shadow-none",
+          !locked && "hover:border-zinc-900",
+        ),
     // 고른 카드 — 2px 보라 테두리를 카드 안쪽에 그린다: 테두리 1px + 안쪽 1px 선(after, 사진 위에 얹힘).
     // 바깥 그림자로 그리면 목록 스크롤 칸 맨 위·아래에서 잘린다. 안쪽 내용은 밀리지 않는다.
     (selection?.checked || highlighted) &&
@@ -210,9 +249,8 @@ function MediaFindCardImpl({
   if (compact) {
     return (
       <Card
-        onClick={onClick}
-        onMouseEnter={onHoverChange && (() => onHoverChange(true))}
-        onMouseLeave={onHoverChange && (() => onHoverChange(false))}
+        onClick={handleClick}
+        {...hoverProps}
         className={cn(cardClass, "flex-row items-stretch gap-[12px] p-[8px]")}
       >
         {/* 작은 사진도 큰 카드처럼 끌거나 점을 눌러 넘긴다. */}
@@ -221,7 +259,7 @@ function MediaFindCardImpl({
           sizes="96px"
           small
           className="size-[88px] shrink-0 rounded-[10px] max-sm:size-[76px]"
-          imageClassName="group-hover:scale-[1.1]"
+          imageClassName={imageHover}
         />
         {/* 하트는 오른쪽 위에 띄운다 — 줄에 넣으면 하트 높이(28px)만큼 이름 줄이 커져 주소와 벌어진다. */}
         <div className="relative flex min-w-0 flex-1 flex-col py-[2px] pr-[2px]">
@@ -249,7 +287,7 @@ function MediaFindCardImpl({
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
             {partners ? (
-              <PartnersOpenHint />
+              <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
               <div className="flex min-w-0 flex-col gap-[1px]">
                 <CompactPrice
@@ -278,6 +316,14 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
+            {/* 콜라보는 담기 자리에 새 탭(못 열면 자물쇠) 표시 — 옆 하트와 같은 밝은 회색 칸. */}
+            {access && (
+              <PartnersAccessMark
+                access={access}
+                hovered={hovered}
+                className="size-[28px] rounded-[10px] bg-gray-100"
+              />
+            )}
           </div>
         </div>
       </Card>
@@ -285,17 +331,12 @@ function MediaFindCardImpl({
   }
 
   return (
-    <Card
-      onClick={onClick}
-      onMouseEnter={onHoverChange && (() => onHoverChange(true))}
-      onMouseLeave={onHoverChange && (() => onHoverChange(false))}
-      className={cardClass}
-    >
+    <Card onClick={handleClick} {...hoverProps} className={cardClass}>
       <MediaImageCarousel
         slides={slides}
         sizes="420px"
         className="h-[199px] w-full rounded-t-[15px]"
-        imageClassName="group-hover:scale-[1.1]"
+        imageClassName={imageHover}
       >
         {selection ? (
           <SelectToggle
@@ -317,6 +358,16 @@ function MediaFindCardImpl({
                   기획안 담기
                 </span>
               </Button>
+            )}
+            {/* 콜라보는 기획안 담기 자리(사진 왼쪽 위)에 새 탭(못 열면 자물쇠) 표시 — 오른쪽 하트와 같은 흰 칸.
+                툴팁은 오른쪽으로 띄워 사진 위에 얹는다(위로 띄우면 앞 카드를 가린다). */}
+            {access && (
+              <PartnersAccessMark
+                access={access}
+                hovered={hovered}
+                placement="right"
+                className="absolute top-[11px] left-[11px] size-[30px] rounded-[12px] bg-surface drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
+              />
             )}
 
             {likeButton}
@@ -388,9 +439,11 @@ function MediaFindCardImpl({
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
       {partners ? (
-        <div className="flex items-center p-[10px]">
-          <PartnersOpenHint />
-        </div>
+        <PartnersCardDetails
+          businessHours={row.partners?.businessHours}
+          tags={row.partners?.tags}
+          className="p-[10px]"
+        />
       ) : (
         <div className="p-[10px] flex items-center gap-[20px]">
           <PriceCell
@@ -414,15 +467,6 @@ function MediaFindCardImpl({
   );
 }
 
-/** 콜라보 카드 아래 줄 — 누르면 매장 정보가 새 탭으로 열린다는 안내. */
-function PartnersOpenHint() {
-  return (
-    <span className="text-[12px] font-semibold text-amber-800 max-sm:text-[11px]">
-      매장 정보 보기 ↗
-    </span>
-  );
-}
-
 /**
  * 매체 찾기 목록 카드. 지도를 옮기거나 확대·축소할 때마다 목록이 다시 그려지는데, 내용(row·선택 상태)이
  * 그대로인 카드는 다시 그리지 않는다 — 카드마다 사진 넘기기·관심 매체 확인이 있어 태블릿에서 지도가 버벅였다.
@@ -438,6 +482,7 @@ export const MediaFindCard = memo(
     prev.selected === next.selected &&
     prev.highlighted === next.highlighted &&
     prev.compact === next.compact &&
+    prev.partnersAccess === next.partnersAccess &&
     !prev.onHoverChange === !next.onHoverChange,
 );
 

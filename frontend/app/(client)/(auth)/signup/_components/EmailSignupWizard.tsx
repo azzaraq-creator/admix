@@ -7,12 +7,7 @@ import { useRegister, useSnsLogin, type SnsProvider } from "@/hooks/auth";
 import { isMemberCategory, type MemberCategory } from "@/lib/memberCategory";
 import { setTokens } from "@/lib/userToken";
 
-import {
-  CategoryStep,
-  PARTNER_AGREEMENT_HREF,
-  PARTNER_TERMS_HINT,
-  PARTNER_TERMS_LABEL,
-} from "./CategoryStep";
+import { CategoryStep } from "./CategoryStep";
 import { EmailVerifyStep } from "./EmailVerifyStep";
 import { EMPTY_SIGNUP_INFO, InfoStep, type SignupInfo } from "./InfoStep";
 import { MethodStep } from "./MethodStep";
@@ -34,7 +29,7 @@ const STEP_INDEX: Record<Step, number> = {
 /**
  * /signup — 시안(00. 회원가입) 흐름: 유형 → 방식 → 이메일 인증 → 회원정보 → 약관.
  * 제휴사(콜라보)도 같은 흐름을 탄다 — 다만 방식에서 소셜 가입은 보류라 이메일만 보이고, 회원정보는 회사명 없이 사업자등록증(선택, 추후 인증 필요)만 받으며,
- *   약관 동의 버튼은 "협약·매장 등록하기"(위에 말풍선), 가입이 끝나면 완료 화면 대신 기본협약 동의(/partners/join/agreement)로 간다.
+ *   약관 동의는 다른 유형과 같은 "가입 완료" — 가입 완료 화면을 본 뒤 거기의 "협약·매장 등록하기"로 기본협약 동의(/partners/join/agreement)에 간다.
  *   가입·협약 소개의 "시작하기"로 온 경우(/signup?category=partner)는 유형 · 방식을 건너뛰고 이메일부터 시작한다.
  * 방식에서 카카오·네이버를 고르면 소셜 로그인 후 /signup/sns(SnsSignupWizard)에서 이어간다.
  */
@@ -81,8 +76,11 @@ export function EmailSignupWizard() {
         marketing_consent: marketingConsent,
       });
       setTokens(res.access_token, res.refresh_token, true);
-      // 제휴사(콜라보)는 버튼("협약·매장 등록하기")대로 가입이 끝나면 바로 기본협약 동의로.
-      await finish(info.file, partner ? PARTNER_AGREEMENT_HREF : undefined);
+      // 제휴사(콜라보)도 가입 완료 화면으로 — 거기서 "협약·매장 등록하기"로 기본협약 동의에 간다.
+      await finish(
+        info.file,
+        category === "advertiser" ? info.brandImage : null,
+      );
     } catch (error) {
       const detail = errorDetail(error);
       setSubmitting(false);
@@ -147,6 +145,7 @@ export function EmailSignupWizard() {
           email={verifiedEmail}
           needPassword
           showBizCert={category !== "general"}
+          brandImage={category === "advertiser"}
           partner={partner}
           initial={info}
           serverError={
@@ -163,8 +162,6 @@ export function EmailSignupWizard() {
         <TermsStep
           pending={submitting}
           error={submitError}
-          hint={partner ? PARTNER_TERMS_HINT : undefined}
-          submitLabel={partner ? PARTNER_TERMS_LABEL : undefined}
           onSubmit={handleSubmit}
         />
       )}

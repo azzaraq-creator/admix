@@ -588,7 +588,7 @@ function PartnersStoreForm({
   );
 }
 
-/** 매장 사진 — 고르면 바로 올려 주소를 받는다(최대 10장). 첫 장이 대표, 화살표로 순서를 바꾼다. */
+/** 매장 사진 — 고르면 바로 올려 주소를 받는다(최대 9장). 첫 장이 대표, 화살표로 순서를 바꾼다. */
 function PartnersPhotoSection({
   urls,
   onChange,

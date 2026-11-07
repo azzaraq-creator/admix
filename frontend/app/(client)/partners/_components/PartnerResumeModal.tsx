@@ -25,6 +25,15 @@ export function resetPartnerResume() {
     // 못 지우면 이 탭에서는 "나중에"가 유지될 뿐.
   }
 }
+/** 이 탭(세션)에서는 이 회원에게 다시 묻지 않게 — 창의 "나중에"와 같다. 가입 완료 화면의 "나중에 하기"가 부른다. */
+export function dismissPartnerResume(userId: string) {
+  try {
+    sessionStorage.setItem(DISMISS_KEY, userId);
+  } catch {
+    // 저장 못 하면 다음 화면에서 창이 한 번 더 뜰 뿐.
+  }
+}
+
 /** 남은 일별 문구 · 이어서 갈 곳. */
 const AGREEMENT_COPY = {
   title: "진행 중인 기본협약 동의가 있어요",
@@ -73,13 +82,11 @@ export function PartnerResumeModal() {
   const isOpen = !!me && !!left && !onJoinPage && !dismissed;
   const copy = left === "store" ? STORE_COPY : AGREEMENT_COPY;
 
+  // 저장 못 해도 이 화면에서는 닫힌다(closedFor).
   const dismiss = () => {
-    if (me) setClosedFor(me.id);
-    try {
-      if (me) sessionStorage.setItem(DISMISS_KEY, me.id);
-    } catch {
-      // 저장 못 하면 이 화면에서만 닫는다.
-    }
+    if (!me) return;
+    setClosedFor(me.id);
+    dismissPartnerResume(me.id);
   };
 
   return (

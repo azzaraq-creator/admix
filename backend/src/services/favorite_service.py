@@ -12,6 +12,7 @@ from src.services.media_service import (
     _apply_media_sort,
     _media_base_query,
     _media_card,
+    attach_partners,
     price_histogram,
 )
 
@@ -69,7 +70,7 @@ def list_favorite_cards(
         .options(selectinload(Media.images), selectinload(Media.plans))
         .all()
     )
-    return [_media_card(m) for m in rows]
+    return attach_partners(db, [_media_card(m) for m in rows])
 
 
 def favorite_price_histogram(

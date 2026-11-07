@@ -75,6 +75,8 @@ class UserResponse(BaseModel):
     membership_type: str = "individual"
     member_category: MemberCategory | None = None
     company_name: str | None = None
+    # 광고주 브랜드 사진(/uploads/... 또는 S3 주소) — 없으면 null.
+    brand_image_url: str | None = None
     marketing_consent: bool = False
     created_at: datetime
     business_registration: BusinessRegistrationOut | None = None

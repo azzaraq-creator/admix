@@ -103,8 +103,14 @@ export const useSavePartnersStore = () => {
       id
         ? partnersApi.updateStore(id, payload)
         : partnersApi.createStore(payload),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: partnersKeys.all }),
+    onSuccess: (saved, { id }) => {
+      // 고친 매장은 다시 받기 전에 바로 바꿔 둔다 — 내 매장의 바로 채우기 · 사진첩이 곧장 반영되게.
+      if (id)
+        queryClient.setQueryData<PartnersStore[]>(partnersKeys.mine(), (old) =>
+          old?.map((s) => (s.id === saved.id ? saved : s)),
+        );
+      return queryClient.invalidateQueries({ queryKey: partnersKeys.all });
+    },
   });
 };
 

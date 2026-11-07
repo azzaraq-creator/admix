@@ -738,6 +738,13 @@ html.dark {
   --color-tone-fff3d3: #281b00;
   --color-tone-fff8ec: #21190a;}
 
+/* 콜라보(/partners) 다크 모드 — 배경 빛 · 유리 카드 위에서 흐린 회색 글자(gray-400 · 500)가 잘 안 보여
+   한 단계 밝힌다(11-08 사용자). partners/layout 의 .partners-ui 안에서만 — admix 본 화면은 그대로. */
+html.dark .partners-ui {
+  --color-gray-400: #6f7486;
+  --color-gray-500: #8a8fa2;
+}
+
 .light {
   color-scheme: light;
 

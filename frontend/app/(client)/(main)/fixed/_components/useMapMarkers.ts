@@ -52,8 +52,9 @@ function sharedCategory(members: MapMarker[]): string | null {
  * 매체명 말풍선 — 핀·숫자핀과 같은 반투명(70%) 카테고리 색 바탕에 또렷한 흰 글자, 테두리 없이 아래 뾰족한 꼬리.
  * 선택(포커스)되면 핀 포커스와 같은 진한 색을 불투명하게. 이름이 길면 말줄임(전체 이름은 title).
  * 바깥 상자(아래 여백 = 꼬리 길이)의 아래 가운데가 매체 위치다(yAnchor 1).
+ * 콜라보 내 매장 위치 지도도 우리 매장 이름표를 홈의 선택 말풍선과 같게 그리려고 내보낸다.
  */
-function bubbleCss(selected: boolean, categoryLarge?: string | null) {
+export function bubbleCss(selected: boolean, categoryLarge?: string | null) {
   const bg = pinBackground(categoryLarge, selected);
   return {
     wrap: "position:relative;padding-bottom:6px;cursor:pointer;",
@@ -145,7 +146,8 @@ const CATEGORY_PIN: Record<string, string> = {
 
 type MarkerCategory = Pick<MapMarker, "categoryLarge" | "categorySmall">;
 
-function markerSrc(category: MarkerCategory, focused = false): string {
+/** 단일 매체 핀 그림 주소 — 콜라보 내 매장 위치 지도도 홈과 같은 핀을 쓰려고 내보낸다. */
+export function markerSrc(category: MarkerCategory, focused = false): string {
   const { categoryLarge, categorySmall } = category;
   const colored = categoryLarge && CATEGORY_PIN[categoryLarge];
   if (colored)

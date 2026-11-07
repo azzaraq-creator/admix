@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PartnersStoreCard } from "./PartnersStoreCard";
+import { GLASS_CARD } from "./workspace/workspaceUi";
 
 /**
  * 광고주 콜라보 대시보드 — 콜라보할 매장 찾기. 매장명 · 주소 검색, 지역 · 어필 태그로 좁히고,
@@ -141,7 +142,7 @@ function ChipRow({
           className={cn(
             "shrink-0 rounded-full border px-[12px] py-[5px] text-[13px] font-semibold whitespace-nowrap",
             value === item
-              ? "border-gray-900 bg-gray-900 text-white"
+              ? "border-gray-900 bg-gray-900 text-white dark:border-gray-300 dark:bg-gray-300 dark:text-gray-900"
               : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300",
           )}
         >
@@ -164,7 +165,8 @@ function Stat({
   return (
     <div
       className={cn(
-        "rounded-[18px] border border-gray-200 bg-surface p-[14px] sm:p-[18px]",
+        "rounded-[18px] border p-[14px] sm:p-[18px]",
+        GLASS_CARD,
         className,
       )}
     >

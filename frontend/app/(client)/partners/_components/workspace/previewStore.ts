@@ -135,3 +135,25 @@ export const previewActions = {
     update(() => SEED_STATE);
   },
 };
+
+/** 사진을 480px 이하로 줄여 data URL로(외부 전송 없음) — 상세 · 대시보드의 "사진 올리기"가 같이 쓴다. */
+export async function toThumb(file: File): Promise<string | undefined> {
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((ok, fail) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = fail;
+      i.src = url;
+    });
+    const k = Math.min(1, 480 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k);
+    c.height = Math.round(img.height * k);
+    c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    return c.toDataURL("image/jpeg", 0.7);
+  } catch {
+    return undefined;
+  }
+}

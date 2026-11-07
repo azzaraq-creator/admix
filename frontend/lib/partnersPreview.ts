@@ -48,6 +48,8 @@ export interface PreviewPhoto {
 export interface PreviewCollab {
   id: string;
   brand: string;
+  /** 광고주 브랜드 사진(users.brand_image_url) — 없으면 기본 "C". 예시 데이터는 비워 둔다. */
+  brandImage?: string | null;
   title: string;
   summary: string;
   type: CollabType;
@@ -135,6 +137,12 @@ export const kstStamp = (iso: string) => {
   return `${p(d.getUTCMonth() + 1)}.${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 };
 export const periodDays = (a: string, b: string) => diffDays(b, a) + 1;
+/** 요일 한 글자 — "2026-11-05" → "목". */
+export const dow = (d: string) =>
+  "일월화수목금토"[toDate(d.slice(0, 10)).getUTCDay()];
+/** 확정 일시 등 ISO → "2026.10.26 14:20"(KST, 연도까지). */
+export const kstFullStamp = (iso: string) =>
+  `${new Date(new Date(iso).getTime() + 9 * 3_600_000).getUTCFullYear()}.${kstStamp(iso)}`;
 
 /** 시작·종료일로 설치(전날)·철수(다음 날)·점검일(25%·60%·90%)을 만든다. */
 function schedule(
@@ -165,7 +173,7 @@ function schedule(
   };
 }
 
-/** 이미 끝난 콜라보의 사진 기록 — 설치는 ADMIX, 점검은 매장. */
+/** 이미 끝난 콜라보의 사진 기록 — 설치는 admix, 점검은 매장. */
 const donePhotos = (s: ReturnType<typeof schedule>): PreviewPhoto[] => [
   { step: "install", at: kst(s.installDate, "15:10"), by: "admix" },
   ...s.checks.map((c) => ({
@@ -274,14 +282,14 @@ export const SEED_COLLABS: PreviewCollab[] = [
         id: "b-n1",
         title: "설치를 마쳤어요",
         body: "진열대와 드립백 250개를 설치했어요. 직원용 안내 카드는 계산대 옆에 두었습니다.",
-        author: "ADMIX 운영팀",
+        author: "admix 운영팀",
         at: kst("2026-11-02", "16:00"),
       },
       {
         id: "b-n2",
         title: "드립백 재입고 일정 안내",
         body: "소진이 빠른 매장은 11.08(일)에 재입고해요. 남은 수량이 50개 아래면 '재입고 요청'을 눌러 주세요.",
-        author: "ADMIX 운영팀",
+        author: "admix 운영팀",
         at: kst("2026-11-05", "10:30"),
       },
     ],
@@ -466,7 +474,7 @@ export const SEED_MESSAGES: PreviewMessage[] = [
   {
     id: "m1",
     author: "admix",
-    name: "ADMIX 담당자",
+    name: "admix 담당자",
     text: "기본협약 동의 감사합니다. 콜라보 모집이 열리면 이메일과 이 화면에서 알려 드릴게요.",
     at: kst("2026-10-01", "10:12"),
   },
@@ -480,7 +488,7 @@ export const SEED_MESSAGES: PreviewMessage[] = [
   {
     id: "m3",
     author: "admix",
-    name: "ADMIX 담당자",
+    name: "admix 담당자",
     text: "네, 가능해요. 설치하는 날 위치를 같이 확인하고 사진으로 남겨 둘게요.",
     at: kst("2026-11-01", "14:05"),
   },
@@ -513,6 +521,31 @@ export function categoryOf(
 
 /** 모집이 찼으면 예비(대기) 신청. */
 export const isFull = (c: PreviewCollab) => c.appliedStores >= c.targetStores;
+
+/**
+ * 모집 중 콜라보에서 "이 매장이 지금 무엇을 할 수 있나" — 대시보드 · 콜라보 목록 카드가 같은 기준을 쓴다.
+ *   open 신청 가능 · closing 3일 안 마감 · waitlist 목표 매장이 차서 대기 신청만 · blocked 기간이 겹쳐 신청 불가
+ */
+export type RecruitKind = "open" | "closing" | "waitlist" | "blocked";
+export function recruitKindOf(
+  c: PreviewCollab,
+  today = PREVIEW_TODAY,
+): RecruitKind {
+  if (c.standing === "blocked") return "blocked";
+  if (isFull(c)) return "waitlist";
+  return diffDays(c.recruitEnd, today) <= 3 ? "closing" : "open";
+}
+
+/** 모집 상태 배지 글자. */
+export function recruitBadgeOf(c: PreviewCollab, today = PREVIEW_TODAY) {
+  const left = diffDays(c.recruitEnd, today);
+  return {
+    blocked: "신청 불가",
+    waitlist: "대기 신청",
+    closing: left === 0 ? "오늘 마감" : `마감 임박 D-${left}`,
+    open: `모집 중 · D-${left}`,
+  }[recruitKindOf(c, today)];
+}
 
 /** 카드·상세 위 상태 칩. */
 export function chipOf(
@@ -581,9 +614,9 @@ export function nextActionOf(c: PreviewCollab, today = PREVIEW_TODAY) {
         const next = c.checks.find((k) => k.date > today);
         return next
           ? `다음 점검 ${md(next.date)} · ${next.day}일차 사진`
-          : `철수 ${md(c.removalDate)} · ADMIX가 회수해요`;
+          : `철수 ${md(c.removalDate)} · admix가 회수해요`;
       }
-      return `설치 ${md(c.installDate)} · ADMIX가 방문 세팅해요`;
+      return `설치 ${md(c.installDate)} · admix가 방문 세팅해요`;
     default:
       return isFull(c)
         ? "대기 신청하면 빠지는 매장이 생길 때 순서대로 연락드려요"
@@ -604,7 +637,7 @@ export function confirmItemsOf(c: PreviewCollab) {
     {
       id: "quantity",
       label: "초기 수량",
-      value: `${c.quantity.toLocaleString("ko-KR")}개 · 소진이 빠르면 ADMIX가 재입고`,
+      value: `${c.quantity.toLocaleString("ko-KR")}개 · 소진이 빠르면 admix가 재입고`,
     },
     {
       id: "report",

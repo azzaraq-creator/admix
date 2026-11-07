@@ -18,7 +18,10 @@ import {
   MediaDetailModal,
   MediaDetailPreview,
 } from "@/components/common/MediaDetailModal";
-import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
+import {
+  useCanOpenPartners,
+  useOpenPartners,
+} from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import type { MediaItemData } from "@/components/common/MediaItem";
 import {
@@ -72,6 +75,7 @@ function markerToCardRow(m: MapMarker): MediaCardRow {
     lat: m.lat,
     lng: m.lng,
     stopNo: m.stopNo ?? null,
+    partners: m.partners ?? null,
   };
 }
 
@@ -309,6 +313,8 @@ export function FixedMediaView() {
     null,
   );
   const openPartners = useOpenPartners();
+  // 콜라보 매장 카드 — 광고주·제휴사(콜라보)만 눌러서 새 탭으로 열고, 그 외는 보이기만 한다(카드가 눌리지 않음).
+  const partnersAccess = useCanOpenPartners() ? "open" : "locked";
   // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 상세를 새 탭으로(광고주·제휴사만, 그 외는 안내 창).
   const selectPopupRow = (row: MediaCardRow) => {
     if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openPartners(row.id);
@@ -703,6 +709,7 @@ export function FixedMediaView() {
                   // 상세 팝업을 닫으면 보던 묶음 목록으로 돌아오도록 목록 팝업은 열어 둔다.
                   onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
+                  partnersAccess={partnersAccess}
                 />
               ) : popupId ? (
                 <MarkerMediaPopup
@@ -713,6 +720,7 @@ export function FixedMediaView() {
                   // 상세 팝업을 닫으면 보던 지도 팝업으로 돌아오도록 지도 팝업은 열어 둔다.
                   onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
+                  partnersAccess={partnersAccess}
                 />
               ) : null
             }

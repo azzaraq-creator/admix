@@ -33,9 +33,13 @@ export default async function PartnersLayout({
   return (
     // admix와 같은 틀 — 왼쪽 사이드바 + 오른쪽 본문(본문만 스크롤). 모바일은 위 띠 + 드로어.
     <LnbProvider initialCollapsed={lnbCollapsed}>
-      <div className="flex h-dvh w-full flex-col bg-gray-50 sm:flex-row">
+      {/* partners-ui — 다크 모드에서 흐린 회색 글자를 조금 밝히는 범위(globals.css). */}
+      <div className="partners-ui flex h-dvh w-full flex-col bg-gray-50 sm:flex-row">
         <PartnersSidebar member={member} />
-        {/* relative — 화면이 본문 전체에 배경을 깔 수 있게(가입·협약 화면의 배경 빛). */}
+        {/*
+         * relative — 화면이 본문 전체에 배경을 깔 수 있게(가입 · 협약 화면의 배경 빛).
+         * 모든 콜라보 화면에 같은 빛을 깔아 봤다가(11-08) "배경 그라데이션은 빼는 게 좋겠다"고 해서 되돌렸다.
+         */}
         <main className="relative min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex min-h-full w-full max-w-[1120px] flex-col px-[16px] py-[20px] sm:px-[24px] sm:py-[32px]">
             {children}

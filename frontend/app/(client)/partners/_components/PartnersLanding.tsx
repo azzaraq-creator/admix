@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PartnersIcon, LocationIcon } from "@/components/icons";
 import { LOGIN_HREF } from "@/app/(client)/(main)/_components/useLoginModal";
 import { cn } from "@/lib/utils";
+import { GLASS_CARD } from "./workspace/workspaceUi";
 
 /*
  * /partners 비회원 화면 — 매장에 보내는 가입 링크가 이 주소다.
@@ -92,7 +93,10 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
         {BENEFITS.map((b, i) => (
           <div
             key={b.title}
-            className="rounded-[20px] border border-gray-200 bg-surface p-[18px] sm:p-[22px]"
+            className={cn(
+              "rounded-[20px] border p-[18px] sm:p-[22px]",
+              GLASS_CARD,
+            )}
           >
             <p className="text-[12px] font-bold text-primary">STEP {i + 1}</p>
             <p className="mt-[4px] text-[16px] font-bold text-gray-900">
@@ -128,7 +132,7 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
                 {[
                   ["등록 매장", "1곳"],
                   ["매체 찾기 노출", "공개 중"],
-                  ["매장 사진", "8 / 10장"],
+                  ["매장 사진", "8 / 9장"],
                 ].map(([k, v]) => (
                   <div key={k} className="rounded-[12px] bg-gray-50 p-[10px]">
                     <p className="text-[10px] text-gray-500">{k}</p>
@@ -150,8 +154,8 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
                     className={cn(
                       "rounded-full px-[8px] py-[3px] font-semibold",
                       t === "콜라보"
-                        ? "bg-gray-900 text-white"
-                        : "bg-white text-gray-600",
+                        ? "bg-gray-900 text-white dark:bg-gray-300 dark:text-gray-900"
+                        : "bg-white text-gray-600 dark:bg-surface",
                     )}
                   >
                     {t}
@@ -206,7 +210,7 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
         </div>
       </section>
 
-      <section className="flex flex-col items-center gap-[10px] rounded-[24px] bg-gray-900 px-[20px] py-[28px] text-center sm:py-[36px]">
+      <section className="flex flex-col items-center gap-[10px] rounded-[24px] bg-gray-900 px-[20px] py-[28px] text-center sm:py-[36px] dark:bg-gray-100">
         <p className="text-[18px] font-bold text-white sm:text-[22px]">
           지금 매장을 등록해 보세요
         </p>

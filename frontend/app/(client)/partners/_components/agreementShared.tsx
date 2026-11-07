@@ -48,7 +48,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 /** 흰 유리 — 소개 화면 카드 · 칩과 같은 바탕 · 테두리 · 그림자. */
 export const GLASS =
-  "border border-white bg-surface/70 shadow-[0_24px_60px_rgba(42,20,89,0.10)] backdrop-blur-md dark:border-white/10";
+  "border border-white bg-surface/70 shadow-[0_24px_60px_rgba(42,20,89,0.10)] backdrop-blur-md dark:border-gray-100";
 
 /** 체크 줄 · 목록 줄 — 그림자 없이 테두리. 아직이면 흰 바탕 + 회색 테두리, 끝나면 회색 바탕으로 가라앉힌다(2단계 별지 줄과 같다). */
 export const rowTone = (done: boolean) =>

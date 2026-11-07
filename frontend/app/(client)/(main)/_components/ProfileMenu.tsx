@@ -26,11 +26,14 @@ export function ProfileMenu({
   onNavigate,
   withTheme = false,
   profileHref = "/profile",
+  helpHref = "/help",
 }: {
   onNavigate?: () => void;
   withTheme?: boolean;
   /** 내 정보 주소 — 콜라보 화면은 사이드바를 유지하려고 /partners/profile. */
   profileHref?: string;
+  /** 약관 및 정책 주소 — 콜라보 화면은 사이드바를 유지하려고 /partners/help. */
+  helpHref?: string;
 }) {
   const router = useRouter();
   const logout = useLogout();
@@ -53,7 +56,7 @@ export function ProfileMenu({
         <ProfileFilledIcon className={MENU_ICON} />
         <span className="text-sm font-medium text-black">내 정보</span>
       </Dropdown.Item>
-      <Dropdown.Item id="/help" textValue="약관 및 정책">
+      <Dropdown.Item id={helpHref} textValue="약관 및 정책">
         <FileTextIcon className={`${MENU_ICON} size-[14px]`} />
         <span className="text-sm font-medium text-black">약관 및 정책</span>
       </Dropdown.Item>

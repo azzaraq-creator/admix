@@ -11,7 +11,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
+import {
+  useCanOpenPartners,
+  useOpenPartners,
+} from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
@@ -396,6 +399,8 @@ export function MediaFindPanel({
       : undefined;
 
   const openPartners = useOpenPartners();
+  // 콜라보 매장 카드 — 광고주·제휴사(콜라보)만 눌러서 새 탭으로 열고, 그 외는 보이기만 한다(카드가 눌리지 않음).
+  const partnersAccess = useCanOpenPartners() ? "open" : "locked";
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
       id: row.id,
@@ -441,6 +446,7 @@ export function MediaFindPanel({
         images: m.images,
         badge: m.badge,
         stopNo: m.stopNo,
+        partners: m.partners,
       })),
       clusters: clusterData.clusters.map((c) => ({
         lat: c.lat,
@@ -972,6 +978,7 @@ export function MediaFindPanel({
                 onAddProposal={() => onAddProposal?.(pinned.id)}
                 onHoverChange={areaHover(pinned)}
                 compact={compactList}
+                partnersAccess={partnersAccess}
               />
             )}
             {isLoading ? (
@@ -1015,6 +1022,7 @@ export function MediaFindPanel({
                     onAddProposal={() => onAddProposal?.(row.id)}
                     onHoverChange={areaHover(row)}
                     compact={compactList}
+                    partnersAccess={partnersAccess}
                   />
                 ))}
                 {/* 무한스크롤 감지용 1px 줄. 목록 마지막에 gap 10px + 1px만큼

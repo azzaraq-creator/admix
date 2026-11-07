@@ -43,7 +43,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from src.config import get_settings
 from src.services import ai_index, grade_suggest, popularity
 from src.models.media_image import MediaImage
-from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY, PartnersStore
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.services import operating_area as oa
@@ -346,6 +346,31 @@ def _media_card(m: Media) -> dict:
         operatingArea=_operating_area(m),
         stopNo=m.stop_no,
     )
+
+
+def attach_partners(db: Session, items: list[dict]) -> list[dict]:
+    """콜라보 매장 카드에 매장 값을 붙인다 — 매체 찾기 목록 · 지도 팝업 · 관심 매체 카드가
+    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 매장 특징."""
+    ids = [it["id"] for it in items if it.get("categoryLarge") == PARTNERS_MEDIA_CATEGORY]
+    if not ids:
+        return items
+    stores = {
+        s.media_id: s
+        for s in db.query(
+            PartnersStore.media_id,
+            PartnersStore.address,
+            PartnersStore.address_detail,
+            PartnersStore.business_hours,
+            PartnersStore.tags,
+        ).filter(PartnersStore.media_id.in_(ids))
+    }
+    for it in items:
+        s = stores.get(it["id"])
+        if s is None:
+            continue
+        it["address"] = " ".join(p for p in [s.address, s.address_detail] if p) or it.get("address")
+        it["partners"] = dict(businessHours=s.business_hours, tags=list(s.tags or []))
+    return items
 
 
 def list_moving_media(
@@ -840,7 +865,7 @@ def list_fixed_media(
         .offset(offset)
         .all()
     )
-    return total, [_media_card(m) for m in rows], counts, category_counts
+    return total, attach_partners(db, [_media_card(m) for m in rows]), counts, category_counts
 
 
 # 지도 마커 클러스터링 — zoom_level 기반 그리드 셀 크기(도 단위).
@@ -1013,9 +1038,9 @@ def list_fixed_clusters(
     # 마커 매체 이미지 일괄 조회 → 검색 리스트와 동일한 카드 이미지(최대 3장).
     img_map = _images_by_media(db, [r.media_id for r, _, _ in marker_points])
     badge_ids = popularity.snapshot(db).badge_ids
-    markers = [
-        _marker_from_row(r, lat, lng, img_map, badge_ids) for r, lat, lng in marker_points
-    ]
+    markers = attach_partners(
+        db, [_marker_from_row(r, lat, lng, img_map, badge_ids) for r, lat, lng in marker_points]
+    )
     return dict(clusters=clusters, markers=markers)
 
 

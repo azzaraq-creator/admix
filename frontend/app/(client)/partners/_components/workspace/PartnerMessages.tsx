@@ -22,7 +22,7 @@ import { previewActions, usePreviewState } from "./previewStore";
 import { PageHead, PanelCard, PartnerOnly } from "./workspaceUi";
 
 /*
- * /partners/messages — ADMIX와의 대화(프로토타입의 "대화" 흉내).
+ * /partners/messages — admix와의 대화(프로토타입의 "대화" 흉내).
  * 보낸 글은 이 탭(예시 상태)에만 남고 외부로 전달되지 않는다.
  */
 
@@ -63,7 +63,7 @@ function Messages() {
                     "text-[12px] font-bold",
                     mine
                       ? "bg-primary-100 text-primary-600"
-                      : "bg-gray-900 text-white",
+                      : "bg-gray-900 text-white dark:bg-gray-300 dark:text-gray-900",
                   )}
                 >
                   {mine ? "나" : "A"}

@@ -602,7 +602,8 @@ function DocTable({ rows, head }: { rows: string[][]; head: "row" | "col" }) {
   );
 }
 
-export function DocumentStage({ onNext }: { onNext: () => void }) {
+/** onNext 가 없으면(메뉴 "기본협약"으로 들어옴) 아래 "다음 · 매장 등록"을 그리지 않는다. */
+export function DocumentStage({ onNext }: { onNext?: () => void }) {
   const paper = useRef<HTMLDivElement>(null);
   const paperBox = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -748,16 +749,18 @@ export function DocumentStage({ onNext }: { onNext: () => void }) {
       </div>
 
       {/* 다음 — 가입 3단계 매장 등록. */}
-      <div className="mt-[20px] flex justify-end border-t border-gray-100 pt-[18px]">
-        <Button
-          variant="primary"
-          onPress={onNext}
-          className="h-[44px] rounded-[19px] px-[20px] font-semibold"
-        >
-          다음 · 매장 등록
-          <ChevronRightIcon className="size-[16px]" />
-        </Button>
-      </div>
+      {onNext && (
+        <div className="mt-[20px] flex justify-end border-t border-gray-100 pt-[18px]">
+          <Button
+            variant="primary"
+            onPress={onNext}
+            className="h-[44px] rounded-[19px] px-[20px] font-semibold"
+          >
+            다음 · 매장 등록
+            <ChevronRightIcon className="size-[16px]" />
+          </Button>
+        </div>
+      )}
     </>
   );
 }

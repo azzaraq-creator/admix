@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertDialog, Button } from "@heroui/react";
+import Image from "next/image";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
 type AlertConfirmOptions = {
@@ -12,6 +13,8 @@ type AlertConfirmOptions = {
   destructive?: boolean;
   /** 안내만 할 때(실패 알림 등) — 취소 버튼 없이 확인 하나만. */
   alertOnly?: boolean;
+  /** 지우기 확인 — 경고 아이콘 대신 빨간 휴지통(public/icons/trash.svg, 지운 알림과 같은 그림). */
+  icon?: "trash";
 };
 
 // 곡률 규칙: 높이/2 - 3px. HeroUI 기본 버튼 높이 36px → 15px.
@@ -56,7 +59,11 @@ export function useAlertConfirm() {
             <AlertDialog.Header>
               <AlertDialog.Icon
                 status={options?.destructive ? "danger" : "accent"}
-              />
+              >
+                {options?.icon === "trash" ? (
+                  <Image src="/icons/trash.svg" alt="" width={20} height={20} />
+                ) : undefined}
+              </AlertDialog.Icon>
               <AlertDialog.Heading>{options?.title}</AlertDialog.Heading>
             </AlertDialog.Header>
             {options?.description && (

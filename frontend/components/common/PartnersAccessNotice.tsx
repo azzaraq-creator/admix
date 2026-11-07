@@ -37,6 +37,17 @@ export const openPartnersNotice = (next: NoticeKind = "member") => setKind(next)
 export const PARTNERS_INTRO_HREF = "/partners?intro=1";
 
 /**
+ * 콜라보 매장 상세를 열 수 있는 회원인지(광고주·제휴사(콜라보)) — 매체 찾기 목록·지도 말풍선의 콜라보 카드는
+ * 그 외(비회원·일반·대행사·매체사)에겐 보이기만 하고 눌리지 않는다.
+ * 로그인했는데 회원 정보를 아직 받는 중이면 열 수 있는 쪽으로 본다(useOpenPartners 와 같다).
+ */
+export function useCanOpenPartners() {
+  const { data: me } = useMe();
+  const loading = !me && !!getUserToken();
+  return loading || canUsePartners(me?.member_category);
+}
+
+/**
  * 콜라보 화면을 새 탭으로 연다 — 광고주·제휴사(콜라보)만. 그 외는 안내 창.
  * - 메뉴(/partners): 비회원·일반·대행사·매체사는 "전용 메뉴" 안내 창(대시보드 보기).
  * - 매장 상세(storeKey): 비회원은 로그인 안내 창, 그 외 회원은 "전용 메뉴" 안내 창.

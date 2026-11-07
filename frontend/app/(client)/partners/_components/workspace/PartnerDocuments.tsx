@@ -95,7 +95,7 @@ function Documents() {
             icon={<ClipboardList className="size-[22px]" />}
             title={`${c.brand} ${c.title}`}
             sub={`${c.confirmNo} · ${c.confirmedAt ? kstStamp(c.confirmedAt) : ""} 확정 · 예시`}
-            href={collabHref(c.id)}
+            href={collabHref(c.id, "documents")}
           />
         ))
       ) : (

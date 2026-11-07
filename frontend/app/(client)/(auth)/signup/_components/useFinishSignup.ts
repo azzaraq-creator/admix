@@ -25,18 +25,20 @@ export function useFinishSignup() {
   const queryClient = useQueryClient();
   const claimGuest = useClaimGuestProposals();
 
-  /** next — 가입 뒤 갈 곳(기본은 가입 완료 화면, 제휴사(콜라보)는 기본협약 동의). */
-  return async (bizFile: File | null, next = "/signup/complete") => {
+  // 가입이 끝나면 모든 유형이 가입 완료 화면으로 간다 — 제휴사(콜라보)는 거기서 기본협약 동의로 이어 간다.
+  return async (bizFile: File | null, brandImage: File | null = null) => {
     // 게스트 세션 기획안·챗 승계 (best-effort — 실패해도 가입은 유지).
     await claimGuest.mutateAsync().catch(() => {});
     // 사업자등록증은 가입(로그인) 후 올린다. 실패해도 마이페이지에서 다시 올릴 수 있어 막지 않는다.
     if (bizFile)
       await authApi.uploadBusinessRegistration(bizFile).catch(() => {});
+    // 광고주 브랜드 사진(선택)도 같은 방식 — 실패하면 내 정보에서 다시 올린다.
+    if (brandImage) await authApi.uploadBrandImage(brandImage).catch(() => {});
     sessionStorage.removeItem(CATEGORY_KEY);
     await queryClient.invalidateQueries({
       queryKey: authKeys.me,
       refetchType: "all",
     });
-    router.replace(next);
+    router.replace("/signup/complete");
   };
 }

@@ -1,11 +1,21 @@
 "use client";
 
+import { useState } from "react";
+
 import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 
 import { PersonStanding } from "lucide-react";
 
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { formatAdFee } from "@/lib/media";
+import {
+  PartnersCardDetails,
+  PartnersHoursLine,
+} from "@/components/common/PartnersCardDetails";
+import {
+  PartnersAccessMark,
+  type PartnersCardAccess,
+} from "@/components/common/PartnersAccessMark";
 import { kakaoRoadviewUrl } from "@/components/common/RoadviewView";
 import { StopNoChip } from "@/components/common/StopNoChip";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
@@ -108,6 +118,7 @@ export function MediaPopupCard({
   onSelect,
   onAddProposal,
   roadview = false,
+  partnersAccess,
 }: {
   row: MediaCardRow;
   simple: boolean;
@@ -121,11 +132,37 @@ export function MediaPopupCard({
   onAddProposal?: () => void;
   /** 매체 자리 카카오맵 로드뷰를 새 탭으로 여는 버튼을 단다(지도 팝업). 좌표가 없으면 안 단다. */
   roadview?: boolean;
+  /**
+   * 콜라보 매장 카드를 누를 수 있는지(지도 팝업) — 기획안 담기 자리에 표시를 두고, 카드에 마우스를 올리면 툴팁.
+   * open: 누르면 매장 상세가 새 탭으로, locked: 광고주·제휴사(콜라보) 회원이 아니라 보이기만 하고 눌리지 않는다.
+   * 믹시 추천 목록은 주지 않는다(표시 없음, 전처럼 눌림).
+   */
+  partnersAccess?: PartnersCardAccess;
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
-  // 콜라보 매장은 금액 · 기획안 담기가 없다(누르면 매장 상세가 새 탭으로).
+  // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
+  const access = partners ? partnersAccess : undefined;
+  const locked = access === "locked";
+  // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다.
+  const [hovered, setHovered] = useState(false);
+  const hoverProps = access
+    ? {
+        onMouseEnter: () => setHovered(true),
+        onMouseLeave: () => setHovered(false),
+      }
+    : {};
+  // 못 여는 콜라보 카드는 눌리지 않는다(매장명 버튼도).
+  const select = locked ? undefined : onSelect;
+  const accessMark = access && (
+    <PartnersAccessMark
+      access={access}
+      hovered={hovered}
+      // 옆 관심 버튼과 같은 밝은 회색 칸.
+      className="size-[28px] rounded-[10px] bg-gray-100"
+    />
+  );
   // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
   // 지도 팝업과 믹시 추천 목록(ChatMediaList)이 이 카드를 같이 쓴다.
   const { liked, toggle: toggleLiked } = useFavorite(row.id, {
@@ -138,8 +175,11 @@ export function MediaPopupCard({
     // 매체명은 늘 한 줄 — 넘치면 말줄임(...), 전체 이름은 마우스를 올리면(title) 보인다.
     <Button
       variant="ghost"
-      onPress={() => onSelect?.()}
-      className="h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] leading-[20px] font-bold whitespace-nowrap text-black data-[hovered=true]:bg-transparent max-sm:text-[14px]"
+      onPress={() => select?.()}
+      className={cn(
+        "h-auto min-h-0 min-w-0 flex-1 justify-start rounded-[4px] bg-transparent p-0 text-left text-[15px] leading-[20px] font-bold whitespace-nowrap text-black data-[hovered=true]:bg-transparent max-sm:text-[14px]",
+        locked && "cursor-default",
+      )}
     >
       <span className="min-w-0 truncate" title={row.name}>
         {row.name}
@@ -167,11 +207,15 @@ export function MediaPopupCard({
 
   return (
     <Card
-      onClick={onSelect}
+      onClick={select}
+      {...hoverProps}
       className={cn(
-        "cursor-pointer gap-0 rounded-[12px] border bg-surface shadow-none transition-colors",
+        "gap-0 rounded-[12px] border bg-surface shadow-none transition-colors",
+        locked ? "cursor-default" : "cursor-pointer",
         simple ? "px-[10px] py-[8px]" : "p-[10px]",
-        selected ? "border-primary" : "border-gray-200 hover:border-gray-300",
+        selected
+          ? "border-primary"
+          : cn("border-gray-200", !locked && "hover:border-gray-300"),
         // 2px 보라 테두리를 카드 안쪽에 — 테두리 1px + 안쪽 1px 선(after). 팝업 스크롤 칸에 잘리지 않는다.
         tag &&
           "relative border-primary-500 hover:border-primary-500 after:pointer-events-none after:absolute after:inset-0 after:rounded-[11px] after:border after:border-primary-500 after:content-['']",
@@ -221,11 +265,13 @@ export function MediaPopupCard({
                 <FolderAddIcon className="size-[16px] text-primary" />
               </Button>
             )}
+            {/* 콜라보는 기획안 담기 자리에 새 탭(못 열면 자물쇠) 표시. */}
+            {accessMark}
           </div>
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
           <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
             {partners ? (
-              <PartnersOpenHint />
+              <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
               <>
                 <InlinePrice
@@ -304,8 +350,14 @@ export function MediaPopupCard({
           </div>
 
           {partners ? (
-            <div className="mt-[10px] border-t border-gray-200 pt-[8px]">
-              <PartnersOpenHint />
+            // 콜라보는 기획안 담기 자리(아래 칸 오른쪽)에 새 탭(못 열면 자물쇠) 표시.
+            <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
+              <PartnersCardDetails
+                businessHours={row.partners?.businessHours}
+                tags={row.partners?.tags}
+                className="min-w-0 flex-1"
+              />
+              {accessMark}
             </div>
           ) : (
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
@@ -341,15 +393,6 @@ export function MediaPopupCard({
   );
 }
 
-/** 콜라보 매장 — 금액 · 기획안 담기 대신, 누르면 매장 정보가 새 탭으로 열린다는 안내. */
-function PartnersOpenHint() {
-  return (
-    <span className="text-[12px] font-semibold text-amber-800 max-sm:text-[11px]">
-      매장 정보 보기 ↗
-    </span>
-  );
-}
-
 /**
  * 지도 핀/겹침핀을 눌렀을 때 뜨는 매체 요약. 왼쪽 목록 카드(MediaFindCard)와 글꼴·칩·금액
  * 표기는 맞추되, 지도를 덜 가리게 작은 이미지 + 핵심 정보만 담는다. 누르면 상세가 열린다.
@@ -364,6 +407,7 @@ export function MarkerMediaPopup({
   onSelect,
   onAddProposal,
   highlightId,
+  partnersAccess,
 }: {
   rows: MediaCardRow[];
   simple: boolean;
@@ -372,6 +416,8 @@ export function MarkerMediaPopup({
   onAddProposal?: (row: MediaCardRow) => void;
   /** 검색해서 고른 매체 — 같은 주소 묶음 팝업에서 맨 위로 올리고 테두리·"검색한 매체" 표시. */
   highlightId?: string | null;
+  /** 콜라보 매장 카드를 누를 수 있는지 — MediaPopupCard 참고. */
+  partnersAccess?: PartnersCardAccess;
 }) {
   if (rows.length === 0) return null;
   const ordered = highlightId
@@ -414,6 +460,7 @@ export function MarkerMediaPopup({
             onSelect={() => onSelect?.(row)}
             onAddProposal={() => onAddProposal?.(row)}
             roadview
+            partnersAccess={partnersAccess}
           />
         ))}
       </ScrollShadow>

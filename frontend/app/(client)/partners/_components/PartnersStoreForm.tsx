@@ -33,6 +33,7 @@ import {
   formatHours,
   parseHours,
 } from "./PartnersHoursField";
+import { GLASS_CARD } from "./workspace/workspaceUi";
 
 export type PartnersStoreDraft = {
   name: string;
@@ -66,7 +67,7 @@ const fromStore = (s?: PartnersStore): PartnersStoreDraft => ({
 });
 
 /**
- * 매장 등록·수정 폼 — 필수: 매장명 · 주소 / 선택: 상세 주소 · 사진(최대 10장) · 전화번호 · 사장 이름 · 어필(최대 3개) · 운영 시간.
+ * 매장 등록·수정 폼 — 필수: 매장명 · 주소 / 선택: 상세 주소 · 사진(최대 9장) · 전화번호 · 사장 이름 · 어필(최대 3개) · 운영 시간.
  * 주소는 우편번호 검색으로 고르고, 고르면 카카오 지도로 위도·경도를 찾아 함께 저장한다(서버도 못 받으면 다시 찾는다).
  *
  * 회원가입(제휴사(콜라보))에서는 아직 로그인 전이라 바로 저장하지 않는다 — signup 을 넘기면
@@ -209,7 +210,7 @@ export function PartnersStoreForm({
         "flex flex-col gap-[22px]",
         signup
           ? "w-full max-sm:flex-1 max-sm:gap-[18px]"
-          : "rounded-[24px] border border-gray-200 bg-surface p-[18px] sm:p-[32px]",
+          : cn("rounded-[24px] border p-[18px] sm:p-[32px]", GLASS_CARD),
       )}
     >
       <Field label="매장명" required error={errors.name}>
@@ -397,37 +398,10 @@ export function PartnersStoreForm({
             : `매장을 한눈에 보여 줄 포인트를 최대 ${PARTNERS_MAX_TAGS}개 골라 주세요.`
         }
       >
-        <TagGroup
-          aria-label="매장 어필"
-          selectionMode="multiple"
-          selectedKeys={new Set(draft.tags)}
-          onSelectionChange={(keys) => {
-            const picked = PARTNERS_TAG_OPTIONS.filter(
-              (t) => keys === "all" || keys.has(t),
-            );
-            // 새로 고른 것 먼저 남기지 않고 선택지 순서로 — 최대 개수를 넘으면 무시한다.
-            if (picked.length <= PARTNERS_MAX_TAGS) set("tags", picked);
-          }}
-          // 다 고르면 안 고른 것은 누를 수 없게.
-          disabledKeys={
-            draft.tags.length >= PARTNERS_MAX_TAGS
-              ? PARTNERS_TAG_OPTIONS.filter((t) => !draft.tags.includes(t))
-              : undefined
-          }
-        >
-          <TagGroup.List className="flex flex-wrap gap-[6px]">
-            {PARTNERS_TAG_OPTIONS.map((tag) => (
-              <Tag
-                key={tag}
-                id={tag}
-                // 고른 건 진한 테두리 · 연회색 바탕 정도로만 표시한다(보라 채움은 너무 튀어서).
-                className="rounded-full border border-gray-200 bg-surface px-[12px] py-[6px] text-[13px] font-semibold text-gray-600 transition-colors data-[hovered=true]:border-gray-300 data-[hovered=true]:text-gray-900 data-[selected=true]:border-gray-900 data-[selected=true]:bg-gray-100 data-[selected=true]:text-gray-900 data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-40"
-              >
-                {tag}
-              </Tag>
-            ))}
-          </TagGroup.List>
-        </TagGroup>
+        <PartnersTagPicker
+          value={draft.tags}
+          onChange={(tags) => set("tags", tags)}
+        />
       </Field>
 
       <Field label="운영 시간">
@@ -471,6 +445,49 @@ export function PartnersStoreForm({
         </div>
       )}
     </form>
+  );
+}
+
+/** 매장 어필 고르기(최대 PARTNERS_MAX_TAGS개) — 등록·수정 폼과 내 매장의 바로 채우기가 같이 쓴다. */
+export function PartnersTagPicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  return (
+    <TagGroup
+      aria-label="매장 어필"
+      selectionMode="multiple"
+      selectedKeys={new Set(value)}
+      onSelectionChange={(keys) => {
+        const picked = PARTNERS_TAG_OPTIONS.filter(
+          (t) => keys === "all" || keys.has(t),
+        );
+        // 새로 고른 것 먼저 남기지 않고 선택지 순서로 — 최대 개수를 넘으면 무시한다.
+        if (picked.length <= PARTNERS_MAX_TAGS) onChange(picked);
+      }}
+      // 다 고르면 안 고른 것은 누를 수 없게.
+      disabledKeys={
+        value.length >= PARTNERS_MAX_TAGS
+          ? PARTNERS_TAG_OPTIONS.filter((t) => !value.includes(t))
+          : undefined
+      }
+    >
+      <TagGroup.List className="flex flex-wrap gap-[6px]">
+        {PARTNERS_TAG_OPTIONS.map((tag) => (
+          <Tag
+            key={tag}
+            id={tag}
+            // 고른 건 진한 테두리 · 연회색 바탕 정도로만 표시한다(보라 채움은 너무 튀어서).
+            className="rounded-full border border-gray-200 bg-surface px-[12px] py-[6px] text-[13px] font-semibold text-gray-600 transition-colors data-[hovered=true]:border-gray-300 data-[hovered=true]:text-gray-900 data-[selected=true]:border-gray-900 data-[selected=true]:bg-gray-100 data-[selected=true]:text-gray-900 data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-40"
+          >
+            {tag}
+          </Tag>
+        ))}
+      </TagGroup.List>
+    </TagGroup>
   );
 }
 

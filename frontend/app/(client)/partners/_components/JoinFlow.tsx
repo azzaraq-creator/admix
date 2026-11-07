@@ -1,6 +1,7 @@
 "use client";
 
 import { useMe } from "@/hooks/auth";
+import { useMyPartnersStores } from "@/hooks/partners";
 import { cn } from "@/lib/utils";
 
 import { CheckMark } from "./agreementShared";
@@ -8,8 +9,17 @@ import { CheckMark } from "./agreementShared";
 /** 제휴사(콜라보) 가입 진행 — 기본협약 동의(/partners/join/agreement) · 매장 등록(/partners/join/store) 위에 같이 쓴다. */
 const FLOW = ["가입 정보", "기본협약 동의", "매장 등록"];
 
-/** 가입 진행 표시 — current 앞은 체크, current 는 흰 알약, 뒤는 번호만(모바일은 지금 단계만 이름). */
-export function JoinFlow({ current }: { current: number }) {
+/**
+ * 가입 진행 표시 — current 앞은 체크, current 는 흰 알약, 뒤는 번호만(모바일은 지금 단계만 이름).
+ * storeDone 을 주면(메뉴 "기본협약"으로 들어옴) 03 매장 등록은 번호 대신 등록 여부 체크(보라 = 등록함, 회색 = 아직).
+ */
+export function JoinFlow({
+  current,
+  storeDone,
+}: {
+  current: number;
+  storeDone?: boolean;
+}) {
   return (
     <ol className="flex items-center gap-[6px] text-[12px] font-semibold sm:text-[13px]">
       {FLOW.map((label, i) => (
@@ -25,11 +35,18 @@ export function JoinFlow({ current }: { current: number }) {
             className={cn(
               "flex h-[30px] items-center gap-[6px] rounded-full px-[10px] whitespace-nowrap",
               i === current
-                ? "border border-white bg-surface/70 text-gray-900 shadow-[0_6px_18px_rgba(42,20,89,0.08)] dark:border-white/10"
+                ? "border border-white bg-surface/70 text-gray-900 shadow-[0_6px_18px_rgba(42,20,89,0.08)] dark:border-gray-100"
                 : "text-gray-400",
             )}
           >
-            {i < current ? (
+            {i === 2 && storeDone !== undefined ? (
+              <>
+                <CheckMark on={storeDone} />
+                <span className="sr-only">
+                  {storeDone ? "등록함" : "아직 등록 안 함"}
+                </span>
+              </>
+            ) : i < current ? (
               <CheckMark on />
             ) : (
               <span className="tabular-nums">
@@ -47,6 +64,20 @@ export function JoinFlow({ current }: { current: number }) {
   );
 }
 
+/**
+ * 메뉴 "기본협약"으로 들어왔을 때의 가입 진행 — 순서(01 · 02 · 03)는 그대로, 03 매장 등록만 등록 여부 체크로.
+ * 매장 목록을 받기 전엔 03을 번호로 둔다.
+ */
+export function JoinFlowWithStore({ current }: { current: number }) {
+  const { data: stores } = useMyPartnersStores();
+  return (
+    <JoinFlow
+      current={current}
+      storeDone={stores ? stores.length > 0 : undefined}
+    />
+  );
+}
+
 /** 가입 중인 계정 — 제목 아래 "OOO@… 계정으로 등록 중이에요". 로그인 전(미리보기)이면 그리지 않는다. */
 export function JoinAccount({ className }: { className?: string }) {
   const { data: me } = useMe();
@@ -54,7 +85,7 @@ export function JoinAccount({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "inline-flex max-w-full items-center gap-[6px] rounded-full border border-white bg-surface/70 px-[12px] py-[5px] text-[13px] text-gray-600 dark:border-white/10",
+        "inline-flex max-w-full items-center gap-[6px] rounded-full border border-white bg-surface/70 px-[12px] py-[5px] text-[13px] text-gray-600 dark:border-gray-100",
         className,
       )}
     >

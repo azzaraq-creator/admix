@@ -50,6 +50,7 @@ import {
 import { clearUserToken } from "@/lib/userToken";
 import { cn } from "@/lib/utils";
 
+import { BrandImageRow } from "./BrandImageRow";
 import { CategoryChangeModal } from "./CategoryChangeModal";
 import { ContactEmailChangeModal } from "./ContactEmailChangeModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
@@ -293,9 +294,9 @@ export function ProfileView() {
   const { confirm, confirmDialog } = useAlertConfirm();
   const { success, error: toastError } = useSonner();
 
-  const [modal, setModal] = useState<
-    "password" | "email" | "category" | null
-  >(null);
+  const [modal, setModal] = useState<"password" | "email" | "category" | null>(
+    null,
+  );
 
   // 저장 전 고친 값(수정 중인 항목만 담긴다). 저장하거나 취소하면 비운다.
   const [drafts, setDrafts] = useState<Partial<Record<EditableKey, string>>>(
@@ -715,6 +716,12 @@ export function ProfileView() {
             required: true,
           })}
           {editableField("company_name", "회사 이름")}
+
+          {me?.member_category === "advertiser" && (
+            <Field label="브랜드 사진">
+              <BrandImageRow url={me.brand_image_url} />
+            </Field>
+          )}
 
           {!isGeneral && (
             <Field label="사업자등록증" alignTop>

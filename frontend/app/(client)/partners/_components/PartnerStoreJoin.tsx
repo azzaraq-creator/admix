@@ -3,10 +3,15 @@
 import { Button, Spinner, toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { ArrowLeftIcon } from "@/components/icons";
 import { useMe } from "@/hooks/auth";
-import { partnersApi, useSavePartnersStore } from "@/hooks/partners";
+import {
+  partnersApi,
+  useMyPartnersStores,
+  useSavePartnersStore,
+} from "@/hooks/partners";
 import { TOAST_TIMEOUT, useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
@@ -19,7 +24,7 @@ import { PartnersStoreForm } from "./PartnersStoreForm";
 /*
  * /partners/join/store — 제휴사(콜라보) 가입 3단계 매장 등록. 기본협약 동의의 계약서 단계 "다음 · 매장 등록"에서 온다.
  * 문항은 콜라보 대시보드의 매장 등록 폼(PartnersStoreForm)을 그대로 쓴다 —
- *   필수: 매장명 · 매장 주소 · 매장 사진(최대 10장) / 선택: 전화번호 · 사장 이름 · 어필 해시태그(최대 3개) · 운영 시간.
+ *   필수: 매장명 · 매장 주소 · 매장 사진(최대 9장) / 선택: 전화번호 · 사장 이름 · 어필 해시태그(최대 3개) · 운영 시간.
  * 이메일 가입(사업자등록증 포함)을 마치고 오므로 제휴사(콜라보)로 로그인한 상태면 실제로 저장한다 — 사진을 바로 올리고,
  *   "매장 등록"이 매장을 저장한 뒤 매장 대시보드(/partners/dashboard)로 간다. "나중에 등록"도 대시보드로.
  * 로그인 전(주소로 바로 들어온 경우)은 예전처럼 임시 — 사진은 브라우저 안 미리보기, 등록은 알림만.
@@ -39,15 +44,20 @@ export function PartnerStoreJoin() {
   const member = me?.member_category === "partner";
   const save = useSavePartnersStore();
   const { success, error } = useSonner();
+  // 매장은 1인 1개 — 이미 등록했으면 내 매장으로 보낸다(저장한 직후는 대시보드로 가는 중이라 건드리지 않는다).
+  const myStores = useMyPartnersStores();
+  const hasStore = member && (myStores.data?.length ?? 0) > 0;
+  useEffect(() => {
+    if (hasStore && !save.isSuccess) router.replace("/partners/stores");
+  }, [hasStore, save.isSuccess, router]);
 
   return (
     <div className="isolate flex flex-1 flex-col">
-      {/* 배경 빛 — 기본협약 동의 화면과 같다. */}
+      {/* 배경 빛 — 기본협약 동의 화면과 같다(다크 모드는 35%만). */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)] dark:opacity-35"
       />
-
       <div className="flex flex-wrap items-center justify-between gap-[12px]">
         <Link
           href="/partners/join/agreement"

@@ -4,17 +4,10 @@ import { Button, Dropdown, Spinner } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store } from "lucide-react";
-import { useState, type ComponentType, type SVGProps } from "react";
+import { useState, type ComponentType } from "react";
 
 import {
   ArrowLeftIcon,
-  CalendarIcon,
-  ChatIcon,
-  FileTextIcon,
-  FolderIcon,
-  LayerIcon,
-  ListIcon,
   PartnersIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -31,6 +24,7 @@ import {
   setLnbCollapsed,
   useLnbCollapsed,
 } from "@/app/(client)/(main)/_components/useLnb";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
@@ -45,11 +39,31 @@ import {
 type PartnersMenuItem = {
   key: string;
   label: string;
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  Icon: ComponentType<{ className?: string }>;
   href: string;
   /** 이 경로로 시작하면 활성. */
   activePrefix?: string;
 };
+
+/**
+ * 메뉴 아이콘 — public/icons SVG를 글자색 한 색으로(MaskIcon).
+ * 파일은 그림이 상자에 꽉 차서, 18px 칸 안 15px(사방 1.5px 여백)에 그려 admix 사이드바 아이콘
+ * (viewBox 안에 여백이 있어 실제로 15px 안팎)과 크기 · 무게를 맞춘다.
+ */
+function maskIcon(src: string) {
+  function MenuMaskIcon({ className }: { className?: string }) {
+    return <MaskIcon src={src} className={cn("p-[1.5px]", className)} />;
+  }
+  return MenuMaskIcon;
+}
+
+const DashboardIcon = maskIcon("/icons/dashboard.svg");
+const ClapIcon = maskIcon("/icons/clap-duo.svg");
+const ReceiptIcon = maskIcon("/icons/receipt.svg");
+const SquareCheckIcon = maskIcon("/icons/square-check.svg");
+const BubbleIcon = maskIcon("/icons/bubble.svg");
+const OpenFolderIcon = maskIcon("/icons/open-folder.svg");
+const StoreIcon = maskIcon("/icons/store.svg");
 
 /** 소개 — 비회원 · 일반 · 대행사 · 매체사만. 광고주 · 제휴사(콜라보)에겐 보이지 않는다. */
 const MENU: PartnersMenuItem[] = [
@@ -70,49 +84,50 @@ const PARTNER_MENU: PartnersMenuItem[] = [
   {
     key: "dashboard",
     label: "대시보드",
-    Icon: LayerIcon,
+    Icon: DashboardIcon,
     href: PARTNERS_DASHBOARD_HREF,
     activePrefix: PARTNERS_DASHBOARD_HREF,
   },
   {
     key: "collabs",
     label: "콜라보",
-    Icon: CalendarIcon,
+    Icon: ClapIcon,
     href: "/partners/collabs",
     activePrefix: "/partners/collabs",
   },
   {
     key: "history",
     label: "참여 이력",
-    Icon: ListIcon,
+    Icon: ReceiptIcon,
     href: "/partners/history",
     activePrefix: "/partners/history",
   },
   {
     key: "stores",
-    label: "매장 관리",
-    Icon: Store,
+    label: "내 매장",
+    Icon: StoreIcon,
     href: "/partners/stores",
     activePrefix: "/partners/stores",
   },
   {
     key: "agreement",
     label: "기본협약",
-    Icon: FileTextIcon,
-    href: "/partners/join/agreement",
+    Icon: SquareCheckIcon,
+    // from=menu — 메뉴로 들어오면 가입 진행의 03 매장 등록이 등록 여부 체크로, "다음 · 매장 등록" 버튼은 없다(PartnerAgreement).
+    href: "/partners/join/agreement?from=menu",
     activePrefix: "/partners/join/agreement",
   },
   {
     key: "messages",
     label: "대화",
-    Icon: ChatIcon,
+    Icon: BubbleIcon,
     href: "/partners/messages",
     activePrefix: "/partners/messages",
   },
   {
     key: "documents",
     label: "문서함",
-    Icon: FolderIcon,
+    Icon: OpenFolderIcon,
     href: "/partners/documents",
     activePrefix: "/partners/documents",
   },
@@ -214,12 +229,15 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
       : MENU;
   // 가장 길게 맞는 경로 하나만 활성 — /partners/dashboard 에서 "소개"(/partners)까지 켜지지 않게.
   // 내 정보(/partners/profile)는 메뉴에 없으니 아무것도 켜지 않는다.
+  // 제휴사의 콜라보 첫 화면(/partners)은 내 매장을 보여 주므로(PartnersHome) "내 매장"을 켠다.
   const activeKey = pathname.startsWith("/partners/profile")
     ? undefined
-    : menu
-        .filter((m) => m.activePrefix && pathname.startsWith(m.activePrefix))
-        .sort((a, b) => b.activePrefix!.length - a.activePrefix!.length)[0]
-        ?.key;
+    : partner && pathname === "/partners"
+      ? "stores"
+      : menu
+          .filter((m) => m.activePrefix && pathname.startsWith(m.activePrefix))
+          .sort((a, b) => b.activePrefix!.length - a.activePrefix!.length)[0]
+          ?.key;
 
   const row = (item: PartnersMenuItem) => {
     const active = item.key === activeKey;
@@ -329,6 +347,9 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
               {menu.map(row)}
             </ul>
 
+            {/* 메뉴와 admix로 돌아가기 사이 구분선(알림 아래 구분선과 같은 모양). */}
+            <hr className="mx-[6px] mt-[12px] mb-[8px] border-t border-gray-200" />
+
             {/* admix로 돌아가기 — 소개 메뉴 밑 작은 줄(← + admix 글자 로고). 마우스를 올리면 화살표가 왼쪽으로 움직인다. */}
             <Link
               href="/"
@@ -337,7 +358,7 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
               title="admix로 돌아가기"
               className={cn(
                 // 메뉴보다 한 단계 작은 보조 줄(32px → 곡률 13px). 아이콘 가운데는 메뉴와 같은 x=39px 열.
-                "group mt-[8px] flex h-[32px] w-full items-center gap-[8px] overflow-hidden rounded-[13px] pr-[12px] pl-[21px] text-gray-400 transition-colors outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary-200",
+                "group flex h-[32px] w-full items-center gap-[8px] overflow-hidden rounded-[13px] pr-[12px] pl-[21px] text-gray-400 transition-colors outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary-200",
               )}
             >
               <ArrowLeftIcon className="size-[16px] shrink-0 transition-transform duration-200 ease-out group-hover:-translate-x-[4px]" />
@@ -355,6 +376,13 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
           </div>
 
           <div className="pb-[10px]">
+            {/* 알림 — 화면 모드 위, 사이에 구분선(PC). 모바일은 위 띠의 종 아이콘. */}
+            {hasStore && (
+              <div className="max-sm:hidden">
+                <PartnerNotificationCard collapsed={collapsed} />
+                <hr className="mx-[6px] my-[14px] border-t border-gray-200" />
+              </div>
+            )}
             {/* 화면 모드 — admix 사이드바와 같은 보조 줄(32px → 곡률 13px). */}
             <ThemeMenu
               placement={collapsed ? "right bottom" : "top start"}
@@ -364,12 +392,6 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
               )}
               labelClassName={cn("whitespace-nowrap", fadeLabel(collapsed))}
             />
-            {/* 알림 — admix "현재 기획안" 카드 자리(로그인 정보 바로 위). 모바일은 위 띠의 종 아이콘. */}
-            {hasStore && (
-              <div className="mb-[12px] max-sm:hidden">
-                <PartnerNotificationCard collapsed={collapsed} />
-              </div>
-            )}
             {meLoading ? (
               <div
                 role="status"
@@ -414,6 +436,7 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
                     <ProfileMenu
                       onNavigate={close}
                       profileHref="/partners/profile"
+                      helpHref="/partners/help"
                     />
                   </Dropdown.Popover>
                 </Dropdown>

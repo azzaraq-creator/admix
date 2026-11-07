@@ -30,15 +30,9 @@ const CATEGORY_HINT: Partial<Record<MemberCategory, string>> = {
   general: "회원 유형은 나중에 변경할 수 있어요.",
 };
 
-/** 제휴사(콜라보) 가입 마지막(약관 동의) 버튼 위 말풍선 — 가입이 끝나면 기본협약 동의 → 매장 등록으로 간다. */
-export const PARTNER_TERMS_HINT =
-  "누르면 가입이 끝나고 협약·매장 등록으로 넘어가요.";
-/** 제휴사(콜라보) 약관 동의 단계 버튼 글자. */
-export const PARTNER_TERMS_LABEL = "협약·매장 등록하기";
-
 /** 제휴사(콜라보) 이메일 가입 — 이메일 인증부터. */
 export const PARTNER_SIGNUP_HREF = "/signup?category=partner";
-/** 제휴사(콜라보) 가입이 끝나면 가는 기본협약 동의. */
+/** 제휴사(콜라보) 기본협약 동의 — 가입 완료 화면의 "협약·매장 등록하기"로 간다. */
 export const PARTNER_AGREEMENT_HREF = "/partners/join/agreement";
 
 /**

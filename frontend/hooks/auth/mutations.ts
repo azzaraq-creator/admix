@@ -113,3 +113,23 @@ export const useCancelBusinessRegistration = () => {
     },
   });
 };
+
+export const useUploadBrandImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => authApi.uploadBrandImage(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+  });
+};
+
+export const useDeleteBrandImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => authApi.deleteBrandImage(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+  });
+};

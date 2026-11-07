@@ -52,6 +52,8 @@ export interface MeResponse {
   verified: boolean;
   member_category: MemberCategory;
   company_name: string | null;
+  /** 광고주 브랜드 사진(/uploads/… 또는 S3) — 없으면 null, 콜라보 화면엔 기본 "C". */
+  brand_image_url?: string | null;
   marketing_consent: boolean;
   created_at: string;
   business_registration: BusinessRegistration | null;
@@ -117,6 +119,16 @@ export const authApi = {
       .post<MeResponse>("/auth/me/business-registration", form)
       .then((r) => r.data);
   },
+  /** 광고주 브랜드 사진 올리기(바꾸기). */
+  uploadBrandImage: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<MeResponse>("/auth/me/brand-image", form)
+      .then((r) => r.data);
+  },
+  deleteBrandImage: () =>
+    api.delete<MeResponse>("/auth/me/brand-image").then((r) => r.data),
   cancelBusinessRegistration: () =>
     api
       .delete<MeResponse>("/auth/me/business-registration")

@@ -29,7 +29,7 @@ from src.services import media_service as ms
 
 log = logging.getLogger(__name__)
 
-MAX_IMAGES = 10
+MAX_IMAGES = 9
 MAX_TAGS = 3
 PARTNERS_MEDIA_SMALL = "매장"
 # 매장을 등록할 수 있는 사업자 등록 상태 — 올리기만 해도(검토 중) 등록할 수 있다.
@@ -309,8 +309,9 @@ def _delete_store(db: Session, store: PartnersStore) -> None:
 # ── 사진 올리기 ────────────────────────────────────────────────────────
 
 
-def upload_image(file: UploadFile) -> str:
-    """매장 사진 한 장을 S3(로컬은 upload_dir)에 올리고 주소를 돌려준다 — 매체 사진과 같은 규칙(10MB·줄이기)."""
+def upload_image(file: UploadFile, folder: str = "cafe") -> str:
+    """사진 한 장을 S3(로컬은 upload_dir)에 올리고 주소를 돌려준다 — 매체 사진과 같은 규칙(10MB·줄이기).
+    folder — 매장 사진은 cafe, 광고주 브랜드 사진은 brand."""
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ms._MEDIA_IMAGE_EXTS:
         raise HTTPException(status_code=400, detail="JPG·PNG·WEBP·GIF 이미지만 올릴 수 있어요.")
@@ -319,7 +320,7 @@ def upload_image(file: UploadFile) -> str:
         raise HTTPException(status_code=400, detail="사진은 한 장에 10MB 이하만 올릴 수 있어요.")
     content = ms.shrink_media_image(content, ext)
     settings = get_settings()
-    key = f"cafe/{uuid.uuid4().hex}{ext}"
+    key = f"{folder}/{uuid.uuid4().hex}{ext}"
     if settings.media_image_storage == "local":
         dest = Path(settings.upload_dir) / key
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -397,8 +398,23 @@ def list_mine(db: Session, user: User) -> list[dict]:
     return [serialize(s) for s in rows]
 
 
+ONE_STORE_DETAIL = "매장은 한 회원당 한 곳만 등록할 수 있어요."
+
+
+def _ensure_no_other_store(db: Session, owner_id: uuid.UUID | None, *, except_id=None) -> None:
+    """매장은 1인 1개 — 이 회원이 (except_id 말고) 이미 가진 매장이 있으면 막는다."""
+    if owner_id is None:
+        return
+    q = db.query(PartnersStore.id).filter(PartnersStore.owner_user_id == owner_id)
+    if except_id is not None:
+        q = q.filter(PartnersStore.id != except_id)
+    if q.first() is not None:
+        raise HTTPException(status_code=409, detail=ONE_STORE_DETAIL)
+
+
 def create_mine(db: Session, user: User, data: dict) -> dict:
     ensure_can_register(user)
+    _ensure_no_other_store(db, user.id)
     store = PartnersStore(owner_user_id=user.id, status="active", image_urls=[], tags=[])
     _apply(store, data, admin=False)
     db.add(store)
@@ -476,6 +492,7 @@ def _owner_by_login(db: Session, login_id: str | None) -> uuid.UUID | None:
 def admin_create(db: Session, data: dict) -> dict:
     store = PartnersStore(status="active", image_urls=[], tags=[])
     store.owner_user_id = _owner_by_login(db, data.get("owner_login_id"))
+    _ensure_no_other_store(db, store.owner_user_id)
     _apply(store, data, admin=True)
     db.add(store)
     db.flush()
@@ -489,6 +506,7 @@ def admin_update(db: Session, store_id: str, data: dict) -> dict:
     store = _get_or_404(db, store_id)
     if "owner_login_id" in data:
         store.owner_user_id = _owner_by_login(db, data.get("owner_login_id"))
+        _ensure_no_other_store(db, store.owner_user_id, except_id=store.id)
     _apply(store, data, admin=True)
     sync_media(db, store)
     db.commit()

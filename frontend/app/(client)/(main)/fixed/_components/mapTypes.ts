@@ -1,3 +1,4 @@
+import type { PartnersCardInfo } from "@/hooks/media";
 import type { KakaoCustomOverlay, KakaoMarker } from "@/lib/kakaoMap";
 
 export interface MapMarker {
@@ -14,6 +15,8 @@ export interface MapMarker {
   images?: string[];
   badge?: "popular" | "new" | null;
   stopNo?: string | null;
+  /** 콜라보 매장만 — 지도 팝업 카드의 운영 시간 · 매장 특징. */
+  partners?: PartnersCardInfo | null;
 }
 
 export type MapMoveType = "program" | "zoom" | "drag";

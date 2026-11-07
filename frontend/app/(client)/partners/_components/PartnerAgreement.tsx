@@ -38,7 +38,7 @@ import {
   TextModal,
   annexesFor,
 } from "./agreementShared";
-import { JoinAccount, JoinFlow } from "./JoinFlow";
+import { JoinAccount, JoinFlow, JoinFlowWithStore } from "./JoinFlow";
 import { AnnexStage, ConsentStage, DocumentStage } from "./agreementStages";
 
 /*
@@ -50,6 +50,7 @@ import { AnnexStage, ConsentStage, DocumentStage } from "./agreementStages";
  * 문구는 미리보기의 기본협약(v1.3) 데이터(agreement.json)를 그대로 옮겼다 — 조항을 새로 짓지 않는다.
  * 본인확인 · 동의 접수는 아직 서버가 없어 예시로만 처리한다 — 접수하면 임시로 4단계(계약서)로 넘어가고,
  * 계약서 아래 "다음"으로 매장 등록(/partners/join/store)에 간다.
+ * 사이드바 메뉴 "기본협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 등록이 등록 여부 체크로 보이고, "다음 · 매장 등록" 버튼은 없다.
  * 디자인은 소개 화면과 같은 언어 — 옅은 보라 배경 빛 위에 흰 유리 카드, 진한 보라는 버튼 · 진행 표시에만.
  */
 
@@ -107,7 +108,14 @@ function OriginalModal({
  * 이미 동의했으면 계약서 단계부터, 모든 확인 · 동의 체크를 켠 채로(동의 후에는 풀 수 없다). 로그인 전(미리보기)은 저장 없이 처음부터.
  * 동의를 접수해도 key 가 그대로라 화면을 새로 그리지 않는다 — 체크한 상태 그대로 남는다.
  */
-export function PartnerAgreement({ member = false }: { member?: boolean }) {
+export function PartnerAgreement({
+  member = false,
+  fromMenu = false,
+}: {
+  member?: boolean;
+  /** 사이드바 메뉴 "기본협약"으로 들어옴 — 가입 흐름이 아니라 협약을 다시 보러 온 것. */
+  fromMenu?: boolean;
+}) {
   const { data: me, isError } = useMe();
   const hasToken = useHasUserToken(member);
   const partner = me?.member_category === "partner";
@@ -132,7 +140,14 @@ export function PartnerAgreement({ member = false }: { member?: boolean }) {
   const initial: { progress: Partial<Progress>; agreed: boolean } = agreed
     ? { progress: agreedProgress(saved), agreed: true }
     : { progress: saved, agreed: false };
-  return <AgreementBody key={me?.id ?? "guest"} me={me} initial={initial} />;
+  return (
+    <AgreementBody
+      key={me?.id ?? "guest"}
+      me={me}
+      initial={initial}
+      fromMenu={fromMenu}
+    />
+  );
 }
 
 /** 이미 동의한 계정 — 저장된 서명자 구분은 살리고, 나머지 확인 · 동의는 모두 켠 상태로 계약서 단계부터. */
@@ -154,9 +169,11 @@ function agreedProgress(saved: Partial<Progress>): Progress {
 function AgreementBody({
   me,
   initial,
+  fromMenu,
 }: {
   me: MeResponse | undefined;
   initial: { progress: Partial<Progress>; agreed: boolean };
+  fromMenu: boolean;
 }) {
   const router = useRouter();
   const saved = initial.progress;
@@ -322,12 +339,11 @@ function AgreementBody({
 
   return (
     <div className="isolate flex flex-1 flex-col">
-      {/* 배경 빛 — 소개 화면과 같은 연보라 빛을 본문 영역(main) 전체에 깐다. */}
+      {/* 배경 빛 — 소개 화면과 같은 연보라 빛을 본문 영역(main) 전체에 깐다(다크 모드는 35%만). */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)] dark:opacity-35"
       />
-
       {/* ── 위 — 소개로 돌아가기 · 가입 진행 ── */}
       <div className="flex flex-wrap items-center justify-between gap-[12px]">
         <Link
@@ -337,7 +353,11 @@ function AgreementBody({
           <ArrowLeftIcon className="size-[16px]" />
           가입·협약 소개
         </Link>
-        <JoinFlow current={1} />
+        {fromMenu ? (
+          <JoinFlowWithStore current={1} />
+        ) : (
+          <JoinFlow current={1} />
+        )}
       </div>
 
       <div className="mt-[20px] sm:mt-[28px]">
@@ -379,7 +399,7 @@ function AgreementBody({
                     className={cn(
                       "flex h-[52px] w-full items-center gap-[10px] rounded-[23px] border px-[12px] text-left whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                       current
-                        ? "border-white bg-surface/70 shadow-[0_4px_14px_rgba(42,20,89,0.08)] backdrop-blur-md dark:border-white/10"
+                        ? "border-white bg-surface/70 shadow-[0_4px_14px_rgba(42,20,89,0.08)] backdrop-blur-md dark:border-gray-100"
                         : "border-transparent enabled:hover:bg-surface/60",
                     )}
                   >
@@ -609,7 +629,11 @@ function AgreementBody({
           )}
 
           {stage === "document" && (
-            <DocumentStage onNext={() => router.push("/partners/join/store")} />
+            <DocumentStage
+              onNext={
+                fromMenu ? undefined : () => router.push("/partners/join/store")
+              }
+            />
           )}
         </section>
       </div>

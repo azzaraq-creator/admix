@@ -46,6 +46,8 @@ class User(Base):
         String(20), nullable=False, default="general", server_default="general"
     )
     company_name = Column(String(200), nullable=True)
+    # 광고주 브랜드 사진(066) — 가입 때(선택)·내 정보에서 올린다. 콜라보 화면의 브랜드 아이콘, 없으면 기본 "C".
+    brand_image_url = Column(String(500), nullable=True)
     # 제휴사(콜라보) 기본협약 동의 — 동의 시각 · 협약 버전(065). 비어 있으면 아직 동의 전(로그인 시 이어서 하기 창).
     partner_agreed_at = Column(DateTime(timezone=True), nullable=True)
     partner_agreement_version = Column(String(20), nullable=True)

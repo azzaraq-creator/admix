@@ -2,8 +2,10 @@
 
 /** 매체 찾기에서 콜라보 매장이 쓰는 카테고리(대). */
 export const PARTNERS_MEDIA_CATEGORY = "콜라보";
+/** 매체 찾기에서 콜라보 매장이 쓰는 카테고리(소) — 백엔드 PARTNERS_MEDIA_SMALL 과 같다. */
+export const PARTNERS_MEDIA_SMALL = "매장";
 
-export const PARTNERS_MAX_IMAGES = 10;
+export const PARTNERS_MAX_IMAGES = 9;
 export const PARTNERS_MAX_TAGS = 3;
 
 /** 매장 어필 선택지 — 인스타그램 해시태그처럼 짧게(최대 3개). */

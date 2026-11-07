@@ -9,12 +9,13 @@ import {
   InputGroup,
   TextField,
 } from "@heroui/react";
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
+import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { EyeIcon, FileIcon } from "@/components/icons";
 import { authApi } from "@/hooks/auth";
 import {
@@ -41,6 +42,8 @@ export type SignupInfo = {
   phone: string;
   company: string;
   file: File | null;
+  /** 광고주 브랜드 사진(선택) — 가입 뒤 올린다. */
+  brandImage: File | null;
 };
 
 export const EMPTY_SIGNUP_INFO: SignupInfo = {
@@ -50,11 +53,106 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   phone: "",
   company: "",
   file: null,
+  brandImage: null,
 };
 
 /** 백엔드 LICENSE_ALLOWED_EXTENSIONS / LICENSE_MAX_UPLOAD_SIZE 와 같다. */
 const BIZ_FILE_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 const BIZ_FILE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** 백엔드 매장·브랜드 사진 규칙(_MEDIA_IMAGE_EXTS · 10MB)과 같다. */
+const BRAND_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+function brandImageError(file: File): string | null {
+  const name = file.name.toLowerCase();
+  if (!BRAND_IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext)))
+    return "JPG, PNG, WEBP, GIF 이미지만 올릴 수 있습니다.";
+  if (file.size > BIZ_FILE_MAX_BYTES)
+    return "10MB 이하 파일만 올릴 수 있습니다.";
+  return null;
+}
+
+/** 광고주 브랜드 사진(선택) — 미리보기 동그라미 + 고르기 · 삭제. 없으면 기본 "C". */
+function BrandImageField({
+  file,
+  onChange,
+}: {
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  const preview = useMemo(
+    () => (file ? URL.createObjectURL(file) : null),
+    [file],
+  );
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+
+  return (
+    <div className="flex w-full flex-col gap-[8px]">
+      <p className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
+        브랜드 사진
+        <span className="text-[12px] font-normal text-gray-400">(선택)</span>
+      </p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={BRAND_IMAGE_EXTENSIONS.join(",")}
+        className="hidden"
+        onChange={(event) => {
+          const picked = event.target.files?.[0];
+          event.target.value = "";
+          if (!picked) return;
+          const err = brandImageError(picked);
+          setError(err ?? "");
+          if (!err) onChange(picked);
+        }}
+      />
+      <div className="flex items-center gap-[12px]">
+        <BrandAvatar
+          src={preview}
+          className="size-[56px] rounded-[18px] text-[24px]"
+        />
+        <div className="flex gap-[6px]">
+          <Button
+            variant="secondary"
+            size="sm"
+            onPress={() => inputRef.current?.click()}
+            className={cn("h-[36px] px-[14px] text-[13px]", RADIUS.h36)}
+          >
+            {file ? "다른 사진" : "사진 선택"}
+          </Button>
+          {file && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => onChange(null)}
+              className={cn(
+                "h-[36px] px-[12px] text-[13px] text-gray-500",
+                RADIUS.h36,
+              )}
+            >
+              삭제
+            </Button>
+          )}
+        </div>
+      </div>
+      {error ? (
+        <FieldMessage tone="error">{error}</FieldMessage>
+      ) : (
+        <FieldMessage>
+          콜라보 화면에 브랜드 아이콘으로 보여요. 올리지 않으면 기본 이미지(C)가
+          보이고, 가입 후 내 정보에서 언제든 올릴 수 있어요.
+        </FieldMessage>
+      )}
+    </div>
+  );
+}
 
 function bizFileError(file: File): string | null {
   const name = file.name.toLowerCase();
@@ -93,6 +191,7 @@ export function InfoStep({
   needPassword,
   showBizCert,
   partner = false,
+  brandImage = false,
   initial,
   serverError,
   onNext,
@@ -104,6 +203,8 @@ export function InfoStep({
   showBizCert: boolean;
   /** 제휴사(콜라보) — "정보 추가 입력"(회사명) 없이 사업자등록증만, 필수는 아니고 추후 인증이 필요하다고 알린다. */
   partner?: boolean;
+  /** 광고주 — "정보 추가 입력" 상자에 브랜드 사진(선택) 칸을 더한다. */
+  brandImage?: boolean;
   initial: SignupInfo;
   /** 가입 요청에서 돌아온 오류(예: 이미 가입된 전화번호). */
   serverError?: { field: "phone"; message: string } | null;
@@ -440,6 +541,13 @@ export function InfoStep({
             >
               <Input placeholder="회사명" className="h-[44px] rounded-[19px]" />
             </TextField>
+
+            {brandImage && (
+              <BrandImageField
+                file={values.brandImage}
+                onChange={(file) => set("brandImage", file)}
+              />
+            )}
 
             {showBizCert && bizCert}
           </div>

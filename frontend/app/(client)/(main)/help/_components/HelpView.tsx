@@ -13,7 +13,19 @@ import { parseTerms, TermsSectionBody } from "./TermsDocument";
 // 목차에서 조로 이동할 때 조 제목 위에 남길 여백.
 const SECTION_OFFSET = 24;
 
-export function HelpView() {
+/**
+ * 약관 및 정책 — 이용약관 · 개인정보 처리방침 · 위치기반 약관 탭(?tab=).
+ * basePath: 이 화면의 주소 — 탭을 바꿀 때 주소창을 이 주소 기준으로 고친다(admix /help, 콜라보 /partners/help).
+ * embedded: 콜라보 화면 안(사이드바 레이아웃이 여백·스크롤을 맡는다) — 자기 여백·스크롤과 admix 하단 정보(Footer)를 뺀다.
+ *   Footer 의 약관 링크는 admix(/help)로 나가므로 콜라보 안에서는 두지 않는다.
+ */
+export function HelpView({
+  basePath = "/help",
+  embedded = false,
+}: {
+  basePath?: string;
+  embedded?: boolean;
+} = {}) {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   // ?tab=이 없으면 이용약관이다. (처음 들어온 탭으로 되돌아가면, ?tab=location으로 들어와
@@ -118,7 +130,7 @@ export function HelpView() {
     window.history.replaceState(
       null,
       "",
-      key === "terms" ? "/help" : `/help?tab=${key}`,
+      key === "terms" ? basePath : `${basePath}?tab=${key}`,
     );
   };
 
@@ -158,8 +170,20 @@ export function HelpView() {
   };
 
   return (
-    <div data-tabbar-pad className="min-w-0 flex-1 overflow-y-auto bg-gray-50">
-      <div className="mx-auto flex w-full max-w-[1016px] flex-col px-[16px] py-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[40px]">
+    <div
+      data-tabbar-pad={embedded ? undefined : true}
+      className={cn(
+        "min-w-0 flex-1",
+        !embedded && "overflow-y-auto bg-gray-50",
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-[1016px] flex-col",
+          !embedded &&
+            "px-[16px] py-[16px] sm:px-[24px] sm:pt-[56px] sm:pb-[40px]",
+        )}
+      >
         <header className="flex flex-col gap-[6px]">
           <h1 className="text-[18px] leading-[26px] font-bold text-gray-900 sm:text-[26px] sm:leading-[34px]">
             약관 및 정책
@@ -230,8 +254,16 @@ export function HelpView() {
           </Tabs>
         </div>
 
-        {/* 넓은 화면: 목차와 본문이 화면 높이 안에서 각자 스크롤한다. */}
-        <div className="mt-[16px] grid gap-[20px] sm:mt-[20px] lg:h-[calc(100dvh-236px)] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]">
+        {/* 넓은 화면: 목차와 본문이 화면 높이 안에서 각자 스크롤한다.
+            콜라보 안(embedded)은 위아래 여백(32px씩)을 레이아웃이 줘서 그만큼 높이를 다시 맞춘다. */}
+        <div
+          className={cn(
+            "mt-[16px] grid gap-[20px] sm:mt-[20px] lg:min-h-[480px] lg:grid-cols-[220px_minmax(0,1fr)]",
+            embedded
+              ? "lg:h-[calc(100dvh-212px)]"
+              : "lg:h-[calc(100dvh-236px)]",
+          )}
+        >
           <nav
             aria-label="목차"
             className="hidden min-h-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-surface lg:flex"
@@ -297,7 +329,7 @@ export function HelpView() {
         </div>
       </div>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

@@ -133,7 +133,14 @@ export interface KakaoMaps {
   load: (callback: () => void) => void;
   Map: new (
     container: HTMLElement,
-    options: { center: KakaoLatLng; level: number },
+    options: {
+      center: KakaoLatLng;
+      level: number;
+      /** 끌어서 옮기기 · 휠 확대 · 두 번 눌러 확대 — 빼면 카카오 기본(모두 됨). */
+      draggable?: boolean;
+      scrollwheel?: boolean;
+      disableDoubleClickZoom?: boolean;
+    },
   ) => KakaoMap;
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
   LatLngBounds: new () => KakaoLatLngBounds;

@@ -53,10 +53,10 @@ export function PartnerJoin() {
     <div className="isolate flex flex-1 flex-col justify-center">
       {/* 배경 빛 — 오른쪽 카드 뒤 연보라 + 왼쪽 위 아주 옅은 보라.
           본문 상자가 아니라 본문 영역(main, relative) 전체에 깐다 — 상자 가장자리에서 잘려 보이지 않게.
-          왼쪽 유리 칩 · 동그라미와 오른쪽 카드가 같은 배경 위에 놓여 한 화면으로 어울리게. */}
+          왼쪽 유리 칩 · 동그라미와 오른쪽 카드가 같은 배경 위에 놓여 한 화면으로 어울리게. 다크 모드는 35%만. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)] dark:opacity-35"
       />
       <div className="grid grid-cols-1 items-center gap-[14px] sm:gap-[32px] lg:grid-cols-[1fr_380px] lg:gap-[40px] xl:grid-cols-[1fr_420px] xl:gap-[64px]">
         {/* ── 왼쪽 — 소개 · 가입 순서 · 좋은 점 ── */}
@@ -88,7 +88,7 @@ export function PartnerJoin() {
             {STEPS.map(({ title, body }, i) => (
               <li key={title} className="flex flex-col">
                 <div className="flex items-center">
-                  <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full border border-white dark:border-white/10 bg-surface/70 text-[14px] font-bold text-gray-800 tabular-nums shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:size-[44px] sm:text-[16px]">
+                  <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full border border-white dark:border-gray-100 bg-surface/70 text-[14px] font-bold text-gray-800 tabular-nums shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:size-[44px] sm:text-[16px]">
                     {i + 1}
                   </span>
                   {i < STEPS.length - 1 && (
@@ -117,7 +117,7 @@ export function PartnerJoin() {
             {PERKS.map((perk) => (
               <li
                 key={perk}
-                className="flex h-[30px] shrink-0 items-center gap-[5px] rounded-full border border-white dark:border-white/10 bg-surface/60 pr-[12px] pl-[6px] text-[12px] font-semibold text-gray-700 shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:h-[34px] sm:gap-[6px] sm:pr-[14px] sm:pl-[8px] sm:text-[13px]"
+                className="flex h-[30px] shrink-0 items-center gap-[5px] rounded-full border border-white dark:border-gray-100 bg-surface/60 pr-[12px] pl-[6px] text-[12px] font-semibold text-gray-700 shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:h-[34px] sm:gap-[6px] sm:pr-[14px] sm:pl-[8px] sm:text-[13px]"
               >
                 <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <SmallCheckIcon className="size-[10px]" />
@@ -130,7 +130,7 @@ export function PartnerJoin() {
 
         {/* ── 오른쪽 — 기본협약 미리보기 · 시작하기 ──
             왼쪽과 같은 흰 유리 카드(배경 빛이 비친다), 주제 줄은 테두리 없는 흰 바탕 + 회색 번호 + 보라 기운 그림자 — 버튼 그림자와 한 덩어리로 보이게. */}
-        <section className="flex min-w-0 flex-col rounded-[24px] border border-white dark:border-white/10 bg-surface/70 p-[16px] shadow-[0_24px_60px_rgba(42,20,89,0.10)] backdrop-blur-md sm:rounded-[28px] sm:p-[28px]">
+        <section className="flex min-w-0 flex-col rounded-[24px] border border-white dark:border-gray-100 bg-surface/70 p-[16px] shadow-[0_24px_60px_rgba(42,20,89,0.10)] backdrop-blur-md sm:rounded-[28px] sm:p-[28px]">
           {/* 작은 머리 글자 — 칩 모양 없이 글자만. 모바일은 높이를 아끼려 뺀다. */}
           <span className="hidden self-start text-[12px] font-semibold text-primary sm:block">
             협약 단계 미리보기
