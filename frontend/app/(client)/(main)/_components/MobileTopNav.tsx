@@ -16,7 +16,8 @@ import { useMixieChat } from "./useMixieChat";
 
 /**
  * 상단바 왼쪽 — 사이드 메뉴 대신(메뉴는 하단 탭 바로 옮겼다) 회원이면 프로필 아이콘(누르면 화면 모드·내 정보·
- * 약관·로그아웃 메뉴), 아니면 회색 프로필 아이콘(누르면 화면 모드·로그인 / 회원가입). 회원 정보를 받는 동안엔 스피너.
+ * 약관·Collaboration·로그아웃 메뉴), 아니면 회색 프로필 아이콘(누르면 화면 모드·로그인 / 회원가입·Collaboration).
+ * Collaboration 은 PC 사이드바 맨 아래 줄을 모바일에 옮긴 것(11-08 사용자). 회원 정보를 받는 동안엔 스피너.
  * member — 로그인 쿠키가 있는지(서버가 넘긴다). 새로고침 때 비회원 아이콘이 잠깐 보였다 바뀌지 않게.
  */
 function MobileUserButton({ member }: { member: boolean }) {
@@ -46,7 +47,7 @@ function MobileUserButton({ member }: { member: boolean }) {
           />
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom start" className="min-w-[160px]">
-          <ProfileMenu withTheme />
+          <ProfileMenu withTheme withCollab />
         </Dropdown.Popover>
       </Dropdown>
     );
@@ -62,7 +63,7 @@ function MobileUserButton({ member }: { member: boolean }) {
         />
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom start" className="min-w-[160px]">
-        <GuestMenu />
+        <GuestMenu withCollab />
       </Dropdown.Popover>
     </Dropdown>
   );

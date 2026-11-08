@@ -78,7 +78,7 @@ export function CheckMark({
   );
 }
 
-/** 단계 카드 머리 — 작은 위 글자(없어도 됨) · 제목 · 설명. */
+/** 단계 카드 머리 — 작은 위 글자(없어도 됨) · 제목 · 설명. 제목은 모바일 18px(11-08 사용자: "사이즈 줄여줘"). */
 export function StageHeading({
   eyebrow,
   title,
@@ -98,7 +98,7 @@ export function StageHeading({
       <h2
         className={cn(
           eyebrow && "mt-[6px]",
-          "text-[20px] font-bold tracking-[-0.02em] break-keep text-gray-900 sm:text-[24px]",
+          "text-[18px] font-bold tracking-[-0.02em] break-keep text-gray-900 sm:text-[24px]",
         )}
       >
         {title}

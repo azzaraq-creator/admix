@@ -135,7 +135,13 @@ export function PeriodBar({ c }: { c: PreviewCollab }) {
       className="flex flex-col gap-[8px]"
       aria-label={`모집 ${md(c.recruitStart)}~${md(c.recruitEnd)}, 설치 ${md(c.installDate)}, 진행 ${md(c.startDate)}~${md(c.endDate)}, 철수 ${md(c.removalDate)}`}
     >
-      <div className="relative h-[8px] rounded-full bg-gray-50">
+      {/* 모바일은 "오늘" 범례 대신 표시 위에 글자를 단다 — 그 자리(14px)를 위에 비워 둔다. */}
+      <div
+        className={cn(
+          "relative h-[8px] rounded-full bg-gray-50",
+          todayIn && "max-sm:mt-[16px]",
+        )}
+      >
         {segs.map((g, i) => {
           const last = i === segs.length - 1;
           // 하루짜리(설치 · 철수)도 칸으로 보이게 최소 8px. 다음 칸과 맞닿거나 막대 맨 끝이면
@@ -162,14 +168,27 @@ export function PeriodBar({ c }: { c: PreviewCollab }) {
           );
         })}
         {todayIn && (
-          <span
-            title={`오늘 ${md(PREVIEW_TODAY)}`}
-            className="absolute -top-[3px] h-[14px] w-[2px] -translate-x-1/2 rounded-full bg-gray-900 ring-2 ring-surface"
-            style={{ left: `${pct(PREVIEW_TODAY)}%` }}
-          />
+          <>
+            <span
+              title={`오늘 ${md(PREVIEW_TODAY)}`}
+              className="absolute -top-[3px] h-[14px] w-[2px] -translate-x-1/2 rounded-full bg-gray-900 ring-2 ring-surface"
+              style={{ left: `${pct(PREVIEW_TODAY)}%` }}
+            />
+            <span
+              aria-hidden
+              className="absolute bottom-[calc(100%+5px)] -translate-x-1/2 text-[10px] leading-none font-bold text-gray-900 sm:hidden"
+              style={{ left: `${pct(PREVIEW_TODAY)}%` }}
+            >
+              오늘
+            </span>
+          </>
         )}
       </div>
-      <ul className="flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11px] text-gray-500 tabular-nums">
+      {/*
+       * 범례 — PC는 한 줄로 흐르고, 모바일은 네 칸 격자(위 이름 · 아래 날짜)로 칸을 맞춘다.
+       * 좁은 화면에서 줄이 들쭉날쭉 꺾이던 것을 정리했다(진행 칸은 날짜가 길어 조금 넓게).
+       */}
+      <ul className="flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11px] text-gray-500 tabular-nums max-sm:grid max-sm:grid-cols-[1fr_1fr_1.45fr_1fr] max-sm:gap-x-[6px]">
         <LegendItem color={BAR.recruit.color} label="모집">
           ~{md(c.recruitEnd)}
         </LegendItem>
@@ -183,7 +202,7 @@ export function PeriodBar({ c }: { c: PreviewCollab }) {
           {md(c.removalDate)}
         </LegendItem>
         {todayIn && (
-          <li className="flex items-center gap-[5px]">
+          <li className="flex items-center gap-[5px] max-sm:hidden">
             <span
               aria-hidden
               className="h-[10px] w-[2px] rounded-full bg-gray-900"
@@ -206,10 +225,12 @@ function LegendItem({
   children: ReactNode;
 }) {
   return (
-    <li className="flex items-center gap-[5px] whitespace-nowrap">
-      <span aria-hidden className={cn("size-[7px] rounded-full", color)} />
-      <span className="font-semibold text-gray-600">{label}</span>
-      {children}
+    <li className="flex min-w-0 items-center gap-[5px] whitespace-nowrap max-sm:flex-col max-sm:items-start max-sm:gap-[3px]">
+      <span className="flex items-center gap-[5px]">
+        <span aria-hidden className={cn("size-[7px] rounded-full", color)} />
+        <span className="font-semibold text-gray-600">{label}</span>
+      </span>
+      <span className="max-sm:pl-[12px]">{children}</span>
     </li>
   );
 }
@@ -389,11 +410,22 @@ function Board({ tab }: { tab?: CollabCategory }) {
     lists.ongoing[0] ?? lists.upcoming.find((c) => c.standing === "confirmed");
 
   return (
-    <div className="flex flex-col gap-[16px]">
-      <PageHead title="콜라보" />
-      {/* 한 번에 1건 규칙(회색 한 줄) · 지금 잡힌 콜라보(옅은 보라 알약으로 살짝 또렷하게). */}
-      <div className="-mt-[6px] flex flex-wrap items-center gap-x-[10px] gap-y-[6px] text-[12px] break-keep text-gray-500">
-        <span className="flex items-center gap-[6px]">
+    <div className="flex flex-col gap-[12px] sm:gap-[16px]">
+      {/* 모바일은 제목을 감춘다 — 아래 탭 바가 "콜라보"를 켜 보여 준다(대시보드와 같다). */}
+      <PageHead title="콜라보" className="max-sm:sr-only" />
+      {/*
+       * 한 번에 1건 규칙(회색 한 줄) · 지금 잡힌 콜라보(옅은 보라 알약으로 살짝 또렷하게).
+       * 모바일은 규칙 문구를 빼고 맨 위에 알약만(11-08 사용자: "맨 위에 짧게" → "이 문구 없애도 될 듯").
+       * 겹치는 카드에는 "기간이 겹쳐요"가 따로 나온다. 잡힌 콜라보가 없으면 모바일은 줄째 감춘다.
+       * 알약은 달력 아이콘을 빼고, 브랜드가 길면 말줄임.
+       */}
+      <div
+        className={cn(
+          "-mt-[6px] flex flex-wrap items-center gap-x-[10px] gap-y-[6px] text-[12px] break-keep text-gray-500 max-sm:mt-0",
+          !held && "max-sm:hidden",
+        )}
+      >
+        <span className="flex items-center gap-[6px] max-sm:hidden">
           <MaskIcon
             src="/icons/info.svg"
             className="size-[13px] shrink-0 text-gray-400"
@@ -403,21 +435,27 @@ function Board({ tab }: { tab?: CollabCategory }) {
         {held && (
           <Link
             href={collabHref(held.id)}
-            className="flex items-center gap-[6px] rounded-full bg-primary-50 py-[3px] pr-[10px] pl-[4px] text-[12px] font-medium text-primary-700 no-underline transition-colors hover:bg-primary-100 hover:no-underline"
+            aria-label={`지금 잡힌 콜라보 ${held.brand}, ${md(held.installDate)} ~ ${md(held.removalDate)}`}
+            className="flex max-w-full items-center gap-[6px] rounded-full bg-primary-50 py-[3px] pr-[10px] pl-[4px] text-[12px] font-medium whitespace-nowrap text-primary-700 no-underline transition-colors hover:bg-primary-100 hover:no-underline"
           >
             <BrandAvatar
               src={held.brandImage}
               name={held.brand}
-              className="size-[18px] rounded-full text-[11px]"
+              className="size-[18px] shrink-0 rounded-full text-[11px]"
             />
-            지금 잡힌 콜라보
-            <b className="font-bold text-gray-900">{held.brand}</b>
+            <span className="shrink-0">지금 잡힌 콜라보</span>
+            <b className="min-w-0 truncate font-bold text-gray-900">
+              {held.brand}
+            </b>
             {/* 브랜드 | 기간 — 세로 구분선 + 달력 아이콘으로 나눈다. */}
-            <span aria-hidden className="h-[10px] w-px bg-primary-200" />
-            <span className="flex items-center gap-[4px] font-semibold text-gray-700 tabular-nums">
+            <span
+              aria-hidden
+              className="h-[10px] w-px shrink-0 bg-primary-200"
+            />
+            <span className="flex shrink-0 items-center gap-[4px] font-semibold text-gray-700 tabular-nums">
               <MaskIcon
                 src="/icons/calendar.svg"
-                className="size-[12px] text-gray-500"
+                className="size-[12px] text-gray-500 max-sm:hidden"
               />
               {md(held.installDate)} ~ {md(held.removalDate)}
             </span>
@@ -432,13 +470,15 @@ function Board({ tab }: { tab?: CollabCategory }) {
           })
         }
       >
-        <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px]">
+        {/* 모바일은 너비를 꽉 채운다 — HeroUI 탭 목록이 칸 너비만큼 늘어 네 칸이 같은 폭이 된다. */}
+        <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px] max-sm:w-full">
           <Tabs.List aria-label="콜라보 목록">
             {SEGMENTS.map((s) => (
               <Tabs.Tab
                 key={s.id}
                 id={s.id}
-                className="gap-[6px] rounded-[13px] whitespace-nowrap"
+                // 모바일은 HeroUI 최소 폭(80px)을 풀어 320px 화면에서도 네 칸이 다 들어오게. 글자는 13px(11-08 사용자: 모바일 탭은 작게).
+                className="gap-[6px] rounded-[13px] whitespace-nowrap max-sm:min-w-0 max-sm:px-[6px] max-sm:text-[13px]"
               >
                 {s.label}
                 <span className="tabular-nums opacity-60">
@@ -450,7 +490,12 @@ function Board({ tab }: { tab?: CollabCategory }) {
           </Tabs.List>
         </Tabs.ListContainer>
         {SEGMENTS.map((s) => (
-          <Tabs.Panel key={s.id} id={s.id} className="pt-[16px]">
+          // 모바일은 HeroUI 패널 아래 여백(8px)을 뺀다 — 본문 끝 여백과 겹쳐 목록 아래가 너무 비었다(11-08 사용자).
+          <Tabs.Panel
+            key={s.id}
+            id={s.id}
+            className="pt-[14px] max-sm:pb-0 sm:pt-[16px]"
+          >
             {lists[s.id].length ? (
               <div className="grid gap-[12px] md:grid-cols-2 xl:grid-cols-3">
                 {lists[s.id].map((c) => (

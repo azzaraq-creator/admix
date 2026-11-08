@@ -3,17 +3,13 @@
 import { Button, Dropdown, Spinner } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, type ComponentType } from "react";
 
 import {
   ArrowLeftIcon,
-  PartnersIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ProfileAvatarIcon,
 } from "@/components/icons";
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import {
   GUEST_AVATAR_CLASS,
   ProfileMenu,
@@ -24,220 +20,45 @@ import {
   setLnbCollapsed,
   useLnbCollapsed,
 } from "@/app/(client)/(main)/_components/useLnb";
-import { MaskIcon } from "@/components/common/MaskIcon";
-import { useHasUserToken, useMe } from "@/hooks/auth";
 import { avatarColorClass } from "@/lib/avatarColor";
-import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
-import { useMyPartnersStores } from "@/hooks/partners";
 import { cn } from "@/lib/utils";
 
 import {
-  PartnerNotificationCard,
-  PartnerNotificationHeaderButton,
-} from "./workspace/PartnerNotifications";
-
-type PartnersMenuItem = {
-  key: string;
-  label: string;
-  Icon: ComponentType<{ className?: string }>;
-  href: string;
-  /** 이 경로로 시작하면 활성. */
-  activePrefix?: string;
-};
-
-/**
- * 메뉴 아이콘 — public/icons SVG를 글자색 한 색으로(MaskIcon).
- * 파일은 그림이 상자에 꽉 차서, 18px 칸 안 15px(사방 1.5px 여백)에 그려 admix 사이드바 아이콘
- * (viewBox 안에 여백이 있어 실제로 15px 안팎)과 크기 · 무게를 맞춘다.
- */
-function maskIcon(src: string) {
-  function MenuMaskIcon({ className }: { className?: string }) {
-    return <MaskIcon src={src} className={cn("p-[1.5px]", className)} />;
-  }
-  return MenuMaskIcon;
-}
-
-const DashboardIcon = maskIcon("/icons/dashboard.svg");
-const ClapIcon = maskIcon("/icons/clap-duo.svg");
-const ReceiptIcon = maskIcon("/icons/receipt.svg");
-const SquareCheckIcon = maskIcon("/icons/square-check.svg");
-const BubbleIcon = maskIcon("/icons/bubble.svg");
-const OpenFolderIcon = maskIcon("/icons/open-folder.svg");
-const StoreIcon = maskIcon("/icons/store.svg");
-
-/** 소개 — 비회원 · 일반 · 대행사 · 매체사만. 광고주 · 제휴사(콜라보)에겐 보이지 않는다. */
-const MENU: PartnersMenuItem[] = [
-  {
-    key: "home",
-    label: "소개",
-    Icon: PartnersIcon,
-    href: "/partners",
-    activePrefix: "/partners",
-  },
-];
-
-/**
- * 제휴사(콜라보) 회원에게만 — 매장 화면(받은 프로토타입의 탭 구성 + 매장 관리).
- * 매장을 아직 등록하지 않았으면 대시보드만 보인다(대시보드가 매장 등록을 안내).
- */
-const PARTNER_MENU: PartnersMenuItem[] = [
-  {
-    key: "dashboard",
-    label: "대시보드",
-    Icon: DashboardIcon,
-    href: PARTNERS_DASHBOARD_HREF,
-    activePrefix: PARTNERS_DASHBOARD_HREF,
-  },
-  {
-    key: "collabs",
-    label: "콜라보",
-    Icon: ClapIcon,
-    href: "/partners/collabs",
-    activePrefix: "/partners/collabs",
-  },
-  {
-    key: "history",
-    label: "참여 이력",
-    Icon: ReceiptIcon,
-    href: "/partners/history",
-    activePrefix: "/partners/history",
-  },
-  {
-    key: "stores",
-    label: "내 매장",
-    Icon: StoreIcon,
-    href: "/partners/stores",
-    activePrefix: "/partners/stores",
-  },
-  {
-    key: "agreement",
-    label: "기본협약",
-    Icon: SquareCheckIcon,
-    // from=menu — 메뉴로 들어오면 가입 진행의 03 매장 등록이 등록 여부 체크로, "다음 · 매장 등록" 버튼은 없다(PartnerAgreement).
-    href: "/partners/join/agreement?from=menu",
-    activePrefix: "/partners/join/agreement",
-  },
-  {
-    key: "messages",
-    label: "대화",
-    Icon: BubbleIcon,
-    href: "/partners/messages",
-    activePrefix: "/partners/messages",
-  },
-  {
-    key: "documents",
-    label: "문서함",
-    Icon: OpenFolderIcon,
-    href: "/partners/documents",
-    activePrefix: "/partners/documents",
-  },
-];
+  fadeLabel,
+  PartnersLogo,
+  usePartnersNav,
+  type PartnersMenuItem,
+} from "./partnersNav";
+import {
+  PartnersMobileHeader,
+  PartnersMobileTabBar,
+} from "./PartnersMobileNav";
+import { PartnerNotificationCard } from "./workspace/PartnerNotifications";
 
 // admix 사이드바(Sidebar.tsx)와 같은 줄 모양 — 38px(곡률 16px), 아이콘 18px.
 // 아이콘 가운데는 x=39px 열(접힌 폭 78px의 가운데) — 접고 펼쳐도 아이콘이 제자리에 남는다.
 const NAV_ROW =
   "flex h-[38px] w-full items-center gap-[9px] overflow-hidden rounded-[16px] pr-[12px] pl-[20px] transition-colors";
 
-/** 접으면 글자는 바로 투명해지고, 펼치면 서서히 나타난다(admix 사이드바와 같다). 모바일 드로어는 늘 펼친 모양. */
-const fadeLabel = (collapsed: boolean) =>
-  collapsed
-    ? "sm:opacity-0 sm:transition-none"
-    : "opacity-100 transition-opacity duration-300";
-
-/**
- * 로고 — 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(사이드바 콜라보 메뉴와 같은 HS활공명조).
- * 심볼(36px) 가운데를 아이콘 열(x=39px)에 맞춘다 → 왼쪽 여백 11px. 접으면 심볼만 남는다.
- */
-function PartnersLogo({
-  collapsed = false,
-  onNavigate,
-  href = "/partners",
-}: {
-  /** 제휴사는 대시보드로(소개 메뉴가 없다). */
-  href?: string;
-  collapsed?: boolean;
-  onNavigate?: () => void;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-label="admix 콜라보"
-      onClick={onNavigate}
-      className="flex items-center gap-[10px] overflow-hidden pl-[11px]"
-    >
-      <Image
-        src="/service/symbol.svg"
-        alt=""
-        width={36}
-        height={37}
-        priority
-        className="h-[36px] w-auto shrink-0"
-      />
-      <span
-        className={cn(
-          "flex shrink-0 flex-col items-start gap-[5px]",
-          fadeLabel(collapsed),
-        )}
-      >
-        <Image
-          src="/service/admix-text-logo.svg"
-          alt=""
-          width={57}
-          height={16}
-          priority
-          className="h-[16px] w-auto dark:brightness-0 dark:invert"
-        />
-        <span
-          className={cn(
-            collabScript.className,
-            // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(사이드바 메뉴와 같다).
-            "text-[13px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-gray-400",
-          )}
-        >
-          Collaboration
-        </span>
-      </span>
-    </Link>
-  );
-}
-
 /**
  * /partners 왼쪽 사이드바 — admix 사이드바와 같은 틀(로고 · 메뉴 · 아래 화면 모드 · 프로필/로그인).
- * PC는 admix와 같은 180px ↔ 78px 접기(접힘 상태도 admix와 같이 쓴다), 모바일은 위 띠의 메뉴 버튼으로 여는 드로어.
+ * PC는 admix와 같은 180px ↔ 78px 접기(접힘 상태도 admix와 같이 쓴다).
+ * 모바일은 사이드바 대신 위 띠(로고 · 알림 · 프로필) + 아래 탭 바(PartnersMobileNav, 11-08 — 예전 드로어를 바꿨다).
  * member — 로그인 쿠키 유무(서버가 넘긴다). 있으면 회원 정보를 받는 동안 로그인 버튼 대신 스피너.
  */
 export function PartnersSidebar({ member = false }: { member?: boolean }) {
-  const [open, setOpen] = useState(false);
   const collapsed = useLnbCollapsed();
-  const pathname = usePathname();
-  const { data: me, isError } = useMe();
-  const hasToken = useHasUserToken(member);
-  const meLoading = hasToken && !me && !isError;
+  const {
+    me,
+    meLoading,
+    hasStore,
+    menuLoading,
+    menu,
+    activeKey,
+    logoHref,
+    onMenuClick,
+  } = usePartnersNav(member);
   const displayName = me?.name?.trim() ? me.name : "회원";
-  const close = () => setOpen(false);
-
-  const partner = me?.member_category === "partner";
-  const stores = useMyPartnersStores();
-  // 매장을 등록해야 나머지 메뉴 · 알림이 열린다(불러오는 동안도 대시보드만 — 메뉴가 늘었다 줄지 않게).
-  const hasStore = partner && (stores.data?.length ?? 0) > 0;
-  const menu: PartnersMenuItem[] = partner
-    ? hasStore
-      ? PARTNER_MENU
-      : PARTNER_MENU.slice(0, 1)
-    : me?.member_category === "advertiser"
-      ? []
-      : MENU;
-  // 가장 길게 맞는 경로 하나만 활성 — /partners/dashboard 에서 "소개"(/partners)까지 켜지지 않게.
-  // 내 정보(/partners/profile)는 메뉴에 없으니 아무것도 켜지 않는다.
-  // 제휴사의 콜라보 첫 화면(/partners)은 내 매장을 보여 주므로(PartnersHome) "내 매장"을 켠다.
-  const activeKey = pathname.startsWith("/partners/profile")
-    ? undefined
-    : partner && pathname === "/partners"
-      ? "stores"
-      : menu
-          .filter((m) => m.activePrefix && pathname.startsWith(m.activePrefix))
-          .sort((a, b) => b.activePrefix!.length - a.activePrefix!.length)[0]
-          ?.key;
 
   const row = (item: PartnersMenuItem) => {
     const active = item.key === activeKey;
@@ -246,7 +67,8 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
       <li key={item.key}>
         <Link
           href={item.href}
-          onClick={close}
+          // 누르자마자 본문을 로딩 화면으로 — 다음 화면 응답을 기다리는 동안 안 눌린 것처럼 보이지 않게.
+          onClick={(e) => onMenuClick(e, item.href)}
           aria-current={active ? "page" : undefined}
           aria-label={item.label}
           title={collapsed ? item.label : undefined}
@@ -270,39 +92,10 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
 
   return (
     <>
-      {/* 모바일 위 띠 — 메뉴 버튼 + 로고. 누르면 사이드바가 드로어로 열린다. */}
-      <div className="sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-[4px] border-b border-gray-200 bg-surface px-[8px] sm:hidden">
-        <Button
-          isIconOnly
-          variant="ghost"
-          aria-label="메뉴 열기"
-          aria-expanded={open}
-          onPress={() => setOpen(true)}
-          className="size-[40px] rounded-[17px]"
-        >
-          <span aria-hidden className="flex w-[18px] flex-col gap-[4px]">
-            <span className="h-[2px] w-full rounded-full bg-current" />
-            <span className="h-[2px] w-full rounded-full bg-current" />
-            <span className="h-[2px] w-full rounded-full bg-current" />
-          </span>
-        </Button>
-        <div className="-ml-[8px]">
-          <PartnersLogo href={partner ? PARTNERS_DASHBOARD_HREF : undefined} />
-        </div>
-        {hasStore && <PartnerNotificationHeaderButton />}
-      </div>
+      <PartnersMobileHeader member={member} />
+      <PartnersMobileTabBar member={member} />
 
-      {/* 모바일 드로어 뒤 어둡게 */}
-      <div
-        aria-hidden
-        onClick={close}
-        className={cn(
-          "fixed inset-0 z-40 bg-scrim/30 transition-opacity duration-300 ease-in-out sm:hidden",
-          open ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-
-      {/* 본문 자리(aside) 폭도 nav와 같이 움직여 경계선이 먼저 튀어나오지 않게 한다. */}
+      {/* 본문 자리(aside) 폭도 nav와 같이 움직여 경계선이 먼저 튀어나오지 않게 한다. 모바일은 폭 0(사이드바 없음). */}
       <aside
         className={cn(
           "relative w-0 shrink-0 transition-[width] duration-300 ease-in-out",
@@ -312,12 +105,11 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
         <nav
           aria-label="콜라보 사이드바"
           className={cn(
-            "fixed inset-y-0 left-0 z-40 flex h-dvh w-[180px] flex-col justify-between border-r border-gray-200 bg-surface p-[10px] transition-[translate,width] duration-300 ease-in-out sm:translate-x-0",
-            open ? "translate-x-0" : "-translate-x-full",
+            "fixed inset-y-0 left-0 z-40 hidden h-dvh w-[180px] flex-col justify-between border-r border-gray-200 bg-surface p-[10px] transition-[width] duration-300 ease-in-out sm:flex",
             collapsed && "sm:w-[78px]",
           )}
         >
-          {/* 접기/펼치기 — PC에서만, admix와 같이 사이드바 오른쪽 가장자리에 걸쳐 둔다(24px → 곡률 9px). */}
+          {/* 접기/펼치기 — admix와 같이 사이드바 오른쪽 가장자리에 걸쳐 둔다(24px → 곡률 9px). */}
           <Button
             isIconOnly
             variant="ghost"
@@ -336,49 +128,50 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
 
           <div className="flex flex-col">
             <div className="mt-[15px]">
-              <PartnersLogo
-                collapsed={collapsed}
-                onNavigate={close}
-                href={partner ? PARTNERS_DASHBOARD_HREF : undefined}
-              />
+              <PartnersLogo collapsed={collapsed} href={logoHref} />
             </div>
 
-            <ul className="mt-[30px] flex flex-col gap-[3px]">
-              {menu.map(row)}
-            </ul>
+            {/* 회원 정보 · 매장 여부를 받는 동안은 메뉴 · 구분선 · 돌아가기 줄을 통째로 비워 두고, 다 받으면 한 번에 그린다
+                (새 탭으로 열 때 비회원용 "소개" 메뉴가 잠깐 보이거나 돌아가기 줄이 아래로 밀려 내려가지 않게). */}
+            {!menuLoading && (
+              <>
+                <ul className="mt-[30px] flex flex-col gap-[3px]">
+                  {menu.map(row)}
+                </ul>
 
-            {/* 메뉴와 admix로 돌아가기 사이 구분선(알림 아래 구분선과 같은 모양). */}
-            <hr className="mx-[6px] mt-[12px] mb-[8px] border-t border-gray-200" />
+                {/* 메뉴와 admix로 돌아가기 사이 구분선(알림 아래 구분선과 같은 모양). */}
+                <hr className="mx-[6px] mt-[12px] mb-[8px] border-t border-gray-200" />
 
-            {/* admix로 돌아가기 — 소개 메뉴 밑 작은 줄(← + admix 글자 로고). 마우스를 올리면 화살표가 왼쪽으로 움직인다. */}
-            <Link
-              href="/"
-              onClick={close}
-              aria-label="admix로 돌아가기"
-              title="admix로 돌아가기"
-              className={cn(
-                // 메뉴보다 한 단계 작은 보조 줄(32px → 곡률 13px). 아이콘 가운데는 메뉴와 같은 x=39px 열.
-                "group flex h-[32px] w-full items-center gap-[8px] overflow-hidden rounded-[13px] pr-[12px] pl-[21px] text-gray-400 transition-colors outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary-200",
-              )}
-            >
-              <ArrowLeftIcon className="size-[16px] shrink-0 transition-transform duration-200 ease-out group-hover:-translate-x-[4px]" />
-              {/* 글자 로고는 검은 그림이라 옅게 두고, 마우스를 올리면 진하게. */}
-              <span className={cn("flex shrink-0", fadeLabel(collapsed))}>
-                <Image
-                  src="/service/admix-text-logo.svg"
-                  alt=""
-                  width={43}
-                  height={12}
-                  className="h-[12px] w-auto opacity-50 transition-opacity group-hover:opacity-100 dark:brightness-0 dark:invert"
-                />
-              </span>
-            </Link>
+                {/* admix로 돌아가기 — 소개 메뉴 밑 작은 줄(← + admix 글자 로고). 마우스를 올리면 화살표가 왼쪽으로 움직인다. */}
+                <Link
+                  href="/"
+                  aria-label="admix로 돌아가기"
+                  title="admix로 돌아가기"
+                  className={cn(
+                    // 메뉴보다 한 단계 작은 보조 줄(32px → 곡률 13px). 아이콘 가운데는 메뉴와 같은 x=39px 열.
+                    "group flex h-[32px] w-full items-center gap-[8px] overflow-hidden rounded-[13px] pr-[12px] pl-[21px] text-gray-400 transition-colors outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary-200",
+                  )}
+                >
+                  <ArrowLeftIcon className="size-[16px] shrink-0 transition-transform duration-200 ease-out group-hover:-translate-x-[4px]" />
+                  {/* 글자 로고는 검은 그림이라 옅게 두고, 마우스를 올리면 진하게. */}
+                  <span className={cn("flex shrink-0", fadeLabel(collapsed))}>
+                    <Image
+                      src="/service/admix-text-logo.svg"
+                      alt=""
+                      width={43}
+                      height={12}
+                      className="h-[12px] w-auto opacity-50 transition-opacity group-hover:opacity-100 dark:brightness-0 dark:invert"
+                    />
+                  </span>
+                </Link>
+              </>
+            )}
           </div>
 
           <div className="pb-[10px]">
-            {/* 알림 — 화면 모드 위, 사이에 구분선(PC). 모바일은 위 띠의 종 아이콘. */}
+            {/* 알림 — 화면 모드 위, 사이에 구분선. 모바일은 위 띠의 종 아이콘. */}
             {hasStore && (
-              <div className="max-sm:hidden">
+              <div>
                 <PartnerNotificationCard collapsed={collapsed} />
                 <hr className="mx-[6px] my-[14px] border-t border-gray-200" />
               </div>
@@ -434,7 +227,6 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
                     className="w-(--trigger-width) min-w-[160px]"
                   >
                     <ProfileMenu
-                      onNavigate={close}
                       profileHref="/partners/profile"
                       helpHref="/partners/help"
                     />
@@ -448,10 +240,7 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
                   type="button"
                   aria-label="로그인 / 회원가입"
                   title={collapsed ? "로그인 / 회원가입" : undefined}
-                  onClick={() => {
-                    close();
-                    openLoginModal();
-                  }}
+                  onClick={openLoginModal}
                   className="flex w-full items-center gap-[10px] overflow-hidden rounded-[10px] outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
                 >
                   <ProfileAvatarIcon

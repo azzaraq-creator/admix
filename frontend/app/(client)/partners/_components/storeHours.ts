@@ -114,7 +114,8 @@ export function openStateText(s: OpenState): [string, string | null] {
     case "before":
       return ["영업 준비 중", `${s.at}에 문을 열어요`];
     case "after":
-      return ["오늘 영업 끝", "오늘도 수고 많으셨어요"];
+      // 뒤 인사("오늘도 수고 많으셨어요")는 뺐다(11-08 사용자).
+      return ["오늘 영업 끝", null];
     case "dayoff":
       return ["오늘은 쉬는 날", s.next && `${s.next}에 다시 열어요`];
   }

@@ -1,9 +1,9 @@
 "use client";
 
-import { Spinner } from "@heroui/react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { usePartnersStores } from "@/hooks/partners";
 import {
   PARTNERS_MEDIA_CATEGORY,
@@ -92,9 +92,7 @@ export function AdvertiserPartnersDashboard() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-[48px]">
-          <Spinner />
-        </div>
+        <LoadingState />
       ) : shown.length === 0 ? (
         <p className="rounded-[20px] border border-dashed border-gray-200 py-[48px] text-center text-[14px] text-gray-500">
           {stores?.length

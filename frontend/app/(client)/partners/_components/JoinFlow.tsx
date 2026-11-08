@@ -79,13 +79,14 @@ export function JoinFlowWithStore({ current }: { current: number }) {
 }
 
 /** 가입 중인 계정 — 제목 아래 "OOO@… 계정으로 등록 중이에요". 로그인 전(미리보기)이면 그리지 않는다. */
+// 모바일은 12px — 11-08 사용자: "폰트 사이즈 커".
 export function JoinAccount({ className }: { className?: string }) {
   const { data: me } = useMe();
   if (!me) return null;
   return (
     <p
       className={cn(
-        "inline-flex max-w-full items-center gap-[6px] rounded-full border border-white bg-surface/70 px-[12px] py-[5px] text-[13px] text-gray-600 dark:border-gray-100",
+        "inline-flex max-w-full items-center gap-[6px] rounded-full border border-white bg-surface/70 px-[12px] py-[5px] text-[13px] text-gray-600 max-sm:gap-[4px] max-sm:px-[10px] max-sm:py-[4px] max-sm:text-[12px] dark:border-gray-100",
         className,
       )}
     >

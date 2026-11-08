@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
+import { announceLogout } from "@/lib/authChannel";
 import type { MemberCategory } from "@/lib/memberCategory";
 import { clearSessionId } from "@/lib/session";
 import { clearUserToken, getRefreshToken } from "@/lib/userToken";
@@ -8,10 +9,16 @@ import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 import { authApi, type RegisterPayload } from "./apis";
 import { authKeys } from "./keys";
 
+/**
+ * 로그아웃 — 끝나면 admix 첫 화면("/")으로.
+ * 콜라보 화면(/partners…)에서 로그아웃하면 비회원용 콜라보 소개(/partners)로 간다(11-08 사용자).
+ */
 export const useLogout = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
   return async () => {
+    const to = pathname.startsWith("/partners") ? "/partners" : "/";
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {
@@ -22,9 +29,11 @@ export const useLogout = () => {
     }
     clearUserToken();
     clearSessionId();
+    // 같은 계정으로 열린 다른 탭에 바로 알린다 — 콜라보 화면은 받자마자 비회원 소개로(PartnersSessionWatch).
+    announceLogout();
     queryClient.setQueryData(authKeys.me, null);
     queryClient.clear();
-    router.push("/");
+    router.push(to);
   };
 };
 

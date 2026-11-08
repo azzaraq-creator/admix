@@ -139,7 +139,7 @@ function CheckRow({
 }) {
   return (
     <li>
-      <div className="flex items-start gap-[12px] py-[14px]">
+      <div className="flex items-start gap-[10px] py-[14px] sm:gap-[12px]">
         {state === "due" ? (
           <span role="img" aria-label="사진 낼 차례" className="mt-[10px] flex">
             <MaskIcon
@@ -156,9 +156,9 @@ function CheckRow({
         )}
         <DateCol date={date} state={state} />
         {/* 날짜 칸과 내용 사이 가는 세로선. */}
-        <div className="flex min-w-0 flex-1 flex-col border-l border-gray-100 pl-[12px]">
+        <div className="flex min-w-0 flex-1 flex-col border-l border-gray-100 pl-[10px] sm:pl-[12px]">
           <b className="text-[14px] leading-[20px] text-gray-900">{title}</b>
-          <small className="text-[12px] leading-[18px] text-gray-500">
+          <small className="text-[12px] leading-[18px] text-gray-500 max-sm:break-keep">
             {who}
           </small>
           {children}
@@ -311,9 +311,12 @@ function TaskLine({ head, children }: { head: string; children: ReactNode }) {
   );
 }
 
-/** 상세의 큰 구역 사이 구분선 — 부모 간격(16px)에 위아래 8px씩 더해 선 위아래로 24px. */
+/**
+ * 상세의 큰 구역 사이 구분선 — 부모 간격(16px)에 위아래 8px씩 더해 선 위아래로 24px.
+ * 모바일은 위아래 2px만 더해 18px(세로로 길어 구역 사이가 너무 벌어져 보인다).
+ */
 function SectionRule() {
-  return <Separator className="my-[8px] bg-gray-200" />;
+  return <Separator className="my-[2px] bg-gray-200 sm:my-[8px]" />;
 }
 
 /** 날짜 앞머리 — "11.02 (월)" 굵게. */
@@ -538,15 +541,15 @@ function StatusPanel({ c, showSub }: { c: PreviewCollab; showSub: boolean }) {
     <section
       aria-label="지금 상황"
       className={cn(
-        "flex flex-col gap-[16px] rounded-[24px] p-[18px] ring-1 ring-inset sm:p-[22px]",
+        "flex flex-col gap-[14px] rounded-[24px] p-[16px] ring-1 ring-inset sm:gap-[16px] sm:p-[22px]",
         tone.card,
       )}
     >
-      <div className="flex items-center gap-[14px]">
+      <div className="flex items-center gap-[12px] sm:gap-[14px]">
         <span
           aria-hidden
           className={cn(
-            "flex size-[44px] shrink-0 items-center justify-center rounded-full text-white shadow-[0_4px_12px_rgba(16,24,40,0.12)]",
+            "flex size-[40px] shrink-0 sm:size-[44px] items-center justify-center rounded-full text-white shadow-[0_4px_12px_rgba(16,24,40,0.12)]",
             tone.icon,
           )}
         >
@@ -581,12 +584,21 @@ function StatusPanel({ c, showSub }: { c: PreviewCollab; showSub: boolean }) {
             <p className="flex min-w-0 flex-1 items-start gap-[8px] text-[12px] leading-[1.55] break-keep text-gray-600">
               <FileText className="mt-[2px] size-[14px] shrink-0 text-gray-500" />
               <span>
+                {/* 모바일은 "확정서" 글자를 빼고 번호만(옆 버튼이 "확정서 보기") — 번호는 중간에서 꺾이지 않게. */}
                 <b className="font-semibold text-gray-800">
-                  확정서 {c.confirmNo}
+                  <span className="max-sm:hidden">확정서 </span>
+                  <span className="whitespace-nowrap">{c.confirmNo}</span>
                 </b>
                 {" · "}
-                {c.confirmedAt ? kstStamp(c.confirmedAt) : ""} 확정 · 확인자{" "}
-                {c.confirmer ?? "-"} · 진행 항목 {c.checkedItems ?? 0}개 확인
+                {/* 모바일은 번호 · 확정일만 — 시각 · 확인자 · 항목 수는 확정서 보기에 있다. */}
+                <span className="sm:hidden">
+                  {c.confirmedAt ? kstStamp(c.confirmedAt).slice(0, 5) : ""}{" "}
+                  확정
+                </span>
+                <span className="max-sm:hidden">
+                  {c.confirmedAt ? kstStamp(c.confirmedAt) : ""} 확정 · 확인자{" "}
+                  {c.confirmer ?? "-"} · 진행 항목 {c.checkedItems ?? 0}개 확인
+                </span>
               </span>
             </p>
             {/* 눈에 띌 필요 없는 보조 동작 — 작은 글자 버튼(높이 24px → 곡률 9px). 마우스를 올리면 반투명 흰 바탕(색 카드 위라 회색 대신). */}
@@ -813,38 +825,42 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
       </div>
 
       {/* 브랜드 사진(없으면 기본 C) · 브랜드 · 제목 — 카드 없이 바탕 위에. */}
-      <header className="flex items-start gap-[14px] sm:gap-[18px]">
+      {/*
+       * PC: 왼쪽 브랜드 사진(두 줄 차지) | 오른쪽 브랜드 · 제목 → 말풍선.
+       * 모바일: 사진 | 브랜드 · 제목 한 줄, 말풍선은 아래 줄을 꽉 채운다(오른쪽 칸에 끼우면 좁아 세 줄로 꺾였다).
+       */}
+      <header className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-[14px] gap-y-[12px] sm:gap-x-[18px] sm:gap-y-[10px]">
         <BrandAvatar
           src={c.brandImage}
           name={c.brand}
           // 회색 바탕 위라 흰 칸 + 테두리로 또렷하게(사진이 없을 때의 기본 C도).
-          className="size-[52px] rounded-[16px] border border-gray-200 bg-surface text-[28px] sm:size-[64px] sm:rounded-[20px] sm:text-[34px]"
+          className="size-[52px] rounded-[16px] border border-gray-200 bg-surface text-[28px] sm:row-span-2 sm:size-[64px] sm:rounded-[20px] sm:text-[34px]"
         />
-        <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
+        <div className="flex min-w-0 flex-col gap-[4px] max-sm:self-center">
           <p className="flex flex-wrap items-center gap-[6px] text-[14px] font-semibold text-gray-700">
             {c.brand}
           </p>
-          <h1 className="text-[22px] leading-[1.3] font-bold break-keep text-gray-900 sm:text-[26px]">
+          <h1 className="text-[20px] leading-[1.3] font-bold break-keep text-gray-900 sm:text-[26px]">
             {c.title}
           </h1>
-          {/* 한 줄 소개는 브랜드가 매장에 건네는 말처럼 — 말풍선(브랜드 사진 쪽 왼쪽 위 모서리만 덜 둥글게) + 따옴표. */}
-          <p className="mt-[6px] w-fit max-w-full rounded-[18px] rounded-tl-[6px] bg-surface px-[14px] py-[9px] text-[14px] leading-[1.55] break-keep text-gray-700 shadow-[0_1px_3px_rgba(16,24,40,0.06)] ring-1 ring-gray-200">
-            <span aria-hidden className="mr-[3px] font-bold text-primary-400">
-              “
-            </span>
-            {c.summary}
-            <span aria-hidden className="ml-[3px] font-bold text-primary-400">
-              ”
-            </span>
-          </p>
         </div>
+        {/* 한 줄 소개는 브랜드가 매장에 건네는 말처럼 — 말풍선(브랜드 사진 쪽 왼쪽 위 모서리만 덜 둥글게) + 따옴표. */}
+        <p className="col-span-2 w-fit max-w-full rounded-[18px] rounded-tl-[6px] bg-surface px-[14px] py-[9px] text-[14px] leading-[1.55] break-keep text-gray-700 shadow-[0_1px_3px_rgba(16,24,40,0.06)] ring-1 ring-gray-200 sm:col-span-1 sm:col-start-2">
+          <span aria-hidden className="mr-[3px] font-bold text-primary-400">
+            “
+          </span>
+          {c.summary}
+          <span aria-hidden className="ml-[3px] font-bold text-primary-400">
+            ”
+          </span>
+        </p>
       </header>
 
       {/* 큰 구역(머리 · 지금 상황 · 진행 안내함 · 콜라보 내용) 사이 — 위아래 여백 + 가는 구분선(11-08 사용자). */}
       <SectionRule />
 
       {mode === "confirm" ? (
-        <PanelCard className="gap-[16px] p-[20px] sm:p-[24px]">
+        <PanelCard className="gap-[16px] p-[16px] sm:p-[24px]">
           <Card.Header>
             <Card.Title className="text-[17px] font-bold text-gray-900">
               진행 내용을 하나씩 확인해 주세요
@@ -873,7 +889,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                     rowTone(on),
                   )}
                 >
-                  <Checkbox.Content className="w-full cursor-pointer items-start gap-[12px] rounded-[18px] px-[16px] py-[14px]">
+                  <Checkbox.Content className="w-full cursor-pointer items-start gap-[12px] rounded-[18px] px-[14px] py-[13px] sm:px-[16px] sm:py-[14px]">
                     <Checkbox.Control className="mt-[3px] border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
                       <Checkbox.Indicator />
                     </Checkbox.Control>
@@ -901,22 +917,33 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
             <section className="flex flex-col gap-[14px]">
               <SectionHead icon="/icons/open-folder.svg" title="진행 안내함" />
               <PanelCard
-                className="gap-[12px] p-[20px]"
+                className="gap-[12px] p-[14px] sm:p-[20px]"
                 aria-label="진행 안내함"
               >
                 <Tabs
                   selectedKey={inboxTab}
                   onSelectionChange={(k) => setTab(k as InboxTab)}
                 >
-                  <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px]">
+                  {/*
+                   * 모바일은 너비를 꽉 채운다. 칸 폭은 글자 길이대로 + 남는 폭을 나눠(flex-auto) —
+                   * 같은 폭으로 나누면 "체크리스트"가 320px 화면에서 넘친다. 체크리스트는 "진행"을 뺀다.
+                   */}
+                  <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px] max-sm:w-full">
                     <Tabs.List aria-label="진행 안내함">
                       {tabs.map(([id, label]) => (
                         <Tabs.Tab
                           key={id}
                           id={id}
-                          className="rounded-[13px] whitespace-nowrap"
+                          className="rounded-[13px] whitespace-nowrap max-sm:w-auto max-sm:min-w-0 max-sm:flex-auto max-sm:px-[10px] max-sm:text-[13px]"
                         >
-                          {label}
+                          {id === "checklist" ? (
+                            <>
+                              <span className="max-sm:hidden">진행&nbsp;</span>
+                              체크리스트
+                            </>
+                          ) : (
+                            label
+                          )}
                           <Tabs.Indicator className="rounded-[13px]" />
                         </Tabs.Tab>
                       ))}
@@ -940,21 +967,29 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                               due ? (
                                 <Button
                                   size="sm"
+                                  aria-label="사진 올리기"
                                   onPress={() => openPhoto(k.step)}
-                                  // 높이 32px → 곡률 32/2 - 3 = 13px.
-                                  className="h-[32px] rounded-[13px] font-bold"
+                                  // 높이 32px → 곡률 32/2 - 3 = 13px. 모바일은 카메라 아이콘만(32px 네모, 대시보드와 같다).
+                                  className="h-[32px] rounded-[13px] font-bold max-sm:w-[32px] max-sm:min-w-0 max-sm:px-0"
                                 >
-                                  사진 올리기
+                                  <MaskIcon
+                                    src="/icons/camera.svg"
+                                    className="size-[15px] sm:hidden"
+                                  />
+                                  <span className="max-sm:hidden">
+                                    사진 올리기
+                                  </span>
                                 </Button>
                               ) : p && p.by === "cafe" && cat !== "done" ? (
                                 <Button
                                   size="sm"
                                   variant="tertiary"
+                                  aria-label="사진 다시 올리기"
                                   onPress={() => openPhoto(k.step)}
-                                  className="h-[32px] rounded-[13px]"
+                                  className="h-[32px] rounded-[13px] max-sm:w-[32px] max-sm:min-w-0 max-sm:px-0"
                                 >
                                   <RotateCcw className="size-[13px]" />
-                                  다시
+                                  <span className="max-sm:hidden">다시</span>
                                 </Button>
                               ) : null
                             }
@@ -1371,13 +1406,14 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
       {/* 아래 고정 줄 — 관심 매체 선택 요약 줄(FavoritesView)과 같은 짙은 바탕 · 흰 글자 · 보라 버튼.
           위 칸들이 밝은 색이라, 지금 할 일이 짙은 줄로 떠서 눈에 먼저 들어온다. */}
       {action && (
-        <Card className="sticky bottom-[12px] z-10 mt-[8px] flex-row flex-wrap items-center gap-[12px] rounded-[24px] border-0 bg-gray-800 px-[18px] py-[14px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)] dark:bg-gray-200">
+        // 모바일은 한 단계 작게(글자 14 · 12px, 버튼 40px) — 아래 탭 바와 겹쳐 쌓여 화면을 많이 가렸다.
+        <Card className="sticky bottom-[12px] z-10 mt-[8px] flex-row flex-wrap items-center gap-[12px] rounded-[24px] border-0 bg-gray-800 px-[18px] py-[14px] shadow-[0px_4px_10px_0px_rgba(31,41,55,0.4)] max-sm:bottom-[calc(10px+var(--partners-tabbar-space,0px))] max-sm:flex-nowrap max-sm:gap-[10px] max-sm:rounded-[22px] max-sm:py-[12px] max-sm:pr-[12px] max-sm:pl-[16px] dark:bg-gray-200">
           <div className="flex min-w-0 flex-1 flex-col">
-            <Card.Title className="text-[15px] font-bold text-white">
+            <Card.Title className="text-[15px] font-bold text-white max-sm:text-[14px]">
               {action.title}
             </Card.Title>
             {action.sub && (
-              <Card.Description className="text-[13px] break-keep text-white/60">
+              <Card.Description className="text-[13px] break-keep text-white/60 max-sm:text-[12px]">
                 {action.sub}
               </Card.Description>
             )}
@@ -1386,7 +1422,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
             <Button
               isDisabled={!action.kind}
               onPress={() => runAction(action.kind)}
-              className="h-[46px] rounded-[20px] bg-primary-500 px-[20px] text-[14px] font-bold text-white"
+              // 높이 46px → 곡률 20px · 모바일 40px → 17px.
+              className="h-[46px] shrink-0 rounded-[20px] bg-primary-500 px-[20px] text-[14px] font-bold text-white max-sm:h-[40px] max-sm:rounded-[17px] max-sm:px-[14px] max-sm:text-[13px]"
             >
               {action.kind === "photo" ? (
                 // 대시보드 "사진 올리기"와 같은 camera.svg(11-08 사용자).

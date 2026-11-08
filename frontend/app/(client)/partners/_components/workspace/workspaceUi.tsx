@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  Card,
-  Chip,
-  EmptyState,
-  Link,
-  RouterProvider,
-  Spinner,
-} from "@heroui/react";
+import { Card, Chip, EmptyState, Link, RouterProvider } from "@heroui/react";
 import { useRouter } from "next/navigation";
-import type { ComponentProps, ReactNode } from "react";
+import { useEffect, type ComponentProps, type ReactNode } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { MaskIcon } from "@/components/common/MaskIcon";
-import { useMe } from "@/hooks/auth";
+import { useHasUserToken, useMe } from "@/hooks/auth";
 import type { RecruitKind, Tone } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 import { HEROUI_ACCENT_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -86,9 +80,11 @@ const CHIP_COLOR: Record<Tone, ComponentProps<typeof Chip>["color"]> = {
 
 export function StatusChip({
   tone,
+  className,
   children,
 }: {
   tone: Tone;
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -97,7 +93,10 @@ export function StatusChip({
       variant="soft"
       color={CHIP_COLOR[tone]}
       // 높이 22px 고정 → 곡률은 높이/2 - 3px = 8px(모집 배지 RecruitBadge 와 같다).
-      className="h-[22px] shrink-0 rounded-[8px] font-semibold whitespace-nowrap"
+      className={cn(
+        "h-[22px] shrink-0 rounded-[8px] font-semibold whitespace-nowrap",
+        className,
+      )}
     >
       {children}
     </Chip>
@@ -132,10 +131,11 @@ export const RECRUIT_TONE: Record<
     card: "",
   },
   // 신청 불가 — 납작하게: 바탕은 반투명 회색, 테두리도 반투명 흰색(마우스를 올려도 그대로, 11-08 사용자).
+  // 모바일은 테두리를 회색(다크는 한 단계 밝은 회색)으로 — 반투명 흰 테두리는 바탕과 구분이 안 됐다(11-08 사용자).
   blocked: {
     badge: "bg-gray-100 text-gray-500",
     bar: "",
-    card: "border-white/40 bg-gray-50/60 hover:border-white/40",
+    card: "border-white/40 bg-gray-50/60 hover:border-white/40 max-sm:border-gray-200 max-sm:hover:border-gray-200 max-sm:dark:border-gray-300 max-sm:dark:hover:border-gray-300",
   },
 };
 
@@ -220,13 +220,20 @@ export function PageHead({
   title,
   description,
   right,
+  className,
 }: {
   title: string;
   description?: string;
   right?: ReactNode;
+  className?: string;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-[12px]">
+    <header
+      className={cn(
+        "flex flex-wrap items-end justify-between gap-[12px]",
+        className,
+      )}
+    >
       <div className="min-w-0">
         <h1 className="text-[22px] font-bold text-gray-900 sm:text-[26px]">
           {title}
@@ -242,16 +249,22 @@ export function PageHead({
   );
 }
 
-/** 제휴사(콜라보) 회원만 — 아니면 콜라보 첫 화면으로 안내. HeroUI 영역(accent) + 라우터. */
+/**
+ * 제휴사(콜라보) 회원만 — 아니면 콜라보 첫 화면으로 안내. HeroUI 영역(accent) + 라우터.
+ * 로그인이 풀리면(다른 탭에서 로그아웃 · 세션 만료로 로그인 쿠키가 사라지면) 비회원용 콜라보 소개(/partners)로 옮긴다(11-08 사용자).
+ * 쿠키가 없으면 회원 정보 요청이 꺼져 isPending 이 끝나지 않는다 — 예전엔 그걸 "불러오는 중"으로 보고 스피너가 끝없이 돌았다.
+ */
 export function PartnerOnly({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { data: me, isPending } = useMe();
-  if (isPending && !me) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner />
-      </div>
-    );
+  // 서버 렌더 · 첫 하이드레이션은 쿠키가 있다고 보고(스피너), 그 뒤로는 렌더마다 실제 쿠키를 읽는다.
+  const hasToken = useHasUserToken(true);
+  const { data: me, isError } = useMe();
+  useEffect(() => {
+    if (!hasToken) router.replace("/partners");
+  }, [hasToken, router]);
+  // 스피너 — 쿠키가 있는데 회원 정보를 아직 못 받았을 때, 또는 쿠키가 없어 소개로 옮기는 동안만.
+  if (!hasToken || (!me && !isError)) {
+    return <LoadingState />;
   }
   if (me?.member_category !== "partner") {
     return (

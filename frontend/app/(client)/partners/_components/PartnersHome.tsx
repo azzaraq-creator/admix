@@ -1,18 +1,21 @@
 "use client";
 
-import { Spinner } from "@heroui/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { useHasUserToken, useMe } from "@/hooks/auth";
+import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 
 import { AdvertiserPartnersDashboard } from "./AdvertiserPartnersDashboard";
 import { PartnersLanding } from "./PartnersLanding";
 import { PartnersNoAccess } from "./PartnersNoAccess";
-import { PartnersStoreDashboard } from "./PartnersStoreDashboard";
 
 /**
  * /partners 첫 화면 — 회원 유형에 따라 갈린다.
  * - 비회원: 가입을 권하는 소개 + 예시 화면(매장에 보내는 링크가 이 주소다)
- * - 제휴사(콜라보): 매장 대시보드(첫 입장이면 매장 등록)
+ * - 제휴사(콜라보): 대시보드(/partners/dashboard)로 보낸다 — admix 홈 Collaboration 메뉴도 대시보드로(11-08 사용자).
+ *   매장이 없으면 대시보드가 매장 등록을 안내한다. 내 매장은 사이드바 "내 매장"(/partners/stores).
  * - 광고주: 콜라보할 매장 찾기
  * - 그 외(일반·대행사·매체사): 이용 안내
  * - intro(?intro=1, 콜라보 안내 창의 "대시보드 보기"): 누구든 소개 + 예시 화면
@@ -24,20 +27,22 @@ export function PartnersHome({
   member?: boolean;
   intro?: boolean;
 }) {
+  const router = useRouter();
   const { data: me, isError } = useMe();
   const hasToken = useHasUserToken(member);
+  const partner = !intro && me?.member_category === "partner";
+
+  useEffect(() => {
+    if (partner) router.replace(PARTNERS_DASHBOARD_HREF);
+  }, [partner, router]);
 
   // 소개는 회원 정보를 기다리지 않는다 — 가입 버튼 대신 무엇을 보여 줄지만 회원 정보로 고른다.
   if (intro) return <PartnersLanding member={!!me} />;
-  if (hasToken && !me && !isError) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner />
-      </div>
-    );
+  // 회원 정보를 받는 중이거나, 제휴사라 대시보드로 옮겨 가는 중.
+  if ((hasToken && !me && !isError) || partner) {
+    return <LoadingState />;
   }
   if (!me) return <PartnersLanding />;
-  if (me.member_category === "partner") return <PartnersStoreDashboard />;
   if (me.member_category === "advertiser")
     return <AdvertiserPartnersDashboard />;
   return <PartnersNoAccess />;

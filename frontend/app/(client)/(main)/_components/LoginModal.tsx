@@ -24,6 +24,7 @@ import { getUserToken, setTokens } from "@/lib/userToken";
 import { cn } from "@/lib/utils";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
+import { PARTNER_SIGNUP_HREF } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 
 import { collabScript } from "./collabFont";
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
@@ -71,8 +72,8 @@ function getErrorStatus(error: unknown): number | undefined {
 
 /**
  * 로그인 창 — admix 화면과 콜라보(/partners) 화면이 같이 쓴다.
- * partners: 로고 아래 Collaboration(콜라보 사이드바 로고와 같은 모양) · 콜라보 문구 · 간편 로그인 없음 ·
- * 회원가입은 가입·협약 페이지(/partners/join)로.
+ * partners: 로고 아래 Collaboration(콜라보 사이드바 로고와 같은 모양) · 콜라보 문구 · 간편 로그인(카카오 · 네이버, 마치면 보던 콜라보 화면으로) ·
+ * 회원가입은 유형을 제휴사(콜라보)로 골라 둔 회원가입 2단계(방식, /signup?category=partner)로(11-08 사용자).
  */
 export function LoginModal({
   variant = "default",
@@ -107,7 +108,15 @@ export function LoginModal({
   }, []);
 
   // 소셜 페이지에서 뒤로가기로 돌아와도 버튼이 잠긴 채 남지 않게 useSnsLogin이 풀어 준다.
-  const { pending: snsPending, start: handleSnsLogin } = useSnsLogin();
+  const { pending: snsPending, start: startSnsLogin } = useSnsLogin();
+  // 콜라보 화면에서 소셜 로그인하면 로그인 뒤 보던 콜라보 화면으로 돌아온다(admix 화면은 콜백이 정한다).
+  const handleSnsLogin = (provider: "kakao" | "naver") =>
+    startSnsLogin(
+      provider,
+      partners
+        ? `${window.location.pathname}${window.location.search}`
+        : undefined,
+    );
 
   const closeLogin = (value: boolean) => {
     setLoginModalOpen(value);
@@ -196,18 +205,21 @@ export function LoginModal({
                 ) : (
                   <LogoFullDark className="h-[28px]" />
                 )}
+                {/* 콜라보 문구는 짧게(11-08 사용자: "문구를 줄여줘", PC · 모바일 모두). */}
                 <p className="text-[13px] leading-[20px] text-gray-500">
                   {partners
-                    ? "로그인하고 콜라보 매장과 협업 제안을 관리하세요"
+                    ? "로그인하고 콜라보를 시작하세요"
                     : "로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요"}
                 </p>
               </Modal.Header>
 
               <Modal.Body className="m-0 mt-[24px] flex flex-col gap-[20px] overflow-visible p-0">
+                {/* 모바일은 입력 칸 글자를 13px로 — 옆 "로그인 유지" · "비밀번호 재설정"과 같은 크기(11-08 사용자: "Input의 폰트 크기가 커").
+                    화면 확대 막힘(maximumScale 1)이라 16px 아래여도 iOS가 확대하지 않는다. */}
                 <form
                   onSubmit={handleSubmit}
                   noValidate
-                  className="flex flex-col gap-[14px]"
+                  className="flex flex-col gap-[14px] max-sm:[&_input]:text-[13px]"
                 >
                   <TextField
                     type="email"
@@ -297,41 +309,37 @@ export function LoginModal({
                   </Button>
                 </form>
 
-                {/* 간편 로그인 — 콜라보 화면에서는 뺀다(이메일 로그인만). */}
-                {!partners && (
-                  <>
-                    <div className="flex items-center gap-[12px]">
-                      <Separator className="flex-1 bg-stroke" />
-                      <span className="text-[12px] font-medium text-gray-400">
-                        간편 로그인
-                      </span>
-                      <Separator className="flex-1 bg-stroke" />
-                    </div>
+                {/* 간편 로그인 — admix · 콜라보 화면 모두(제휴사(콜라보)도 소셜 로그인, 11-08 사용자). */}
+                <div className="flex items-center gap-[12px]">
+                  <Separator className="flex-1 bg-stroke" />
+                  <span className="text-[12px] font-medium text-gray-400">
+                    간편 로그인
+                  </span>
+                  <Separator className="flex-1 bg-stroke" />
+                </div>
 
-                    <div className="grid grid-cols-2 gap-[8px]">
-                      <Button
-                        variant="ghost"
-                        fullWidth
-                        isDisabled={snsPending}
-                        onPress={() => handleSnsLogin("kakao")}
-                        className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
-                      >
-                        <KakaoIcon className="size-[18px] shrink-0" />
-                        카카오
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        fullWidth
-                        isDisabled={snsPending}
-                        onPress={() => handleSnsLogin("naver")}
-                        className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
-                      >
-                        <NaverIcon className="size-[18px] shrink-0" />
-                        네이버
-                      </Button>
-                    </div>
-                  </>
-                )}
+                <div className="grid grid-cols-2 gap-[8px]">
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    isDisabled={snsPending}
+                    onPress={() => void handleSnsLogin("kakao")}
+                    className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
+                  >
+                    <KakaoIcon className="size-[18px] shrink-0" />
+                    카카오
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    isDisabled={snsPending}
+                    onPress={() => void handleSnsLogin("naver")}
+                    className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
+                  >
+                    <NaverIcon className="size-[18px] shrink-0" />
+                    네이버
+                  </Button>
+                </div>
               </Modal.Body>
 
               {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
@@ -340,8 +348,10 @@ export function LoginModal({
                 <Button
                   variant="ghost"
                   size="sm"
-                  // 콜라보 화면에서는 가입·협약 페이지로.
-                  onPress={() => goTo(partners ? "/partners/join" : "/signup")}
+                  // 콜라보 화면에서는 제휴사(콜라보)를 골라 둔 회원가입 2단계(방식)로.
+                  onPress={() =>
+                    goTo(partners ? PARTNER_SIGNUP_HREF : "/signup")
+                  }
                   className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
                 >
                   회원가입

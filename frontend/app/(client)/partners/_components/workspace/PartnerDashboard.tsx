@@ -1,14 +1,23 @@
 "use client";
 
-import { Button, Card, Link, ProgressBar, Spinner, toast } from "@heroui/react";
+import {
+  Button,
+  Card,
+  Link,
+  ProgressBar,
+  ScrollShadow,
+  toast,
+} from "@heroui/react";
 import { ArrowRight, Coffee } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, type ChangeEvent, type ReactNode } from "react";
+import { Fragment, useRef, type ChangeEvent, type ReactNode } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { SquareCheck } from "@/components/common/SquareCheck";
 import { useMyPartnersStores } from "@/hooks/partners";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import {
   activityOf,
@@ -137,25 +146,24 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
         hidden
         onChange={(e) => void onPhoto(e)}
       />
-      {/* ① 무엇을 */}
+      {/*
+       * ① 무엇을 — PC는 오른쪽 위에 "진행 중".
+       * 모바일은 "진행 중"을 브랜드 이름 옆으로 옮겨 제목이 카드 너비를 다 쓰게 하고, 길면 두 줄까지(11-08 사용자).
+       */}
       <div className="flex items-start justify-between gap-[12px]">
-        <div className="flex min-w-0 items-center gap-[12px]">
+        <div className="flex min-w-0 flex-1 items-center gap-[12px]">
           <BrandAvatar src={c.brandImage} name={c.brand} />
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-gray-500">{c.brand}</p>
-            <Card.Title className="truncate text-[18px] leading-[1.35] font-bold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-[10px] text-[13px] font-medium text-gray-500">
+              {c.brand}
+              <LiveBadge className="sm:hidden" />
+            </p>
+            <Card.Title className="truncate text-[16px] leading-[1.35] font-bold text-gray-900 max-sm:line-clamp-2 max-sm:whitespace-normal sm:text-[18px]">
               {c.title}
             </Card.Title>
           </div>
         </div>
-        {/* 진행 중 — 깜박이는 초록 점(지금 진행 중이라는 표시)을 상태 배지 안에. */}
-        <span className="flex shrink-0 items-center gap-[7px] py-[5px] text-[12px] font-bold text-gray-700">
-          <span aria-hidden className="relative flex size-[7px]">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
-            <span className="relative inline-flex size-[7px] rounded-full bg-emerald-500" />
-          </span>
-          진행 중
-        </span>
+        <LiveBadge className="py-[5px] max-sm:hidden" />
       </div>
 
       {/*
@@ -195,7 +203,14 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
             value={String(steps.filter((s) => isDone(s.step)).length)}
             rest={` / ${steps.length}`}
           />
-          <ol className="flex">
+          {/* 모바일 — 첫 칸은 왼쪽 끝, 마지막 칸은 오른쪽 끝에 붙여 진행도가 좌우를 꽉 채운다(11-08 사용자). */}
+          <PhotoStepsFull
+            steps={steps}
+            isDone={isDone}
+            due={due?.step}
+            nextStep={nextStep}
+          />
+          <ol className="flex max-sm:hidden">
             {steps.map((s, i) => {
               const done = isDone(s.step);
               const now = due?.step === s.step;
@@ -211,13 +226,8 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
                       aria-hidden
                       className={cn(
                         "absolute right-1/2 z-0 w-full",
-                        done
-                          ? "top-[8.5px] h-[3px] rounded-full bg-emerald-500"
-                          : now
-                            ? "top-[8.5px] h-[3px] rounded-full bg-linear-to-r from-emerald-500 to-primary-500"
-                            : next
-                              ? "top-[8.5px] h-[3px] rounded-full bg-linear-to-r from-emerald-500 to-gray-300"
-                              : "top-[9px] h-[2px] bg-[repeating-linear-gradient(to_right,var(--color-gray-300)_0_2px,transparent_2px_4px)]",
+                        done || now || next ? "top-[8.5px]" : "top-[9px]",
+                        stepLine(done, now, next),
                       )}
                     />
                   )}
@@ -259,21 +269,22 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
       {/* ③ 지금 할 일 — 회색 상자(이름표 · 할 일 · 오른쪽 버튼, 카메라는 버튼 안). */}
       <div
         className={cn(
-          "mt-[8px] flex flex-col gap-[14px] rounded-[18px] border p-[14px] sm:flex-row sm:items-center sm:justify-between sm:pr-[14px] sm:pl-[14px]",
+          // 모바일은 작게(11-08 사용자) — 세로로 쌓던 꽉 찬 버튼 대신 오른쪽 작은 버튼, 여백 · 글자 한 단계씩 작게.
+          "flex items-center justify-between gap-[12px] rounded-[16px] border p-[12px] sm:mt-[8px] sm:gap-[14px] sm:rounded-[18px] sm:p-[14px]",
           "border-gray-200 bg-gray-50",
         )}
       >
-        <div className="flex min-w-0 items-center gap-[12px] pl-[4px]">
+        <div className="flex min-w-0 items-center gap-[12px] pl-[2px] sm:pl-[4px]">
           <div className="min-w-0">
             <p
               className={cn(
-                "text-[12px] font-medium",
+                "text-[11px] font-medium sm:text-[12px]",
                 due ? "text-primary-600" : "text-gray-500",
               )}
             >
               {due ? "오늘 할 일" : "다음 일정"}
             </p>
-            <p className="text-[15px] leading-[1.4] font-bold break-keep text-gray-900">
+            <p className="text-[13px] leading-[1.4] font-bold break-keep text-gray-900 sm:text-[15px]">
               {nextActionOf(c)}
             </p>
           </div>
@@ -281,20 +292,26 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
         <Button
           size="sm"
           variant={due ? "primary" : "secondary"}
+          aria-label={due ? "사진 올리기" : undefined}
           onPress={() =>
             due
               ? fileRef.current?.click()
               : router.push(collabHref(c.id, "dashboard"))
           }
           className={cn(
-            "h-[40px] shrink-0 rounded-[14px] px-[16px] font-bold max-sm:w-full",
+            // 모바일 36px → 곡률 15px(높이/2 − 3px). 사진 올리기는 모바일에서 카메라 아이콘만(36px 네모, 11-08 사용자).
+            "h-[40px] shrink-0 rounded-[14px] px-[16px] font-bold max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[12px] max-sm:text-[13px]",
+            due && "max-sm:w-[36px] max-sm:min-w-0 max-sm:px-0",
           )}
         >
           {/* 아이콘은 하는 일과 함께 — 사진 올리기는 카메라를 버튼 앞에, 안내함은 화살표를 뒤에. */}
           {due ? (
             <>
-              <MaskIcon src="/icons/camera.svg" className="size-[16px]" />
-              사진 올리기
+              <MaskIcon
+                src="/icons/camera.svg"
+                className="size-[17px] sm:size-[16px]"
+              />
+              <span className="max-sm:hidden">사진 올리기</span>
             </>
           ) : (
             <>
@@ -305,6 +322,126 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
         </Button>
       </div>
     </PanelCard>
+  );
+}
+
+/** 진행 중 — 깜박이는 초록 점(지금 진행 중이라는 표시) + 글자. */
+function LiveBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex shrink-0 items-center gap-[7px] text-[12px] font-bold text-gray-700",
+        className,
+      )}
+    >
+      <span aria-hidden className="relative flex size-[7px]">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
+        <span className="relative inline-flex size-[7px] rounded-full bg-emerald-500" />
+      </span>
+      진행 중
+    </span>
+  );
+}
+
+/**
+ * 사진 보고 선 — 끝난 → 끝난은 초록 한 색, 끝난 → 오늘은 초록에서 보라로, 끝난 → 다음 예정은 초록에서 회색으로,
+ * 그 뒤는 회색 점선(콜라보 상세 진행 흐름과 같다).
+ */
+function stepLine(done: boolean, now: boolean, next: boolean) {
+  return done
+    ? "h-[3px] rounded-full bg-emerald-500"
+    : now
+      ? "h-[3px] rounded-full bg-linear-to-r from-emerald-500 to-primary-500"
+      : next
+        ? "h-[3px] rounded-full bg-linear-to-r from-emerald-500 to-gray-300"
+        : "h-[2px] bg-[repeating-linear-gradient(to_right,var(--color-gray-300)_0_2px,transparent_2px_4px)]";
+}
+
+/**
+ * 사진 보고 — 모바일(좌우 꽉 채움).
+ * 위 줄: 표시 · 선 · 표시 … (첫 표시는 왼쪽 끝, 마지막은 오른쪽 끝, 선이 사이를 고르게 채운다).
+ * 아래 줄: 이름 · 날짜를 각 표시 밑에 — 첫 칸은 왼쪽 맞춤, 마지막 칸은 오른쪽 맞춤, 가운데 칸은 표시 가운데.
+ */
+function PhotoStepsFull({
+  steps,
+  isDone,
+  due,
+  nextStep,
+}: {
+  steps: { step: PhotoStep; date: string; label: string }[];
+  isDone: (s: PhotoStep) => boolean;
+  due?: PhotoStep;
+  nextStep?: PhotoStep;
+}) {
+  const last = steps.length - 1;
+  return (
+    <div className="sm:hidden">
+      <div className="flex items-center">
+        {steps.map((s, i) => {
+          const done = isDone(s.step);
+          const now = due === s.step;
+          const next = nextStep === s.step;
+          return (
+            <Fragment key={s.step}>
+              {i > 0 && (
+                <span
+                  aria-hidden
+                  className={cn("min-w-0 flex-1", stepLine(done, now, next))}
+                />
+              )}
+              <SquareCheck
+                on={done}
+                now={now}
+                next={next}
+                label={done ? "끝남" : now ? "오늘" : next ? "다음" : "아직"}
+                className="size-[20px] shrink-0"
+              />
+            </Fragment>
+          );
+        })}
+      </div>
+      {/* 표시 가운데 = 왼쪽 끝 10px + (너비 − 20px) × i/마지막. */}
+      <div className="relative mt-[6px] h-[33px]">
+        {steps.map((s, i) => {
+          const done = isDone(s.step);
+          const now = due === s.step;
+          const edge = i === 0 ? "start" : i === last ? "end" : "mid";
+          return (
+            <span
+              key={s.step}
+              style={
+                edge === "mid"
+                  ? { left: `calc(10px + (100% - 20px) * ${i / last})` }
+                  : undefined
+              }
+              className={cn(
+                "absolute top-0 flex flex-col gap-[2px] whitespace-nowrap",
+                edge === "start" && "left-0 items-start",
+                edge === "end" && "right-0 items-end",
+                edge === "mid" && "-translate-x-1/2 items-center",
+              )}
+            >
+              <span
+                className={cn(
+                  "text-[12px] font-semibold",
+                  now || done ? "text-gray-900" : "text-gray-500",
+                )}
+              >
+                {s.label}
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] tabular-nums",
+                  now ? "font-semibold text-primary-600" : "text-gray-400",
+                )}
+              >
+                {now ? "오늘" : md(s.date)}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -340,13 +477,25 @@ const STAT_TONE = {
   done: { tile: "text-emerald-500", icon: "/icons/stroke-square-check.svg" },
 } as const;
 
-function StatIcon({ tone }: { tone: keyof typeof STAT_TONE }) {
+function StatIcon({
+  tone,
+  className,
+}: {
+  tone: keyof typeof STAT_TONE;
+  className?: string;
+}) {
   const { tile, icon } = STAT_TONE[tone];
-  return <MaskIcon src={icon} className={cn("mt-[2px] size-[16px]", tile)} />;
+  return (
+    <MaskIcon
+      src={icon}
+      className={cn("mt-[2px] size-[16px]", tile, className)}
+    />
+  );
 }
 
 function Overview() {
   const state = usePreviewState();
+  const isDesktop = useIsDesktop();
   const cats = state.collabs.map((c) => ({ c, cat: categoryOf(c) }));
   const active = cats.filter((x) => x.cat === "ongoing").map((x) => x.c);
   const upcoming = cats
@@ -396,8 +545,47 @@ function Overview() {
   ];
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-[10px] lg:grid-cols-4">
+    // 구역 사이 — 모바일 32px · PC 44px. 제목과 첫 구역 사이는 Dashboard 가 따로 정한다.
+    <div className="flex flex-col gap-[32px] sm:gap-[44px]">
+      {/*
+       * 모바일 — 유리 카드 한 장을 2×2로 나눈 낮은 칸(왼쪽 아이콘 · 이름 | 오른쪽 숫자, 칸 사이 가는 선).
+       * 처음 2×2 큰 칸은 첫 화면 절반을 차지했고, 4열 한 줄은 칸이 너무 좁았다(11-08 사용자).
+       */}
+      <div
+        className={cn(
+          "grid grid-cols-2 overflow-hidden rounded-[22px] border sm:hidden",
+          SHADOW_FLOAT,
+          GLASS_CARD,
+        )}
+      >
+        {stats.map((s, i) => (
+          <Link
+            key={s.label}
+            href={s.href}
+            aria-label={`${s.label} ${s.value}건`}
+            className={cn(
+              // w-full — HeroUI Link 의 w-fit 을 덮어 칸을 꽉 채운다.
+              "flex w-full min-w-0 items-center justify-between gap-[8px] rounded-none px-[16px] py-[14px] no-underline hover:no-underline active:bg-gray-50",
+              i % 2 === 1 && "border-l border-gray-100",
+              i >= 2 && "border-t border-gray-100",
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-[6px]">
+              <StatIcon tone={s.tone} className="mt-0 size-[15px]" />
+              <span className="truncate text-[13px] font-semibold text-gray-600">
+                {s.label}
+              </span>
+            </span>
+            <strong className="shrink-0 text-[20px] leading-none font-extrabold text-gray-900 tabular-nums">
+              {s.value}
+              <small className="ml-[2px] text-[12px] font-semibold text-gray-400">
+                건
+              </small>
+            </strong>
+          </Link>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-[10px] max-sm:hidden lg:grid-cols-4">
         {stats.map((s) => (
           <Link
             key={s.label}
@@ -473,11 +661,23 @@ function Overview() {
           }
         />
         {recruiting.length ? (
-          <div className="grid gap-[12px] sm:grid-cols-3">
+          // 모바일 — 세로로 세 장 쌓으면 길어서, 옆으로 넘기는 한 줄(다음 카드가 살짝 보인다). 화면 끝까지 흐르게 -mx.
+          // 그림자가 잘리지 않게 위아래 여백을 두고 같은 만큼 바깥 여백을 줄인다.
+          // 양 끝은 HeroUI ScrollShadow 로 흐리게 — 넘길 카드가 더 있다는 표시(11-08 사용자). PC는 세 칸 격자라 끈다.
+          <ScrollShadow
+            orientation="horizontal"
+            hideScrollBar
+            size={36}
+            isEnabled={!isDesktop}
+            visibility={isDesktop ? "none" : "auto"}
+            className="-mx-[16px] -my-[10px] flex snap-x snap-mandatory scroll-px-[16px] gap-[12px] px-[16px] py-[10px] sm:mx-0 sm:my-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:p-0"
+          >
             {recruiting.slice(0, 3).map((c) => (
-              <RecruitCard key={c.id} c={c} from="dashboard" />
+              <div key={c.id} className="w-[78%] shrink-0 snap-start sm:w-auto">
+                <RecruitCard c={c} from="dashboard" />
+              </div>
             ))}
-          </div>
+          </ScrollShadow>
         ) : (
           <EmptyBox icon={<Coffee className="size-[26px]" />}>
             지금 모집 중인 콜라보가 없어요. 새 모집은 이메일로 알려 드려요.
@@ -511,9 +711,10 @@ function Overview() {
                   <time className="w-[40px] shrink-0 text-[12px] text-gray-400 tabular-nums">
                     {kstStamp(e.at).slice(0, 5)}
                   </time>
-                  <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-[8px]">
+                  {/* 모바일은 제목 아래 줄에 콜라보 이름 — 좁으면 줄마다 한 줄 · 두 줄이 섞여 들쭉날쭉했다. */}
+                  <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-[8px] max-sm:flex-col max-sm:gap-y-[3px]">
                     <b className="font-semibold text-gray-900">{e.title}</b>
-                    <span className="truncate text-[12px] text-gray-400">
+                    <span className="truncate text-[12px] text-gray-400 max-sm:w-full">
                       {e.collab}
                     </span>
                   </span>
@@ -527,7 +728,7 @@ function Overview() {
           </p>
         )}
       </section>
-    </>
+    </div>
   );
 }
 
@@ -537,13 +738,13 @@ function Dashboard() {
 
   return (
     // flex-1 — 매장 등록 전 안내가 제목 아래 남은 자리 한가운데에 오게.
-    <div className="flex flex-1 flex-col gap-[44px]">
+    // 제목 아래 — PC 24px("숫자 칸 위 여백 줄여줘", 11-08 사용자). 모바일은 제목을 숨겨 바로 숫자 칸부터.
+    <div className="flex flex-1 flex-col gap-[16px] sm:gap-[24px]">
       {/* 인사 한 줄("○○님, 오늘 챙길 콜라보를 모아 뒀어요.")은 뺐다(11-08 사용자). */}
-      <PageHead title="대시보드" />
+      {/* 모바일은 제목을 감춘다 — 아래 탭 바가 이미 "대시보드"를 켜 보여 준다(11-08 사용자). 화면 읽기 프로그램용으로는 남긴다. */}
+      <PageHead title="대시보드" className="max-sm:sr-only" />
       {stores.isPending ? (
-        <div className="flex justify-center py-[60px]">
-          <Spinner />
-        </div>
+        <LoadingState />
       ) : hasStore ? (
         <Overview />
       ) : (

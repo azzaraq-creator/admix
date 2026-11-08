@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Chip, Input, ProgressBar, Spinner } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  Input,
+  Modal,
+  ProgressBar,
+  Spinner,
+} from "@heroui/react";
 import { Plus, Search, Star, X } from "lucide-react";
 import {
   useEffect,
@@ -85,23 +92,38 @@ export function StoreFront({
   const [gallery, setGallery] = useState<number | null>(null);
   const [draft, setDraft] = useState<StoreDraft>(null);
   const preview = draft ? { ...store, ...draft } : store;
+  // 모바일 — 광고주에게 보이는 화면은 제목 옆 버튼으로 여는 창에서 본다.
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-[16px] sm:gap-[20px]">
-      <TitleBar store={store} />
+      <TitleBar store={store} onPreview={() => setPreviewOpen(true)} />
 
-      {/* PC는 2×2 — 열부터 채워(미리보기 · 위치 | 정보 · 사진첩) 줄마다 두 카드 높이를 맞춘다. 좁은 화면은 이 순서로 한 줄씩. */}
+      {/*
+       * PC는 2×2 — 열부터 채워(미리보기 · 위치 | 정보 · 사진첩) 줄마다 두 카드 높이를 맞춘다. sm~lg 는 이 순서로 한 줄씩.
+       * 모바일(sm 미만)은 우리 매장 정보 → 사진첩 → 위치(낮게) 순서. 미리보기는 카드 대신 제목 옆 버튼 → 창(11-08 사용자).
+       */}
       <div className="grid gap-[16px] sm:gap-[20px] lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[auto_auto]">
-        <PreviewCard store={preview} onOpen={setGallery} />
-        <LocationCard store={preview} />
+        <PreviewCard
+          store={preview}
+          onOpen={setGallery}
+          className="max-sm:hidden"
+        />
+        <LocationCard store={preview} className="max-sm:order-3" />
         <ProfileCard
           store={store}
           bizStatus={bizStatus}
           state={state}
           photos={photos}
           onDraft={setDraft}
+          className="max-sm:order-1"
         />
-        <PhotoAlbum store={store} photos={photos} onOpen={setGallery} />
+        <PhotoAlbum
+          store={store}
+          photos={photos}
+          onOpen={setGallery}
+          className="max-sm:order-2"
+        />
       </div>
 
       <div className="flex justify-end">
@@ -115,6 +137,12 @@ export function StoreFront({
         </Button>
       </div>
 
+      <PreviewModal
+        store={preview}
+        isOpen={previewOpen}
+        onOpenChange={setPreviewOpen}
+        onOpen={setGallery}
+      />
       <StoreGalleryModal
         images={store.imageUrls}
         name={store.name}
@@ -126,13 +154,35 @@ export function StoreFront({
   );
 }
 
-/** ① 제목 — 매장 이름만(매장명은 우리 매장 정보에서 바로 고친다). */
-function TitleBar({ store }: { store: PartnersStore }) {
+/**
+ * ① 제목 — 매장 이름만(매장명은 우리 매장 정보에서 바로 고친다).
+ * 모바일은 오른쪽에 "광고주 화면" 버튼 — 미리보기 카드를 창으로 연다(버튼 32px → 곡률 13px).
+ */
+function TitleBar({
+  store,
+  onPreview,
+}: {
+  store: PartnersStore;
+  onPreview: () => void;
+}) {
   return (
-    <header>
+    <header className="max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-[12px]">
       <h1 className="min-w-0 text-[22px] leading-[1.35] font-bold break-keep text-gray-900 sm:text-[26px]">
         {store.name}
       </h1>
+      <Button
+        variant="ghost"
+        size="sm"
+        onPress={onPreview}
+        // 보라 대신 HeroUI 입력 칸과 같은 흰 바탕 + 그림자(field 토큰) — 화면에 보라가 많아 눈이 흩어진다(11-08 사용자).
+        className="h-[32px] shrink-0 gap-[5px] rounded-[13px] bg-field px-[10px] text-[13px] font-semibold text-gray-800 shadow-field data-[hovered=true]:bg-field-hover data-[pressed=true]:bg-field-hover sm:hidden"
+      >
+        <MaskIcon
+          src="/icons/fill-eye.svg"
+          className="h-[15px] w-[17px] shrink-0"
+        />
+        광고주 화면
+      </Button>
     </header>
   );
 }
@@ -145,70 +195,150 @@ function TitleBar({ store }: { store: PartnersStore }) {
 function PreviewCard({
   store,
   onOpen,
+  className,
 }: {
   store: PartnersStore;
   onOpen: (i: number) => void;
+  className?: string;
 }) {
-  const slides = store.imageUrls.length ? store.imageUrls : [undefined];
   return (
-    <PanelCard className={cn("gap-[14px] p-[20px] sm:p-[24px]", SHADOW_FLOAT)}>
+    <PanelCard
+      className={cn("gap-[14px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
+    >
       <SectionHead
         icon={<EyeIcon className="size-[18px]" />}
         title="광고주에게 보이는 화면"
         description="admix 홈 매체 찾기 목록에 이 카드로 보여요."
       />
-      <div className="rounded-[22px] bg-gray-50 p-[12px] ring-1 ring-gray-100 sm:p-[16px]">
-        <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-[16px] border border-gray-200 bg-surface">
-          {/* 사진이 바뀌면(더하기 · 지우기 · 대표 바꾸기) 첫 장부터 다시 — 지운 장에 머물러 빈칸이 보이지 않게. */}
-          <MediaImageCarousel
-            key={slides.join("|")}
-            slides={slides}
-            sizes="400px"
-            className="h-[199px] w-full"
-            onSlideClick={onOpen}
-          />
-          {/* 여기부터 매체 찾기 목록 카드(MediaFindCard 콜라보)와 같은 크기 · 여백 · 글자. */}
-          <div className="flex flex-col px-[10px] pt-[11px]">
-            <p className="truncate pl-[2px] text-[16px] leading-[19px] font-bold text-black max-sm:text-[14px]">
-              {store.name}
-            </p>
-            <div className="mt-[5px] flex items-center gap-[3px]">
-              <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
-              <span className="truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
-                {[store.address, store.addressDetail].filter(Boolean).join(" ")}
-              </span>
-            </div>
-            <div className="mt-[8px] flex">
-              <Chip className="gap-0 rounded-[8px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500 max-sm:text-[10px]">
-                {PARTNERS_MEDIA_CATEGORY}
-                <ChevronRightBoldIcon className="size-[16px] shrink-0" />
-                {PARTNERS_MEDIA_SMALL}
-              </Chip>
-            </div>
-          </div>
-          <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
-          {/* 운영 시간 + 매장 특징 칩 — 홈 카드와 같은 컴포넌트. 특징이 없으면 홈에선 줄째 빠지고, 미리보기에만 안내. */}
-          <PartnersCardDetails
-            businessHours={store.businessHours}
-            tags={store.tags}
-            className="p-[10px]"
-            emptyTags={
-              <span className="rounded-[8px] border border-dashed border-gray-300 px-[8px] py-[2px] text-[11px] leading-[16.5px] break-keep text-gray-400">
-                매장 특징을 설정하시면 여기에 보입니다.
-              </span>
-            }
-          />
-        </div>
-      </div>
+      <PreviewFrame store={store} onOpen={onOpen} />
     </PanelCard>
   );
 }
 
-/** 매장 위치 — 홈 지도와 같은 콜라보 핀을 강조(말풍선 · 물결)해 꽂는다. 주소 · 매장명을 고치는 중이면 바로 옮기고 바꾼다. */
-function LocationCard({ store }: { store: PartnersStore }) {
+/** 미리보기 카드 본체 — 회색 틀 안 매체 찾기 목록 카드. PC 카드와 모바일 창이 같이 쓴다. */
+function PreviewFrame({
+  store,
+  onOpen,
+}: {
+  store: PartnersStore;
+  onOpen: (i: number) => void;
+}) {
+  const slides = store.imageUrls.length ? store.imageUrls : [undefined];
+  // 모바일은 회색 틀 여백을 8px로 — 카드 안 틀 안 카드라 좁은 화면에선 미리보기가 너무 작아졌다.
+  return (
+    <div className="rounded-[22px] bg-gray-50 p-[8px] ring-1 ring-gray-100 max-sm:rounded-[20px] sm:p-[16px]">
+      <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-[16px] border border-gray-200 bg-surface">
+        {/* 사진이 바뀌면(더하기 · 지우기 · 대표 바꾸기) 첫 장부터 다시 — 지운 장에 머물러 빈칸이 보이지 않게. */}
+        <MediaImageCarousel
+          key={slides.join("|")}
+          slides={slides}
+          sizes="400px"
+          className="h-[199px] w-full"
+          onSlideClick={onOpen}
+        />
+        {/* 여기부터 매체 찾기 목록 카드(MediaFindCard 콜라보)와 같은 크기 · 여백 · 글자. */}
+        <div className="flex flex-col px-[10px] pt-[11px]">
+          <p className="truncate pl-[2px] text-[16px] leading-[19px] font-bold text-black max-sm:text-[14px]">
+            {store.name}
+          </p>
+          <div className="mt-[5px] flex items-center gap-[3px]">
+            <LocationFilledIcon className="size-[14px] shrink-0 text-tone-6c757d" />
+            <span className="truncate text-[12px] text-tone-6c757d max-sm:text-[11px]">
+              {[store.address, store.addressDetail].filter(Boolean).join(" ")}
+            </span>
+          </div>
+          <div className="mt-[8px] flex">
+            <Chip className="gap-0 rounded-[8px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500 max-sm:text-[10px]">
+              {PARTNERS_MEDIA_CATEGORY}
+              <ChevronRightBoldIcon className="size-[16px] shrink-0" />
+              {PARTNERS_MEDIA_SMALL}
+            </Chip>
+          </div>
+        </div>
+        <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
+        {/* 운영 시간 + 매장 특징 칩 — 홈 카드와 같은 컴포넌트. 특징이 없으면 홈에선 줄째 빠지고, 미리보기에만 안내. */}
+        <PartnersCardDetails
+          businessHours={store.businessHours}
+          tags={store.tags}
+          className="p-[10px]"
+          emptyTags={
+            <span className="rounded-[8px] border border-dashed border-gray-300 px-[8px] py-[2px] text-[11px] leading-[16.5px] break-keep text-gray-400">
+              매장 특징을 설정하시면 여기에 보입니다.
+            </span>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 모바일 — 제목 옆 "광고주 화면" 버튼으로 여는 미리보기 창(사진을 누르면 그 위에 갤러리). */
+function PreviewModal({
+  store,
+  isOpen,
+  onOpenChange,
+  onOpen,
+}: {
+  store: PartnersStore;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onOpen: (i: number) => void;
+}) {
+  return (
+    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Backdrop>
+        <Modal.Container placement="center" size="sm" scroll="inside">
+          <Modal.Dialog aria-label="광고주에게 보이는 화면">
+            <Modal.CloseTrigger />
+            <Modal.Header className="flex flex-col items-start gap-[3px] pr-[36px]">
+              <Modal.Heading className="flex items-center gap-[8px] text-[15px] font-bold text-gray-900">
+                <MaskIcon
+                  src="/icons/fill-eye.svg"
+                  className="h-[15px] w-[17px] shrink-0"
+                />
+                광고주에게 보이는 화면
+              </Modal.Heading>
+              <p className="text-[12px] break-keep text-gray-500">
+                admix 홈 매체 찾기 목록에 이 카드로 보여요.
+              </p>
+            </Modal.Header>
+            <Modal.Body>
+              <PreviewFrame store={store} onOpen={onOpen} />
+            </Modal.Body>
+            {/* 아래 닫기(11-08 사용자) — 기본협약 계약서 창(TextModal)과 같은 회색 버튼. 44px → 곡률 19px. */}
+            <Modal.Footer>
+              <Button
+                variant="tertiary"
+                fullWidth
+                onPress={() => onOpenChange(false)}
+                className="h-[44px] rounded-[19px] text-[14px] font-semibold"
+              >
+                닫기
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
+  );
+}
+
+/**
+ * 매장 위치 — 홈 지도와 같은 콜라보 핀을 강조(말풍선 · 물결)해 꽂는다. 주소 · 매장명을 고치는 중이면 바로 옮기고 바꾼다.
+ * 모바일은 맨 아래 · 지도 160px(11-08 사용자: "맨 아래, 더 낮게").
+ */
+function LocationCard({
+  store,
+  className,
+}: {
+  store: PartnersStore;
+  className?: string;
+}) {
   const located = store.latitude != null && store.longitude != null;
   return (
-    <PanelCard className={cn("gap-[14px] p-[20px] sm:p-[24px]", SHADOW_FLOAT)}>
+    <PanelCard
+      className={cn("gap-[14px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
+    >
       <SectionHead
         icon={<LocationFilledIcon className="size-[18px]" />}
         title="매장 위치"
@@ -218,10 +348,10 @@ function LocationCard({ store }: { store: PartnersStore }) {
           latitude={store.latitude!}
           longitude={store.longitude!}
           name={store.name}
-          className="min-h-[220px] w-full flex-1 overflow-hidden rounded-[18px] ring-1 ring-gray-100"
+          className="min-h-[220px] w-full flex-1 overflow-hidden rounded-[18px] ring-1 ring-gray-100 max-sm:min-h-[160px]"
         />
       ) : (
-        <p className="flex min-h-[140px] flex-1 items-center justify-center rounded-[18px] bg-gray-50 px-[16px] text-center text-[13px] break-keep text-gray-400">
+        <p className="flex min-h-[140px] flex-1 items-center justify-center rounded-[18px] bg-gray-50 px-[16px] text-center text-[13px] break-keep text-gray-400 max-sm:min-h-[120px] max-sm:text-[12px]">
           주소로 위치를 찾으면 여기에 보여요.
         </p>
       )}
@@ -398,12 +528,12 @@ function SectionHead({
   return (
     <div className="flex items-start justify-between gap-[12px]">
       <div className="min-w-0">
-        <h3 className="flex items-center gap-[8px] text-[16px] font-bold text-gray-900">
+        <h3 className="flex items-center gap-[8px] text-[16px] font-bold text-gray-900 max-sm:text-[15px]">
           {icon}
           {title}
         </h3>
         {description && (
-          <p className="mt-[3px] text-[13px] break-keep text-gray-500">
+          <p className="mt-[3px] text-[13px] break-keep text-gray-500 max-sm:text-[12px]">
             {description}
           </p>
         )}
@@ -438,12 +568,14 @@ function ProfileCard({
   state,
   photos,
   onDraft,
+  className,
 }: {
   store: PartnersStore;
   bizStatus: string;
   state: OpenState | null;
   photos: StorePhotos;
   onDraft: (draft: StoreDraft) => void;
+  className?: string;
 }) {
   const [editing, setEditing] = useState<FillKey | null>(null);
   const save = useSavePartnersStore();
@@ -557,7 +689,9 @@ function ProfileCard({
     ) : null;
 
   return (
-    <PanelCard className={cn("gap-[16px] p-[20px] sm:p-[24px]", SHADOW_FLOAT)}>
+    <PanelCard
+      className={cn("gap-[16px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
+    >
       <SectionHead
         icon={<MaskIcon src="/icons/store.svg" className="size-[18px]" />}
         title="우리 매장 정보"
@@ -655,7 +789,10 @@ function ProfileCard({
   );
 }
 
-/** 빈 줄 — 보라 "채우기"(값 자리). */
+/**
+ * 빈 줄 — 보라 "채우기"(값 자리).
+ * 모바일은 작은 회색 테두리 알약(+ 채우기, 24px → 곡률 9px) — 11-08 사용자: "작게, 다른 색깔로".
+ */
 function FillButton({
   onPress,
   isDisabled,
@@ -669,8 +806,9 @@ function FillButton({
       size="sm"
       onPress={onPress}
       isDisabled={isDisabled}
-      className="-my-[4px] -ml-[8px] h-[28px] px-[8px] text-[14px] font-semibold text-primary-600"
+      className="-my-[4px] -ml-[8px] h-[28px] px-[8px] text-[14px] font-semibold text-primary-600 max-sm:mx-0 max-sm:mt-[3px] max-sm:mb-0 max-sm:h-[24px] max-sm:min-w-0 max-sm:gap-[2px] max-sm:rounded-[9px] max-sm:border max-sm:border-gray-300 max-sm:bg-surface max-sm:pr-[8px] max-sm:pl-[6px] max-sm:text-[12px] max-sm:text-gray-700 max-sm:data-[hovered=true]:bg-gray-50"
     >
+      <Plus className="size-[12px] sm:hidden" strokeWidth={2.5} />
       채우기
     </Button>
   );
@@ -683,7 +821,7 @@ function EditButton({ onPress }: { onPress: () => void }) {
       variant="ghost"
       size="sm"
       onPress={onPress}
-      className="-my-[4px] -mr-[6px] h-[28px] min-w-0 shrink-0 rounded-[11px] px-[8px] text-[13px] font-semibold text-gray-400 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600"
+      className="-my-[4px] -mr-[6px] h-[28px] min-w-0 shrink-0 rounded-[11px] px-[8px] text-[13px] font-semibold text-gray-400 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600 max-sm:text-[12px]"
     >
       수정
     </Button>
@@ -756,7 +894,7 @@ function ProfileRow({
       // 카드를 양옆으로 12px 넓혀(-mx) 표시 아이콘이 다른 줄과 같은 자리에 오게 한다.
       <li className="py-[6px]">
         <div className="-mx-[12px] rounded-[18px] bg-primary-50/70 p-[12px] ring-1 ring-primary-200">
-          <div className="flex items-center gap-[10px] text-[14px] leading-[20px]">
+          <div className="flex items-center gap-[10px] text-[14px] leading-[20px] max-sm:gap-[8px] max-sm:text-[13px]">
             {marker}
             <span className="font-semibold text-primary-700">{label}</span>
             {editAction && (
@@ -770,10 +908,17 @@ function ProfileRow({
   }
   return (
     <li className="py-[9px]">
-      <div className="flex items-start gap-[10px] text-[14px] leading-[20px]">
+      {/* 모바일은 이름 위(12px) · 값 아래(13px) — 11-08 사용자: "라벨과 입력값을 위, 아래로", "폰트를 줄여줘". */}
+      <div className="flex items-start gap-[10px] text-[14px] leading-[20px] max-sm:gap-[8px]">
         {marker}
-        <span className="w-[64px] shrink-0 text-gray-500">{label}</span>
-        <span className="min-w-0 flex-1">{children}</span>
+        <span className="flex min-w-0 flex-1 gap-[10px] max-sm:flex-col max-sm:gap-[2px]">
+          <span className="w-[64px] shrink-0 text-gray-500 max-sm:w-auto max-sm:text-[12px] max-sm:leading-[18px]">
+            {label}
+          </span>
+          <span className="min-w-0 flex-1 max-sm:text-[13px] max-sm:leading-[19px]">
+            {children}
+          </span>
+        </span>
         {action || null}
       </div>
     </li>
@@ -989,7 +1134,9 @@ function FillEditor({
         e.preventDefault();
         submit();
       }}
-      className="flex flex-col gap-[10px]"
+      // 모바일은 입력 칸 글자를 다른 글자와 같게 13px — HeroUI 는 모바일에서 16px 로 둔다(11-08 사용자: "폰트가 커").
+      // 뷰포트 maximumScale 1 이라 16px 보다 작아도 iOS 가 확대하지 않는다.
+      className="flex flex-col gap-[10px] max-sm:text-[13px] max-sm:[&_[data-slot=date-input-group-segment]]:text-[13px] max-sm:[&_[data-slot=select-value]]:text-[13px] max-sm:[&_input]:text-[13px]"
     >
       {field === "name" || field === "phone" || field === "owner" ? (
         <Input
@@ -1032,10 +1179,10 @@ function FillEditor({
             )}
           >
             <LocationFilledIcon className="size-[16px] shrink-0 text-primary-500" />
-            <span className="min-w-0 flex-1 truncate text-left text-[14px] text-gray-900">
+            <span className="min-w-0 flex-1 truncate text-left text-[14px] text-gray-900 max-sm:text-[13px]">
               {addr.address}
             </span>
-            <span className="flex shrink-0 items-center gap-[3px] text-[13px] font-semibold text-primary-600">
+            <span className="flex shrink-0 items-center gap-[3px] text-[13px] font-semibold text-primary-600 max-sm:text-[12px]">
               <Search className="size-[14px]" strokeWidth={2.5} />
               주소 찾기
             </span>
@@ -1061,7 +1208,7 @@ function FillEditor({
             type="button"
             variant="ghost"
             onPress={onClose}
-            className="h-[36px] rounded-[14px] px-[14px] font-semibold text-gray-600 data-[hovered=true]:bg-white/70 dark:data-[hovered=true]:bg-white/10 dark:data-[hovered=true]:text-gray-900"
+            className="h-[36px] rounded-[14px] px-[14px] font-semibold text-gray-600 data-[hovered=true]:bg-white/70 max-sm:h-[34px] max-sm:px-[12px] max-sm:text-[13px] dark:data-[hovered=true]:bg-white/10 dark:data-[hovered=true]:text-gray-900"
           >
             취소
           </Button>
@@ -1070,7 +1217,7 @@ function FillEditor({
             variant="primary"
             isDisabled={!changed || !valid}
             isPending={save.isPending}
-            className="h-[36px] rounded-[14px] px-[18px] font-semibold"
+            className="h-[36px] rounded-[14px] px-[18px] font-semibold max-sm:h-[34px] max-sm:px-[16px] max-sm:text-[13px]"
           >
             {save.isPending && <Spinner size="sm" color="current" />}
             저장
@@ -1084,8 +1231,9 @@ function FillEditor({
 /** 폴라로이드마다 살짝 다르게 기울인다(마우스를 올리면 바로 선다). */
 const POLAROID_TILT = [-3, 2.5, -1.5, 3, -2.5, 1.5, -3.5, 2, -1, 3.5];
 
+// 모바일은 세 장씩 작게(11-08 사용자) — 틀 여백 5px.
 const POLAROID =
-  "relative flex w-full flex-col rounded-[6px] bg-white p-[8px] pb-[6px] dark:bg-[#0b0c0f] dark:ring-1 dark:ring-white/5 shadow-[0_2px_4px_rgba(16,24,40,0.06),0_10px_24px_rgba(16,24,40,0.10)] rotate-(--tilt) transition-[rotate,translate,box-shadow,opacity] duration-300 hover:-translate-y-[4px] hover:rotate-0 hover:shadow-[0_4px_8px_rgba(16,24,40,0.08),0_18px_36px_rgba(16,24,40,0.14)] focus-within:rotate-0";
+  "relative flex w-full flex-col rounded-[6px] bg-white p-[8px] pb-[6px] max-sm:p-[5px] max-sm:pb-[3px] dark:bg-[#0b0c0f] dark:ring-1 dark:ring-white/5 shadow-[0_2px_4px_rgba(16,24,40,0.06),0_10px_24px_rgba(16,24,40,0.10)] rotate-(--tilt) transition-[rotate,translate,box-shadow,opacity] duration-300 hover:-translate-y-[4px] hover:rotate-0 hover:shadow-[0_4px_8px_rgba(16,24,40,0.08),0_18px_36px_rgba(16,24,40,0.14)] focus-within:rotate-0";
 
 /**
  * 우리 매장 사진첩 — 폴라로이드처럼. 사진을 누르면 전체 화면 갤러리.
@@ -1095,26 +1243,30 @@ function PhotoAlbum({
   store,
   photos,
   onOpen,
+  className,
 }: {
   store: PartnersStore;
   photos: StorePhotos;
   onOpen: (i: number) => void;
+  className?: string;
 }) {
   const { images } = photos;
   return (
-    <PanelCard className={cn("gap-[18px] p-[20px] sm:p-[24px]", SHADOW_FLOAT)}>
+    <PanelCard
+      className={cn("gap-[18px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
+    >
       <SectionHead
         icon={<MaskIcon src="/icons/camera.svg" className="size-[18px]" />}
         title="우리 매장 사진첩"
         // 장수만 오른쪽 위에(설명 문구는 뺐다, 11-08 사용자).
         right={
-          <span className="shrink-0 text-[13px] text-gray-500 tabular-nums">
+          <span className="shrink-0 text-[13px] text-gray-500 tabular-nums max-sm:text-[12px]">
             사진 <b className="font-semibold text-gray-900">{images.length}</b>{" "}
             / {PARTNERS_MAX_IMAGES}장
           </span>
         }
       />
-      <ul className="grid grid-cols-2 gap-x-[14px] gap-y-[18px] px-[4px] pb-[4px] sm:grid-cols-4 lg:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-x-[14px] gap-y-[18px] px-[4px] pb-[4px] max-sm:grid-cols-3 max-sm:gap-x-[10px] max-sm:gap-y-[14px] sm:grid-cols-4 lg:grid-cols-3">
         {images.map((url, i) => {
           const working = photos.working === url;
           return (
@@ -1146,10 +1298,10 @@ function PhotoAlbum({
                     </span>
                   )}
                 </button>
-                <div className="mt-[6px] flex h-[26px] items-center justify-center">
+                <div className="mt-[6px] flex h-[26px] items-center justify-center max-sm:mt-[4px] max-sm:h-[22px]">
                   {i === 0 ? (
-                    <span className="flex items-center gap-[4px] text-[12px] font-bold text-primary-600">
-                      <Star className="size-[12px] fill-current" />
+                    <span className="flex items-center gap-[4px] text-[12px] font-bold text-primary-600 max-sm:gap-[3px] max-sm:text-[11px]">
+                      <Star className="size-[12px] fill-current max-sm:size-[10px]" />
                       대표 사진
                     </span>
                   ) : (
@@ -1158,7 +1310,7 @@ function PhotoAlbum({
                       size="sm"
                       isDisabled={photos.busy}
                       onPress={() => photos.makeCover(url)}
-                      className="h-[26px] min-w-0 rounded-[10px] px-[8px] text-[12px] font-semibold text-gray-500 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600"
+                      className="h-[26px] min-w-0 rounded-[10px] px-[8px] text-[12px] font-semibold whitespace-nowrap text-gray-500 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600 max-sm:h-[22px] max-sm:rounded-[8px] max-sm:px-[4px] max-sm:text-[11px]"
                     >
                       대표로 정하기
                     </Button>
@@ -1170,9 +1322,12 @@ function PhotoAlbum({
                   aria-label={`${i + 1}번째 사진 지우기`}
                   isDisabled={photos.busy}
                   onPress={() => photos.remove(url)}
-                  className="absolute top-[14px] right-[14px] size-[26px] min-w-0 rounded-full bg-black/55 p-0 text-white transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100 data-[hovered=true]:bg-black/75 [@media(hover:hover)]:opacity-0"
+                  className="absolute top-[14px] right-[14px] size-[26px] min-w-0 rounded-full bg-black/55 p-0 text-white transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100 data-[hovered=true]:bg-black/75 max-sm:top-[9px] max-sm:right-[9px] max-sm:size-[22px] [@media(hover:hover)]:opacity-0"
                 >
-                  <X className="size-[14px]" strokeWidth={2.5} />
+                  <X
+                    className="size-[14px] max-sm:size-[12px]"
+                    strokeWidth={2.5}
+                  />
                 </Button>
               </div>
             </li>
@@ -1191,10 +1346,12 @@ function PhotoAlbum({
               type="button"
               disabled={photos.busy}
               onClick={photos.pick}
-              className="flex aspect-[1/1.12] w-full flex-col items-center justify-center gap-[8px] rounded-[6px] border-2 border-dashed border-gray-200 text-gray-400 transition-colors outline-none hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50"
+              className="flex aspect-[1/1.12] w-full flex-col items-center justify-center gap-[8px] rounded-[6px] max-sm:gap-[4px] border-2 border-dashed border-gray-200 text-gray-400 transition-colors outline-none hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50"
             >
-              <Plus className="size-[22px]" />
-              <span className="text-[12px] font-semibold">추가하기</span>
+              <Plus className="size-[22px] max-sm:size-[18px]" />
+              <span className="text-[12px] font-semibold max-sm:text-[11px]">
+                추가하기
+              </span>
             </button>
           </li>
         )}

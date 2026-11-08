@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { useMe } from "@/hooks/auth";
-import { partnersStoreHref } from "@/lib/partners";
+import { PARTNERS_DASHBOARD_HREF, partnersStoreHref } from "@/lib/partners";
 import { getUserToken } from "@/lib/userToken";
 import { canUsePartners } from "@/lib/memberCategory";
 
@@ -49,12 +49,14 @@ export function useCanOpenPartners() {
 
 /**
  * 콜라보 화면을 새 탭으로 연다 — 광고주·제휴사(콜라보)만. 그 외는 안내 창.
- * - 메뉴(/partners): 비회원·일반·대행사·매체사는 "전용 메뉴" 안내 창(대시보드 보기).
+ * - 메뉴(/partners): 제휴사(콜라보)는 곧바로 대시보드(/partners/dashboard), 광고주는 /partners.
+ *   비회원·일반·대행사·매체사는 "전용 메뉴" 안내 창(대시보드 보기).
  * - 매장 상세(storeKey): 비회원은 로그인 안내 창, 그 외 회원은 "전용 메뉴" 안내 창.
  */
 export function useOpenPartners() {
   const { data: me } = useMe();
-  // 로그인했는데 회원 정보를 아직 받는 중이면 비회원으로 보지 않고 그냥 연다 — /partners 가 유형에 맞게 보여 준다.
+  // 로그인했는데 회원 정보를 아직 받는 중이면 비회원으로 보지 않고 그냥 연다 — /partners 가 유형에 맞게 보여 준다
+  // (제휴사면 거기서 대시보드로 보낸다).
   return (storeKey?: string) => {
     const loading = !me && !!getUserToken();
     if (!loading && !me && storeKey) {
@@ -66,7 +68,11 @@ export function useOpenPartners() {
       return;
     }
     window.open(
-      storeKey ? partnersStoreHref(storeKey) : "/partners",
+      storeKey
+        ? partnersStoreHref(storeKey)
+        : me?.member_category === "partner"
+          ? PARTNERS_DASHBOARD_HREF
+          : "/partners",
       "_blank",
       "noopener",
     );

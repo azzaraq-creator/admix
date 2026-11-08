@@ -77,8 +77,8 @@ export function PartnerResumeModal() {
   const onJoinPage =
     pathname.startsWith("/partners/join") ||
     pathname.startsWith("/signup") ||
-    // 콜라보 첫 화면(내 매장)은 매장이 없으면 그 자리에서 매장 등록을 받으므로 매장 안내는 띄우지 않는다.
-    (left === "store" && pathname === "/partners");
+    // 내 매장은 매장이 없으면 그 자리에서 매장 등록을 받으므로 매장 안내는 띄우지 않는다.
+    (left === "store" && pathname === "/partners/stores");
   const isOpen = !!me && !!left && !onJoinPage && !dismissed;
   const copy = left === "store" ? STORE_COPY : AGREEMENT_COPY;
 

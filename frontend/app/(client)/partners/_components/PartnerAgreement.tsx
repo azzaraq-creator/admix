@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Checkbox, Label, Spinner, toast } from "@heroui/react";
+import { Button, Checkbox, Label, ScrollShadow, toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -18,7 +18,13 @@ import {
   useHasUserToken,
   useMe,
 } from "@/hooks/auth";
-import { partnersApi, partnersKeys } from "@/hooks/partners";
+import {
+  partnersApi,
+  partnersKeys,
+  useMyPartnersStores,
+} from "@/hooks/partners";
+import { LoadingState } from "@/components/common/RouteStates";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
@@ -51,6 +57,7 @@ import { AnnexStage, ConsentStage, DocumentStage } from "./agreementStages";
  * 본인확인 · 동의 접수는 아직 서버가 없어 예시로만 처리한다 — 접수하면 임시로 4단계(계약서)로 넘어가고,
  * 계약서 아래 "다음"으로 매장 등록(/partners/join/store)에 간다.
  * 사이드바 메뉴 "기본협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 등록이 등록 여부 체크로 보이고, "다음 · 매장 등록" 버튼은 없다.
+ * 메뉴가 아닌 길로 와도 매장을 이미 등록했으면 "다음 · 매장 등록"은 없고 03은 등록 체크로 보인다.
  * 디자인은 소개 화면과 같은 언어 — 옅은 보라 배경 빛 위에 흰 유리 카드, 진한 보라는 버튼 · 진행 표시에만.
  */
 
@@ -129,11 +136,7 @@ export function PartnerAgreement({
   // 로그인했으면 회원 정보 · 진행 상태를 받을 때까지 로딩만 보인다(처음 화면을 그렸다가 저장된 곳으로 튀지 않게).
   // 진행 상태를 못 받으면 처음부터.
   if ((hasToken && !me && !isError) || (partner && progress.isPending)) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <LoadingState />;
   }
   const saved = (progress.data as Partial<Progress> | null) ?? {};
   const agreed = partner && !!me.partner_agreed_at;
@@ -196,10 +199,17 @@ function AgreementBody({
   const [submitting, setSubmitting] = useState(false);
   const member = me?.member_category === "partner";
   const queryClient = useQueryClient();
+  // 매장을 이미 등록한 제휴사 — 메뉴가 아닌 길(가입·협약 소개 → "가입·협약 시작하기")로 다시 와도
+  // "다음 · 매장 등록"을 띄우지 않고, 가입 진행 03은 등록 체크로 보인다(11-08 사용자).
+  // 매장 목록을 받는 동안도 등록한 것으로 본다(버튼이 떴다가 사라지지 않게). 못 받으면 버튼을 둔다.
+  const stores = useMyPartnersStores();
+  const storeRegistered =
+    member && (stores.isPending || (stores.data?.length ?? 0) > 0);
   /** 적용 조항 원문 창 — 지금 보는 주제의 조항만 띄운다. */
   const [originalOpen, setOriginalOpen] = useState(false);
   const readerTop = useRef<HTMLDivElement>(null);
   const stageNav = useRef<HTMLElement>(null);
+  const isDesktop = useIsDesktop();
 
   const annexes = annexesFor(role);
   const requiredAnnex = annexes.filter((a) => a.required);
@@ -353,7 +363,7 @@ function AgreementBody({
           <ArrowLeftIcon className="size-[16px]" />
           가입·협약 소개
         </Link>
-        {fromMenu ? (
+        {fromMenu || storeRegistered ? (
           <JoinFlowWithStore current={1} />
         ) : (
           <JoinFlow current={1} />
@@ -368,10 +378,15 @@ function AgreementBody({
             className="ml-[5px] inline-block size-[7px] rounded-full bg-primary align-baseline sm:ml-[6px] sm:size-[9px]"
           />
         </h1>
-        <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:mt-[8px] sm:text-[15px]">
-          핵심 내용과 별지를 확인하고 동의해 주세요.
-        </p>
-        <JoinAccount className="mt-[10px]" />
+        {/* 메뉴 "기본협약"으로 들어오면(이미 가입한 제휴사) 가입 안내 문구 · 등록 중 계정 알약은 뺀다(11-08 사용자). */}
+        {!fromMenu && (
+          <>
+            <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:mt-[8px] sm:text-[15px]">
+              핵심 내용과 별지를 확인하고 동의해 주세요.
+            </p>
+            <JoinAccount className="mt-[10px]" />
+          </>
+        )}
       </div>
 
       <div
@@ -380,55 +395,61 @@ function AgreementBody({
       >
         {/* ── 위 — 4단계 (배경 카드 없이 지금 단계만 흰 알약. PC는 네 칸을 고르게, 모바일은 가로로 넘기는 한 줄) ── */}
         <aside className="min-w-0">
-          <nav
-            ref={stageNav}
-            aria-label="기본협약 동의 단계"
-            className="flex gap-[6px] overflow-x-auto p-[4px] [scrollbar-width:none] lg:overflow-visible [&::-webkit-scrollbar]:hidden"
-          >
-            {STAGES.map((st, i) => {
-              const current = stage === st.id;
-              return (
-                <div key={st.id} className="flex shrink-0 flex-col lg:flex-1">
-                  {/* 줄 높이 52px → 곡률 23px. */}
-                  <button
-                    type="button"
-                    aria-current={current ? "step" : undefined}
-                    // 계약서·다운로드는 최종 동의를 마쳐야 열린다.
-                    disabled={st.id === "document" && !submitted}
-                    onClick={() => goStage(st.id)}
-                    className={cn(
-                      "flex h-[52px] w-full items-center gap-[10px] rounded-[23px] border px-[12px] text-left whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                      current
-                        ? "border-white bg-surface/70 shadow-[0_4px_14px_rgba(42,20,89,0.08)] backdrop-blur-md dark:border-gray-100"
-                        : "border-transparent enabled:hover:bg-surface/60",
-                    )}
-                  >
-                    {st.done ? (
-                      <span className="flex size-[24px] shrink-0 items-center justify-center">
-                        <CheckMark on />
+          <nav ref={stageNav} aria-label="기본협약 동의 단계">
+            {/* 모바일은 양 끝을 HeroUI ScrollShadow 로 흐리게 — 넘길 단계가 더 있다는 표시(11-08 사용자). sm 이상은 끈다. */}
+            <ScrollShadow
+              orientation="horizontal"
+              hideScrollBar
+              size={28}
+              isEnabled={!isDesktop}
+              visibility={isDesktop ? "none" : "auto"}
+              className="flex gap-[6px] overflow-x-auto p-[4px] [scrollbar-width:none] lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+            >
+              {STAGES.map((st, i) => {
+                const current = stage === st.id;
+                return (
+                  <div key={st.id} className="flex shrink-0 flex-col lg:flex-1">
+                    {/* 줄 높이 52px → 곡률 23px. 모바일은 44px → 19px · 글자 한 단계 작게(11-08 사용자). */}
+                    <button
+                      type="button"
+                      aria-current={current ? "step" : undefined}
+                      // 계약서·다운로드는 최종 동의를 마쳐야 열린다.
+                      disabled={st.id === "document" && !submitted}
+                      onClick={() => goStage(st.id)}
+                      className={cn(
+                        "flex h-[52px] w-full items-center gap-[10px] rounded-[23px] border px-[12px] text-left whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50 max-sm:h-[44px] max-sm:gap-[8px] max-sm:rounded-[19px] max-sm:px-[10px]",
+                        current
+                          ? "border-white bg-surface/70 shadow-[0_4px_14px_rgba(42,20,89,0.08)] backdrop-blur-md dark:border-gray-100"
+                          : "border-transparent enabled:hover:bg-surface/60",
+                      )}
+                    >
+                      {st.done ? (
+                        <span className="flex size-[24px] shrink-0 items-center justify-center max-sm:size-[20px]">
+                          <CheckMark on />
+                        </span>
+                      ) : (
+                        <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 tabular-nums max-sm:size-[20px] max-sm:text-[10px]">
+                          {i + 1}
+                        </span>
+                      )}
+                      <span className="flex flex-col">
+                        <b
+                          className={cn(
+                            "text-[14px] font-semibold max-sm:text-[13px]",
+                            current ? "text-gray-900" : "text-gray-600",
+                          )}
+                        >
+                          {st.title}
+                        </b>
+                        <small className="text-[11px] text-gray-400 tabular-nums max-sm:text-[10px]">
+                          {st.detail}
+                        </small>
                       </span>
-                    ) : (
-                      <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 tabular-nums">
-                        {i + 1}
-                      </span>
-                    )}
-                    <span className="flex flex-col">
-                      <b
-                        className={cn(
-                          "text-[14px] font-semibold",
-                          current ? "text-gray-900" : "text-gray-600",
-                        )}
-                      >
-                        {st.title}
-                      </b>
-                      <small className="text-[11px] text-gray-400 tabular-nums">
-                        {st.detail}
-                      </small>
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
+                    </button>
+                  </div>
+                );
+              })}
+            </ScrollShadow>
           </nav>
         </aside>
 
@@ -631,7 +652,9 @@ function AgreementBody({
           {stage === "document" && (
             <DocumentStage
               onNext={
-                fromMenu ? undefined : () => router.push("/partners/join/store")
+                fromMenu || storeRegistered
+                  ? undefined
+                  : () => router.push("/partners/join/store")
               }
             />
           )}

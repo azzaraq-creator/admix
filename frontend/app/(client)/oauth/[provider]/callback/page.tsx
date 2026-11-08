@@ -3,7 +3,9 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
-import { authApi } from "@/hooks/auth";
+import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
+import { authApi, takeSnsReturn } from "@/hooks/auth";
+import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { setTokens } from "@/lib/userToken";
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -34,11 +36,20 @@ function OAuthCallback() {
         // 소셜 신규 가입 승계는 가입 완료 지점(SnsSignupForm)에서 수행.
         // 인증된(수신 가능한) 이메일이 없는 소셜 가입은 이메일 인증 화면으로.
         // me 조회 실패가 로그인 성공을 뒤집지 않도록 홈으로 폴백.
-        const verified = await authApi
-          .me()
-          .then((me) => me.verified)
-          .catch(() => true);
-        router.replace(verified ? "/" : "/signup/sns");
+        // 진행 중인 기본협약 창 — 이메일 로그인과 같이 로그인할 때마다 다시 묻는다.
+        resetPartnerResume();
+        const returnTo = takeSnsReturn();
+        const me = await authApi.me().catch(() => null);
+        if (me && !me.verified) {
+          router.replace("/signup/sns");
+          return;
+        }
+        // 콜라보 로그인 창에서 시작했으면 보던 콜라보 화면으로. 아니면 제휴사(콜라보)는 대시보드, 그 외는 홈
+        // (이메일 로그인 창과 같다).
+        router.replace(
+          returnTo ??
+            (me?.member_category === "partner" ? PARTNERS_DASHBOARD_HREF : "/"),
+        );
       })
       .catch(() => setExchangeFailed(true));
   }, [code, provider, search, router]);

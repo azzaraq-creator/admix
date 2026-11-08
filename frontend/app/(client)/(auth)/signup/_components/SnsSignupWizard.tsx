@@ -141,6 +141,8 @@ function SnsSignupFlow({ me }: { me: MeResponse }) {
           needPassword={false}
           showBizCert={category !== "general"}
           brandImage={category === "advertiser"}
+          // 제휴사(콜라보)는 이메일 가입과 같이 회사명 없이 사업자등록증(선택)만.
+          partner={category === "partner"}
           initial={info}
           serverError={
             phoneError ? { field: "phone", message: phoneError } : null

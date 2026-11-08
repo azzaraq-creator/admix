@@ -21,15 +21,12 @@ const METHOD_BUTTON = cn(
 export function MethodStep({
   category,
   snsPending,
-  emailOnly = false,
   onChangeCategory,
   onSns,
   onEmail,
 }: {
   category: MemberCategory;
   snsPending: boolean;
-  /** 카카오·네이버를 숨기고 이메일 가입만 보인다(제휴사(콜라보) — 소셜 가입 보류). */
-  emailOnly?: boolean;
   onChangeCategory: () => void;
   onSns: (provider: "kakao" | "naver") => void;
   onEmail: () => void;
@@ -66,34 +63,30 @@ export function MethodStep({
       </div>
 
       <div className="flex w-full flex-col gap-[16px]">
-        {!emailOnly && (
-          <>
-            <Button
-              fullWidth
-              isDisabled={snsPending}
-              onPress={() => onSns("kakao")}
-              className={cn(METHOD_BUTTON, "bg-[#fee500] text-[#191600]")}
-            >
-              <KakaoSymbolIcon className="size-[18px] shrink-0" />
-              카카오로 계속하기
-            </Button>
-            <Button
-              fullWidth
-              isDisabled={snsPending}
-              onPress={() => onSns("naver")}
-              className={cn(METHOD_BUTTON, "bg-[#03c75a] text-white")}
-            >
-              <NaverSymbolIcon className="size-[16px] shrink-0" />
-              네이버로 계속하기
-            </Button>
+        <Button
+          fullWidth
+          isDisabled={snsPending}
+          onPress={() => onSns("kakao")}
+          className={cn(METHOD_BUTTON, "bg-[#fee500] text-[#191600]")}
+        >
+          <KakaoSymbolIcon className="size-[18px] shrink-0" />
+          카카오로 계속하기
+        </Button>
+        <Button
+          fullWidth
+          isDisabled={snsPending}
+          onPress={() => onSns("naver")}
+          className={cn(METHOD_BUTTON, "bg-[#03c75a] text-white")}
+        >
+          <NaverSymbolIcon className="size-[16px] shrink-0" />
+          네이버로 계속하기
+        </Button>
 
-            <div className="flex w-full items-center gap-[16px]">
-              <Separator className="flex-1 bg-gray-200" />
-              <span className="text-[13px] text-zinc-400">또는</span>
-              <Separator className="flex-1 bg-gray-200" />
-            </div>
-          </>
-        )}
+        <div className="flex w-full items-center gap-[16px]">
+          <Separator className="flex-1 bg-gray-200" />
+          <span className="text-[13px] text-zinc-400">또는</span>
+          <Separator className="flex-1 bg-gray-200" />
+        </div>
 
         <Button
           variant="ghost"

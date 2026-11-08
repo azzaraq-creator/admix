@@ -145,13 +145,18 @@ api.interceptors.response.use(
 
     original._retry = true;
 
+    // 세션이 끝나면 첫 화면으로 — 콜라보 화면(/partners…)이면 비회원용 콜라보 소개(/partners)로.
     const endSession = (cause: unknown) => {
       clearUserToken();
-      if (typeof window !== "undefined") window.location.href = "/";
+      if (typeof window !== "undefined") {
+        window.location.href = window.location.pathname.startsWith("/partners")
+          ? "/partners"
+          : "/";
+      }
       return Promise.reject(cause);
     };
 
-    // 갱신 수단이 없으면 세션 종료 → 홈으로
+    // 갱신 수단이 없으면 세션 종료 → 홈(콜라보는 소개)으로
     if (!getRefreshToken()) {
       return endSession(error);
     }

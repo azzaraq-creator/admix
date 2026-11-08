@@ -28,9 +28,9 @@ const STEP_INDEX: Record<Step, number> = {
 
 /**
  * /signup — 시안(00. 회원가입) 흐름: 유형 → 방식 → 이메일 인증 → 회원정보 → 약관.
- * 제휴사(콜라보)도 같은 흐름을 탄다 — 다만 방식에서 소셜 가입은 보류라 이메일만 보이고, 회원정보는 회사명 없이 사업자등록증(선택, 추후 인증 필요)만 받으며,
+ * 제휴사(콜라보)도 같은 흐름을 탄다 — 방식은 카카오 · 네이버 · 이메일 모두(11-08 사용자: 소셜 가입 다시 열기), 회원정보는 회사명 없이 사업자등록증(선택, 추후 인증 필요)만 받으며,
  *   약관 동의는 다른 유형과 같은 "가입 완료" — 가입 완료 화면을 본 뒤 거기의 "협약·매장 등록하기"로 기본협약 동의(/partners/join/agreement)에 간다.
- *   가입·협약 소개의 "시작하기"로 온 경우(/signup?category=partner)는 유형 · 방식을 건너뛰고 이메일부터 시작한다.
+ *   콜라보 화면의 회원가입 · 가입·협약 소개의 "시작하기"로 온 경우(/signup?category=partner)는 유형을 제휴사(콜라보)로 골라 둔 채 2단계(방식)부터 시작한다.
  * 방식에서 카카오·네이버를 고르면 소셜 로그인 후 /signup/sns(SnsSignupWizard)에서 이어간다.
  */
 export function EmailSignupWizard() {
@@ -45,7 +45,7 @@ export function EmailSignupWizard() {
   );
   const partner = category === "partner";
   const [step, setStep] = useState<Step>(() =>
-    preset === "partner" ? "email" : "category",
+    preset === "partner" ? "method" : "category",
   );
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [info, setInfo] = useState<SignupInfo>(EMPTY_SIGNUP_INFO);
@@ -97,8 +97,7 @@ export function EmailSignupWizard() {
   };
 
   const back: Partial<Record<Step, Step>> = {
-    // 소개에서 온 제휴사(콜라보)는 이메일 단계에서 시작하므로 그 앞으로는 돌아가지 않는다.
-    email: preset === "partner" ? undefined : "method",
+    email: "method",
     info: "email",
     terms: "info",
   };
@@ -120,8 +119,6 @@ export function EmailSignupWizard() {
         <MethodStep
           category={category}
           snsPending={sns.pending}
-          // 제휴사(콜라보)는 소셜 가입 보류 — 이메일만.
-          emailOnly={partner}
           onChangeCategory={() => setStep("category")}
           onSns={handleSns}
           onEmail={() => {

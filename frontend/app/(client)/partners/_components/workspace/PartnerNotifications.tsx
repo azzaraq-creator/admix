@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Drawer, ListBox, Popover } from "@heroui/react";
-import { Bell, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -30,7 +30,8 @@ const KIND_DOT = {
 } as const;
 
 /**
- * 종 — notification.svg 모양을 차분한 회색 두 톤(몸통 옅게 · 추 진하게)으로. 보라 · 노랑은 쓰지 않는다.
+ * 종 — notification.svg 모양을 회색 두 톤(몸통 진하게 gray-800 · 추 gray-500)으로 — 옆 메뉴 아이콘과 같은 진하기.
+ * 보라 · 노랑은 쓰지 않는다(11-06 사용자: "보라 싫다", "노랑 · 주황은 혼자 화려해"). 옅은 회색은 "칙칙하다"(11-08).
  * badge 면 badge-notification.svg 모양(오른쪽 위가 파인 몸통 + 빨간 점).
  */
 function BellTwoTone({
@@ -51,7 +52,7 @@ function BellTwoTone({
         d="M8 18C9.38503 18 10.5633 17.1652 11 16H5C5.43668 17.1652 6.61497 18 8 18Z"
         className="fill-gray-500"
       />
-      <path d={badge ? BELL_BADGE_BODY : BELL_BODY} className="fill-gray-300" />
+      <path d={badge ? BELL_BADGE_BODY : BELL_BODY} className="fill-gray-800" />
       {badge && <circle cx="13" cy="3" r="3" className="fill-red-500" />}
     </svg>
   );
@@ -63,27 +64,6 @@ const BELL_BADGE_BODY =
 
 function useNotifications() {
   return todosOf(usePreviewState());
-}
-
-function CountBadge({
-  count,
-  corner = false,
-}: {
-  count: number;
-  corner?: boolean;
-}) {
-  if (count <= 0) return null;
-  return (
-    <span
-      className={cn(
-        "flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[10px] leading-none font-bold text-white tabular-nums",
-        corner &&
-          "absolute -top-[7px] -right-[9px] h-[16px] min-w-[16px] px-[4px] ring-2 ring-white",
-      )}
-    >
-      {count > 99 ? "99+" : count}
-    </span>
-  );
 }
 
 /** 패널 안 — 제목 · 닫기 · 알림 목록. */
@@ -227,7 +207,7 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** 모바일 위 띠 — 종 아이콘 + 아래 시트. */
+/** 모바일 위 띠 — 종 아이콘(PC와 같은 두 톤 종) + 아래 시트. */
 export function PartnerNotificationHeaderButton() {
   const items = useNotifications();
   const [open, setOpen] = useState(false);
@@ -241,10 +221,8 @@ export function PartnerNotificationHeaderButton() {
         onClick={() => setOpen(true)}
         className="ml-auto flex h-full w-[48px] shrink-0 items-center justify-center text-gray-900"
       >
-        <span className="relative">
-          <Bell className="size-[20px]" />
-          <CountBadge count={items.length} corner />
-        </span>
+        {/* PC 사이드바 알림과 같은 종(회색 두 톤 · 알림이 있으면 빨간 점) — 11-08 사용자: "모바일 알림 아이콘이 달라". */}
+        <BellTwoTone badge={items.length > 0} className="h-[20px] w-[18px]" />
       </button>
       {!isDesktop && (
         <Drawer isOpen={open} onOpenChange={setOpen}>

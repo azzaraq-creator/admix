@@ -1,9 +1,9 @@
 "use client";
 
-import { Spinner } from "@heroui/react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { MediaImage } from "@/components/common/MediaImage";
 import { StaticKakaoMap } from "@/components/common/StaticKakaoMap";
 import { useHasUserToken, useMe } from "@/hooks/auth";
@@ -31,20 +31,10 @@ export function PartnersStoreDetail({
   const hasToken = useHasUserToken(member);
   const { data: store, isLoading, isError } = usePartnersStore(storeKey);
 
-  if (hasToken && !me && !meError)
-    return (
-      <Center>
-        <Spinner />
-      </Center>
-    );
+  if (hasToken && !me && !meError) return <LoadingState />;
   if (!me) return <PartnersNoAccess guest />;
   if (!canUsePartners(me.member_category)) return <PartnersNoAccess />;
-  if (isLoading)
-    return (
-      <Center>
-        <Spinner />
-      </Center>
-    );
+  if (isLoading) return <LoadingState />;
   if (isError || !store) {
     return (
       <Center>

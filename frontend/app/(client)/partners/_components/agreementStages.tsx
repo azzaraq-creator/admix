@@ -607,6 +607,8 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
   const paper = useRef<HTMLDivElement>(null);
   const paperBox = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
+  // 모바일 — 종이 대신 버튼 → 계약서 창(11-08 사용자: "팝업 띄워서 볼 수 있게").
+  const [docOpen, setDocOpen] = useState(false);
 
   /** 인쇄 · PDF 저장 — 계약서 본문만 새 창에 담아 브라우저 인쇄 창을 연다(인쇄 창에서 "PDF로 저장"). */
   const print = () => {
@@ -630,25 +632,80 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
             title="계약서 전체 보기"
           />
         </div>
+        {/* 모바일은 머리에서 빼고 아래 계약서 카드 안 버튼으로(11-08 사용자: "깔끔하게 정리"). */}
         <Button
           variant="tertiary"
           onPress={print}
-          className="h-[40px] rounded-[17px] text-[13px] font-semibold"
+          className="h-[40px] rounded-[17px] text-[13px] font-semibold max-sm:hidden"
         >
           인쇄 · PDF 저장
         </Button>
       </div>
-      <p className="mt-[6px] text-[14px] leading-[1.65] break-keep text-gray-600">
-        협약 전문과 매장별 별지를 한 문서로 담았어요. 검토용 문서이며 실제
-        체결본은 아니에요.
+      {/* 모바일은 13px · 짧은 문구(11-08 사용자). */}
+      <p className="mt-[6px] text-[14px] leading-[1.65] break-keep text-gray-600 max-sm:text-[13px]">
+        <span className="sm:hidden">
+          협약 전문과 별지를 한 문서로 담은 검토본이에요.
+        </span>
+        <span className="max-sm:hidden">
+          협약 전문과 매장별 별지를 한 문서로 담았어요. 검토용 문서이며 실제
+          체결본은 아니에요.
+        </span>
       </p>
+
+      {/*
+       * 모바일 — 계약서 카드: 위 문서 이름 · 판, 아래 "전체 보기"(창) · "인쇄 · PDF 저장" 두 버튼.
+       * 종이(아래)는 숨겨 두되 그려 두어 인쇄는 그대로 된다. 버튼 36px → 곡률 15px.
+       */}
+      <div className="mt-[14px] flex flex-col gap-[12px] rounded-[20px] bg-surface p-[14px] shadow-[0_6px_18px_rgba(42,20,89,0.08)] sm:hidden">
+        <div className="flex items-center gap-[12px]">
+          <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[17px] bg-gray-100 text-gray-600">
+            <FileTextIcon className="size-[20px]" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+            <b className="line-clamp-2 text-[14px] font-bold break-keep text-gray-900">
+              {DOC.title}
+            </b>
+            <span className="text-[12px] text-gray-500">
+              검토본 v{AGREEMENT.version}
+            </span>
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-[8px]">
+          {/* 두 버튼 모양을 다르게(11-08 사용자) — 보기는 HeroUI secondary(옅은 바탕 · 보라 글자), 인쇄는 outline(테두리). 아이콘은 뺐다(11-08 사용자). */}
+          <Button
+            variant="secondary"
+            fullWidth
+            onPress={() => setDocOpen(true)}
+            className="h-[36px] rounded-[15px] px-[8px] text-[13px] font-semibold"
+          >
+            전체 보기
+          </Button>
+          <Button
+            variant="outline"
+            fullWidth
+            onPress={print}
+            className="h-[36px] rounded-[15px] px-[8px] text-[13px] font-semibold text-gray-700"
+          >
+            인쇄 · PDF 저장
+          </Button>
+        </div>
+      </div>
+      <TextModal
+        isOpen={docOpen}
+        title="계약서 전체 보기"
+        onClose={() => setDocOpen(false)}
+      >
+        <div className="text-[13px] leading-[1.65] break-keep text-gray-700">
+          <DocContent />
+        </div>
+      </TextModal>
 
       {/* 종이 — 인쇄 창은 이 안의 내용만 옮겨 담는다(태그 위주로 써서 인쇄 창 스타일이 그대로 먹게).
           처음엔 높이 420px 로 접어 안에서 스크롤 + 위아래 흐림(HeroUI ScrollShadow), "전체 보기"를 누르면 끝까지 펼친다.
           접혀 있어도 내용은 다 들어 있어 인쇄는 그대로 전체가 나간다. */}
       <div
         ref={paperBox}
-        className="mt-[16px] scroll-mt-[16px] overflow-hidden rounded-[20px] bg-surface shadow-[0_6px_18px_rgba(42,20,89,0.08)] sm:mt-[20px]"
+        className="mt-[16px] scroll-mt-[16px] overflow-hidden rounded-[20px] bg-surface shadow-[0_6px_18px_rgba(42,20,89,0.08)] max-sm:hidden sm:mt-[20px]"
       >
         <ScrollShadow
           size={60}
@@ -663,66 +720,11 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
             ref={paper}
             className="text-[13px] leading-[1.65] break-keep text-gray-700"
           >
-            <h1 className="text-[20px] font-bold text-gray-900 sm:text-[22px]">
-              {DOC.title}
-            </h1>
-            <p className="muted mt-[4px] text-[12px] text-gray-400">
-              {DOC.subtitle}
-            </p>
-            <p className="mt-[12px]">{DOC.intro}</p>
-
-            <h2 className="mt-[24px] text-[15px] font-bold text-gray-900">
-              먼저 확인할 핵심 조건
-            </h2>
-            <ol className="mt-[8px] flex list-decimal flex-col gap-[6px] pl-[18px]">
-              {DOC.keypoints.map((k) => (
-                <li key={k.id}>
-                  <b className="font-semibold text-gray-900">{k.lead}</b>{" "}
-                  {k.detail}{" "}
-                  <span className="muted text-gray-400">(제{k.ref}조)</span>
-                </li>
-              ))}
-            </ol>
-
-            <h2 className="mt-[24px] text-[15px] font-bold text-gray-900">
-              본문
-            </h2>
-            <div className="mt-[8px] flex flex-col gap-[16px]">
-              {SECTIONS.map((s) => (
-                <SectionClauses key={s.number} section={s} />
-              ))}
-            </div>
-
-            <p className="mt-[24px] font-semibold text-gray-900">
-              {DOC.closing}
-            </p>
-            <div className="mt-[10px] overflow-x-auto">
-              <DocTable rows={DOC.signatureTable} head="row" />
-            </div>
-
-            <h2 className="mt-[32px] text-[15px] font-bold text-gray-900">
-              {DOC.annexTitle}
-            </h2>
-            <p className="mt-[4px] font-semibold text-gray-800">
-              {DOC.annexStore}
-            </p>
-            <div className="mt-[10px] overflow-x-auto">
-              <DocTable rows={DOC.annexTable} head="col" />
-            </div>
-            <div className="mt-[10px] flex flex-col gap-[4px]">
-              {DOC.annexNotes.map((n) => (
-                <p
-                  key={n}
-                  className="text-[12px] whitespace-pre-wrap text-gray-500"
-                >
-                  {n}
-                </p>
-              ))}
-            </div>
+            <DocContent />
           </div>
         </ScrollShadow>
       </div>
-      <div className="mt-[12px] flex justify-center">
+      <div className="mt-[12px] flex justify-center max-sm:hidden">
         <Button
           variant="tertiary"
           size="sm"
@@ -761,6 +763,61 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
           </Button>
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * 계약서 본문 — PC 종이와 모바일 계약서 창이 같이 쓴다(인쇄 창은 PC 종이의 내용을 옮겨 담는다).
+ * 제목은 모바일 17px(11-08 사용자: "타이틀 폰트 줄여줘").
+ */
+function DocContent() {
+  return (
+    <>
+      <h1 className="text-[17px] font-bold text-gray-900 sm:text-[22px]">
+        {DOC.title}
+      </h1>
+      <p className="muted mt-[4px] text-[12px] text-gray-400">{DOC.subtitle}</p>
+      <p className="mt-[12px]">{DOC.intro}</p>
+
+      <h2 className="mt-[24px] text-[15px] font-bold text-gray-900">
+        먼저 확인할 핵심 조건
+      </h2>
+      <ol className="mt-[8px] flex list-decimal flex-col gap-[6px] pl-[18px]">
+        {DOC.keypoints.map((k) => (
+          <li key={k.id}>
+            <b className="font-semibold text-gray-900">{k.lead}</b> {k.detail}{" "}
+            <span className="muted text-gray-400">(제{k.ref}조)</span>
+          </li>
+        ))}
+      </ol>
+
+      <h2 className="mt-[24px] text-[15px] font-bold text-gray-900">본문</h2>
+      <div className="mt-[8px] flex flex-col gap-[16px]">
+        {SECTIONS.map((s) => (
+          <SectionClauses key={s.number} section={s} />
+        ))}
+      </div>
+
+      <p className="mt-[24px] font-semibold text-gray-900">{DOC.closing}</p>
+      <div className="mt-[10px] overflow-x-auto">
+        <DocTable rows={DOC.signatureTable} head="row" />
+      </div>
+
+      <h2 className="mt-[32px] text-[15px] font-bold text-gray-900">
+        {DOC.annexTitle}
+      </h2>
+      <p className="mt-[4px] font-semibold text-gray-800">{DOC.annexStore}</p>
+      <div className="mt-[10px] overflow-x-auto">
+        <DocTable rows={DOC.annexTable} head="col" />
+      </div>
+      <div className="mt-[10px] flex flex-col gap-[4px]">
+        {DOC.annexNotes.map((n) => (
+          <p key={n} className="text-[12px] whitespace-pre-wrap text-gray-500">
+            {n}
+          </p>
+        ))}
+      </div>
     </>
   );
 }

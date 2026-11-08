@@ -3,6 +3,7 @@
 import { Button, Spinner } from "@heroui/react";
 import { useRef } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { useAlertConfirm } from "@/hooks/useAlertConfirm";
 import { useMe, useUploadBusinessRegistration } from "@/hooks/auth";
 import { useDeletePartnersStore, useMyPartnersStores } from "@/hooks/partners";
@@ -35,11 +36,7 @@ export function PartnersStoreDashboard() {
   const canRegister = REGISTRABLE.has(bizStatus);
 
   if (isLoading || !stores) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   // 매장이 없으면 곧바로 등록 폼(1인 1개라 "매장 추가"는 없다).

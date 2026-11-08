@@ -30,7 +30,7 @@ const CATEGORY_HINT: Partial<Record<MemberCategory, string>> = {
   general: "회원 유형은 나중에 변경할 수 있어요.",
 };
 
-/** 제휴사(콜라보) 이메일 가입 — 이메일 인증부터. */
+/** 제휴사(콜라보) 회원가입 — 유형을 골라 둔 채 2단계(가입 방식: 카카오 · 네이버 · 이메일)부터. */
 export const PARTNER_SIGNUP_HREF = "/signup?category=partner";
 /** 제휴사(콜라보) 기본협약 동의 — 가입 완료 화면의 "협약·매장 등록하기"로 간다. */
 export const PARTNER_AGREEMENT_HREF = "/partners/join/agreement";
