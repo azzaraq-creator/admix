@@ -45,6 +45,10 @@ class ProfileUpdateRequest(BaseModel):
     marketing_consent: bool | None = None
     # 회원 유형 — 가입 후에도 회원 정보에서 언제든 바꿀 수 있다. 사업자 인증 상태는 그대로 둔다.
     member_category: MemberCategory | None = None
+    # 광고주 담당자 정보(068) — 빈 문자열이면 지운다.
+    contact_name: str | None = Field(default=None, max_length=100)
+    position: str | None = Field(default=None, max_length=100)
+    department: str | None = Field(default=None, max_length=100)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -75,13 +79,23 @@ class UserResponse(BaseModel):
     membership_type: str = "individual"
     member_category: MemberCategory | None = None
     company_name: str | None = None
-    # 광고주 브랜드 사진(/uploads/... 또는 S3 주소) — 없으면 null.
-    brand_image_url: str | None = None
+    # 광고주 담당자 정보(068) — 이름 · 직함 · 소속팀 · 명함 파일.
+    contact_name: str | None = None
+    position: str | None = None
+    department: str | None = None
+    business_card_url: str | None = None
+    business_card_name: str | None = None
     marketing_consent: bool = False
     created_at: datetime
     business_registration: BusinessRegistrationOut | None = None
     # 제휴사(콜라보) 기본협약 동의 시각 — 없으면 동의 전.
     partner_agreed_at: datetime | None = None
+    # 기본협약 전자 서명(078) — 협약서 서명란에 보인다. 서명 도입 전에 동의했으면 비어 있다.
+    partner_signer_name: str | None = None
+    partner_signer_role: str | None = None
+    partner_signature_url: str | None = None
+    # 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 매장을 이 번호로 연결한다.
+    partner_code: str | None = None
 
 
 class OAuthUrlResponse(BaseModel):

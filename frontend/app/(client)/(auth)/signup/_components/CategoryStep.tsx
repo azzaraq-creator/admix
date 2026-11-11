@@ -1,15 +1,17 @@
 "use client";
 
 import { Description, Label, Radio, RadioGroup, Tooltip } from "@heroui/react";
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { CircleQuestionIcon } from "@/components/icons";
 import {
   MEMBER_CATEGORIES,
+  PARTNERS_CATEGORIES,
   isMemberCategory,
   type MemberCategory,
 } from "@/lib/memberCategory";
+import { cn } from "@/lib/utils";
 
 import {
   CardHeading,
@@ -18,8 +20,8 @@ import {
   SignupCard,
 } from "./signupUi";
 
-/** 가입 화면 유형 묶음 — 일반 | 광고주 · 대행사 | 매체사 · 제휴사(콜라보). 묶음 사이에 구분선. */
-const CATEGORY_GROUPS: MemberCategory[][] = [
+/** 가입 화면 유형 묶음 — 일반 | 광고주 · 대행사 | 매체사 · 제휴사(콜라보). 묶음 사이에 구분선. 내 정보 "회원 유형 바꾸기" 창도 같이 쓴다. */
+export const CATEGORY_GROUPS: MemberCategory[][] = [
   ["general"],
   ["advertiser", "agency"],
   ["media_owner", "partner"],
@@ -30,9 +32,28 @@ const CATEGORY_HINT: Partial<Record<MemberCategory, string>> = {
   general: "회원 유형은 나중에 변경할 수 있어요.",
 };
 
-/** 제휴사(콜라보) 회원가입 — 유형을 골라 둔 채 2단계(가입 방식: 카카오 · 네이버 · 이메일)부터. */
-export const PARTNER_SIGNUP_HREF = "/signup?category=partner";
-/** 제휴사(콜라보) 기본협약 동의 — 가입 완료 화면의 "협약·매장 등록하기"로 간다. */
+/**
+ * 콜라보에서 시작한 회원가입 — 1단계(유형)부터 하고, 광고주 · 제휴사(콜라보)만 고를 수 있다(11-10 사용자).
+ * 다른 유형은 흐리게 막고 마우스를 올리면 "콜라보 전용" 툴팁. 소셜 가입(/signup/sns)도 같은 표시를 이어 받는다.
+ */
+export const COLLAB_SIGNUP_QUERY = "from=collab";
+export const COLLAB_SIGNUP_HREF = `/signup?${COLLAB_SIGNUP_QUERY}`;
+/** 제휴사(콜라보) 가입·협약 소개의 시작하기 — 같은 콜라보 가입에 제휴사(콜라보)를 골라 둔다(1단계부터). */
+export const PARTNER_SIGNUP_HREF = `${COLLAB_SIGNUP_HREF}&category=partner`;
+
+/** 주소가 콜라보에서 시작한 회원가입인지. */
+export function isCollabSignup(search: { get(name: string): string | null }) {
+  return search.get("from") === "collab";
+}
+
+/** 콜라보 가입에서 고를 수 있는 유형인지 — 아닌 유형은 미리 골라 두지도 않는다. */
+export function collabAllows(category: MemberCategory | null) {
+  return !!category && PARTNERS_CATEGORIES.includes(category);
+}
+
+const COLLAB_ONLY_TIP =
+  "콜라보 전용 가입이라 광고주 · 제휴사(콜라보)만 고를 수 있어요.";
+/** 제휴사(콜라보) 기본협약 동의 — 가입 완료 화면의 "기본협약 하기"로 간다. */
 export const PARTNER_AGREEMENT_HREF = "/partners/join/agreement";
 
 /**
@@ -44,10 +65,13 @@ export function CategoryStep({
   value,
   onChange,
   onNext,
+  collab = false,
 }: {
   value: MemberCategory | null;
   onChange: (next: MemberCategory) => void;
   onNext: () => void;
+  /** 콜라보에서 시작한 가입 — 광고주 · 제휴사(콜라보)만 고르고 나머지는 막는다. */
+  collab?: boolean;
 }) {
   const hint = value ? CATEGORY_HINT[value] : undefined;
   return (
@@ -89,9 +113,12 @@ export function CategoryStep({
                 const category = MEMBER_CATEGORIES.find(
                   (c) => c.value === value,
                 );
-                return category ? (
+                if (!category) return null;
+                return collab && !collabAllows(value) ? (
+                  <LockedCategoryCard key={value} category={category} />
+                ) : (
                   <CategoryCard key={value} category={category} />
-                ) : null;
+                );
               })}
             </div>
           </Fragment>
@@ -99,7 +126,7 @@ export function CategoryStep({
       </RadioGroup>
 
       {/* 일반 · 제휴사(콜라보)를 고르면 다음 버튼 바로 위에 HeroUI 툴팁으로 알려 준다
-          (일반: 나중에 바꿀 수 있음. 제휴사 안내는 약관 동의 버튼 "협약·매장 등록하기"로 옮겼다).
+          (일반: 나중에 바꿀 수 있음. 제휴사 안내는 가입 완료 화면 버튼 "기본협약 하기"로 옮겼다).
           누르는 창이 아닌 안내라 Popover 대신 Tooltip — 마우스와 상관없이 고른 동안 열어 둔다(isOpen 고정).
           PC는 툴팁이 위 카드를 가리지 않게 자리를 미리 비워 둔다(고를 때 버튼이 밀리지 않게 항상). */}
       <div className="flex w-full flex-col max-sm:mt-auto sm:mt-[34px]">
@@ -115,15 +142,31 @@ export function CategoryStep({
   );
 }
 
-/** 회원 유형 카드(한 줄) — 왼쪽 라디오 · 이름, 오른쪽 끝 설명. 카드 전체를 누를 수 있게 Radio.Content를 카드 모양으로 만든다. */
-function CategoryCard({
+/**
+ * 회원 유형 카드(한 줄) — 왼쪽 라디오 · 이름, 오른쪽 끝 설명. 카드 전체를 누를 수 있게 Radio.Content를 카드 모양으로 만든다.
+ * 내 정보 "회원 유형 바꾸기" 창도 이 카드를 쓴다(11-09 사용자: "회원가입 유형 단계랑 같은 UI로").
+ * - stacked: 창이 가입 카드보다 좁아 PC에서도 이름 아래 설명(가입 화면 모바일 모양)으로 둔다.
+ * - badge: 이름 옆 작은 글씨(예: "지금 유형").
+ */
+export function CategoryCard({
   category,
+  stacked = false,
+  badge,
+  isDisabled = false,
 }: {
   category: (typeof MEMBER_CATEGORIES)[number];
+  stacked?: boolean;
+  badge?: ReactNode;
+  /** 고를 수 없는 유형(콜라보 가입) — HeroUI 비활성 모양(흐리게 · 누를 수 없음). */
+  isDisabled?: boolean;
 }) {
   return (
     // HeroUI 세로 RadioGroup은 항목마다 위 여백을 준다 — 간격은 묶음(gap)이 맡으므로 없앤다.
-    <Radio value={category.value} className="group mt-0 w-full">
+    <Radio
+      value={category.value}
+      isDisabled={isDisabled}
+      className="group mt-0 w-full"
+    >
       {/* 카드 높이 약 60px → 곡률 (60/2)-3 ≈ 16px(컨테이너라 시안 곡률 그대로). */}
       <Radio.Content className="flex w-full cursor-pointer items-center gap-[12px] rounded-[16px] border border-gray-200 bg-surface px-[16px] py-[12px] shadow-[0px_6px_10px_rgba(0,0,0,0.04)] transition-colors group-data-[selected=true]:border-gray-900 data-[hovered=true]:border-gray-300 group-data-[selected=true]:data-[hovered=true]:border-gray-900 max-sm:px-[14px] max-sm:py-[10px] sm:px-[20px] sm:py-[14px]">
         {/* 라디오 표시는 HeroUI 기본 스타일 — 맨 왼쪽. HeroUI 기본은 테두리 두께가 0이라 안 고른 원이 흰 카드에서 안 보여서 회색 테두리를 준다. */}
@@ -131,16 +174,68 @@ function CategoryCard({
           <Radio.Indicator />
         </Radio.Control>
         {/* PC는 이름 왼쪽 · 설명 오른쪽 끝, 모바일은 이름 아래 설명. */}
-        <div className="flex min-w-0 flex-1 flex-col gap-[2px] sm:flex-row sm:items-baseline sm:justify-between sm:gap-[10px]">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col gap-[2px]",
+            !stacked &&
+              "sm:flex-row sm:items-baseline sm:justify-between sm:gap-[10px]",
+          )}
+        >
           <Label className="shrink-0 cursor-pointer text-[16px] font-bold whitespace-nowrap text-gray-900 max-sm:text-[15px]">
             {category.label}
+            {badge && (
+              <span className="ml-[6px] text-[12px] font-medium text-gray-400">
+                {badge}
+              </span>
+            )}
           </Label>
           {/* 설명은 한 줄로 이어 쓰되, 좁으면 단어 단위로 내려간다. */}
-          <Description className="ps-0 text-[13px] sm:text-right leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]">
+          <Description
+            className={cn(
+              "ps-0 text-[13px] leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]",
+              !stacked && "sm:text-right",
+            )}
+          >
             {category.description.join(" ")}
           </Description>
         </div>
       </Radio.Content>
     </Radio>
+  );
+}
+
+/**
+ * 콜라보 가입에서 막은 유형 — 카드는 흐리게 못 고르게 두고, 마우스를 올리면 "콜라보 전용" 툴팁(11-10 사용자).
+ * 비활성 라디오는 마우스 이벤트를 받지 않아(HeroUI pointer-events: none) 툴팁은 바깥 칸(Tooltip.Trigger)이 받는다.
+ * 터치는 마우스 올리기가 없어 누르면 잠깐 띄운다.
+ */
+function LockedCategoryCard({
+  category,
+}: {
+  category: (typeof MEMBER_CATEGORIES)[number];
+}) {
+  const [open, setOpen] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  return (
+    <Tooltip isOpen={open} onOpenChange={setOpen} delay={0} closeDelay={0}>
+      <Tooltip.Trigger
+        // 라디오를 감싸기만 하는 칸 — 버튼으로 읽히지 않게(HeroUI 기본 role="button").
+        role="presentation"
+        className="w-full cursor-not-allowed"
+        onPointerUp={(e) => {
+          if (e.pointerType === "mouse") return;
+          setOpen(true);
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => setOpen(false), 2500);
+        }}
+      >
+        <CategoryCard category={category} isDisabled />
+      </Tooltip.Trigger>
+      <Tooltip.Content showArrow placement="top">
+        <Tooltip.Arrow />
+        {COLLAB_ONLY_TIP}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }

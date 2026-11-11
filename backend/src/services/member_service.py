@@ -43,6 +43,7 @@ _BIZ = {
     "reviewing": "검토 대기",
     "verified": "검토 완료",
     "rejected": "인증 반려",
+    "provisional": "임시 승인",  # 콜라보 어드민 현장 임시 승인(069)
 }
 _STATUS = {"active": "정상", "withdrawn": "탈퇴", "sanctioned": "제재", "dormant": "휴면"}
 
@@ -177,6 +178,10 @@ def get_member(db: Session, user_id: uuid.UUID) -> dict:
         company_name=user.company_name,
         position=user.position,
         industry=user.industry,
+        contact_name=user.contact_name,
+        department=user.department,
+        business_card_url=user.business_card_url,
+        business_card_name=user.business_card_name,
         marketing_consent=user.marketing_consent,
         status=user.status,
         admin_memo=user.admin_memo,
@@ -215,6 +220,9 @@ def update_member(db: Session, user_id: uuid.UUID, data: MemberUpdate) -> dict:
     user = _get_user(db, user_id)
     fields = data.model_dump(exclude_unset=True)
     for field, value in fields.items():
+        # 담당자 이름 · 소속팀은 빈 값이면 지운다(회원 내 정보와 같다).
+        if field in ("contact_name", "department") and isinstance(value, str):
+            value = value.strip() or None
         setattr(user, field, value)
     if "status" in fields:
         if fields["status"] == "withdrawn" and user.withdrawn_at is None:
@@ -366,6 +374,17 @@ def cancel_license(db: Session, user_id: uuid.UUID) -> None:
     biz.reject_reason = None
     biz.verified_at = None
     db.commit()
+
+
+def get_business_card_file(db: Session, user_id: uuid.UUID) -> tuple[Path, str]:
+    """광고주 담당자 명함 파일 디스크 경로 + 원본 파일명(없으면 404)."""
+    user = _get_user(db, user_id)
+    if not user.business_card_url:
+        raise HTTPException(status_code=404, detail="등록된 명함 파일이 없습니다.")
+    path = Path(get_settings().upload_dir) / user.business_card_url.removeprefix("/uploads/")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    return path, (user.business_card_name or path.name)
 
 
 def get_license_file(db: Session, user_id: uuid.UUID) -> tuple[Path, str]:

@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  Button,
-  Card,
-  Link,
-  ProgressBar,
-  ScrollShadow,
-  toast,
-} from "@heroui/react";
-import { ArrowRight, Coffee } from "lucide-react";
+import { Button, Card, Link, ProgressBar, toast } from "@heroui/react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Fragment, useRef, type ChangeEvent, type ReactNode } from "react";
 
@@ -16,8 +9,6 @@ import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { SquareCheck } from "@/components/common/SquareCheck";
-import { useMyPartnersStores } from "@/hooks/partners";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import {
   activityOf,
@@ -28,31 +19,33 @@ import {
   md,
   nextActionOf,
   periodDays,
-  PREVIEW_TODAY,
   STEP_LABEL,
   type PhotoStep,
   type PreviewCollab,
 } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
-import { collabHref, RecruitCard } from "./CollabBoard";
-import { previewActions, toThumb, usePreviewState } from "./previewStore";
+import { collabHref } from "./CollabBoard";
+import { useCollabCommands, usePartnerWorkspace } from "./partnerState";
+import { StartGate } from "./StartGate";
 import {
   EmptyBox,
   PageHead,
   PanelCard,
   PartnerOnly,
   SectionHead,
+  StorePicker,
   GLASS_CARD,
   SHADOW_FLOAT,
   SHADOW_LIFT,
 } from "./workspaceUi";
 
 /*
- * /partners/dashboard — 제휴사(콜라보) 매장 대시보드.
- * 받은 프로토타입(카페 파트너 미리보기)의 대시보드를 흉내 낸 화면. 콜라보 숫자 · 목록은 예시 데이터.
- * 매장을 아직 등록하지 않았으면 매장 등록 안내만 보인다(사이드바도 대시보드만).
- * 지금 확인할 일은 사이드바 알림(PartnerNotifications)으로 옮겼다.
+ * /partners/dashboard — 제휴사(콜라보) 매장 대시보드(서버, 069).
+ * 매장이 여러 곳이면 위에서 고른다(StorePicker). 숫자 4칸 — 진행 중인 콜라보 · 신청한 콜라보 · 확정할 콜라보 · 완료.
+ * 아래는 진행 중인 콜라보 · 최근 활동만. 모집 중인 콜라보는 "콜라보 참여" 메뉴로, 확정할 콜라보(확정 요청)는 알림으로,
+ * 신청한 콜라보 구역은 뺐다(2026-11-09 사용자). 협약 전 · 매장 연결 전이면 StartGate.
+ * 지금 확인할 일은 사이드바 알림(PartnerNotifications) — 확정 요청이 맨 위.
  */
 
 function MoreLink({ href, children }: { href: string; children: ReactNode }) {
@@ -72,45 +65,18 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
 const SHADOW_HERO =
   "shadow-[0_2px_8px_rgba(16,24,40,0.05),0_20px_48px_rgba(16,24,40,0.09)]";
 
-/** 매장 등록 전 — 등록부터 안내. 카드 배경 없이 제목 아래 남은 자리 한가운데에. */
-function RegisterStore() {
-  const router = useRouter();
-  return (
-    <section className="flex flex-1 flex-col items-center justify-center gap-[14px] px-[24px] pb-[44px] text-center">
-      <span className="flex size-[56px] items-center justify-center rounded-[20px] bg-primary-50 text-primary-500">
-        <MaskIcon src="/icons/store.svg" className="size-[26px]" />
-      </span>
-      <h2 className="text-[18px] font-bold text-gray-900">
-        매장을 먼저 등록해 주세요
-      </h2>
-      <p className="max-w-[360px] text-[14px] leading-[1.6] break-keep text-gray-500">
-        매장을 등록하면 브랜드 콜라보 모집을 보고 신청할 수 있어요.
-      </p>
-      <Button
-        onPress={() => router.push("/partners/join/store")}
-        className="mt-[4px] h-[48px] rounded-[21px] px-[24px] text-[15px] font-bold"
-      >
-        매장 등록하기
-        <ArrowRight className="size-[16px]" />
-      </Button>
-    </section>
-  );
-}
-
 /**
  * 진행 중 콜라보 — 맨 위 넓은 카드.
  * 읽는 순서: ① 무엇을(브랜드 사진·이름) ② 기간 진행 | 사진 보고 단계(좌우) ③ 지금 할 일.
  * 색은 회색 바탕 + 포인트만 보라 — 사진 올리기 버튼 · "오늘 할 일" · 진행 막대 · 사진 보고 점과 선.
  * 사진 보고: 끝난 것은 초록 점(선은 초록 그라데이션), 오늘은 보라 테두리 점, 오늘 할 게 없으면 바로 다음 칸은 이어진 회색 테두리(선은 초록→회색), 그 뒤는 회색 점선.
  */
-function ActiveCard({ c }: { c: PreviewCollab }) {
+function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
   const router = useRouter();
+  const commands = useCollabCommands();
   const total = periodDays(c.startDate, c.endDate);
-  const day = Math.min(
-    total,
-    Math.max(0, diffDays(PREVIEW_TODAY, c.startDate) + 1),
-  );
-  const left = Math.max(0, diffDays(c.endDate, PREVIEW_TODAY));
+  const day = Math.min(total, Math.max(0, diffDays(today, c.startDate) + 1));
+  const left = Math.max(0, diffDays(c.endDate, today));
   const steps: { step: PhotoStep; date: string; label: string }[] = [
     { step: "install", date: c.installDate, label: "설치" },
     ...c.checks.map((k, i) => ({
@@ -119,21 +85,22 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
       label: `${i + 1}차 점검`,
     })),
   ];
-  const due = dueStepOf(c);
+  const due = dueStepOf(c, today);
   const isDone = (s: PhotoStep) => c.photos.some((p) => p.step === s);
   // 오늘 낼 사진이 없으면 바로 다음 칸을 "다음 예정"으로 — 선은 초록→회색, 표시는 점선 대신 이어진 테두리(11-08 사용자).
   const nextStep = due ? undefined : steps.find((s) => !isDone(s.step))?.step;
-  // 사진 올리기 — 상세로 옮겨 가지 않고 여기서 바로(파일 고르기 → 예시 상태에 저장 → 알림), 11-08 사용자.
+  // 사진 올리기 — 상세로 옮겨 가지 않고 여기서 바로(파일 고르기 → 서버에 올림 → 알림), 11-08 사용자.
   const fileRef = useRef<HTMLInputElement>(null);
   const onPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !due) return;
-    previewActions.addPhoto(c.id, due.step, await toThumb(file));
-    toast(
-      `${STEP_LABEL[due.step]} 사진을 올렸어요. admix가 남은 수량을 확인해요.`,
-      { timeout: TOAST_TIMEOUT },
-    );
+    const saved = await commands.addPhoto(c.id, due.step, file);
+    if (saved)
+      toast(
+        `${STEP_LABEL[due.step]} 사진을 올렸어요. admix가 남은 수량을 확인해요.`,
+        { timeout: TOAST_TIMEOUT },
+      );
   };
 
   return (
@@ -285,7 +252,7 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
               {due ? "오늘 할 일" : "다음 일정"}
             </p>
             <p className="text-[13px] leading-[1.4] font-bold break-keep text-gray-900 sm:text-[15px]">
-              {nextActionOf(c)}
+              {nextActionOf(c, today)}
             </p>
           </div>
         </div>
@@ -293,6 +260,7 @@ function ActiveCard({ c }: { c: PreviewCollab }) {
           size="sm"
           variant={due ? "primary" : "secondary"}
           aria-label={due ? "사진 올리기" : undefined}
+          isPending={due ? commands.photoPending : undefined}
           onPress={() =>
             due
               ? fileRef.current?.click()
@@ -493,52 +461,85 @@ function StatIcon({
   );
 }
 
+/** 숫자 칸 — 갈 곳이 있으면 링크, 없으면(확정할 콜라보 0건) 누르지 않는 칸. */
+function StatTile({
+  href,
+  label,
+  className,
+  children,
+}: {
+  href?: string;
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return href ? (
+    <Link href={href} aria-label={label} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div role="group" aria-label={label} className={className}>
+      {children}
+    </div>
+  );
+}
+
 function Overview() {
-  const state = usePreviewState();
-  const isDesktop = useIsDesktop();
-  const cats = state.collabs.map((c) => ({ c, cat: categoryOf(c) }));
+  const { state, today } = usePartnerWorkspace();
+  const cats = state.collabs.map((c) => ({ c, cat: categoryOf(c, today) }));
   const active = cats.filter((x) => x.cat === "ongoing").map((x) => x.c);
-  const upcoming = cats
-    .filter((x) => x.cat === "upcoming" && x.c.standing === "confirmed")
-    .map((x) => x.c)
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const requested = state.collabs.filter((c) => c.standing === "requested");
-  const completed = cats.filter((x) => x.cat === "done").map((x) => x.c);
-  const recruiting = cats
-    .filter((x) => x.cat === "recruiting")
+  // 확정할 콜라보 — 확정 요청을 받아 매장이 최종 확정해야 하는 콜라보(예전 "확정 요청"). 목록은 알림에.
+  const toConfirm = state.collabs
+    .filter((c) => c.standing === "requested")
+    .sort((a, b) => a.confirmDue.localeCompare(b.confirmDue));
+  // 신청한 콜라보 — 신청(선정 후보 · 예비)했거나 확정하고 설치를 기다리는 콜라보(예전 "확정 예정").
+  const applied = cats
+    .filter((x) => x.cat === "upcoming" && x.c.standing !== "requested")
     .map((x) => x.c)
     .sort(
       (a, b) =>
-        Number(a.standing === "blocked") - Number(b.standing === "blocked") ||
-        a.recruitEnd.localeCompare(b.recruitEnd),
+        Number(b.standing === "confirmed") -
+          Number(a.standing === "confirmed") ||
+        a.startDate.localeCompare(b.startDate),
     );
+  const completed = cats.filter((x) => x.cat === "done").map((x) => x.c);
   const events = activityOf(state).slice(0, 5);
 
-  // 숫자 4칸 — 떨어진 흰 칸 넷(그림자), 큰 숫자 + 오른쪽 위 작은 색 아이콘. 누르면 해당 목록으로.
-  const stats = [
+  /*
+   * 숫자 4칸 — 떨어진 흰 칸 넷(그림자), 큰 숫자 + 오른쪽 위 작은 색 아이콘.
+   * 누르면 그 콜라보 상세 · 참여 이력으로. "확정할 · 신청한 콜라보" 구역은 대시보드에서 뺐다(2026-11-09 사용자 — 확정 요청은 알림에).
+   * 갈 곳이 없으면(확정할 콜라보 0건) 누르지 않는 칸.
+   */
+  const stats: {
+    label: string;
+    tone: keyof typeof STAT_TONE;
+    value: number;
+    href?: string;
+  }[] = [
     {
-      label: "진행 중",
-      tone: "ongoing" as const,
+      label: "진행 중인 콜라보",
+      tone: "ongoing",
       value: active.length,
-      href: "/partners/collabs?tab=ongoing",
+      href: active[0] ? collabHref(active[0].id, "dashboard") : "#ongoing",
     },
     {
-      label: "확정 예정",
-      tone: "upcoming" as const,
-      value: upcoming.length,
-      href: "/partners/collabs?tab=upcoming",
+      label: "신청한 콜라보",
+      tone: "upcoming",
+      value: applied.length,
+      // 없으면 신청하러 — 콜라보 참여(모집 중).
+      href: applied[0]
+        ? collabHref(applied[0].id, "dashboard")
+        : "/partners/collabs",
     },
     {
-      label: "확정 요청",
-      tone: "requested" as const,
-      value: requested.length,
-      href: requested[0]
-        ? collabHref(requested[0].id, "dashboard")
-        : "/partners/collabs?tab=upcoming",
+      label: "확정할 콜라보",
+      tone: "requested",
+      value: toConfirm.length,
+      href: toConfirm[0] && collabHref(toConfirm[0].id, "dashboard"),
     },
     {
       label: "완료",
-      tone: "done" as const,
+      tone: "done",
       value: completed.length,
       href: "/partners/history?status=completed",
     },
@@ -559,20 +560,21 @@ function Overview() {
         )}
       >
         {stats.map((s, i) => (
-          <Link
+          <StatTile
             key={s.label}
             href={s.href}
-            aria-label={`${s.label} ${s.value}건`}
+            label={`${s.label} ${s.value}건`}
             className={cn(
               // w-full — HeroUI Link 의 w-fit 을 덮어 칸을 꽉 채운다.
-              "flex w-full min-w-0 items-center justify-between gap-[8px] rounded-none px-[16px] py-[14px] no-underline hover:no-underline active:bg-gray-50",
+              "flex w-full min-w-0 items-center justify-between gap-[8px] rounded-none px-[14px] py-[14px] no-underline hover:no-underline",
+              s.href && "active:bg-gray-50",
               i % 2 === 1 && "border-l border-gray-100",
               i >= 2 && "border-t border-gray-100",
             )}
           >
             <span className="flex min-w-0 items-center gap-[6px]">
-              <StatIcon tone={s.tone} className="mt-0 size-[15px]" />
-              <span className="truncate text-[13px] font-semibold text-gray-600">
+              <StatIcon tone={s.tone} className="mt-0 size-[15px] shrink-0" />
+              <span className="truncate text-[12px] font-semibold text-gray-600">
                 {s.label}
               </span>
             </span>
@@ -582,19 +584,19 @@ function Overview() {
                 건
               </small>
             </strong>
-          </Link>
+          </StatTile>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-[10px] max-sm:hidden lg:grid-cols-4">
         {stats.map((s) => (
-          <Link
+          <StatTile
             key={s.label}
             href={s.href}
-            aria-label={`${s.label} ${s.value}건`}
+            label={`${s.label} ${s.value}건`}
             className={cn(
               "flex w-full items-start justify-between gap-[10px] rounded-[20px] border bg-surface px-[20px] py-[18px] no-underline hover:no-underline",
               SHADOW_FLOAT,
-              SHADOW_LIFT,
+              s.href && SHADOW_LIFT,
               GLASS_CARD,
             )}
           >
@@ -610,77 +612,39 @@ function Overview() {
               </strong>
             </span>
             <StatIcon tone={s.tone} />
-          </Link>
+          </StatTile>
         ))}
       </div>
 
-      {/* 지금 함께하는 콜라보 — 맨 위, 넓은 진행 카드 */}
-      <section className="flex flex-col gap-[16px]">
+      {/* 진행 중인 콜라보 — 넓은 진행 카드 */}
+      <section
+        id="ongoing"
+        className="flex scroll-mt-[24px] flex-col gap-[16px]"
+      >
         <SectionHead
           icon="/icons/stroke-clap.svg"
-          title="지금 함께하는 콜라보"
+          title="진행 중인 콜라보"
           more={
-            // 진행 중인 콜라보가 있으면 그 콜라보 상세(진행 안내함)로, 없으면 목록의 진행 중 칸으로.
-            <MoreLink
-              href={
-                active[0]
-                  ? collabHref(active[0].id, "dashboard")
-                  : "/partners/collabs?tab=ongoing"
-              }
-            >
-              진행 현황 보기
-            </MoreLink>
+            active[0] && (
+              <MoreLink href={collabHref(active[0].id, "dashboard")}>
+                진행 현황 보기
+              </MoreLink>
+            )
           }
         />
         {active.length ? (
           <div className="flex flex-col gap-[12px]">
             {active.map((c) => (
-              <ActiveCard key={c.id} c={c} />
+              <ActiveCard key={c.id} c={c} today={today} />
             ))}
           </div>
         ) : (
-          <EmptyBox icon={<Coffee className="size-[26px]" />}>
-            <b className="text-gray-700">진행 중인 콜라보가 없어요.</b>
-            최종 확정한 콜라보가 설치되면 이곳에 보여요.
-          </EmptyBox>
-        )}
-      </section>
-
-      {/* 모집 중인 콜라보 — 마감 D-day가 먼저 보이는 카드 3장 */}
-      <section className="flex flex-col gap-[16px]">
-        <SectionHead
-          icon="/icons/megaphone.svg?v=2"
-          small
-          title="모집 중인 콜라보"
-          count={recruiting.length}
-          description="선착순 신청 · 신청만으로 확정되지 않아요."
-          more={
-            <MoreLink href="/partners/collabs?tab=recruiting">
-              전체 보기
-            </MoreLink>
-          }
-        />
-        {recruiting.length ? (
-          // 모바일 — 세로로 세 장 쌓으면 길어서, 옆으로 넘기는 한 줄(다음 카드가 살짝 보인다). 화면 끝까지 흐르게 -mx.
-          // 그림자가 잘리지 않게 위아래 여백을 두고 같은 만큼 바깥 여백을 줄인다.
-          // 양 끝은 HeroUI ScrollShadow 로 흐리게 — 넘길 카드가 더 있다는 표시(11-08 사용자). PC는 세 칸 격자라 끈다.
-          <ScrollShadow
-            orientation="horizontal"
-            hideScrollBar
-            size={36}
-            isEnabled={!isDesktop}
-            visibility={isDesktop ? "none" : "auto"}
-            className="-mx-[16px] -my-[10px] flex snap-x snap-mandatory scroll-px-[16px] gap-[12px] px-[16px] py-[10px] sm:mx-0 sm:my-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:p-0"
+          <EmptyBox
+            icon={
+              <MaskIcon src="/icons/face-sleep.svg" className="size-[26px]" />
+            }
           >
-            {recruiting.slice(0, 3).map((c) => (
-              <div key={c.id} className="w-[78%] shrink-0 snap-start sm:w-auto">
-                <RecruitCard c={c} from="dashboard" />
-              </div>
-            ))}
-          </ScrollShadow>
-        ) : (
-          <EmptyBox icon={<Coffee className="size-[26px]" />}>
-            지금 모집 중인 콜라보가 없어요. 새 모집은 이메일로 알려 드려요.
+            <b className="text-gray-700">진행 중인 콜라보가 없어요.</b>
           </EmptyBox>
         )}
       </section>
@@ -723,9 +687,17 @@ function Overview() {
             ))}
           </ol>
         ) : (
-          <p className="py-[12px] text-[13px] text-gray-400">
-            아직 활동이 없어요.
-          </p>
+          // 진행 중인 콜라보와 같은 빈 상자, 아이콘은 time-sleep.svg(11-10 사용자).
+          <EmptyBox
+            icon={
+              <MaskIcon
+                src="/icons/time-sleep.svg"
+                className="size-[26px] shrink-0"
+              />
+            }
+          >
+            <b className="text-gray-700">아직 활동이 없어요.</b>
+          </EmptyBox>
         )}
       </section>
     </div>
@@ -733,22 +705,23 @@ function Overview() {
 }
 
 function Dashboard() {
-  const stores = useMyPartnersStores();
-  const hasStore = (stores.data?.length ?? 0) > 0;
+  const { stores, agreed, isLoading } = usePartnerWorkspace();
+  const ready = agreed && stores.length > 0;
 
   return (
-    // flex-1 — 매장 등록 전 안내가 제목 아래 남은 자리 한가운데에 오게.
     // 제목 아래 — PC 24px("숫자 칸 위 여백 줄여줘", 11-08 사용자). 모바일은 제목을 숨겨 바로 숫자 칸부터.
     <div className="flex flex-1 flex-col gap-[16px] sm:gap-[24px]">
-      {/* 인사 한 줄("○○님, 오늘 챙길 콜라보를 모아 뒀어요.")은 뺐다(11-08 사용자). */}
       {/* 모바일은 제목을 감춘다 — 아래 탭 바가 이미 "대시보드"를 켜 보여 준다(11-08 사용자). 화면 읽기 프로그램용으로는 남긴다. */}
       <PageHead title="대시보드" className="max-sm:sr-only" />
-      {stores.isPending ? (
+      {isLoading ? (
         <LoadingState />
-      ) : hasStore ? (
-        <Overview />
+      ) : ready ? (
+        <>
+          <StorePicker />
+          <Overview />
+        </>
       ) : (
-        <RegisterStore />
+        <StartGate agreed={agreed} />
       )}
     </div>
   );

@@ -1,11 +1,6 @@
-import { AdminCard } from "@/components/admin/AdminCard";
+import { redirect } from "next/navigation";
 
-import { PartnersStoreFormView } from "../_components/PartnersStoreFormView";
-
-export default function AdminPartnersStoreCreatePage() {
-  return (
-    <AdminCard>
-      <PartnersStoreFormView mode="create" />
-    </AdminCard>
-  );
+/** 옛 주소 — /admin/collab/stores/new 로. */
+export default function LegacyCafeStoreNewPage() {
+  redirect("/admin/collab/stores/new");
 }

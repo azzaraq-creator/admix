@@ -1,6 +1,6 @@
 """관리자 메뉴 권한 — 설계서 §3.4 `admin_permission` (admin 1:N, 복합 PK).
 
-menu_key ∈ dashboard · media · member · business · faq · account
+menu_key ∈ dashboard · media · member · business · faq · account · chat · collab(콜라보 어드민)
 """
 from __future__ import annotations
 

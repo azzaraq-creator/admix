@@ -87,7 +87,7 @@ const ROWS: { label: string; cells: Cell[] }[] = [
       yes("콜라보 매장 찾기"),
       none,
       none,
-      yes("매장 등록 · 관리"),
+      yes("내 매장 · 콜라보 참여"),
     ],
   },
 ];
@@ -105,7 +105,7 @@ const COL_DESC: Record<(typeof COLUMNS)[number]["key"], string> = {
   advertiser: "직접 광고 집행",
   agency: "광고 기획 · 집행 대행",
   media_owner: "매체 등록 · 관리",
-  partner: "매장 등록 · 콜라보",
+  partner: "매장 콜라보 참여",
 };
 
 export function MemberPlanModalHost() {
@@ -151,7 +151,8 @@ export function MemberPlanModalHost() {
                           key={c.key}
                           className={cn(
                             "px-[8px] py-[12px] align-top",
-                            c.key === "partner" && "border-l border-dashed border-gray-200",
+                            c.key === "partner" &&
+                              "border-l border-dashed border-gray-200",
                           )}
                         >
                           <p className="font-bold whitespace-nowrap text-gray-900">
@@ -180,7 +181,9 @@ export function MemberPlanModalHost() {
                             )}
                           >
                             <div className="flex flex-col items-center gap-[2px]">
-                              {cell.mark === "none" && cell.text ? null : MARK[cell.mark]}
+                              {cell.mark === "none" && cell.text
+                                ? null
+                                : MARK[cell.mark]}
                               {cell.text && (
                                 <span className="text-[11px] leading-[14px] whitespace-nowrap text-gray-500">
                                   {cell.text}
@@ -197,7 +200,7 @@ export function MemberPlanModalHost() {
               <ul className="mt-[12px] flex flex-col gap-[2px] text-[11px] leading-[17px] text-gray-500 sm:text-[12px]">
                 {[
                   "* 광고주 · 대행사는 사업자등록증을 올리고 관리자 확인을 통과하면 AI 믹시를 횟수 제한 없이 쓸 수 있어요.",
-                  "매체사는 사업자등록증을 올려야 매체를 등록할 수 있고, 제휴사(콜라보)는 사업자등록증을 올려야 매장을 등록할 수 있어요.",
+                  "매체사는 사업자등록증을 올려야 매체를 등록할 수 있고, 제휴사(콜라보)는 사업자등록증을 올리고 기본협약을 맺으면 담당자가 매장을 연결해 드려요.",
                   "세부 이용 범위(횟수 등)는 서비스 운영에 따라 바뀔 수 있어요.",
                 ].map((line) => (
                   <li key={line}>{line}</li>

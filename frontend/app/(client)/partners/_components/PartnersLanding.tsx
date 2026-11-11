@@ -36,8 +36,8 @@ const SAMPLE_STORES = [
 
 const BENEFITS = [
   {
-    title: "매장 등록",
-    body: "매장명 · 주소 · 사진만 올리면 바로 등록돼요. 주소로 지도 위치도 알아서 찾아요.",
+    title: "매장 등록은 admix가",
+    body: "기본협약을 맺으면 admix 담당자가 매장 사진 · 정보를 올리고 계정에 연결해 드려요.",
   },
   {
     title: "광고주에게 노출",
@@ -212,12 +212,12 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
 
       <section className="flex flex-col items-center gap-[10px] rounded-[24px] bg-gray-900 px-[20px] py-[28px] text-center sm:py-[36px] dark:bg-gray-100">
         <p className="text-[18px] font-bold text-white sm:text-[22px]">
-          지금 매장을 등록해 보세요
+          지금 제휴사로 함께해 보세요
         </p>
         <p className="text-[13px] text-white/70 sm:text-[14px]">
           {member
-            ? "회원 유형을 제휴사(콜라보)로 바꾸고 사업자등록증을 올리면 매장을 등록할 수 있어요."
-            : "사업자등록증을 올리면 바로 매장을 등록할 수 있어요."}
+            ? "회원 유형을 제휴사(콜라보)로 바꾸고 기본협약을 맺으면 담당자가 매장을 연결해 드려요."
+            : "가입하고 사업자등록증 · 기본협약을 마치면 담당자가 매장을 연결해 드려요."}
         </p>
         <Link
           href={cta.href}

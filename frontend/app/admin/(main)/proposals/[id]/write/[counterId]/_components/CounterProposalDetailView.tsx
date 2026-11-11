@@ -1,10 +1,11 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { Button, Input, Label, TextField } from "@heroui/react";
+import { FileText, List } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton } from "@/components/common/buttons";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { DownloadIcon } from "@/components/icons";
 import { proposalsApi, useAdminProposalDetail } from "@/hooks/proposals";
@@ -51,25 +52,25 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <AdminCard className="flex flex-col gap-[24px] md:p-[32px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
-      <div className="flex items-center gap-[12px]">
-        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a">
+      {/* 보내 둔 맞춤제안이라 읽기 전용 — 회색 칸(secondary)으로 보여 준다. */}
+      <TextField
+        value={proposalName}
+        isReadOnly
+        className="flex-row items-center gap-[12px]"
+      >
+        <Label
+          isRequired
+          className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
+        >
           맞춤기획안 명
-        </span>
-        <span className="shrink-0 text-base font-semibold leading-[24px] text-[#d65856]">
-          *
-        </span>
-        <input
-          type="text"
-          value={proposalName}
-          readOnly
-          className="h-[44px] flex-1 rounded-[19px] border border-stroke bg-zinc-50 px-[14px] text-sm font-medium leading-[20px] text-black outline-none"
-        />
-      </div>
+        </Label>
+        <Input variant="secondary" className="flex-1" />
+      </TextField>
 
       <p className="text-lg font-bold leading-[28px] text-black">PPT 파일첨부</p>
 
@@ -81,28 +82,27 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
       </div>
 
       <div className="flex items-center justify-between">
-        <ListButton onClick={() => router.push(`/admin/proposals/${proposalId}`)}>
+        <Button
+          variant="outline"
+          onPress={() => router.push(`/admin/proposals/${proposalId}`)}
+        >
+          <List className="size-[16px]" />
           이전으로
-        </ListButton>
+        </Button>
 
         <div className="flex items-center gap-[10px]">
-          <button
-            type="button"
-            onClick={() => setLightbox(true)}
-            disabled={slideImages.length === 0}
-            className="flex h-[36px] items-center justify-center rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+          <Button
+            variant="outline"
+            onPress={() => setLightbox(true)}
+            isDisabled={slideImages.length === 0}
           >
             PPT 미리보기
-          </button>
+          </Button>
           {file && (
-            <button
-              type="button"
-              onClick={handleExport}
-              className="flex h-[36px] items-center gap-[6px] rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
-            >
+            <Button variant="outline" onPress={handleExport}>
               <DownloadIcon className="size-[16px]" />
               내보내기
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -110,6 +110,6 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
       {lightbox && (
         <ImageLightbox images={slideImages} onClose={() => setLightbox(false)} />
       )}
-    </div>
+    </AdminCard>
   );
 }

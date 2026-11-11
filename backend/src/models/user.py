@@ -46,13 +46,27 @@ class User(Base):
         String(20), nullable=False, default="general", server_default="general"
     )
     company_name = Column(String(200), nullable=True)
-    # 광고주 브랜드 사진(066) — 가입 때(선택)·내 정보에서 올린다. 콜라보 화면의 브랜드 아이콘, 없으면 기본 "C".
+    # 옛 광고주 브랜드 사진(066) — 브랜드가 여러 개가 되면서 advertiser_brands(068)로 옮겼다. 화면은 더 쓰지 않는다.
     brand_image_url = Column(String(500), nullable=True)
+    # 광고주 담당자 정보(068, 모두 선택) — 가입 때 · 내 정보에서. 직함은 아래 position 을 같이 쓴다.
+    contact_name = Column(String(100), nullable=True)
+    department = Column(String(100), nullable=True)  # 소속팀
+    business_card_url = Column(String(500), nullable=True)  # 명함 파일(/uploads/business-card/...)
+    business_card_name = Column(String(255), nullable=True)
+    # 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 어드민에서 미리 등록한 매장과 이 번호로 잇는다.
+    partner_code = Column(String(12), nullable=True, unique=True)
     # 제휴사(콜라보) 기본협약 동의 — 동의 시각 · 협약 버전(065). 비어 있으면 아직 동의 전(로그인 시 이어서 하기 창).
     partner_agreed_at = Column(DateTime(timezone=True), nullable=True)
     partner_agreement_version = Column(String(20), nullable=True)
     # 동의 전 진행 상태(화면이 정한 JSON — 단계 · 읽은 주제 · 별지 확인 등). 다시 로그인하면 여기서 이어서 한다.
     partner_agreement_progress = Column(JSONB, nullable=True)
+    # 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 서명 그림(PNG) · 동의 때 IP.
+    # 서명 시각은 partner_agreed_at. 서명을 받기 전에 동의한 회원은 비어 있다.
+    partner_signer_name = Column(String(100), nullable=True)
+    partner_signer_role = Column(String(20), nullable=True)
+    partner_signature_url = Column(String(500), nullable=True)
+    partner_signed_ip = Column(String(64), nullable=True)
+    # 직책 · 직함 — 어드민 회원 상세의 "직책", 광고주 담당자 정보의 "직함"(068).
     position = Column(String(100), nullable=True)
     industry = Column(String(100), nullable=True)
     marketing_consent = Column(Boolean, nullable=False, default=False)

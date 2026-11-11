@@ -1,14 +1,29 @@
 "use client";
 
+import {
+  Button,
+  Checkbox,
+  FieldError,
+  Input,
+  Label,
+  TextField,
+} from "@heroui/react";
 import Image from "next/image";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { adminAuthKeys, useAdminLogin } from "@/hooks/adminAuth";
+import { adminAuthKeys, adminHomeOf, useAdminLogin } from "@/hooks/adminAuth";
 import { setAdminTokens } from "@/lib/adminToken";
 import { extractApiError } from "@/lib/apiError";
 import { LogoFullColor } from "@/components/icons/LogoFull";
+
+/**
+ * HeroUI 체크박스는 bg-accent(프로젝트에선 옅은 보라 --app-accent)로 칠해져, 이 안에서만 HeroUI 원래 액센트
+ * (브랜드 보라 바탕 + 흰 체크)로 되돌린다.
+ */
+const CHECKBOX_ACCENT =
+  "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)]";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -32,7 +47,8 @@ export default function AdminLoginPage() {
       setAdminTokens(res.access_token, res.refresh_token, persist);
       // 이전 계정(또는 만료로 실패한) 내 정보가 남아 있으면 메뉴 권한이 틀리게 보인다.
       queryClient.removeQueries({ queryKey: adminAuthKeys.all });
-      router.replace("/admin");
+      // 콜라보 권한만 있는 관리자는 콜라보 어드민으로 바로(11-10 사용자).
+      router.replace(adminHomeOf(res.admin));
       router.refresh();
     } catch (err) {
       setError(extractApiError(err, "로그인에 실패했습니다. 다시 시도해주세요."));
@@ -57,51 +73,51 @@ export default function AdminLoginPage() {
             </div>
 
             <form className="flex flex-col gap-[23px]" onSubmit={handleSubmit}>
-              <div className="flex flex-col gap-[8px]">
-                <label
-                  htmlFor="admin-email"
-                  className="text-sm font-medium leading-[14px] text-tone-0a0a0a"
-                >
-                  이메일
-                </label>
-                <input
-                  id="admin-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@naver.com"
-                  className="h-[44px] w-full rounded-[19px] border border-tone-d1d5dc px-[13px] text-sm text-black outline-none placeholder:text-tone-717182"
-                />
-              </div>
+              {/* 이메일 형식이 틀리면 제출 전에 브라우저 검사 문구를 FieldError 로 보여 준다. */}
+              <TextField
+                type="email"
+                fullWidth
+                value={email}
+                onChange={setEmail}
+                className="flex flex-col gap-[8px]"
+              >
+                <Label>이메일</Label>
+                <Input placeholder="admin@naver.com" className="h-[44px]" />
+                <FieldError />
+              </TextField>
 
-              <div className="flex flex-col gap-[8px]">
-                <label
-                  htmlFor="admin-password"
-                  className="text-sm font-medium leading-[14px] text-tone-0a0a0a"
-                >
-                  비밀번호
-                </label>
-                <input
-                  id="admin-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+              <TextField
+                type="password"
+                fullWidth
+                value={password}
+                onChange={setPassword}
+                className="flex flex-col gap-[8px]"
+              >
+                <Label>비밀번호</Label>
+                <Input
                   placeholder="비밀번호를 입력해 주세요"
-                  className="h-[44px] w-full rounded-[19px] border border-tone-d1d5dc px-[13px] text-sm text-black outline-none placeholder:text-tone-717182"
+                  className="h-[44px]"
                 />
-              </div>
+              </TextField>
 
-              <label className="flex items-center gap-[8px]">
-                <input
-                  type="checkbox"
-                  checked={persist}
-                  onChange={(e) => setPersist(e.target.checked)}
-                  className="size-[16px] shrink-0 appearance-none rounded-[5px] border border-tone-ebebeb bg-surface bg-center bg-no-repeat shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] checked:border-primary checked:bg-primary checked:bg-[url('data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2016%2016%22%3E%3Cpath%20d=%22M4%208l2.5%202.5L12%205%22%20fill=%22none%22%20stroke=%22white%22%20stroke-width=%222%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')]"
-                />
-                <span className="text-sm font-normal leading-[20px] text-tone-6e6e6e">
-                  자동 로그인
-                </span>
-              </label>
+              <Checkbox
+                isSelected={persist}
+                onChange={setPersist}
+                className={`${CHECKBOX_ACCENT} flex`}
+              >
+                <Checkbox.Content className="cursor-pointer items-center gap-[8px]">
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  {/* Checkbox.Content 가 이미 <label> 이라 글자는 span 으로(label 안 label 방지). */}
+                  <Label
+                    elementType="span"
+                    className="cursor-pointer text-sm font-normal leading-[20px] text-tone-6e6e6e"
+                  >
+                    자동 로그인
+                  </Label>
+                </Checkbox.Content>
+              </Checkbox>
 
               {error && (
                 <p className="text-sm font-medium leading-[20px] text-[#d65856]">
@@ -109,13 +125,15 @@ export default function AdminLoginPage() {
                 </p>
               )}
 
-              <button
+              <Button
                 type="submit"
-                disabled={loginMutation.isPending}
-                className="flex h-[44px] w-full items-center justify-center rounded-[19px] bg-primary text-sm font-medium leading-[20px] text-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-60"
+                variant="primary"
+                fullWidth
+                isDisabled={loginMutation.isPending}
+                className="h-[44px]"
               >
                 {loginMutation.isPending ? "로그인 중..." : "로그인"}
-              </button>
+              </Button>
             </form>
           </div>
         </div>

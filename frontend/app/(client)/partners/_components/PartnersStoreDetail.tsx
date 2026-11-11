@@ -9,7 +9,7 @@ import { StaticKakaoMap } from "@/components/common/StaticKakaoMap";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { usePartnersStore } from "@/hooks/partners";
 import { mediaSrc } from "@/lib/media";
-import type { PartnersStore } from "@/lib/partners";
+import { detailImageUrls, type PartnersStore } from "@/lib/partners";
 import { canUsePartners } from "@/lib/memberCategory";
 import { cn } from "@/lib/utils";
 
@@ -80,8 +80,11 @@ export function PartnersStoreInfo({
   badges?: React.ReactNode;
 }) {
   const [photo, setPhoto] = useState(0);
-  const images = store.imageUrls;
+  // 분류별 대표 사진(카드에 보이는 것) 다음에 나머지 사진.
+  const images = detailImageUrls(store);
   const current = images[Math.min(photo, images.length - 1)];
+  // 사진 메모(어드민이 적음) — 큰 사진 아래쪽에 설명으로.
+  const memo = store.images?.find((p) => p.url === current)?.memo?.trim();
   const info: [string, string | null][] = [
     ["주소", [store.address, store.addressDetail].filter(Boolean).join(" ")],
     ["운영 시간", store.businessHours],
@@ -104,6 +107,11 @@ export function PartnersStoreInfo({
               className="object-cover"
             />
           )}
+          {memo && (
+            <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-[16px] pt-[32px] pb-[14px] text-[14px] leading-[20px] font-semibold break-keep text-white max-sm:text-[13px]">
+              {memo}
+            </p>
+          )}
         </div>
         {images.length > 1 && (
           <div className="flex gap-[6px] overflow-x-auto pb-[2px]">
@@ -112,6 +120,9 @@ export function PartnersStoreInfo({
                 key={url}
                 type="button"
                 aria-label={`${i + 1}번째 사진`}
+                title={
+                  store.images?.find((p) => p.url === url)?.memo || undefined
+                }
                 onClick={() => setPhoto(i)}
                 className={cn(
                   "relative size-[64px] shrink-0 overflow-hidden rounded-[12px] border-2",
@@ -143,7 +154,7 @@ export function PartnersStoreInfo({
             {badges}
             {store.isMine && (
               <span className="rounded-full bg-primary-50 px-[8px] py-[2px] text-[12px] font-bold text-primary">
-                내 매장{store.status === "hidden" ? " · 숨김" : ""}
+                내 매장{store.status === "hidden" ? " · 비공개" : ""}
               </span>
             )}
           </div>

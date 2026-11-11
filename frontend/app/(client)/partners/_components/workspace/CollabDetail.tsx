@@ -26,7 +26,6 @@ import {
   FileText,
   Gift,
   Hourglass,
-  MessageCircle,
   Package,
   RotateCcw,
   type LucideIcon,
@@ -35,6 +34,7 @@ import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { SquareCheck } from "@/components/common/SquareCheck";
@@ -42,7 +42,6 @@ import { useMe } from "@/hooks/auth";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import {
   CONFIRM_SENTENCE,
-  PREVIEW_TODAY,
   STEP_LABEL,
   categoryOf,
   chipOf,
@@ -55,17 +54,19 @@ import {
   md,
   nextActionOf,
   periodDays,
+  todayKst,
   type PhotoStep,
   type PreviewCollab,
   type Tone,
 } from "@/lib/partnersPreview";
+import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
 
 import { rowTone } from "../agreementShared";
 import { COLLAB_FROM, collabListHref, type CollabFrom } from "./CollabBoard";
 import { ConfirmDocModal } from "./ConfirmDocModal";
-import { previewActions, toThumb, usePreviewState } from "./previewStore";
+import { useCollabCommands, usePartnerWorkspace } from "./partnerState";
 import { PanelCard, PartnerOnly, SectionHead } from "./workspaceUi";
 
 /*
@@ -73,10 +74,10 @@ import { PanelCard, PartnerOnly, SectionHead } from "./workspaceUi";
  * 위에서부터 모양이 다른 칸으로 나눈다 — 브랜드 사진 · 제목(바탕 위) → 지금 상황(상태 색 카드 + 진행 흐름)
  * → 진행 안내함(확정 매장만, 흰 카드) → 콜라보 내용(누가 무엇을: 매장이 할 일 · admix가 해 줘요 · 받는 것 → 일정 → 참여 안내 회색 상자).
  * 단계마다 아래 고정 줄에 버튼 하나(신청 · 대기 신청 · 최종 확정 · 사진 올리기 · 재입고 요청).
- * 누른 결과는 예시 상태(previewStore)에만 남는다. 화면은 모두 HeroUI 컴포넌트.
+ * 누른 결과는 서버에 남는다(069, 고른 매장 기준 — partnerState). 문의 탭(대화)은 없앴다(2026-11-09 사용자). 화면은 모두 HeroUI 컴포넌트.
  */
 
-type InboxTab = "checklist" | "notices" | "files" | "contact";
+type InboxTab = "checklist" | "notices" | "files";
 
 /**
  * 진행 체크리스트 날짜 칸 — 달력처럼 두 줄(날짜 굵게 / 요일 작게)로 표시 옆에 세운다. 알약·괄호 없이.
@@ -109,7 +110,7 @@ function DateCol({
           state === "due" ? "font-semibold text-warning" : "text-gray-400",
         )}
       >
-        {date === PREVIEW_TODAY ? "오늘" : `${dow(date)}요일`}
+        {date === todayKst() ? "오늘" : `${dow(date)}요일`}
       </span>
     </time>
   );
@@ -174,7 +175,7 @@ function CheckRow({
  * 콜라보 내용 역할 카드 색 — 매장이 할 일 · admix가 해 줘요는 흰 카드, 받는 것만 옅은 보라 카드로 띄운다
  * (11-08 사용자: 받는 것이나 매장이 할 일 중 하나는 배경을 달리 — 옅은 주황은 싫다고 해서 보라).
  */
-const ROLE_TONE = {
+export const ROLE_TONE = {
   // 받는 것 카드 하나만 보라로 띄우고 나머지 머리 칸은 흰 바탕 + 옅은 테두리
   // (보라 → 하늘색 → 회색 → "흰 배경으로", 11-08 사용자). admix 칸도 같이 맞춘다.
   store: { card: "", tile: "border border-gray-200 bg-surface text-gray-700" },
@@ -186,7 +187,7 @@ const ROLE_TONE = {
 } as const;
 
 /** 콜라보 내용 — "누가 무엇을" 한 칸(머리: 색 아이콘 + 제목). */
-function RoleCard({
+export function RoleCard({
   tone,
   icon,
   title,
@@ -219,7 +220,7 @@ function RoleCard({
 }
 
 /** 역할 카드 안 한 줄 — 앞에 작은 점(dotClassName 으로 첫 줄 가운데에 맞춘다, 기본은 14px 글자). */
-function RoleItem({
+export function RoleItem({
   dotClassName = "mt-[9px]",
   children,
 }: {
@@ -246,7 +247,7 @@ function RoleItem({
  * 다크 모드의 "n일" 알약은 진한 보라가 튀어 옆 날짜가 묻혀 보여 옅은 보라 바탕 + 연보라 글자로(11-08 사용자).
  * (11-08 사용자: "진행 2026.08.18 — 08.29 · 12일" 한 줄 글자는 성의 없어 보인다.)
  */
-function PeriodTicket({ start, end }: { start: string; end: string }) {
+export function PeriodTicket({ start, end }: { start: string; end: string }) {
   const day = (d: string) => (
     <span className="tabular-nums">
       {md(d)} <span className="font-medium text-gray-500">({dow(d)})</span>
@@ -315,7 +316,7 @@ function TaskLine({ head, children }: { head: string; children: ReactNode }) {
  * 상세의 큰 구역 사이 구분선 — 부모 간격(16px)에 위아래 8px씩 더해 선 위아래로 24px.
  * 모바일은 위아래 2px만 더해 18px(세로로 길어 구역 사이가 너무 벌어져 보인다).
  */
-function SectionRule() {
+export function SectionRule() {
   return <Separator className="my-[2px] bg-gray-200 sm:my-[8px]" />;
 }
 
@@ -336,40 +337,42 @@ function When({ d }: { d: string }) {
  * 지금 상황 카드 색. amber · emerald · red 테두리(200)는 다크 토큰이 없어 다크 모드에서 밝게 튄다
  * — 다크는 같은 색의 어두운 단계(900, 반투명)로(11-08 사용자 "취소 테두리가 너무 밝아").
  */
-const STATUS_TONE: Record<Tone, { card: string; icon: string; title: string }> =
-  {
-    purple: {
-      card: "bg-primary-100 ring-primary-200",
-      icon: "bg-primary-500 dark:bg-primary-500/60",
-      title: "text-primary-700",
-    },
-    blue: {
-      card: "bg-sky-50 ring-sky-100",
-      icon: "bg-sky-600 dark:bg-sky-600/70",
-      title: "text-sky-700",
-    },
-    amber: {
-      card: "bg-warning-bg ring-amber-200 dark:ring-amber-900/60",
-      // 다크 모드는 진한 노랑이 쨍해 아이콘 · 제목을 한 단계 가라앉힌다(11-08 사용자). 다른 색 아이콘 칸도 다크에선 반투명으로.
-      icon: "bg-amber-500 dark:bg-amber-600/70",
-      title: "text-warning dark:text-amber-400/65",
-    },
-    green: {
-      card: "bg-success-bg/70 ring-emerald-200 dark:ring-emerald-900/60",
-      icon: "bg-emerald-500 dark:bg-emerald-600/70",
-      title: "text-success",
-    },
-    gray: {
-      card: "bg-gray-100 ring-gray-200",
-      icon: "bg-gray-400",
-      title: "text-gray-700",
-    },
-    red: {
-      card: "bg-error-bg/70 ring-red-200 dark:ring-red-900/60",
-      icon: "bg-red-500 dark:bg-red-600/70",
-      title: "text-error",
-    },
-  };
+export const STATUS_TONE: Record<
+  Tone,
+  { card: string; icon: string; title: string }
+> = {
+  purple: {
+    card: "bg-primary-100 ring-primary-200",
+    icon: "bg-primary-500 dark:bg-primary-500/60",
+    title: "text-primary-700",
+  },
+  blue: {
+    card: "bg-sky-50 ring-sky-100",
+    icon: "bg-sky-600 dark:bg-sky-600/70",
+    title: "text-sky-700",
+  },
+  amber: {
+    card: "bg-warning-bg ring-amber-200 dark:ring-amber-900/60",
+    // 다크 모드는 진한 노랑이 쨍해 아이콘 · 제목을 한 단계 가라앉힌다(11-08 사용자). 다른 색 아이콘 칸도 다크에선 반투명으로.
+    icon: "bg-amber-500 dark:bg-amber-600/70",
+    title: "text-warning dark:text-amber-400/65",
+  },
+  green: {
+    card: "bg-success-bg/70 ring-emerald-200 dark:ring-emerald-900/60",
+    icon: "bg-emerald-500 dark:bg-emerald-600/70",
+    title: "text-success",
+  },
+  gray: {
+    card: "bg-gray-100 ring-gray-200",
+    icon: "bg-gray-400",
+    title: "text-gray-700",
+  },
+  red: {
+    card: "bg-error-bg/70 ring-red-200 dark:ring-red-900/60",
+    icon: "bg-red-500 dark:bg-red-600/70",
+    title: "text-error",
+  },
+};
 
 /**
  * 지금 상황 아이콘 — 상태마다 하나(모집 확성기 · 대기 모래시계 · 확정 요청 종 · 진행 맥박 · 완료 폭죽 …).
@@ -407,7 +410,7 @@ type LifeStep = { label: string; date: ReactNode };
  * 기간 겹침 · 미참여 · 광고주 취소는 흐름 밖이라 그리지 않는다(null).
  */
 function lifeOf(c: PreviewCollab): { steps: LifeStep[]; at: number } | null {
-  const t = PREVIEW_TODAY;
+  const t = todayKst();
   let at: number;
   switch (c.standing) {
     case "none":
@@ -451,7 +454,7 @@ function lifeOf(c: PreviewCollab): { steps: LifeStep[]; at: number } | null {
  * 진행 흐름 — 대시보드 진행 카드의 사진 보고와 같은 모양(끝남 초록 square-check · 지금 보라 네모 · 아직 회색 점선 네모).
  * 끝남 → 끝남 사이 선은 그라데이션 없이 초록 한 색, 끝남 → 지금만 초록에서 보라로.
  */
-function LifeSteps({ steps, at }: { steps: LifeStep[]; at: number }) {
+export function LifeSteps({ steps, at }: { steps: LifeStep[]; at: number }) {
   return (
     <ol
       aria-label="진행 흐름"
@@ -527,7 +530,7 @@ function StatusPanel({ c, showSub }: { c: PreviewCollab; showSub: boolean }) {
   const tone = STATUS_TONE[chip.tone];
   const life = lifeOf(c);
   const total = periodDays(c.startDate, c.endDate);
-  const day = diffDays(PREVIEW_TODAY, c.startDate) + 1;
+  const day = diffDays(todayKst(), c.startDate) + 1;
   // 진행 중이면 오른쪽에 며칠째인지.
   const meta =
     cat === "ongoing" && day >= 1 && day <= total
@@ -619,7 +622,7 @@ function StatusPanel({ c, showSub }: { c: PreviewCollab; showSub: boolean }) {
 }
 
 /** 이 문서를 처음 연 주소가 지금 주소인지 — 앱 안에서 넘어온 게 아니면 true. */
-function openedHere() {
+export function openedHere() {
   const nav = performance.getEntriesByType("navigation")[0];
   return !nav || nav.name === window.location.href;
 }
@@ -627,7 +630,8 @@ function openedHere() {
 function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   const router = useRouter();
   const { data: me } = useMe();
-  const state = usePreviewState();
+  const { state, today } = usePartnerWorkspace();
+  const commands = useCollabCommands();
   const [mode, setMode] = useState<"detail" | "confirm">("detail");
   const [checks, setChecks] = useState<string[]>([]);
   const [tab, setTab] = useState<InboxTab | null>(null);
@@ -635,9 +639,9 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadStep = useRef<PhotoStep | null>(null);
 
-  const cat = categoryOf(c);
+  const cat = categoryOf(c, today);
   const confirmed = c.standing === "confirmed";
-  const dueStep = dueStepOf(c);
+  const dueStep = dueStepOf(c, today);
   const items = confirmItemsOf(c);
   const unread = c.notices.filter((n) => !state.reads.includes(n.id)).length;
   const restockPending = state.restocks.includes(c.id);
@@ -663,16 +667,17 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
     const step = uploadStep.current;
     uploadStep.current = null;
     if (!file || !step) return;
-    previewActions.addPhoto(c.id, step, await toThumb(file));
+    if (!(await commands.addPhoto(c.id, step, file))) return;
     setTab("checklist");
     say(`${STEP_LABEL[step]} 사진을 올렸어요. admix가 남은 수량을 확인해요.`);
   };
-  const finalConfirm = () => {
-    const no = previewActions.confirm(
+  const finalConfirm = async () => {
+    const no = await commands.confirm(
       c.id,
-      me?.name?.trim() || "예시 담당자",
+      me?.name?.trim() || "매장 담당자",
       checks.length,
     );
+    if (!no) return;
     setDialogOpen(false);
     setMode("detail");
     setChecks([]);
@@ -737,24 +742,21 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
           kind: "restock",
         };
 
-  const runAction = (kind: Kind) => {
+  const runAction = async (kind: Kind) => {
     if (kind === "confirmDialog") setDialogOpen(true);
     else if (kind === "apply") {
-      const full = isFull(c);
-      const no = full
-        ? c.appliedStores - c.targetStores + 1
-        : c.appliedStores + 1;
-      previewActions.apply(c.id);
-      say(
-        full
-          ? `대기 신청했어요. 예비 ${no}번이에요.`
-          : `신청했어요. 선정 후보 ${no}번이에요.`,
-      );
+      const view = await commands.apply(c.id);
+      if (view)
+        say(
+          view.standing === "reserve"
+            ? `대기 신청했어요. 예비 ${view.slotNo ?? ""}번이에요.`
+            : `신청했어요. 선정 후보 ${view.slotNo ?? ""}번이에요.`,
+        );
     } else if (kind === "startConfirm") setMode("confirm");
     else if (kind === "photo" && dueStep) openPhoto(dueStep.step);
     else if (kind === "restock") {
-      previewActions.restock(c.id);
-      say("재입고를 요청했어요. admix가 확인 후 방문해요.");
+      if (await commands.restock(c.id))
+        say("재입고를 요청했어요. admix가 확인 후 방문해요.");
     }
   };
 
@@ -786,16 +788,15 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
     [c.removalDate, "철수·회수"],
   ];
   // 일정에서 오늘 이후 첫 일 — "다음"으로 보라 점.
-  const nextIdx = timeline.findIndex(([d]) => d >= PREVIEW_TODAY);
+  const nextIdx = timeline.findIndex(([d]) => d >= today);
   const tabs: [InboxTab, string][] = [
     ["checklist", "진행 체크리스트"],
     ["notices", `공지${unread ? ` ${unread}` : ""}`],
     ["files", "자료"],
-    ["contact", "문의"],
   ];
   const canWithdraw =
     (c.standing === "candidate" || c.standing === "reserve") &&
-    PREVIEW_TODAY <= c.recruitEnd;
+    today <= c.recruitEnd;
 
   return (
     <div className="flex flex-col gap-[16px] pb-[24px]">
@@ -955,7 +956,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                       {checklist.map((k) => {
                         const p = photoOf(k.step);
                         const due =
-                          !p && k.step !== "install" && k.date <= PREVIEW_TODAY;
+                          !p && k.step !== "install" && k.date <= today;
                         return (
                           <CheckRow
                             key={k.step}
@@ -997,9 +998,9 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                             {p && (
                               <span className="mt-[6px] flex items-center gap-[8px] text-[12px] text-gray-500">
                                 {p.thumb ? (
-                                  // eslint-disable-next-line @next/next/no-img-element -- 브라우저에서 줄인 사진(data URL)
+                                  // eslint-disable-next-line @next/next/no-img-element -- 올린 사진(/uploads/collab/…) 작은 미리보기
                                   <img
-                                    src={p.thumb}
+                                    src={mediaSrc(p.thumb)}
                                     alt={`${k.title} 사진`}
                                     className="size-[44px] rounded-[10px] object-cover"
                                   />
@@ -1066,7 +1067,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                                     <Button
                                       size="sm"
                                       onPress={() =>
-                                        previewActions.readNotice(n.id)
+                                        commands.readNotice(c.id, n.id)
                                       }
                                       className="font-bold"
                                     >
@@ -1105,7 +1106,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                           icon: Gift,
                           title: "브랜드 소개",
                           sub: `${c.brand} · ${c.summary}`,
-                          right: "예시",
+                          right: "",
                         },
                       ].map((f, i) => (
                         <li key={f.title}>
@@ -1127,23 +1128,6 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                         </li>
                       ))}
                     </ul>
-                  </Tabs.Panel>
-
-                  <Tabs.Panel id="contact" className="pt-[12px]">
-                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
-                      <p className="text-[13px] break-keep text-gray-600">
-                        이 콜라보에 관한 문의는 대화에 남겨 주세요. 담당자가
-                        기획별로 확인해요.
-                      </p>
-                      <Button
-                        size="sm"
-                        onPress={() => router.push("/partners/messages")}
-                        className="font-bold"
-                      >
-                        <MessageCircle className="size-[14px]" />
-                        대화로 문의하기
-                      </Button>
-                    </div>
                   </Tabs.Panel>
                 </Tabs>
               </PanelCard>
@@ -1294,7 +1278,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                */}
               <ol className="flex flex-col lg:flex-row">
                 {timeline.map(([d, t], i) => {
-                  const past = d < PREVIEW_TODAY;
+                  const past = d < today;
                   const next = i === nextIdx;
                   const last = i === timeline.length - 1;
                   return (
@@ -1310,7 +1294,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                             "absolute top-[15px] -bottom-[3px] left-[5px] w-[2px] lg:top-[5px] lg:bottom-auto lg:left-1/2 lg:h-[2px] lg:w-full",
                             // 진행 흐름과 같은 규칙 — 지난 → 지난 초록 한 색, 지난 → 다음 초록에서 보라로, 그 뒤 회색 점선.
                             // 좁으면 세로 선이라 위→아래, 넓으면(lg) 가로 선이라 왼→오른쪽.
-                            timeline[i + 1][0] < PREVIEW_TODAY
+                            timeline[i + 1][0] < today
                               ? "bg-emerald-500"
                               : i + 1 === nextIdx && past
                                 ? "bg-linear-to-b from-emerald-500 to-primary-500 lg:bg-linear-to-r"
@@ -1388,11 +1372,12 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  onPress={() => {
-                    previewActions.withdraw(c.id);
-                    say(
-                      "신청을 취소했어요. 모집 기간에는 다시 신청할 수 있어요.",
-                    );
+                  isPending={commands.pending}
+                  onPress={async () => {
+                    if (await commands.withdraw(c.id))
+                      say(
+                        "신청을 취소했어요. 모집 기간에는 다시 신청할 수 있어요.",
+                      );
                   }}
                 >
                   신청 취소
@@ -1421,7 +1406,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
           {action.button && (
             <Button
               isDisabled={!action.kind}
-              onPress={() => runAction(action.kind)}
+              isPending={commands.pending}
+              onPress={() => void runAction(action.kind)}
               // 높이 46px → 곡률 20px · 모바일 40px → 17px.
               className="h-[46px] shrink-0 rounded-[20px] bg-primary-500 px-[20px] text-[14px] font-bold text-white max-sm:h-[40px] max-sm:rounded-[17px] max-sm:px-[14px] max-sm:text-[13px]"
             >
@@ -1455,9 +1441,6 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                   확정은 브랜드와의 약속이에요.
                 </p>
                 <p>{CONFIRM_SENTENCE}</p>
-                <small className="text-[12px] text-gray-400">
-                  예시 화면 — 이 탭에만 기록되고 실제 확정·전송은 없어요.
-                </small>
               </Modal.Body>
               <Modal.Footer className="flex gap-[8px]">
                 <Button
@@ -1468,7 +1451,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                   돌아가기
                 </Button>
                 <Button
-                  onPress={finalConfirm}
+                  onPress={() => void finalConfirm()}
+                  isPending={commands.pending}
                   className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
                 >
                   최종 확정
@@ -1483,16 +1467,36 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
 }
 
 function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
-  const state = usePreviewState();
+  const { state, agreed, stores, store, isLoading } = usePartnerWorkspace();
+  if (isLoading) return <LoadingState />;
   const c = state.collabs.find((x) => x.id === id);
   if (!c) {
+    // 협약 전 · 매장 연결 전이면 콜라보를 볼 수 없다 — 대시보드(StartGate)와 같은 안내.
+    const locked = !agreed || stores.length === 0;
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-[12px] text-center">
-        <p className="text-[15px] font-semibold text-gray-900">
-          찾는 콜라보가 없어요.
+        <p className="text-[15px] font-semibold break-keep text-gray-900">
+          {!agreed
+            ? "기본협약을 해야 볼 수 있어요."
+            : stores.length === 0
+              ? "담당자가 매장을 연결하면 볼 수 있어요."
+              : `${store?.name ?? "이 매장"}에서 볼 수 있는 콜라보가 아니에요.`}
         </p>
-        <Link href="/partners/collabs" className="text-[14px] font-semibold">
-          콜라보 목록으로
+        <Link
+          href={
+            !agreed
+              ? "/partners/join/agreement"
+              : locked
+                ? "/partners/dashboard"
+                : "/partners/collabs"
+          }
+          className="text-[14px] font-semibold"
+        >
+          {!agreed
+            ? "기본협약 하러 가기"
+            : locked
+              ? "대시보드로"
+              : "콜라보 참여로"}
         </Link>
       </div>
     );

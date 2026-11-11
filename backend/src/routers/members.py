@@ -136,6 +136,17 @@ def delete_sanction(
     return member_service.delete_sanction(db, member_id, sanction_id)
 
 
+@router.get("/{member_id}/business-card/download")
+def download_business_card(
+    member_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> FileResponse:
+    """광고주 담당자 명함 — 원본 파일명으로 내려받기."""
+    path, filename = member_service.get_business_card_file(db, member_id)
+    return FileResponse(path, filename=filename)
+
+
 @router.get("/{member_id}/business-registration/download")
 def download_business_registration(
     member_id: uuid.UUID,

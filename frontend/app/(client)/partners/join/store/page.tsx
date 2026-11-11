@@ -1,13 +1,9 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { PartnerStoreJoin } from "../../_components/PartnerStoreJoin";
-
-export const metadata: Metadata = {
-  title: "매장 등록 | admix 콜라보",
-  description: "매장 정보를 입력하고 콜라보 가입을 마쳐요.",
-};
-
-/** 제휴사(콜라보) 가입 3단계 매장 등록 — 기본협약 동의의 계약서 단계에서 "다음 · 매장 등록"을 누르면 여기로 온다. */
+/**
+ * 예전 매장 등록(가입 03) 주소 — 매장 등록은 담당자가 어드민에서 한다(2026-11-09, 069).
+ * 옛 링크로 오면 대시보드로(협약 · 매장 연결 안내는 대시보드가 한다).
+ */
 export default function PartnerStoreJoinPage() {
-  return <PartnerStoreJoin />;
+  redirect("/partners/dashboard");
 }

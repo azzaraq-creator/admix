@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -7,7 +8,7 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { ExcelDownloadButton } from "@/components/common/buttons";
+import { FileDownIcon } from "@/components/icons";
 import { adminAccountsApi, useAdminAccounts } from "@/hooks/adminAccounts";
 import { useSonner } from "@/hooks/useSonner";
 
@@ -95,14 +96,20 @@ export function RolesListView() {
         onRowClick={(item) => router.push(`/admin/roles/${item.id}`)}
         topRightContent={
           <>
-            <ExcelDownloadButton onClick={handleExport} />
-            <button
-              type="button"
-              onClick={() => router.push("/admin/roles/create")}
-              className="flex h-[40px] items-center rounded-[17px] bg-primary px-[20px] text-sm font-semibold leading-[20px] text-white transition-colors hover:bg-primary-800"
+            <Button
+              variant="outline"
+              onPress={handleExport}
+              className="border-[#4CA452] text-[#4CA452] data-[hovered]:bg-[#4CA452]/10"
+            >
+              <FileDownIcon className="size-[16px]" />
+              엑셀 다운로드
+            </Button>
+            <Button
+              variant="primary"
+              onPress={() => router.push("/admin/roles/create")}
             >
               계정 생성
-            </button>
+            </Button>
           </>
         }
       />

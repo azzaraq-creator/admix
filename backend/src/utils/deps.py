@@ -112,6 +112,22 @@ def get_current_master_admin(admin: Admin = Depends(get_current_admin)) -> Admin
     return admin
 
 
+def is_collab_only(admin: Admin) -> bool:
+    """콜라보 권한만 있는 관리자(마스터가 아니고 권한이 collab 하나뿐) — admix 쪽은 보지 않는다(11-10).
+    프런트 hooks/adminAuth/access.ts isCollabOnlyAdmin 과 같은 규칙."""
+    if admin.account_type == MASTER_ACCOUNT_TYPE:
+        return False
+    keys = {p.menu_key for p in admin.permissions}
+    return keys == {"collab"}
+
+
+def get_admix_admin(admin: Admin = Depends(get_current_admin)) -> Admin:
+    """admix 쪽 공용 화면(대시보드) 가드 — 로그인한 관리자 누구나, 단 콜라보 전용 관리자는 막는다."""
+    if is_collab_only(admin):
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+    return admin
+
+
 def require_permission(menu_key: str):
     """메뉴별 권한(admin_permission) 가드. 마스터는 권한 설정과 무관하게 전체 허용."""
 

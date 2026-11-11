@@ -1,4 +1,5 @@
-// 카카오(다음) 우편번호 서비스 — 주소 검색 팝업. 키 없이 쓰는 공개 스크립트다.
+// 카카오(다음) 우편번호 서비스 — 주소 검색. 키 없이 쓰는 공개 스크립트다.
+// 새 창(openAddressSearch) 또는 화면 안 팝업에 끼워 넣기(embedAddressSearch, components/common/AddressSearchModal).
 // https://postcode.map.daum.net/guide
 
 const SCRIPT_ID = "daum-postcode-sdk";
@@ -30,7 +31,15 @@ declare global {
     daum?: {
       Postcode: new (options: {
         oncomplete: (data: DaumPostcodeResult) => void;
-      }) => { open: () => void };
+        width?: string | number;
+        height?: string | number;
+      }) => {
+        open: () => void;
+        embed: (
+          element: HTMLElement,
+          options?: { autoClose?: boolean; q?: string },
+        ) => void;
+      };
     };
   }
 }
@@ -63,4 +72,18 @@ export async function openAddressSearch(
   await loadScript();
   if (!window.daum?.Postcode) throw new Error("우편번호 서비스가 없습니다.");
   new window.daum.Postcode({ oncomplete: onSelect }).open();
+}
+
+/** 주소 검색을 element 안에 끼워 넣는다(화면 안 팝업용). 주소를 고르면 onSelect — 창 닫기는 부르는 쪽에서. */
+export async function embedAddressSearch(
+  element: HTMLElement,
+  onSelect: (data: DaumPostcodeResult) => void,
+): Promise<void> {
+  await loadScript();
+  if (!window.daum?.Postcode) throw new Error("우편번호 서비스가 없습니다.");
+  new window.daum.Postcode({
+    oncomplete: onSelect,
+    width: "100%",
+    height: "100%",
+  }).embed(element, { autoClose: false });
 }

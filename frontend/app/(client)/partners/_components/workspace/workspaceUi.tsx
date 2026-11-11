@@ -1,12 +1,22 @@
 "use client";
 
-import { Card, Chip, EmptyState, Link, RouterProvider } from "@heroui/react";
+import {
+  Card,
+  Chip,
+  EmptyState,
+  Link,
+  ListBox,
+  RouterProvider,
+  Select,
+  Tabs,
+} from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useEffect, type ComponentProps, type ReactNode } from "react";
 
 import { LoadingState } from "@/components/common/RouteStates";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { useHasUserToken, useMe } from "@/hooks/auth";
+import { useSelectedPartnerStore } from "@/hooks/partners";
 import type { RecruitKind, Tone } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 import { HEROUI_ACCENT_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -55,6 +65,99 @@ export function LinkCard({
         {children}
       </Card>
     </Link>
+  );
+}
+
+/**
+ * 누르면 창을 여는 카드 — LinkCard 와 같은 모양에 button(협약 전 모집 카드 → "협약해야 볼 수 있어요" 창).
+ */
+export function PressCard({
+  onPress,
+  label,
+  className,
+  children,
+}: {
+  onPress: () => void;
+  label?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      aria-label={label}
+      className="flex h-full w-full cursor-pointer flex-col rounded-[24px] text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
+    >
+      <Card className={cn(CARD_CLASS, "w-full flex-1", className)}>
+        {children}
+      </Card>
+    </button>
+  );
+}
+
+/** 매장이 이만큼 많으면 Tabs 대신 Select. */
+const PICKER_TABS_MAX = 4;
+
+/**
+ * 매장 고르기 — 한 회원이 매장 여러 곳(069). 대시보드 · 내 매장 · 콜라보 참여 · 참여 이력이 같은 매장을 본다.
+ * 두~네 곳은 HeroUI Tabs, 그보다 많으면 Select. 한 곳이면 그리지 않는다.
+ */
+export function StorePicker({ className }: { className?: string }) {
+  const { stores, store, setStore } = useSelectedPartnerStore();
+  if (stores.length < 2 || !store) return null;
+  if (stores.length <= PICKER_TABS_MAX) {
+    return (
+      <Tabs
+        selectedKey={store.id}
+        onSelectionChange={(key) => setStore(String(key))}
+        className={className}
+      >
+        <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px] max-sm:w-full">
+          <Tabs.List aria-label="매장 고르기">
+            {stores.map((s) => (
+              <Tabs.Tab
+                key={s.id}
+                id={s.id}
+                className="rounded-[13px] whitespace-nowrap max-sm:min-w-0 max-sm:px-[8px] max-sm:text-[13px]"
+              >
+                {s.name}
+                <Tabs.Indicator className="rounded-[13px]" />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+      </Tabs>
+    );
+  }
+  return (
+    <Select
+      variant="secondary"
+      aria-label="매장 고르기"
+      selectedKey={store.id}
+      onSelectionChange={(key) => key != null && setStore(String(key))}
+      className={cn("w-[260px] max-w-full max-sm:w-full", className)}
+    >
+      <Select.Trigger className="rounded-[16px]">
+        <MaskIcon
+          src="/icons/store.svg"
+          className="size-[15px] shrink-0 text-gray-500"
+        />
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {stores.map((s) => (
+            <ListBox.Item key={s.id} id={s.id} textValue={s.name}>
+              {/* 매장 ID는 담당자용이라 보이지 않는다(내 매장 제목과 같다). */}
+              <span className="min-w-0 truncate">{s.name}</span>
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
 
@@ -250,11 +353,19 @@ export function PageHead({
 }
 
 /**
- * 제휴사(콜라보) 회원만 — 아니면 콜라보 첫 화면으로 안내. HeroUI 영역(accent) + 라우터.
+ * 회원 유형 가드 — 그 유형 회원만, 아니면 콜라보 첫 화면으로 안내. HeroUI 영역(accent) + 라우터.
  * 로그인이 풀리면(다른 탭에서 로그아웃 · 세션 만료로 로그인 쿠키가 사라지면) 비회원용 콜라보 소개(/partners)로 옮긴다(11-08 사용자).
  * 쿠키가 없으면 회원 정보 요청이 꺼져 isPending 이 끝나지 않는다 — 예전엔 그걸 "불러오는 중"으로 보고 스피너가 끝없이 돌았다.
  */
-export function PartnerOnly({ children }: { children: ReactNode }) {
+function MemberOnly({
+  category,
+  label,
+  children,
+}: {
+  category: "partner" | "advertiser";
+  label: string;
+  children: ReactNode;
+}) {
   const router = useRouter();
   // 서버 렌더 · 첫 하이드레이션은 쿠키가 있다고 보고(스피너), 그 뒤로는 렌더마다 실제 쿠키를 읽는다.
   const hasToken = useHasUserToken(true);
@@ -266,11 +377,11 @@ export function PartnerOnly({ children }: { children: ReactNode }) {
   if (!hasToken || (!me && !isError)) {
     return <LoadingState />;
   }
-  if (me?.member_category !== "partner") {
+  if (me?.member_category !== category) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-[12px] text-center">
         <p className="text-[15px] font-semibold text-gray-900">
-          제휴사(콜라보) 회원만 볼 수 있는 화면이에요.
+          {label} 회원만 볼 수 있는 화면이에요.
         </p>
         <Link href="/partners" className="text-[14px] font-semibold">
           콜라보 첫 화면으로
@@ -288,6 +399,57 @@ export function PartnerOnly({ children }: { children: ReactNode }) {
   );
 }
 
+/** 제휴사(콜라보) 회원만. */
+export function PartnerOnly({ children }: { children: ReactNode }) {
+  return (
+    <MemberOnly category="partner" label="제휴사(콜라보)">
+      {children}
+    </MemberOnly>
+  );
+}
+
+/** 광고주 회원만. */
+export function AdvertiserOnly({ children }: { children: ReactNode }) {
+  return (
+    <MemberOnly category="advertiser" label="광고주">
+      {children}
+    </MemberOnly>
+  );
+}
+
+/**
+ * 같은 주소를 회원 유형에 따라 — 광고주면 광고주 화면, 그 밖은 제휴사 화면(제휴사가 아니면 그 화면의 가드가 안내한다).
+ * 대시보드 · 콜라보 · 상세 · 대화 · 문서함이 쓴다(메뉴 주소를 하나로 두려고). 대화 · 문서함은 광고주만(제휴사는 대시보드로).
+ */
+export function ByMember({
+  partner,
+  advertiser,
+}: {
+  partner: ReactNode;
+  advertiser: ReactNode;
+}) {
+  const hasToken = useHasUserToken(true);
+  const { data: me, isError } = useMe();
+  if (hasToken && !me && !isError) return <LoadingState />;
+  return me?.member_category === "advertiser" ? (
+    <AdvertiserOnly>{advertiser}</AdvertiserOnly>
+  ) : (
+    <>{partner}</>
+  );
+}
+
+/**
+ * 없앤 화면으로 들어온 제휴사를 옮긴다 — 대화(→ 대시보드) · 문서함(→ 참여 이력), 2026-11-09 사용자.
+ * 옛 링크 · 즐겨찾기로 와도 빈 화면이 아니게.
+ */
+export function PartnerRedirect({ href }: { href: string }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(href);
+  }, [href, router]);
+  return <LoadingState />;
+}
+
 export function EmptyBox({
   icon,
   children,
@@ -296,7 +458,8 @@ export function EmptyBox({
   children: ReactNode;
 }) {
   return (
-    <PanelCard className="border-dashed bg-gray-50">
+    // 테두리 없이(11-08 사용자: "테두리 없애줘") — 예전엔 점선 테두리였다.
+    <PanelCard className="border-0 bg-gray-50">
       <EmptyState className="flex flex-col items-center gap-[8px] px-[20px] py-[28px] text-center text-[14px] break-keep text-gray-500">
         <span className="text-gray-400">{icon}</span>
         {children}

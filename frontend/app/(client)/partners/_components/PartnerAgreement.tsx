@@ -26,6 +26,7 @@ import {
 import { LoadingState } from "@/components/common/RouteStates";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
+import { API_BASE_URL } from "@/lib/api";
 import { extractApiError } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -39,25 +40,33 @@ import {
   rowTone,
   type Role,
   SECTIONS,
+  type SignatureRecord,
   SectionClauses,
   StageHeading,
   TextModal,
   annexesFor,
 } from "./agreementShared";
 import { JoinAccount, JoinFlow, JoinFlowWithStore } from "./JoinFlow";
-import { AnnexStage, ConsentStage, DocumentStage } from "./agreementStages";
+import {
+  AGREEABLE_BIZ,
+  AnnexStage,
+  ConsentStage,
+  DocumentStage,
+} from "./agreementStages";
 
 /*
  * /partners/join/agreement — 제휴사(콜라보) 기본협약 동의 화면.
  * 가입·협약 소개(/partners/join)의 "가입·협약 시작하기"를 누르면 여기로 온다.
  * 흐름은 기본협약 미리보기(카페 파트너 미리보기)의 "기본협약 동의" 4단계를 따른다:
- *   1 핵심 내용 5가지(주제마다 읽고 체크 → 0.5초 뒤 다음 주제) → 2 별지·서명자 → 3 최종 동의 → 4 계약서·다운로드.
+ *   1 핵심 내용 5가지(주제마다 읽고 체크 → 0.5초 뒤 다음 주제) → 2 협약서(별지·서명자) → 3 최종 동의 → 4 계약서·다운로드.
  * 단계는 언제든 오갈 수 있고, 최종 동의 버튼만 앞 단계를 다 마쳐야 켜진다.
  * 문구는 미리보기의 기본협약(v1.3) 데이터(agreement.json)를 그대로 옮겼다 — 조항을 새로 짓지 않는다.
- * 본인확인 · 동의 접수는 아직 서버가 없어 예시로만 처리한다 — 접수하면 임시로 4단계(계약서)로 넘어가고,
- * 계약서 아래 "다음"으로 매장 등록(/partners/join/store)에 간다.
- * 사이드바 메뉴 "기본협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 등록이 등록 여부 체크로 보이고, "다음 · 매장 등록" 버튼은 없다.
- * 메뉴가 아닌 길로 와도 매장을 이미 등록했으면 "다음 · 매장 등록"은 없고 03은 등록 체크로 보인다.
+ * 서명은 협약서 단계에서 서명자 이름 + 손 서명(SignaturePad)으로 받고, 최종 동의 때 서버에 함께 남긴다(078 — 휴대폰 명의 본인확인 대신, 11-10 사용자).
+ * 손 서명 그림은 진행 상태에 저장하지 않는다(크기) — 다시 들어오면 이름만 남고 서명은 다시 한다.
+ * 사업자등록증은 꼭 올려야 최종 동의할 수 있다(담당자 임시 승인이면 등록증 없이도, 069).
+ * 동의를 접수하면 4단계(계약서)로 넘어가고, 계약서 아래 "대시보드로" — 매장은 담당자가 어드민에서 등록 · 연결한다.
+ * 사이드바 메뉴 "기본 협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 연결이 연결 여부 체크로 보이고, "대시보드로" 버튼은 없다.
+ * 메뉴가 아닌 길로 와도 매장이 이미 연결됐으면 버튼은 없고 03은 연결 체크로 보인다.
  * 디자인은 소개 화면과 같은 언어 — 옅은 보라 배경 빛 위에 흰 유리 카드, 진한 보라는 버튼 · 진행 표시에만.
  */
 
@@ -70,7 +79,8 @@ type Progress = {
   read: string[];
   role: Role;
   viewed: string[];
-  identity: boolean;
+  /** 서명자 이름 — 손 서명 그림은 저장하지 않는다. */
+  signerName: string;
   consents: boolean[];
 };
 
@@ -80,7 +90,7 @@ const DEFAULT_PROGRESS: Progress = {
   read: [],
   role: "representative",
   viewed: [],
-  identity: false,
+  signerName: "",
   consents: [false, false, false],
 };
 
@@ -164,7 +174,7 @@ function agreedProgress(saved: Partial<Progress>): Progress {
     viewed: annexesFor(role)
       .filter((a) => a.required)
       .map((a) => a.id),
-    identity: true,
+    signerName: saved.signerName ?? "",
     consents: [true, true, true],
   };
 }
@@ -190,7 +200,9 @@ function AgreementBody({
   const [read, setRead] = useState<string[]>(saved.read ?? []);
   const [role, setRole] = useState<Role>(saved.role ?? "representative");
   const [viewed, setViewed] = useState<string[]>(saved.viewed ?? []);
-  const [identity, setIdentity] = useState(saved.identity ?? false);
+  const [signerName, setSignerName] = useState(saved.signerName ?? "");
+  /** 손 서명(PNG data URL) — 화면 안에서만 들고 있다가 최종 동의 때 보낸다. */
+  const [signature, setSignature] = useState<string | null>(null);
   const [consents, setConsents] = useState(
     saved.consents ?? [false, false, false],
   );
@@ -199,9 +211,9 @@ function AgreementBody({
   const [submitting, setSubmitting] = useState(false);
   const member = me?.member_category === "partner";
   const queryClient = useQueryClient();
-  // 매장을 이미 등록한 제휴사 — 메뉴가 아닌 길(가입·협약 소개 → "가입·협약 시작하기")로 다시 와도
-  // "다음 · 매장 등록"을 띄우지 않고, 가입 진행 03은 등록 체크로 보인다(11-08 사용자).
-  // 매장 목록을 받는 동안도 등록한 것으로 본다(버튼이 떴다가 사라지지 않게). 못 받으면 버튼을 둔다.
+  // 매장이 이미 연결된 제휴사 — 메뉴가 아닌 길(가입·협약 소개 → "가입·협약 시작하기")로 다시 와도
+  // "대시보드로"를 띄우지 않고, 가입 진행 03은 연결 체크로 보인다(11-08 사용자).
+  // 매장 목록을 받는 동안도 연결된 것으로 본다(버튼이 떴다가 사라지지 않게). 못 받으면 버튼을 둔다.
   const stores = useMyPartnersStores();
   const storeRegistered =
     member && (stores.isPending || (stores.data?.length ?? 0) > 0);
@@ -216,7 +228,33 @@ function AgreementBody({
   const annexViewed = requiredAnnex.filter((a) => viewed.includes(a.id)).length;
   const topicsDone = read.length === GROUPS.length;
   const annexDone = annexViewed === requiredAnnex.length;
-  const signerDone = annexDone && identity;
+  // 서명 — 이름 + 손 서명. 이미 동의했으면 끝(서버에 남은 서명을 보여 준다).
+  const signed = submitted || (!!signerName.trim() && !!signature);
+  const signerDone = annexDone && signed;
+  // 사업자등록증 — 올렸거나(검토 중 · 인증) 담당자가 임시 승인했으면 끝. 로그인 전 미리보기는 막지 않는다.
+  const bizDone =
+    !member || AGREEABLE_BIZ.has(me?.business_registration?.status ?? "");
+
+  /** 서버에 남은 서명(동의 뒤) — 협약서 단계 · 계약서 서명란에 보인다. 서명 도입 전에 동의했으면 없다. */
+  const savedSignature: SignatureRecord | null = me?.partner_signature_url
+    ? {
+        name: me.partner_signer_name ?? "",
+        role: (me.partner_signer_role as Role | null) ?? role,
+        src: `${API_BASE_URL}${me.partner_signature_url}`,
+        signedAt: me.partner_agreed_at ?? null,
+      }
+    : null;
+  // 계약서 — 서버 기록이 오기 전(동의 직후)이면 방금 한 서명으로.
+  const docSignature: SignatureRecord | null =
+    savedSignature ??
+    (submitted && signature
+      ? {
+          name: signerName.trim(),
+          role,
+          src: signature,
+          signedAt: new Date().toISOString(),
+        }
+      : null);
 
   /** 최종 동의 전 남은 일 — 다 없어야 "최종 확인하기"가 켜진다. */
   const blockers = [
@@ -225,7 +263,9 @@ function AgreementBody({
     role === "delegate" &&
       !viewed.includes("delegation") &&
       "위임 권한 확인 자료를 확인해 주세요.",
-    !identity && "서명자 본인확인을 마쳐 주세요.",
+    !signed && "협약서 단계에서 서명자 이름을 적고 서명해 주세요.",
+    !bizDone &&
+      "사업자등록증을 올려 주세요. 담당자가 함께 있다면 임시 승인을 요청해 주세요.",
     !consents.every(Boolean) && "최종 동의 항목을 모두 체크해 주세요.",
   ].filter((v): v is string => !!v);
 
@@ -237,7 +277,7 @@ function AgreementBody({
     read,
     role,
     viewed,
-    identity,
+    signerName,
     consents,
   } satisfies Progress);
   const lastSaved = useRef(JSON.stringify({ ...DEFAULT_PROGRESS, ...saved }));
@@ -284,7 +324,7 @@ function AgreementBody({
     scrollTop();
   };
 
-  /** 주제 확인 체크 — 켜면 0.5초 뒤(체크된 모습을 보여 준 다음) 아직 안 읽은 다음 주제로, 다 읽었으면 별지·서명자로. */
+  /** 주제 확인 체크 — 켜면 0.5초 뒤(체크된 모습을 보여 준 다음) 아직 안 읽은 다음 주제로, 다 읽었으면 협약서(2단계)로. */
   const toggleRead = (index: number) => {
     const id = GROUPS[index].id;
     cancelAdvance();
@@ -308,12 +348,13 @@ function AgreementBody({
     }, 500);
   };
 
-  /** 서명자 구분을 바꾸면 확인할 별지가 달라지므로 별지 확인 · 본인확인 · 최종 동의를 다시 받는다. */
+  /** 서명자 구분을 바꾸면 확인할 별지 · 서명하는 사람이 달라지므로 별지 확인 · 서명 · 최종 동의를 다시 받는다. */
   const changeRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
     setViewed([]);
-    setIdentity(false);
+    setSignerName("");
+    setSignature(null);
     setConsents([false, false, false]);
   };
 
@@ -327,9 +368,14 @@ function AgreementBody({
       },
       {
         id: "annex",
-        title: "별지·서명자",
-        detail: signerDone ? "확인 완료" : "별지와 권한 확인",
-        done: signerDone,
+        title: "협약서",
+        // 별지 · 서명에 사업자등록증까지 끝나야 체크(11-10 사용자: 등록증 안 올렸는데 체크되면 안 된다).
+        detail: !signerDone
+          ? "별지와 권한 확인"
+          : bizDone
+            ? "확인 완료"
+            : "사업자등록증 필요",
+        done: signerDone && bizDone,
       },
       {
         id: "consent",
@@ -475,7 +521,7 @@ function AgreementBody({
                       topic === gi
                         ? "bg-surface text-gray-900 shadow-[0_4px_14px_rgba(42,20,89,0.12)]"
                         : read.includes(g.id)
-                          ? "bg-primary-100 text-primary-600"
+                          ? "bg-gray-100 text-gray-800"
                           : "bg-gray-100 text-gray-500",
                     )}
                   >
@@ -489,7 +535,7 @@ function AgreementBody({
 
               <StageHeading title={group.title} />
 
-              {/* 요점 3개 — 꼭 볼 내용은 요점 글자 아래에 연보라 형광펜(글자 대신 색으로 포인트). 줄 사이 얇은 구분선. */}
+              {/* 요점 3개 — 꼭 볼 내용은 요점 글자 아래에 노란 형광펜(글자 대신 색으로 포인트, 11-10 보라에서 바꿈). 줄 사이 얇은 구분선. */}
               <ul className="mt-[14px] flex flex-col divide-y divide-gray-100 sm:mt-[18px]">
                 {group.points.map((p) => (
                   <li key={p.lead} className="py-[14px] first:pt-0">
@@ -497,7 +543,7 @@ function AgreementBody({
                       <span
                         className={cn(
                           p.important &&
-                            "box-decoration-clone bg-[linear-gradient(transparent_55%,var(--color-primary-200)_55%)] dark:bg-[linear-gradient(transparent_58%,rgba(122,63,224,0.35)_58%)]",
+                            "box-decoration-clone bg-[linear-gradient(transparent_55%,var(--color-yellow-200)_55%)] dark:bg-[linear-gradient(transparent_58%,rgba(250,204,21,0.28)_58%)]",
                         )}
                       >
                         {p.important && <span className="sr-only">중요: </span>}
@@ -592,8 +638,12 @@ function AgreementBody({
               }
               role={role}
               onRole={changeRole}
-              identity={identity}
-              onIdentity={() => setIdentity(true)}
+              signerName={signerName}
+              onSignerName={setSignerName}
+              signed={signed}
+              signature={signature}
+              onSignature={setSignature}
+              saved={docSignature}
               onPrev={() => goTopic(GROUPS.length - 1)}
               onNext={() => goStage("consent")}
             />
@@ -608,7 +658,10 @@ function AgreementBody({
               annexViewed={annexViewed}
               annexTotal={requiredAnnex.length}
               annexCount={annexes.length}
-              identity={identity}
+              signed={signed}
+              signerName={signerName}
+              signature={signature}
+              bizDone={bizDone}
               role={role}
               consents={consents}
               onConsent={(i, on) =>
@@ -627,7 +680,12 @@ function AgreementBody({
                 if (member) {
                   setSubmitting(true);
                   try {
-                    await partnersApi.agree(AGREEMENT.version);
+                    await partnersApi.agree({
+                      version: AGREEMENT.version,
+                      signerName: signerName.trim(),
+                      signerRole: role,
+                      signature: signature ?? "",
+                    });
                   } catch (e) {
                     setSubmitting(false);
                     toast.danger(
@@ -642,7 +700,8 @@ function AgreementBody({
                 setSubmitted(true);
                 goStage("document");
                 toast("동의를 접수했어요", {
-                  description: "계약서를 확인한 뒤 매장을 등록해 주세요.",
+                  description:
+                    "담당자가 매장을 연결하면 콜라보에 참여할 수 있어요.",
                   timeout: TOAST_TIMEOUT,
                 });
               }}
@@ -651,10 +710,11 @@ function AgreementBody({
 
           {stage === "document" && (
             <DocumentStage
+              signature={docSignature}
               onNext={
                 fromMenu || storeRegistered
                   ? undefined
-                  : () => router.push("/partners/join/store")
+                  : () => router.push("/partners/dashboard")
               }
             />
           )}

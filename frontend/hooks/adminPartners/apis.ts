@@ -1,10 +1,20 @@
 import { api } from "@/lib/api";
-import type { AdminPartnersStore, AdminPartnersStorePayload } from "@/lib/partners";
+import type {
+  AdminPartnersStore,
+  AdminPartnersStorePayload,
+} from "@/lib/partners";
 
-/** 어드민 콜라보 매장 목록 조건 — status: active(공개)/hidden(숨김), 비우면 전체. */
+/**
+ * 어드민 콜라보 매장 목록 조건 — status: active(공개)/hidden(비공개),
+ * linked: yes(제휴사와 연결됨)/no(아직 연결 전), 비우면 전체.
+ * keyword 는 매장명 · 주소 · 매장 ID · 회원 고유번호 · 아이디로 찾는다.
+ */
 export interface AdminPartnersListParams {
   keyword?: string;
   status?: string;
+  linked?: string;
+  /** 매장 유형 id — 비우면 전체. */
+  store_type?: number;
   page?: number;
   page_size?: number;
 }
@@ -21,7 +31,7 @@ export interface PartnersGeocodeResult {
   district: string | null;
 }
 
-/** 어드민 "콜라보 매장 관리" — /admin 으로 시작해 어드민 토큰으로 부른다(lib/api). */
+/** 콜라보 어드민 "매장" — /admin 으로 시작해 어드민 토큰으로 부른다(lib/api). 권한 "collab". */
 export const adminPartnersApi = {
   list: (params?: AdminPartnersListParams) =>
     api
@@ -29,7 +39,9 @@ export const adminPartnersApi = {
       .then((r) => r.data),
   get: (id: string) =>
     api
-      .get<AdminPartnersStore>(`/admin/partners/stores/${encodeURIComponent(id)}`)
+      .get<AdminPartnersStore>(
+        `/admin/partners/stores/${encodeURIComponent(id)}`,
+      )
       .then((r) => r.data),
   create: (payload: AdminPartnersStorePayload) =>
     api

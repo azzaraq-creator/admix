@@ -1,21 +1,12 @@
 "use client";
 
+import { Button, Input, ListBox, Select, TextArea } from "@heroui/react";
+import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import {
-  DeleteButton,
-  ListButton,
-  PrimaryButton,
-} from "@/components/common/buttons";
+import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAdminMe } from "@/hooks/adminAuth";
 import {
   useCreateFaq,
@@ -61,11 +52,7 @@ export function FaqFormView({ mode }: { mode: "create" | "edit" }) {
   const { data: detail } = useFaq(id);
 
   if (isEdit && !detail) {
-    return (
-      <p className="text-sm font-medium leading-[20px] text-disabled">
-        불러오는 중...
-      </p>
-    );
+    return <LoadingState />;
   }
 
   return <FaqForm mode={mode} id={id} detail={detail ?? null} />;
@@ -160,9 +147,6 @@ function FaqForm({
 
   const saving = createMutation.isPending || updateMutation.isPending;
 
-  const inputClass =
-    "h-[44px] flex-1 rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary";
-
   return (
     <div className="flex flex-col gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
@@ -175,55 +159,75 @@ function FaqForm({
 
         <FieldRow>
           <FieldLabel label="제목" />
-          <input
-            type="text"
+          <Input
+            aria-label="제목"
+            className="min-w-0 flex-1"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목을 입력"
-            className={inputClass}
           />
         </FieldRow>
         <FieldRow>
           <FieldLabel label="유형" />
-          <Select items={FAQ_TYPE_OPTIONS} value={type} onValueChange={(value) => setType(value ?? "")}>
-            <SelectTrigger className="w-full rounded-[19px] border-stroke bg-surface px-[14px] font-medium text-black data-[size=default]:h-[44px]">
-              <SelectValue placeholder="유형 선택" />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} className="min-w-0">
-              {FAQ_TYPE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+          <Select
+            aria-label="유형"
+            className="min-w-0 flex-1"
+            placeholder="유형 선택"
+            selectedKey={type || null}
+            onSelectionChange={(key) => setType(key == null ? "" : String(key))}
+          >
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {FAQ_TYPE_OPTIONS.map((option) => (
+                  <ListBox.Item
+                    key={option.value}
+                    id={option.value}
+                    textValue={option.label}
+                  >
+                    {option.label}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
           </Select>
         </FieldRow>
 
         <div className="col-span-2 flex items-start gap-[12px]">
           <FieldLabel label="내용" />
-          <textarea
+          <TextArea
+            aria-label="내용"
+            className="h-[140px] min-w-0 flex-1 resize-none"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="내용 입력"
-            className="h-[140px] flex-1 resize-none rounded-[6px] border border-stroke px-[14px] py-[12px] text-sm font-medium leading-[22px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary"
           />
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <ListButton onClick={goList} />
+        <Button variant="outline" onPress={goList}>
+          <List className="size-[16px]" />
+          목록으로
+        </Button>
 
         {isEdit ? (
           <div className="flex items-center gap-[8px]">
-            <DeleteButton onClick={handleDelete} />
-            <PrimaryButton onClick={handleSubmit} disabled={saving}>
+            <Button variant="tertiary" onPress={handleDelete}>
+              삭제
+            </Button>
+            <Button variant="primary" onPress={handleSubmit} isDisabled={saving}>
               저장
-            </PrimaryButton>
+            </Button>
           </div>
         ) : (
-          <PrimaryButton onClick={handleSubmit} disabled={saving}>
+          <Button variant="primary" onPress={handleSubmit} isDisabled={saving}>
             등록
-          </PrimaryButton>
+          </Button>
         )}
       </div>
 

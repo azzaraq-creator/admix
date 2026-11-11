@@ -1,17 +1,20 @@
 "use client";
 
+import { Button, Card, TextArea } from "@heroui/react";
+import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
 import { useAnswerInquiry, useInquiry, type InquiryDetail } from "@/hooks/inquiries";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
 import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
+/** 흰 판(HeroUI Card) — 옅은 테두리 · 기본 그림자. */
 const CARD_CLASS =
-  "rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]";
+  "gap-[24px] rounded-[8px] border border-gray-200 p-[44px]";
 
 function InfoRow({
   label,
@@ -39,11 +42,7 @@ export function InquiryDetailView() {
   const { data: inquiry } = useInquiry(params.id);
 
   if (!inquiry) {
-    return (
-      <p className="text-sm font-medium leading-[20px] text-disabled">
-        불러오는 중...
-      </p>
-    );
+    return <LoadingState />;
   }
 
   return <InquiryDetail inquiry={inquiry} />;
@@ -91,7 +90,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
 
   return (
     <div className="flex flex-col gap-[32px]">
-      <div className={`flex flex-col gap-[24px] ${CARD_CLASS}`}>
+      <Card className={CARD_CLASS}>
         <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
           문의 상세
         </h1>
@@ -111,9 +110,9 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
             <p className="whitespace-pre-line">{inquiry.content}</p>
           </InfoRow>
         </div>
-      </div>
+      </Card>
 
-      <div className={`flex flex-col gap-[24px] ${CARD_CLASS}`}>
+      <Card className={CARD_CLASS}>
         <h2 className="text-xl font-semibold leading-[28px] text-tone-2a2a2a">
           답변 정보
         </h2>
@@ -123,27 +122,37 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
             {inquiry.answeredAt?.slice(0, 10) ?? "-"}
           </InfoRow>
         </div>
-        <textarea
+        <TextArea
+          variant="secondary"
+          fullWidth
+          aria-label="답변 내용"
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           readOnly={answered}
           placeholder="답변 내용을 입력해 주세요."
-          className={`h-[160px] w-full resize-none rounded-[8px] border border-tone-f2f2f2 p-[20px] text-base leading-[24px] text-black outline-none placeholder:text-tone-8f8f8f ${
-            answered ? "cursor-default bg-gray-50" : "bg-tone-f0f0f3"
+          className={`h-[160px] resize-none p-[20px] text-base leading-[24px] ${
+            answered ? "cursor-default" : ""
           }`}
         />
         <div className="flex items-center justify-between">
-          <ListButton onClick={() => router.push("/admin/inquiries")} />
+          <Button
+            variant="outline"
+            onPress={() => router.push("/admin/inquiries")}
+          >
+            <List className="size-[16px]" />
+            목록으로
+          </Button>
           {!answered && (
-            <PrimaryButton
-              onClick={handleComplete}
-              disabled={answerMutation.isPending}
+            <Button
+              variant="primary"
+              onPress={handleComplete}
+              isDisabled={answerMutation.isPending}
             >
               답변 완료 처리
-            </PrimaryButton>
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
 
       {confirmDialog}
     </div>

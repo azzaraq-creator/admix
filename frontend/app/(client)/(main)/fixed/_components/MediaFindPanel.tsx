@@ -49,6 +49,7 @@ import { FilterChip } from "./MediaFilterPanel";
 
 export { FilterChip };
 import { replaceQuery } from "./replaceQuery";
+import type { MediaFindOnly } from "./collabPick";
 import { MediaFindCard, MediaFindCardSkeleton } from "./MediaFindCard";
 import { MediaFindTopBar } from "./MediaFindTopBar";
 import { PopGridTargetPanel, type PopGridState } from "./PopGridLayer";
@@ -135,6 +136,7 @@ export function MediaFindPanel({
   onHoverArea,
   popGrid,
   demo,
+  only,
 }: {
   /** 지도 영역 — 데이터는 onMapData로 올려보내고 엘리먼트는 부모가 내려준다. */
   mapSlot: ReactNode;
@@ -167,11 +169,17 @@ export function MediaFindPanel({
    * (모바일은 한 번에 하나만 보여서 지도 단계에선 지도로). 가이드가 끝나면 원래 보기로 돌아간다.
    */
   demo?: { row: MediaCardRow; view?: "map" | "list" } | null;
+  /**
+   * 한 카테고리만(광고주 콜라보 매장 찾기 /partners/find) — 목록 · 지도 · 검색 추천이 그 카테고리만,
+   * 카테고리 탭은 그 탭 하나만 보이고, 탭 줄 오른쪽에 toolbar, 카드에 담기(pickOf). collabPick.tsx 참고.
+   */
+  only?: MediaFindOnly;
 }) {
   const searchParams = useSearchParams();
   const sp = new URLSearchParams(searchParams.toString());
-  // 카테고리 탭 — 예전 링크의 다른 필터(지역·가격 등)는 읽지 않는다.
-  const category = sp.getAll("category");
+  // 카테고리 탭 — 예전 링크의 다른 필터(지역·가격 등)는 읽지 않는다. 한 카테고리만 보는 화면은 URL 대신 그 값.
+  const category = only ? [only.category] : sp.getAll("category");
+  const onlyCategory = only?.category;
   const zoom = parseZoom(sp);
   const bounds = parseBounds(sp);
   // Enter 검색어(매체명/주소 부분일치). 설정되면 bbox와 상호배제(백엔드가 AND로 걸기 때문).
@@ -531,7 +539,10 @@ export function MediaFindPanel({
         const seq = ++sugSeqRef.current;
         const [places, media] = await Promise.all([
           searchPlaces(q, 5),
-          mediaApi.fixedList(5, 0, { keyword: q }),
+          mediaApi.fixedList(5, 0, {
+            keyword: q,
+            category: onlyCategory ? [onlyCategory] : undefined,
+          }),
         ]);
         if (sugSeqRef.current !== seq) return;
         sugForRef.current = q;
@@ -543,7 +554,7 @@ export function MediaFindPanel({
     );
     sugTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [location]);
+  }, [location, onlyCategory]);
 
   // 드롭다운 바깥 클릭 시 닫기.
   useEffect(() => {
@@ -667,7 +678,10 @@ export function MediaFindPanel({
       [places, media] = await Promise.all([
         searchPlaces(q, 5).catch(() => []),
         mediaApi
-          .fixedList(5, 0, { keyword: q })
+          .fixedList(5, 0, {
+            keyword: q,
+            category: onlyCategory ? [onlyCategory] : undefined,
+          })
           .then((r) => r.items)
           .catch(() => []),
       ]);
@@ -791,6 +805,7 @@ export function MediaFindPanel({
           onSortOpen={() => setFilterOpen(false)}
           mapExpanded={mapExpanded}
           mobileView={mapExpanded ? "map" : "list"}
+          subject={only ? "매장" : undefined}
           onToggleMapExpanded={() => setMapExpanded((v) => !v)}
           suggestionSlot={
             showSug && (placeSug.length > 0 || mediaSug.length > 0) ? (
@@ -800,7 +815,7 @@ export function MediaFindPanel({
                   {mediaSug.length > 0 && (
                     <div>
                       <div className="px-[16px] pt-[12px] pb-[4px] text-[12px] max-sm:text-[11px] font-medium text-gray-500">
-                        매체
+                        {only ? "매장" : "매체"}
                       </div>
                       {mediaSug.map((m, i) => (
                         <button
@@ -893,13 +908,16 @@ export function MediaFindPanel({
         >
           <Tabs.ListContainer className="w-fit max-w-full rounded-[17px]">
             <Tabs.List aria-label="매체 카테고리">
-              {[
-                { key: ALL_CATEGORY_TAB, label: "전체" },
-                ...optionsByKey.category.map((o) => ({
-                  key: o.value,
-                  label: o.label,
-                })),
-              ].map(({ key, label }) => (
+              {(only
+                ? [{ key: only.category, label: only.label }]
+                : [
+                    { key: ALL_CATEGORY_TAB, label: "전체" },
+                    ...optionsByKey.category.map((o) => ({
+                      key: o.value,
+                      label: o.label,
+                    })),
+                  ]
+              ).map(({ key, label }) => (
                 <Tabs.Tab
                   key={key}
                   id={key}
@@ -936,6 +954,11 @@ export function MediaFindPanel({
             className="ml-auto shrink-0"
             labelClassName="whitespace-nowrap max-sm:text-[12px]"
           />
+        )}
+        {only?.toolbar && (
+          <div className={cn("shrink-0", mapExpanded && "ml-auto")}>
+            {only.toolbar}
+          </div>
         )}
       </div>
 
@@ -979,6 +1002,7 @@ export function MediaFindPanel({
                 onHoverChange={areaHover(pinned)}
                 compact={compactList}
                 partnersAccess={partnersAccess}
+                collabPick={only?.pickOf?.(pinned)}
               />
             )}
             {isLoading ? (
@@ -1023,6 +1047,7 @@ export function MediaFindPanel({
                     onHoverChange={areaHover(row)}
                     compact={compactList}
                     partnersAccess={partnersAccess}
+                    collabPick={only?.pickOf?.(row)}
                   />
                 ))}
                 {/* 무한스크롤 감지용 1px 줄. 목록 마지막에 gap 10px + 1px만큼

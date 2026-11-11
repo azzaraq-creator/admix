@@ -1,10 +1,11 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { Button, Input, Label, TextField } from "@heroui/react";
+import { FileText, List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { useUploadCounterProposal } from "@/hooks/proposals";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
@@ -73,25 +74,25 @@ export function CustomProposalWriteView() {
   };
 
   return (
-    <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[32px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <AdminCard className="flex flex-col gap-[24px] md:p-[32px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
-      <div className="flex items-center gap-[12px]">
-        <span className="w-[120px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a">
+      {/* 빈 제목은 [맞춤제안 전송]에서 막는다(아래 오류 문구) — 칸에는 필수 표시(*)만 단다. */}
+      <TextField
+        value={title}
+        onChange={setTitle}
+        className="flex-row items-center gap-[12px]"
+      >
+        <Label
+          isRequired
+          className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
+        >
           맞춤기획안 명
-        </span>
-        <span className="shrink-0 text-base font-semibold leading-[24px] text-[#d65856]">
-          *
-        </span>
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          className="h-[44px] flex-1 rounded-[19px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none focus:border-primary"
-        />
-      </div>
+        </Label>
+        <Input className="flex-1" />
+      </TextField>
 
       <p className="text-lg font-bold leading-[28px] text-black">PPT 파일첨부</p>
 
@@ -114,14 +115,15 @@ export function CustomProposalWriteView() {
               {fileName}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            className="shrink-0 rounded-[6px] border border-stroke px-[14px] py-[8px] text-sm font-medium leading-[20px] text-tone-2a2a2a hover:bg-zinc-50 disabled:opacity-50"
+          <Button
+            size="sm"
+            variant="outline"
+            onPress={() => inputRef.current?.click()}
+            isDisabled={uploadMutation.isPending}
+            className="shrink-0"
           >
             파일 변경
-          </button>
+          </Button>
         </div>
       ) : (
         <div
@@ -145,13 +147,9 @@ export function CustomProposalWriteView() {
           <p className="text-sm font-medium leading-[20px] text-disabled">
             확장자 : PPT, PPTX (최대 100MB)
           </p>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="rounded-[6px] bg-primary px-[16px] py-[10px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-          >
+          <Button variant="primary" onPress={() => inputRef.current?.click()}>
             파일 업로드
-          </button>
+          </Button>
         </div>
       )}
 
@@ -162,17 +160,21 @@ export function CustomProposalWriteView() {
       )}
 
       <div className="flex items-center justify-between">
-        <ListButton onClick={goBack}>이전으로</ListButton>
+        <Button variant="outline" onPress={goBack}>
+          <List className="size-[16px]" />
+          이전으로
+        </Button>
 
-        <PrimaryButton
-          onClick={handleSend}
-          disabled={!staged || uploadMutation.isPending}
+        <Button
+          variant="primary"
+          onPress={handleSend}
+          isDisabled={!staged || uploadMutation.isPending}
         >
           {uploadMutation.isPending ? "전송 중..." : "맞춤제안 전송"}
-        </PrimaryButton>
+        </Button>
       </div>
 
       {confirmDialog}
-    </div>
+    </AdminCard>
   );
 }

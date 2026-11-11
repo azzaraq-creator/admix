@@ -68,10 +68,11 @@ MEDIA_IMAGE_MAX_SIDE = 4000
 _PIL_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
 
 
-def shrink_media_image(content: bytes, ext: str) -> bytes:
-    """긴 변이 MEDIA_IMAGE_MAX_SIDE 를 넘으면 비율대로 줄인 바이트를, 아니면 원본 그대로 돌려준다.
+def shrink_media_image(content: bytes, ext: str, max_side: int = MEDIA_IMAGE_MAX_SIDE) -> bytes:
+    """긴 변이 max_side(기본 MEDIA_IMAGE_MAX_SIDE)를 넘으면 비율대로 줄인 바이트를, 아니면 원본 그대로 돌려준다.
 
     휴대폰 사진의 회전 정보(EXIF)는 줄일 때 픽셀에 반영한다. GIF(움직이는 그림)와 읽지 못하는 파일은 그대로 둔다.
+    콜라보 매장 · 콜라보 사진은 더 작게(partners_service.IMAGE_MAX_SIDE).
     """
     fmt = _PIL_FORMATS.get(ext)
     if fmt is None:
@@ -80,10 +81,10 @@ def shrink_media_image(content: bytes, ext: str) -> bytes:
 
     try:
         with Image.open(BytesIO(content)) as img:
-            if max(img.size) <= MEDIA_IMAGE_MAX_SIDE:
+            if max(img.size) <= max_side:
                 return content
             img = ImageOps.exif_transpose(img)
-            img.thumbnail((MEDIA_IMAGE_MAX_SIDE, MEDIA_IMAGE_MAX_SIDE), Image.Resampling.LANCZOS)
+            img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
             if fmt == "JPEG" and img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
             out = BytesIO()

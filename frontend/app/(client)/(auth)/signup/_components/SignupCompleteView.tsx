@@ -1,14 +1,17 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 
+import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { dismissPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 import { useMe } from "@/hooks/auth";
 import { MEMBER_CATEGORY_LABEL } from "@/lib/memberCategory";
+import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
-import { PARTNER_AGREEMENT_HREF } from "./CategoryStep";
+import { PARTNER_AGREEMENT_HREF, isCollabSignup } from "./CategoryStep";
 import { SignupShell } from "./SignupShell";
 import {
   CardHeading,
@@ -20,18 +23,61 @@ import {
 
 /**
  * 시안(00. 회원가입 - 완료).
- * 제휴사(콜라보)는 여기서 기본협약 동의로 넘어간다 — 큰 버튼 "협약·매장 등록하기", 아래 "나중에 하기"(admix 첫 화면).
+ * 제휴사(콜라보)는 여기서 기본협약 동의로 넘어간다 — 큰 버튼 "기본협약 하기", 아래 "나중에 하기"(admix 첫 화면).
+ * 매장은 담당자가 어드민에서 등록 · 연결한다(2026-11-09, 069).
  * 나중에 하기를 고르면 첫 화면에서 "진행 중인 기본협약 동의" 창(PartnerResumeModal)이 곧바로 또 묻지 않게
  * 이 탭에서는 닫아 둔다 — 다시 로그인하면 묻는다.
+ * 광고주는 "admix 시작하기" 아래에 "Collaboration 시작하기"(콜라보 대시보드)를 하나 더 둔다(11-09 사용자).
  */
+
+/** "Collaboration" 글자 — 사이드바 · 콜라보 로고와 같은 HS활공명조(파일이 Regular 하나라 굵기는 브라우저가 만든다). */
+function CollabWord() {
+  return (
+    <span className={cn(collabScript.className, "font-bold tracking-[0.04em]")}>
+      Collaboration
+    </span>
+  );
+}
+
+/**
+ * 시작하기 버튼 — 연보라 바탕 · 보라 글자, 마우스를 올리면 보라 바탕 · 흰 글자에 그림자(11-09 사용자).
+ * 예전 admix 시작하기의 늘 깔린 보라 그림자는 뺐다. admix · Collaboration 두 버튼이 같은 모양.
+ * 높이 52px → 곡률 23px, 모바일 44px → 19px(가입 단계의 큰 버튼과 같다).
+ */
+function StartButton({
+  onPress,
+  children,
+}: {
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Button
+      variant="tertiary"
+      fullWidth
+      onPress={onPress}
+      className={cn(
+        "h-[52px] bg-primary-100 text-[15px] font-bold text-primary-500 shadow-none transition-[background-color,color,box-shadow] duration-200",
+        "data-[hovered=true]:bg-primary-500 data-[hovered=true]:text-white data-[hovered=true]:shadow-[0px_12px_14px_rgba(163,59,209,0.2)]",
+        RADIUS.h52,
+        "max-sm:h-[44px] max-sm:rounded-[19px] max-sm:text-[14px]",
+      )}
+    >
+      {children}
+    </Button>
+  );
+}
 export function SignupCompleteView() {
   const router = useRouter();
+  // 콜라보에서 시작한 가입이면 위 로고도 콜라보 로고(useFinishSignup 이 ?from=collab 을 이어 준다).
+  const collab = isCollabSignup(useSearchParams());
   const { data: me } = useMe();
   const categoryLabel = me ? MEMBER_CATEGORY_LABEL[me.member_category] : null;
   const partner = me?.member_category === "partner";
+  const advertiser = me?.member_category === "advertiser";
 
   return (
-    <SignupShell step={5} hideLoginLink>
+    <SignupShell step={5} hideLoginLink collab={collab}>
       <SignupCard className="items-center">
         {/* 모바일은 카드가 화면 아래까지 늘어나므로, 축하 문구·가입 정보를 남는 세로 공간의
             가운데에 두고 시작하기 버튼만 아래에 붙인다. */}
@@ -44,8 +90,11 @@ export function SignupCompleteView() {
             title="회원가입이 완료되었어요!"
             description={
               partner
-                ? "기본협약 동의와 매장 등록을 마치면 콜라보에 참여할 수 있어요"
-                : "admix에서 원하는 옥외광고 매체를 찾아보세요"
+                ? "사업자등록증을 올리고 기본협약에 동의하면 담당자가 매장을 연결해 드려요"
+                : advertiser
+                  ? // 광고주 — 매체 · 콜라보 매장을 한 문장으로(어디서 하는지는 아래 두 버튼이 나눈다, 11-09 사용자).
+                    "admix에서 옥외광고 매체부터 콜라보 매장까지 찾아보세요"
+                  : "admix에서 원하는 옥외광고 매체를 찾아보세요"
             }
           />
 
@@ -97,7 +146,7 @@ export function SignupCompleteView() {
         {partner ? (
           <div className="flex w-full flex-col gap-[8px] max-sm:mt-auto">
             <PrimaryAction
-              label="협약·매장 등록하기"
+              label="기본협약 하기"
               onPress={() => router.push(PARTNER_AGREEMENT_HREF)}
             />
             {/* 버튼 44px → 곡률 19px. 큰 버튼과 겹쳐 보이지 않게 바탕 없는 회색 글자 버튼. */}
@@ -118,10 +167,20 @@ export function SignupCompleteView() {
             </Button>
           </div>
         ) : (
-          <PrimaryAction
-            label="admix 시작하기"
-            onPress={() => router.push("/")}
-          />
+          // 모바일은 카드가 화면 아래까지 늘어나므로 버튼을 카드 맨 아래에 붙인다.
+          <div className="flex w-full flex-col gap-[8px] pt-[4px] max-sm:mt-auto max-sm:pt-0">
+            <StartButton onPress={() => router.push("/")}>
+              admix 시작하기
+            </StartButton>
+            {advertiser && (
+              <StartButton onPress={() => router.push(PARTNERS_DASHBOARD_HREF)}>
+                {/* 버튼은 자식 사이에 간격(gap)을 두므로 한 덩어리로 묶어 글자 사이를 한 칸만 띄운다. */}
+                <span>
+                  <CollabWord /> 시작하기
+                </span>
+              </StartButton>
+            )}
+          </div>
         )}
       </SignupCard>
     </SignupShell>

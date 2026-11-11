@@ -28,8 +28,22 @@ export interface SnsCompletePayload {
   company_name?: string;
 }
 
+/** 내 정보 고치기 — 보낸 칸만 바뀐다. 담당자 정보(광고주)는 빈 문자열이면 지운다. */
+export interface ProfileUpdatePayload {
+  name?: string;
+  company_name?: string;
+  phone?: string;
+  marketing_consent?: boolean;
+  member_category?: MemberCategory;
+  contact_name?: string;
+  position?: string;
+  department?: string;
+}
+
 export interface BusinessRegistration {
-  status: "unregistered" | "reviewing" | "verified" | "rejected";
+  /** provisional — 콜라보 어드민 임시 승인(담당자가 현장에서, 등록증 없이 협약까지 넘어가게, 069). */
+  status:
+    "unregistered" | "reviewing" | "verified" | "rejected" | "provisional";
   business_name: string | null;
   business_registration_no: string | null;
   address: string | null;
@@ -39,6 +53,7 @@ export interface BusinessRegistration {
   license_file_name: string | null;
   license_uploaded_at: string | null;
   verified_at: string | null;
+  provisional_at?: string | null;
 }
 
 export interface MeResponse {
@@ -52,13 +67,24 @@ export interface MeResponse {
   verified: boolean;
   member_category: MemberCategory;
   company_name: string | null;
-  /** 광고주 브랜드 사진(/uploads/… 또는 S3) — 없으면 null, 콜라보 화면엔 기본 "C". */
-  brand_image_url?: string | null;
+  /** 광고주 담당자 정보(068, 모두 선택) — 이름 · 직함 · 소속팀 · 명함 파일(/uploads/business-card/…). */
+  contact_name?: string | null;
+  position?: string | null;
+  department?: string | null;
+  business_card_url?: string | null;
+  business_card_name?: string | null;
   marketing_consent: boolean;
   created_at: string;
   business_registration: BusinessRegistration | null;
   /** 제휴사(콜라보) 기본협약 동의 시각 — null 이면 아직 동의 전(로그인 시 이어서 하기 창). */
   partner_agreed_at?: string | null;
+  /** 기본협약 전자 서명(078) — 협약서 서명란에 보인다. 서명 도입 전에 동의했으면 비어 있다. */
+  partner_signer_name?: string | null;
+  partner_signer_role?: string | null;
+  /** 손 서명 그림(/uploads/partner-signature/…). */
+  partner_signature_url?: string | null;
+  /** 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 이 번호로 매장을 연결한다. */
+  partner_code?: string | null;
 }
 
 export const authApi = {
@@ -119,16 +145,16 @@ export const authApi = {
       .post<MeResponse>("/auth/me/business-registration", form)
       .then((r) => r.data);
   },
-  /** 광고주 브랜드 사진 올리기(바꾸기). */
-  uploadBrandImage: (file: File) => {
+  /** 광고주 담당자 명함 올리기(바꾸기) — PDF · JPG · PNG · WEBP, 10MB. */
+  uploadBusinessCard: (file: File) => {
     const form = new FormData();
     form.append("file", file);
     return api
-      .post<MeResponse>("/auth/me/brand-image", form)
+      .post<MeResponse>("/auth/me/business-card", form)
       .then((r) => r.data);
   },
-  deleteBrandImage: () =>
-    api.delete<MeResponse>("/auth/me/brand-image").then((r) => r.data),
+  deleteBusinessCard: () =>
+    api.delete<MeResponse>("/auth/me/business-card").then((r) => r.data),
   cancelBusinessRegistration: () =>
     api
       .delete<MeResponse>("/auth/me/business-registration")
@@ -147,12 +173,7 @@ export const authApi = {
       token,
       new_password: newPassword,
     }),
-  updateProfile: (payload: {
-    name?: string;
-    company_name?: string;
-    phone?: string;
-    marketing_consent?: boolean;
-    member_category?: MemberCategory;
-  }) => api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
+  updateProfile: (payload: ProfileUpdatePayload) =>
+    api.patch<MeResponse>("/auth/me", payload).then((r) => r.data),
   withdraw: () => api.delete("/auth/me"),
 };

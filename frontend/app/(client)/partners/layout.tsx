@@ -52,7 +52,8 @@ export default async function PartnersLayout({
             <PartnersContent>{children}</PartnersContent>
           </div>
         </main>
-        {/* 로그인 · 회원가입 창 — admix와 같은 창의 콜라보 모양(Collaboration 로고 · 간편 로그인 · 가입은 제휴사(콜라보)를 골라 둔 회원가입 2단계). */}
+        {/* 로그인 · 회원가입 창 — admix와 같은 창의 콜라보 모양(Collaboration 로고 · 간편 로그인 · 가입은 콜라보 회원가입 1단계 — 광고주 · 제휴사(콜라보)만).
+            콜라보 가입 화면의 "로그인"은 /partners?login=1 로 이 창을 연다. */}
         <LoginModal variant="partners" />
         <PartnerResumeModal />
         {/* 다른 탭에서 로그아웃하면(로그인 쿠키가 사라지면) 비회원용 콜라보 소개로. */}

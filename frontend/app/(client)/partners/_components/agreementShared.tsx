@@ -41,6 +41,23 @@ export function annexesFor(role: Role): Annex[] {
     : agreement.annexes;
 }
 
+/** 기본협약 전자 서명 기록 — 서명자 이름 · 구분 · 손 서명 그림 주소(또는 방금 그린 data URL) · 서명 시각(= 동의 시각, 078). */
+export type SignatureRecord = {
+  name: string;
+  role: Role;
+  src: string;
+  signedAt: string | null;
+};
+
+/** 서명일 — "2026년 11월 10일"(한국 시간). 협약서 단계 · 계약서 서명란 · PDF 가 같이 쓴다. */
+export const formatSignDate = (iso: string) =>
+  new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(iso));
+
 export const ROLE_LABEL: Record<Role, string> = {
   representative: "대표자",
   delegate: "위임받은 담당자",
@@ -56,7 +73,7 @@ export const rowTone = (done: boolean) =>
     ? "border border-gray-100 bg-gray-50"
     : "border border-gray-200 bg-surface";
 
-/** 네모 체크 — HeroUI Checkbox.Control 과 같은 모양(16px · 곡률 6px · 12px 체크). 이 화면은 HeroUI 영역 밖이라 rounded-md(8px → 원처럼 보임)·bg-accent(연보라)가 HeroUI 값과 달라 직접 적는다. 켜지면 보라 바탕 흰 체크, 꺼지면 체크 없는 회색 바탕. 상태 표시용. */
+/** 네모 체크 — HeroUI Checkbox.Control 과 같은 모양(16px · 곡률 6px · 12px 체크). 이 화면은 HeroUI 영역 밖이라 rounded-md(8px → 원처럼 보임)가 HeroUI 값과 달라 직접 적는다. 켜지면 보라 바탕 흰 체크(체크박스와 같은 색 — 11-10 사용자: "checked 된 체크박스는 모두 보라"), 꺼지면 체크 없는 회색 바탕. 상태 표시용. */
 export function CheckMark({
   on,
   className,

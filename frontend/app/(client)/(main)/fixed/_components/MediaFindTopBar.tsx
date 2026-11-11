@@ -56,6 +56,7 @@ export function MediaFindTopBar({
   onCompactChange,
   showMapToggle = true,
   mobileView,
+  subject = "매체",
 }: {
   keyword: string;
   onKeywordChange: (value: string) => void;
@@ -101,6 +102,8 @@ export function MediaFindTopBar({
    * (정렬은 목록에만, 유동인구 창은 지도에만 필요하다). 없으면 예전처럼 [검색창][필터][초기화] ··· [정렬].
    */
   mobileView?: "list" | "map";
+  /** 검색창 안내 문구의 찾는 대상 — 광고주 콜라보 매장 찾기는 "매장". */
+  subject?: string;
 }) {
   const oneRow = mobileView != null;
   const isNarrow = !useIsDesktop();
@@ -257,8 +260,8 @@ export function MediaFindTopBar({
               // 모바일 한 줄 배치는 검색창이 좁아 안내 문구를 줄인다.
               placeholder={
                 oneRow && isNarrow
-                  ? "매체명·지역·주소 검색"
-                  : "매체명, 지역, 주소로 검색해 보세요"
+                  ? `${subject}명·지역·주소 검색`
+                  : `${subject}명, 지역, 주소로 검색해 보세요`
               }
               className="min-w-0"
             />

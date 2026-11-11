@@ -1,11 +1,15 @@
 /**
- * 제휴사(콜라보) 매장 화면 — 예시 데이터.
- * 받은 프로토타입(카페 파트너 미리보기)을 흉내 낸 화면들이 쓰는 값이다. 실제 브랜드·신청·확정이 아니고,
- * 서버 기능은 사용자가 하나씩 정해 주면 붙인다. 화면에서 누른 결과(신청·확정·사진·대화)는 이 브라우저 탭에만 남는다.
+ * 제휴사(콜라보) 매장 화면 — 콜라보 모양 · 이름표 · 날짜 계산.
+ * 2026-11-09부터 매장 콜라보는 서버 값이다(069, GET /partners/me/collabs — 같은 모양 PreviewCollab 으로 내려온다).
+ * 광고주 화면(lib/advertiserPreview.ts)은 아직 예시 데이터라 PREVIEW_TODAY 와 날짜 도우미를 여기서 같이 쓴다.
  */
 
-/** 예시 기준일 — 진행 단계(모집 중·예정·진행 중·완료)를 이 날짜로 나눈다. */
+/** 광고주 예시 화면의 기준일 — 제휴사(매장) 화면은 todayKst()(실제 오늘)를 쓴다. */
 export const PREVIEW_TODAY = "2026-11-06";
+
+/** 오늘(KST) "YYYY-MM-DD" — 매장 화면의 단계(모집 중 · 예정 · 진행 중 · 완료)를 이 날짜로 나눈다. */
+export const todayKst = () =>
+  new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
 
 export type CollabType = "ready" | "made";
 export type PhotoStep = "install" | "check1" | "check2" | "check3";
@@ -41,14 +45,14 @@ export interface PreviewPhoto {
   step: PhotoStep;
   at: string;
   by: "admix" | "cafe";
-  /** 브라우저에서 줄인 사진(data URL). 예시 기록은 없다. */
-  thumb?: string;
+  /** 올린 사진 주소(/uploads/collab/…) — mediaSrc 로 그린다. */
+  thumb?: string | null;
 }
 
 export interface PreviewCollab {
   id: string;
   brand: string;
-  /** 광고주 브랜드 사진(users.brand_image_url) — 없으면 기본 "C". 예시 데이터는 비워 둔다. */
+  /** 광고주 브랜드 사진(내 브랜드, advertiser_brands.image_url) — 없으면 기본 "C". 예시 데이터는 비워 둔다. */
   brandImage?: string | null;
   title: string;
   summary: string;
@@ -80,23 +84,19 @@ export interface PreviewCollab {
   checkedItems?: number;
   notices: PreviewNotice[];
   photos: PreviewPhoto[];
+  /** 재입고를 요청했는지(서버). */
+  restockRequested?: boolean;
+  /** 이 매장이 확인한 공지 id(서버). */
+  readNoticeIds?: string[];
 }
 
-export interface PreviewMessage {
-  id: string;
-  author: "admix" | "cafe";
-  name: string;
-  text: string;
-  at: string;
-}
-
+/** 매장 하나가 보는 콜라보 묶음 — 화면들이 같이 쓰는 모양. */
 export interface PreviewState {
   collabs: PreviewCollab[];
   /** 확인한 공지 id. */
   reads: string[];
   /** 재입고를 요청한 콜라보 id. */
   restocks: string[];
-  messages: PreviewMessage[];
 }
 
 export const TYPE_LABEL: Record<CollabType, string> = {
@@ -144,369 +144,12 @@ export const dow = (d: string) =>
 export const kstFullStamp = (iso: string) =>
   `${new Date(new Date(iso).getTime() + 9 * 3_600_000).getUTCFullYear()}.${kstStamp(iso)}`;
 
-/** 시작·종료일로 설치(전날)·철수(다음 날)·점검일(25%·60%·90%)을 만든다. */
-function schedule(
-  recruitStart: string,
-  recruitEnd: string,
-  confirmDue: string,
-  startDate: string,
-  endDate: string,
-) {
-  const days = periodDays(startDate, endDate);
-  const checks = ([0.25, 0.6, 0.9] as const).map((pct, i) => {
-    const day = Math.max(1, Math.round(days * pct));
-    return {
-      step: (["check1", "check2", "check3"] as const)[i],
-      date: addDays(startDate, day - 1),
-      day,
-    };
-  });
-  return {
-    recruitStart,
-    recruitEnd,
-    confirmDue,
-    installDate: addDays(startDate, -1),
-    startDate,
-    endDate,
-    removalDate: addDays(endDate, 1),
-    checks,
-  };
-}
-
-/** 이미 끝난 콜라보의 사진 기록 — 설치는 admix, 점검은 매장. */
-const donePhotos = (s: ReturnType<typeof schedule>): PreviewPhoto[] => [
-  { step: "install", at: kst(s.installDate, "15:10"), by: "admix" },
-  ...s.checks.map((c) => ({
-    step: c.step,
-    at: kst(c.date, "18:30"),
-    by: "cafe" as const,
-  })),
-];
-
-const sB = schedule(
-  "2026-10-13",
-  "2026-10-20",
-  kst("2026-10-27", "18:00"),
-  "2026-11-03",
-  "2026-11-14",
-);
-const sC = schedule(
-  "2026-10-27",
-  "2026-11-03",
-  kst("2026-11-08", "18:00"),
-  "2026-11-24",
-  "2026-11-30",
-);
-const sA = schedule(
-  "2026-11-04",
-  "2026-11-12",
-  kst("2026-11-17", "18:00"),
-  "2026-12-08",
-  "2026-12-19",
-);
-const sD = schedule(
-  "2026-11-02",
-  "2026-11-10",
-  kst("2026-11-12", "18:00"),
-  "2026-11-13",
-  "2026-11-19",
-);
-const sE = schedule(
-  "2026-11-05",
-  "2026-11-19",
-  kst("2026-11-26", "18:00"),
-  "2027-01-05",
-  "2027-01-16",
-);
-const sF = schedule(
-  "2026-07-27",
-  "2026-08-03",
-  kst("2026-08-07", "18:00"),
-  "2026-08-18",
-  "2026-08-29",
-);
-const sG = schedule(
-  "2026-09-14",
-  "2026-09-21",
-  kst("2026-09-25", "18:00"),
-  "2026-10-06",
-  "2026-10-12",
-);
-const sH = schedule(
-  "2026-08-24",
-  "2026-08-31",
-  kst("2026-09-04", "18:00"),
-  "2026-09-14",
-  "2026-09-20",
-);
-const sI = schedule(
-  "2026-09-28",
-  "2026-10-05",
-  kst("2026-10-09", "18:00"),
-  "2026-10-20",
-  "2026-10-25",
-);
-
-const SAMPLING = {
-  label: "샘플링",
-  note: "구매 시 증정 · 1인 1개 · 상온 보관",
-};
-
-export const SEED_COLLABS: PreviewCollab[] = [
-  {
-    id: "offer-b",
-    brand: "브랜드 B",
-    title: "가을 블렌드 테이스팅",
-    summary: "카운터 옆 진열대에서 가을 블렌드 드립백을 소개하는 콜라보예요.",
-    type: "ready",
-    ...sB,
-    task: "음료 구매 고객에게 드립백 샘플 1개 증정 (1인 1개)",
-    items: [
-      SAMPLING,
-      { label: "매장 DP", note: "진열대 1개 · 제품 3종 진열 유지" },
-    ],
-    space: "카운터 옆 진열대",
-    quantity: 250,
-    benefit: "원두 1kg",
-    staffScript:
-      "가을 블렌드 드립백 샘플이에요. 음료 주문하시면 하나 드릴게요.",
-    targetStores: 8,
-    appliedStores: 8,
-    standing: "confirmed",
-    confirmNo: "CF-20261026-0012",
-    confirmedAt: kst("2026-10-26", "14:20"),
-    confirmer: "예시 담당자",
-    checkedItems: 7,
-    notices: [
-      {
-        id: "b-n1",
-        title: "설치를 마쳤어요",
-        body: "진열대와 드립백 250개를 설치했어요. 직원용 안내 카드는 계산대 옆에 두었습니다.",
-        author: "admix 운영팀",
-        at: kst("2026-11-02", "16:00"),
-      },
-      {
-        id: "b-n2",
-        title: "드립백 재입고 일정 안내",
-        body: "소진이 빠른 매장은 11.08(일)에 재입고해요. 남은 수량이 50개 아래면 '재입고 요청'을 눌러 주세요.",
-        author: "admix 운영팀",
-        at: kst("2026-11-05", "10:30"),
-      },
-    ],
-    photos: [{ step: "install", at: kst("2026-11-02", "15:10"), by: "admix" }],
-  },
-  {
-    id: "offer-c",
-    brand: "브랜드 C",
-    title: "겨울 굿즈 쇼케이스",
-    summary: "매장 확정 후 수량에 맞춰 제작한 브랜드 굿즈를 증정해요.",
-    type: "made",
-    ...sC,
-    task: "음료 구매 고객에게 브랜드 키링 1개 증정 (1인 1개, 소진 시 종료)",
-    items: [
-      { label: "굿즈 증정", note: "구매 고객 증정 · 소진 전 재입고 요청" },
-      { label: "포스터 부착", note: "입구 쪽 A3 1장" },
-    ],
-    space: "계산대 앞 소형 쇼케이스",
-    quantity: 150,
-    benefit: "굿즈 세트 2개",
-    staffScript: "겨울 키링 증정 중이에요. 음료 주문하시면 하나 골라 가세요.",
-    targetStores: 6,
-    appliedStores: 6,
-    standing: "requested",
-    notices: [],
-    photos: [],
-  },
-  {
-    id: "offer-a",
-    brand: "브랜드 A",
-    title: "가을 티 샘플링",
-    summary:
-      "음료를 산 손님에게 시즌 티백을 건네며 새 블렌드를 알리는 콜라보예요.",
-    type: "ready",
-    ...sA,
-    task: "음료 구매 고객에게 티백 샘플 1개 증정 (1인 1개)",
-    items: [SAMPLING, { label: "포스터 부착", note: "계산대 옆 A4 1장" }],
-    space: "계산대 옆 선반",
-    quantity: 300,
-    benefit: "브랜드 티 세트 1박스",
-    staffScript:
-      "가을 티 샘플 드리고 있어요. 음료 주문하시면 하나 챙겨 드릴게요.",
-    targetStores: 10,
-    appliedStores: 6,
-    standing: "none",
-    notices: [],
-    photos: [],
-  },
-  {
-    id: "offer-e",
-    brand: "브랜드 E",
-    title: "홀리데이 시럽 테이스팅",
-    summary: "연말 시즌 시럽을 넣은 음료를 소개하는 콜라보예요.",
-    type: "ready",
-    ...sE,
-    task: "주문 시 시즌 시럽 추가를 안내하고 시음 컵 제공",
-    items: [
-      { label: "샘플링", note: "시음 컵 30ml · 하루 최대 50컵" },
-      { label: "매장 DP", note: "시럽 2종 진열" },
-    ],
-    space: "쇼케이스 하단",
-    quantity: 200,
-    benefit: "시럽 3종 세트",
-    staffScript: "연말 한정 시럽이에요. 한 모금 맛보시겠어요?",
-    targetStores: 8,
-    appliedStores: 9,
-    standing: "none",
-    notices: [],
-    photos: [],
-  },
-  {
-    id: "offer-d",
-    brand: "브랜드 D",
-    title: "오브제 전시 위크",
-    summary: "창가 선반에 소형 오브제를 전시하고 브랜드 카드를 안내해요.",
-    type: "ready",
-    ...sD,
-    task: "지정 선반에 소형 오브제 진열 유지, 문의 고객에게 브랜드 카드 안내",
-    items: [
-      { label: "매장 DP", note: "선반 1칸 · 오브제 5점" },
-      { label: "포스터 부착", note: "선반 옆 엽서형 안내 카드" },
-    ],
-    space: "창가 선반 1칸",
-    quantity: 100,
-    benefit: "전시 오브제 1점 증정",
-    staffScript: "이번 주 전시 중인 오브제예요. 궁금하시면 카드 가져가세요.",
-    targetStores: 10,
-    appliedStores: 4,
-    standing: "blocked",
-    notices: [],
-    photos: [],
-  },
-  {
-    id: "offer-g",
-    brand: "브랜드 G",
-    title: "가을 원두 시음회",
-    summary: "주말 오후 시간에 새 원두를 시음하는 콜라보였어요.",
-    type: "ready",
-    ...sG,
-    task: "주말 14~17시 시음 컵 제공",
-    items: [{ label: "샘플링", note: "시음 컵 30ml" }],
-    space: "입구 쪽 벽면",
-    quantity: 200,
-    benefit: "원두 500g × 2",
-    staffScript: "새로 나온 원두 시음 중이에요.",
-    targetStores: 6,
-    appliedStores: 6,
-    standing: "confirmed",
-    confirmNo: "CF-20260924-0007",
-    confirmedAt: kst("2026-09-24", "11:05"),
-    confirmer: "예시 담당자",
-    checkedItems: 7,
-    notices: [],
-    photos: donePhotos(sG),
-  },
-  {
-    id: "offer-f",
-    brand: "브랜드 F",
-    title: "여름 아이스티 샘플링",
-    summary: "여름 한정 아이스티 파우치를 나눠 드린 콜라보였어요.",
-    type: "ready",
-    ...sF,
-    task: "음료 구매 고객에게 아이스티 파우치 1개 증정",
-    items: [SAMPLING],
-    space: "계산대 옆 선반",
-    quantity: 300,
-    benefit: "아이스티 세트 1박스",
-    staffScript: "여름 아이스티 샘플 드리고 있어요.",
-    targetStores: 10,
-    appliedStores: 10,
-    standing: "confirmed",
-    confirmNo: "CF-20260806-0003",
-    confirmedAt: kst("2026-08-06", "17:40"),
-    confirmer: "예시 담당자",
-    checkedItems: 7,
-    notices: [],
-    photos: donePhotos(sF),
-  },
-  {
-    id: "offer-h",
-    brand: "브랜드 H",
-    title: "디저트 페어링 위크",
-    summary: "디저트와 어울리는 티를 함께 소개하는 콜라보였어요.",
-    type: "made",
-    ...sH,
-    task: "디저트 주문 고객에게 페어링 카드 안내",
-    items: [{ label: "포스터 부착", note: "테이블 텐트 10개" }],
-    space: "테이블 위",
-    quantity: 100,
-    benefit: "티 세트 1박스",
-    staffScript: "",
-    targetStores: 6,
-    appliedStores: 6,
-    standing: "declined",
-    notices: [],
-    photos: [],
-  },
-  {
-    id: "offer-i",
-    brand: "브랜드 I",
-    title: "핸드드립 클래스",
-    summary: "매장에서 짧은 핸드드립 클래스를 여는 콜라보였어요.",
-    type: "ready",
-    ...sI,
-    task: "주말 1회 클래스 공간 제공",
-    items: [{ label: "브랜드 현장 인력 방문", note: "바리스타 1명" }],
-    space: "테이블 2개",
-    quantity: 20,
-    benefit: "드립 세트 1개",
-    staffScript: "",
-    targetStores: 4,
-    appliedStores: 4,
-    standing: "cancelled",
-    confirmNo: "CF-20261008-0004",
-    confirmedAt: kst("2026-10-08", "10:00"),
-    notices: [],
-    photos: [],
-  },
-];
-
-export const SEED_MESSAGES: PreviewMessage[] = [
-  {
-    id: "m1",
-    author: "admix",
-    name: "admix 담당자",
-    text: "기본협약 동의 감사합니다. 콜라보 모집이 열리면 이메일과 이 화면에서 알려 드릴게요.",
-    at: kst("2026-10-01", "10:12"),
-  },
-  {
-    id: "m2",
-    author: "cafe",
-    name: "우리 매장",
-    text: "브랜드 B 진열대는 계산대 왼쪽에 두어도 될까요?",
-    at: kst("2026-11-01", "13:40"),
-  },
-  {
-    id: "m3",
-    author: "admix",
-    name: "admix 담당자",
-    text: "네, 가능해요. 설치하는 날 위치를 같이 확인하고 사진으로 남겨 둘게요.",
-    at: kst("2026-11-01", "14:05"),
-  },
-];
-
-export const SEED_STATE: PreviewState = {
-  collabs: SEED_COLLABS,
-  reads: ["b-n1"],
-  restocks: [],
-  messages: SEED_MESSAGES,
-};
-
 // ── 화면에서 쓰는 계산 ─────────────────────────────────
 
 /** 목록 칸 — 미참여·취소, 마감했는데 신청 안 한 콜라보는 목록에 없다(참여 이력에만). */
 export function categoryOf(
   c: PreviewCollab,
-  today = PREVIEW_TODAY,
+  today = todayKst(),
 ): CollabCategory | null {
   if (c.standing === "declined" || c.standing === "cancelled") return null;
   if (c.standing === "confirmed") {
@@ -529,7 +172,7 @@ export const isFull = (c: PreviewCollab) => c.appliedStores >= c.targetStores;
 export type RecruitKind = "open" | "closing" | "waitlist" | "blocked";
 export function recruitKindOf(
   c: PreviewCollab,
-  today = PREVIEW_TODAY,
+  today = todayKst(),
 ): RecruitKind {
   if (c.standing === "blocked") return "blocked";
   if (isFull(c)) return "waitlist";
@@ -537,7 +180,7 @@ export function recruitKindOf(
 }
 
 /** 모집 상태 배지 글자. */
-export function recruitBadgeOf(c: PreviewCollab, today = PREVIEW_TODAY) {
+export function recruitBadgeOf(c: PreviewCollab, today = todayKst()) {
   const left = diffDays(c.recruitEnd, today);
   return {
     blocked: "신청 불가",
@@ -550,7 +193,7 @@ export function recruitBadgeOf(c: PreviewCollab, today = PREVIEW_TODAY) {
 /** 카드·상세 위 상태 칩. */
 export function chipOf(
   c: PreviewCollab,
-  today = PREVIEW_TODAY,
+  today = todayKst(),
 ): { label: string; tone: Tone } {
   const cat = categoryOf(c, today);
   switch (c.standing) {
@@ -583,7 +226,7 @@ export function chipOf(
 }
 
 /** 오늘 올려야 하는 점검 사진(가장 이른 것). */
-export function dueStepOf(c: PreviewCollab, today = PREVIEW_TODAY) {
+export function dueStepOf(c: PreviewCollab, today = todayKst()) {
   if (c.standing !== "confirmed") return undefined;
   return c.checks.find(
     (k) => k.date <= today && !c.photos.some((p) => p.step === k.step),
@@ -591,7 +234,7 @@ export function dueStepOf(c: PreviewCollab, today = PREVIEW_TODAY) {
 }
 
 /** 다음 할 일 한 줄. */
-export function nextActionOf(c: PreviewCollab, today = PREVIEW_TODAY) {
+export function nextActionOf(c: PreviewCollab, today = todayKst()) {
   const cat = categoryOf(c, today);
   const due = dueStepOf(c, today);
   if (due) return `${STEP_LABEL[due.step]} 사진을 올려 주세요`;
@@ -676,7 +319,7 @@ export const HISTORY_TONE: Record<HistoryStatus, Tone> = {
 };
 export function historyStatusOf(
   c: PreviewCollab,
-  today = PREVIEW_TODAY,
+  today = todayKst(),
 ): HistoryStatus | null {
   if (c.standing === "declined") return "declined";
   if (c.standing === "cancelled") return "cancelled";
@@ -732,7 +375,7 @@ export function activityOf(state: PreviewState) {
 }
 
 /** 지금 확인할 일 — 점검 사진 · 확정 요청 · 안 읽은 공지. */
-export function todosOf(state: PreviewState, today = PREVIEW_TODAY) {
+export function todosOf(state: PreviewState, today = todayKst()) {
   const todos: {
     id: string;
     collabId: string;
@@ -768,5 +411,7 @@ export function todosOf(state: PreviewState, today = PREVIEW_TODAY) {
         detail: `${c.brand} ${c.title} · 진행 안내함에서 확인`,
       });
   }
-  return todos;
+  // 확정 요청은 기한이 있으니 맨 위 — 대시보드 "확정할 콜라보" 구역을 알림으로 옮겼다(2026-11-09 사용자).
+  return todos.sort((a, b) => TODO_ORDER[a.kind] - TODO_ORDER[b.kind]);
 }
+const TODO_ORDER = { confirm: 0, photo: 1, notice: 2 } as const;

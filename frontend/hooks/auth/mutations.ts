@@ -2,11 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 
 import { announceLogout } from "@/lib/authChannel";
-import type { MemberCategory } from "@/lib/memberCategory";
 import { clearSessionId } from "@/lib/session";
 import { clearUserToken, getRefreshToken } from "@/lib/userToken";
 
-import { authApi, type RegisterPayload } from "./apis";
+import {
+  authApi,
+  type ProfileUpdatePayload,
+  type RegisterPayload,
+} from "./apis";
 import { authKeys } from "./keys";
 
 /**
@@ -90,13 +93,8 @@ export const useChangePassword = () =>
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: {
-      name?: string;
-      company_name?: string;
-      phone?: string;
-      marketing_consent?: boolean;
-      member_category?: MemberCategory;
-    }) => authApi.updateProfile(payload),
+    mutationFn: (payload: ProfileUpdatePayload) =>
+      authApi.updateProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });
     },
@@ -123,20 +121,20 @@ export const useCancelBusinessRegistration = () => {
   });
 };
 
-export const useUploadBrandImage = () => {
+export const useUploadBusinessCard = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => authApi.uploadBrandImage(file),
+    mutationFn: (file: File) => authApi.uploadBusinessCard(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });
     },
   });
 };
 
-export const useDeleteBrandImage = () => {
+export const useDeleteBusinessCard = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => authApi.deleteBrandImage(),
+    mutationFn: () => authApi.deleteBusinessCard(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });
     },

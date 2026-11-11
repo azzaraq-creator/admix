@@ -1,22 +1,19 @@
 "use client";
 
-import { Check } from "lucide-react";
+import {
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  ListBox,
+  Select,
+} from "@heroui/react";
+import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import {
-  DeleteButton,
-  ListButton,
-  PrimaryButton,
-} from "@/components/common/buttons";
+import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   useAdminAccount,
   useCreateAdminAccount,
@@ -34,10 +31,56 @@ const STATUS_OPTIONS: { label: string; value: AdminStatus }[] = [
   { label: "비활성화", value: "disabled" },
 ];
 
-const INPUT_CLASS =
-  "h-[44px] w-full rounded-[6px] border border-stroke px-[14px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary disabled:bg-tone-f5f5f5 disabled:text-disabled";
-const SELECT_TRIGGER_CLASS =
-  "w-full rounded-[6px] border-stroke bg-surface px-[14px] font-medium text-black data-[size=default]:h-[44px]";
+/**
+ * HeroUI 체크박스는 bg-accent(프로젝트에선 옅은 보라 --app-accent)로 칠해져, 이 안에서만 HeroUI 원래 액센트
+ * (브랜드 보라 바탕 + 흰 체크)로 되돌린다.
+ */
+const CHECKBOX_ACCENT =
+  "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)]";
+
+/** 하나 고르기(HeroUI Select + ListBox). 빈 값("")이면 placeholder 가 보인다. */
+function OptionSelect({
+  label,
+  placeholder,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string | null) => void;
+}) {
+  return (
+    <Select
+      aria-label={label}
+      placeholder={placeholder}
+      fullWidth
+      selectedKey={value || null}
+      onSelectionChange={(key) => onChange(key == null ? null : String(key))}
+    >
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {options.map((option) => (
+            <ListBox.Item
+              key={option.value}
+              id={option.value}
+              textValue={option.label}
+            >
+              {option.label}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
 
 function Field({
   label,
@@ -66,11 +109,7 @@ export function AccountFormView({ mode }: { mode: "create" | "edit" }) {
   const { data: detail } = useAdminAccount(id);
 
   if (isEdit && !detail) {
-    return (
-      <p className="text-sm font-medium leading-[20px] text-disabled">
-        불러오는 중...
-      </p>
-    );
+    return <LoadingState />;
   }
 
   return <AccountForm mode={mode} id={id} detail={detail ?? null} />;
@@ -203,86 +242,75 @@ function AccountForm({
 
       <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
         <Field label="계정 유형" required>
-          <Select items={ACCOUNT_TYPE_OPTIONS} value={type} onValueChange={(v) => setType(v ?? "")}>
-            <SelectTrigger className={SELECT_TRIGGER_CLASS}>
-              <SelectValue placeholder="유형 선택" />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} className="min-w-0">
-              {ACCOUNT_TYPE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <OptionSelect
+            label="계정 유형"
+            placeholder="유형 선택"
+            value={type}
+            options={ACCOUNT_TYPE_OPTIONS}
+            onChange={(v) => setType(v ?? "")}
+          />
         </Field>
         <Field label="이름" required>
-          <input
-            type="text"
+          <Input
+            aria-label="이름"
+            fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="이름 입력"
-            className={INPUT_CLASS}
           />
         </Field>
         <Field label="이메일(ID)" required>
-          <input
-            type="text"
+          <Input
+            aria-label="이메일(ID)"
+            fullWidth
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일 입력"
             disabled={isEdit}
-            className={INPUT_CLASS}
           />
         </Field>
         <Field label="비밀번호" required={!isEdit}>
-          <input
+          <Input
+            aria-label="비밀번호"
+            fullWidth
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={
               isEdit ? "변경 시 입력 (8자 이상)" : "비밀번호 입력 (8자 이상)"
             }
-            className={INPUT_CLASS}
           />
         </Field>
         <Field label="부서/역할">
-          <input
-            type="text"
+          <Input
+            aria-label="부서/역할"
+            fullWidth
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="부서/역할 입력"
-            className={INPUT_CLASS}
           />
         </Field>
         <Field label="전화번호">
-          <input
-            type="text"
+          <Input
+            aria-label="전화번호"
+            fullWidth
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="전화번호 입력"
-            className={INPUT_CLASS}
           />
         </Field>
         {isEdit && (
           <>
             <Field label="상태">
-              <Select
-                items={STATUS_OPTIONS}
+              <OptionSelect
+                label="상태"
+                placeholder="상태 선택"
                 value={status}
-                onValueChange={(v) => setStatus(v as AdminStatus)}
-              >
-                <SelectTrigger className={SELECT_TRIGGER_CLASS}>
-                  <SelectValue placeholder="상태 선택" />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} className="min-w-0">
-                  {STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={STATUS_OPTIONS}
+                onChange={(v) => {
+                  if (v) setStatus(v as AdminStatus);
+                }}
+              />
             </Field>
             <Field label="생성일">
               <span className="text-sm font-medium leading-[20px] text-disabled">
@@ -297,52 +325,51 @@ function AccountForm({
         <>
           <p className="text-lg font-bold leading-[28px] text-black">권한 설정</p>
           <div className="grid grid-cols-3 gap-[16px]">
-            {PERMISSIONS.map((perm) => {
-              const checked = perms.includes(PERMISSION_KEYS[perm]);
-              return (
-                <label
-                  key={perm}
-                  className="flex cursor-pointer items-center gap-[10px] rounded-[8px] border border-stroke px-[20px] py-[14px]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => togglePerm(perm)}
-                    className="sr-only"
-                  />
-                  <span
-                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-[6px] border ${
-                      checked ? "border-primary bg-primary" : "border-stroke bg-surface"
-                    }`}
+            {PERMISSIONS.map((perm) => (
+              // 테두리 칸 어디를 눌러도 체크된다(누르는 영역 = Checkbox.Content).
+              <Checkbox
+                key={perm}
+                isSelected={perms.includes(PERMISSION_KEYS[perm])}
+                onChange={() => togglePerm(perm)}
+                className={`${CHECKBOX_ACCENT} flex rounded-[8px] border border-stroke`}
+              >
+                <Checkbox.Content className="w-full cursor-pointer items-center gap-[10px] px-[20px] py-[14px]">
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  {/* Checkbox.Content 가 이미 <label> 이라 글자는 span 으로(label 안 label 방지). */}
+                  <Label
+                    elementType="span"
+                    className="cursor-pointer text-base font-medium leading-[24px] text-black"
                   >
-                    {checked && (
-                      <Check className="size-[12px] text-white" strokeWidth={3} />
-                    )}
-                  </span>
-                  <span className="text-base font-medium leading-[24px] text-black">
                     {perm}
-                  </span>
-                </label>
-              );
-            })}
+                  </Label>
+                </Checkbox.Content>
+              </Checkbox>
+            ))}
           </div>
         </>
       )}
 
       <div className="flex items-center justify-between">
-        <ListButton onClick={goList} />
+        <Button variant="outline" onPress={goList}>
+          <List className="size-[16px]" />
+          목록으로
+        </Button>
 
         {isEdit ? (
           <div className="flex items-center gap-[8px]">
-            <DeleteButton onClick={handleDelete} />
-            <PrimaryButton onClick={handleSave} disabled={saving}>
+            <Button variant="tertiary" onPress={handleDelete}>
+              삭제
+            </Button>
+            <Button variant="primary" onPress={handleSave} isDisabled={saving}>
               저장
-            </PrimaryButton>
+            </Button>
           </div>
         ) : (
-          <PrimaryButton onClick={handleSave} disabled={saving}>
+          <Button variant="primary" onPress={handleSave} isDisabled={saving}>
             생성
-          </PrimaryButton>
+          </Button>
         )}
       </div>
 

@@ -24,7 +24,8 @@ from src.utils.security import (
 
 settings = get_settings()
 
-VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account", "chat"}
+# collab — 콜라보 어드민(제휴사 회원 · 매장 · 수정 요청 · 콜라보, 069).
+VALID_MENU_KEYS = {"dashboard", "media", "member", "business", "faq", "account", "chat", "collab"}
 
 
 def _other_active_masters(db: Session, exclude_id: uuid.UUID) -> int:

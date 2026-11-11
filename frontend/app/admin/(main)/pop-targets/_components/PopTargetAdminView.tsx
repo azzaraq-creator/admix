@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, Input, Table, ToggleButton } from "@heroui/react";
 import { type ReactNode, useState } from "react";
 
 import {
@@ -132,82 +132,88 @@ export function PopTargetAdminView() {
             버튼이 생겨요.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-[12px] border border-stroke">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-tone-fafaf9 text-left text-gray-600">
-                <tr>
-                  <th className="w-[64px] px-[16px] py-[10px] text-center font-semibold">
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label="타깃 목록" className="min-w-[760px]">
+                <Table.Header>
+                  <Table.Column id="order" className="w-[64px] text-center">
                     순서
-                  </th>
-                  <th className="px-[16px] py-[10px] font-semibold">이름</th>
-                  <th className="px-[16px] py-[10px] font-semibold">조건</th>
-                  <th className="px-[16px] py-[10px] text-center font-semibold">
+                  </Table.Column>
+                  <Table.Column id="label" isRowHeader>
+                    이름
+                  </Table.Column>
+                  <Table.Column id="condition">조건</Table.Column>
+                  <Table.Column id="published" className="text-center">
                     노출
-                  </th>
-                  <th className="px-[16px] py-[10px] font-semibold">수정일</th>
-                  <th className="px-[16px] py-[10px]" />
-                </tr>
-              </thead>
-              <tbody>
-                {targets.map((t) => (
-                  <tr
-                    key={t.id}
-                    className={cn(
-                      "border-t border-stroke",
-                      editing === t.id && "bg-primary-50",
-                    )}
-                  >
-                    <td className="px-[16px] py-[10px] text-center text-gray-600">
-                      {t.sortOrder}
-                    </td>
-                    <td className="px-[16px] py-[10px] font-semibold whitespace-nowrap text-black">
-                      {t.label}
-                    </td>
-                    <td className="px-[16px] py-[10px] text-gray-700">
-                      {popTargetText(t)}
-                    </td>
-                    <td className="px-[16px] py-[10px] text-center">
-                      {t.isPublished ? (
-                        <span className="text-success">●</span>
-                      ) : (
-                        <span className="text-gray-400">숨김</span>
-                      )}
-                    </td>
-                    <td className="px-[16px] py-[10px] whitespace-nowrap text-gray-600">
-                      {updatedText(t)}
-                    </td>
-                    <td className="px-[16px] py-[10px] text-right whitespace-nowrap">
-                      <div className="inline-flex gap-[8px]">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onPress={() => setEditing(t.id)}
-                        >
-                          수정
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="tertiary"
-                          onPress={() => handleDelete(t)}
-                          isDisabled={remove.isPending}
-                        >
-                          지우기
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </Table.Column>
+                  <Table.Column id="updated">수정일</Table.Column>
+                  <Table.Column id="actions" textValue="작업">
+                    <span className="sr-only">작업</span>
+                  </Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {targets.map((t) => (
+                    // 고치는 중인 줄은 연보라 — HeroUI 표는 칸(td)에 흰 바탕이 있어 칸마다 칠한다.
+                    <Table.Row
+                      key={t.id}
+                      id={String(t.id)}
+                      className={cn(editing === t.id && "*:bg-primary-50")}
+                    >
+                      <Table.Cell className="text-center text-gray-600">
+                        {t.sortOrder}
+                      </Table.Cell>
+                      <Table.Cell className="font-semibold whitespace-nowrap text-black">
+                        {t.label}
+                      </Table.Cell>
+                      <Table.Cell className="text-gray-700">
+                        {popTargetText(t)}
+                      </Table.Cell>
+                      <Table.Cell className="text-center">
+                        {t.isPublished ? (
+                          <span className="text-success">●</span>
+                        ) : (
+                          <span className="text-gray-400">숨김</span>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell className="whitespace-nowrap text-gray-600">
+                        {updatedText(t)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right whitespace-nowrap">
+                        <div className="inline-flex gap-[8px]">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onPress={() => setEditing(t.id)}
+                          >
+                            수정
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="tertiary"
+                            onPress={() => handleDelete(t)}
+                            isDisabled={remove.isPending}
+                          >
+                            지우기
+                          </Button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
         )}
       </section>
     </div>
   );
 }
 
-/** 칩 하나 — 고르면 보라 테두리·연보라 바탕. */
-function Chip({
+/**
+ * 고르는 칩 하나 — HeroUI ToggleButton(aria-pressed). 고르면 연보라 바탕.
+ * 눌렀을 때 켜고 끄는 건 부르는 쪽(onClick)이 정한다 — 이미 켜진 "보이기"를 다시 눌러도 켜진 그대로.
+ */
+function ChoiceChip({
   on,
   disabled,
   onClick,
@@ -219,20 +225,9 @@ function Chip({
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "h-[36px] rounded-[18px] border px-[14px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-        on
-          ? "border-primary bg-primary-50 text-primary"
-          : "border-stroke bg-surface text-gray-700 hover:bg-gray-100",
-      )}
-    >
+    <ToggleButton isSelected={on} isDisabled={disabled} onChange={onClick}>
       {children}
-    </button>
+    </ToggleButton>
   );
 }
 
@@ -321,12 +316,13 @@ function TargetForm({
       </h2>
 
       <FieldRow label="이름">
-        <input
+        <Input
+          aria-label="타깃 이름"
           value={form.label}
           maxLength={40}
           onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
           placeholder="예: 뷰티 2030"
-          className="h-[40px] w-full max-w-[320px] rounded-[6px] border border-stroke bg-surface px-[12px] text-sm text-black outline-none placeholder:text-tone-a1a1a1 focus:border-primary"
+          className="w-full max-w-[320px]"
         />
       </FieldRow>
 
@@ -336,13 +332,13 @@ function TargetForm({
       >
         <div className="flex flex-wrap gap-[8px]">
           {METRICS.map((m) => (
-            <Chip
+            <ChoiceChip
               key={m.key}
               on={picked.includes(m.key)}
               onClick={() => pickMetric(m.key)}
             >
               {m.label}
-            </Chip>
+            </ChoiceChip>
           ))}
         </div>
       </FieldRow>
@@ -353,14 +349,14 @@ function TargetForm({
       >
         <div className="flex flex-wrap gap-[8px]">
           {SEXES.map((s) => (
-            <Chip
+            <ChoiceChip
               key={s.key}
               on={form.sex === s.key}
               disabled={!segOk}
               onClick={() => setForm((f) => ({ ...f, sex: s.key }))}
             >
               {s.label}
-            </Chip>
+            </ChoiceChip>
           ))}
         </div>
       </FieldRow>
@@ -374,15 +370,15 @@ function TargetForm({
         }
       >
         <div className="flex flex-wrap gap-[8px]">
-          <Chip
+          <ChoiceChip
             on={!form.ages.length}
             disabled={!segOk}
             onClick={() => setForm((f) => ({ ...f, ages: [] }))}
           >
             전체
-          </Chip>
+          </ChoiceChip>
           {AGES.map((a) => (
-            <Chip
+            <ChoiceChip
               key={a.key}
               on={form.ages.includes(a.key)}
               disabled={!segOk}
@@ -398,36 +394,37 @@ function TargetForm({
               }
             >
               {a.label}
-            </Chip>
+            </ChoiceChip>
           ))}
         </div>
       </FieldRow>
 
       <FieldRow label="순서" hint="작은 수부터 위에 나와요.">
-        <input
+        <Input
           type="number"
+          aria-label="타깃 순서"
           value={form.sortOrder}
           onChange={(e) =>
             setForm((f) => ({ ...f, sortOrder: Number(e.target.value) || 0 }))
           }
-          className="h-[40px] w-[100px] rounded-[6px] border border-stroke bg-surface px-[12px] text-sm text-black outline-none focus:border-primary"
+          className="w-[100px]"
         />
       </FieldRow>
 
       <FieldRow label="노출">
         <div className="flex flex-wrap gap-[8px]">
-          <Chip
+          <ChoiceChip
             on={form.isPublished}
             onClick={() => setForm((f) => ({ ...f, isPublished: true }))}
           >
             보이기
-          </Chip>
-          <Chip
+          </ChoiceChip>
+          <ChoiceChip
             on={!form.isPublished}
             onClick={() => setForm((f) => ({ ...f, isPublished: false }))}
           >
             숨기기
-          </Chip>
+          </ChoiceChip>
         </div>
       </FieldRow>
 

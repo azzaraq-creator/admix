@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 /**
  * 제휴사(콜라보) 기본협약 동의 — 가입·협약 소개(/partners/join)에서 "가입·협약 시작하기"를 누르면 여기로 온다.
- * 사이드바 메뉴 "기본협약"은 ?from=menu 로 들어온다 — 가입 진행의 03 매장 등록이 등록 여부 체크로, "다음" 버튼 없음.
+ * 사이드바 메뉴 "기본 협약"은 ?from=menu 로 들어온다 — 가입 진행의 03 매장 연결이 연결 여부 체크로, "대시보드로" 버튼 없음.
  */
 export default async function PartnerAgreementPage({
   searchParams,

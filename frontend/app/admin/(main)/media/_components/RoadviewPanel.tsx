@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
 
 import {
@@ -28,11 +29,12 @@ export function RoadviewPanel({
   return (
     <div className="flex flex-col gap-[8px] rounded-[12px] border border-stroke p-[16px]">
       <div className="flex flex-wrap items-center justify-between gap-[8px]">
-        <button
-          type="button"
-          onClick={onToggle}
+        {/* 접기·펴기 머리 — 설명이 길어 줄바꿈되도록 HeroUI 버튼의 높이·한 줄 고정을 푼다. */}
+        <Button
+          variant="ghost"
+          onPress={onToggle}
           aria-expanded={open}
-          className="flex items-start gap-[6px] text-left"
+          className="h-auto items-start justify-start gap-[6px] whitespace-normal rounded-none p-0 text-left data-[hovered=true]:bg-transparent data-[pressed=true]:bg-transparent"
         >
           <ChevronDown
             className={cn(
@@ -49,7 +51,7 @@ export function RoadviewPanel({
               </span>
             )}
           </span>
-        </button>
+        </Button>
         <KakaoMapRoadviewLink lat={lat} lng={lng} />
       </div>
       {open && (

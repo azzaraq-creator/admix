@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2 } from "lucide-react";
+import { Button, Card, Tabs } from "@heroui/react";
+import { Building2, List } from "lucide-react";
 import {
   useParams,
   usePathname,
@@ -9,7 +10,7 @@ import {
 } from "next/navigation";
 import { useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { LoadingState } from "@/components/common/RouteStates";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 import { useAdminMe } from "@/hooks/adminAuth";
 import { useMember, type SanctionOut } from "@/hooks/members";
@@ -81,11 +82,7 @@ export function MemberDetailView() {
   >(null);
 
   if (!member) {
-    return (
-      <p className="text-sm font-medium leading-[20px] text-disabled">
-        불러오는 중...
-      </p>
-    );
+    return <LoadingState />;
   }
 
   const bizStatus = bizStatusLabel(member.business_registration?.status);
@@ -103,7 +100,7 @@ export function MemberDetailView() {
     <div className="flex flex-col gap-[24px]">
       <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">회원 상세</h1>
 
-      <div className="flex items-center gap-[48px] rounded-[12px] border border-tone-cdcdcd p-[36px]">
+      <Card className="flex-row items-center gap-[48px] rounded-[12px] border border-tone-cdcdcd p-[36px] shadow-none">
         <div className="flex min-w-0 flex-1 items-center gap-[21px]">
           <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-tone-cdcdcd bg-gray-50">
             <Building2 className="size-[60px] text-tone-767676" />
@@ -135,27 +132,34 @@ export function MemberDetailView() {
           <div className="w-px self-stretch bg-tone-e6e6e6" />
           <HeaderStat label="문의 건수" value={String(member.inquiry_count)} />
         </div>
-      </div>
+      </Card>
 
-      <div className="flex items-center border-b border-tone-cdcdcd">
-        {visibleTabs.map((item) => {
-          const active = tab === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => goTab(item.key)}
-              className={`px-[36px] py-[16px] text-base leading-[1.4] ${
-                active
-                  ? "border-b-2 border-black font-bold text-black"
-                  : "font-medium text-black"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* 밑줄 탭(HeroUI Tabs secondary) — 고른 탭은 주소(?tab=)에 남긴다. */}
+      <Tabs
+        variant="secondary"
+        selectedKey={tab}
+        onSelectionChange={(key) => {
+          const next = visibleTabs.find((t) => t.key === key);
+          if (next && next.key !== tab) goTab(next.key);
+        }}
+      >
+        <Tabs.ListContainer className="border-tone-cdcdcd">
+          <Tabs.List aria-label="회원 상세">
+            {visibleTabs.map((item) => (
+              <Tabs.Tab
+                key={item.key}
+                id={item.key}
+                className="h-[56px] whitespace-nowrap px-[36px] text-base data-[selected=true]:font-bold"
+              >
+                {item.label}
+                {/* 주소(?tab=)로 두 번째 이후 탭을 바로 열면 React Aria 가 첫 탭 자리에서 옮겨 오는
+                    translate 를 남긴 채 멈출 수 있어 자리에 고정한다(StoresTabs 와 같은 처리). */}
+                <Tabs.Indicator className="[translate:none]!" />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+      </Tabs>
 
       {tab === "basic" && (
         <BasicInfoTab member={member} onList={() => router.push("/admin/members")} />
@@ -171,9 +175,12 @@ export function MemberDetailView() {
             <p className="text-[20px] font-semibold leading-[24px] text-tone-2a2a2a">
               제재 이력 관리
             </p>
-            <PrimaryButton onClick={() => setSanctionModal({ mode: "add" })}>
+            <Button
+              variant="primary"
+              onPress={() => setSanctionModal({ mode: "add" })}
+            >
               제재 추가
-            </PrimaryButton>
+            </Button>
           </div>
           <CommonTable
             columnList={sanctionColumnList}
@@ -190,10 +197,13 @@ export function MemberDetailView() {
 
       {tab !== "basic" && (
         <div className="flex items-center justify-between">
-          <ListButton
-            onClick={() => router.push("/admin/members")}
-            className="w-[100px] px-0"
-          />
+          <Button
+            variant="outline"
+            onPress={() => router.push("/admin/members")}
+          >
+            <List className="size-[16px]" />
+            목록으로
+          </Button>
         </div>
       )}
 

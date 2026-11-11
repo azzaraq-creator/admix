@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input } from "@heroui/react";
+import { Button, Input, Slider } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -41,6 +41,9 @@ function toNum(raw: string): number | null {
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, n));
+
+/** HeroUI Slider 값(손잡이 하나면 숫자, 여럿이면 배열) → 숫자 하나. */
+const sliderValue = (v: number | number[]) => (Array.isArray(v) ? v[0] : v);
 
 /**
  * 각도 숫자 칸 — 치는 동안은 글자를 그대로 두고(범위 밖이어도), 범위 안이면 바로 반영한다.
@@ -166,20 +169,25 @@ export function FacingDirectionEditor({
           <span className="w-[48px] shrink-0 text-[13px] font-semibold text-gray-700">
             방향
           </span>
-          <input
-            type="range"
-            min={0}
-            max={359}
+          {/* 방향이 없으면 0°에 흐리게 두고, 끌거나 누르면 그 각도로 정해진다. */}
+          <Slider
+            minValue={0}
+            maxValue={359}
             step={1}
-            disabled={disabled}
+            isDisabled={disabled}
             aria-label="매체 방향(도)"
             value={direction ?? 0}
-            onChange={(e) => pickDirection(Number(e.target.value))}
+            onChange={(v) => pickDirection(sliderValue(v))}
             className={cn(
-              "min-w-[160px] flex-1 accent-(--color-primary)",
+              "min-w-[160px] flex-1 gap-0",
               direction == null && "opacity-40",
             )}
-          />
+          >
+            <Slider.Track>
+              <Slider.Fill />
+              <Slider.Thumb />
+            </Slider.Track>
+          </Slider>
           <div className="flex items-center gap-[4px]">
             <DraftNumberInput
               ariaLabel="매체 방향 각도"
@@ -226,17 +234,21 @@ export function FacingDirectionEditor({
           <span className="w-[48px] shrink-0 text-[13px] font-semibold text-gray-700">
             너비
           </span>
-          <input
-            type="range"
-            min={MIN_FACING_SPREAD}
-            max={MAX_FACING_SPREAD}
+          <Slider
+            minValue={MIN_FACING_SPREAD}
+            maxValue={MAX_FACING_SPREAD}
             step={1}
-            disabled={disabled || direction == null}
+            isDisabled={disabled || direction == null}
             aria-label="부채꼴 너비(도)"
             value={spread}
-            onChange={(e) => onSpreadChange(e.target.value)}
-            className="min-w-[160px] flex-1 accent-(--color-primary) disabled:opacity-40"
-          />
+            onChange={(v) => onSpreadChange(String(sliderValue(v)))}
+            className="min-w-[160px] flex-1 gap-0"
+          >
+            <Slider.Track>
+              <Slider.Fill />
+              <Slider.Thumb />
+            </Slider.Track>
+          </Slider>
           <div className="flex items-center gap-[4px]">
             <DraftNumberInput
               ariaLabel="부채꼴 너비 각도"

@@ -6,12 +6,15 @@ import { cn } from "@/lib/utils";
 
 import { CheckMark } from "./agreementShared";
 
-/** 제휴사(콜라보) 가입 진행 — 기본협약 동의(/partners/join/agreement) · 매장 등록(/partners/join/store) 위에 같이 쓴다. */
-const FLOW = ["가입 정보", "기본협약 동의", "매장 등록"];
+/**
+ * 제휴사(콜라보) 가입 진행 — 기본협약 동의(/partners/join/agreement) 위에 쓴다.
+ * 03은 매장 연결 — 담당자가 어드민에서 매장을 등록하고 회원 고유번호로 잇는다(2026-11-09, 069).
+ */
+const FLOW = ["가입 정보", "기본협약 동의", "매장 연결"];
 
 /**
  * 가입 진행 표시 — current 앞은 체크, current 는 흰 알약, 뒤는 번호만(모바일은 지금 단계만 이름).
- * storeDone 을 주면(메뉴 "기본협약"으로 들어옴) 03 매장 등록은 번호 대신 등록 여부 체크(보라 = 등록함, 회색 = 아직).
+ * storeDone 을 주면(메뉴 "기본 협약"으로 들어옴) 03 매장 연결은 번호 대신 연결 여부 체크(보라 = 연결됨, 회색 = 아직).
  */
 export function JoinFlow({
   current,
@@ -43,7 +46,7 @@ export function JoinFlow({
               <>
                 <CheckMark on={storeDone} />
                 <span className="sr-only">
-                  {storeDone ? "등록함" : "아직 등록 안 함"}
+                  {storeDone ? "연결됨" : "아직 연결 전"}
                 </span>
               </>
             ) : i < current ? (
@@ -65,7 +68,7 @@ export function JoinFlow({
 }
 
 /**
- * 메뉴 "기본협약"으로 들어왔을 때의 가입 진행 — 순서(01 · 02 · 03)는 그대로, 03 매장 등록만 등록 여부 체크로.
+ * 메뉴 "기본 협약"으로 들어왔을 때의 가입 진행 — 순서(01 · 02 · 03)는 그대로, 03 매장 연결만 연결 여부 체크로.
  * 매장 목록을 받기 전엔 03을 번호로 둔다.
  */
 export function JoinFlowWithStore({ current }: { current: number }) {

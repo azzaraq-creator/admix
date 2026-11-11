@@ -9,15 +9,14 @@ import {
   InputGroup,
   TextField,
 } from "@heroui/react";
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useState } from "react";
 
 import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
-import { BrandAvatar } from "@/components/common/BrandAvatar";
-import { EyeIcon, FileIcon } from "@/components/icons";
-import { authApi } from "@/hooks/auth";
+import { EyeIcon } from "@/components/icons";
+import { authApi, type ProfileUpdatePayload } from "@/hooks/auth";
 import {
   PHONE_INPUT_MAX_LENGTH,
   formatPhoneInput,
@@ -25,7 +24,8 @@ import {
 } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import { MatchCheckIcon, SmallCheckIcon, UploadIcon } from "./signupIcons";
+import { BizLicenseDropzone } from "./BizLicenseDropzone";
+import { MatchCheckIcon, SmallCheckIcon } from "./signupIcons";
 import {
   CardHeading,
   FieldLabel,
@@ -42,8 +42,10 @@ export type SignupInfo = {
   phone: string;
   company: string;
   file: File | null;
-  /** 광고주 브랜드 사진(선택) — 가입 뒤 올린다. */
-  brandImage: File | null;
+  /** 광고주 담당자 정보(선택) — 이름 · 직함 · 소속팀. 가입 뒤 내 정보에 저장한다(명함은 내 정보에서). */
+  contactName: string;
+  position: string;
+  department: string;
 };
 
 export const EMPTY_SIGNUP_INFO: SignupInfo = {
@@ -53,115 +55,24 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   phone: "",
   company: "",
   file: null,
-  brandImage: null,
+  contactName: "",
+  position: "",
+  department: "",
 };
 
-/** 백엔드 LICENSE_ALLOWED_EXTENSIONS / LICENSE_MAX_UPLOAD_SIZE 와 같다. */
-const BIZ_FILE_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
-const BIZ_FILE_MAX_BYTES = 10 * 1024 * 1024;
-
-/** 백엔드 매장·브랜드 사진 규칙(_MEDIA_IMAGE_EXTS · 10MB)과 같다. */
-const BRAND_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-
-function brandImageError(file: File): string | null {
-  const name = file.name.toLowerCase();
-  if (!BRAND_IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext)))
-    return "JPG, PNG, WEBP, GIF 이미지만 올릴 수 있습니다.";
-  if (file.size > BIZ_FILE_MAX_BYTES)
-    return "10MB 이하 파일만 올릴 수 있습니다.";
-  return null;
+/** 가입 뒤 내 정보에 저장할 담당자 정보 — 적은 칸만(없으면 null, 저장 요청을 보내지 않는다). */
+export function contactOf(info: SignupInfo): ContactInfo | null {
+  const out: ContactInfo = {};
+  if (info.contactName.trim()) out.contact_name = info.contactName.trim();
+  if (info.position.trim()) out.position = info.position.trim();
+  if (info.department.trim()) out.department = info.department.trim();
+  return Object.keys(out).length ? out : null;
 }
 
-/** 광고주 브랜드 사진(선택) — 미리보기 동그라미 + 고르기 · 삭제. 없으면 기본 "C". */
-function BrandImageField({
-  file,
-  onChange,
-}: {
-  file: File | null;
-  onChange: (file: File | null) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState("");
-  const preview = useMemo(
-    () => (file ? URL.createObjectURL(file) : null),
-    [file],
-  );
-  useEffect(
-    () => () => {
-      if (preview) URL.revokeObjectURL(preview);
-    },
-    [preview],
-  );
-
-  return (
-    <div className="flex w-full flex-col gap-[8px]">
-      <p className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
-        브랜드 사진
-        <span className="text-[12px] font-normal text-gray-400">(선택)</span>
-      </p>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={BRAND_IMAGE_EXTENSIONS.join(",")}
-        className="hidden"
-        onChange={(event) => {
-          const picked = event.target.files?.[0];
-          event.target.value = "";
-          if (!picked) return;
-          const err = brandImageError(picked);
-          setError(err ?? "");
-          if (!err) onChange(picked);
-        }}
-      />
-      <div className="flex items-center gap-[12px]">
-        <BrandAvatar
-          src={preview}
-          className="size-[56px] rounded-[18px] text-[24px]"
-        />
-        <div className="flex gap-[6px]">
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={() => inputRef.current?.click()}
-            className={cn("h-[36px] px-[14px] text-[13px]", RADIUS.h36)}
-          >
-            {file ? "다른 사진" : "사진 선택"}
-          </Button>
-          {file && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => onChange(null)}
-              className={cn(
-                "h-[36px] px-[12px] text-[13px] text-gray-500",
-                RADIUS.h36,
-              )}
-            >
-              삭제
-            </Button>
-          )}
-        </div>
-      </div>
-      {error ? (
-        <FieldMessage tone="error">{error}</FieldMessage>
-      ) : (
-        <FieldMessage>
-          콜라보 화면에 브랜드 아이콘으로 보여요. 올리지 않으면 기본 이미지(C)가
-          보이고, 가입 후 내 정보에서 언제든 올릴 수 있어요.
-        </FieldMessage>
-      )}
-    </div>
-  );
-}
-
-function bizFileError(file: File): string | null {
-  const name = file.name.toLowerCase();
-  if (!BIZ_FILE_EXTENSIONS.some((ext) => name.endsWith(ext)))
-    return "PDF, PNG, JPG 파일만 올릴 수 있습니다.";
-  if (file.size > BIZ_FILE_MAX_BYTES)
-    return "10MB 이하 파일만 올릴 수 있습니다.";
-  return null;
-}
+export type ContactInfo = Pick<
+  ProfileUpdatePayload,
+  "contact_name" | "position" | "department"
+>;
 
 /** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — InputGroup.Suffix 안에 둔다. */
 function PasswordToggle({
@@ -191,7 +102,7 @@ export function InfoStep({
   needPassword,
   showBizCert,
   partner = false,
-  brandImage = false,
+  advertiser = false,
   initial,
   serverError,
   onNext,
@@ -201,10 +112,17 @@ export function InfoStep({
   needPassword: boolean;
   /** 일반 회원에게는 사업자등록증 칸을 보이지 않는다. */
   showBizCert: boolean;
-  /** 제휴사(콜라보) — "정보 추가 입력"(회사명) 없이 사업자등록증만, 필수는 아니고 추후 인증이 필요하다고 알린다. */
+  /**
+   * 제휴사(콜라보) — "정보 추가 입력"(회사명) · 사업자등록증 칸 없이 이름 · 연락처까지만.
+   * 사업자등록증은 기본협약 협약서 단계에서 같은 모양(BizLicenseDropzone)으로 올린다(11-10 사용자).
+   */
   partner?: boolean;
-  /** 광고주 — "정보 추가 입력" 상자에 브랜드 사진(선택) 칸을 더한다. */
-  brandImage?: boolean;
+  /**
+   * 광고주 — "정보 추가 입력" 상자 없이 회사명 · 사업자등록증 · 담당자 이름 · 직함 · 소속팀을 다른 칸과 같은 모양으로
+   * 잇는다. 모두 선택이라 * 도 "(선택)"도 붙이지 않고, 사업자등록증 아래에 올리지 않으면 이용이 제한된다고 알린다(11-09 사용자).
+   * 브랜드 사진은 콜라보 "내 브랜드"로 옮겨 여기서 받지 않는다.
+   */
+  advertiser?: boolean;
   initial: SignupInfo;
   /** 가입 요청에서 돌아온 오류(예: 이미 가입된 전화번호). */
   serverError?: { field: "phone"; message: string } | null;
@@ -213,13 +131,11 @@ export function InfoStep({
   const [values, setValues] = useState<SignupInfo>(initial);
   const [submitted, setSubmitted] = useState(false);
   const [fileError, setFileError] = useState("");
-  const [dragging, setDragging] = useState(false);
   // "다음"에서 확인한 전화번호 중복 결과 — 확인한 번호와 같을 때만 보여 준다.
   const [duplicatePhone, setDuplicatePhone] = useState<string | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof SignupInfo>(key: K, value: SignupInfo[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -245,19 +161,6 @@ export function InfoStep({
       : "전화번호를 9~11자리 숫자로 입력해 주세요.",
   };
   const valid = !Object.values(errors).some(Boolean);
-
-  const pickFile = (file: File | undefined) => {
-    if (!file) return;
-    const error = bizFileError(file);
-    setFileError(error ?? "");
-    if (!error) set("file", file);
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragging(false);
-    pickFile(event.dataTransfer.files?.[0]);
-  };
 
   const handleNext = async () => {
     setSubmitted(true);
@@ -285,85 +188,33 @@ export function InfoStep({
         ? serverError.message
         : "";
 
-  /** 사업자등록증 칸 — 일반 가입은 "정보 추가 입력" 상자 안, 제휴사(콜라보)는 상자 없이 이것만. */
+  /** 사업자등록증 칸 — 대행사 · 매체사는 "정보 추가 입력" 상자 안, 광고주는 다른 칸과 같은 이름표. 제휴사(콜라보)는 없다(기본협약에서 올린다). */
   const bizCert = (
     <div className="flex w-full flex-col gap-[8px]">
-      <p className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
-        사업자등록증
-      </p>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={BIZ_FILE_EXTENSIONS.join(",")}
-        className="hidden"
-        onChange={(event) => {
-          pickFile(event.target.files?.[0]);
-          event.target.value = "";
-        }}
-      />
-      {values.file ? (
-        <div
-          className={cn(
-            "flex h-[44px] w-full items-center justify-between gap-[10px] border border-tone-ececef pr-[4px] pl-[14px]",
-            RADIUS.h44,
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-[8px]">
-            <FileIcon className="size-[18px] shrink-0 text-gray-500" />
-            <span className="truncate text-[13px] text-zinc-900">
-              {values.file.name}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={() => set("file", null)}
-            className={cn(
-              "h-[36px] shrink-0 px-[12px] text-[12px] text-gray-500 data-[hovered=true]:text-gray-900",
-              RADIUS.h36,
-            )}
-          >
-            삭제
-          </Button>
-        </div>
+      {advertiser ? (
+        <FieldLabel>사업자등록증</FieldLabel>
       ) : (
-        // HeroUI에는 파일 드롭존 컴포넌트가 없어 이 영역만 직접 만든다.
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="사업자등록증 파일 선택"
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              fileInputRef.current?.click();
-            }
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          className={cn(
-            "flex h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed text-gray-400 transition-colors",
-            dragging
-              ? "border-primary-500 bg-primary-50"
-              : "border-gray-200 bg-zinc-50 hover:border-gray-300",
-          )}
-        >
-          <UploadIcon className="size-[20px]" />
-          <p className="text-[13px]">파일을 선택하거나 드래그하세요</p>
-          <p className="text-[11px]">PDF, PNG, JPG 파일만 가능합니다.</p>
-        </div>
+        <p className="flex items-center gap-[6px] text-[13px] font-medium text-gray-900">
+          사업자등록증
+        </p>
       )}
+      <BizLicenseDropzone
+        fileName={values.file?.name}
+        onPick={(file) => {
+          setFileError("");
+          set("file", file);
+        }}
+        onError={setFileError}
+        onRemove={() => set("file", null)}
+      />
       {fileError ? (
         <FieldMessage tone="error">{fileError}</FieldMessage>
-      ) : partner ? (
+      ) : advertiser ? (
         <FieldMessage>
-          지금 올리지 않아도 가입할 수 있어요. 다만 콜라보에 참여하려면 추후
-          사업자등록증 인증을 받아야 해요(가입 후 마이페이지에서 올릴 수
-          있어요).
+          <p className="break-keep">
+            사업자등록증을 올리지 않으면 서비스 이용이 제한됩니다.
+          </p>
+          <p className="break-keep">검토 후 3영업일 이내에 반영됩니다.</p>
         </FieldMessage>
       ) : (
         <FieldMessage>
@@ -524,9 +375,66 @@ export function InfoStep({
           )}
         </TextField>
 
-        {/* 제휴사(콜라보)는 회사명 등 "정보 추가 입력" 상자 없이 사업자등록증(선택)만 받는다. */}
-        {partner ? (
-          bizCert
+        {/* 제휴사(콜라보)는 회사명 · 사업자등록증을 받지 않는다 — 사업자등록증은 기본협약 협약서 단계에서 올린다(11-10 사용자). */}
+        {partner ? null : advertiser ? (
+          <>
+            <TextField
+              autoComplete="organization"
+              value={values.company}
+              onChange={(value) => set("company", value)}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel>회사명</FieldLabel>
+              <Input
+                placeholder="회사명을 입력해 주세요."
+                className="h-[44px] rounded-[19px]"
+              />
+            </TextField>
+            {bizCert}
+            <TextField
+              autoComplete="off"
+              value={values.contactName}
+              onChange={(value) => set("contactName", value)}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel>담당자 이름</FieldLabel>
+              <Input
+                placeholder="담당자 이름을 입력해 주세요."
+                maxLength={50}
+                className="h-[44px] rounded-[19px]"
+              />
+            </TextField>
+            <TextField
+              autoComplete="organization-title"
+              value={values.position}
+              onChange={(value) => set("position", value)}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel>직함</FieldLabel>
+              <Input
+                placeholder="직함을 입력해 주세요."
+                maxLength={50}
+                className="h-[44px] rounded-[19px]"
+              />
+            </TextField>
+            <TextField
+              autoComplete="off"
+              value={values.department}
+              onChange={(value) => set("department", value)}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel>소속팀</FieldLabel>
+              <Input
+                placeholder="소속팀을 입력해 주세요."
+                maxLength={50}
+                className="h-[44px] rounded-[19px]"
+              />
+            </TextField>
+          </>
         ) : (
           <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">
             <p className="text-[13px] font-semibold text-zinc-900">
@@ -541,13 +449,6 @@ export function InfoStep({
             >
               <Input placeholder="회사명" className="h-[44px] rounded-[19px]" />
             </TextField>
-
-            {brandImage && (
-              <BrandImageField
-                file={values.brandImage}
-                onChange={(file) => set("brandImage", file)}
-              />
-            )}
 
             {showBizCert && bizCert}
           </div>

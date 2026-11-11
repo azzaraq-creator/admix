@@ -1,44 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Calendar, RotateCw, Search } from "lucide-react";
-
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
-  Pagination as PaginationRoot,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
+  Button,
+  Checkbox,
+  DateField,
+  DateRangePicker,
+  Input,
+  Label,
+  ListBox,
+  Pagination,
+  RangeCalendar,
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+} from "@heroui/react";
+import { parseDate, type DateValue } from "@internationalized/date";
+import { RotateCw, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 export type TableColumn<T> = {
   name: string;
   label: string;
   renderer?: (item: T) => React.ReactNode;
+  /** 칸(셀)에 붙일 class — 글자색 · 줄바꿈 등. */
   className?: string;
 };
 
@@ -74,6 +59,8 @@ export type SearchOption =
 
 export type SearchParams = Record<string, string | undefined>;
 
+type DateRange = { start: DateValue; end: DateValue } | null;
+
 type CommonTableProps<T> = {
   columnList: TableColumn<T>[];
   data: T[];
@@ -88,6 +75,8 @@ type CommonTableProps<T> = {
   useSearch?: boolean;
   searchOptionList?: SearchOption[];
   onSearch?: (params: SearchParams) => void;
+  /** 검색 칸 첫 값 — 다른 화면에서 조건을 붙여 들어올 때(예: ?linked=no) 칸에도 보이게. */
+  initialSearch?: SearchParams;
   totalCount?: number;
   topRightContent?: React.ReactNode;
   usePageSizeSelect?: boolean;
@@ -98,8 +87,34 @@ type CommonTableProps<T> = {
   page?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
+  /** 표 이름(화면 읽기용). */
+  ariaLabel?: string;
 };
 
+/** 검색 고르기 칸의 "전체" — 빈 문자열은 HeroUI Select 키로 쓸 수 없어 따로 둔다. */
+const ALL_KEY = "__all__";
+/** 체크박스 칸 id */
+const SELECT_COLUMN = "__select__";
+
+/** "YYYY.MM.DD" · "YYYY-MM-DD" → 달력 값. 못 읽으면 null. */
+function toDateValue(s?: string): DateValue | null {
+  if (!s) return null;
+  try {
+    return parseDate(s.replace(/\./g, "-"));
+  } catch {
+    return null;
+  }
+}
+
+/** 달력 값 → "YYYY.MM.DD"(lib/date.formatDate 와 같은 점 구분) — 서버 · 화면이 이 꼴로 받는다. */
+function toDateStr(d: DateValue): string {
+  return d.toString().replace(/-/g, ".");
+}
+
+/**
+ * 어드민 공통 목록 표(HeroUI Table) — 위 검색판(글자 · 고르기 · 기간), "총 N건", 표, 아래 개수 고르기 · 쪽 넘기기.
+ * 서버 쪽 넘기기(manualPagination)면 data 를 그대로 그리고, 아니면 안에서 잘라 보인다.
+ */
 export function CommonTable<T>({
   columnList,
   data,
@@ -114,6 +129,7 @@ export function CommonTable<T>({
   useSearch = true,
   searchOptionList,
   onSearch,
+  initialSearch,
   totalCount,
   topRightContent,
   usePageSizeSelect = false,
@@ -122,11 +138,30 @@ export function CommonTable<T>({
   page: pageProp,
   onPageChange,
   onPageSizeChange,
+  ariaLabel = "목록",
 }: CommonTableProps<T>) {
   const [page, setPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
   const [innerSelected, setInnerSelected] = useState<T[]>([]);
-  const [tempSearch, setTempSearch] = useState<Record<string, string>>({});
+  // 글자 · 고르기 칸 값(이름 → 값)
+  const [tempSearch, setTempSearch] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.entries(initialSearch ?? {}).filter(
+        (entry): entry is [string, string] => !!entry[1],
+      ),
+    ),
+  );
+  // 기간 칸 값(이름 → 시작 · 끝)
+  const [ranges, setRanges] = useState<Record<string, DateRange>>(() => {
+    const out: Record<string, DateRange> = {};
+    for (const opt of searchOptionList ?? []) {
+      if (opt.type !== "dateRange") continue;
+      const start = toDateValue(initialSearch?.[`${opt.name}From`]);
+      const end = toDateValue(initialSearch?.[`${opt.name}To`]);
+      if (start && end) out[opt.name] = { start, end };
+    }
+    return out;
+  });
   const selectedList = selected ?? innerSelected;
   const showSearch = useSearch && !!searchOptionList?.length;
   const showTopBar = totalCount !== undefined || !!topRightContent;
@@ -135,8 +170,9 @@ export function CommonTable<T>({
     const params: SearchParams = {};
     for (const opt of searchOptionList ?? []) {
       if (opt.type === "dateRange") {
-        params[`${opt.name}From`] = tempSearch[`${opt.name}__from`] || undefined;
-        params[`${opt.name}To`] = tempSearch[`${opt.name}__to`] || undefined;
+        const range = ranges[opt.name];
+        params[`${opt.name}From`] = range ? toDateStr(range.start) : undefined;
+        params[`${opt.name}To`] = range ? toDateStr(range.end) : undefined;
       } else {
         const v = tempSearch[opt.name];
         params[opt.name] = v === undefined || v === "" ? undefined : v;
@@ -148,6 +184,7 @@ export function CommonTable<T>({
 
   const handleReset = () => {
     setTempSearch({});
+    setRanges({});
   };
 
   const setField = (key: string, value: string) =>
@@ -178,20 +215,31 @@ export function CommonTable<T>({
     else setPage(p);
   };
 
-  const isSelected = (item: T) =>
-    idKey
-      ? selectedList.some((s) => s[idKey] === item[idKey])
-      : selectedList.includes(item);
+  // 줄 id — idKey 가 없으면 이 쪽 안의 순서.
+  const rowId = (item: T, index: number) =>
+    idKey ? String(item[idKey]) : String(index);
+  const sameItem = (a: T, b: T) => (idKey ? a[idKey] === b[idKey] : a === b);
+  const isSelected = (item: T) => selectedList.some((s) => sameItem(s, item));
 
   const updateSelected = (next: T[]) => {
     onChangeSelected?.(next);
     if (selected === undefined) setInnerSelected(next);
   };
-
-  const allChecked =
-    pageData.length > 0 && pageData.every((item) => isSelected(item));
-
-  const colCount = columnList.length + (useCheckbox ? 1 : 0);
+  const toggleItem = (item: T, on: boolean) =>
+    updateSelected(
+      on
+        ? [...selectedList, item]
+        : selectedList.filter((s) => !sameItem(s, item)),
+    );
+  // 머리 체크박스 — 이 쪽 줄만 모두 고르거나 푼다(다른 쪽 고른 것은 그대로).
+  const togglePage = (on: boolean) =>
+    updateSelected(
+      on
+        ? [...selectedList, ...pageData.filter((item) => !isSelected(item))]
+        : selectedList.filter((s) => !pageData.some((p) => sameItem(p, s))),
+    );
+  const checkedCount = pageData.filter((item) => isSelected(item)).length;
+  const allChecked = pageData.length > 0 && checkedCount === pageData.length;
 
   const searchRows = (() => {
     const map = new Map<number, SearchOption[]>();
@@ -201,75 +249,133 @@ export function CommonTable<T>({
       list.push(opt);
       map.set(r, list);
     }
-    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, opts]) => opts);
+    return [...map.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, opts]) => opts);
   })();
 
-  const renderField = (opt: SearchOption) => (
-    <div
-      key={opt.name}
-      className={cn(
-        "flex items-center gap-[12px]",
-        opt.type === "text" && "min-w-[280px] flex-1",
-      )}
-    >
-      {opt.label && (
-        <label className="shrink-0 whitespace-nowrap text-sm font-medium leading-[20px] text-black">
-          {opt.label}
-        </label>
-      )}
-      {opt.type === "text" && (
-        <input
-          type="text"
-          value={tempSearch[opt.name] ?? ""}
-          placeholder={opt.placeholder}
-          onChange={(e) => setField(opt.name, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              handleSearch();
-            }
-          }}
-          className="h-[40px] min-w-0 flex-1 rounded-[17px] border border-stroke bg-surface px-[12px] text-sm font-medium leading-[20px] text-black outline-none placeholder:text-placeholder focus:border-primary"
-        />
-      )}
-      {opt.type === "select" && (
-        <Select
-          items={[{ value: "", label: opt.placeholder ?? "전체" }, ...opt.optionList]}
-          value={tempSearch[opt.name] ?? ""}
-          onValueChange={(value) => setField(opt.name, (value as string) ?? "")}
+  const renderField = (opt: SearchOption) => {
+    if (opt.type === "text") {
+      const id = `common-table-${opt.name}`;
+      return (
+        <div
+          key={opt.name}
+          className="flex min-w-[240px] flex-1 flex-col gap-[4px]"
         >
-          <SelectTrigger className="w-[100px] shrink-0 rounded-[17px] border-stroke bg-surface px-[12px] font-medium text-black data-[size=default]:h-[40px]">
-            <SelectValue placeholder={opt.placeholder ?? "전체"} />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} className="min-w-0">
-            <SelectItem value="">{opt.placeholder ?? "전체"}</SelectItem>
-            {opt.optionList.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      {opt.type === "dateRange" && (
-        <div className="flex items-center gap-[12px]">
-          <DateField
-            value={tempSearch[`${opt.name}__from`] ?? ""}
-            placeholder={opt.placeholder ?? "날짜 입력"}
-            maxDate={tempSearch[`${opt.name}__to`]}
-            onChange={(v) => setField(`${opt.name}__from`, v)}
-          />
-          <span className="text-sm text-disabled">-</span>
-          <DateField
-            value={tempSearch[`${opt.name}__to`] ?? ""}
-            placeholder={opt.placeholder ?? "날짜 입력"}
-            minDate={tempSearch[`${opt.name}__from`]}
-            onChange={(v) => setField(`${opt.name}__to`, v)}
+          {opt.label && <Label htmlFor={id}>{opt.label}</Label>}
+          <Input
+            id={id}
+            variant="secondary"
+            fullWidth
+            aria-label={opt.label || opt.placeholder}
+            value={tempSearch[opt.name] ?? ""}
+            placeholder={opt.placeholder}
+            onChange={(e) => setField(opt.name, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
           />
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+    if (opt.type === "select") {
+      const allLabel = opt.placeholder ?? "전체";
+      return (
+        <Select
+          key={opt.name}
+          className="w-[140px]"
+          variant="secondary"
+          aria-label={opt.label || allLabel}
+          selectedKey={tempSearch[opt.name] || ALL_KEY}
+          onSelectionChange={(key) =>
+            setField(
+              opt.name,
+              key == null || key === ALL_KEY ? "" : String(key),
+            )
+          }
+        >
+          {opt.label && <Label>{opt.label}</Label>}
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {[{ value: ALL_KEY, label: allLabel }, ...opt.optionList].map(
+                (item) => (
+                  <ListBox.Item
+                    key={item.value}
+                    id={item.value}
+                    textValue={item.label}
+                  >
+                    {item.label}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ),
+              )}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+      );
+    }
+    return (
+      <DateRangePicker
+        key={opt.name}
+        className="w-[300px]"
+        aria-label={opt.label || "기간"}
+        value={ranges[opt.name] ?? null}
+        onChange={(value) =>
+          setRanges((prev) => ({ ...prev, [opt.name]: value }))
+        }
+      >
+        {opt.label && <Label>{opt.label}</Label>}
+        <DateField.Group fullWidth variant="secondary">
+          <DateField.Input slot="start">
+            {(segment) => <DateField.Segment segment={segment} />}
+          </DateField.Input>
+          <DateRangePicker.RangeSeparator />
+          <DateField.Input slot="end">
+            {(segment) => <DateField.Segment segment={segment} />}
+          </DateField.Input>
+          <DateField.Suffix>
+            <DateRangePicker.Trigger>
+              <DateRangePicker.TriggerIndicator />
+            </DateRangePicker.Trigger>
+          </DateField.Suffix>
+        </DateField.Group>
+        <DateRangePicker.Popover>
+          <RangeCalendar aria-label={opt.label || "기간"}>
+            <RangeCalendar.Header>
+              <RangeCalendar.YearPickerTrigger>
+                <RangeCalendar.YearPickerTriggerHeading />
+                <RangeCalendar.YearPickerTriggerIndicator />
+              </RangeCalendar.YearPickerTrigger>
+              <RangeCalendar.NavButton slot="previous" />
+              <RangeCalendar.NavButton slot="next" />
+            </RangeCalendar.Header>
+            <RangeCalendar.Grid>
+              <RangeCalendar.GridHeader>
+                {(day) => (
+                  <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>
+                )}
+              </RangeCalendar.GridHeader>
+              <RangeCalendar.GridBody>
+                {(date) => <RangeCalendar.Cell date={date} />}
+              </RangeCalendar.GridBody>
+            </RangeCalendar.Grid>
+            <RangeCalendar.YearPickerGrid>
+              <RangeCalendar.YearPickerGridBody>
+                {({ year }) => <RangeCalendar.YearPickerCell year={year} />}
+              </RangeCalendar.YearPickerGridBody>
+            </RangeCalendar.YearPickerGrid>
+          </RangeCalendar>
+        </DateRangePicker.Popover>
+      </DateRangePicker>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-[16px]">
@@ -278,27 +384,19 @@ export function CommonTable<T>({
           {searchRows.map((rowOpts, rowIndex) => (
             <div
               key={rowIndex}
-              className="flex flex-wrap items-center gap-x-[24px] gap-y-[16px]"
+              className="flex flex-wrap items-end gap-[16px]"
             >
               {rowOpts.map((opt) => renderField(opt))}
               {rowIndex === searchRows.length - 1 && (
                 <div className="ml-auto flex shrink-0 items-center gap-[8px]">
-                  <button
-                    type="button"
-                    onClick={handleSearch}
-                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] bg-primary px-[16px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-                  >
+                  <Button variant="primary" onPress={handleSearch}>
                     <Search className="size-[16px]" />
                     검색
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke bg-surface px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-100"
-                  >
+                  </Button>
+                  <Button variant="tertiary" onPress={handleReset}>
                     <RotateCw className="size-[16px]" />
                     초기화
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -307,7 +405,7 @@ export function CommonTable<T>({
       )}
 
       {showTopBar && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-[8px]">
           {totalCount !== undefined ? (
             <p className="text-base font-semibold leading-[24px] text-black">
               총 {totalCount.toLocaleString()}건
@@ -316,127 +414,107 @@ export function CommonTable<T>({
             <span />
           )}
           {topRightContent && (
-            <div className="flex items-center gap-[8px]">{topRightContent}</div>
+            <div className="flex flex-wrap items-center gap-[8px]">
+              {topRightContent}
+            </div>
           )}
         </div>
       )}
 
-      <div className="overflow-x-auto bg-surface">
-        <Table className="min-w-[720px]">
-          <TableHeader className="bg-tone-fafaf9 [&_tr]:border-b-[1.25px] [&_tr]:border-tone-e5e5e5">
-            <TableRow className="h-[48px] hover:bg-transparent">
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content
+            aria-label={ariaLabel}
+            className="min-w-[720px]"
+            onRowAction={
+              onRowClick
+                ? (key) => {
+                    const index = pageData.findIndex(
+                      (item, i) => rowId(item, i) === String(key),
+                    );
+                    if (index >= 0) onRowClick(pageData[index]);
+                  }
+                : undefined
+            }
+          >
+            <Table.Header>
               {useCheckbox && (
-                <TableHead className="w-[56px] px-[16px] py-0 text-center">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        const next = [...selectedList];
-                        for (const item of pageData) {
-                          if (!isSelected(item)) next.push(item);
-                        }
-                        updateSelected(next);
-                      } else {
-                        const next = selectedList.filter(
-                          (s) =>
-                            !pageData.some((p) =>
-                              idKey ? p[idKey] === s[idKey] : p === s,
-                            ),
-                        );
-                        updateSelected(next);
-                      }
-                    }}
-                    className="size-[16px] rounded-[5px] border-stroke accent-primary"
+                <Table.Column id={SELECT_COLUMN} className="w-[56px]">
+                  <SelectCheckbox
+                    label="이 쪽 모두 고르기"
+                    isSelected={allChecked}
+                    isIndeterminate={checkedCount > 0 && !allChecked}
+                    isDisabled={pageData.length === 0}
+                    onChange={togglePage}
                   />
-                </TableHead>
+                </Table.Column>
               )}
-              {columnList.map((col) => (
-                <TableHead
+              {columnList.map((col, index) => (
+                <Table.Column
                   key={col.name}
-                  className={cn(
-                    col.className,
-                    "h-[48px] px-[16px] py-0 text-center text-sm font-semibold leading-[20px] text-black",
-                  )}
+                  id={col.name}
+                  isRowHeader={index === 0}
+                  className="whitespace-nowrap"
                 >
                   {col.label}
-                </TableHead>
+                </Table.Column>
               ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageData.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={colCount}
-                  className="h-[160px] px-[16px] text-center text-sm font-medium leading-[20px] text-disabled"
-                >
+            </Table.Header>
+            <Table.Body
+              renderEmptyState={() => (
+                <p className="py-[48px] text-center text-sm font-medium text-disabled">
                   {emptyMessage}
-                </TableCell>
-              </TableRow>
-            ) : (
-              pageData.map((item, idx) => (
-                <TableRow
-                  key={idKey ? String(item[idKey]) : idx}
-                  className={cn(
-                    "h-[56px] border-b-[1.25px] border-tone-e5e5e5 hover:bg-gray-50",
-                    onRowClick && "cursor-pointer",
-                    rowClassName?.(item),
-                  )}
-                  onClick={() => onRowClick?.(item)}
-                >
-                  {useCheckbox && (
-                    <TableCell
-                      className="w-[56px] px-[16px] py-0 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected(item)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            updateSelected([...selectedList, item]);
-                          } else {
-                            updateSelected(
-                              selectedList.filter((s) =>
-                                idKey ? s[idKey] !== item[idKey] : s !== item,
-                              ),
-                            );
-                          }
-                        }}
-                        className="size-[16px] rounded-[5px] border-stroke accent-primary"
-                      />
-                    </TableCell>
-                  )}
-                  {columnList.map((col) => (
-                    <TableCell
-                      key={col.name}
-                      className={cn(
-                        col.className,
-                        "h-[56px] px-[16px] py-0 text-center text-sm font-medium leading-[20px] text-[#000000]",
-                      )}
-                    >
-                      {col.renderer
-                        ? col.renderer(item)
-                        : ((item as Record<string, unknown>)[col.name] as
-                            | React.ReactNode
-                            | undefined) ?? "-"}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                </p>
+              )}
+            >
+              {pageData.map((item, index) => {
+                const id = rowId(item, index);
+                return (
+                  <Table.Row
+                    key={id}
+                    id={id}
+                    className={cn(
+                      onRowClick && "cursor-pointer",
+                      rowClassName?.(item),
+                    )}
+                  >
+                    {useCheckbox && (
+                      <Table.Cell>
+                        <SelectCheckbox
+                          label="이 줄 고르기"
+                          isSelected={isSelected(item)}
+                          onChange={(on) => toggleItem(item, on)}
+                        />
+                      </Table.Cell>
+                    )}
+                    {columnList.map((col) => (
+                      <Table.Cell key={col.name} className={col.className}>
+                        {col.renderer
+                          ? col.renderer(item)
+                          : (((item as Record<string, unknown>)[col.name] as
+                              | React.ReactNode
+                              | undefined) ?? "-")}
+                      </Table.Cell>
+                    ))}
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
 
       {(usePageSizeSelect || totalPages > 1) && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-[12px]">
           {usePageSizeSelect ? (
-            <PageSizeSelect
-              value={activePageSize}
-              options={pageSizeOptions}
-              onChange={(n) => {
+            <Select
+              aria-label="한 페이지에 보일 개수"
+              className="w-[140px]"
+              variant="secondary"
+              selectedKey={String(activePageSize)}
+              onSelectionChange={(key) => {
+                if (key == null) return;
+                const n = Number(key);
                 if (manualPagination) {
                   onPageSizeChange?.(n);
                 } else {
@@ -444,12 +522,31 @@ export function CommonTable<T>({
                   setPage(1);
                 }
               }}
-            />
+            >
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {pageSizeOptions.map((n) => (
+                    <ListBox.Item
+                      key={n}
+                      id={String(n)}
+                      textValue={`${n}개씩 보기`}
+                    >
+                      {n}개씩 보기
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
           ) : (
             <span />
           )}
           {totalPages > 1 && (
-            <Pagination
+            <PageNumbers
               page={activePage}
               totalPages={totalPages}
               onChange={handlePageChange}
@@ -461,105 +558,39 @@ export function CommonTable<T>({
   );
 }
 
-// "YYYY.MM.DD"(점) 또는 "YYYY-MM-DD"(대시) 모두 허용해 Date 로 파싱
-function parseDate(s?: string | null): Date | undefined {
-  if (!s) return undefined;
-  const d = new Date(`${s.replace(/\./g, "-")}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? undefined : d;
-}
-
-// lib/date.formatDate 와 동일한 점 구분 형식으로 저장
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}.${m}.${day}`;
-}
-
-function DateField({
-  value,
-  placeholder,
-  onChange,
-  minDate,
-  maxDate,
-}: {
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-  minDate?: string; // 이 날짜 이전 비활성(종료일 등)
-  maxDate?: string; // 이 날짜 이후 비활성(시작일 등)
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = parseDate(value);
-  const min = parseDate(minDate);
-  const max = parseDate(maxDate);
-  const disabled = [
-    ...(min ? [{ before: min }] : []),
-    ...(max ? [{ after: max }] : []),
-  ];
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        className="relative flex h-[40px] w-[200px] items-center rounded-[17px] border border-stroke bg-surface pl-[12px] pr-[36px] text-left outline-none focus:border-primary"
-        aria-label="날짜 선택"
-      >
-        <span
-          className={cn(
-            "text-sm font-medium leading-[20px]",
-            value ? "text-black" : "text-placeholder",
-          )}
-        >
-          {value || placeholder}
-        </span>
-        <Calendar className="pointer-events-none absolute right-[12px] top-1/2 size-[16px] -translate-y-1/2 text-disabled" />
-      </PopoverTrigger>
-      <PopoverContent>
-        <CalendarPicker
-          mode="single"
-          defaultMonth={selected ?? min ?? max}
-          selected={selected}
-          onSelect={(d) => {
-            if (!d) return;
-            onChange(toDateStr(d));
-            setOpen(false);
-          }}
-          disabled={disabled}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function PageSizeSelect({
-  value,
-  options,
+/** 표 안 체크박스(HeroUI Checkbox) — 눌러도 줄 열기(onRowClick)는 일어나지 않는다. */
+function SelectCheckbox({
+  label,
+  isSelected,
+  isIndeterminate,
+  isDisabled,
   onChange,
 }: {
-  value: number;
-  options: number[];
-  onChange: (value: number) => void;
+  label: string;
+  isSelected: boolean;
+  isIndeterminate?: boolean;
+  isDisabled?: boolean;
+  onChange: (on: boolean) => void;
 }) {
   return (
-    <Select
-      value={String(value)}
-      onValueChange={(next) => onChange(Number(next))}
+    <Checkbox
+      aria-label={label}
+      isSelected={isSelected}
+      isIndeterminate={isIndeterminate}
+      isDisabled={isDisabled}
+      onChange={onChange}
     >
-      <SelectTrigger className="rounded-[17px] border-stroke bg-surface px-[16px] font-medium text-black data-[size=default]:h-[40px]">
-        <SelectValue>{(selected) => `${String(selected)}개씩 보기`}</SelectValue>
-      </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} className="min-w-0">
-        {options.map((n) => (
-          <SelectItem key={n} value={String(n)}>
-            {n}개씩 보기
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <Checkbox.Content>
+        <Checkbox.Control>
+          <Checkbox.Indicator />
+        </Checkbox.Control>
+      </Checkbox.Content>
+    </Checkbox>
   );
 }
 
-function Pagination({
+/** 쪽 번호(HeroUI Pagination) — 처음 · 끝 쪽과 지금 쪽 양옆을 보이고 나머지는 … 로 줄인다. */
+function PageNumbers({
   page,
   totalPages,
   onChange,
@@ -568,61 +599,45 @@ function Pagination({
   totalPages: number;
   onChange: (page: number) => void;
 }) {
-  const items = getPageItems(page, totalPages);
   return (
-    <PaginationRoot className="mx-0 w-auto justify-end">
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            href="#"
-            aria-disabled={page === 1}
-            onClick={(e) => {
-              e.preventDefault();
-              if (page > 1) onChange(page - 1);
-            }}
-            className={cn(
-              "cursor-pointer",
-              page === 1 && "pointer-events-none opacity-40",
-            )}
-          />
-        </PaginationItem>
-        {items.map((item, index) =>
+    <Pagination className="w-auto">
+      <Pagination.Content>
+        <Pagination.Item>
+          <Pagination.Previous
+            aria-label="이전 페이지"
+            isDisabled={page === 1}
+            onPress={() => onChange(page - 1)}
+          >
+            <Pagination.PreviousIcon />
+          </Pagination.Previous>
+        </Pagination.Item>
+        {getPageItems(page, totalPages).map((item, index) =>
           item === "ellipsis" ? (
-            <PaginationItem key={`ellipsis-${index}`}>
-              <PaginationEllipsis />
-            </PaginationItem>
+            <Pagination.Item key={`ellipsis-${index}`}>
+              <Pagination.Ellipsis />
+            </Pagination.Item>
           ) : (
-            <PaginationItem key={item}>
-              <PaginationLink
-                href="#"
+            <Pagination.Item key={item}>
+              <Pagination.Link
                 isActive={item === page}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onChange(item);
-                }}
-                className="cursor-pointer"
+                onPress={() => onChange(item)}
               >
                 {item}
-              </PaginationLink>
-            </PaginationItem>
+              </Pagination.Link>
+            </Pagination.Item>
           ),
         )}
-        <PaginationItem>
-          <PaginationNext
-            href="#"
-            aria-disabled={page === totalPages}
-            onClick={(e) => {
-              e.preventDefault();
-              if (page < totalPages) onChange(page + 1);
-            }}
-            className={cn(
-              "cursor-pointer",
-              page === totalPages && "pointer-events-none opacity-40",
-            )}
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </PaginationRoot>
+        <Pagination.Item>
+          <Pagination.Next
+            aria-label="다음 페이지"
+            isDisabled={page === totalPages}
+            onPress={() => onChange(page + 1)}
+          >
+            <Pagination.NextIcon />
+          </Pagination.Next>
+        </Pagination.Item>
+      </Pagination.Content>
+    </Pagination>
   );
 }
 

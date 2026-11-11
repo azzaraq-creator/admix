@@ -6,12 +6,12 @@ import { useState } from "react";
 
 import { WriteIcon } from "@/components/icons";
 import { useMe } from "@/hooks/auth";
-import { useMyPartnersStores } from "@/hooks/partners";
 
 /*
- * 진행 중인 가입 이어서 하기 — 제휴사(콜라보)로 가입(이메일 · 약관)은 끝났는데 기본협약에 아직 동의하지 않았거나,
- * 동의는 했지만 매장을 아직 등록하지 않은 회원이 다시 로그인하면 "이어서 하기" 창을 띄운다(남은 일에 맞춰 문구 · 갈 곳). admix 화면(ClientShell)과 콜라보 화면(/partners 레이아웃)에 같이 둔다.
- * 협약 · 매장 등록 화면(/partners/join/…)과 가입 화면에서는 띄우지 않고, "나중에"를 누르면 이 탭(세션)에서는 다시 띄우지 않는다.
+ * 진행 중인 가입 이어서 하기 — 제휴사(콜라보)로 가입(이메일 · 약관)은 끝났는데 기본협약에 아직 동의하지 않은 회원이
+ * 다시 로그인하면 "이어서 하기" 창을 띄운다. admix 화면(ClientShell)과 콜라보 화면(/partners 레이아웃)에 같이 둔다.
+ * 매장은 담당자가 어드민에서 등록 · 연결하므로(2026-11-09, 069) 매장 등록 안내는 없다.
+ * 협약 화면(/partners/join/…)과 가입 화면에서는 띄우지 않고, "나중에"를 누르면 이 탭(세션)에서는 다시 띄우지 않는다.
  * 어디까지 했는지는 협약 화면이 계정별로 이 브라우저에 저장해 두고 되살린다(PartnerAgreement).
  */
 
@@ -34,16 +34,11 @@ export function dismissPartnerResume(userId: string) {
   }
 }
 
-/** 남은 일별 문구 · 이어서 갈 곳. */
+/** 남은 일 문구 · 이어서 갈 곳. */
 const AGREEMENT_COPY = {
   title: "진행 중인 기본협약 동의가 있어요",
-  body: "계정으로 가입은 끝났어요. 기본협약 동의와 매장 등록을 마치면 콜라보에 참여할 수 있어요.",
+  body: "계정으로 가입은 끝났어요. 사업자등록증을 올리고 기본협약에 동의하면 담당자가 매장을 연결해 드려요.",
   href: "/partners/join/agreement",
-};
-const STORE_COPY = {
-  title: "매장 등록이 남았어요",
-  body: "계정으로 기본협약 동의까지 마쳤어요. 매장을 등록하면 콜라보에 참여할 수 있어요.",
-  href: "/partners/join/store",
 };
 
 function readDismissed(id: string): boolean {
@@ -64,23 +59,12 @@ export function PartnerResumeModal() {
   const dismissed = !!me && (closedFor === me.id || readDismissed(me.id));
 
   const partner = me?.member_category === "partner";
-  const stores = useMyPartnersStores();
-  // 남은 일 — 협약 동의 전이면 "agreement", 동의는 했는데 매장이 없으면 "store"(매장 목록을 받은 뒤에만 판단).
-  const left: "agreement" | "store" | null =
-    !me || !partner
-      ? null
-      : me.partner_agreed_at == null
-        ? "agreement"
-        : stores.isSuccess && stores.data.length === 0
-          ? "store"
-          : null;
+  // 남은 일 — 협약 동의 전.
+  const left = !!me && partner && me.partner_agreed_at == null;
   const onJoinPage =
-    pathname.startsWith("/partners/join") ||
-    pathname.startsWith("/signup") ||
-    // 내 매장은 매장이 없으면 그 자리에서 매장 등록을 받으므로 매장 안내는 띄우지 않는다.
-    (left === "store" && pathname === "/partners/stores");
-  const isOpen = !!me && !!left && !onJoinPage && !dismissed;
-  const copy = left === "store" ? STORE_COPY : AGREEMENT_COPY;
+    pathname.startsWith("/partners/join") || pathname.startsWith("/signup");
+  const isOpen = !!me && left && !onJoinPage && !dismissed;
+  const copy = AGREEMENT_COPY;
 
   // 저장 못 해도 이 화면에서는 닫힌다(closedFor).
   const dismiss = () => {

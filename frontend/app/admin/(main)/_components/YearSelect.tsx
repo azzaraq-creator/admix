@@ -1,60 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-import { ChevronDownIcon } from "@/components/icons";
+import { ListBox, Select } from "@heroui/react";
+import { useState } from "react";
 
 const YEARS = [2026];
 
+/** 연도 고르기(HeroUI Select + ListBox) — 대시보드 차트 머리에 둔다. */
 export function YearSelect() {
-  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(YEARS[0]);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-[40px] items-center gap-[6px] rounded-[17px] border border-stroke px-[12px] text-sm font-medium leading-[20px] text-tone-364153"
-      >
-        {selected}
-        <ChevronDownIcon
-          className={`size-[18px] text-disabled transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <ul className="absolute left-0 right-0 top-full z-10 overflow-hidden rounded-[8px] border border-stroke bg-surface py-[4px] shadow-md">
+    <Select
+      aria-label="연도"
+      className="w-[100px]"
+      selectedKey={String(selected)}
+      onSelectionChange={(key) => {
+        if (key != null) setSelected(Number(key));
+      }}
+    >
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
           {YEARS.map((year) => (
-            <li key={year}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelected(year);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center px-[12px] py-[8px] text-sm leading-[20px] hover:bg-tone-f5f6f8 ${
-                  year === selected ? "font-medium text-tone-364153" : "text-disabled"
-                }`}
-              >
-                {year}
-              </button>
-            </li>
+            <ListBox.Item key={year} id={String(year)} textValue={String(year)}>
+              {year}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
           ))}
-        </ul>
-      )}
-    </div>
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }

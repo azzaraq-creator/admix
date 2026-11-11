@@ -12,13 +12,13 @@ import { todosOf } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
 import { collabHref } from "./CollabBoard";
-import { usePreviewState } from "./previewStore";
+import { usePartnerWorkspace } from "./partnerState";
 
 /*
  * 제휴사 알림 — admix 사이드바의 "현재 기획안" 카드와 같은 자리 · 같은 방식.
  * PC: 사이드바 프로필 위 요약 카드(접히면 종 아이콘 + 숫자), 누르면 오른쪽에 붙는 패널(HeroUI Popover).
  * 모바일: 위 띠 오른쪽 종 아이콘, 누르면 아래에서 올라오는 시트(HeroUI Drawer).
- * 알림 = 지금 확인할 일(점검 사진 · 확정 요청 · 새 공지, 지금은 예시 데이터).
+ * 알림 = 고른 매장에서 지금 확인할 일(점검 사진 · 확정 요청 · 새 공지, 서버 — partnerState).
  */
 
 const LABEL = "알림";
@@ -63,7 +63,8 @@ const BELL_BADGE_BODY =
   "M8 0C8.67094 0.000106293 9.272 0.292983 9.6875 0.755859C9.25311 1.39573 9 2.16834 9 3C9 5.20914 10.7908 7 13 7C13.4244 6.99996 13.833 6.93302 14.2168 6.81055C14.2248 6.86521 14.233 6.9204 14.2392 6.97559L14.6865 10.915C14.767 11.6246 15.0661 12.3016 15.5517 12.8721C16.6488 14.1608 15.6047 16 13.7764 16H2.22265C0.394296 16 -0.649702 14.1608 0.447264 12.8721C0.932919 12.3015 1.23196 11.6247 1.3125 10.915L1.75976 6.97559C2.00088 4.85113 3.58724 3.10761 5.72949 2.37402V2.26953C5.72971 1.01607 6.74648 0 8 0Z";
 
 function useNotifications() {
-  return todosOf(usePreviewState());
+  const { state, today } = usePartnerWorkspace();
+  return todosOf(state, today);
 }
 
 /** 패널 안 — 제목 · 닫기 · 알림 목록. */

@@ -1,13 +1,15 @@
 "use client";
 
-import { TextArea } from "@heroui/react";
+import {
+  Button,
+  Popover,
+  Table,
+  TextArea,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@heroui/react";
 import { CircleHelp } from "lucide-react";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import type { GradeSuggestions, PopulationTier } from "@/hooks/media";
 import { cn } from "@/lib/utils";
 
@@ -106,29 +108,32 @@ export function GradeSurvey({
                     </p>
                   )}
                 </div>
-                <div
-                  role="radiogroup"
+                {/* 하나만 고르기(radiogroup). 빈 선택을 허용해 고른 답을 다시 누르면 답이 지워진다. */}
+                <ToggleButtonGroup
                   aria-label={q.label}
-                  className="flex flex-wrap gap-[6px]"
+                  selectionMode="single"
+                  isDetached
+                  size="sm"
+                  selectedKeys={answers[q.id] ? [answers[q.id]] : []}
+                  onSelectionChange={(keys) => {
+                    const [picked] = [...keys];
+                    set(q.id, picked == null ? "" : String(picked));
+                  }}
+                  className="flex flex-wrap justify-start gap-[6px]"
                 >
                   {q.options.map((o) => {
                     const on = answers[q.id] === o.value;
                     // 추천 답 — "자동" 표시. 고르지 않은 추천(담당자가 바꾼 답)은 점선 테두리.
                     const suggested = o.value === sugValue;
                     return (
-                      <button
+                      <ToggleButton
                         key={o.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        onClick={() => set(q.id, on ? "" : o.value)}
+                        id={o.value}
                         className={cn(
-                          "flex items-center gap-[4px] rounded-full border px-[12px] py-[6px] text-[13px] font-medium transition-colors",
-                          on
-                            ? "border-primary-600 bg-primary-50 text-primary-600"
-                            : suggested
-                              ? "border-dashed border-primary-400 bg-surface text-primary-600 hover:bg-primary-50"
-                              : "border-stroke bg-surface text-gray-600 hover:bg-gray-50",
+                          "gap-[4px] text-[13px]",
+                          suggested &&
+                            !on &&
+                            "border border-dashed border-primary-400 text-primary-600",
                         )}
                       >
                         {o.label}
@@ -137,10 +142,10 @@ export function GradeSurvey({
                             자동
                           </span>
                         )}
-                      </button>
+                      </ToggleButton>
                     );
                   })}
-                </div>
+                </ToggleButtonGroup>
               </div>
             );
           })}
@@ -188,16 +193,23 @@ function TierBox({
       <div className="flex shrink-0 items-center gap-[4px]">
         <p className="text-[13px] font-semibold text-gray-600">{label}</p>
         <Popover>
-          <PopoverTrigger
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
             aria-label={`${label} 기준`}
-            className="flex size-[20px] items-center justify-center rounded-full text-gray-400 outline-none hover:text-gray-600"
+            className="size-[20px] min-w-0 rounded-full p-0 text-gray-400 data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
           >
             <CircleHelp className="size-[16px]" />
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-[16px]">
-            <p className="text-[13px] font-bold text-black">{label} 기준</p>
-            {children}
-          </PopoverContent>
+          </Button>
+          <Popover.Content className="w-[300px]">
+            <Popover.Dialog>
+              <Popover.Heading className="text-[13px] font-bold text-black">
+                {label} 기준
+              </Popover.Heading>
+              {children}
+            </Popover.Dialog>
+          </Popover.Content>
         </Popover>
       </div>
       <div className="flex min-w-0 flex-col gap-[2px]">
@@ -216,6 +228,8 @@ function TierBox({
 }
 
 const TIER_HELP_CLASS = "mt-[4px] text-[12px] leading-[18px] text-gray-500";
+// 기준표 칸 — 팝오버 바탕을 그대로 보이게(칸 흰 바탕 끔) 하고 12px로 촘촘하게.
+const TIER_CELL_CLASS = "bg-transparent px-[8px] py-[6px] text-[12px]";
 
 /** 자동으로 매긴 유동인구 단계와 단계 기준표. */
 function PopulationTierBox({ data }: { data?: PopulationTier }) {
@@ -247,28 +261,54 @@ function PopulationTierBox({ data }: { data?: PopulationTier }) {
         값이에요. 서울 고정 매체만 매기고, 단계가 없는 매체(서울 밖·데이터
         없음)는 ‘주변 유동인구’ 질문으로 대신 매겨요.
       </p>
-      <table className="mt-[10px] w-full text-[12px]">
-        <tbody>
-          {(data?.tiers ?? []).map((t) => (
-            <tr
-              key={t.tier}
-              className={cn(
-                "border-t border-stroke",
-                t.tier === data?.tier && "font-bold text-primary-600",
-              )}
-            >
-              <td className="py-[6px] pr-[12px]">{t.tier}단계</td>
-              <td className="py-[6px] text-right tabular-nums">
-                {t.max == null
-                  ? `${formatPeople(t.min)} 명 이상`
-                  : t.min === 0
-                    ? `${formatPeople(t.max)} 명 미만`
-                    : `${formatPeople(t.min)} ~ ${formatPeople(t.max)} 명`}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* 팝오버 속 작은 기준표 — HeroUI 표(secondary)를 12px·좁은 여백으로 줄이고, 지금 단계 줄은 굵은 보라. */}
+      {!!data?.tiers?.length && (
+        <Table variant="secondary" className="mt-[10px]">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="유동인구 단계 기준">
+              <Table.Header>
+                <Table.Column
+                  id="tier"
+                  isRowHeader
+                  className="px-[8px] py-[4px] text-[11px]"
+                >
+                  단계
+                </Table.Column>
+                <Table.Column
+                  id="range"
+                  className="px-[8px] py-[4px] text-right text-[11px]"
+                >
+                  월평균 유동인구
+                </Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {data.tiers.map((t) => (
+                  <Table.Row
+                    key={t.tier}
+                    id={String(t.tier)}
+                    className={cn(
+                      t.tier === data.tier && "*:font-bold *:text-primary-600",
+                    )}
+                  >
+                    <Table.Cell className={TIER_CELL_CLASS}>
+                      {t.tier}단계
+                    </Table.Cell>
+                    <Table.Cell
+                      className={cn(TIER_CELL_CLASS, "text-right tabular-nums")}
+                    >
+                      {t.max == null
+                        ? `${formatPeople(t.min)} 명 이상`
+                        : t.min === 0
+                          ? `${formatPeople(t.max)} 명 미만`
+                          : `${formatPeople(t.min)} ~ ${formatPeople(t.max)} 명`}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      )}
     </TierBox>
   );
 }

@@ -3,6 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
+import { COLLAB_SIGNUP_QUERY } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 import { authApi, takeSnsReturn } from "@/hooks/auth";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
@@ -41,7 +42,12 @@ function OAuthCallback() {
         const returnTo = takeSnsReturn();
         const me = await authApi.me().catch(() => null);
         if (me && !me.verified) {
-          router.replace("/signup/sns");
+          // 콜라보 로그인 창에서 시작한 처음 가입은 콜라보 가입(광고주 · 제휴사(콜라보)만)으로 잇는다.
+          router.replace(
+            returnTo?.startsWith("/partners")
+              ? `/signup/sns?${COLLAB_SIGNUP_QUERY}`
+              : "/signup/sns",
+          );
           return;
         }
         // 콜라보 로그인 창에서 시작했으면 보던 콜라보 화면으로. 아니면 제휴사(콜라보)는 대시보드, 그 외는 홈

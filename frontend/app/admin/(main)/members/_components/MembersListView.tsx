@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -7,7 +8,7 @@ import {
   CommonTable,
   type SearchParams,
 } from "@/components/common/Table/CommonTable";
-import { ExcelDownloadButton } from "@/components/common/buttons";
+import { FileDownIcon } from "@/components/icons";
 import { membersApi, useMembers } from "@/hooks/members";
 import { useSonner } from "@/hooks/useSonner";
 
@@ -98,7 +99,16 @@ export function MembersListView() {
           setPage(1);
         }}
         onRowClick={(item) => router.push(`/admin/members/${item.id}`)}
-        topRightContent={<ExcelDownloadButton onClick={handleExport} />}
+        topRightContent={
+          <Button
+            variant="outline"
+            onPress={handleExport}
+            className="border-[#4CA452] text-[#4CA452] data-[hovered]:bg-[#4CA452]/10"
+          >
+            <FileDownIcon className="size-[16px]" />
+            엑셀 다운로드
+          </Button>
+        }
       />
     </div>
   );

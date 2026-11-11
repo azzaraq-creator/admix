@@ -12,16 +12,23 @@ const GUARD_STATE = { unsavedChangesGuard: true };
  *   그 기록만 빠지고 화면은 그대로라, 그때 confirmLeave 를 띄워 나가기면 한 번 더 뒤로 간다.
  * - 화면 안 버튼: leave(href)로 이동하면 같은 확인을 거친다.
  * - 새로고침·탭 닫기: 브라우저 기본 확인창(beforeunload)만 띄울 수 있다.
+ * - interceptLinks: 메뉴 · 로고 같은 같은 사이트 링크(Next Link 포함)를 눌러도 같은 확인을 거친다.
+ *   새 탭으로 여는 링크 · 보조키(⌘ · Ctrl · Shift · Alt)를 누른 클릭은 그대로 둔다.
+ * - release(href): 저장 · 삭제처럼 묻지 않고 떠날 때 — 쌓아 둔 확인용 기록을 먼저 걷어 내,
+ *   다음 뒤로 가기가 같은 화면에서 헛돌지 않게 한다.
  */
 export function useUnsavedChangesGuard(
   when: boolean,
   confirmLeave: () => Promise<boolean>,
+  { interceptLinks = false }: { interceptLinks?: boolean } = {},
 ) {
   const router = useRouter();
   const whenRef = useRef(when);
   const confirmRef = useRef(confirmLeave);
   // 지금 쌓아 둔 확인용 기록이 맨 위에 있는지
   const guardedRef = useRef(false);
+  // release 가 확인용 기록을 걷어 낸 뒤(popstate) 이어 할 일
+  const pendingRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     whenRef.current = when;
@@ -37,6 +44,12 @@ export function useUnsavedChangesGuard(
 
   useEffect(() => {
     const onPopState = async () => {
+      const pending = pendingRef.current;
+      if (pending) {
+        pendingRef.current = null;
+        pending();
+        return;
+      }
       if (!guardedRef.current) return;
       guardedRef.current = false;
       // 그사이 저장했으면 묻지 않고 원래 하려던 뒤로 가기를 이어 간다.
@@ -78,5 +91,59 @@ export function useUnsavedChangesGuard(
     [router],
   );
 
-  return { leave };
+  const release = useCallback(
+    (href?: string, { replace = false }: { replace?: boolean } = {}) => {
+      const go = () => {
+        if (!href) return;
+        if (replace) router.replace(href);
+        else router.push(href);
+      };
+      if (!guardedRef.current) {
+        go();
+        return;
+      }
+      guardedRef.current = false;
+      pendingRef.current = go;
+      window.history.back();
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    if (!interceptLinks) return;
+    const onClick = (event: MouseEvent) => {
+      if (!whenRef.current || event.defaultPrevented) return;
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor = (event.target as Element | null)?.closest?.("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (
+        (anchor.target && anchor.target !== "_self") ||
+        anchor.hasAttribute("download")
+      )
+        return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // 같은 화면 안 이동(#…)은 막지 않는다.
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      )
+        return;
+      // 캡처 단계에서 멈춰 Next Link 의 이동(onClick)까지 가지 않게 한다.
+      event.preventDefault();
+      event.stopPropagation();
+      void leave(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [interceptLinks, leave]);
+
+  return { leave, release };
 }

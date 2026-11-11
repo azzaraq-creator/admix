@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { ADMIN_TOKEN_COOKIE } from "@/lib/adminToken";
 
+import { AdminAccessGate } from "./_components/AdminAccessGate";
 import { AdminSidebar } from "./_components/AdminSidebar";
 
 export default async function AdminMainLayout({
@@ -17,7 +18,9 @@ export default async function AdminMainLayout({
   return (
     <div className="flex min-h-dvh flex-col bg-tone-fafaf9 lg:flex-row">
       <AdminSidebar />
-      <main className="min-w-0 flex-1 p-[16px] lg:p-[32px]">{children}</main>
+      <main className="min-w-0 flex-1 p-[16px] lg:p-[32px]">
+        <AdminAccessGate>{children}</AdminAccessGate>
+      </main>
     </div>
   );
 }

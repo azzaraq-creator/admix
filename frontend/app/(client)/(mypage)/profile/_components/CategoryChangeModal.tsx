@@ -1,8 +1,13 @@
 "use client";
 
-import { Label, Radio, RadioGroup } from "@heroui/react";
-import { useState } from "react";
+import { RadioGroup } from "@heroui/react";
+import { Fragment, useState } from "react";
 
+import {
+  CATEGORY_GROUPS,
+  CategoryCard,
+} from "@/app/(client)/(auth)/signup/_components/CategoryStep";
+import { HEROUI_ACCENT_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { useUpdateProfile } from "@/hooks/auth";
 import { useSonner } from "@/hooks/useSonner";
@@ -17,15 +22,10 @@ import { cn } from "@/lib/utils";
 
 import { ProfileModalShell } from "./ProfileModalShell";
 
-/** 사업자 등록이 필요한 유형 — 바꿀 때 안내만 붙인다(인증 상태는 그대로 남는다). */
-const NEEDS_LICENSE: Partial<Record<MemberCategory, string>> = {
-  advertiser: "사업자등록증을 올리고 관리자 확인을 통과하면 AI 믹시를 무제한으로 쓸 수 있어요.",
-  agency: "사업자등록증을 올리고 관리자 확인을 통과하면 AI 믹시를 무제한으로 쓸 수 있어요.",
-  media_owner: "매체를 등록하려면 사업자등록증을 올려 주세요.",
-  partner: "매장을 등록하려면 사업자등록증을 올려 주세요. 콜라보 메뉴에서 매장을 등록할 수 있어요.",
-};
-
-/** 회원 유형 바꾸기 — 가입 후에도 언제든 직접 바꾼다. */
+/**
+ * 회원 유형 바꾸기 — 가입 후에도 언제든 직접 바꾼다.
+ * 유형을 고를 때 아래에 붙던 사업자등록증 안내(광고주 · 대행사 · 매체사 · 제휴사)는 뺐다(11-09 사용자: "이런 거 빼줘, 다른 것도").
+ */
 export function CategoryChangeModal({
   open,
   onOpenChange,
@@ -61,55 +61,54 @@ export function CategoryChangeModal({
           { member_category: value },
           {
             onSuccess: () => {
-              success(`회원 유형을 ${MEMBER_CATEGORY_LABEL[value]}(으)로 바꿨어요.`);
+              success(
+                `회원 유형을 ${MEMBER_CATEGORY_LABEL[value]}(으)로 바꿨어요.`,
+              );
               close(false);
             },
-            onError: (e) => error(extractApiError(e, "회원 유형을 바꾸지 못했어요.")),
+            onError: (e) =>
+              error(extractApiError(e, "회원 유형을 바꾸지 못했어요.")),
           },
         );
       }}
     >
+      {/* 가입 화면 회원 유형 단계와 같은 UI — 같은 카드(CategoryCard) · 같은 묶음과 구분선(11-09 사용자).
+          라디오 색은 HeroUI 기본값(HEROUI_ACCENT_SCOPE). 창이 가입 카드보다 좁아 이름 아래 설명(stacked)으로 둔다. */}
       <RadioGroup
         aria-label="회원 유형"
         value={value}
         onChange={(next) => {
           if (isMemberCategory(next)) setPicked(next);
         }}
-        className="flex flex-col gap-[8px]"
+        className={cn(
+          "flex w-full flex-col gap-[12px] sm:gap-[14px]",
+          HEROUI_ACCENT_SCOPE,
+        )}
       >
-        {MEMBER_CATEGORIES.map((c) => (
-          <Radio key={c.value} value={c.value} className="group mt-0 w-full">
-            <Radio.Content
-              className={cn(
-                "flex w-full cursor-pointer items-center gap-[10px] rounded-[15px] border border-gray-200 px-[14px] py-[10px] transition-colors data-[hovered=true]:border-gray-300",
-                "group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50",
-              )}
-            >
-              <Radio.Control>
-                <Radio.Indicator />
-              </Radio.Control>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <Label className="cursor-pointer text-[14px] font-semibold text-gray-900">
-                  {c.label}
-                  {c.value === current && (
-                    <span className="ml-[6px] text-[12px] font-medium text-gray-400">
-                      지금 유형
-                    </span>
-                  )}
-                </Label>
-                <span className="text-[12px] text-gray-500">
-                  {c.description.join(" ")}
-                </span>
-              </div>
-            </Radio.Content>
-          </Radio>
+        {CATEGORY_GROUPS.map((group, i) => (
+          <Fragment key={group.join("-")}>
+            {i > 0 && (
+              <div
+                role="separator"
+                className="h-px w-full shrink-0 bg-gray-200"
+              />
+            )}
+            <div className="flex w-full flex-col gap-[8px] sm:gap-[10px]">
+              {group.map((v) => {
+                const category = MEMBER_CATEGORIES.find((c) => c.value === v);
+                return category ? (
+                  <CategoryCard
+                    key={v}
+                    category={category}
+                    stacked
+                    badge={v === current ? "지금 유형" : undefined}
+                  />
+                ) : null;
+              })}
+            </div>
+          </Fragment>
         ))}
       </RadioGroup>
-      {value && value !== current && NEEDS_LICENSE[value] && (
-        <p className="mt-[12px] rounded-[12px] bg-gray-50 px-[12px] py-[8px] text-[12px] leading-[18px] text-gray-600">
-          {NEEDS_LICENSE[value]}
-        </p>
-      )}
       <button
         type="button"
         onClick={openMemberPlanModal}

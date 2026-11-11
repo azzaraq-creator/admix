@@ -1,6 +1,7 @@
 """SQLAlchemy 모델 패키지. lifespan 에서 import 되어 Base.metadata 에 등록됨."""
 from src.models.ad_session import AdMessage, AdSession, MessageRole
 from src.models.admin import Admin
+from src.models.advertiser_brand import AdvertiserBrand
 from src.models.admin_permission import AdminPermission
 from src.models.admin_refresh_token import AdminRefreshToken
 from src.models.faq import Faq
@@ -16,12 +17,23 @@ from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import PasswordReset, RefreshToken, SocialAccount, User
 from src.models.ai_recommend_job import AiRecommendJob
-from src.models.partners_store import PartnersStore
+from src.models.partners_store import PartnersStore, PartnersStoreRequest, PartnersStoreType
+from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto
+from src.models.collab_lead import CollabLead, CollabLeadSetting
 
 __all__ = [
     "AdMessage",
+    "AdvertiserBrand",
     "AiRecommendJob",
     "PartnersStore",
+    "PartnersStoreRequest",
+    "PartnersStoreType",
+    "Collab",
+    "CollabNotice",
+    "CollabParticipant",
+    "CollabPhoto",
+    "CollabLead",
+    "CollabLeadSetting",
     "AdSession",
     "MessageRole",
     "KeywordCategory",

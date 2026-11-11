@@ -228,11 +228,10 @@ function PhotoCard({
         isThumbnail ? "border-transparent" : "border-stroke",
       )}
     >
-      {/* 대표 사진 테두리 — 카드 안쪽에 그려 사진 위에 겹친다(바깥으로 두꺼워지지 않게). */}
       {isThumbnail && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border-2 border-primary"
+          className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border"
         />
       )}
       <div className="relative aspect-[4/3] w-full bg-zinc-100">

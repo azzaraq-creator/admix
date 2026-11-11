@@ -12,6 +12,7 @@ import {
   type RegisterOptions,
 } from "react-hook-form";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminMediaPreviewQuery,
   useAdminMediaDetail,
@@ -217,11 +218,7 @@ export function MediaFormView({ mode }: { mode: "create" | "edit" }) {
   const { data: detail } = useAdminMediaDetail(id);
 
   if (isEdit && !detail) {
-    return (
-      <p className="text-sm font-medium leading-[20px] text-disabled">
-        불러오는 중...
-      </p>
-    );
+    return <LoadingState />;
   }
 
   return <MediaForm mode={mode} id={id} detail={detail ?? null} />;

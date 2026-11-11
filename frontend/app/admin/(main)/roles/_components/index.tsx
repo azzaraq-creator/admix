@@ -30,6 +30,7 @@ export const ACCOUNT_STATUS_OPTIONS = [
 // 대시보드는 로그인 기본 페이지라 권한 대상에서 제외(모든 관리자 노출).
 export const PERMISSIONS = [
   "광고 매체 관리",
+  "콜라보 관리",
   "회원 관리",
   "AI 채팅 관리",
   "비즈니스 관리",
@@ -39,6 +40,8 @@ export const PERMISSIONS = [
 
 export const PERMISSION_KEYS: Record<string, string> = {
   "광고 매체 관리": "media",
+  // 콜라보 어드민(/admin/collab) 전체 — 제휴사 회원 · 매장 · 수정 요청 · 콜라보.
+  "콜라보 관리": "collab",
   "회원 관리": "member",
   "AI 채팅 관리": "chat",
   "비즈니스 관리": "business",

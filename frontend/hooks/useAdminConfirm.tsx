@@ -1,8 +1,7 @@
 "use client";
 
+import { AlertDialog, Button } from "@heroui/react";
 import { useCallback, useRef, useState, type ReactNode } from "react";
-
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 type AdminConfirmOptions = {
   title: string;
@@ -13,6 +12,10 @@ type AdminConfirmOptions = {
 
 type AdminConfirmState = AdminConfirmOptions & { mode: "confirm" | "alert" };
 
+/**
+ * 어드민 확인 · 알림 창(HeroUI AlertDialog). `const ok = await confirm({...})`, `await alert({...})`처럼 쓰고,
+ * 돌려받은 `confirmDialog` 를 화면 어딘가에 그려 둔다. 바깥을 누르거나 Esc 로 닫으면 취소(false).
+ */
 export function useAdminConfirm() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<AdminConfirmState | null>(null);
@@ -45,47 +48,41 @@ export function useAdminConfirm() {
   }, []);
 
   const confirmDialog = (
-    <Dialog
-      open={open}
+    <AlertDialog
+      isOpen={open}
       onOpenChange={(value) => {
         if (!value) settle(false);
       }}
     >
-      <DialogContent
-        className="z-[60] flex w-[460px] flex-col gap-[20px] p-[24px]"
-        backdropClassName="z-[60]"
-        backdropForceRender
-      >
-        <div className="flex flex-col gap-[8px]">
-          <p className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
-            {state?.title}
-          </p>
-          {state?.description && (
-            <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
-              {state.description}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center justify-end gap-[8px]">
-          {state?.mode === "confirm" && (
-            <button
-              type="button"
-              onClick={() => settle(false)}
-              className="rounded-[8px] bg-gray-100 px-[16px] py-[10px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200"
-            >
-              {state?.cancelText ?? "취소"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => settle(true)}
-            className="rounded-[8px] bg-primary px-[16px] py-[10px] text-sm font-medium leading-[20px] text-white transition-colors hover:bg-primary-800"
-          >
-            {state?.confirmText ?? "확인"}
-          </button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <AlertDialog.Backdrop isDismissable isKeyboardDismissDisabled={false}>
+        <AlertDialog.Container placement="center" size="sm">
+          <AlertDialog.Dialog className="rounded-[20px]">
+            <AlertDialog.Header>
+              <AlertDialog.Heading className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
+                {state?.title}
+              </AlertDialog.Heading>
+            </AlertDialog.Header>
+            {state?.description && (
+              <AlertDialog.Body>
+                <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
+                  {state.description}
+                </div>
+              </AlertDialog.Body>
+            )}
+            <AlertDialog.Footer>
+              {state?.mode === "confirm" && (
+                <Button variant="tertiary" onPress={() => settle(false)}>
+                  {state?.cancelText ?? "취소"}
+                </Button>
+              )}
+              <Button variant="primary" onPress={() => settle(true)}>
+                {state?.confirmText ?? "확인"}
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
+    </AlertDialog>
   );
 
   return { confirm, alert, confirmDialog };

@@ -87,6 +87,11 @@ export interface MemberDetail {
   company_name: string | null;
   position: string | null;
   industry: string | null;
+  /** 광고주 담당자 정보(068) — 이름 · 소속팀 · 명함 파일(/uploads/business-card/…). 직함은 position. */
+  contact_name: string | null;
+  department: string | null;
+  business_card_url: string | null;
+  business_card_name: string | null;
   marketing_consent: boolean;
   status: string;
   admin_memo: string | null;
@@ -107,6 +112,8 @@ export interface MemberUpdatePayload {
   company_name?: string | null;
   position?: string | null;
   industry?: string | null;
+  contact_name?: string | null;
+  department?: string | null;
   marketing_consent?: boolean;
   status?: string;
   admin_memo?: string | null;

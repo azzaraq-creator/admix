@@ -27,10 +27,14 @@ import {
 import {
   authKeys,
   useCancelBusinessRegistration,
+  useDeleteBusinessCard,
   useMe,
   useUpdateProfile,
+  useUploadBusinessCard,
   useUploadBusinessRegistration,
   useWithdraw,
+  type MeResponse,
+  type ProfileUpdatePayload,
 } from "@/hooks/auth";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { useAlertConfirm } from "@/hooks/useAlertConfirm";
@@ -50,7 +54,6 @@ import {
 import { clearUserToken } from "@/lib/userToken";
 import { cn } from "@/lib/utils";
 
-import { BrandImageRow } from "./BrandImageRow";
 import { CategoryChangeModal } from "./CategoryChangeModal";
 import { ContactEmailChangeModal } from "./ContactEmailChangeModal";
 import { PasswordChangeModal } from "./PasswordChangeModal";
@@ -61,6 +64,8 @@ import { PasswordChangeModal } from "./PasswordChangeModal";
  * - 회원 정보: 이름·전화번호·회사 이름은 "수정"을 눌러 그 자리에서 고치고, 사업자등록증 파일과
  *   마케팅 수신 동의까지 모아 아래 "저장하기"로 한 번에 저장한다. 연락받을 이메일·비밀번호는
  *   인증이 필요해 기존 모달로 바꾼다.
+ * - 담당자 정보(광고주만, 11-09 사용자): 회원 정보 아래 — 이름 · 직함 · 소속팀 · 명함. 따로 "저장하기".
+ *   브랜드 사진은 콜라보 "내 브랜드"(브랜드 여러 개)로 옮겨 여기서 뺐다.
  * 겉모양은 admix 톤 — 연회색 바탕 위 둥근 흰 카드, 검색바와 같은 회색 입력칸(선택·수정 중엔 흰색),
  * 보라는 강조(아바타·저장하기·스위치·상태)에만 쓴다. 문구는 "~어요" 말투.
  * 곡률 규칙: 높이/2 - 3px (입력칸·큰 버튼 40px → 17px, 작은 버튼 32px → 13px).
@@ -717,12 +722,6 @@ export function ProfileView() {
           })}
           {editableField("company_name", "회사 이름")}
 
-          {me?.member_category === "advertiser" && (
-            <Field label="브랜드 사진">
-              <BrandImageRow url={me.brand_image_url} />
-            </Field>
-          )}
-
           {!isGeneral && (
             <Field label="사업자등록증" alignTop>
               <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
@@ -885,6 +884,8 @@ export function ProfileView() {
           </div>
         </SectionCard>
 
+        {me.member_category === "advertiser" && <ContactCard me={me} />}
+
         {/* 회원 탈퇴는 눈에 띄지 않게 카드 아래 작은 글자 링크로 둔다. 자세한 안내는 확인창에서. */}
         <div className="flex justify-end px-[4px]">
           <button
@@ -912,6 +913,274 @@ export function ProfileView() {
         {confirmDialog}
       </div>
     </div>
+  );
+}
+
+type ContactKey = "contact_name" | "position" | "department";
+
+const CONTACT_FIELDS: { key: ContactKey; label: string; example: string }[] = [
+  { key: "contact_name", label: "이름", example: "예) 홍길동" },
+  { key: "position", label: "직함", example: "예) 팀장" },
+  { key: "department", label: "소속팀", example: "예) 브랜드마케팅팀" },
+];
+
+/** 명함 — 백엔드 BUSINESS_CARD_EXTENSIONS(사업자등록증 + WEBP) · 10MB. */
+const CARD_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".webp"];
+const CARD_ACCEPT = "application/pdf,image/png,image/jpeg,image/webp";
+
+/**
+ * 담당자 정보(광고주) — 이름 · 직함 · 소속팀은 "수정"을 눌러 그 자리에서 고치고, 명함은 끌어다 놓거나 골라 두었다가
+ * 아래 "저장하기"로 한 번에(회원 정보와 같은 방식). 가입 때 적은 값(선택)이 여기 들어온다. 직함은 어드민 회원 상세의 "직책"과 같은 값.
+ */
+function ContactCard({ me }: { me: MeResponse }) {
+  const queryClient = useQueryClient();
+  const updateProfile = useUpdateProfile();
+  const uploadCard = useUploadBusinessCard();
+  const deleteCard = useDeleteBusinessCard();
+  const { confirm, confirmDialog } = useAlertConfirm();
+  const { success, error: toastError } = useSonner();
+
+  const [drafts, setDrafts] = useState<Partial<Record<ContactKey, string>>>(
+    {},
+  );
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRefs = useRef<Partial<Record<ContactKey, HTMLInputElement>>>({});
+
+  const saved: Record<ContactKey, string> = {
+    contact_name: me.contact_name ?? "",
+    position: me.position ?? "",
+    department: me.department ?? "",
+  };
+  const changed = (Object.keys(drafts) as ContactKey[]).filter(
+    (key) => (drafts[key] ?? "").trim() !== saved[key],
+  );
+  const dirty = changed.length > 0 || pendingFile !== null;
+  const saving = updateProfile.isPending || uploadCard.isPending;
+  const cardUrl = me.business_card_url
+    ? `${API_BASE_URL}${me.business_card_url}`
+    : null;
+
+  const reset = () => {
+    setDrafts({});
+    setPendingFile(null);
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const pickFile = (file: File | null) => {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!CARD_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      setFileError("PDF · JPG · PNG · WEBP 파일만 올릴 수 있어요.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError("파일 크기는 10MB 이하만 가능해요.");
+      return;
+    }
+    setFileError(null);
+    setPendingFile(file);
+  };
+
+  const handleSave = async () => {
+    const payload: ProfileUpdatePayload = {};
+    for (const key of changed) payload[key] = (drafts[key] ?? "").trim();
+    const items = [
+      ...CONTACT_FIELDS.filter((f) => changed.includes(f.key)).map(
+        (f) => f.label,
+      ),
+      ...(pendingFile ? ["명함"] : []),
+    ];
+    try {
+      if (Object.keys(payload).length > 0)
+        await updateProfile.mutateAsync(payload);
+      if (pendingFile) await uploadCard.mutateAsync(pendingFile);
+      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      reset();
+      success("담당자 정보를 저장했어요", items.join(", "));
+    } catch (caught) {
+      toastError(
+        "담당자 정보를 저장하지 못했어요",
+        extractApiError(caught, "잠시 후 다시 시도해 주세요."),
+      );
+    }
+  };
+
+  const handleDeleteCard = async () => {
+    const ok = await confirm({
+      title: "명함을 지울까요?",
+      description: "올린 명함 파일이 담당자 정보에서 빠져요.",
+      confirmText: "삭제",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteCard.mutateAsync();
+    } catch (caught) {
+      toastError(
+        "명함을 지우지 못했어요",
+        extractApiError(caught, "잠시 후 다시 시도해 주세요."),
+      );
+    }
+  };
+
+  return (
+    <SectionCard title="담당자 정보">
+      {CONTACT_FIELDS.map(({ key, label, example }) => {
+        const editing = drafts[key] !== undefined;
+        return (
+          <Field key={key} label={label}>
+            <Input
+              ref={(el) => {
+                if (el) inputRefs.current[key] = el;
+              }}
+              aria-label={`담당자 ${label}`}
+              value={editing ? (drafts[key] ?? "") : saved[key]}
+              readOnly={!editing}
+              placeholder={editing ? example : "미입력"}
+              maxLength={50}
+              onChange={(event) =>
+                setDrafts((prev) => ({ ...prev, [key]: event.target.value }))
+              }
+              variant={editing ? "primary" : "secondary"}
+              fullWidth
+              className="h-[40px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
+            />
+            {editing ? (
+              <Button
+                isIconOnly
+                variant="outline"
+                aria-label={`${label} 수정 취소`}
+                onPress={() =>
+                  setDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  })
+                }
+                className={cn(FIELD_BUTTON, EDIT_TOGGLE_WIDTH)}
+              >
+                <XIcon className="size-[16px]" />
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onPress={() => {
+                  setDrafts((prev) => ({ ...prev, [key]: saved[key] }));
+                  requestAnimationFrame(() => inputRefs.current[key]?.focus());
+                }}
+                className={cn(FIELD_BUTTON, EDIT_TOGGLE_WIDTH)}
+              >
+                수정
+              </Button>
+            )}
+          </Field>
+        );
+      })}
+
+      <Field label="명함" alignTop>
+        <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={CARD_ACCEPT}
+            className="hidden"
+            onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
+          />
+          <div
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              pickFile(event.dataTransfer.files?.[0] ?? null);
+            }}
+            className={cn(
+              "flex w-full flex-col items-center gap-[4px] rounded-[18px] border border-dashed px-[14px] py-[16px] text-center transition-colors sm:gap-[6px] sm:px-[20px] sm:py-[22px]",
+              dragging
+                ? "border-primary-300 bg-primary-50"
+                : "border-gray-200 bg-gray-50",
+            )}
+          >
+            <span className="flex size-[36px] items-center justify-center rounded-full bg-surface sm:size-[44px]">
+              <Image src="/icons/upload.svg" alt="" width={16} height={20} />
+            </span>
+            <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
+              명함 파일을 올려 주세요
+            </p>
+            <p className="pb-[6px] text-[11px] text-gray-400 sm:text-[12px]">
+              끌어다 놓거나 파일을 골라 주세요 · 최대 10MB, PDF·JPG·PNG·WEBP
+            </p>
+            <Button
+              variant="secondary"
+              onPress={() => fileInputRef.current?.click()}
+              className={UPLOAD_BUTTON}
+            >
+              파일 선택
+            </Button>
+          </div>
+
+          {pendingFile ? (
+            <FileRow
+              name={pendingFile.name}
+              meta={formatSize(pendingFile.size)}
+              badge={{ label: "저장 대기", status: "waiting" }}
+              onRemove={() => {
+                setPendingFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              removeLabel="삭제"
+            />
+          ) : (
+            me.business_card_name && (
+              <FileRow
+                name={me.business_card_name}
+                href={cardUrl}
+                onRemove={handleDeleteCard}
+                removeLabel="명함 삭제"
+                removeDisabled={deleteCard.isPending}
+              />
+            )
+          )}
+
+          {fileError && (
+            <p className="text-[12px] text-danger max-sm:text-[11px]">
+              {fileError}
+            </p>
+          )}
+        </div>
+      </Field>
+
+      <div className="flex justify-end gap-[8px] border-t border-gray-100 py-[12px] sm:py-[16px]">
+        <Button
+          variant="tertiary"
+          isDisabled={!dirty || saving}
+          onPress={reset}
+          className={cn(FOOTER_BUTTON, "w-[96px] max-sm:w-auto max-sm:flex-[3]")}
+        >
+          취소
+        </Button>
+        <Button
+          variant="primary"
+          isDisabled={!dirty}
+          isPending={saving}
+          onPress={handleSave}
+          className={cn(
+            FOOTER_BUTTON,
+            "w-[120px] max-sm:w-auto max-sm:flex-[7]",
+          )}
+        >
+          저장하기
+        </Button>
+      </div>
+      {confirmDialog}
+    </SectionCard>
   );
 }
 

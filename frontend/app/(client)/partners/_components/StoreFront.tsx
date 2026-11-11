@@ -3,97 +3,108 @@
 import {
   Button,
   Chip,
+  Form,
   Input,
+  Label,
   Modal,
-  ProgressBar,
-  Spinner,
+  ScrollShadow,
+  Tabs,
+  TextArea,
+  TextField,
 } from "@heroui/react";
-import { Plus, Search, Star, X } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { ChevronRight, Search, Star } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 
+import { ChipInput } from "@/app/admin/(main)/collab/_components/ChipInput";
+import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { MediaImage } from "@/components/common/MediaImage";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { PartnersCardDetails } from "@/components/common/PartnersCardDetails";
 import { SquareCheck } from "@/components/common/SquareCheck";
 import {
-  ChevronRightBoldIcon,
-  EyeIcon,
-  LocationFilledIcon,
-} from "@/components/icons";
-import { partnersApi, useSavePartnersStore } from "@/hooks/partners";
-import { useAlertConfirm } from "@/hooks/useAlertConfirm";
+  BusinessHoursEditor,
+  ClosedDaysPicker,
+  hoursFromStore,
+  hoursIncomplete,
+  hoursPayload,
+} from "@/components/common/StoreHoursEditor";
+import { ChevronRightBoldIcon, LocationFilledIcon } from "@/components/icons";
+import { useCreateStoreRequest, useStoreRequests } from "@/hooks/partners";
 import { useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
-import { openAddressSearch } from "@/lib/daumPostcode";
+import type { DaumPostcodeResult } from "@/lib/daumPostcode";
 import { coordsOfAddress } from "@/lib/kakaoMap";
 import { mediaSrc } from "@/lib/media";
 import {
+  coverImageUrls,
+  noteTone,
   PARTNERS_MAX_IMAGES,
-  PARTNERS_MAX_TAGS,
   PARTNERS_MEDIA_CATEGORY,
   PARTNERS_MEDIA_SMALL,
+  PARTNERS_NOTE_MAX_LEN,
+  PARTNERS_TAG_MAX_LEN,
+  PHOTO_KIND_LABEL,
+  PHOTO_KINDS,
+  STORE_REQUEST_FIELDS,
   type PartnersStore,
-  type PartnersStorePayload,
+  type PhotoKind,
+  type StoreAddressValue,
+  type StoreHours,
+  type StoreRequest,
+  type StoreRequestField,
+  type StoreRequestStatus,
 } from "@/lib/partners";
+import { kstFullStamp } from "@/lib/partnersPreview";
+import {
+  formatStorePhoneInput,
+  STORE_PHONE_INPUT_MAX_LENGTH,
+} from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import {
-  PartnersClosedDays,
-  PartnersHoursRows,
-  formatHours,
-  parseHours,
-  type PartnersHours,
-} from "./PartnersHoursField";
-import { PartnersTagPicker } from "./PartnersStoreForm";
 import { StoreGalleryModal } from "./StoreGalleryModal";
 import { StoreLocationMap } from "./StoreLocationMap";
-import {
-  openStateAt,
-  openStateText,
-  useKstNow,
-  weeklyHours,
-  type OpenState,
-} from "./storeHours";
 import { PanelCard, SHADOW_FLOAT, StatusChip } from "./workspace/workspaceUi";
 
-/** 고치는 중인 매장 값 — 저장 전에도 미리보기에 바로 보인다(null 이면 고치는 중 아님). */
-type StoreDraft = Partial<PartnersStore> | null;
-
 /**
- * 내 매장(/partners/stores) — 사장님이 우리 매장을 보는 화면(손님용 전화 · 길찾기 같은 건 없다).
- *   ① 제목: 매장 이름만(고치는 건 모두 이 화면에서 바로 — 따로 넘어가는 수정 폼 없음).
- *   ② 왼쪽: 광고주에게 보이는 화면 미리보기(매체 찾기 목록 카드 모양, 점으로 사진 넘기기) + 매장 위치(홈 지도와 같은 핀).
- *      정보를 고치거나 사진을 바꾸면 바로 바뀐다(입력하는 중에도).
- *   ③ 오른쪽: 우리 매장 정보(매장명 · 주소 + 얼마나 채웠는지, 줄마다 그 자리에서 채우기 · 수정) + 사진첩(그 자리에서 더하기 · 지우기 · 대표 정하기).
+ * 내 매장(/partners/stores) — 사장님이 우리 매장을 보는 화면(2026-11-09: 읽기 전용).
+ * 매장 등록 · 수정은 admix 담당자가 어드민에서 한다(069). 바꾸고 싶은 줄을 누르면 그 항목의 새 값을 적어 보낸다(074).
+ *   ① 제목: 매장 이름(모바일은 "광고주 화면" 버튼도).
+ *   ② 왼쪽: 광고주에게 보이는 화면 미리보기(매체 찾기 목록 카드 모양) + 매장 위치.
+ *   ③ 오른쪽: 우리 매장 정보(줄마다 수정 요청) + 사진첩(분류 탭 · 스크롤).
+ *   ④ 아래: 수정 기록 — 무엇을 무엇에서 무엇으로, 처리 상태, 처리 불가 사유, 마지막 업데이트.
  */
 export function StoreFront({
   store,
   bizStatus,
-  onDelete,
 }: {
   store: PartnersStore;
   bizStatus: string;
-  onDelete: () => void;
 }) {
-  const now = useKstNow();
-  const state = now
-    ? openStateAt(weeklyHours(store.businessHours), now.day, now.min)
-    : null;
-  const photos = useStorePhotos(store);
   // 갤러리 창 — 몇 번째 사진을 열었는지(null 이면 닫힘).
   const [gallery, setGallery] = useState<number | null>(null);
-  const [draft, setDraft] = useState<StoreDraft>(null);
-  const preview = draft ? { ...store, ...draft } : store;
   // 모바일 — 광고주에게 보이는 화면은 제목 옆 버튼으로 여는 창에서 본다.
   const [previewOpen, setPreviewOpen] = useState(false);
+  // 수정 요청 창 — 고른 항목. 닫는 동안에도 내용이 보이게 항목은 남겨 두고, 열 때마다 입력을 새로(key).
+  const [request, setRequest] = useState<{
+    field: StoreRequestField;
+    open: boolean;
+    key: number;
+  } | null>(null);
+  const { data: requests, isPending: requestsPending } = useStoreRequests(
+    store.id,
+  );
+  // 항목마다 확인 중인 요청 — 그 줄에 "확인 중"을 붙이고, 창은 그 값으로 시작한다.
+  const pendingOf = useMemo(() => {
+    const out = new Map<StoreRequestField, StoreRequest>();
+    for (const r of requests ?? [])
+      if (r.status === "pending" && r.field && !out.has(r.field))
+        out.set(r.field, r);
+    return out;
+  }, [requests]);
+  const openRequest = (field: StoreRequestField) =>
+    setRequest((prev) => ({ field, open: true, key: (prev?.key ?? 0) + 1 }));
 
   return (
     <div className="flex flex-col gap-[16px] sm:gap-[20px]">
@@ -105,58 +116,61 @@ export function StoreFront({
        */}
       <div className="grid gap-[16px] sm:gap-[20px] lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[auto_auto]">
         <PreviewCard
-          store={preview}
+          store={store}
           onOpen={setGallery}
           className="max-sm:hidden"
         />
-        <LocationCard store={preview} className="max-sm:order-3" />
+        <LocationCard store={store} className="max-sm:order-3" />
         <ProfileCard
           store={store}
           bizStatus={bizStatus}
-          state={state}
-          photos={photos}
-          onDraft={setDraft}
+          pendingOf={pendingOf}
+          onRequest={openRequest}
           className="max-sm:order-1"
         />
         <PhotoAlbum
           store={store}
-          photos={photos}
           onOpen={setGallery}
           className="max-sm:order-2"
         />
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-gray-400 hover:text-danger"
-          onPress={onDelete}
-        >
-          매장 삭제
-        </Button>
-      </div>
+      <HistoryCard requests={requests} isPending={requestsPending} />
 
       <PreviewModal
-        store={preview}
+        store={store}
         isOpen={previewOpen}
         onOpenChange={setPreviewOpen}
         onOpen={setGallery}
       />
+      {request && (
+        <RequestModal
+          key={request.key}
+          store={store}
+          field={request.field}
+          pending={pendingOf.get(request.field)}
+          isOpen={request.open}
+          onOpenChange={(open) =>
+            setRequest((prev) => (prev ? { ...prev, open } : prev))
+          }
+        />
+      )}
       <StoreGalleryModal
         images={store.imageUrls}
+        captions={store.imageUrls.map(
+          (url) => store.images.find((p) => p.url === url)?.memo,
+        )}
         name={store.name}
         index={gallery}
         onIndexChange={setGallery}
       />
-      {photos.element}
     </div>
   );
 }
 
 /**
- * ① 제목 — 매장 이름만(매장명은 우리 매장 정보에서 바로 고친다).
- * 모바일은 오른쪽에 "광고주 화면" 버튼 — 미리보기 카드를 창으로 연다(버튼 32px → 곡률 13px).
+ * ① 제목 — 매장 이름만. 고칠 곳은 우리 매장 정보의 줄을 눌러 요청한다(11-10 사용자: 제목의 "수정 요청" 버튼 없앰).
+ * 모바일은 "광고주 화면" 버튼 — 미리보기 카드를 창으로 연다(버튼 32px → 곡률 13px).
  */
 function TitleBar({
   store,
@@ -166,7 +180,8 @@ function TitleBar({
   onPreview: () => void;
 }) {
   return (
-    <header className="max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-[12px]">
+    <header className="flex flex-wrap items-center justify-between gap-[12px]">
+      {/* 매장 ID(S-0001)는 담당자용이라 제휴사 화면엔 보이지 않는다(2026-11-09 사용자). */}
       <h1 className="min-w-0 text-[22px] leading-[1.35] font-bold break-keep text-gray-900 sm:text-[26px]">
         {store.name}
       </h1>
@@ -206,7 +221,13 @@ function PreviewCard({
       className={cn("gap-[14px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
     >
       <SectionHead
-        icon={<EyeIcon className="size-[18px]" />}
+        // fill-eye — 모바일 "광고주 화면" 버튼 · 창 제목과 같은 눈 아이콘(11-09 사용자). 파일 비율 그대로 18×16.
+        icon={
+          <MaskIcon
+            src="/icons/fill-eye.svg"
+            className="h-[16px] w-[18px] shrink-0"
+          />
+        }
         title="광고주에게 보이는 화면"
         description="admix 홈 매체 찾기 목록에 이 카드로 보여요."
       />
@@ -223,7 +244,9 @@ function PreviewFrame({
   store: PartnersStore;
   onOpen: (i: number) => void;
 }) {
-  const slides = store.imageUrls.length ? store.imageUrls : [undefined];
+  // 매체 찾기 카드처럼 분류별 대표 사진만. 누르면 전체 사진(갤러리)에서 그 사진 자리로.
+  const covers = coverImageUrls(store);
+  const slides = covers.length ? covers : [undefined];
   // 모바일은 회색 틀 여백을 8px로 — 카드 안 틀 안 카드라 좁은 화면에선 미리보기가 너무 작아졌다.
   return (
     <div className="rounded-[22px] bg-gray-50 p-[8px] ring-1 ring-gray-100 max-sm:rounded-[20px] sm:p-[16px]">
@@ -234,7 +257,9 @@ function PreviewFrame({
           slides={slides}
           sizes="400px"
           className="h-[199px] w-full"
-          onSlideClick={onOpen}
+          onSlideClick={(i) =>
+            onOpen(Math.max(0, store.imageUrls.indexOf(covers[i] ?? "")))
+          }
         />
         {/* 여기부터 매체 찾기 목록 카드(MediaFindCard 콜라보)와 같은 크기 · 여백 · 글자. */}
         <div className="flex flex-col px-[10px] pt-[11px]">
@@ -359,160 +384,6 @@ function LocationCard({
   );
 }
 
-type StorePhotos = ReturnType<typeof useStorePhotos>;
-
-/**
- * 사진 올리기 · 지우기 · 대표 사진 정하기 — 그 자리에서 바로 저장한다(image_urls).
- * 대표 사진은 첫 번째 사진. 한 작업이 끝나기 전엔 다른 사진 작업을 막는다(busy) — 순서가 엉켜 사진이 빠지지 않게.
- * element(숨은 파일 고르기 칸 · 지우기 확인창)는 화면 어딘가에 한 번 그려 둔다.
- */
-function useStorePhotos(store: PartnersStore) {
-  const save = useSavePartnersStore();
-  const { success, error, deleted } = useSonner();
-  const { confirm, confirmDialog } = useAlertConfirm();
-  const fileRef = useRef<HTMLInputElement>(null);
-  // 올리는 중인 장수 · 대표 바꾸기나 지우기 중인 사진.
-  const [uploading, setUploading] = useState(0);
-  const [working, setWorking] = useState<string | null>(null);
-  const images = store.imageUrls;
-  const room = PARTNERS_MAX_IMAGES - images.length;
-  const busy = uploading > 0 || working !== null;
-
-  const saveImages = (next: string[]) =>
-    save.mutateAsync({ id: store.id, payload: { image_urls: next } });
-
-  const upload = async (files: File[]) => {
-    if (!files.length || busy) return;
-    const picked = files.slice(0, Math.max(room, 0));
-    if (files.length > room)
-      error(`매장 사진은 최대 ${PARTNERS_MAX_IMAGES}장까지 올릴 수 있어요.`);
-    if (!picked.length) return;
-    setUploading(picked.length);
-    const urls: string[] = [];
-    for (const file of picked) {
-      try {
-        urls.push(await partnersApi.uploadImage(file));
-      } catch (e) {
-        error(extractApiError(e, "사진을 올리지 못했어요."), file.name);
-      }
-    }
-    try {
-      if (urls.length) {
-        await saveImages([...images, ...urls].slice(0, PARTNERS_MAX_IMAGES));
-        success(
-          images.length
-            ? `사진 ${urls.length}장을 더했어요.`
-            : "사진을 올렸어요.",
-          images.length ? undefined : "첫 사진이 대표 사진이 돼요.",
-        );
-      }
-    } catch (e) {
-      error(extractApiError(e, "사진을 저장하지 못했어요."));
-    } finally {
-      setUploading(0);
-    }
-  };
-
-  const makeCover = async (url: string) => {
-    if (busy || images[0] === url) return;
-    setWorking(url);
-    try {
-      await saveImages([url, ...images.filter((u) => u !== url)]);
-      success("대표 사진을 바꿨어요.");
-    } catch (e) {
-      error(extractApiError(e, "대표 사진을 바꾸지 못했어요."));
-    } finally {
-      setWorking(null);
-    }
-  };
-
-  const remove = async (url: string) => {
-    if (busy) return;
-    const ok = await confirm({
-      title: "이 사진을 지울까요?",
-      description:
-        images[0] === url && images.length > 1
-          ? "대표 사진이라 다음 사진이 대표 사진이 돼요."
-          : "사진첩과 광고주에게 보이는 화면에서 빠져요.",
-      confirmText: "지우기",
-      destructive: true,
-      icon: "trash",
-    });
-    if (!ok) return;
-    setWorking(url);
-    try {
-      await saveImages(images.filter((u) => u !== url));
-      deleted("사진을 지웠어요.");
-    } catch (e) {
-      error(extractApiError(e, "사진을 지우지 못했어요."));
-    } finally {
-      setWorking(null);
-    }
-  };
-
-  return {
-    images,
-    uploading,
-    working,
-    busy,
-    canAdd: room > 0,
-    pick: () => fileRef.current?.click(),
-    makeCover,
-    remove,
-    element: (
-      <>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          multiple
-          hidden
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            // 같은 사진을 다시 골라도 바뀜이 일어나게 비운다.
-            e.target.value = "";
-            void upload(files);
-          }}
-        />
-        {confirmDialog}
-      </>
-    ),
-  };
-}
-
-const BIZ: Record<string, { label: string; tone: "green" | "amber" | "red" }> =
-  {
-    verified: { label: "사업자 인증 완료", tone: "green" },
-    reviewing: { label: "사업자 인증 검토 중", tone: "amber" },
-    rejected: { label: "사업자 인증 반려", tone: "red" },
-  };
-
-/** 영업 상태 줄 — "● 영업 중 · 18:00까지"(운영 시간 줄 아래). */
-function OpenLine({ state }: { state: OpenState }) {
-  const [word, rest] = openStateText(state);
-  const open = state.kind === "open";
-  return (
-    <span className="flex flex-wrap items-center gap-x-[6px] text-[12px]">
-      <span
-        className={cn(
-          "flex items-center gap-[5px] font-bold",
-          open ? "text-emerald-600" : "text-gray-600",
-        )}
-      >
-        <span
-          aria-hidden
-          className={cn(
-            "size-[6px] rounded-full",
-            open ? "bg-emerald-500" : "bg-gray-400",
-          )}
-        />
-        {word}
-      </span>
-      {rest && <span className="text-gray-500">{rest}</span>}
-    </span>
-  );
-}
-
 /** 카드 제목 — 아이콘 + 제목 + 한 줄 설명(+ 오른쪽). */
 function SectionHead({
   icon,
@@ -522,7 +393,7 @@ function SectionHead({
 }: {
   icon: ReactNode;
   title: string;
-  description?: string;
+  description?: ReactNode;
   right?: ReactNode;
 }) {
   return (
@@ -543,150 +414,101 @@ function SectionHead({
   );
 }
 
-/** 그 자리에서 고치는 칸 — 매장 사진은 바로 파일 고르기라 따로 없다. */
-type FillKey = "name" | "address" | "hours" | "phone" | "owner" | "tags";
+const BIZ: Record<string, { label: string; tone: "green" | "amber" | "red" }> =
+  {
+    verified: { label: "사업자 인증 완료", tone: "green" },
+    provisional: { label: "임시 승인", tone: "amber" },
+    reviewing: { label: "사업자 인증 검토 중", tone: "amber" },
+    rejected: { label: "사업자 인증 반려", tone: "red" },
+  };
+
+/** 조건 메모 칩 색 — 안 되는 것 빨강 · 되는 것 초록 · 그 밖 회색(lib/partners noteTone). */
+const NOTE_CHIP = {
+  no: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
+  ok: "bg-emerald-50 text-emerald-700 dark:bg-success-bg dark:text-success",
+  info: "bg-gray-100 text-gray-600",
+} as const;
+
+/** 항목의 지금 값 — 우리 매장 정보 · 수정 요청 창 "현재 내용" 칸에 보이는 글. 비었으면 null. */
+function storeFieldText(
+  store: PartnersStore,
+  field: StoreRequestField,
+): string | null {
+  switch (field) {
+    case "name":
+      return store.name;
+    case "address":
+      return (
+        [store.address, store.addressDetail].filter(Boolean).join(" ") || null
+      );
+    case "hours":
+      return store.businessHours || null;
+    case "phone":
+      return store.phone || null;
+    case "owner_name":
+      return store.ownerName || null;
+    case "tags":
+      return store.tags.join(", ") || null;
+    case "notes":
+      return store.notes.join(", ") || null;
+  }
+}
 
 /**
- * 비워 둘 수 있는 칸(선택 항목) — 줄 오른쪽 휴지통으로 지울 때 보낼 값.
- * 매장명 · 주소는 꼭 있어야 하고, 사진은 아래 사진첩에서 한 장씩 지운다.
- */
-const CLEAR_PAYLOAD: Partial<Record<FillKey, PartnersStorePayload>> = {
-  hours: { business_hours: null },
-  phone: { phone: null },
-  owner: { owner_name: null },
-  tags: { tags: [] },
-};
-
-/**
- * ③ 우리 매장 정보 — 일곱 가지를 얼마나 채웠는지(막대) + 한 줄씩(매장명 · 주소는 필수라 늘 채움).
- * 빈 줄은 "채우기", 채운 줄은 "수정" — 그 줄 아래에서 바로 저장한다(사진은 비었을 때만 곧장 파일 고르기).
- * 입력하는 동안 값을 onDraft 로 올려 미리보기에 바로 보인다.
+ * ③ 우리 매장 정보 — 한 줄씩 읽기만. 줄을 누르면 그 항목의 수정 요청 창(11-10 사용자: "원하는 부분을 선택해서").
+ * 확인 중인 요청이 있는 줄은 "확인 중". 조건(포스터 부착 불가 · 신규 메뉴 가능 …)은 담당자가 적은 메모를 칩으로.
+ * 설명 줄은 임시 승인일 때만 — 사업자등록증을 꼭 올려 달라는 부탁(11-10 사용자).
  */
 function ProfileCard({
   store,
   bizStatus,
-  state,
-  photos,
-  onDraft,
+  pendingOf,
+  onRequest,
   className,
 }: {
   store: PartnersStore;
   bizStatus: string;
-  state: OpenState | null;
-  photos: StorePhotos;
-  onDraft: (draft: StoreDraft) => void;
+  pendingOf: Map<StoreRequestField, StoreRequest>;
+  onRequest: (field: StoreRequestField) => void;
   className?: string;
 }) {
-  const [editing, setEditing] = useState<FillKey | null>(null);
-  const save = useSavePartnersStore();
-  const { error, deleted } = useSonner();
-  const { confirm, confirmDialog } = useAlertConfirm();
-  const [clearing, setClearing] = useState<FillKey | null>(null);
-  // 선택 항목 지우기 — 사진 지우기처럼 확인창(빨간 휴지통) 뒤 바로 저장.
-  const clear = async (key: FillKey) => {
-    const payload = CLEAR_PAYLOAD[key];
-    if (!payload || clearing) return;
-    const ok = await confirm({
-      title: `${FIELD_OBJECT[key]} 지울까요?`,
-      description:
-        "광고주에게 보이는 매장 정보에서 빠져요. 언제든 다시 채울 수 있어요.",
-      confirmText: "지우기",
-      destructive: true,
-      icon: "trash",
-    });
-    if (!ok) return;
-    setClearing(key);
-    try {
-      await save.mutateAsync({ id: store.id, payload });
-      deleted(`${FIELD_OBJECT[key]} 지웠어요.`);
-      // 편집 카드에서 지웠으니 카드를 닫는다(빈 줄 "채우기"로 돌아감).
-      setEditing(null);
-      onDraft(null);
-    } catch (e) {
-      error(extractApiError(e, "지우지 못했어요."));
-    } finally {
-      setClearing(null);
-    }
-  };
-  const openEditor = (key: FillKey) => {
-    onDraft(null);
-    setEditing(key);
-  };
-  const closeEditor = () => {
-    setEditing(null);
-    onDraft(null);
-  };
-
-  const photoCount = store.imageUrls.length;
-  // 일곱 칸 모두 "채운 정보"에 센다 — 매장명 · 주소는 등록할 때 꼭 넣어 늘 채워져 있다.
-  const items: {
-    key: FillKey | "photos";
-    label: string;
-    value: ReactNode;
-    filled: boolean;
-  }[] = [
-    { key: "name", label: "매장명", value: store.name, filled: true },
+  const rows: { field: StoreRequestField; value: ReactNode }[] = [
+    { field: "name", value: store.name },
     {
-      key: "address",
-      label: "주소",
+      field: "address",
       value: [store.address, store.addressDetail].filter(Boolean).join(" "),
-      filled: true,
     },
+    { field: "hours", value: store.businessHours },
+    { field: "phone", value: store.phone },
+    { field: "owner_name", value: store.ownerName },
+    { field: "tags", value: store.tags.join(", ") },
     {
-      key: "photos",
-      label: "매장 사진",
-      value: `${photoCount}장`,
-      filled: photoCount > 0,
-    },
-    {
-      key: "hours",
-      label: "운영 시간",
-      value: (
-        <span className="flex flex-col gap-[3px]">
-          <span>{store.businessHours}</span>
-          {state && <OpenLine state={state} />}
+      field: "notes",
+      value: store.notes.length ? (
+        <span className="flex flex-wrap gap-[6px]">
+          {store.notes.map((n) => (
+            <Chip
+              key={n}
+              size="sm"
+              className={cn(
+                "h-[24px] rounded-[9px] px-[8px] text-[12px] font-semibold",
+                NOTE_CHIP[noteTone(n)],
+              )}
+            >
+              {n}
+            </Chip>
+          ))}
         </span>
-      ),
-      filled: Boolean(store.businessHours),
-    },
-    {
-      key: "phone",
-      label: "매장 번호",
-      value: store.phone,
-      filled: Boolean(store.phone),
-    },
-    {
-      key: "owner",
-      label: "사장님",
-      value: store.ownerName,
-      filled: Boolean(store.ownerName),
-    },
-    {
-      key: "tags",
-      label: "매장 특징",
-      value: store.tags.join(", "),
-      filled: store.tags.length > 0,
+      ) : null,
     },
   ];
-  const filled = items.filter((r) => r.filled).length;
-  const complete = filled === items.length;
   const biz = BIZ[bizStatus];
-  // 매체 찾기에 안 보이는 까닭 — 숨김이거나 주소 좌표가 없을 때(서버 sync_media).
+  // 매체 찾기에 안 보이는 까닭 — 비공개이거나 주소 좌표가 없을 때(서버 sync_media).
   const hiddenReason = store.mediaId
     ? null
     : store.status === "hidden"
-      ? "관리자가 숨겨 둔 매장이에요."
-      : "주소로 위치를 찾지 못했어요. 주소를 확인해 주세요.";
-
-  const editorOf = (key: FillKey) =>
-    editing === key ? (
-      <FillEditor
-        field={key}
-        store={store}
-        onDraft={onDraft}
-        onClose={closeEditor}
-      />
-    ) : null;
+      ? "관리자가 비공개로 둔 매장이에요."
+      : "주소로 위치를 찾지 못했어요. 주소 줄을 눌러 바른 주소를 알려 주세요.";
 
   return (
     <PanelCard
@@ -695,6 +517,19 @@ function ProfileCard({
       <SectionHead
         icon={<MaskIcon src="/icons/store.svg" className="size-[18px]" />}
         title="우리 매장 정보"
+        description={
+          bizStatus === "provisional" ? (
+            <span className="text-amber-700 dark:text-warning">
+              지금은 임시 승인이에요. 사업자등록증을 꼭 올려 주세요.{" "}
+              <Link
+                href="/partners/profile"
+                className="font-semibold whitespace-nowrap underline underline-offset-2"
+              >
+                내 정보에서 올리기
+              </Link>
+            </span>
+          ) : undefined
+        }
         right={
           <StatusChip tone={biz?.tone ?? "gray"}>
             {biz?.label ?? "사업자 인증 전"}
@@ -710,652 +545,680 @@ function ProfileCard({
           매체 찾기에 안 보여요. {hiddenReason}
         </p>
       )}
-      <ProgressBar
-        aria-label="매장 정보 채운 정도"
-        value={filled}
-        maxValue={items.length}
-        size="sm"
-        className="flex flex-col gap-[6px]"
-      >
-        <div className="flex items-baseline justify-between text-[12px]">
-          <span className="font-semibold text-gray-500">채운 정보</span>
-          <span className="text-gray-500 tabular-nums">
-            <b className="text-[14px] text-gray-900">{filled}</b> /{" "}
-            {items.length}
-          </span>
-        </div>
-        <ProgressBar.Track className="w-full">
-          <ProgressBar.Fill
-            className={complete ? "bg-emerald-500" : "bg-primary-500"}
-          />
-        </ProgressBar.Track>
-      </ProgressBar>
-      <ul className="flex flex-col">
-        {items.map((r) => {
-          // 매장 사진 — 채운 뒤엔 버튼 없이 장수만(더하기 · 지우기는 아래 사진첩에서). 비었을 때만 바로 올리기.
-          if (r.key === "photos") {
-            return (
-              <ProfileRow key={r.key} label={r.label} done={r.filled}>
-                {photos.uploading > 0 ? (
-                  <span className="flex items-center gap-[6px] text-gray-500">
-                    <Spinner size="sm" />
-                    올리는 중
-                  </span>
-                ) : r.filled ? (
-                  <span className="text-gray-900">{r.value}</span>
-                ) : (
-                  <FillButton onPress={photos.pick} isDisabled={photos.busy} />
-                )}
-              </ProfileRow>
-            );
-          }
-          const key = r.key;
-          const open = editing === key;
+      <ul className="-mx-[8px] flex flex-col">
+        {rows.map((r) => {
+          const label = STORE_REQUEST_FIELDS[r.field];
+          const filled = Boolean(r.value);
+          const pending = pendingOf.has(r.field);
           return (
-            <ProfileRow
-              key={key}
-              label={r.label}
-              done={r.filled}
-              editing={open}
-              action={
-                r.filled &&
-                !open && <EditButton onPress={() => openEditor(key)} />
-              }
-              // 선택 항목을 고칠 때만 편집 카드 오른쪽 위에 휴지통(빈 칸을 채우는 중엔 지울 게 없다).
-              editAction={
-                r.filled &&
-                CLEAR_PAYLOAD[key] && (
-                  <ClearButton
-                    label={r.label}
-                    onPress={() => void clear(key)}
-                    isPending={clearing === key}
-                    isDisabled={clearing !== null}
-                  />
-                )
-              }
-              editor={editorOf(key)}
-            >
-              {r.filled ? (
-                <span className="break-keep text-gray-900">{r.value}</span>
-              ) : open ? null : (
-                <FillButton onPress={() => openEditor(key)} />
-              )}
-            </ProfileRow>
+            <li key={r.field}>
+              {/* 줄 전체가 버튼 — 누르면 그 항목 수정 요청. 모바일은 이름 위(12px) · 값 아래(13px)(11-08 사용자). */}
+              <button
+                type="button"
+                onClick={() => onRequest(r.field)}
+                aria-label={`${label} 수정 요청${pending ? " (확인 중)" : ""}`}
+                className="group flex w-full items-start gap-[10px] rounded-[12px] px-[8px] py-[9px] text-left text-[14px] leading-[20px] outline-none transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary max-sm:gap-[8px]"
+              >
+                <SquareCheck
+                  on={filled}
+                  label={filled ? "채움" : "비어 있음"}
+                  className="mt-[1px]"
+                />
+                <span className="flex min-w-0 flex-1 gap-[10px] max-sm:flex-col max-sm:gap-[2px]">
+                  <span className="w-[64px] shrink-0 text-gray-500 max-sm:w-auto max-sm:text-[12px] max-sm:leading-[18px]">
+                    {label}
+                  </span>
+                  <span className="min-w-0 flex-1 break-keep max-sm:text-[13px] max-sm:leading-[19px]">
+                    {filled ? (
+                      <span className="text-gray-900">{r.value}</span>
+                    ) : (
+                      <span className="text-gray-400">비어 있어요</span>
+                    )}
+                  </span>
+                </span>
+                {pending ? (
+                  <StatusChip tone="amber" className="shrink-0">
+                    확인 중
+                  </StatusChip>
+                ) : (
+                  <span className="flex shrink-0 items-center gap-[1px] text-[12px] font-semibold text-gray-400 transition-colors group-hover:text-primary-600">
+                    수정 요청
+                    <ChevronRight className="size-[14px]" />
+                  </span>
+                )}
+              </button>
+            </li>
           );
         })}
       </ul>
-      {confirmDialog}
     </PanelCard>
   );
 }
 
 /**
- * 빈 줄 — 보라 "채우기"(값 자리).
- * 모바일은 작은 회색 테두리 알약(+ 채우기, 24px → 곡률 9px) — 11-08 사용자: "작게, 다른 색깔로".
- */
-function FillButton({
-  onPress,
-  isDisabled,
-}: {
-  onPress: () => void;
-  isDisabled?: boolean;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onPress={onPress}
-      isDisabled={isDisabled}
-      className="-my-[4px] -ml-[8px] h-[28px] px-[8px] text-[14px] font-semibold text-primary-600 max-sm:mx-0 max-sm:mt-[3px] max-sm:mb-0 max-sm:h-[24px] max-sm:min-w-0 max-sm:gap-[2px] max-sm:rounded-[9px] max-sm:border max-sm:border-gray-300 max-sm:bg-surface max-sm:pr-[8px] max-sm:pl-[6px] max-sm:text-[12px] max-sm:text-gray-700 max-sm:data-[hovered=true]:bg-gray-50"
-    >
-      <Plus className="size-[12px] sm:hidden" strokeWidth={2.5} />
-      채우기
-    </Button>
-  );
-}
-
-/** 채운 줄 — 오른쪽 끝 옅은 "수정". */
-function EditButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onPress={onPress}
-      className="-my-[4px] -mr-[6px] h-[28px] min-w-0 shrink-0 rounded-[11px] px-[8px] text-[13px] font-semibold text-gray-400 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600 max-sm:text-[12px]"
-    >
-      수정
-    </Button>
-  );
-}
-
-/** 선택 항목 편집 카드 오른쪽 위 휴지통(trash.svg) — 마우스를 올리면 빨갛게. */
-function ClearButton({
-  label,
-  onPress,
-  isPending,
-  isDisabled,
-}: {
-  label: string;
-  onPress: () => void;
-  isPending: boolean;
-  isDisabled: boolean;
-}) {
-  return (
-    <Button
-      isIconOnly
-      variant="ghost"
-      size="sm"
-      aria-label={`${label} 지우기`}
-      onPress={onPress}
-      isDisabled={isDisabled}
-      className="size-[28px] min-w-0 shrink-0 rounded-[11px] p-0 text-gray-400 data-[hovered=true]:bg-error-bg data-[hovered=true]:text-red-500"
-    >
-      {isPending ? (
-        <Spinner size="sm" />
-      ) : (
-        <MaskIcon src="/icons/trash.svg" className="size-[15px]" />
-      )}
-    </Button>
-  );
-}
-
-function ProfileRow({
-  label,
-  done,
-  editing = false,
-  action,
-  editAction,
-  editor,
-  children,
-}: {
-  label: string;
-  done: boolean;
-  /** 고치는 중 — 줄이 그 자리에서 보라 테두리 편집 카드로 바뀐다(지금 값 대신 입력 칸). */
-  editing?: boolean;
-  /** 줄 오른쪽 끝 버튼(수정). */
-  action?: ReactNode;
-  /** 편집 카드 오른쪽 위 버튼(선택 항목 휴지통). */
-  editAction?: ReactNode;
-  /** 고치는 중에 보일 입력 칸. */
-  editor?: ReactNode;
-  children: ReactNode;
-}) {
-  // 채운 줄 초록 square-check, 빈 줄은 같은 둥근 네모 점선(콜라보 진행 체크리스트와 같다).
-  const marker = (
-    <SquareCheck
-      on={done}
-      label={done ? "채움" : "비어 있음"}
-      className="mt-[1px]"
-    />
-  );
-
-  if (editing && editor) {
-    return (
-      // 카드를 양옆으로 12px 넓혀(-mx) 표시 아이콘이 다른 줄과 같은 자리에 오게 한다.
-      <li className="py-[6px]">
-        <div className="-mx-[12px] rounded-[18px] bg-primary-50/70 p-[12px] ring-1 ring-primary-200">
-          <div className="flex items-center gap-[10px] text-[14px] leading-[20px] max-sm:gap-[8px] max-sm:text-[13px]">
-            {marker}
-            <span className="font-semibold text-primary-700">{label}</span>
-            {editAction && (
-              <span className="-my-[4px] -mr-[4px] ml-auto">{editAction}</span>
-            )}
-          </div>
-          <div className="mt-[10px]">{editor}</div>
-        </div>
-      </li>
-    );
-  }
-  return (
-    <li className="py-[9px]">
-      {/* 모바일은 이름 위(12px) · 값 아래(13px) — 11-08 사용자: "라벨과 입력값을 위, 아래로", "폰트를 줄여줘". */}
-      <div className="flex items-start gap-[10px] text-[14px] leading-[20px] max-sm:gap-[8px]">
-        {marker}
-        <span className="flex min-w-0 flex-1 gap-[10px] max-sm:flex-col max-sm:gap-[2px]">
-          <span className="w-[64px] shrink-0 text-gray-500 max-sm:w-auto max-sm:text-[12px] max-sm:leading-[18px]">
-            {label}
-          </span>
-          <span className="min-w-0 flex-1 max-sm:text-[13px] max-sm:leading-[19px]">
-            {children}
-          </span>
-        </span>
-        {action || null}
-      </div>
-    </li>
-  );
-}
-
-/** 저장 알림의 목적어 — 칸마다 조사가 달라 통째로 둔다. */
-const FIELD_OBJECT: Record<FillKey, string> = {
-  name: "매장명을",
-  address: "주소를",
-  hours: "운영 시간을",
-  phone: "매장 번호를",
-  owner: "사장님 이름을",
-  tags: "매장 특징을",
-};
-
-/** 글자 한 줄로 고치는 칸 — 입력 칸 이름 · 최대 글자 · 예시. */
-const TEXT_FIELD = {
-  name: {
-    label: "매장명",
-    maxLength: 100,
-    placeholder: "예) 오늘의 커피 성수점",
-  },
-  phone: { label: "매장 번호", maxLength: 30, placeholder: "예) 02-123-4567" },
-  owner: { label: "사장 이름", maxLength: 100, placeholder: "예) 홍길동" },
-} as const;
-
-type AddressDraft = {
-  address: string;
-  addressDetail: string;
-  city: string | null;
-  district: string | null;
-  latitude: number | null;
-  longitude: number | null;
-};
-
-/**
- * 그 줄이 바뀐 편집 카드 안의 입력 칸 — 매장 등록 폼과 같은 입력(주소 찾기, 운영 시간 · 휴무일, 매장 특징)을 쓰고 그 칸만 저장한다.
- * 지금 값으로 시작하고, 입력하는 동안 onDraft 로 미리보기 · 지도에 보낸다. 글자 칸은 Enter 로 저장, Esc 로 닫기.
- * 아래 줄: 왼쪽 도움말(바로가기 키 · 새 위치 · 고른 개수), 오른쪽 취소 · 저장.
- */
-function FillEditor({
-  field,
-  store,
-  onDraft,
-  onClose,
-}: {
-  field: FillKey;
-  store: PartnersStore;
-  onDraft: (draft: StoreDraft) => void;
-  onClose: () => void;
-}) {
-  const save = useSavePartnersStore();
-  const { success, error } = useSonner();
-  const [text, setText] = useState(
-    () =>
-      (field === "name"
-        ? store.name
-        : field === "phone"
-          ? store.phone
-          : field === "owner"
-            ? store.ownerName
-            : null) ?? "",
-  );
-  const [hours, setHours] = useState<PartnersHours>(() =>
-    parseHours(store.businessHours),
-  );
-  const [tags, setTags] = useState<string[]>(store.tags);
-  const [addr, setAddr] = useState<AddressDraft>(() => ({
-    address: store.address,
-    addressDetail: store.addressDetail ?? "",
-    city: store.city,
-    district: store.district,
-    latitude: store.latitude,
-    longitude: store.longitude,
-  }));
-
-  // 이 칸의 새 값 — 미리보기(매장 모양)와 저장(요청 모양)에 같이 쓴다.
-  const next = ((): {
-    patch: Partial<PartnersStore>;
-    payload: PartnersStorePayload;
-  } => {
-    if (field === "name") {
-      const v = text.trim();
-      return { patch: { name: v }, payload: { name: v } };
-    }
-    if (field === "phone") {
-      const v = text.trim() || null;
-      return { patch: { phone: v }, payload: { phone: v } };
-    }
-    if (field === "owner") {
-      const v = text.trim() || null;
-      return { patch: { ownerName: v }, payload: { owner_name: v } };
-    }
-    if (field === "tags") return { patch: { tags }, payload: { tags } };
-    if (field === "hours") {
-      const v = formatHours(hours);
-      return { patch: { businessHours: v }, payload: { business_hours: v } };
-    }
-    const detail = addr.addressDetail.trim() || null;
-    const coords =
-      addr.latitude != null && addr.longitude != null
-        ? { latitude: addr.latitude, longitude: addr.longitude }
-        : {};
-    return {
-      patch: {
-        address: addr.address,
-        addressDetail: detail,
-        city: addr.city,
-        district: addr.district,
-        latitude: addr.latitude,
-        longitude: addr.longitude,
-      },
-      payload: {
-        address: addr.address,
-        address_detail: detail,
-        city: addr.city,
-        district: addr.district,
-        // 좌표를 찾았을 때만 보낸다 — 없으면 서버가 주소로 다시 찾는다.
-        ...coords,
-      },
-    };
-  })();
-  const changed = Object.entries(next.patch).some(
-    ([k, v]) =>
-      JSON.stringify(v ?? null) !==
-      JSON.stringify(store[k as keyof PartnersStore] ?? null),
-  );
-  // 매장명은 비워 둘 수 없다.
-  const valid = field !== "name" || next.patch.name !== "";
-  const wasFilled =
-    field === "name" ||
-    field === "address" ||
-    Boolean(
-      field === "phone"
-        ? store.phone
-        : field === "owner"
-          ? store.ownerName
-          : field === "tags"
-            ? store.tags.length
-            : store.businessHours,
-    );
-
-  // 입력하는 동안 미리보기에 보낸다 — 닫히면 거둔다.
-  const patchKey = JSON.stringify(next.patch);
-  useEffect(() => {
-    onDraft(JSON.parse(patchKey) as Partial<PartnersStore>);
-  }, [onDraft, patchKey]);
-  useEffect(() => () => onDraft(null), [onDraft]);
-
-  const pickAddress = () =>
-    openAddressSearch(async (data) => {
-      const address =
-        data.roadAddress || data.jibunAddress || data.autoJibunAddress;
-      setAddr((d) => ({
-        ...d,
-        address,
-        city: data.sido || null,
-        district: data.sigungu || null,
-        latitude: null,
-        longitude: null,
-      }));
-      const coords = await coordsOfAddress(address).catch(() => null);
-      if (coords)
-        setAddr((d) =>
-          d.address === address
-            ? { ...d, latitude: coords.lat, longitude: coords.lng }
-            : d,
-        );
-    }).catch(() =>
-      error("주소 검색을 열지 못했어요. 잠시 후 다시 시도해 주세요."),
-    );
-
-  const submit = () => {
-    if (!changed || !valid || save.isPending) return;
-    save.mutate(
-      { id: store.id, payload: next.payload },
-      {
-        onSuccess: () => {
-          success(
-            `${FIELD_OBJECT[field]} ${wasFilled ? "바꿨어요" : "채웠어요"}.`,
-          );
-          onClose();
-        },
-        onError: (e) => error(extractApiError(e, "저장하지 못했어요.")),
-      },
-    );
-  };
-  const escToClose = (e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
-
-  const sub = "text-[12px] font-semibold text-gray-500";
-  const field44 = "h-[44px] rounded-[16px]";
-  // 주소를 새로 골랐으면 지도 위치를 찾는 중인지 · 찾았는지.
-  const movedAddress = field === "address" && addr.address !== store.address;
-  const hint =
-    field === "name" || field === "phone" || field === "owner" ? (
-      <span className="max-sm:hidden">Enter 저장 · Esc 취소</span>
-    ) : field === "tags" ? (
-      `${tags.length} / ${PARTNERS_MAX_TAGS}개 골랐어요`
-    ) : movedAddress ? (
-      addr.latitude != null ? (
-        <span className="text-emerald-600">새 위치로 지도 핀을 옮겼어요</span>
-      ) : (
-        "새 주소의 위치를 찾는 중이에요"
-      )
-    ) : null;
-  return (
-    <form
-      noValidate
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-      // 모바일은 입력 칸 글자를 다른 글자와 같게 13px — HeroUI 는 모바일에서 16px 로 둔다(11-08 사용자: "폰트가 커").
-      // 뷰포트 maximumScale 1 이라 16px 보다 작아도 iOS 가 확대하지 않는다.
-      className="flex flex-col gap-[10px] max-sm:text-[13px] max-sm:[&_[data-slot=date-input-group-segment]]:text-[13px] max-sm:[&_[data-slot=select-value]]:text-[13px] max-sm:[&_input]:text-[13px]"
-    >
-      {field === "name" || field === "phone" || field === "owner" ? (
-        <Input
-          autoFocus
-          aria-label={TEXT_FIELD[field].label}
-          fullWidth
-          className={field44}
-          value={text}
-          inputMode={field === "phone" ? "tel" : undefined}
-          maxLength={TEXT_FIELD[field].maxLength}
-          placeholder={TEXT_FIELD[field].placeholder}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={escToClose}
-        />
-      ) : field === "tags" ? (
-        <>
-          <p className={sub}>
-            우리 매장을 보여 줄 특징을 최대 {PARTNERS_MAX_TAGS}개 골라 주세요.
-          </p>
-          <PartnersTagPicker value={tags} onChange={setTags} />
-        </>
-      ) : field === "hours" ? (
-        <>
-          <PartnersHoursRows hours={hours} onChange={setHours} />
-          <p className={cn(sub, "pt-[2px]")}>휴무일</p>
-          <PartnersClosedDays hours={hours} onChange={setHours} />
-        </>
-      ) : (
-        <>
-          {/* 주소 칸 자체가 버튼 — 누르면 우편번호 검색이 열리고, 고르면 이 칸 · 미리보기 · 지도가 바로 바뀐다. */}
-          <Button
-            type="button"
-            variant="outline"
-            aria-label={`도로명 주소 ${addr.address} — 눌러서 주소 찾기`}
-            onPress={pickAddress}
-            className={cn(
-              field44,
-              // 테두리 대신 아래 상세 주소(HeroUI Input)와 같은 바탕 · 그림자(field 토큰).
-              "w-full justify-start gap-[8px] border-0 bg-field px-[14px] font-normal shadow-field data-[hovered=true]:bg-field-hover data-[pressed=true]:bg-field-hover",
-            )}
-          >
-            <LocationFilledIcon className="size-[16px] shrink-0 text-primary-500" />
-            <span className="min-w-0 flex-1 truncate text-left text-[14px] text-gray-900 max-sm:text-[13px]">
-              {addr.address}
-            </span>
-            <span className="flex shrink-0 items-center gap-[3px] text-[13px] font-semibold text-primary-600 max-sm:text-[12px]">
-              <Search className="size-[14px]" strokeWidth={2.5} />
-              주소 찾기
-            </span>
-          </Button>
-          <Input
-            aria-label="상세 주소"
-            fullWidth
-            className={field44}
-            value={addr.addressDetail}
-            maxLength={200}
-            placeholder="상세 주소(층 · 호수 등)"
-            onChange={(e) =>
-              setAddr((d) => ({ ...d, addressDetail: e.target.value }))
-            }
-            onKeyDown={escToClose}
-          />
-        </>
-      )}
-      <div className="flex items-center justify-between gap-[8px] pt-[2px]">
-        <p className="min-w-0 text-[12px] break-keep text-gray-500">{hint}</p>
-        <div className="flex shrink-0 gap-[6px]">
-          <Button
-            type="button"
-            variant="ghost"
-            onPress={onClose}
-            className="h-[36px] rounded-[14px] px-[14px] font-semibold text-gray-600 data-[hovered=true]:bg-white/70 max-sm:h-[34px] max-sm:px-[12px] max-sm:text-[13px] dark:data-[hovered=true]:bg-white/10 dark:data-[hovered=true]:text-gray-900"
-          >
-            취소
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isDisabled={!changed || !valid}
-            isPending={save.isPending}
-            className="h-[36px] rounded-[14px] px-[18px] font-semibold max-sm:h-[34px] max-sm:px-[16px] max-sm:text-[13px]"
-          >
-            {save.isPending && <Spinner size="sm" color="current" />}
-            저장
-          </Button>
-        </div>
-      </div>
-    </form>
-  );
-}
-
-/** 폴라로이드마다 살짝 다르게 기울인다(마우스를 올리면 바로 선다). */
-const POLAROID_TILT = [-3, 2.5, -1.5, 3, -2.5, 1.5, -3.5, 2, -1, 3.5];
-
-// 모바일은 세 장씩 작게(11-08 사용자) — 틀 여백 5px.
-const POLAROID =
-  "relative flex w-full flex-col rounded-[6px] bg-white p-[8px] pb-[6px] max-sm:p-[5px] max-sm:pb-[3px] dark:bg-[#0b0c0f] dark:ring-1 dark:ring-white/5 shadow-[0_2px_4px_rgba(16,24,40,0.06),0_10px_24px_rgba(16,24,40,0.10)] rotate-(--tilt) transition-[rotate,translate,box-shadow,opacity] duration-300 hover:-translate-y-[4px] hover:rotate-0 hover:shadow-[0_4px_8px_rgba(16,24,40,0.08),0_18px_36px_rgba(16,24,40,0.14)] focus-within:rotate-0";
-
-/**
- * 우리 매장 사진첩 — 폴라로이드처럼. 사진을 누르면 전체 화면 갤러리.
- * 그 자리에서: 마지막 칸 "추가하기"(파일 고르기) · 사진 아래 "대표로 정하기" · 오른쪽 위 지우기(마우스는 올렸을 때, 터치는 늘 보임).
+ * 우리 매장 사진첩 — 장식 없는 사진 격자(11-10 사용자: "갤러리처럼 깔끔하게", 옛 폴라로이드). 누르면 전체 화면 갤러리.
+ * 사진은 담당자가 올린다(최대 30장). 분류마다 첫 장이 대표(별) — 광고주에게 먼저 보인다.
+ * 위 탭으로 분류별로 나눠 보고, 많으면 카드 안에서 스크롤(11-10 사용자).
  */
 function PhotoAlbum({
   store,
-  photos,
   onOpen,
   className,
 }: {
   store: PartnersStore;
-  photos: StorePhotos;
   onOpen: (i: number) => void;
   className?: string;
 }) {
-  const { images } = photos;
+  const photos = store.images.length
+    ? store.images
+    : store.imageUrls.map((url, i) => ({
+        url,
+        kind: "etc" as const,
+        cover: i === 0,
+      }));
+  const kinds = PHOTO_KINDS.filter((k) => photos.some((p) => p.kind === k));
+  const [picked, setPicked] = useState<PhotoKind | "all">("all");
+  // 사진이 바뀌어 고른 분류가 없어지면 전체로.
+  const kind = picked !== "all" && kinds.includes(picked) ? picked : "all";
+  const shown = kind === "all" ? photos : photos.filter((p) => p.kind === kind);
+
   return (
     <PanelCard
-      className={cn("gap-[18px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
+      className={cn("gap-[14px] p-[16px] sm:p-[24px]", SHADOW_FLOAT, className)}
     >
       <SectionHead
         icon={<MaskIcon src="/icons/camera.svg" className="size-[18px]" />}
         title="우리 매장 사진첩"
-        // 장수만 오른쪽 위에(설명 문구는 뺐다, 11-08 사용자).
+        description={
+          <>
+            분류마다{" "}
+            <Star
+              aria-hidden
+              className="mb-[2px] inline size-[11px] fill-current text-primary-600"
+            />{" "}
+            대표 사진이 광고주에게 먼저 보여요.
+          </>
+        }
         right={
           <span className="shrink-0 text-[13px] text-gray-500 tabular-nums max-sm:text-[12px]">
-            사진 <b className="font-semibold text-gray-900">{images.length}</b>{" "}
+            사진 <b className="font-semibold text-gray-900">{photos.length}</b>{" "}
             / {PARTNERS_MAX_IMAGES}장
           </span>
         }
       />
-      <ul className="grid grid-cols-2 gap-x-[14px] gap-y-[18px] px-[4px] pb-[4px] max-sm:grid-cols-3 max-sm:gap-x-[10px] max-sm:gap-y-[14px] sm:grid-cols-4 lg:grid-cols-3">
-        {images.map((url, i) => {
-          const working = photos.working === url;
-          return (
-            <li key={url}>
-              <div
-                className={cn(POLAROID, "group/photo")}
-                style={
-                  {
-                    "--tilt": `${POLAROID_TILT[i % POLAROID_TILT.length]}deg`,
-                  } as CSSProperties
-                }
-              >
-                <button
-                  type="button"
-                  aria-label={`${i + 1}번째 사진 크게 보기`}
-                  onClick={() => onOpen(i)}
-                  className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-[2px] bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <MediaImage
-                    src={mediaSrc(url)}
-                    alt={`${store.name} 사진 ${i + 1}`}
-                    fill
-                    sizes="200px"
-                    className="object-cover"
-                  />
-                  {working && (
-                    <span className="absolute inset-0 flex items-center justify-center bg-white/60">
-                      <Spinner size="sm" />
-                    </span>
-                  )}
-                </button>
-                <div className="mt-[6px] flex h-[26px] items-center justify-center max-sm:mt-[4px] max-sm:h-[22px]">
-                  {i === 0 ? (
-                    <span className="flex items-center gap-[4px] text-[12px] font-bold text-primary-600 max-sm:gap-[3px] max-sm:text-[11px]">
-                      <Star className="size-[12px] fill-current max-sm:size-[10px]" />
-                      대표 사진
-                    </span>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      isDisabled={photos.busy}
-                      onPress={() => photos.makeCover(url)}
-                      className="h-[26px] min-w-0 rounded-[10px] px-[8px] text-[12px] font-semibold whitespace-nowrap text-gray-500 data-[hovered=true]:bg-primary-50 data-[hovered=true]:text-primary-600 max-sm:h-[22px] max-sm:rounded-[8px] max-sm:px-[4px] max-sm:text-[11px]"
-                    >
-                      대표로 정하기
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  aria-label={`${i + 1}번째 사진 지우기`}
-                  isDisabled={photos.busy}
-                  onPress={() => photos.remove(url)}
-                  className="absolute top-[14px] right-[14px] size-[26px] min-w-0 rounded-full bg-black/55 p-0 text-white transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100 data-[hovered=true]:bg-black/75 max-sm:top-[9px] max-sm:right-[9px] max-sm:size-[22px] [@media(hover:hover)]:opacity-0"
-                >
-                  <X
-                    className="size-[14px] max-sm:size-[12px]"
-                    strokeWidth={2.5}
-                  />
-                </Button>
-              </div>
-            </li>
-          );
-        })}
-        {Array.from({ length: photos.uploading }, (_, k) => (
-          <li key={`up-${k}`}>
-            <div className="flex aspect-[1/1.12] w-full items-center justify-center rounded-[6px] bg-gray-50">
-              <Spinner size="sm" />
-            </div>
-          </li>
-        ))}
-        {photos.canAdd && photos.uploading === 0 && (
-          <li>
-            <button
-              type="button"
-              disabled={photos.busy}
-              onClick={photos.pick}
-              className="flex aspect-[1/1.12] w-full flex-col items-center justify-center gap-[8px] rounded-[6px] max-sm:gap-[4px] border-2 border-dashed border-gray-200 text-gray-400 transition-colors outline-none hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50"
+      {photos.length ? (
+        <>
+          {kinds.length > 1 && (
+            <Tabs
+              selectedKey={kind}
+              onSelectionChange={(key) => setPicked(String(key) as PhotoKind)}
             >
-              <Plus className="size-[22px] max-sm:size-[18px]" />
-              <span className="text-[12px] font-semibold max-sm:text-[11px]">
-                추가하기
-              </span>
-            </button>
-          </li>
-        )}
-      </ul>
+              <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px] max-sm:w-full">
+                <Tabs.List aria-label="사진 분류">
+                  {(["all", ...kinds] as const).map((k) => (
+                    <Tabs.Tab
+                      key={k}
+                      id={k}
+                      className="gap-[4px] rounded-[13px] whitespace-nowrap max-sm:min-w-0 max-sm:px-[8px] max-sm:text-[13px]"
+                    >
+                      {k === "all" ? "전체" : PHOTO_KIND_LABEL[k]}
+                      <span className="text-[12px] tabular-nums opacity-60">
+                        {k === "all"
+                          ? photos.length
+                          : photos.filter((p) => p.kind === k).length}
+                      </span>
+                      <Tabs.Indicator className="rounded-[13px]" />
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs.ListContainer>
+            </Tabs>
+          )}
+          {/*
+           * 한 번에 6장(3칸 × 2줄)까지 보이고, 더 있으면 안에서 스크롤 + 위아래 흐림(HeroUI ScrollShadow)(11-10 사용자).
+           * 2줄 높이 = 카드 폭으로 정해지는 정사각형 두 장 + 간격 — 바깥 칸 폭(cqw)으로 계산한다.
+           * 대표 사진은 왼쪽 위 작은 표시(전체 탭은 분류 이름도). 누르면 갤러리 — 어드민이 적은 사진 메모도 보인다.
+           */}
+          <div className="@container">
+            <ScrollShadow
+              size={36}
+              className="overflow-y-auto overscroll-contain"
+              style={{ maxHeight: "calc((100cqw - 12px) * 2 / 3 + 6px)" }}
+            >
+              <ul className="grid grid-cols-3 gap-[6px]">
+                {shown.map((p) => (
+                  <li key={p.url}>
+                    <button
+                      type="button"
+                      aria-label={`${PHOTO_KIND_LABEL[p.kind]} 사진${p.cover ? "(대표)" : ""} 크게 보기`}
+                      onClick={() =>
+                        onOpen(Math.max(0, store.imageUrls.indexOf(p.url)))
+                      }
+                      className="group relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-[10px] bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 max-sm:rounded-[8px]"
+                    >
+                      <MediaImage
+                        src={mediaSrc(p.url)}
+                        alt={`${store.name} ${PHOTO_KIND_LABEL[p.kind]} 사진`}
+                        fill
+                        sizes="(max-width: 640px) 33vw, 200px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                      />
+                      {p.cover && (
+                        <span className="absolute top-[6px] left-[6px] flex items-center gap-[3px] rounded-full bg-white/90 px-[6px] py-[1px] text-[11px] leading-[16px] font-semibold text-gray-800 shadow-[0_1px_3px_rgba(16,24,40,0.15)] max-sm:top-[4px] max-sm:left-[4px] max-sm:px-[5px] max-sm:text-[10px] dark:bg-black/70 dark:text-white">
+                          <Star
+                            aria-hidden
+                            className="size-[10px] fill-current text-primary-600 max-sm:size-[9px]"
+                          />
+                          {kind === "all" ? PHOTO_KIND_LABEL[p.kind] : "대표"}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollShadow>
+          </div>
+        </>
+      ) : (
+        <p className="flex min-h-[140px] items-center justify-center rounded-[18px] bg-gray-50 px-[16px] text-center text-[13px] break-keep text-gray-400">
+          아직 사진이 없어요. 담당자가 매장을 방문하면 올려 드려요.
+        </p>
+      )}
     </PanelCard>
+  );
+}
+
+const STATUS: Record<
+  StoreRequestStatus,
+  { label: string; tone: "amber" | "green" | "red" }
+> = {
+  pending: { label: "확인 중", tone: "amber" },
+  done: { label: "반영 완료", tone: "green" },
+  rejected: { label: "처리 불가", tone: "red" },
+};
+
+/**
+ * ④ 수정 기록 — 어떤 항목을 무엇에서 무엇으로 바꿔 달라고 했는지, 처리 상태, 마지막 업데이트(최근 순).
+ * 처리 불가면 어드민이 적은 사유가 보인다(11-10 사용자).
+ */
+function HistoryCard({
+  requests,
+  isPending,
+}: {
+  requests: StoreRequest[] | undefined;
+  isPending: boolean;
+}) {
+  return (
+    <PanelCard className={cn("gap-[14px] p-[16px] sm:p-[24px]", SHADOW_FLOAT)}>
+      <SectionHead
+        // 시계 + 되돌아가는 화살표(history.svg 25×24) — 기록이라는 뜻(11-10 사용자).
+        icon={
+          <MaskIcon
+            src="/icons/history.svg"
+            className="h-[18px] w-[19px] shrink-0"
+          />
+        }
+        title="수정 기록"
+      />
+      {isPending ? null : requests?.length ? (
+        <ul className="flex flex-col divide-y divide-gray-100">
+          {requests.map((r) => (
+            <HistoryRow key={r.id} r={r} />
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-[14px] bg-gray-50 px-[14px] py-[12px] text-[13px] break-keep text-gray-400">
+          아직 수정 기록이 없어요. 우리 매장 정보에서 바꿀 줄을 눌러 요청해
+          보세요.
+        </p>
+      )}
+    </PanelCard>
+  );
+}
+
+function HistoryRow({ r }: { r: StoreRequest }) {
+  const st = STATUS[r.status] ?? STATUS.pending;
+  const stamp = r.updatedAt ?? r.createdAt;
+  return (
+    <li className="flex flex-col gap-[8px] py-[14px] first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[4px]">
+        <span className="flex items-center gap-[8px]">
+          <b className="text-[14px] font-bold text-gray-900">{r.fieldLabel}</b>
+          <StatusChip tone={st.tone}>{st.label}</StatusChip>
+        </span>
+        {stamp && (
+          <span className="text-[12px] text-gray-400 tabular-nums">
+            마지막 업데이트 {kstFullStamp(stamp)}
+          </span>
+        )}
+      </div>
+      {r.field ? (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-[12px] gap-y-[4px] rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep">
+          <dt className="text-gray-400">이전</dt>
+          <dd
+            className={cn(
+              "min-w-0 text-gray-500",
+              r.status === "done" && "line-through decoration-gray-300",
+            )}
+          >
+            {r.before ?? "비어 있음"}
+          </dd>
+          <dt className="text-gray-400">변경</dt>
+          <dd className="min-w-0 font-semibold text-gray-900">
+            {r.after ?? "비우기"}
+          </dd>
+        </dl>
+      ) : (
+        <p className="text-[14px] leading-[1.6] break-keep whitespace-pre-line text-gray-800">
+          {r.after}
+        </p>
+      )}
+      {r.memo && (
+        <p className="text-[12px] leading-[1.6] break-keep whitespace-pre-line text-gray-500">
+          <b className="mr-[6px] font-semibold text-gray-700">남긴 말</b>
+          {r.memo}
+        </p>
+      )}
+      {r.adminReply && (
+        <p
+          className={cn(
+            "rounded-[12px] px-[12px] py-[9px] text-[13px] leading-[1.6] break-keep whitespace-pre-line",
+            r.status === "rejected"
+              ? "bg-red-50 text-red-700 dark:bg-error-bg dark:text-error"
+              : "bg-gray-50 text-gray-600",
+          )}
+        >
+          <b className="mr-[6px] font-semibold">
+            {r.status === "rejected" ? "처리 불가 사유" : "담당자"}
+          </b>
+          {r.adminReply}
+        </p>
+      )}
+    </li>
+  );
+}
+
+/** 요청 값 비교 키 — 지금 값과 같으면 보내기를 막는다(서버도 한 번 더 본다). */
+function valueKey(field: StoreRequestField, v: unknown): string {
+  if (field === "address") {
+    const a = v as StoreAddressValue;
+    return `${a.address.trim()}|${(a.address_detail ?? "").trim()}`;
+  }
+  if (v == null) return "";
+  if (typeof v === "string") return v.split(/\s+/).join(" ").trim();
+  return JSON.stringify(v);
+}
+
+/** 항목의 지금 값(요청 값 모양) — 창 처음 값과 비교 기준. */
+function currentValue(store: PartnersStore, field: StoreRequestField): unknown {
+  switch (field) {
+    case "name":
+      return store.name;
+    case "address":
+      return {
+        address: store.address,
+        address_detail: store.addressDetail,
+        city: store.city,
+        district: store.district,
+        latitude: store.latitude,
+        longitude: store.longitude,
+      } satisfies StoreAddressValue;
+    case "hours":
+      return hoursPayload(hoursFromStore(store).hours);
+    case "phone":
+      return store.phone ?? "";
+    case "owner_name":
+      return store.ownerName ?? "";
+    case "tags":
+      return store.tags;
+    case "notes":
+      return store.notes;
+  }
+}
+
+/** 창 안 칸 이름 글자. 입력칸은 HeroUI secondary(칩 입력칸과 같은 바탕). */
+const FIELD_LABEL = "text-[13px] font-semibold text-gray-700";
+
+/** 조건 메모 칩 색(입력칸) — 안 되는 것 빨강 · 되는 것 초록. */
+const NOTE_INPUT_COLOR = {
+  no: "danger",
+  ok: "success",
+  info: "default",
+} as const;
+
+/**
+ * 수정 요청 창 — 고른 항목의 새 값을 넣어 보낸다. 주소는 카카오 우편번호 검색, 운영 시간은 요일 · 시간 · 휴무일 입력.
+ * 확인 중인 요청이 있으면 그 값으로 시작하고, 다시 보내면 그 요청이 바뀐다(서버). 보내면 어드민 "수정 요청"으로 간다.
+ */
+function RequestModal({
+  store,
+  field,
+  pending,
+  isOpen,
+  onOpenChange,
+}: {
+  store: PartnersStore;
+  field: StoreRequestField;
+  pending: StoreRequest | undefined;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const label = STORE_REQUEST_FIELDS[field];
+  // 처음 값 — 확인 중인 요청이 있으면 그 값, 아니면 지금 값.
+  const initial: unknown = pending?.value ?? currentValue(store, field);
+  const [text, setText] = useState(typeof initial === "string" ? initial : "");
+  const [address, setAddress] = useState<StoreAddressValue>(() =>
+    field === "address" && initial && typeof initial === "object"
+      ? (initial as StoreAddressValue)
+      : (currentValue(store, "address") as StoreAddressValue),
+  );
+  const [hours, setHours] = useState<StoreHours>(() =>
+    field === "hours" && pending
+      ? hoursFromStore({
+          hours: pending.value as StoreHours | null,
+          businessHours: null,
+        }).hours
+      : hoursFromStore(store).hours,
+  );
+  // 예전에 글로만 적어 입력칸으로 못 옮긴 운영 시간 — 새로 넣으면 바뀐다고 알려 준다.
+  const legacyHours = field === "hours" ? hoursFromStore(store).legacy : "";
+  const [list, setList] = useState<string[]>(
+    Array.isArray(initial) ? (initial as string[]) : [],
+  );
+  const [memo, setMemo] = useState(pending?.memo ?? "");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const create = useCreateStoreRequest(store.id);
+  const { success, error: toastError } = useSonner();
+
+  const value: unknown =
+    field === "address"
+      ? address
+      : field === "hours"
+        ? hoursPayload(hours)
+        : field === "tags" || field === "notes"
+          ? list
+          : field === "name"
+            ? text.trim()
+            : text.trim() || null;
+  const changed =
+    valueKey(field, value) !== valueKey(field, currentValue(store, field));
+  const required = field === "name" || field === "address";
+  const empty =
+    field === "address" ? !address.address.trim() : required && !text.trim();
+
+  const pickAddress = (data: DaumPostcodeResult) => {
+    const road = data.roadAddress || data.jibunAddress || data.autoJibunAddress;
+    setError(null);
+    setAddress((prev) => ({
+      ...prev,
+      address: road,
+      city: data.sido,
+      district: data.sigungu,
+      // 예전 주소의 위치가 남지 않게 먼저 비우고, 지도 SDK로 찾는다(못 찾으면 반영할 때 서버가 찾는다).
+      latitude: null,
+      longitude: null,
+    }));
+    void coordsOfAddress(road)
+      .catch(() => null)
+      .then((c) => {
+        if (c)
+          setAddress((prev) =>
+            prev.address === road
+              ? { ...prev, latitude: c.lat, longitude: c.lng }
+              : prev,
+          );
+      });
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (field === "hours" && hoursIncomplete(hours)) {
+      setError("여는 시간과 닫는 시간을 모두 넣어 주세요.");
+      return;
+    }
+    if (empty) {
+      setError(
+        field === "address"
+          ? "주소를 검색해 주세요."
+          : `${label}을 적어 주세요.`,
+      );
+      return;
+    }
+    if (!changed) return;
+    create.mutate(
+      { field, value, memo: memo.trim() || null },
+      {
+        onSuccess: () => {
+          success(
+            "수정 요청을 보냈어요.",
+            "담당자가 확인하고 반영해 드려요. 결과는 수정 기록에서 볼 수 있어요.",
+          );
+          onOpenChange(false);
+        },
+        onError: (err) =>
+          toastError(extractApiError(err, "요청을 보내지 못했어요.")),
+      },
+    );
+  };
+
+  const now = storeFieldText(store, field);
+
+  return (
+    <>
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <Modal.Backdrop>
+          <Modal.Container placement="center" size="md">
+            <Modal.Dialog aria-label={`${label} 수정 요청`}>
+              <Modal.CloseTrigger />
+              <Form onSubmit={submit} className="flex flex-col">
+                <Modal.Header className="flex flex-col items-start pr-[36px]">
+                  <Modal.Heading className="text-[17px] font-bold text-gray-900">
+                    {label} 수정 요청
+                  </Modal.Heading>
+                </Modal.Header>
+                <Modal.Body className="flex flex-col gap-[16px]">
+                  {pending && (
+                    <p className="rounded-[12px] bg-amber-50 px-[12px] py-[9px] text-[12px] leading-[18px] break-keep text-amber-800 dark:bg-warning-bg dark:text-warning">
+                      확인 중인 요청이 있어요. 다시 보내면 그 요청이 이 값으로
+                      바뀌어요.
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-[6px]">
+                    <span className={FIELD_LABEL}>현재 내용</span>
+                    <p className="rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep text-gray-600">
+                      {now ?? (
+                        <span className="text-gray-400">비어 있어요</span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <span className={FIELD_LABEL}>수정 내용</span>
+                    {field === "address" ? (
+                      <div className="flex flex-col gap-[8px]">
+                        <div className="flex items-center gap-[8px]">
+                          <Input
+                            variant="secondary"
+                            fullWidth
+                            readOnly
+                            aria-label="주소"
+                            placeholder="주소를 검색해 주세요"
+                            value={address.address}
+                            onClick={() => setSearchOpen(true)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setSearchOpen(true);
+                              }
+                            }}
+                            className="cursor-pointer"
+                          />
+                          <Button
+                            variant="tertiary"
+                            className="shrink-0 rounded-[17px] font-semibold md:rounded-[15px]"
+                            onPress={() => setSearchOpen(true)}
+                          >
+                            <Search className="size-[15px]" />
+                            주소 찾기
+                          </Button>
+                        </div>
+                        <Input
+                          variant="secondary"
+                          fullWidth
+                          aria-label="상세 주소"
+                          placeholder="상세 주소(선택) 예) 2층"
+                          maxLength={200}
+                          value={address.address_detail ?? ""}
+                          onChange={(e) =>
+                            setAddress((prev) => ({
+                              ...prev,
+                              address_detail: e.target.value || null,
+                            }))
+                          }
+                        />
+                      </div>
+                    ) : field === "hours" ? (
+                      <div className="flex flex-col gap-[12px]">
+                        <BusinessHoursEditor
+                          variant="secondary"
+                          value={hours}
+                          onChange={(next) => {
+                            setHours(next);
+                            setError(null);
+                          }}
+                        />
+                        <div className="flex flex-col gap-[6px]">
+                          <span className="text-[12px] font-semibold text-gray-500">
+                            휴무일
+                          </span>
+                          <ClosedDaysPicker
+                            variant="secondary"
+                            value={hours.closed}
+                            onChange={(closed) =>
+                              setHours((prev) => ({ ...prev, closed }))
+                            }
+                          />
+                        </div>
+                        {legacyHours && !pending && (
+                          <p className="text-[12px] break-keep text-gray-400">
+                            지금 적힌 운영 시간을 입력칸으로 옮기지 못했어요.
+                            새로 넣어 주세요.
+                          </p>
+                        )}
+                      </div>
+                    ) : field === "tags" || field === "notes" ? (
+                      <ChipInput
+                        ariaLabel={label}
+                        placeholder={
+                          field === "tags"
+                            ? "예) 뷰맛집, 주차가능 — 쉼표(,)로 구분해요."
+                            : "예) 포스터 부착 불가 — 쉼표(,)로 구분해요."
+                        }
+                        values={list}
+                        onChange={setList}
+                        maxLength={
+                          field === "tags"
+                            ? PARTNERS_TAG_MAX_LEN
+                            : PARTNERS_NOTE_MAX_LEN
+                        }
+                        colorOf={
+                          field === "notes"
+                            ? (n) => NOTE_INPUT_COLOR[noteTone(n)]
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      <Input
+                        variant="secondary"
+                        fullWidth
+                        autoFocus
+                        aria-label={label}
+                        placeholder={
+                          field === "phone"
+                            ? "예) 02-123-4567"
+                            : field === "owner_name"
+                              ? "사장님 이름"
+                              : "매장명"
+                        }
+                        inputMode={field === "phone" ? "tel" : undefined}
+                        maxLength={
+                          field === "phone"
+                            ? STORE_PHONE_INPUT_MAX_LENGTH
+                            : field === "owner_name"
+                              ? 100
+                              : 200
+                        }
+                        value={text}
+                        onChange={(e) => {
+                          setError(null);
+                          setText(
+                            field === "phone"
+                              ? formatStorePhoneInput(e.target.value)
+                              : e.target.value,
+                          );
+                        }}
+                      />
+                    )}
+                    {!required && (
+                      <p className="text-[12px] break-keep text-gray-400">
+                        비워서 보내면 이 항목을 지워 달라는 요청이 돼요.
+                      </p>
+                    )}
+                    {error && (
+                      <p className="text-[12px] font-medium text-error">
+                        {error}
+                      </p>
+                    )}
+                  </div>
+
+                  <TextField
+                    value={memo}
+                    onChange={setMemo}
+                    maxLength={500}
+                    className="flex flex-col gap-[6px]"
+                  >
+                    <Label className={FIELD_LABEL}>
+                      담당자에게 남길 말{" "}
+                      <span className="font-normal text-gray-400">(선택)</span>
+                    </Label>
+                    <TextArea
+                      variant="secondary"
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </TextField>
+                </Modal.Body>
+                <Modal.Footer className="flex gap-[8px]">
+                  <Button
+                    variant="tertiary"
+                    onPress={() => onOpenChange(false)}
+                    className="h-[44px] shrink-0 rounded-[19px] px-[18px] font-semibold"
+                  >
+                    닫기
+                  </Button>
+                  <Button
+                    type="submit"
+                    isDisabled={!changed}
+                    isPending={create.isPending}
+                    className="h-[44px] flex-1 rounded-[19px] font-bold"
+                  >
+                    보내기
+                  </Button>
+                </Modal.Footer>
+              </Form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+      {/* 주소 검색(카카오 우편번호)은 수정 요청 창 위에 겹쳐 연다. */}
+      {field === "address" && (
+        <AddressSearchModal
+          isOpen={searchOpen}
+          onOpenChange={setSearchOpen}
+          onSelect={pickAddress}
+        />
+      )}
+    </>
   );
 }

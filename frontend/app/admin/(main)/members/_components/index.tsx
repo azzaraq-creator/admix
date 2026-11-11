@@ -52,6 +52,7 @@ export const memberSearchOptionList: SearchOption[] = [
     optionList: [
       { label: "미등록", value: "미등록" },
       { label: "검토 대기", value: "검토 대기" },
+      { label: "임시 승인", value: "임시 승인" },
       { label: "검토 완료", value: "검토 완료" },
       { label: "인증 반려", value: "인증 반려" },
     ],

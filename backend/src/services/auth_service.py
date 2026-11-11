@@ -88,9 +88,16 @@ def update_profile(
     phone: str | None = None,
     marketing_consent: bool | None = None,
     member_category: str | None = None,
+    contact_name: str | None = None,
+    position: str | None = None,
+    department: str | None = None,
 ) -> User:
     if member_category is not None:
         user.member_category = member_category
+    # 담당자 정보 — 보낸 칸만 바꾸고, 빈 값이면 지운다.
+    for key, value in (("contact_name", contact_name), ("position", position), ("department", department)):
+        if value is not None:
+            setattr(user, key, value.strip() or None)
     if name is not None:
         user.name = name
     if company_name is not None:

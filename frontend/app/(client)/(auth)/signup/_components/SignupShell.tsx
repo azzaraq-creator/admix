@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 
 import { LOGIN_HREF } from "@/app/(client)/(main)/_components/useLoginModal";
+import { PartnersLogo } from "@/app/(client)/partners/_components/partnersNav";
 import { LogoFullDark } from "@/components/icons/LogoFull";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,9 @@ import { StepCheckIcon } from "./signupIcons";
 import { RADIUS } from "./signupUi";
 
 const STEPS = ["유형", "방식", "이메일", "정보", "약관동의"] as const;
+
+/** 콜라보 로그인 — 콜라보 화면의 로그인 창(LoginModal variant="partners")을 연다. */
+const PARTNERS_LOGIN_HREF = "/partners?login=1";
 
 /**
  * 단계 표시 — current 이전 단계는 체크, current는 번호가 채워진 보라 점,
@@ -76,12 +80,15 @@ function Stepper({ current }: { current: number }) {
 /**
  * 시안(00. 회원가입) 공통 틀 — 상단 바 + 단계 표시 + (이전) + 카드.
  * 비밀번호 찾기처럼 단계가 없는 인증 화면도 같은 틀을 쓴다(step 생략).
+ * collab — 콜라보에서 시작한 가입(?from=collab): 왼쪽 위 로고를 콜라보 로고(admix + Collaboration)로 바꾸고
+ *   누르면 콜라보 화면(/partners), 오른쪽 "로그인"도 콜라보 로그인 창으로(11-10 사용자).
  */
 export function SignupShell({
   step,
   onBack,
   hideLoginLink,
   loginPrompt = "이미 계정이 있으신가요?",
+  collab = false,
   children,
 }: {
   /** 0~4: 진행 중인 단계, 5: 모두 완료. 없으면 단계 표시를 뺀다. */
@@ -90,23 +97,34 @@ export function SignupShell({
   hideLoginLink?: boolean;
   /** 상단 바 오른쪽 "로그인" 앞 문구. */
   loginPrompt?: string;
+  /** 콜라보에서 시작한 가입 — 콜라보 로고 · 콜라보 로그인. */
+  collab?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="flex min-h-dvh w-full flex-col bg-gray-50">
       {/* 모바일은 앱 상단 바(48px)와 같은 높이로 줄이고 로고도 작게 둔다. */}
       <header className="flex h-[72px] max-sm:h-[48px] shrink-0 items-center justify-between border-b border-gray-200 bg-surface px-[16px] sm:px-[32px]">
-        {/* 링크가 글줄(inline)이면 아래 글자 여백만큼 로고가 위로 뜬다 → flex로 세로 가운데. */}
-        <Link href="/" aria-label="홈" className="max-sm:flex">
-          <LogoFullDark className="h-[30px] max-sm:h-[22px]" />
-        </Link>
+        {collab ? (
+          // 콜라보 사이드바 로고와 같은 모양 — PC는 심볼 + 글자 로고 + Collaboration,
+          // 모바일은 콜라보 위 띠처럼 심볼 없이 작게. 누르면 콜라보 화면(/partners).
+          <>
+            <PartnersLogo className="pl-0 max-sm:hidden" />
+            <PartnersLogo symbol={false} compact className="sm:hidden" />
+          </>
+        ) : (
+          // 링크가 글줄(inline)이면 아래 글자 여백만큼 로고가 위로 뜬다 → flex로 세로 가운데.
+          <Link href="/" aria-label="홈" className="max-sm:flex">
+            <LogoFullDark className="h-[30px] max-sm:h-[22px]" />
+          </Link>
+        )}
         {!hideLoginLink && (
           <p className="flex items-center gap-[12px] text-[13px] whitespace-nowrap">
             <span className="hidden text-gray-500 sm:inline">
               {loginPrompt}
             </span>
             <Link
-              href={LOGIN_HREF}
+              href={collab ? PARTNERS_LOGIN_HREF : LOGIN_HREF}
               className="font-bold text-primary-500 underline"
             >
               로그인

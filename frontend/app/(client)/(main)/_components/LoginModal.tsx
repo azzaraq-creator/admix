@@ -24,7 +24,7 @@ import { getUserToken, setTokens } from "@/lib/userToken";
 import { cn } from "@/lib/utils";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
-import { PARTNER_SIGNUP_HREF } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
+import { COLLAB_SIGNUP_HREF } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 
 import { collabScript } from "./collabFont";
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
@@ -73,7 +73,7 @@ function getErrorStatus(error: unknown): number | undefined {
 /**
  * 로그인 창 — admix 화면과 콜라보(/partners) 화면이 같이 쓴다.
  * partners: 로고 아래 Collaboration(콜라보 사이드바 로고와 같은 모양) · 콜라보 문구 · 간편 로그인(카카오 · 네이버, 마치면 보던 콜라보 화면으로) ·
- * 회원가입은 유형을 제휴사(콜라보)로 골라 둔 회원가입 2단계(방식, /signup?category=partner)로(11-08 사용자).
+ * 회원가입은 콜라보 가입(/signup?from=collab — 1단계부터, 광고주 · 제휴사(콜라보)만 고름, 11-10 사용자)으로.
  */
 export function LoginModal({
   variant = "default",
@@ -348,9 +348,9 @@ export function LoginModal({
                 <Button
                   variant="ghost"
                   size="sm"
-                  // 콜라보 화면에서는 제휴사(콜라보)를 골라 둔 회원가입 2단계(방식)로.
+                  // 콜라보 화면에서는 콜라보 가입(1단계부터, 광고주 · 제휴사(콜라보)만)으로.
                   onPress={() =>
-                    goTo(partners ? PARTNER_SIGNUP_HREF : "/signup")
+                    goTo(partners ? COLLAB_SIGNUP_HREF : "/signup")
                   }
                   className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
                 >

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 import {
   maskIcon,
-  PARTNER_TAB_COUNT,
+  tabCountOf,
   PartnersLogo,
   usePartnersNav,
   type PartnersMenuItem,
@@ -29,7 +29,7 @@ import { PartnerNotificationHeaderButton } from "./workspace/PartnerNotification
  *   아래 탭 바: 화면 아래 떠 있는 반투명 남색 유리 캡슐 — 대시보드 · 콜라보 · 참여 이력 · 내 매장 · 더보기
  *   (더보기를 누르면 그 위에 같은 유리 캡슐로 기본협약 · 대화 · 문서함이 뜬다 — 11-08 사용자: "더보기 메뉴의 UI도 동일하게")
  *   (admix 홈 모바일 탭 바(MobileTabBar)와 같은 모양 — 11-08 사용자. 가운데 AI 믹시 칸만 없다)
- * 탭 바는 매장을 등록한 제휴사에게만(메뉴가 하나뿐이면 띄우지 않는다).
+ * 탭 바는 메뉴가 둘 이상일 때만(협약 전 · 매장 연결 전 제휴사는 대시보드 · 기본 협약 두 칸).
  * 탭 바가 가리는 높이는 layout 이 --partners-tabbar-space 로 받아 본문 끝 · 아래 고정 줄을 그만큼 올린다.
  */
 
@@ -116,14 +116,24 @@ export function PartnersMobileHeader({ member }: { member: boolean }) {
 function TabInner({
   Icon,
   label,
+  badge,
 }: {
   Icon: PartnersMenuItem["Icon"];
   label: string;
+  /** 아이콘 오른쪽 위 숫자(제휴사 "콜라보 참여"). */
+  badge?: number;
 }) {
   return (
     <>
       {/* 메뉴 아이콘은 글자색 한 색(MaskIcon)이라 탭 글자색을 그대로 따른다. */}
-      <Icon className="size-[20px] shrink-0" />
+      <span className="relative shrink-0">
+        <Icon className="size-[20px] shrink-0" />
+        {!!badge && (
+          <span className="absolute -top-[5px] -right-[9px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-primary px-[4px] text-[9px] leading-none font-bold text-white tabular-nums">
+            {badge}
+          </span>
+        )}
+      </span>
       <span className="truncate">{label}</span>
     </>
   );
@@ -140,8 +150,9 @@ export function PartnersMobileTabBar({ member }: { member: boolean }) {
   const [moreOpen, setMoreOpen] = useState(false);
   if (menu.length <= 1) return null;
 
-  const tabs = menu.slice(0, PARTNER_TAB_COUNT);
-  const more = menu.slice(PARTNER_TAB_COUNT);
+  const count = tabCountOf(menu.length);
+  const tabs = menu.slice(0, count);
+  const more = menu.slice(count);
   const moreActive = more.some((m) => m.key === activeKey);
 
   return (
@@ -168,7 +179,11 @@ export function PartnersMobileTabBar({ member }: { member: boolean }) {
                 aria-current={active ? "page" : undefined}
                 className={cn(TAB, tabTone(active))}
               >
-                <TabInner Icon={item.Icon} label={item.label} />
+                <TabInner
+                  Icon={item.Icon}
+                  label={item.label}
+                  badge={item.badge}
+                />
               </Link>
             );
           })}

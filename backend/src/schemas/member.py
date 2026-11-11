@@ -8,7 +8,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # 회원 유형(가입 1단계) — 일반 / 광고주 / 대행사 / 매체사 / 제휴사(콜라보).
 MemberCategory = Literal["advertiser", "agency", "media_owner", "general", "partner"]
@@ -47,6 +47,8 @@ class BusinessRegistrationOut(BaseModel):
     license_file_name: str | None = None
     license_uploaded_at: datetime | None = None
     verified_at: datetime | None = None
+    # 어드민 임시 승인 시각(status=provisional, 069) — 콜라보 현장 가입 때 등록증 없이 협약까지 넘어가게.
+    provisional_at: datetime | None = None
 
 
 class SanctionOut(BaseModel):
@@ -90,6 +92,11 @@ class MemberDetail(BaseModel):
     company_name: str | None = None
     position: str | None = None
     industry: str | None = None
+    # 광고주 담당자 정보(068) — 이름 · 소속팀 · 명함 파일. 직함은 position.
+    contact_name: str | None = None
+    department: str | None = None
+    business_card_url: str | None = None
+    business_card_name: str | None = None
     marketing_consent: bool
     status: str
     admin_memo: str | None = None
@@ -119,6 +126,9 @@ class MemberUpdate(BaseModel):
     company_name: str | None = None
     position: str | None = None
     industry: str | None = None
+    # 광고주 담당자 정보(068) — 어드민 회원 상세 "담당자 정보"에서 고친다.
+    contact_name: str | None = Field(default=None, max_length=100)
+    department: str | None = Field(default=None, max_length=100)
     marketing_consent: bool | None = None
     status: str | None = None
     admin_memo: str | None = None

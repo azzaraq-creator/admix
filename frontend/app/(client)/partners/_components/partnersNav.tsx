@@ -14,6 +14,7 @@ import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 import { markPartnersPending, usePartnersPending } from "./partnersPending";
+import { useRecruitingCount } from "./workspace/partnerState";
 
 /*
  * 콜라보 메뉴 공용 — PC 사이드바(PartnersSidebar)와 모바일 위 띠 · 아래 탭 바(PartnersMobileNav)가 같이 쓴다.
@@ -26,6 +27,8 @@ export type PartnersMenuItem = {
   href: string;
   /** 이 경로로 시작하면 활성. */
   activePrefix?: string;
+  /** 이름 옆 숫자(제휴사 "콜라보 참여" — 지금 신청할 수 있는 모집 중 콜라보). 0 · 없음이면 안 보인다. */
+  badge?: number;
 };
 
 /**
@@ -44,9 +47,8 @@ const DashboardIcon = maskIcon("/icons/dashboard.svg");
 const ClapIcon = maskIcon("/icons/clap-duo.svg");
 const ReceiptIcon = maskIcon("/icons/receipt.svg");
 const SquareCheckIcon = maskIcon("/icons/square-check.svg");
-const BubbleIcon = maskIcon("/icons/bubble.svg");
-const OpenFolderIcon = maskIcon("/icons/open-folder.svg");
 const StoreIcon = maskIcon("/icons/store.svg");
+const BrandIcon = maskIcon("/icons/shopping-bag.svg");
 
 /** 소개 — 비회원 · 일반 · 대행사 · 매체사만. 광고주 · 제휴사(콜라보)에겐 보이지 않는다. */
 const MENU: PartnersMenuItem[] = [
@@ -60,9 +62,10 @@ const MENU: PartnersMenuItem[] = [
 ];
 
 /**
- * 제휴사(콜라보) 회원에게만 — 매장 화면(받은 프로토타입의 탭 구성 + 매장 관리).
- * 매장을 아직 등록하지 않았으면 대시보드만 보인다(대시보드가 매장 등록을 안내).
- * 모바일 아래 탭 바는 앞 넷을 탭으로, 나머지(기본협약 · 대화 · 문서함)는 "더보기" 시트에 둔다(PARTNER_TAB_COUNT).
+ * 제휴사(콜라보) 회원에게만 — 대시보드 · 내 매장 · 콜라보 참여 · 참여 이력 · 기본 협약(2026-11-09 사용자 순서).
+ * 대화는 없앴고, 문서함(확정서 · 결과 보고서)은 참여 이력의 콜라보마다 붙였다(협약서는 기본 협약에서).
+ * 협약 전이거나 담당자가 아직 매장을 연결하지 않았으면 대시보드 · 기본 협약만(대시보드가 모집 중 콜라보와 다음 할 일을 안내).
+ * 모바일 아래 탭 바는 다섯 칸 모두 탭.
  */
 const PARTNER_MENU: PartnersMenuItem[] = [
   {
@@ -73,8 +76,15 @@ const PARTNER_MENU: PartnersMenuItem[] = [
     activePrefix: PARTNERS_DASHBOARD_HREF,
   },
   {
+    key: "stores",
+    label: "내 매장",
+    Icon: StoreIcon,
+    href: "/partners/stores",
+    activePrefix: "/partners/stores",
+  },
+  {
     key: "collabs",
-    label: "콜라보",
+    label: "콜라보 참여",
     Icon: ClapIcon,
     href: "/partners/collabs",
     activePrefix: "/partners/collabs",
@@ -87,38 +97,60 @@ const PARTNER_MENU: PartnersMenuItem[] = [
     activePrefix: "/partners/history",
   },
   {
-    key: "stores",
-    label: "내 매장",
-    Icon: StoreIcon,
-    href: "/partners/stores",
-    activePrefix: "/partners/stores",
-  },
-  {
     key: "agreement",
-    label: "기본협약",
+    label: "기본 협약",
     Icon: SquareCheckIcon,
-    // from=menu — 메뉴로 들어오면 가입 진행의 03 매장 등록이 등록 여부 체크로, "다음 · 매장 등록" 버튼은 없다(PartnerAgreement).
+    // from=menu — 메뉴로 들어오면 가입 진행의 다음 단계 버튼 없이 협약 내용만(PartnerAgreement).
     href: "/partners/join/agreement?from=menu",
     activePrefix: "/partners/join/agreement",
   },
+];
+/** 협약 전 · 매장 연결 전 — 대시보드 · 기본 협약만. */
+const PARTNER_MENU_START = PARTNER_MENU.filter((m) =>
+  ["dashboard", "agreement"].includes(m.key),
+);
+
+/**
+ * 광고주 회원 — 콜라보 의뢰 · 진행 화면(2026-11-09, 받은 프로토타입의 광고주 화면을 /partners 로).
+ * 새 의뢰(/partners/collabs/new)는 메뉴 대신 대시보드 · 내 콜라보 · 매장 찾기의 버튼으로 연다("내 콜라보"가 켜진다).
+ * 내 브랜드(11-09 사용자) — 브랜드 여러 개 · 사진.
+ * 대화 · 문서함은 없앴다(11-09 사용자, 제휴사와 같이) — 계산서 · 보고서는 콜라보 상세의 "문서" 칸에. 모바일은 네 칸 모두 탭.
+ */
+const ADVERTISER_MENU: PartnersMenuItem[] = [
   {
-    key: "messages",
-    label: "대화",
-    Icon: BubbleIcon,
-    href: "/partners/messages",
-    activePrefix: "/partners/messages",
+    key: "dashboard",
+    label: "대시보드",
+    Icon: DashboardIcon,
+    href: PARTNERS_DASHBOARD_HREF,
+    activePrefix: PARTNERS_DASHBOARD_HREF,
   },
   {
-    key: "documents",
-    label: "문서함",
-    Icon: OpenFolderIcon,
-    href: "/partners/documents",
-    activePrefix: "/partners/documents",
+    key: "collabs",
+    label: "내 콜라보",
+    Icon: ClapIcon,
+    href: "/partners/collabs",
+    activePrefix: "/partners/collabs",
+  },
+  {
+    key: "find",
+    label: "매장 찾기",
+    Icon: StoreIcon,
+    href: "/partners/find",
+    activePrefix: "/partners/find",
+  },
+  {
+    key: "brands",
+    label: "내 브랜드",
+    Icon: BrandIcon,
+    href: "/partners/brands",
+    activePrefix: "/partners/brands",
   },
 ];
 
-/** 모바일 아래 탭 바에 탭으로 두는 메뉴 수 — 나머지는 "더보기". */
+/** 모바일 아래 탭 바에 탭으로 두는 메뉴 수 — 나머지는 "더보기". 메뉴가 하나만 넘치면 더보기 대신 탭으로 다 둔다(광고주 5칸). */
 export const PARTNER_TAB_COUNT = 4;
+export const tabCountOf = (menuLength: number) =>
+  menuLength <= PARTNER_TAB_COUNT + 1 ? menuLength : PARTNER_TAB_COUNT;
 
 /**
  * 지금 회원에게 보일 메뉴 · 켜진 메뉴 · 회원 상태.
@@ -131,9 +163,12 @@ export function usePartnersNav(member: boolean) {
   const meLoading = hasToken && !me && !isError;
 
   const partner = me?.member_category === "partner";
+  const advertiser = me?.member_category === "advertiser";
   const stores = useMyPartnersStores();
-  // 매장을 등록해야 나머지 메뉴 · 알림이 열린다.
-  const hasStore = partner && (stores.data?.length ?? 0) > 0;
+  // 협약을 마치고 담당자가 매장을 연결해야 나머지 메뉴 · 알림이 열린다.
+  const hasStore =
+    partner && Boolean(me?.partner_agreed_at) && (stores.data?.length ?? 0) > 0;
+  const recruiting = useRecruitingCount();
   // 회원 정보 · (제휴사면) 매장 여부를 받는 동안은 메뉴를 비워 둔다 — 회원 유형을 모르는 사이 비회원용 "소개" 메뉴가
   // 잠깐 켜졌다가 제휴사 메뉴로 바뀌거나(새 탭으로 열 때, 11-08 사용자), 대시보드 하나였다가 늘어나지 않게. 다 받으면 한 번에 그린다.
   const menuLoading = meLoading || (partner && stores.isPending);
@@ -141,10 +176,12 @@ export function usePartnersNav(member: boolean) {
     ? []
     : partner
       ? hasStore
-        ? PARTNER_MENU
-        : PARTNER_MENU.slice(0, 1)
-      : me?.member_category === "advertiser"
-        ? []
+        ? PARTNER_MENU.map((m) =>
+            m.key === "collabs" ? { ...m, badge: recruiting } : m,
+          )
+        : PARTNER_MENU_START
+      : advertiser
+        ? ADVERTISER_MENU
         : MENU;
   // 가장 길게 맞는 경로 하나만 활성 — /partners/dashboard 에서 "소개"(/partners)까지 켜지지 않게.
   // 내 정보(/partners/profile)는 메뉴에 없으니 아무것도 켜지 않는다.
@@ -175,8 +212,8 @@ export function usePartnersNav(member: boolean) {
     /** 메뉴 링크 onClick — 누르자마자 본문을 로딩 화면으로(PartnersContent). */
     onMenuClick: (event: MouseEvent<HTMLElement>, href: string) =>
       markPartnersPending(event, href, pathname),
-    /** 로고를 누르면 — 제휴사는 대시보드로(소개 메뉴가 없다). */
-    logoHref: partner ? PARTNERS_DASHBOARD_HREF : "/partners",
+    /** 로고를 누르면 — 제휴사 · 광고주는 대시보드로(소개 메뉴가 없다). */
+    logoHref: partner || advertiser ? PARTNERS_DASHBOARD_HREF : "/partners",
   };
 }
 

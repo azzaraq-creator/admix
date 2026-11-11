@@ -1,6 +1,13 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import {
+  Button,
+  Link,
+  ListBox,
+  ProgressBar,
+  Select,
+  Table,
+} from "@heroui/react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 
 import {
@@ -190,91 +197,94 @@ export function PopGridAdminView() {
             분포」 층이 생겨요.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-[12px] border border-stroke">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-tone-fafaf9 text-left text-gray-600">
-                <tr>
-                  <th className="px-[16px] py-[10px] font-semibold">달</th>
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content
+                aria-label="들어 있는 달"
+                className="min-w-[760px]"
+              >
+                <Table.Header>
+                  <Table.Column id="ym" isRowHeader>
+                    달
+                  </Table.Column>
                   {METRIC_COLUMNS.map((c) => (
-                    <th
+                    <Table.Column
                       key={c.key}
-                      className="px-[8px] py-[10px] text-center font-semibold"
+                      id={c.key}
+                      className="px-[8px] text-center"
                     >
                       {c.label}
-                    </th>
+                    </Table.Column>
                   ))}
-                  <th className="px-[16px] py-[10px] font-semibold">출처</th>
-                  <th className="px-[16px] py-[10px] font-semibold">
-                    마지막으로 올린 때
-                  </th>
-                  <th className="px-[16px] py-[10px]" />
-                </tr>
-              </thead>
-              <tbody>
-                {[...months].reverse().map((m) => (
-                  <tr key={m.ym} className="border-t border-stroke">
-                    <td className="px-[16px] py-[10px] font-semibold whitespace-nowrap text-black">
-                      {ymText(m.ym)}
-                      {!!m.sources.live?.missingDays?.length && (
-                        <span
-                          className="ml-[6px] text-xs font-medium text-amber-600"
-                          title={`zip에 없던 날: ${m.sources.live.missingDays.map((d) => `${d}일`).join(", ")}`}
+                  <Table.Column id="source">출처</Table.Column>
+                  <Table.Column id="uploaded">마지막으로 올린 때</Table.Column>
+                  <Table.Column id="actions" textValue="작업">
+                    <span className="sr-only">작업</span>
+                  </Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {[...months].reverse().map((m) => (
+                    <Table.Row key={m.ym} id={m.ym}>
+                      <Table.Cell className="font-semibold whitespace-nowrap text-black">
+                        {ymText(m.ym)}
+                        {!!m.sources.live?.missingDays?.length && (
+                          <span
+                            className="ml-[6px] text-xs font-medium text-amber-600"
+                            title={`zip에 없던 날: ${m.sources.live.missingDays.map((d) => `${d}일`).join(", ")}`}
+                          >
+                            {m.sources.live.missingDays.length}일 빠짐
+                          </span>
+                        )}
+                      </Table.Cell>
+                      {METRIC_COLUMNS.map((c) => {
+                        const s = m.sources[c.key];
+                        const has = m.metrics.includes(c.key);
+                        return (
+                          <Table.Cell key={c.key} className="px-[8px] text-center">
+                            {has ? (
+                              <span
+                                className="text-success"
+                                title={
+                                  c.key === "walk" && s?.quarter
+                                    ? `${s.quarter.slice(0, 4)}년 ${s.quarter.slice(4)}분기 값${s.fallback ? " (그 분기 미공개라 앞 분기 값)" : ""}`
+                                    : undefined
+                                }
+                              >
+                                ●
+                                {c.key === "walk" && s?.fallback && (
+                                  <span className="ml-[2px] text-xs text-amber-600">
+                                    앞 분기
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </Table.Cell>
+                        );
+                      })}
+                      <Table.Cell className="whitespace-nowrap text-gray-600">
+                        {sourceText(m)}
+                      </Table.Cell>
+                      <Table.Cell className="whitespace-nowrap text-gray-600">
+                        {lastUpload(m)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="tertiary"
+                          onPress={() => handleDelete(m.ym)}
+                          isDisabled={remove.isPending}
                         >
-                          {m.sources.live.missingDays.length}일 빠짐
-                        </span>
-                      )}
-                    </td>
-                    {METRIC_COLUMNS.map((c) => {
-                      const s = m.sources[c.key];
-                      const has = m.metrics.includes(c.key);
-                      return (
-                        <td
-                          key={c.key}
-                          className="px-[8px] py-[10px] text-center"
-                        >
-                          {has ? (
-                            <span
-                              className="text-success"
-                              title={
-                                c.key === "walk" && s?.quarter
-                                  ? `${s.quarter.slice(0, 4)}년 ${s.quarter.slice(4)}분기 값${s.fallback ? " (그 분기 미공개라 앞 분기 값)" : ""}`
-                                  : undefined
-                              }
-                            >
-                              ●
-                              {c.key === "walk" && s?.fallback && (
-                                <span className="ml-[2px] text-xs text-amber-600">
-                                  앞 분기
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-[16px] py-[10px] whitespace-nowrap text-gray-600">
-                      {sourceText(m)}
-                    </td>
-                    <td className="px-[16px] py-[10px] whitespace-nowrap text-gray-600">
-                      {lastUpload(m)}
-                    </td>
-                    <td className="px-[16px] py-[10px] text-right">
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        onPress={() => handleDelete(m.ym)}
-                        isDisabled={remove.isPending}
-                      >
-                        지우기
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          지우기
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
         )}
       </section>
 
@@ -372,14 +382,15 @@ function HouseholdSection() {
         </h2>
         <p className="text-sm leading-[20px] text-gray-600">
           공공데이터포털{" "}
-          <a
+          {/* 글 속 링크라 줄바꿈되도록 inline 으로 둔다(HeroUI Link 기본은 inline-flex). */}
+          <Link
             href={HOUSEHOLD_URL}
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline underline-offset-2"
+            className="inline text-primary underline underline-offset-2"
           >
             「지역별(행정동) 세대원수별 주민등록 세대수」
-          </a>
+          </Link>
           을 서버가 하루 한 번 API로 확인해 2025년 1월부터 새 달을 저절로 받아
           와요(매달 10일 무렵 새 달이 올라와요). 바로 받으려면 「지금 받아
           오기」, API가 막히면 받은 CSV를 고르세요. 서울 행정동만 담고, 지도
@@ -420,56 +431,59 @@ function HouseholdSection() {
       ) : months.length === 0 ? (
         <p className="text-sm text-gray-500">아직 올린 달이 없어요.</p>
       ) : (
-        <div className="overflow-x-auto rounded-[12px] border border-stroke">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-tone-fafaf9 text-left text-gray-600">
-              <tr>
-                <th className="px-[16px] py-[10px] font-semibold">기준 달</th>
-                <th className="px-[16px] py-[10px] font-semibold">행정동</th>
-                <th className="px-[16px] py-[10px] font-semibold">
-                  서울 세대수
-                </th>
-                <th className="px-[16px] py-[10px] font-semibold">
-                  마지막으로 올린 때
-                </th>
-                <th className="px-[16px] py-[10px]" />
-              </tr>
-            </thead>
-            <tbody>
-              {[...months].reverse().map((m) => (
-                <tr key={m.ym} className="border-t border-stroke">
-                  <td className="px-[16px] py-[10px] font-semibold whitespace-nowrap text-black">
-                    {ymText(m.ym)}
-                  </td>
-                  <td className="px-[16px] py-[10px] text-gray-600 tabular-nums">
-                    {m.dongs}곳
-                  </td>
-                  <td className="px-[16px] py-[10px] text-gray-600 tabular-nums">
-                    {m.total.toLocaleString()}세대
-                  </td>
-                  <td
-                    className="px-[16px] py-[10px] whitespace-nowrap text-gray-600"
-                    title={m.file ?? undefined}
-                  >
-                    {m.updatedAt
-                      ? `${new Date(m.updatedAt).toLocaleDateString("ko-KR")} · ${m.by ?? ""}`
-                      : "-"}
-                  </td>
-                  <td className="px-[16px] py-[10px] text-right">
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      onPress={() => handleDelete(m.ym)}
-                      isDisabled={remove.isPending}
-                    >
-                      지우기
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content
+              aria-label="거주인구 세대수 달"
+              className="min-w-[640px]"
+            >
+              <Table.Header>
+                <Table.Column id="ym" isRowHeader>
+                  기준 달
+                </Table.Column>
+                <Table.Column id="dongs">행정동</Table.Column>
+                <Table.Column id="total">서울 세대수</Table.Column>
+                <Table.Column id="uploaded">마지막으로 올린 때</Table.Column>
+                <Table.Column id="actions" textValue="작업">
+                  <span className="sr-only">작업</span>
+                </Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {[...months].reverse().map((m) => (
+                  <Table.Row key={m.ym} id={m.ym}>
+                    <Table.Cell className="font-semibold whitespace-nowrap text-black">
+                      {ymText(m.ym)}
+                    </Table.Cell>
+                    <Table.Cell className="text-gray-600 tabular-nums">
+                      {m.dongs}곳
+                    </Table.Cell>
+                    <Table.Cell className="text-gray-600 tabular-nums">
+                      {m.total.toLocaleString()}세대
+                    </Table.Cell>
+                    <Table.Cell className="whitespace-nowrap text-gray-600">
+                      {/* 올린 파일 이름은 마우스를 올리면 보인다. */}
+                      <span title={m.file ?? undefined}>
+                        {m.updatedAt
+                          ? `${new Date(m.updatedAt).toLocaleDateString("ko-KR")} · ${m.by ?? ""}`
+                          : "-"}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        onPress={() => handleDelete(m.ym)}
+                        isDisabled={remove.isPending}
+                      >
+                        지우기
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       )}
     </section>
   );
@@ -606,33 +620,57 @@ function SeoulRawUpload() {
 
       <div className="flex items-center gap-[8px] text-sm">
         <span className="font-semibold text-black">자료 달</span>
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          disabled={busy}
-          className="h-[36px] rounded-[8px] border border-stroke bg-surface px-[8px]"
+        <Select
+          aria-label="자료 연도"
+          className="w-[112px]"
+          selectedKey={year}
+          onSelectionChange={(key) => {
+            if (key != null) setYear(Number(key));
+          }}
+          isDisabled={busy}
         >
-          {Array.from(
-            { length: now.getFullYear() - 2022 },
-            (_, i) => 2023 + i,
-          ).map((y) => (
-            <option key={y} value={y}>
-              {y}년
-            </option>
-          ))}
-        </select>
-        <select
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-          disabled={busy}
-          className="h-[36px] rounded-[8px] border border-stroke bg-surface px-[8px]"
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {Array.from(
+                { length: now.getFullYear() - 2022 },
+                (_, i) => 2023 + i,
+              ).map((y) => (
+                <ListBox.Item key={y} id={y} textValue={`${y}년`}>
+                  {y}년
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+        <Select
+          aria-label="자료 월"
+          className="w-[96px]"
+          selectedKey={month}
+          onSelectionChange={(key) => {
+            if (key != null) setMonth(Number(key));
+          }}
+          isDisabled={busy}
         >
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-            <option key={m} value={m}>
-              {m}월
-            </option>
-          ))}
-        </select>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <ListBox.Item key={m} id={m} textValue={`${m}월`}>
+                  {m}월
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </div>
 
       <ZipSlot
@@ -661,12 +699,12 @@ function SeoulRawUpload() {
             </span>
             {pct != null && <span className="tabular-nums">{pct}%</span>}
           </div>
-          <div className="h-[6px] overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{ width: `${pct ?? 5}%` }}
-            />
-          </div>
+          {/* 몇 %인지 모를 때(준비·올리는 중)는 5%로 조금만 채워 둔다. */}
+          <ProgressBar aria-label={stageText} value={pct ?? 5}>
+            <ProgressBar.Track>
+              <ProgressBar.Fill />
+            </ProgressBar.Track>
+          </ProgressBar>
         </div>
       )}
 
@@ -709,14 +747,14 @@ function ZipSlot({
       <div className="flex min-w-0 flex-col">
         <span className="text-sm font-semibold text-black">
           {title}{" "}
-          <a
+          <Link
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="ml-[4px] text-xs font-medium text-primary underline"
+            className="ml-[4px] text-xs text-primary underline"
           >
             받는 곳
-          </a>
+          </Link>
         </span>
         <span className="truncate text-xs text-gray-500">
           {file ? `${file.name} · ${(file.size / 1e6).toFixed(0)}MB` : hint}

@@ -1,10 +1,12 @@
 "use client";
 
+import { Button, buttonVariants } from "@heroui/react";
+import { List } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ListButton, PrimaryButton } from "@/components/common/buttons";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { DownloadIcon, FullscreenIcon } from "@/components/icons";
 import {
   proposalsApi,
@@ -160,7 +162,7 @@ export function ProposalDetailView() {
 
   return (
     <div className="flex flex-col gap-[32px]">
-      <div className="flex flex-col gap-[16px] rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <AdminCard className="flex flex-col gap-[16px] md:p-[44px]">
         <h1 className="pb-[8px] text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
           제안 상세
         </h1>
@@ -188,22 +190,21 @@ export function ProposalDetailView() {
             </InfoRow>
           </div>
         </div>
-      </div>
+      </AdminCard>
 
-      <div className="flex flex-col gap-[24px] rounded-[8px] border border-gray-200 bg-surface p-[44px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <AdminCard className="flex flex-col gap-[24px] md:p-[44px]">
         <div className="flex items-center justify-between">
           <p className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
             {proposal?.title ?? ""}
           </p>
-          <button
-            type="button"
-            onClick={handleExportPpt}
-            disabled={exporting}
-            className="flex h-[36px] items-center gap-[10px] rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] disabled:opacity-40"
+          <Button
+            variant="outline"
+            onPress={handleExportPpt}
+            isDisabled={exporting}
           >
             <DownloadIcon className="size-[16px]" />
             {exporting ? "생성 중…" : "PPT 다운로드"}
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-start gap-[11px]">
@@ -211,23 +212,21 @@ export function ProposalDetailView() {
             <p className="text-base leading-[1.4] text-black">슬라이드 목록</p>
             <div className="flex flex-col gap-[6px]">
               {slides.map((slide, index) => (
-                <button
+                // 고른 슬라이드는 회색 바탕(tertiary), 나머지는 테두리(outline). 높이를 고정해 바뀔 때 줄이 흔들리지 않게.
+                <Button
                   key={index}
-                  type="button"
-                  onClick={() => setSelected(index)}
-                  className={`flex items-center gap-[14px] rounded-[4px] border px-[8px] py-[10px] text-left ${
-                    index === selected
-                      ? "border-tone-cdcdcd bg-tone-f3f4f3"
-                      : "border-tone-cdcdcd hover:bg-zinc-50"
-                  }`}
+                  fullWidth
+                  variant={index === selected ? "tertiary" : "outline"}
+                  onPress={() => setSelected(index)}
+                  className="h-[42px] justify-start gap-[14px] rounded-[4px] px-[8px]"
                 >
                   <span className="flex w-[20px] shrink-0 items-center justify-center rounded-[4px] bg-tone-fdfdfd text-sm leading-[1.4] text-black">
                     {index + 1}
                   </span>
-                  <span className="truncate text-sm leading-[1.4] text-black">
+                  <span className="min-w-0 truncate text-sm leading-[1.4] text-black">
                     {slide.name}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -239,15 +238,17 @@ export function ProposalDetailView() {
                 <span>/</span>
                 <span>{slides.length}</span>
               </p>
-              <button
-                type="button"
-                onClick={() => setLightboxOpen(true)}
-                disabled={slides.length === 0}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                onPress={() => setLightboxOpen(true)}
+                isDisabled={slides.length === 0}
                 aria-label="슬라이드 확대 보기"
-                className="flex size-[24px] items-center justify-center text-tone-2a2a2a disabled:opacity-40"
+                className="text-tone-2a2a2a"
               >
                 <FullscreenIcon className="size-[24px]" />
-              </button>
+              </Button>
             </div>
             <div className="relative aspect-[1920/1080] w-full overflow-hidden rounded-[4px] border border-stroke">
               {current && (
@@ -267,17 +268,20 @@ export function ProposalDetailView() {
               맞춤제안 이력
             </p>
             {accepted ? (
+              // 막힌 버튼은 마우스를 받지 않으므로(pointer-events: none) 안내 글(title)은 감싼 칸에 단다.
               <span
-                aria-disabled="true"
                 title="계약 완료된 기획안은 맞춤제안을 작성할 수 없습니다."
-                className="flex h-[36px] cursor-not-allowed items-center rounded-[15px] border border-tone-ebebeb bg-tone-f5f5f5 px-[17px] text-sm font-medium leading-[20px] text-disabled"
+                className="cursor-not-allowed"
               >
-                맞춤제안 작성
+                <Button variant="outline" isDisabled>
+                  맞춤제안 작성
+                </Button>
               </span>
             ) : (
+              // 페이지 이동이라 링크(next/link)로 두고 모양만 HeroUI 버튼으로 맞춘다.
               <Link
                 href={`/admin/proposals/${params.id}/write`}
-                className="flex h-[36px] items-center rounded-[15px] border border-tone-ebebeb bg-surface px-[17px] text-sm font-medium leading-[20px] text-tone-0a0a0a shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                className={buttonVariants({ variant: "outline" })}
               >
                 맞춤제안 작성
               </Link>
@@ -317,25 +321,28 @@ export function ProposalDetailView() {
                     {index === 0 ? "노출중" : "이전 버전"}
                   </div>
                   <div className="flex flex-1 items-center justify-center gap-[10px] px-[24px]">
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onPress={() =>
                         router.push(
                           `/admin/proposals/${params.id}/write/${cf.id}`,
                         )
                       }
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-tone-cdcdcd px-[16px] py-[4px] text-xs font-semibold leading-[1.4] text-black"
+                      className="w-[62px] text-xs font-semibold"
                     >
                       상세
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadCounter(cf.id, cf.file_name)}
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      onPress={() => handleDownloadCounter(cf.id, cf.file_name)}
                       aria-label="다운로드"
-                      className="flex h-[24px] w-[62px] items-center justify-center rounded-[9px] border border-tone-cdcdcd px-[16px] py-[4px] text-tone-0a0a0a"
+                      className="w-[62px]"
                     >
                       <DownloadIcon className="size-[16px]" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -344,18 +351,23 @@ export function ProposalDetailView() {
         </div>
 
         <div className="flex items-center justify-between">
-          <ListButton
-            onClick={() => router.push("/admin/proposals")}
-            className="w-[100px] gap-[10px] px-0"
-          />
-          <PrimaryButton
-            onClick={handleAccept}
-            disabled={accepted || acceptMutation.isPending}
+          <Button
+            variant="outline"
+            onPress={() => router.push("/admin/proposals")}
+            className="w-[100px]"
+          >
+            <List className="size-[16px]" />
+            목록으로
+          </Button>
+          <Button
+            variant="primary"
+            onPress={handleAccept}
+            isDisabled={accepted || acceptMutation.isPending}
           >
             {accepted ? "계약완료" : "집행 수락"}
-          </PrimaryButton>
+          </Button>
         </div>
-      </div>
+      </AdminCard>
 
       {lightboxOpen && (
         <ProposalSlideLightbox

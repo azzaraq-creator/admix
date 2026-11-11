@@ -8,6 +8,8 @@ from src.config import get_settings
 from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.admin_chat import router as admin_chat_router
+from src.routers.admin_collab import router as admin_collab_router
+from src.routers.admin_collab_leads import router as admin_collab_leads_router
 from src.routers.auth import router as auth_router
 from src.routers.partners import admin_router as partners_admin_router, router as partners_router
 from src.routers.chat_graph import router as chat_graph_router
@@ -72,6 +74,8 @@ app.include_router(recommend_react_router)
 app.include_router(dashboard_router)
 app.include_router(partners_router)
 app.include_router(partners_admin_router)
+app.include_router(admin_collab_router)
+app.include_router(admin_collab_leads_router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")

@@ -62,3 +62,32 @@ export function formatPhoneInput(value: string): string {
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
+
+/** 매장 전화번호 입력칸 길이 — 숫자 12자리(0507 안심번호) + '-' 2개. */
+export const STORE_PHONE_INPUT_MAX_LENGTH = 14;
+
+/**
+ * 매장 전화번호 입력 중 '-'를 넣는다(콜라보 매장). 휴대폰 · 지역번호에 더해 카페에 흔한 번호도 나눈다.
+ * - 050X 안심번호: 0507-1234-5678(12) / 0505-123-4567(11)
+ * - 15XX · 16XX · 18XX 대표번호: 1588-1234(8)
+ * - 그 밖에는 formatPhoneInput 과 같다(02-XXX-XXXX, 010-XXXX-XXXX …).
+ */
+export function formatStorePhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.startsWith("050")) {
+    const d = digits.slice(0, 12);
+    if (d.length <= 4) return d;
+    if (d.length <= 7) return `${d.slice(0, 4)}-${d.slice(4)}`;
+    if (d.length <= 11)
+      return `${d.slice(0, 4)}-${d.slice(4, 7)}-${d.slice(7)}`;
+    return `${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`;
+  }
+
+  if (digits.startsWith("1")) {
+    const d = digits.slice(0, 8);
+    return d.length <= 4 ? d : `${d.slice(0, 4)}-${d.slice(4)}`;
+  }
+
+  return formatPhoneInput(digits);
+}

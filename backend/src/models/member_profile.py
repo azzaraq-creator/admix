@@ -37,7 +37,8 @@ class BusinessRegistration(Base):
         nullable=False,
         unique=True,
     )
-    status = Column(String(20), nullable=False, default="unregistered")  # unregistered/reviewing/verified/rejected
+    # unregistered/reviewing/verified/rejected/provisional(어드민 임시 승인 — 등록증 없이 협약까지 넘어가게, 069)
+    status = Column(String(20), nullable=False, default="unregistered")
     business_name = Column(String(200), nullable=True)
     business_registration_no = Column(String(30), nullable=True)
     address = Column(String(500), nullable=True)
@@ -47,6 +48,7 @@ class BusinessRegistration(Base):
     license_file_name = Column(String(500), nullable=True)
     license_uploaded_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
+    provisional_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 

@@ -37,6 +37,14 @@ import {
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 import { StopNoChip } from "@/components/common/StopNoChip";
 
+import {
+  CollabFeeCell,
+  CollabFeeLine,
+  CollabPickButton,
+  samePick,
+  type CollabPick,
+} from "./collabPick";
+
 // 금액 — 광고비가 없으면 "별도 문의"(제작비는 없으면 칸째 숨기므로 여기 오지 않는다).
 const formatKrw = formatAdFee;
 
@@ -141,6 +149,7 @@ function MediaFindCardImpl({
   selection,
   compact,
   partnersAccess,
+  collabPick,
 }: {
   row: MediaCardRow;
   selected?: boolean;
@@ -163,6 +172,8 @@ function MediaFindCardImpl({
    * 관심 매체 페이지는 눌러도 매체 정보 창이 떠서 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
+  /** 광고주 콜라보 매장 찾기 — 콜라보 카드에 등급 · 1건 금액과 담기 버튼(새 탭 표시 대신). collabPick.tsx 참고. */
+  collabPick?: CollabPick;
 }) {
   const slides =
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
@@ -172,7 +183,9 @@ function MediaFindCardImpl({
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
   // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
-  const access = partners ? partnersAccess : undefined;
+  const pick = partners ? collabPick : undefined;
+  // 담기 버튼이 있으면 새 탭 표시는 뺀다(카드를 누르면 그대로 매장 상세가 새 탭으로).
+  const access = partners && !pick ? partnersAccess : undefined;
   const locked = access === "locked";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다(콜라보 카드만 상태를 바꾼다).
   const [hovered, setHovered] = useState(false);
@@ -286,7 +299,9 @@ function MediaFindCardImpl({
           </p>
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
-            {partners ? (
+            {pick ? (
+              <CollabFeeLine pick={pick} />
+            ) : partners ? (
               <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
               <div className="flex min-w-0 flex-col gap-[1px]">
@@ -316,6 +331,7 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
+            {pick && <CollabPickButton pick={pick} variant="compact" />}
             {/* 콜라보는 담기 자리에 새 탭(못 열면 자물쇠) 표시 — 옆 하트와 같은 밝은 회색 칸. */}
             {access && (
               <PartnersAccessMark
@@ -359,6 +375,7 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
+            {pick && <CollabPickButton pick={pick} variant="overlay" />}
             {/* 콜라보는 기획안 담기 자리(사진 왼쪽 위)에 새 탭(못 열면 자물쇠) 표시 — 오른쪽 하트와 같은 흰 칸.
                 툴팁은 오른쪽으로 띄워 사진 위에 얹는다(위로 띄우면 앞 카드를 가린다). */}
             {access && (
@@ -438,7 +455,17 @@ function MediaFindCardImpl({
 
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
-      {partners ? (
+      {pick ? (
+        // 콜라보 담기 — 운영 시간 · 매장 특징 옆에 1건 금액(광고비 칸 자리).
+        <div className="flex items-end justify-between gap-[12px] p-[10px]">
+          <PartnersCardDetails
+            businessHours={row.partners?.businessHours}
+            tags={row.partners?.tags}
+            className="min-w-0 flex-1"
+          />
+          <CollabFeeCell pick={pick} />
+        </div>
+      ) : partners ? (
         <PartnersCardDetails
           businessHours={row.partners?.businessHours}
           tags={row.partners?.tags}
@@ -483,6 +510,7 @@ export const MediaFindCard = memo(
     prev.highlighted === next.highlighted &&
     prev.compact === next.compact &&
     prev.partnersAccess === next.partnersAccess &&
+    samePick(prev.collabPick, next.collabPick) &&
     !prev.onHoverChange === !next.onHoverChange,
 );
 

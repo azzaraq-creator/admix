@@ -4,21 +4,23 @@ import {
   Accordion,
   Button,
   Label,
+  Link,
   ListBox,
   SearchField,
   Select,
   Tabs,
 } from "@heroui/react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import {
   HISTORY_LABEL,
   HISTORY_TONE,
   historyStatusOf,
   md,
-  PREVIEW_TODAY,
   type HistoryStatus,
+  type PreviewCollab,
 } from "@/lib/partnersPreview";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
@@ -26,8 +28,15 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
 
 import { collabHref } from "./CollabBoard";
-import { usePreviewState } from "./previewStore";
-import { EmptyBox, PageHead, PartnerOnly, StatusChip } from "./workspaceUi";
+import { ConfirmDocModal } from "./ConfirmDocModal";
+import { usePartnerWorkspace } from "./partnerState";
+import {
+  EmptyBox,
+  PageHead,
+  PartnerOnly,
+  StatusChip,
+  StorePicker,
+} from "./workspaceUi";
 
 /*
  * /partners/history — 참여 이력(프로토타입의 "참여 이력" 흉내).
@@ -37,6 +46,7 @@ import { EmptyBox, PageHead, PartnerOnly, StatusChip } from "./workspaceUi";
  * 모바일(sm 미만)도 같은 타임라인 — 오른쪽 끝 기간만 사진 · 이름 묶음 아래 줄(작은 기간 알약)로 옮겨 제목 자리를 넓힌다
  * (11-08 사용자: 보기 안 좋다 → 카드 목록으로 바꿔 봤더니 "PC UI와 많이 벗어나지 않게").
  * 모바일 칩 칸은 56px(칩 20px · 11px 글자)로 좁히고 제목은 두 줄까지("왼쪽을 작게, 내용이 더 잘 보이게").
+ * 문서함은 없앴다(2026-11-09 사용자) — 콜라보마다 그 콜라보 문서(확정서)를 줄 오른쪽에 붙인다. 기본협약서는 "기본 협약" 메뉴에서.
  */
 
 type Filter = "all" | "active" | "scheduled" | "completed" | "inactive";
@@ -49,18 +59,22 @@ const FILTERS: { id: Filter; name: string }[] = [
 ];
 
 function History({ initial }: { initial?: Filter }) {
-  const state = usePreviewState();
+  const { state, today, isLoading } = usePartnerWorkspace();
   const [filter, setFilter] = useState<Filter>(initial ?? "all");
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("all");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // 한 번에 한 해만 — 처음엔 올해. 목록 끝 버튼으로 이전 · 다음 해로 넘어간다.
-  const [year, setYear] = useState(PREVIEW_TODAY.slice(0, 4));
+  const [year, setYear] = useState(today.slice(0, 4));
+  // 확정서 창 — 연 콜라보(null 이면 닫힘).
+  const [doc, setDoc] = useState<PreviewCollab | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
 
+  if (isLoading) return <LoadingState />;
+
   const records = state.collabs
-    .map((c) => ({ c, status: historyStatusOf(c) }))
+    .map((c) => ({ c, status: historyStatusOf(c, today) }))
     .filter(
       (x): x is { c: typeof x.c; status: HistoryStatus } => x.status !== null,
     );
@@ -99,16 +113,11 @@ function History({ initial }: { initial?: Filter }) {
     if (last?.month === m) last.items.push(x);
     else groups.push({ month: m, items: [x] });
   }
-  const clear = () => {
-    setSearch("");
-    setFilter("all");
-    setMonth("all");
-  };
-
   return (
     <div ref={topRef} className="flex scroll-mt-[24px] flex-col gap-[16px]">
       {/* 모바일은 제목을 감춘다 — 아래 탭 바가 "참여 이력"을 켜 보여 준다(대시보드 · 콜라보와 같다). */}
       <PageHead title="참여 이력" className="max-sm:sr-only" />
+      <StorePicker />
 
       {/* 모바일도 검색 · 시작 월을 한 줄에(월 칸 120px), 글자는 14px · 높이 36px(11-08 사용자: "같은 라인에, 폰트도 크다"). */}
       <div className="flex gap-[8px] sm:items-end">
@@ -225,20 +234,16 @@ function History({ initial }: { initial?: Filter }) {
                */}
               <Accordion.Panel className="-mx-[20px] data-[expanded=true]:-mb-[20px]">
                 <Accordion.Body className="px-[20px] pt-[4px] pb-[20px]">
-                  <ListBox
+                  {/* 줄 안에 문서 버튼을 두려고 ListBox 대신 목록 + HeroUI Link(줄) · Button(문서). */}
+                  <ol
                     aria-label={`${g.month} 참여 이력`}
-                    selectionMode="none"
-                    // overflow-visible — HeroUI .list-box 의 overflow:clip 이 떠오르는 그림자를 자르지 않게.
-                    className="overflow-visible p-0"
+                    className="flex flex-col"
                   >
                     {g.items.map(({ c, status }) => (
-                      <ListBox.Item
+                      <li
                         key={c.id}
-                        id={c.id}
-                        href={collabHref(c.id, "history")}
-                        textValue={`${c.brand} ${c.title} ${HISTORY_LABEL[status]}`}
                         // 왼쪽 72px 칸 가운데(36px)에 점선이 지나고, 그 위에 상태 칩이 얹힌다.
-                        className="group relative block w-auto rounded-none bg-transparent p-0 pl-[72px] outline-none before:absolute before:inset-y-0 before:left-[36px] max-sm:pl-[56px] max-sm:before:left-[28px] before:w-px before:bg-[repeating-linear-gradient(to_bottom,var(--color-gray-300)_0_2px,transparent_2px_4px)] before:[mask-image:linear-gradient(to_bottom,#000_calc(50%_-_14px),transparent_calc(50%_-_14px),transparent_calc(50%_+_14px),#000_calc(50%_+_14px))] hover:bg-transparent data-[hovered=true]:bg-transparent"
+                        className="group relative flex items-center gap-[6px] pl-[72px] before:absolute before:inset-y-0 before:left-[36px] max-sm:pl-[56px] max-sm:before:left-[28px] before:w-px before:bg-[repeating-linear-gradient(to_bottom,var(--color-gray-300)_0_2px,transparent_2px_4px)] before:[mask-image:linear-gradient(to_bottom,#000_calc(50%_-_14px),transparent_calc(50%_-_14px),transparent_calc(50%_+_14px),#000_calc(50%_+_14px))]"
                       >
                         {/*
                          * 점선은 칩 자리(가운데 28px)만 비워 그린다(mask) — 칩 뒤를 바탕색으로 덮으면
@@ -253,7 +258,11 @@ function History({ initial }: { initial?: Filter }) {
                             {HISTORY_LABEL[status]}
                           </StatusChip>
                         </span>
-                        <span className="flex items-center gap-[12px] rounded-[12px] px-[10px] py-[10px] transition-[background-color,box-shadow] group-hover:bg-surface group-hover:shadow-[0_1px_3px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.06)] group-data-[focus-visible=true]:ring-2 group-data-[focus-visible=true]:ring-primary-200 max-sm:px-[8px]">
+                        <Link
+                          href={collabHref(c.id, "history")}
+                          aria-label={`${c.brand} ${c.title} ${HISTORY_LABEL[status]}`}
+                          className="flex min-w-0 flex-1 items-center gap-[12px] rounded-[12px] px-[10px] py-[10px] no-underline transition-[background-color,box-shadow] outline-none hover:bg-surface hover:no-underline hover:shadow-[0_1px_3px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.06)] focus-visible:ring-2 focus-visible:ring-primary-200 max-sm:px-[8px]"
+                        >
                           {/*
                            * 모바일: 브랜드 사진은 브랜드 · 콜라보 이름 두 줄 옆에, 기간(달력 아이콘)은 그 묶음 아래 줄에(11-08 사용자).
                            * PC: 사진 | 브랜드 · 제목 한 줄 묶음 그대로(기간은 줄 오른쪽 끝 칸).
@@ -294,28 +303,52 @@ function History({ initial }: { initial?: Filter }) {
                           <span className="shrink-0 text-[12px] text-gray-500 tabular-nums max-sm:hidden">
                             {md(c.startDate)} ~ {md(c.endDate)}
                           </span>
-                        </span>
-                      </ListBox.Item>
+                        </Link>
+                        {/* 이 콜라보 문서 — 확정서(확정 번호가 있을 때). 모바일은 아이콘만. */}
+                        {c.confirmNo ? (
+                          <Button
+                            size="sm"
+                            variant="tertiary"
+                            aria-label={`${c.title} 확정서 ${c.confirmNo}`}
+                            onPress={() => setDoc(c)}
+                            className="h-[30px] shrink-0 gap-[4px] rounded-[12px] px-[10px] text-[12px] font-semibold max-sm:w-[30px] max-sm:min-w-0 max-sm:px-0"
+                          >
+                            <FileText className="size-[13px]" />
+                            <span className="max-sm:hidden">확정서</span>
+                          </Button>
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="w-[76px] shrink-0 max-sm:w-[30px]"
+                          />
+                        )}
+                      </li>
                     ))}
-                  </ListBox>
+                  </ol>
                 </Accordion.Body>
               </Accordion.Panel>
             </Accordion.Item>
           ))}
         </Accordion>
       ) : (
-        <EmptyBox icon={<Search className="size-[26px]" />}>
-          <b className="text-gray-700">조건에 맞는 콜라보가 없어요.</b>
-          검색어나 기간, 상태를 바꿔 보세요.
-          <Button
-            size="sm"
-            variant="tertiary"
-            onPress={clear}
-            className="mt-[4px]"
-          >
-            전체 이력 보기
-          </Button>
+        // 비었으면 검색 · 상태 · 기간과 상관없이 늘 같은 빈 상자 — 대시보드 "최근 활동"과 같다(11-10 사용자: "없는 건 통일").
+        <EmptyBox
+          icon={
+            <MaskIcon
+              src="/icons/time-sleep.svg"
+              className="size-[26px] shrink-0"
+            />
+          }
+        >
+          <b className="text-gray-700">아직 활동이 없어요.</b>
         </EmptyBox>
+      )}
+      {doc && (
+        <ConfirmDocModal
+          c={doc}
+          isOpen
+          onOpenChange={(open) => !open && setDoc(null)}
+        />
       )}
       {/* 목록 끝 — 이전 · 다음 해로(그 해에 이력이 있을 때만). */}
       {(prevYear || nextYear) && (

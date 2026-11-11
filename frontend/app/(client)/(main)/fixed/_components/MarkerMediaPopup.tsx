@@ -7,6 +7,12 @@ import { Button, Card, Chip, ScrollShadow, ToggleButton } from "@heroui/react";
 import { PersonStanding } from "lucide-react";
 
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
+import {
+  CollabFeeCell,
+  CollabFeeLine,
+  CollabPickButton,
+  type CollabPick,
+} from "./collabPick";
 import { formatAdFee } from "@/lib/media";
 import {
   PartnersCardDetails,
@@ -119,6 +125,7 @@ export function MediaPopupCard({
   onAddProposal,
   roadview = false,
   partnersAccess,
+  collabPick,
 }: {
   row: MediaCardRow;
   simple: boolean;
@@ -138,12 +145,15 @@ export function MediaPopupCard({
    * 믹시 추천 목록은 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
+  /** 광고주 콜라보 매장 찾기 — 등급 · 1건 금액과 담기 버튼(새 탭 표시 대신). collabPick.tsx 참고. */
+  collabPick?: CollabPick;
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
   // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
-  const access = partners ? partnersAccess : undefined;
+  const pick = partners ? collabPick : undefined;
+  const access = partners && !pick ? partnersAccess : undefined;
   const locked = access === "locked";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다.
   const [hovered, setHovered] = useState(false);
@@ -265,12 +275,15 @@ export function MediaPopupCard({
                 <FolderAddIcon className="size-[16px] text-primary" />
               </Button>
             )}
+            {pick && <CollabPickButton pick={pick} variant="compact" />}
             {/* 콜라보는 기획안 담기 자리에 새 탭(못 열면 자물쇠) 표시. */}
             {accessMark}
           </div>
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
           <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
-            {partners ? (
+            {pick ? (
+              <CollabFeeLine pick={pick} />
+            ) : partners ? (
               <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
               <>
@@ -349,7 +362,13 @@ export function MediaPopupCard({
             </div>
           </div>
 
-          {partners ? (
+          {pick ? (
+            // 콜라보 담기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리에 매장 담기.
+            <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
+              <CollabFeeCell pick={pick} align="start" />
+              <CollabPickButton pick={pick} variant="outline" />
+            </div>
+          ) : partners ? (
             // 콜라보는 기획안 담기 자리(아래 칸 오른쪽)에 새 탭(못 열면 자물쇠) 표시.
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
               <PartnersCardDetails
@@ -408,6 +427,7 @@ export function MarkerMediaPopup({
   onAddProposal,
   highlightId,
   partnersAccess,
+  pickOf,
 }: {
   rows: MediaCardRow[];
   simple: boolean;
@@ -418,6 +438,8 @@ export function MarkerMediaPopup({
   highlightId?: string | null;
   /** 콜라보 매장 카드를 누를 수 있는지 — MediaPopupCard 참고. */
   partnersAccess?: PartnersCardAccess;
+  /** 광고주 콜라보 매장 찾기 — 카드마다 담기 정보(MediaFindOnly.pickOf). */
+  pickOf?: (row: MediaCardRow) => CollabPick | undefined;
 }) {
   if (rows.length === 0) return null;
   const ordered = highlightId
@@ -436,7 +458,11 @@ export function MarkerMediaPopup({
     >
       <div className="flex shrink-0 items-center justify-between gap-[8px] px-[12px] pt-[10px] pb-[8px]">
         <span className="text-[13px] max-sm:text-[12px] font-medium text-gray-500">
-          {rows.length > 1 ? `매체 ${rows.length}개` : ""}
+          {rows.length > 1
+            ? pickOf
+              ? `매장 ${rows.length}곳`
+              : `매체 ${rows.length}개`
+            : ""}
         </span>
         {/* 모바일은 왼쪽 "매체 N개"와 같은 12px로 작게. */}
         <SimpleViewToggle
@@ -461,6 +487,7 @@ export function MarkerMediaPopup({
             onAddProposal={() => onAddProposal?.(row)}
             roadview
             partnersAccess={partnersAccess}
+            collabPick={pickOf?.(row)}
           />
         ))}
       </ScrollShadow>

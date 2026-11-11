@@ -57,6 +57,7 @@ RSYNC_EXCLUDES=(
   --exclude='backend/scripts/seed_demo_media.py'
   --exclude='backend/scripts/seed_demo_moving_media.py'
   --exclude='backend/scripts/seed_demo_plans.py'
+  --exclude='backend/scripts/seed_demo_collabs.py'
   --exclude='scripts/dev-up.sh'
   --exclude='frontend/next-env.d.ts'
 )

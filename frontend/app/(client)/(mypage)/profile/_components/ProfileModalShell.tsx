@@ -3,6 +3,8 @@
 import { Button, Modal, Spinner } from "@heroui/react";
 import type { ReactNode } from "react";
 
+import { XIcon } from "@/components/icons";
+
 /*
  * 프로필 화면의 작은 변경 창(비밀번호·연락받을 이메일) — HeroUI Modal.
  * 겉모양은 로그인 창(LoginModal)과 같은 admix 톤: 둥근 흰 카드, 회색 입력칸(선택·입력 중엔 흰색),
@@ -56,10 +58,13 @@ export function ProfileModalShell({
           >
             {/* 제목 줄(위 28px + 줄높이 26px)의 가운데(41px)에 X(32px)의 가운데를 맞춘다 → top 25px.
                 모바일은 위 20px + 줄높이 22px → 가운데 31px, X 28px → top 17px. */}
+            {/* X는 배경 없이 회색 아이콘만, 올리면 옅은 회색 원 — 로그인 창 · 유형 비교 창과 같다(11-09 사용자: "배경 원래 없지 않았나"). */}
             <Modal.CloseTrigger
               aria-label="닫기"
-              className="top-[25px] right-[20px] size-[32px] rounded-[13px] max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px] max-sm:rounded-[11px]"
-            />
+              className="top-[25px] right-[20px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px]"
+            >
+              <XIcon className="size-[20px] max-sm:size-[18px]" />
+            </Modal.CloseTrigger>
 
             <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[32px]">
               <Modal.Heading className="text-[18px] leading-[26px] font-bold text-gray-900 max-sm:text-[16px] max-sm:leading-[22px]">

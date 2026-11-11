@@ -53,6 +53,7 @@ import {
   guideDemoPlace,
   guideDemoTransit,
 } from "./guideDemo";
+import type { MediaFindOnly } from "./collabPick";
 import { MarkerMediaPopup } from "./MarkerMediaPopup";
 import { MediaFindPanel } from "./MediaFindPanel";
 import { useGuidePopGrid, usePopGridState } from "./PopGridLayer";
@@ -305,7 +306,11 @@ const POP_STEPS = new Set(["pop-grid", "pop-cell"]);
 const DETAIL_STEPS = new Set(["location", "options", "info"]);
 const noop = () => {};
 
-export function FixedMediaView() {
+/**
+ * 매체 찾기 — 목록 + 지도. only 를 주면 한 카테고리만 보는 같은 화면이 된다
+ * (광고주 콜라보 매장 찾기 /partners/find: 콜라보 매장만, 카드에 등급 · 금액 · 담기).
+ */
+export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   const searchParams = useSearchParams();
   const isDesktop = useIsDesktop();
 
@@ -335,7 +340,7 @@ export function FixedMediaView() {
           level:
             Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_CENTER.level,
         }
-      : { ...DEFAULT_CENTER };
+      : { ...(only?.initialView ?? DEFAULT_CENTER) };
   });
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
   // 목록에서 마우스를 올린 이동매체의 운행 지역 — 지도에 반투명 영역으로 그린다.
@@ -679,6 +684,7 @@ export function FixedMediaView() {
         getViewport={() => lastViewportRef.current}
         onHoverArea={setHoverArea}
         popGrid={shownPop}
+        only={only}
         mapSlot={
           <MapArea
             markers={markers}
@@ -710,6 +716,7 @@ export function FixedMediaView() {
                   onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                   partnersAccess={partnersAccess}
+                  pickOf={only?.pickOf}
                 />
               ) : popupId ? (
                 <MarkerMediaPopup
@@ -721,6 +728,7 @@ export function FixedMediaView() {
                   onSelect={selectPopupRow}
                   onAddProposal={(row) => setAddProposal({ mediaId: row.id })}
                   partnersAccess={partnersAccess}
+                  pickOf={only?.pickOf}
                 />
               ) : null
             }

@@ -85,7 +85,10 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenRespons
 
 
 @router.get("/me", response_model=UserResponse)
-def me(current_user: User = Depends(get_current_user)) -> User:
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+    # 제휴사는 가입 직후 처음 부를 때 고유번호(P-0001)를 받는다.
+    if current_user.member_category == "partner" and not current_user.partner_code:
+        partners_service.ensure_partner_code(db, current_user)
     return current_user
 
 
@@ -130,28 +133,48 @@ def cancel_business_registration(
     return current_user
 
 
-@router.post("/me/brand-image", response_model=UserResponse)
-def upload_brand_image(
+# 명함 — 사업자등록증과 같은 파일 규칙(PDF · 이미지 10MB)에 WEBP 를 더한다.
+BUSINESS_CARD_EXTENSIONS = LICENSE_ALLOWED_EXTENSIONS | {".webp"}
+
+
+@router.post("/me/business-card", response_model=UserResponse)
+async def upload_business_card(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    """광고주 브랜드 사진 올리기(바꾸기) — 가입 직후(선택) · 내 정보에서. 광고주만."""
+    """광고주 담당자 명함 올리기(바꾸기) — 내 정보 "담당자 정보"에서. 광고주만."""
     if current_user.member_category != "advertiser":
-        raise HTTPException(status_code=403, detail="광고주 회원만 브랜드 사진을 올릴 수 있어요.")
-    current_user.brand_image_url = partners_service.upload_image(file, folder="brand")
+        raise HTTPException(status_code=403, detail="광고주 회원만 명함을 올릴 수 있어요.")
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in BUSINESS_CARD_EXTENSIONS:
+        raise HTTPException(
+            status_code=400, detail="PDF · JPG · PNG · WEBP 파일만 올릴 수 있어요."
+        )
+    content = await file.read()
+    if len(content) > LICENSE_MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="파일 크기는 10MB 이하만 가능해요.")
+
+    settings = get_settings()
+    dest_dir = Path(settings.upload_dir) / "business-card" / str(current_user.id)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuidlib.uuid4().hex}{ext}"
+    (dest_dir / stored_name).write_bytes(content)
+    current_user.business_card_url = f"/uploads/business-card/{current_user.id}/{stored_name}"
+    current_user.business_card_name = (file.filename or stored_name)[:255]
     db.commit()
     db.refresh(current_user)
     return current_user
 
 
-@router.delete("/me/brand-image", response_model=UserResponse)
-def delete_brand_image(
+@router.delete("/me/business-card", response_model=UserResponse)
+def delete_business_card(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    """브랜드 사진 지우기 — 콜라보 화면엔 기본 "C" 이미지가 보인다."""
-    current_user.brand_image_url = None
+    """명함 지우기 — 파일 주소만 비운다."""
+    current_user.business_card_url = None
+    current_user.business_card_name = None
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -171,6 +194,9 @@ def update_me(
         phone=body.phone,
         marketing_consent=body.marketing_consent,
         member_category=body.member_category,
+        contact_name=body.contact_name,
+        position=body.position,
+        department=body.department,
     )
 
 

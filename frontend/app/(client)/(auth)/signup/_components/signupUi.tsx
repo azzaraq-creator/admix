@@ -63,7 +63,7 @@ export function CardHeading({
   center,
 }: {
   title: string;
-  description: string;
+  description: ReactNode;
   center?: boolean;
 }) {
   return (

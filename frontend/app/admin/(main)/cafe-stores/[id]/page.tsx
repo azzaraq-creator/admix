@@ -1,11 +1,11 @@
-import { AdminCard } from "@/components/admin/AdminCard";
+import { redirect } from "next/navigation";
 
-import { PartnersStoreFormView } from "../_components/PartnersStoreFormView";
-
-export default function AdminPartnersStoreDetailPage() {
-  return (
-    <AdminCard>
-      <PartnersStoreFormView mode="edit" />
-    </AdminCard>
-  );
+/** 옛 주소 — /admin/collab/stores/{id} 로. */
+export default async function LegacyCafeStoreDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  redirect(`/admin/collab/stores/${encodeURIComponent(id)}`);
 }

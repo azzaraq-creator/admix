@@ -79,12 +79,33 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
               : "font-medium text-gray-900 hover:bg-tone-f7f3fe",
           )}
         >
-          <Icon className="size-[18px] shrink-0" />
+          {/* flex — 감싼 span 안에서 아이콘(inline-block)이 글자 기준선에 앉아 3.5px 위로 뜨지 않게(11-09 사용자: 가운데 정렬). */}
+          <span className="relative flex shrink-0">
+            <Icon className="size-[18px] shrink-0" />
+            {/* 접혔을 때는 아이콘 오른쪽 위 점으로 숫자가 있다는 것만. */}
+            {collapsed && !!item.badge && (
+              <span className="absolute -top-[3px] -right-[4px] size-[8px] rounded-full bg-primary ring-2 ring-surface max-sm:hidden" />
+            )}
+          </span>
           <span
             className={cn("text-sm whitespace-nowrap", fadeLabel(collapsed))}
           >
             {item.label}
           </span>
+          {!!item.badge && (
+            <span
+              aria-label={`신청할 수 있는 콜라보 ${item.badge}개`}
+              className={cn(
+                "ml-auto flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-[5px] text-[11px] leading-none font-bold tabular-nums",
+                active
+                  ? "bg-primary text-white"
+                  : "bg-primary-100 text-primary",
+                fadeLabel(collapsed),
+              )}
+            >
+              {item.badge}
+            </span>
+          )}
         </Link>
       </li>
     );

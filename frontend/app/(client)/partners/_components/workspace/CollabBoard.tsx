@@ -1,43 +1,39 @@
 "use client";
 
-import { Link, Tabs } from "@heroui/react";
-import { ArrowRight, CheckCircle2, Coffee, Inbox } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { Link } from "@heroui/react";
+import { type ReactNode } from "react";
 
+import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import {
-  COLLAB_CATEGORIES,
-  PREVIEW_TODAY,
   categoryOf,
-  chipOf,
   diffDays,
   md,
-  nextActionOf,
   recruitBadgeOf,
   recruitKindOf,
-  type CollabCategory,
+  todayKst,
   type PreviewCollab,
 } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
-import { usePreviewState } from "./previewStore";
+import { usePartnerWorkspace } from "./partnerState";
 import {
   EmptyBox,
   LinkCard,
   PageHead,
   PartnerOnly,
+  PressCard,
   RECRUIT_TONE,
   RecruitBadge,
   SHADOW_FLOAT,
   SHADOW_LIFT,
-  StatusChip,
+  StorePicker,
 } from "./workspaceUi";
 
 /*
- * /partners/collabs — 콜라보 목록(프로토타입의 "콜라보" 탭 흉내).
- * 모집 중 · 예정 · 진행 중 · 완료 네 칸(HeroUI Tabs). 누르면 /partners/collabs/[id] 상세(진행 안내함).
+ * /partners/collabs — 콜라보 참여: 지금 모집 중인 콜라보만(2026-11-09 사용자 — 진행 중은 대시보드, 확정 요청은 알림에).
+ * 누르면 /partners/collabs/[id] 상세(신청 · 진행 안내함).
  */
 
 /**
@@ -54,43 +50,10 @@ export type CollabFrom = keyof typeof COLLAB_FROM;
 export const collabHref = (id: string, from?: CollabFrom) =>
   `/partners/collabs/${id}${from ? `?from=${from}` : ""}`;
 
-/** 콜라보 목록에서 마지막으로 본 칸 — 이 탭(세션)에만 둔다. */
-const LIST_TAB_KEY = "admix:partners-collab-tab";
-
-/**
- * 콜라보 목록 주소 — 마지막으로 본 칸(?tab=)으로 돌아간다. 상세의 "목록으로"가 쓴다(칸이 처음으로 돌아가지 않게).
- * sessionStorage 를 읽으므로 누를 때(브라우저에서)만 부른다.
- */
+/** 콜라보 참여(모집 중 목록) 주소 — 상세의 "목록으로"가 쓴다. */
 export function collabListHref(): string {
-  try {
-    const tab = sessionStorage.getItem(LIST_TAB_KEY);
-    const saved = COLLAB_CATEGORIES.find((c) => c === tab);
-    if (saved) return `/partners/collabs?tab=${saved}`;
-  } catch {
-    // 못 읽으면 목록 처음 칸으로.
-  }
   return "/partners/collabs";
 }
-
-const SEGMENTS: { id: CollabCategory; label: string; empty: string }[] = [
-  {
-    id: "recruiting",
-    label: "모집 중",
-    empty: "지금 모집 중인 콜라보가 없어요. 새 모집은 이메일로 알려 드려요.",
-  },
-  {
-    id: "upcoming",
-    label: "예정",
-    empty: "신청했거나 확정한 콜라보(설치 전)가 여기에 모여요.",
-  },
-  {
-    id: "ongoing",
-    label: "진행 중",
-    empty:
-      "지금 진행 중인 콜라보가 없어요. 매장 한 곳은 한 번에 1건을 진행해요.",
-  },
-  { id: "done", label: "완료", empty: "마친 콜라보가 여기에 쌓여요." },
-];
 
 /**
  * 막대 칸 색 — 푸른 회색(slate) 한 가지를 시간 순서대로 점점 진하게(범례와 같이 쓴다).
@@ -109,7 +72,13 @@ const BAR = {
  * 모집 → (준비) → 설치 → 진행 → 철수를 한 막대에(오늘 위치 포함). 아래 범례로 칸마다 무엇인지 알려 준다.
  * 칸끼리 맞닿는 쪽은 둥글리지 않아 한 줄로 이어 보이고, 떨어진 끝만 둥글다.
  */
-export function PeriodBar({ c }: { c: PreviewCollab }) {
+export function PeriodBar({
+  c,
+  today = todayKst(),
+}: {
+  c: PreviewCollab;
+  today?: string;
+}) {
   const from = c.recruitStart;
   const total = Math.max(1, diffDays(c.removalDate, from) + 1);
   const pct = (d: string) =>
@@ -129,7 +98,7 @@ export function PeriodBar({ c }: { c: PreviewCollab }) {
   // 0.01% 안쪽이면 맞닿은 것으로 본다(날짜를 % 로 바꿀 때 생기는 소수 오차).
   const touches = (x?: { right: number }, y?: { left: number }) =>
     !!x && !!y && y.left <= x.right + 0.01;
-  const todayIn = PREVIEW_TODAY >= from && PREVIEW_TODAY <= c.removalDate;
+  const todayIn = today >= from && today <= c.removalDate;
   return (
     <div
       className="flex flex-col gap-[8px]"
@@ -170,14 +139,14 @@ export function PeriodBar({ c }: { c: PreviewCollab }) {
         {todayIn && (
           <>
             <span
-              title={`오늘 ${md(PREVIEW_TODAY)}`}
+              title={`오늘 ${md(today)}`}
               className="absolute -top-[3px] h-[14px] w-[2px] -translate-x-1/2 rounded-full bg-gray-900 ring-2 ring-surface"
-              style={{ left: `${pct(PREVIEW_TODAY)}%` }}
+              style={{ left: `${pct(today)}%` }}
             />
             <span
               aria-hidden
               className="absolute bottom-[calc(100%+5px)] -translate-x-1/2 text-[10px] leading-none font-bold text-gray-900 sm:hidden"
-              style={{ left: `${pct(PREVIEW_TODAY)}%` }}
+              style={{ left: `${pct(today)}%` }}
             >
               오늘
             </span>
@@ -235,43 +204,6 @@ function LegendItem({
   );
 }
 
-/** 예정 · 진행 중 · 완료 카드 — 모집 카드와 같은 틀(상태 줄 → 브랜드 · 제목 · 기간 막대 → 다음 할 일). */
-function PlanCard({ c }: { c: PreviewCollab }) {
-  if (categoryOf(c) === "recruiting") return <RecruitCard c={c} withPeriod />;
-  const chip = chipOf(c);
-  return (
-    <LinkCard
-      href={collabHref(c.id)}
-      label={`${c.brand} ${c.title} ${chip.label}`}
-      className={cn("gap-[12px] p-[18px]", SHADOW_FLOAT, SHADOW_LIFT)}
-    >
-      <div className="flex items-center justify-between gap-[8px]">
-        <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
-      </div>
-      <div className="min-w-0">
-        <span className="flex items-center gap-[6px] text-[12px] font-semibold text-gray-500">
-          <BrandAvatar
-            src={c.brandImage}
-            name={c.brand}
-            className="size-[18px] rounded-[6px] text-[12px]"
-          />
-          {c.brand}
-        </span>
-        <b className="mt-[6px] block truncate text-[15px] text-gray-900">
-          {c.title}
-        </b>
-        <div className="mt-[12px]">
-          <PeriodBar c={c} />
-        </div>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-[8px] text-[12px] break-keep text-gray-600">
-        {nextActionOf(c)}
-        <ArrowRight className="size-[14px] shrink-0 text-gray-400" />
-      </div>
-    </LinkCard>
-  );
-}
-
 /**
  * 모집 중 콜라보 — 마감 D-day · 신청 현황이 먼저 보이는 작은 카드(대시보드 · 콜라보 목록 공용).
  * withPeriod — 콜라보 목록에서는 "진행 ~" 한 줄 대신 기간 막대(모집 · 설치 · 진행 범례)를 보여 준다.
@@ -280,32 +212,31 @@ export function RecruitCard({
   c,
   withPeriod = false,
   from,
+  today = todayKst(),
+  onLockedPress,
 }: {
   c: PreviewCollab;
   withPeriod?: boolean;
   /** 콜라보 목록 밖(대시보드)에서 쓸 때 — 상세 위 버튼이 "뒤로가기"가 된다. */
   from?: CollabFrom;
+  today?: string;
+  /** 협약 전 · 매장 연결 전 — 상세로 가지 않고 이 함수(안내 창)를 부른다. */
+  onLockedPress?: () => void;
 }) {
-  const kind = recruitKindOf(c);
+  const kind = recruitKindOf(c, today);
   const tone = RECRUIT_TONE[kind];
-  // 대시보드 배지는 짧게 — "모집 중 · " 없이 D-day 만.
-  const badge =
-    kind === "open"
-      ? `D-${diffDays(c.recruitEnd, PREVIEW_TODAY)}`
-      : recruitBadgeOf(c);
+  // 배지는 짧게 — "모집 중 · " 없이 D-day 만.
+  const left = diffDays(c.recruitEnd, today);
+  const badge = kind === "open" ? `D-${left}` : recruitBadgeOf(c, today);
   const applied = Math.min(c.appliedStores, c.targetStores);
   const waiting = Math.max(0, c.appliedStores - c.targetStores);
-
-  return (
-    <LinkCard
-      href={collabHref(c.id, from)}
-      label={`${c.brand} ${c.title}`}
-      className={cn(
-        "gap-[12px] p-[18px]",
-        kind !== "blocked" && [SHADOW_FLOAT, SHADOW_LIFT],
-        tone.card,
-      )}
-    >
+  const cardClass = cn(
+    "gap-[12px] p-[18px]",
+    kind !== "blocked" && [SHADOW_FLOAT, SHADOW_LIFT],
+    tone.card,
+  );
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-[8px]">
         <RecruitBadge kind={kind}>{badge}</RecruitBadge>
         {/* 모집 마감일 — 배지(D-day)와 같은 줄 오른쪽. 시계 아이콘 + "11.12 마감"으로 짧게(진행 기간 · 철수일과 헷갈리지 않게 "마감"). */}
@@ -333,7 +264,7 @@ export function RecruitCard({
         </b>
         {withPeriod ? (
           <div className="mt-[12px]">
-            <PeriodBar c={c} />
+            <PeriodBar c={c} today={today} />
           </div>
         ) : (
           <span className="mt-[2px] flex items-center gap-[4px] text-[12px] text-gray-500 tabular-nums">
@@ -369,59 +300,59 @@ export function RecruitCard({
           </>
         )}
       </div>
+    </>
+  );
+  return onLockedPress ? (
+    <PressCard
+      onPress={onLockedPress}
+      label={`${c.brand} ${c.title}`}
+      className={cardClass}
+    >
+      {body}
+    </PressCard>
+  ) : (
+    <LinkCard
+      href={collabHref(c.id, from)}
+      label={`${c.brand} ${c.title}`}
+      className={cardClass}
+    >
+      {body}
     </LinkCard>
   );
 }
 
-function Board({ tab }: { tab?: CollabCategory }) {
-  const router = useRouter();
-  const state = usePreviewState();
-  const lists: Record<CollabCategory, PreviewCollab[]> = {
-    recruiting: [],
-    upcoming: [],
-    ongoing: [],
-    done: [],
-  };
-  for (const c of state.collabs) {
-    const cat = categoryOf(c);
-    if (cat) lists[cat].push(c);
-  }
-  lists.recruiting.sort(
-    (a, b) =>
-      Number(a.standing === "blocked") - Number(b.standing === "blocked") ||
-      a.recruitEnd.localeCompare(b.recruitEnd),
-  );
-  lists.upcoming.sort(
-    (a, b) =>
-      Number(b.standing === "requested") - Number(a.standing === "requested") ||
-      a.startDate.localeCompare(b.startDate),
-  );
-  lists.done.sort((a, b) => b.endDate.localeCompare(a.endDate));
-  const segment = tab ?? (lists.recruiting.length ? "recruiting" : "ongoing");
-  // 지금 보는 칸을 기억해 둔다 — 상세에서 "목록으로"를 누르면 이 칸으로 돌아온다(collabListHref).
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(LIST_TAB_KEY, segment);
-    } catch {
-      // 저장 못 하면 목록으로 갈 때 처음 칸이 열릴 뿐.
-    }
-  }, [segment]);
-  const held =
-    lists.ongoing[0] ?? lists.upcoming.find((c) => c.standing === "confirmed");
+function Board() {
+  const { state, today, isLoading } = usePartnerWorkspace();
+  if (isLoading) return <LoadingState />;
+  const recruiting = state.collabs
+    .filter((c) => categoryOf(c, today) === "recruiting")
+    .sort(
+      (a, b) =>
+        Number(a.standing === "blocked") - Number(b.standing === "blocked") ||
+        a.recruitEnd.localeCompare(b.recruitEnd),
+    );
+  const open = recruiting.filter((c) => c.standing === "none").length;
+  // 지금 잡힌 콜라보 — 확정 요청 · 확정했고 아직 철수 전.
+  const held = state.collabs
+    .filter(
+      (c) =>
+        (c.standing === "confirmed" || c.standing === "requested") &&
+        today <= c.removalDate,
+    )
+    .sort((a, b) => a.installDate.localeCompare(b.installDate))[0];
 
   return (
     <div className="flex flex-col gap-[12px] sm:gap-[16px]">
-      {/* 모바일은 제목을 감춘다 — 아래 탭 바가 "콜라보"를 켜 보여 준다(대시보드와 같다). */}
-      <PageHead title="콜라보" className="max-sm:sr-only" />
+      {/* 모바일은 제목을 감춘다 — 아래 탭 바가 "콜라보 참여"를 켜 보여 준다(대시보드와 같다). */}
+      <PageHead title="콜라보 참여" className="max-sm:sr-only" />
+      <StorePicker />
       {/*
        * 한 번에 1건 규칙(회색 한 줄) · 지금 잡힌 콜라보(옅은 보라 알약으로 살짝 또렷하게).
-       * 모바일은 규칙 문구를 빼고 맨 위에 알약만(11-08 사용자: "맨 위에 짧게" → "이 문구 없애도 될 듯").
-       * 겹치는 카드에는 "기간이 겹쳐요"가 따로 나온다. 잡힌 콜라보가 없으면 모바일은 줄째 감춘다.
-       * 알약은 달력 아이콘을 빼고, 브랜드가 길면 말줄임.
+       * 모바일은 규칙 문구를 빼고 맨 위에 알약만(11-08 사용자). 잡힌 콜라보가 없으면 모바일은 줄째 감춘다.
        */}
       <div
         className={cn(
-          "-mt-[6px] flex flex-wrap items-center gap-x-[10px] gap-y-[6px] text-[12px] break-keep text-gray-500 max-sm:mt-0",
+          "flex flex-wrap items-center gap-x-[10px] gap-y-[6px] text-[12px] break-keep text-gray-500",
           !held && "max-sm:hidden",
         )}
       >
@@ -431,6 +362,7 @@ function Board({ tab }: { tab?: CollabCategory }) {
             className="size-[13px] shrink-0 text-gray-400"
           />
           매장 한 곳은 한 번에 1건만 진행해요(기간이 겹치면 신청 불가).
+          {recruiting.length > 0 && ` 지금 신청할 수 있는 콜라보 ${open}개.`}
         </span>
         {held && (
           <Link
@@ -447,7 +379,6 @@ function Board({ tab }: { tab?: CollabCategory }) {
             <b className="min-w-0 truncate font-bold text-gray-900">
               {held.brand}
             </b>
-            {/* 브랜드 | 기간 — 세로 구분선 + 달력 아이콘으로 나눈다. */}
             <span
               aria-hidden
               className="h-[10px] w-px shrink-0 bg-primary-200"
@@ -462,72 +393,30 @@ function Board({ tab }: { tab?: CollabCategory }) {
           </Link>
         )}
       </div>
-      <Tabs
-        selectedKey={segment}
-        onSelectionChange={(key) =>
-          router.replace(`/partners/collabs?tab=${String(key)}`, {
-            scroll: false,
-          })
-        }
-      >
-        {/* 모바일은 너비를 꽉 채운다 — HeroUI 탭 목록이 칸 너비만큼 늘어 네 칸이 같은 폭이 된다. */}
-        <Tabs.ListContainer className="w-fit max-w-full overflow-x-auto rounded-[17px] max-sm:w-full">
-          <Tabs.List aria-label="콜라보 목록">
-            {SEGMENTS.map((s) => (
-              <Tabs.Tab
-                key={s.id}
-                id={s.id}
-                // 모바일은 HeroUI 최소 폭(80px)을 풀어 320px 화면에서도 네 칸이 다 들어오게. 글자는 13px(11-08 사용자: 모바일 탭은 작게).
-                className="gap-[6px] rounded-[13px] whitespace-nowrap max-sm:min-w-0 max-sm:px-[6px] max-sm:text-[13px]"
-              >
-                {s.label}
-                <span className="tabular-nums opacity-60">
-                  {lists[s.id].length}
-                </span>
-                <Tabs.Indicator className="rounded-[13px]" />
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs.ListContainer>
-        {SEGMENTS.map((s) => (
-          // 모바일은 HeroUI 패널 아래 여백(8px)을 뺀다 — 본문 끝 여백과 겹쳐 목록 아래가 너무 비었다(11-08 사용자).
-          <Tabs.Panel
-            key={s.id}
-            id={s.id}
-            className="pt-[14px] max-sm:pb-0 sm:pt-[16px]"
-          >
-            {lists[s.id].length ? (
-              <div className="grid gap-[12px] md:grid-cols-2 xl:grid-cols-3">
-                {lists[s.id].map((c) => (
-                  <PlanCard key={c.id} c={c} />
-                ))}
-              </div>
-            ) : (
-              <EmptyBox
-                icon={
-                  s.id === "done" ? (
-                    <CheckCircle2 className="size-[26px]" />
-                  ) : s.id === "ongoing" ? (
-                    <Inbox className="size-[26px]" />
-                  ) : (
-                    <Coffee className="size-[26px]" />
-                  )
-                }
-              >
-                {s.empty}
-              </EmptyBox>
-            )}
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+      {recruiting.length ? (
+        <div className="grid gap-[12px] md:grid-cols-2 xl:grid-cols-3">
+          {recruiting.map((c) => (
+            <RecruitCard key={c.id} c={c} withPeriod today={today} />
+          ))}
+        </div>
+      ) : (
+        <EmptyBox
+          icon={
+            <MaskIcon src="/icons/face-sleep.svg" className="size-[26px]" />
+          }
+        >
+          <b className="text-gray-700">지금 모집 중인 콜라보가 없어요.</b>새
+          모집은 이메일 또는 문자로 알려 드려요.
+        </EmptyBox>
+      )}
     </div>
   );
 }
 
-export function CollabBoard({ tab }: { tab?: CollabCategory }) {
+export function CollabBoard() {
   return (
     <PartnerOnly>
-      <Board tab={tab} />
+      <Board />
     </PartnerOnly>
   );
 }

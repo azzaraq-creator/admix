@@ -16,7 +16,7 @@ import { StatusChip } from "./workspaceUi";
 /**
  * 콜라보 확정서 — 콜라보 상세 "지금 상황" 카드의 확정서 줄에서 연다(HeroUI Modal).
  * 확정 번호 · 콜라보 · 확정 일시 · 확인자 + 최종 확정 때 하나씩 확인한 진행 항목과 확정 문장.
- * 지금은 예시 데이터라 실제 체결본이 아니다.
+ * 참여 이력의 콜라보 줄에서도 연다(문서함을 없애고 콜라보마다 붙였다, 2026-11-09).
  */
 export function ConfirmDocModal({
   c,
@@ -102,7 +102,7 @@ export function ConfirmDocModal({
                 {CONFIRM_SENTENCE}
               </p>
               <small className="text-[12px] text-gray-400">
-                예시 문서 — 실제 확정서는 서버 기능이 붙으면 문서함에 보관돼요.
+                확정서는 참여 이력의 이 콜라보 줄에서 언제든 다시 볼 수 있어요.
               </small>
             </Modal.Body>
             <Modal.Footer>

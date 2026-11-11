@@ -3,24 +3,32 @@
 import {
   Button,
   Checkbox,
+  Input,
   toast,
   Label,
   Modal,
   Radio,
   RadioGroup,
-  ScrollShadow,
+  TextField,
 } from "@heroui/react";
-import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   FileTextIcon,
 } from "@/components/icons";
+import { SignaturePad } from "@/components/common/SignaturePad";
+import { authKeys, useMe, useUploadBusinessRegistration } from "@/hooks/auth";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
+import { extractApiError } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
+import { BizLicenseDropzone } from "@/app/(client)/(auth)/signup/_components/BizLicenseDropzone";
 import {
+  FieldMessage,
   HEROUI_ACCENT_SCOPE,
   HEROUI_CHECKBOX_SCOPE,
 } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -29,31 +37,165 @@ import {
   AGREEMENT,
   type Annex,
   CheckMark,
+  formatSignDate,
   ROLE_LABEL,
   rowTone,
   type Role,
   SECTIONS,
   SectionClauses,
+  type SignatureRecord,
   StageHeading,
   TextModal,
 } from "./agreementShared";
+import {
+  AgreementPdfViewer,
+  useDownloadAgreementPdf,
+} from "./AgreementPdfPreview";
 
 /*
- * 기본협약 동의의 2~4단계 — 별지·서명자 / 최종 동의 / 계약서·다운로드.
+ * 기본협약 동의의 2~4단계 — 협약서(별지·서명자) / 최종 동의 / 계약서·다운로드.
  * 흐름 · 문구는 기본협약 미리보기를 따른다. 미리보기에 있던 문서 확인값(SHA-256) · 검토 파일 저장 · 비교는
- * 실제 서버 기록과 연결될 때 의미가 있어 뺐다. 본인확인은 아직 인증 연결 전이라 "예시"로 표시한다.
+ * 실제 서버 기록과 연결될 때 의미가 있어 뺐다. 서명은 휴대폰 명의 본인확인(예시) 대신 서명자 이름 + 손 서명(SignaturePad)으로 받는다(078, 11-10 사용자).
+ * 사업자등록증은 꼭 올려야 최종 동의할 수 있다(2026-11-09 사용자). 담당자가 매장에서 함께 가입할 때는
+ * 어드민 "임시 승인"으로 등록증 없이 넘어간다 — 이 화면이 몇 초마다 확인해 인증되면 바로 풀린다(BizLicenseBlock).
  */
 
-/* ───────────────────────── 2. 별지·서명자 ───────────────────────── */
+/** 최종 동의할 수 있는 사업자 상태 — 올림(검토 중) · 인증 · 임시 승인(백엔드 AGREEABLE_BIZ_STATUS). */
+export const AGREEABLE_BIZ = new Set(["reviewing", "verified", "provisional"]);
 
+/** 사업자 상태 → 화면 글자. */
+const BIZ_TEXT: Record<string, string> = {
+  reviewing: "올렸어요 · 검토 중",
+  verified: "인증 완료",
+  provisional: "임시 승인 · 담당자 확인",
+  rejected: "반려 · 다시 올려 주세요",
+};
+
+/** 인증을 기다리는 동안 회원 정보를 다시 받는 간격 — 담당자가 어드민에서 임시 승인하면 바로 풀리게. */
+const BIZ_POLL_MS = 5000;
+
+/**
+ * 사업자등록증 — 협약 필수(2026-11-09). 올리거나(검토 중) 담당자가 임시 승인하면 끝.
+ * 아직이면 몇 초마다 회원 정보를 다시 받아 임시 승인을 바로 알아챈다.
+ * 로그인 전(미리보기)이면 안내만.
+ */
+export function BizLicenseBlock({ className }: { className?: string }) {
+  const { data: me } = useMe();
+  const queryClient = useQueryClient();
+  const upload = useUploadBusinessRegistration();
+  // 고른 파일 이름 — 올리는 동안(그리고 회원 정보가 다시 올 때까지) 파일 줄에 보인다.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [fileError, setFileError] = useState("");
+  const member = me?.member_category === "partner";
+  const reg = me?.business_registration;
+  const status = reg?.status ?? "unregistered";
+  const done = AGREEABLE_BIZ.has(status);
+
+  useEffect(() => {
+    if (!member || done) return;
+    const t = window.setInterval(
+      () => void queryClient.invalidateQueries({ queryKey: authKeys.me }),
+      BIZ_POLL_MS,
+    );
+    return () => window.clearInterval(t);
+  }, [member, done, queryClient]);
+
+  const uploadFile = (file: File) => {
+    setFileError("");
+    setPicked(file.name);
+    upload.mutate(file, {
+      onSuccess: () =>
+        toast("사업자등록증을 올렸어요", {
+          description: "이제 최종 동의할 수 있어요.",
+          timeout: TOAST_TIMEOUT,
+        }),
+      onError: (err) => {
+        setPicked(null);
+        setFileError(extractApiError(err, "사업자등록증을 올리지 못했어요."));
+      },
+    });
+  };
+  // 파일 줄 — 올리는 중이면 고른 파일, 올려서 검토 중이면 올린 파일. 아니면(처음 · 반려) 드롭존.
+  const shownFile =
+    status === "reviewing" && !upload.isPending
+      ? (reg?.license_file_name ?? picked ?? "사업자등록증")
+      : picked;
+
+  return (
+    <div
+      className={cn(
+        "rounded-[24px] border p-[16px]",
+        done ? "border-gray-100 bg-gray-50" : "border-gray-200 bg-surface",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-[12px]">
+        <b className="text-[15px] font-bold text-gray-900">사업자등록증</b>
+        {status !== "unregistered" && (
+          <span className="flex items-center gap-[6px] text-[13px] font-semibold text-gray-700">
+            <CheckMark on={done} />
+            {BIZ_TEXT[status] ?? status}
+          </span>
+        )}
+      </div>
+      <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-600">
+        {done
+          ? status === "provisional"
+            ? "담당자가 임시로 승인했어요. 사업자등록증은 나중에 내 정보에서 올려 주세요."
+            : "사업자등록증을 올렸어요. 관리자가 확인해요."
+          : "기본협약을 맺으려면 사업자등록증이 필요해요. 담당자가 함께 있다면 임시 승인을 요청해 주세요."}
+      </p>
+      {status === "rejected" && reg?.reject_reason && (
+        <p className="mt-[6px] text-[12px] break-keep text-error">
+          반려 사유: {reg.reject_reason}
+        </p>
+      )}
+      {member && me?.partner_code && !done && (
+        <p className="mt-[10px] inline-flex items-center gap-[8px] rounded-[12px] bg-gray-50 px-[12px] py-[6px] text-[13px] text-gray-600">
+          회원 고유번호
+          <b className="font-bold text-gray-900 tabular-nums">
+            {me.partner_code}
+          </b>
+        </p>
+      )}
+      {member ? (
+        status !== "verified" &&
+        status !== "provisional" && (
+          // 올리기 칸은 회원가입 사업자등록증 칸과 같은 모양(BizLicenseDropzone, 11-10 사용자).
+          <div className="mt-[12px] flex flex-col gap-[8px]">
+            <BizLicenseDropzone
+              fileName={shownFile}
+              onPick={uploadFile}
+              onError={setFileError}
+              pending={upload.isPending}
+            />
+            {fileError && <FieldMessage tone="error">{fileError}</FieldMessage>}
+          </div>
+        )
+      ) : (
+        <p className="mt-[8px] text-[12px] break-keep text-gray-400">
+          로그인하면 여기서 올릴 수 있어요.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────── 2. 협약서(별지·서명자) ───────────────────────── */
+
+/** 서명일 — "2026년 11월 10일"(한국 시간). */
 export function AnnexStage({
   annexes,
   viewed,
   onViewed,
   role,
   onRole,
-  identity,
-  onIdentity,
+  signerName,
+  onSignerName,
+  signature,
+  signed,
+  onSignature,
+  saved,
   locked = false,
   onPrev,
   onNext,
@@ -65,8 +207,15 @@ export function AnnexStage({
   onViewed: (id: string) => void;
   role: Role;
   onRole: (role: Role) => void;
-  identity: boolean;
-  onIdentity: () => void;
+  signerName: string;
+  onSignerName: (name: string) => void;
+  /** 지금 그린 손 서명(PNG data URL) — 단계를 오가도 칸에 다시 깔린다. */
+  signature: string | null;
+  /** 이름 + 손 서명을 마쳤는지(동의 뒤면 true). */
+  signed: boolean;
+  onSignature: (dataUrl: string | null) => void;
+  /** 동의 뒤 — 남은 서명(서명 도입 전에 동의했으면 null). */
+  saved: SignatureRecord | null;
   onPrev: () => void;
   onNext: () => void;
 }) {
@@ -76,7 +225,20 @@ export function AnnexStage({
 
   return (
     <>
-      <StageHeading eyebrow="2 / 4 · 별지·서명자" title="별지와 서명자 확인" />
+      {/* 제목 뒤 빨간 점 — 중요 표시(11-10 사용자). 페이지 제목(기본협약 동의) 보라 점과 같은 모양, 제목 크기에 맞춰 한 단계 작게. */}
+      <StageHeading
+        eyebrow="2 / 4 · 협약서"
+        title={
+          <>
+            협약서 (전자결재)
+            <span
+              aria-hidden
+              className="ml-[4px] inline-block size-[6px] rounded-full bg-red-500 align-baseline sm:ml-[5px] sm:size-[7px]"
+            />
+            <span className="sr-only"> (중요)</span>
+          </>
+        }
+      />
 
       {/* 별지 — 누르면 창으로 열고, 창 아래 "읽고 확인했어요"로 확인. */}
       <div className="mt-[20px] flex items-center justify-between sm:mt-[24px]">
@@ -190,7 +352,7 @@ export function AnnexStage({
         ))}
       </div>
 
-      {/* 서명자 구분 — 바꾸면 별지 확인 · 본인확인을 다시 받는다. */}
+      {/* 서명자 구분 — 바꾸면 별지 확인 · 서명을 다시 받는다. */}
       <h3 className="mt-[24px] text-[15px] font-bold text-gray-900">
         매장 측 서명자
       </h3>
@@ -225,51 +387,86 @@ export function AnnexStage({
         ))}
       </RadioGroup>
       <p className="mt-[8px] text-[12px] leading-[1.6] break-keep text-gray-500">
-        서명자 구분을 바꾸면 별지 확인과 본인확인을 다시 해요. 위임받은 담당자는
+        서명자 구분을 바꾸면 별지 확인과 서명을 다시 해요. 위임받은 담당자는
         위임 권한 확인 자료도 확인해야 해요.
       </p>
 
-      {/* 본인확인 — 실제 인증 연결 전이라 누르면 "예시"로 확인 처리. */}
-      {/* 아직 안 했으면 흰 바탕 + 회색 테두리(버튼만 보라), 했으면 회색 바탕으로 가라앉힌다. */}
+      {/* 서명 — 휴대폰 명의 본인확인 대신 서명자 이름 + 손 서명(11-10 사용자: "전자 사인으로"). 최종 동의 때 서버에 남고 계약서 서명란에 들어간다.
+          아직이면 흰 바탕 + 회색 테두리, 마쳤으면 회색 바탕으로 가라앉힌다. 서명자 구분을 바꾸면 다시 한다(칸을 새로 그린다, key). */}
       <div
         className={cn(
           "mt-[20px] rounded-[24px] border p-[16px]",
-          identity
-            ? "border-gray-100 bg-gray-50"
-            : "border-gray-200 bg-surface",
+          signed ? "border-gray-100 bg-gray-50" : "border-gray-200 bg-surface",
         )}
       >
         <div className="flex items-center justify-between gap-[12px]">
-          <b className="text-[15px] font-bold text-gray-900">
-            최종 동의 전 본인확인
-          </b>
-          {identity && (
+          <b className="text-[15px] font-bold text-gray-900">서명</b>
+          {signed && (
             <span className="flex items-center gap-[6px] text-[13px] font-semibold text-gray-700">
               <CheckMark on />
-              확인 완료 · 예시
+              {/* 서명 도입 전에 동의한 회원은 서명 없이 동의만 마쳤다. */}
+              {locked && !saved ? "동의 완료" : "서명 완료"}
             </span>
           )}
         </div>
-        <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-600">
-          로그인한 계정에 연결된 서명자의 휴대폰 명의를 확인하고, 사업자 · 위임
-          권한과 대조해요.
-        </p>
-        {!identity && (
-          <Button
-            variant="primary"
-            onPress={onIdentity}
-            className="mt-[12px] h-[40px] rounded-[17px] text-[13px] font-semibold"
-          >
-            본인확인 하기
-          </Button>
-        )}
-        {identity && (
-          <p className="mt-[8px] text-[12px] break-keep text-gray-400">
-            실제 본인인증은 가입과 연결할 때 붙어요. 지금은 다음 단계를 볼 수
-            있게 예시로 확인했어요.
-          </p>
+        {locked ? (
+          saved ? (
+            <div className="mt-[10px] flex flex-col gap-[8px]">
+              <p className="text-[13px] text-gray-600">
+                {ROLE_LABEL[saved.role]}{" "}
+                <b className="font-bold text-gray-900">{saved.name}</b>
+                {saved.signedAt && ` · ${formatSignDate(saved.signedAt)}`}
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element -- 서버에 올린 서명 그림(크기 제각각) */}
+              <img
+                src={saved.src}
+                alt={`${saved.name} 서명`}
+                className="h-[88px] w-auto max-w-full self-start rounded-[15px] border border-gray-100 bg-white object-contain"
+              />
+            </div>
+          ) : (
+            <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-500">
+              전자 서명을 받기 전에 동의해서 남은 서명이 없어요.
+            </p>
+          )
+        ) : (
+          <>
+            <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-600">
+              {ROLE_LABEL[role]} 본인이 직접 서명해 주세요. 최종 동의하면 이
+              이름과 서명이 협약서 서명란에 들어가요.
+            </p>
+            <TextField
+              value={signerName}
+              onChange={onSignerName}
+              maxLength={50}
+              autoComplete="name"
+              fullWidth
+              className="mt-[14px] gap-[6px]"
+            >
+              <Label className="text-[13px] font-semibold text-gray-700">
+                서명자 이름
+              </Label>
+              <Input className="h-[44px] rounded-[19px]" />
+            </TextField>
+            {/* 그리고 "완료"를 눌러야 서명 완료(11-10 사용자). 이름이 비었으면 완료를 막는다. */}
+            <SignaturePad
+              key={role}
+              defaultValue={signature}
+              onChange={onSignature}
+              completeDisabled={!signerName.trim()}
+              className="mt-[12px]"
+            />
+            {!signerName.trim() && !signature && (
+              <p className="mt-[6px] text-right text-[12px] break-keep text-gray-500">
+                서명자 이름을 적으면 완료할 수 있어요.
+              </p>
+            )}
+          </>
         )}
       </div>
+
+      {/* 사업자등록증 — 협약 필수, 담당자 임시 승인이면 등록증 없이도. */}
+      <BizLicenseBlock className="mt-[12px]" />
 
       <div className="mt-[20px] flex items-center justify-between">
         <Button
@@ -310,7 +507,10 @@ export function ConsentStage({
   annexViewed,
   annexTotal,
   annexCount,
-  identity,
+  signed,
+  signerName = "",
+  signature = null,
+  bizDone,
   role,
   consents,
   onConsent,
@@ -321,6 +521,8 @@ export function ConsentStage({
   agreed = false,
   onGoDocument,
 }: {
+  /** 사업자등록증을 올렸거나 임시 승인됐는지(로그인 전 미리보기면 true). */
+  bizDone: boolean;
   /** 최종 동의를 마쳤으면 체크를 켠 채로 잠그고, 최종 확인 대신 계약서 보기로. */
   agreed?: boolean;
   onGoDocument: () => void;
@@ -329,7 +531,11 @@ export function ConsentStage({
   annexViewed: number;
   annexTotal: number;
   annexCount: number;
-  identity: boolean;
+  signed: boolean;
+  /** 최종 확인 창 "서명자" 줄에 함께 보인다. */
+  signerName?: string;
+  /** 완료한 손 서명(PNG data URL) — 최종 확인 창 서명자 이름 아래에 보인다. */
+  signature?: string | null;
   role: Role;
   consents: boolean[];
   onConsent: (index: number, on: boolean) => void;
@@ -362,9 +568,15 @@ export function ConsentStage({
       onPress: onGoAnnex,
     },
     {
-      label: "서명자 확인",
-      value: identity ? "완료 · 예시" : "확인 전",
-      done: identity,
+      label: "서명",
+      value: signed ? "완료" : "서명 전",
+      done: signed,
+      onPress: onGoAnnex,
+    },
+    {
+      label: "사업자등록증",
+      value: bizDone ? "확인" : "올리기 전",
+      done: bizDone,
       onPress: onGoAnnex,
     },
   ];
@@ -385,7 +597,7 @@ export function ConsentStage({
         </p>
       </div>
 
-      <div className="mt-[10px] grid grid-cols-3 gap-[8px]">
+      <div className="mt-[10px] grid grid-cols-2 gap-[8px] sm:grid-cols-4">
         {summary.map((s) => (
           <button
             key={s.label}
@@ -466,19 +678,11 @@ export function ConsentStage({
         <Button
           fullWidth
           size="lg"
-          // 최종 동의 체크를 다 하면 켜진다. 앞 단계(핵심 내용 · 별지 · 본인확인)가 남았으면 그 단계로 보낸다.
-          isDisabled={!consents.every(Boolean)}
+          // 모든 체크(핵심 주제 · 필수 별지 · 서명 · 사업자등록증 · 최종 동의 3개)가 켜져야 눌린다(11-10 사용자).
+          // 남은 일은 버튼 위 목록(blockers)에 보인다.
+          isDisabled={blockers.length > 0}
           className="mt-[20px] h-[52px] rounded-[23px] text-[15px] font-bold shadow-[0_12px_28px_rgba(122,63,224,0.4)] data-[disabled=true]:shadow-none sm:mt-[24px]"
-          onPress={() => {
-            const left = blockers[0];
-            if (!left) {
-              setConfirmOpen(true);
-              return;
-            }
-            toast(left, { timeout: TOAST_TIMEOUT });
-            if (readCount < topicTotal) onGoTopics();
-            else onGoAnnex();
-          }}
+          onPress={() => setConfirmOpen(true)}
         >
           최종 확인하기
           <ChevronRightIcon className="size-[16px]" />
@@ -508,14 +712,31 @@ export function ConsentStage({
                 <dl className="flex flex-col divide-y divide-gray-100 text-[14px]">
                   {[
                     ["협약", `기본협약 v${AGREEMENT.version}`],
-                    ["서명자", ROLE_LABEL[role]],
+                    [
+                      "서명자",
+                      <>
+                        {`${ROLE_LABEL[role]}${signerName.trim() ? ` · ${signerName.trim()}` : ""}`}
+                        {/* 서명한 그림 — 이름 아래(11-10 사용자). 흰 종이 위 짙은 잉크 그대로. */}
+                        {signature && (
+                          // eslint-disable-next-line @next/next/no-img-element -- 방금 그린 서명(data URL)
+                          <img
+                            src={signature}
+                            alt={`${signerName.trim() || "서명자"} 서명`}
+                            className="mt-[8px] block h-[64px] w-auto max-w-full rounded-[12px] border border-gray-100 bg-white object-contain"
+                          />
+                        )}
+                      </>,
+                    ],
                     ["포함 문서", `기본협약 본문 + 별지 ${annexCount}개`],
                     [
                       "확인한 내용",
                       `핵심 주제 ${readCount} / ${topicTotal} · 필수 별지 ${annexViewed} / ${annexTotal}`,
                     ],
                   ].map(([k, v]) => (
-                    <div key={k} className="flex gap-[12px] py-[10px]">
+                    <div
+                      key={k as string}
+                      className="flex gap-[12px] py-[10px]"
+                    >
                       <dt className="w-[80px] shrink-0 text-gray-500">{k}</dt>
                       <dd className="min-w-0 font-semibold break-keep text-gray-900">
                         {v}
@@ -554,24 +775,17 @@ export function ConsentStage({
 
 const DOC = AGREEMENT.document;
 
-/** 인쇄 창 글꼴 · 표 모양 — 계약서 본문만 담은 새 창에서 쓴다. */
-const PRINT_CSS = `
-  @page { size: A4; margin: 18mm 16mm; }
-  body { font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: #1a1a1f; font-size: 11pt; line-height: 1.6; word-break: keep-all; }
-  h1 { font-size: 18pt; margin: 0 0 4pt; }
-  h2 { font-size: 13pt; margin: 18pt 0 6pt; }
-  h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
-  p, li { margin: 0 0 4pt; }
-  ol, ul { padding-left: 18pt; margin: 0; }
-  b { font-weight: 700; }
-  .muted { color: #6b6b76; }
-  table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 10pt; }
-  th, td { border: 0.5pt solid #b9b9c3; padding: 5pt 6pt; vertical-align: top; text-align: left; white-space: pre-wrap; }
-  th { background: #f3f3f6; }
-`;
-
 /** 표 — 첫 줄을 머리로(서명란), 또는 첫 칸을 머리로(별지). */
-function DocTable({ rows, head }: { rows: string[][]; head: "row" | "col" }) {
+/** 계약서 표 — cells 로 "줄-칸" 자리 내용을 바꿔 넣는다(서명란). */
+function DocTable({
+  rows,
+  head,
+  cells,
+}: {
+  rows: string[][];
+  head: "row" | "col";
+  cells?: Record<string, ReactNode>;
+}) {
   return (
     <table className="w-full border-collapse text-[12px]">
       <tbody>
@@ -591,7 +805,7 @@ function DocTable({ rows, head }: { rows: string[][]; head: "row" | "col" }) {
                     head === "col" && c === 0 && "w-[30%]",
                   )}
                 >
-                  {cell}
+                  {cells?.[`${r}-${c}`] ?? cell}
                 </Tag>
               );
             })}
@@ -602,26 +816,20 @@ function DocTable({ rows, head }: { rows: string[][]; head: "row" | "col" }) {
   );
 }
 
-/** onNext 가 없으면(메뉴 "기본협약"으로 들어옴) 아래 "다음 · 매장 등록"을 그리지 않는다. */
-export function DocumentStage({ onNext }: { onNext?: () => void }) {
-  const paper = useRef<HTMLDivElement>(null);
-  const paperBox = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(false);
+/** onNext 가 없으면(메뉴 "기본 협약"으로 들어옴) 아래 "완료하기"(대시보드로)를 그리지 않는다. */
+export function DocumentStage({
+  onNext,
+  signature,
+}: {
+  onNext?: () => void;
+  /** 카페 쪽 서명란에 넣을 서명(없으면 빈 서명란 그대로). */
+  signature?: SignatureRecord | null;
+}) {
+  const isDesktop = useIsDesktop();
   // 모바일 — 종이 대신 버튼 → 계약서 창(11-08 사용자: "팝업 띄워서 볼 수 있게").
   const [docOpen, setDocOpen] = useState(false);
-
-  /** 인쇄 · PDF 저장 — 계약서 본문만 새 창에 담아 브라우저 인쇄 창을 연다(인쇄 창에서 "PDF로 저장"). */
-  const print = () => {
-    const html = paper.current?.innerHTML;
-    const win = window.open("", "_blank", "width=900,height=1000");
-    if (!html || !win) return;
-    win.document.write(
-      `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC.title} v${AGREEMENT.version} 검토본</title><style>${PRINT_CSS}</style></head><body>${html}</body></html>`,
-    );
-    win.document.close();
-    win.focus();
-    win.print();
-  };
+  /** PDF 다운로드 — PC 는 미리보기로 만든 것을 그대로, 모바일은 누를 때 만든다. */
+  const pdf = useDownloadAgreementPdf(signature ?? null);
 
   return (
     <>
@@ -632,13 +840,22 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
             title="계약서 전체 보기"
           />
         </div>
-        {/* 모바일은 머리에서 빼고 아래 계약서 카드 안 버튼으로(11-08 사용자: "깔끔하게 정리"). */}
+        {/* 모바일은 머리에서 빼고 아래 계약서 카드 안 버튼으로(11-08 사용자: "깔끔하게 정리").
+            흰 버튼 + PDF 아이콘(public/icons/pdf.svg, 11-10 사용자). 아이콘 그림은 그림자 여백이 커서 음수 여백으로 버튼 높이를 지킨다. */}
         <Button
-          variant="tertiary"
-          onPress={print}
-          className="h-[40px] rounded-[17px] text-[13px] font-semibold max-sm:hidden"
+          variant="outline"
+          isPending={pdf.pending}
+          onPress={pdf.download}
+          className="h-[40px] gap-[2px] rounded-[17px] border-gray-200 bg-white pr-[14px] pl-[6px] text-[13px] font-semibold text-gray-800 max-sm:hidden dark:bg-surface"
         >
-          인쇄 · PDF 저장
+          <Image
+            src="/icons/pdf.svg"
+            alt=""
+            width={34}
+            height={36}
+            className="-my-[8px] shrink-0"
+          />
+          PDF 다운로드
         </Button>
       </div>
       {/* 모바일은 13px · 짧은 문구(11-08 사용자). */}
@@ -647,14 +864,14 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
           협약 전문과 별지를 한 문서로 담은 검토본이에요.
         </span>
         <span className="max-sm:hidden">
-          협약 전문과 매장별 별지를 한 문서로 담았어요. 검토용 문서이며 실제
+          협약 전문과 매장별 별지를 한 PDF로 담았어요. 검토용 문서이며 실제
           체결본은 아니에요.
         </span>
       </p>
 
       {/*
-       * 모바일 — 계약서 카드: 위 문서 이름 · 판, 아래 "전체 보기"(창) · "인쇄 · PDF 저장" 두 버튼.
-       * 종이(아래)는 숨겨 두되 그려 두어 인쇄는 그대로 된다. 버튼 36px → 곡률 15px.
+       * 모바일 — 계약서 카드: 위 문서 이름 · 판, 아래 "전체 보기"(창) · "PDF 다운로드" 두 버튼.
+       * A4 쪽은 휴대폰 폭에서 글자가 너무 작아 미리보기는 PC 만 — 모바일은 읽기 쉬운 글 창으로 본다. 버튼 36px → 곡률 15px.
        */}
       <div className="mt-[14px] flex flex-col gap-[12px] rounded-[20px] bg-surface p-[14px] shadow-[0_6px_18px_rgba(42,20,89,0.08)] sm:hidden">
         <div className="flex items-center gap-[12px]">
@@ -671,7 +888,7 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
           </span>
         </div>
         <div className="grid grid-cols-2 gap-[8px]">
-          {/* 두 버튼 모양을 다르게(11-08 사용자) — 보기는 HeroUI secondary(옅은 바탕 · 보라 글자), 인쇄는 outline(테두리). 아이콘은 뺐다(11-08 사용자). */}
+          {/* 두 버튼 모양을 다르게(11-08 사용자) — 보기는 HeroUI secondary(옅은 바탕 · 보라 글자), 다운로드는 outline(테두리). 아이콘은 뺐다(11-08 사용자). */}
           <Button
             variant="secondary"
             fullWidth
@@ -683,10 +900,11 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
           <Button
             variant="outline"
             fullWidth
-            onPress={print}
+            isPending={pdf.pending}
+            onPress={pdf.download}
             className="h-[36px] rounded-[15px] px-[8px] text-[13px] font-semibold text-gray-700"
           >
-            인쇄 · PDF 저장
+            PDF 다운로드
           </Button>
         </div>
       </div>
@@ -696,69 +914,30 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
         onClose={() => setDocOpen(false)}
       >
         <div className="text-[13px] leading-[1.65] break-keep text-gray-700">
-          <DocContent />
+          <DocContent signature={signature} />
         </div>
       </TextModal>
 
-      {/* 종이 — 인쇄 창은 이 안의 내용만 옮겨 담는다(태그 위주로 써서 인쇄 창 스타일이 그대로 먹게).
-          처음엔 높이 420px 로 접어 안에서 스크롤 + 위아래 흐림(HeroUI ScrollShadow), "전체 보기"를 누르면 끝까지 펼친다.
-          접혀 있어도 내용은 다 들어 있어 인쇄는 그대로 전체가 나간다. */}
-      <div
-        ref={paperBox}
-        className="mt-[16px] scroll-mt-[16px] overflow-hidden rounded-[20px] bg-surface shadow-[0_6px_18px_rgba(42,20,89,0.08)] max-sm:hidden sm:mt-[20px]"
-      >
-        <ScrollShadow
-          size={60}
-          isEnabled={!expanded}
-          visibility={expanded ? "none" : "auto"}
-          className={cn(
-            "p-[18px] sm:p-[32px]",
-            !expanded && "max-h-[420px] overflow-y-auto",
-          )}
-        >
-          <div
-            ref={paper}
-            className="text-[13px] leading-[1.65] break-keep text-gray-700"
-          >
-            <DocContent />
-          </div>
-        </ScrollShadow>
-      </div>
-      <div className="mt-[12px] flex justify-center max-sm:hidden">
-        <Button
-          variant="tertiary"
-          size="sm"
-          onPress={() => {
-            // 접을 때는 종이 맨 위로 돌아간다(펼친 채 아래까지 내려가 있으면 접힌 뒤 화면이 비어 보인다).
-            if (expanded) {
-              paperBox.current?.scrollIntoView({
-                block: "start",
-                behavior: "smooth",
-              });
-            }
-            setExpanded(!expanded);
-          }}
-          className="rounded-full text-[13px] font-semibold"
-        >
-          {expanded ? "접기" : "전체 보기"}
-          <ChevronDownIcon
-            className={cn(
-              "size-[14px] transition-transform",
-              expanded && "rotate-180",
-            )}
-          />
-        </Button>
-      </div>
+      {/* PC — PDF 미리보기(11-10 사용자: "PDF로 계약서를 미리보기로"). 내려받는 파일과 같은 쪽을 한 쪽씩. */}
+      {isDesktop && (
+        <AgreementPdfViewer
+          signature={signature ?? null}
+          className="mt-[20px] max-sm:hidden"
+        />
+      )}
 
-      {/* 다음 — 가입 3단계 매장 등록. */}
+      {/* 다음 — 대시보드로(매장은 담당자가 연결해 준다, 2026-11-09). 버튼 글은 "완료하기"(11-10 사용자: 완료하기 · 시작하기 · 마치기 중에서). */}
       {onNext && (
-        <div className="mt-[20px] flex justify-end border-t border-gray-100 pt-[18px]">
+        <div className="mt-[20px] flex flex-wrap items-center justify-between gap-[12px] border-t border-gray-100 pt-[18px]">
+          <p className="text-[13px] break-keep text-gray-500">
+            담당자가 매장을 연결하면 콜라보에 참여할 수 있어요.
+          </p>
           <Button
             variant="primary"
             onPress={onNext}
-            className="h-[44px] rounded-[19px] px-[20px] font-semibold"
+            className="h-[44px] rounded-[19px] px-[20px] font-semibold max-sm:w-full"
           >
-            다음 · 매장 등록
+            완료하기
             <ChevronRightIcon className="size-[16px]" />
           </Button>
         </div>
@@ -768,10 +947,31 @@ export function DocumentStage({ onNext }: { onNext?: () => void }) {
 }
 
 /**
- * 계약서 본문 — PC 종이와 모바일 계약서 창이 같이 쓴다(인쇄 창은 PC 종이의 내용을 옮겨 담는다).
+ * 계약서 본문 — 모바일 계약서 창(전체 보기). PC 는 같은 내용을 PDF 미리보기(agreementPdf)로 본다.
  * 제목은 모바일 17px(11-08 사용자: "타이틀 폰트 줄여줘").
  */
-function DocContent() {
+function DocContent({ signature }: { signature?: SignatureRecord | null }) {
+  // 서명란 카페 운영사업자 칸(셋째 칸) — 서명자 · 손 서명 · 서명일을 채운다.
+  const signCells: Record<string, ReactNode> = {};
+  if (signature) {
+    DOC.signatureTable.forEach((row, r) => {
+      if (row[0] === "대표자 또는 수임자")
+        signCells[`${r}-2`] =
+          `${signature.name} (${ROLE_LABEL[signature.role]})`;
+      if (row[0] === "서명 또는 전자승인")
+        signCells[`${r}-2`] = (
+          // eslint-disable-next-line @next/next/no-img-element -- 서명 그림(인쇄 창에도 그대로 옮겨진다)
+          <img
+            src={signature.src}
+            alt={`${signature.name} 서명`}
+            style={{ height: 56, width: "auto", maxWidth: "100%" }}
+            className="dark:invert"
+          />
+        );
+      if (row[0] === "서명일" && signature.signedAt)
+        signCells[`${r}-2`] = formatSignDate(signature.signedAt);
+    });
+  }
   return (
     <>
       <h1 className="text-[17px] font-bold text-gray-900 sm:text-[22px]">
@@ -801,7 +1001,7 @@ function DocContent() {
 
       <p className="mt-[24px] font-semibold text-gray-900">{DOC.closing}</p>
       <div className="mt-[10px] overflow-x-auto">
-        <DocTable rows={DOC.signatureTable} head="row" />
+        <DocTable rows={DOC.signatureTable} head="row" cells={signCells} />
       </div>
 
       <h2 className="mt-[32px] text-[15px] font-bold text-gray-900">

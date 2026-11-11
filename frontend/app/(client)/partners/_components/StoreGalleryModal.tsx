@@ -10,15 +10,18 @@ import { cn } from "@/lib/utils";
 
 /**
  * 매장 사진 갤러리 — 어두운 바탕에 큰 사진 한 장, 좌우 넘기기(버튼 · ← → 키), 아래 작은 사진 줄.
+ * captions(사진마다 어드민이 적은 메모, images 순서)가 있으면 큰 사진 아래에 보인다(11-10 사용자).
  * index 가 null 이면 닫힘. HeroUI Modal.
  */
 export function StoreGalleryModal({
   images,
+  captions,
   name,
   index,
   onIndexChange,
 }: {
   images: string[];
+  captions?: (string | null | undefined)[];
   name: string;
   index: number | null;
   onIndexChange: (i: number | null) => void;
@@ -106,6 +109,16 @@ export function StoreGalleryModal({
                 </>
               )}
             </div>
+
+            {/* 사진 메모 — 있을 때만, 큰 사진 바로 아래. */}
+            {captions?.[i]?.trim() && (
+              <p
+                key={`memo-${i}`}
+                className="animate-in fade-in mx-auto w-full max-w-[640px] px-[20px] pt-[14px] text-center text-[15px] leading-[1.6] font-medium break-keep whitespace-pre-line text-white/85 duration-200 max-sm:text-[13px]"
+              >
+                {captions[i]}
+              </p>
+            )}
 
             {/* 아래 — 작은 사진 줄 */}
             {total > 1 && (
