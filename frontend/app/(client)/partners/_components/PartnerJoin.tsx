@@ -93,7 +93,7 @@ export function PartnerJoin() {
             {STEPS.map(({ title, body }, i) => (
               <li key={title} className="flex flex-col">
                 <div className="flex items-center">
-                  <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full border border-white dark:border-gray-100 bg-surface/70 text-[14px] font-bold text-gray-800 tabular-nums shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:size-[44px] sm:text-[16px]">
+                  <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full border border-white dark:border-gray-100 bg-surface/70 text-[14px] font-bold text-gray-800 shadow-[0_6px_18px_rgba(42,20,89,0.08)] backdrop-blur-sm sm:size-[44px] sm:text-[16px]">
                     {i + 1}
                   </span>
                   {i < STEPS.length - 1 && (
@@ -171,7 +171,7 @@ export function PartnerJoin() {
                 key={topic}
                 className="flex h-[40px] min-w-0 items-center gap-[10px] rounded-[17px] bg-surface px-[12px] text-[13px] font-medium whitespace-nowrap text-gray-900 sm:h-[40px] sm:gap-[8px] sm:rounded-full sm:pr-[14px] sm:pl-[8px] sm:text-[14px] lg:h-[48px] lg:gap-[12px] lg:rounded-[21px] lg:px-[16px] lg:text-[15px]"
               >
-                <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 tabular-nums sm:size-[24px] sm:text-[12px]">
+                <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 sm:size-[24px] sm:text-[12px]">
                   {i + 1}
                 </span>
                 <span className="truncate">{topic}</span>

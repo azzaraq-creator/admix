@@ -117,7 +117,7 @@ export function MobileMediaDetail({
             type="button"
             aria-label="목록으로"
             onClick={onBack}
-            className="absolute left-[16px] top-[16px] flex size-[36px] items-center justify-center rounded-full bg-surface/90 text-black drop-shadow-[0px_0px_4px_rgba(0,0,0,0.2)]"
+            className="absolute left-[16px] top-[16px] flex size-[36px] items-center justify-center rounded-[15px] bg-surface/90 text-black drop-shadow-[0px_0px_4px_rgba(0,0,0,0.2)]"
           >
             <ChevronLeftIcon className="size-[20px]" />
           </button>

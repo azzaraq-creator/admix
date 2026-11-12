@@ -1,8 +1,14 @@
+import type { PlanRoundPayload } from "@/lib/collabPlan";
 import { api } from "@/lib/api";
 import type {
   AdminAdvertiserMember,
   BizAction,
+  AdminAdvCollabRequest,
+  AdminAdvCollabRequestDetail,
+  AdminCollabProgress,
+  AdvCollabRequestListParams,
   CollabAdvertiserListParams,
+  CollabCalendarItem,
   CollabListParams,
   CollabMemberListParams,
   CollabRequestListParams,
@@ -44,7 +50,7 @@ export const adminCollabApi = {
       .then((r) => r.data.url);
   },
 
-  // ── 매장 항목(매장 유형별 매장 어필 · 조건 메모 값, 070) ──
+  // ── 매장 유형 관리(매장 유형별 매장 어필 · 조건 메모 값, 070) ──
   storeTypes: () =>
     api.get<StoreType[]>("/admin/collab/store-types").then((r) => r.data),
   createStoreType: (payload: StoreTypePayload) =>
@@ -115,9 +121,52 @@ export const adminCollabApi = {
     api
       .get<AdminAdvertiserMember>(`/admin/collab/advertisers/${enc(id)}`)
       .then((r) => r.data),
+  /** 광고주 상호 · 사업자번호 저장(11-11) — 빈 값은 지운다, 인증 상태는 그대로. */
+  updateAdvertiserBiz: (
+    id: string,
+    payload: {
+      business_name?: string | null;
+      business_registration_no?: string | null;
+    },
+  ) =>
+    api
+      .patch<AdminAdvertiserMember>(
+        `/admin/collab/advertisers/${enc(id)}/biz`,
+        payload,
+      )
+      .then((r) => r.data),
   advertiserFile: (id: string, kind: "business-card" | "biz-file") =>
     api
       .get<Blob>(`/admin/collab/advertisers/${enc(id)}/${kind}`, {
+        responseType: "blob",
+      })
+      .then((r) => r.data),
+
+  // ── 광고주 콜라보 의뢰(읽기, 081) ──
+  advRequests: (params?: AdvCollabRequestListParams) =>
+    api
+      .get<Paged<AdminAdvCollabRequest>>("/admin/collab/collab-requests", {
+        params,
+      })
+      .then((r) => r.data),
+  /** 의뢰서 한 장 — 처음 열면 사이드 메뉴 숫자에서 빠진다. */
+  advRequest: (id: string) =>
+    api
+      .get<AdminAdvCollabRequestDetail>(
+        `/admin/collab/collab-requests/${enc(id)}`,
+      )
+      .then((r) => r.data),
+  /** admix 기획안 보내기(085) — 항목별로 고친 내용 · 수정 이유. 그사이 광고주가 보냈으면 409. */
+  sendAdvRequestRound: (id: string, payload: PlanRoundPayload) =>
+    api
+      .post<AdminAdvCollabRequestDetail>(
+        `/admin/collab/collab-requests/${enc(id)}/rounds`,
+        payload,
+      )
+      .then((r) => r.data),
+  advRequestFile: (id: string) =>
+    api
+      .get<Blob>(`/admin/collab/collab-requests/${enc(id)}/plan-file`, {
         responseType: "blob",
       })
       .then((r) => r.data),
@@ -136,10 +185,21 @@ export const adminCollabApi = {
       .then((r) => r.data),
 
   // ── 콜라보 ──
+  /** 대시보드 일정 달력 — start ~ end(YYYY-MM-DD)와 겹치는 콜라보. */
+  calendar: (start: string, end: string) =>
+    api
+      .get<{ items: CollabCalendarItem[] }>("/admin/collab/calendar", {
+        params: { start, end },
+      })
+      .then((r) => r.data.items),
   collabs: (params?: CollabListParams) =>
     api
       .get<Paged<AdminCollab>>("/admin/collab/collabs", { params })
       .then((r) => r.data),
+  collabProgress: () =>
+    api
+      .get<{ items: AdminCollabProgress[] }>("/admin/collab/progress")
+      .then((r) => r.data.items),
   collab: (id: string) =>
     api
       .get<AdminCollabDetail>(`/admin/collab/collabs/${enc(id)}`)
@@ -200,6 +260,27 @@ export const adminCollabApi = {
   deletePhoto: (photoId: string) =>
     api
       .delete<AdminCollabDetail>(`/admin/collab/photos/${enc(photoId)}`)
+      .then((r) => r.data),
+  // ── 결과 보고서 파일(086) ──
+  uploadReport: (collabId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<AdminCollabDetail>(
+        `/admin/collab/collabs/${enc(collabId)}/reports`,
+        form,
+      )
+      .then((r) => r.data);
+  },
+  reportFile: (fileId: string) =>
+    api
+      .get<Blob>(`/admin/collab/reports/${enc(fileId)}/file`, {
+        responseType: "blob",
+      })
+      .then((r) => r.data),
+  deleteReport: (fileId: string) =>
+    api
+      .delete<AdminCollabDetail>(`/admin/collab/reports/${enc(fileId)}`)
       .then((r) => r.data),
   addNotice: (
     collabId: string,

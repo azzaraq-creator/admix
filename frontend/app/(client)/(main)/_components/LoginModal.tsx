@@ -178,224 +178,220 @@ export function LoginModal({
 
   return (
     <>
-      <Modal isOpen={open} onOpenChange={closeLogin}>
-        <Modal.Backdrop>
-          {/* 바깥 스크롤 — 기본(안쪽 스크롤)은 창 높이를 보이는 화면 높이에 맞춰 줄이는데, 아이폰 Safari에서
-              키보드가 올라오면 본문이 줄어 입력칸·로그인 버튼이 밖으로 넘치고 아래 회원가입 줄이 그 위에 겹쳤다.
-              창은 원래 높이 그대로 두고, 화면이 낮으면 창 전체를 스크롤한다. */}
-          <Modal.Container
-            placement="center"
-            scroll="outside"
-            className="px-[16px] sm:px-0"
+      <Modal.Backdrop isOpen={open} onOpenChange={closeLogin}>
+        {/* 바깥 스크롤 — 기본(안쪽 스크롤)은 창 높이를 보이는 화면 높이에 맞춰 줄이는데, 아이폰 Safari에서
+            키보드가 올라오면 본문이 줄어 입력칸·로그인 버튼이 밖으로 넘치고 아래 회원가입 줄이 그 위에 겹쳤다.
+            창은 원래 높이 그대로 두고, 화면이 낮으면 창 전체를 스크롤한다. */}
+        <Modal.Container
+          placement="center"
+          scroll="outside"
+          className="px-[16px] sm:px-0"
+        >
+          <Modal.Dialog
+            aria-label="로그인"
+            className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
           >
-            <Modal.Dialog
-              aria-label="로그인"
-              className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[36px] pb-[28px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[36px]"
+            <Modal.CloseTrigger
+              aria-label="닫기"
+              className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
             >
-              <Modal.CloseTrigger
-                aria-label="닫기"
-                className="top-[16px] right-[16px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
+              <XIcon className="size-[20px]" />
+            </Modal.CloseTrigger>
+
+            <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
+              {partners ? (
+                <PartnersLoginLogo />
+              ) : (
+                <LogoFullDark className="h-[28px]" />
+              )}
+              {/* 콜라보 문구는 짧게(11-08 사용자: "문구를 줄여줘", PC · 모바일 모두). */}
+              <p className="text-[13px] leading-[20px] text-gray-500">
+                {partners
+                  ? "로그인하고 콜라보를 시작하세요"
+                  : "로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요"}
+              </p>
+            </Modal.Header>
+
+            <Modal.Body className="m-0 mt-[24px] flex flex-col gap-[20px] overflow-visible p-0">
+              {/* 모바일은 입력 칸 글자를 13px로 — 옆 "로그인 유지" · "비밀번호 재설정"과 같은 크기(11-08 사용자: "Input의 폰트 크기가 커").
+                  화면 확대 막힘(maximumScale 1)이라 16px 아래여도 iOS가 확대하지 않는다. */}
+              <form
+                onSubmit={handleSubmit}
+                noValidate
+                className="flex flex-col gap-[14px] max-sm:[&_input]:text-[13px]"
               >
-                <XIcon className="size-[20px]" />
-              </Modal.CloseTrigger>
-
-              <Modal.Header className="flex flex-col items-center gap-[14px] p-0 text-center">
-                {partners ? (
-                  <PartnersLoginLogo />
-                ) : (
-                  <LogoFullDark className="h-[28px]" />
-                )}
-                {/* 콜라보 문구는 짧게(11-08 사용자: "문구를 줄여줘", PC · 모바일 모두). */}
-                <p className="text-[13px] leading-[20px] text-gray-500">
-                  {partners
-                    ? "로그인하고 콜라보를 시작하세요"
-                    : "로그인하고 AI 믹시 추천과 기획안을 이어서 관리하세요"}
-                </p>
-              </Modal.Header>
-
-              <Modal.Body className="m-0 mt-[24px] flex flex-col gap-[20px] overflow-visible p-0">
-                {/* 모바일은 입력 칸 글자를 13px로 — 옆 "로그인 유지" · "비밀번호 재설정"과 같은 크기(11-08 사용자: "Input의 폰트 크기가 커").
-                    화면 확대 막힘(maximumScale 1)이라 16px 아래여도 iOS가 확대하지 않는다. */}
-                <form
-                  onSubmit={handleSubmit}
-                  noValidate
-                  className="flex flex-col gap-[14px] max-sm:[&_input]:text-[13px]"
+                <TextField
+                  type="email"
+                  value={email}
+                  onChange={(value) => {
+                    setEmail(value);
+                    if (credentialError) setCredentialError(false);
+                  }}
+                  isInvalid={credentialError}
+                  autoComplete="email"
+                  aria-label="이메일"
+                  fullWidth
                 >
-                  <TextField
-                    type="email"
-                    value={email}
-                    onChange={(value) => {
-                      setEmail(value);
-                      if (credentialError) setCredentialError(false);
-                    }}
-                    isInvalid={credentialError}
-                    autoComplete="email"
-                    aria-label="이메일"
-                    fullWidth
+                  {/* 라벨 없이 placeholder로 안내한다. */}
+                  <Input placeholder="이메일" className="rounded-[15px]" />
+                </TextField>
+
+                <TextField
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(value) => {
+                    setPassword(value);
+                    if (credentialError) setCredentialError(false);
+                  }}
+                  isInvalid={credentialError}
+                  autoComplete="current-password"
+                  aria-label="비밀번호"
+                  fullWidth
+                >
+                  <InputGroup fullWidth className="rounded-[15px]">
+                    <InputGroup.Input placeholder="비밀번호" />
+                    <InputGroup.Suffix>
+                      <Button
+                        isIconOnly
+                        variant="ghost"
+                        size="sm"
+                        aria-label={
+                          showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
+                        }
+                        onPress={() => setShowPassword((prev) => !prev)}
+                        className="size-[28px] min-w-0 rounded-[11px] text-gray-400 data-[hovered=true]:text-black"
+                      >
+                        <EyeIcon off={showPassword} className="size-[16px]" />
+                      </Button>
+                    </InputGroup.Suffix>
+                  </InputGroup>
+                  <FieldError>
+                    이메일 또는 비밀번호를 확인해 주세요
+                  </FieldError>
+                </TextField>
+
+                <div className="flex items-center justify-between">
+                  {/* HeroUI가 쓰는 accent·accent-foreground 색이 globals.css에서 shadcn 값(연보라 바탕·
+                      진보라 체크)으로 덮여 있어, 체크됐을 때 브랜드 보라 바탕 + 흰 체크로 되돌린다. */}
+                  <Checkbox
+                    isSelected={keepLoggedIn}
+                    onChange={setKeepLoggedIn}
+                    className="group"
                   >
-                    {/* 라벨 없이 placeholder로 안내한다. */}
-                    <Input placeholder="이메일" className="rounded-[15px]" />
-                  </TextField>
-
-                  <TextField
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(value) => {
-                      setPassword(value);
-                      if (credentialError) setCredentialError(false);
-                    }}
-                    isInvalid={credentialError}
-                    autoComplete="current-password"
-                    aria-label="비밀번호"
-                    fullWidth
-                  >
-                    <InputGroup fullWidth className="rounded-[15px]">
-                      <InputGroup.Input placeholder="비밀번호" />
-                      <InputGroup.Suffix>
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          size="sm"
-                          aria-label={
-                            showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
-                          }
-                          onPress={() => setShowPassword((prev) => !prev)}
-                          className="size-[28px] min-w-0 rounded-[11px] text-gray-400 data-[hovered=true]:text-black"
-                        >
-                          <EyeIcon off={showPassword} className="size-[16px]" />
-                        </Button>
-                      </InputGroup.Suffix>
-                    </InputGroup>
-                    <FieldError>
-                      이메일 또는 비밀번호를 확인해 주세요
-                    </FieldError>
-                  </TextField>
-
-                  <div className="flex items-center justify-between">
-                    {/* HeroUI가 쓰는 accent·accent-foreground 색이 globals.css에서 shadcn 값(연보라 바탕·
-                        진보라 체크)으로 덮여 있어, 체크됐을 때 브랜드 보라 바탕 + 흰 체크로 되돌린다. */}
-                    <Checkbox
-                      isSelected={keepLoggedIn}
-                      onChange={setKeepLoggedIn}
-                      className="group"
-                    >
-                      <Checkbox.Content className="gap-[8px]">
-                        <Checkbox.Control className="size-[18px] rounded-[6px] group-data-[selected=true]:text-white! group-data-[selected=true]:before:bg-primary!">
-                          <Checkbox.Indicator className="[&_svg]:stroke-white!" />
-                        </Checkbox.Control>
-                        <Label className="text-[13px] font-medium text-black">
-                          로그인 유지
-                        </Label>
-                      </Checkbox.Content>
-                    </Checkbox>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => goTo("/find-account")}
-                      className="h-auto min-w-0 p-0 text-[13px] font-medium text-gray-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
-                    >
-                      비밀번호 재설정
-                    </Button>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    fullWidth
-                    isPending={loginMutation.isPending}
-                    className={`mt-[4px] bg-primary font-semibold text-white ${CONTROL_RADIUS}`}
-                  >
-                    {loginMutation.isPending ? "로그인 중..." : "로그인"}
-                  </Button>
-                </form>
-
-                {/* 간편 로그인 — admix · 콜라보 화면 모두(제휴사(콜라보)도 소셜 로그인, 11-08 사용자). */}
-                <div className="flex items-center gap-[12px]">
-                  <Separator className="flex-1 bg-stroke" />
-                  <span className="text-[12px] font-medium text-gray-400">
-                    간편 로그인
-                  </span>
-                  <Separator className="flex-1 bg-stroke" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-[8px]">
+                    <Checkbox.Content className="gap-[8px]">
+                      <Checkbox.Control className="size-[18px] rounded-[6px] group-data-[selected=true]:text-white! group-data-[selected=true]:before:bg-primary!">
+                        <Checkbox.Indicator className="[&_svg]:stroke-white!" />
+                      </Checkbox.Control>
+                      <Label className="text-[13px] font-medium text-black">
+                        로그인 유지
+                      </Label>
+                    </Checkbox.Content>
+                  </Checkbox>
                   <Button
                     variant="ghost"
-                    fullWidth
-                    isDisabled={snsPending}
-                    onPress={() => void handleSnsLogin("kakao")}
-                    className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
+                    size="sm"
+                    onPress={() => goTo("/find-account")}
+                    className="h-auto min-w-0 p-0 text-[13px] font-medium text-gray-500 data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary"
                   >
-                    <KakaoIcon className="size-[18px] shrink-0" />
-                    카카오
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    fullWidth
-                    isDisabled={snsPending}
-                    onPress={() => void handleSnsLogin("naver")}
-                    className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
-                  >
-                    <NaverIcon className="size-[18px] shrink-0" />
-                    네이버
+                    비밀번호 재설정
                   </Button>
                 </div>
-              </Modal.Body>
 
-              {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
-              <Modal.Footer className="mt-[24px] flex items-center justify-center gap-[6px] border-t border-stroke p-0 pt-[20px] text-[13px]">
-                <span className="text-gray-500">아직 회원이 아니신가요?</span>
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  // 콜라보 화면에서는 콜라보 가입(1단계부터, 광고주 · 제휴사(콜라보)만)으로.
-                  onPress={() =>
-                    goTo(partners ? COLLAB_SIGNUP_HREF : "/signup")
-                  }
-                  className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
-                >
-                  회원가입
-                  <ChevronRightIcon className="size-[14px]" />
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-
-      <Modal isOpen={restrictedOpen} onOpenChange={setRestrictedOpen}>
-        <Modal.Backdrop>
-          <Modal.Container placement="center" className="px-[16px] sm:px-0">
-            <Modal.Dialog
-              aria-label="서비스 이용 제한"
-              className="w-full max-w-[400px] gap-[20px] rounded-[24px] bg-surface p-[28px]"
-            >
-              <Modal.Header className="p-0">
-                <Modal.Heading className="text-[18px] leading-[28px] font-bold text-black">
-                  서비스 이용이 제한되었습니다
-                </Modal.Heading>
-              </Modal.Header>
-              <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-gray-700">
-                <p>
-                  운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로
-                  제한되었습니다.
-                </p>
-                <p>문의가 필요한 경우 [문의하기]로 문의해 주세요.</p>
-              </Modal.Body>
-              <Modal.Footer className="p-0">
-                <Button
-                  slot="close"
+                  type="submit"
                   variant="primary"
                   fullWidth
-                  className="h-[48px] rounded-[14px] bg-primary text-[15px] font-semibold text-white"
+                  isPending={loginMutation.isPending}
+                  className={`mt-[4px] bg-primary font-semibold text-white ${CONTROL_RADIUS}`}
                 >
-                  확인
+                  {loginMutation.isPending ? "로그인 중..." : "로그인"}
                 </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+              </form>
+
+              {/* 간편 로그인 — admix · 콜라보 화면 모두(제휴사(콜라보)도 소셜 로그인, 11-08 사용자). */}
+              <div className="flex items-center gap-[12px]">
+                <Separator className="flex-1 bg-stroke" />
+                <span className="text-[12px] font-medium text-gray-400">
+                  간편 로그인
+                </span>
+                <Separator className="flex-1 bg-stroke" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-[8px]">
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  isDisabled={snsPending}
+                  onPress={() => void handleSnsLogin("kakao")}
+                  className={`${SNS_BUTTON_CLASS} bg-[#FEE500] text-[#191919] data-[hovered=true]:bg-[#F5DC00]`}
+                >
+                  <KakaoIcon className="size-[18px] shrink-0" />
+                  카카오
+                </Button>
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  isDisabled={snsPending}
+                  onPress={() => void handleSnsLogin("naver")}
+                  className={`${SNS_BUTTON_CLASS} bg-[#03C75A] text-white data-[hovered=true]:bg-[#02B350]`}
+                >
+                  <NaverIcon className="size-[18px] shrink-0" />
+                  네이버
+                </Button>
+              </div>
+            </Modal.Body>
+
+            {/* 회원가입 유도 — 색은 로그인 버튼(보라)과 간편 로그인에만 쓰고, 여기는 무채색 한 줄로 조용히 둔다. */}
+            <Modal.Footer className="mt-[24px] flex items-center justify-center gap-[6px] border-t border-stroke p-0 pt-[20px] text-[13px]">
+              <span className="text-gray-500">아직 회원이 아니신가요?</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                // 콜라보 화면에서는 콜라보 가입(1단계부터, 광고주 · 제휴사(콜라보)만)으로.
+                onPress={() =>
+                  goTo(partners ? COLLAB_SIGNUP_HREF : "/signup")
+                }
+                className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
+              >
+                회원가입
+                <ChevronRightIcon className="size-[14px]" />
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+
+      <Modal.Backdrop isOpen={restrictedOpen} onOpenChange={setRestrictedOpen}>
+        <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          <Modal.Dialog
+            aria-label="서비스 이용 제한"
+            className="w-full max-w-[400px] gap-[20px] rounded-[24px] bg-surface p-[28px]"
+          >
+            <Modal.Header className="p-0">
+              <Modal.Heading className="text-[18px] leading-[28px] font-bold text-black">
+                서비스 이용이 제한되었습니다
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="m-0 p-0 text-[14px] leading-[22px] text-gray-700">
+              <p>
+                운영 정책 위반으로 인해 회원님의 계정 이용이 일시적으로
+                제한되었습니다.
+              </p>
+              <p>문의가 필요한 경우 [문의하기]로 문의해 주세요.</p>
+            </Modal.Body>
+            <Modal.Footer className="p-0">
+              <Button
+                slot="close"
+                variant="primary"
+                fullWidth
+                className="h-[48px] rounded-[21px] bg-primary text-[15px] font-semibold text-white"
+              >
+                확인
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </>
   );
 }
@@ -418,7 +414,7 @@ function PartnersLoginLogo() {
         <Image
           src="/service/admix-text-logo.svg"
           alt="admix"
-          width={57}
+          width={56}
           height={16}
           className="h-[16px] w-auto dark:brightness-0 dark:invert"
         />

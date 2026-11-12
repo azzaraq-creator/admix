@@ -28,11 +28,14 @@ export function useMapPopup({
   popupId,
   popupPosition,
   onPopupClose,
+  namePins = false,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   markers: MapMarker[];
+  /** 늘 이름표(광고주 매장 찾기) — 확대 수준과 상관없이 말풍선 크기에 맞춰 띄운다. */
+  namePins?: boolean;
   popupId?: string | null;
   popupPosition?: { lat: number; lng: number } | null;
   onPopupClose?: () => void;
@@ -129,7 +132,8 @@ export function useMapPopup({
     if (container && projection) {
       const point = projection.containerPointFromCoords(pos);
       // 혼자 있는 매체(popupId)를 가까이서 보면 말풍선이라 그 크기에 맞춘다. 겹친 그룹(popupPosition)은 숫자 핀.
-      const bubble = !popupPosition && map.getLevel() <= BUBBLE_MAX_LEVEL;
+      const bubble =
+        !popupPosition && (namePins || map.getLevel() <= BUBBLE_MAX_LEVEL);
       const gapBelow = bubble ? BUBBLE_GAP_BELOW : POPUP_GAP_BELOW;
       const gapAbove = bubble ? BUBBLE_GAP_ABOVE : POPUP_GAP_ABOVE;
       setGap({ below: gapBelow, above: gapAbove });
@@ -161,6 +165,7 @@ export function useMapPopup({
   }, [
     popupId,
     popupPosition,
+    namePins,
     markers,
     mapReady,
     mapRef,

@@ -2,6 +2,7 @@ import { api } from "@/lib/api";
 import type {
   AdminPartnersStore,
   AdminPartnersStorePayload,
+  AdminStoreCollabs,
 } from "@/lib/partners";
 
 /**
@@ -15,6 +16,8 @@ export interface AdminPartnersListParams {
   linked?: string;
   /** 매장 유형 id — 비우면 전체. */
   store_type?: number;
+  /** 콜라보 등급 S · A · B · C, "none" 이면 미정 — 비우면 전체. */
+  grade?: string;
   page?: number;
   page_size?: number;
 }
@@ -41,6 +44,13 @@ export const adminPartnersApi = {
     api
       .get<AdminPartnersStore>(
         `/admin/partners/stores/${encodeURIComponent(id)}`,
+      )
+      .then((r) => r.data),
+  /** 매장 상세 "콜라보 참여" — 참여 · 미참여 · 무응답 수와 콜라보별 기록(11-12). */
+  collabs: (id: string) =>
+    api
+      .get<AdminStoreCollabs>(
+        `/admin/partners/stores/${encodeURIComponent(id)}/collabs`,
       )
       .then((r) => r.data),
   create: (payload: AdminPartnersStorePayload) =>

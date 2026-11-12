@@ -98,6 +98,9 @@ class MemberDetail(BaseModel):
     business_card_url: str | None = None
     business_card_name: str | None = None
     marketing_consent: bool
+    # 마케팅 정보 받을 방법(083) — 동의했을 때만 뜻이 있다.
+    marketing_sms: bool = False
+    marketing_email: bool = False
     status: str
     admin_memo: str | None = None
     created_at: datetime

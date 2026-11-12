@@ -1,8 +1,5 @@
 "use client";
 
-import { Button } from "@heroui/react";
-import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 
 import { FixedMediaView } from "@/app/(client)/(main)/fixed/_components/FixedMediaView";
@@ -13,17 +10,19 @@ import type {
 import type { MoveTarget } from "@/app/(client)/(main)/fixed/_components/mapTypes";
 import { LoadingState } from "@/components/common/RouteStates";
 import type { MediaCardRow } from "@/hooks/media";
-import { usePartnersStores } from "@/hooks/partners";
-import { refOfStore } from "@/lib/advertiserPreview";
-import { PARTNERS_MEDIA_CATEGORY, type PartnersStore } from "@/lib/partners";
+import { useStoreTypeNames } from "@/hooks/partners";
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 
-import { advActions, useAdvState } from "./advStore";
-import { ADV_NEW_HREF, eulReul, say } from "./advUi";
+import { useFavoriteStores } from "./favoriteStores";
 
 /*
  * /partners/find (광고주) — admix 매체 찾기 화면(목록 + 지도 · 검색 · 인구 분포 · 실시간 인구)을 그대로 쓰고
  * 콜라보 매장만 보이게 한다(11-09 사용자: "매체 찾기와 동일하게, 지도도 보여 주고 매장만").
- * 카드 · 지도 말풍선에 등급 · 1건 금액(어드민이 정한 값, 067)과 담기. 담은 매장은 의뢰서의 "지정 희망 매장"이 된다.
+ * 탭은 "콜라보 매장" 하나 대신 매장 유형(전체 · 카페 · 식당 …, 어드민 "매장 유형 관리" 순서, 11-11 사용자).
+ * 카드 · 지도 말풍선에 등급 · 1건 금액(어드민이 정한 값, 067). 하트를 누르면 관심 매장(/partners/favorites)에 담긴다 —
+ * 예전 "매장 담기" 버튼은 11-11 사용자가 없앴다(관심 매장에서 골라 의뢰하거나, 의뢰서의 "관심 매장 고르기"로 지정 희망 매장을 고른다).
+ * 탭 줄 오른쪽 "관심 매장 N곳 →" 바로 가기 · 지도 실시간 정보(실시간 인구 · 도로 현황)도 11-11 사용자가 뺐다 — 관심 매장은 왼쪽 메뉴로.
+ * 지도 핀은 늘 매장 이름표, 같은 자리에 겹쳐도 숫자로 묶지 않는다(MapArea namePins).
  * 카드를 누르면 매장 상세가 새 탭으로(매체 찾기에서 콜라보 매장을 누를 때와 같다).
  *
  * 매체 찾기 카드는 매체 ID(CF-0001)로 오고, 등급 · 금액은 콜라보 매장 목록(광고주에게만 금액이 내려온다)에서
@@ -34,97 +33,44 @@ import { ADV_NEW_HREF, eulReul, say } from "./advUi";
  */
 
 /**
- * 처음 지도 위치 — 매체 찾기는 강남역에서 시작하지만, 콜라보 매장은 아직 몇 곳뿐이라 그 자리에 매장이 없으면
- * 빈 지도가 된다. 지도에 나오는 매장(매체 ID · 좌표가 있는 공개 매장)이 모두 들어오는 가운데 · 레벨로 연다.
- * 레벨은 모바일 지도 폭(약 350px)에 맞춰 어림한다 — 카카오 지도 레벨 4에서 1px ≈ 경도 0.000023° · 위도 0.000018°,
- * 레벨이 하나 오를 때마다 두 배. 너무 멀어지지 않게 레벨 4 ~ 12.
+ * 처음 지도 위치 — 성수역(2호선)에서 연다(11-11 사용자). 콜라보 매장이 성수에 모여 있다.
+ * 레벨은 매체 찾기 첫 화면(강남역)과 같은 4. 주소에 조회 영역이 있으면(새로고침 · 뒤로 가기) 그 영역이 먼저다.
+ * 예전엔 지도에 나오는 매장이 모두 들어오는 가운데 · 레벨을 매장 목록으로 계산했다.
  */
-function initialViewOf(stores: PartnersStore[]): MoveTarget | undefined {
-  const pts = stores.filter(
-    (s) => s.mediaId && s.latitude != null && s.longitude != null,
-  );
-  if (!pts.length) return undefined;
-  const lats = pts.map((s) => s.latitude as number);
-  const lngs = pts.map((s) => s.longitude as number);
-  const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
-  const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)];
-  const ratio = Math.max(
-    (maxLng - minLng) / (280 * 0.000023),
-    (maxLat - minLat) / (400 * 0.000018),
-  );
-  const level =
-    ratio <= 1 ? 4 : Math.min(12, 4 + Math.ceil(Math.log2(ratio)));
-  return { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2, level };
-}
-
-/** 탭 줄 오른쪽 — 담은 매장이 있으면 의뢰서로. */
-function CartButton({ count }: { count: number }) {
-  const router = useRouter();
-  if (!count) return null;
-  return (
-    <Button
-      size="sm"
-      onPress={() => router.push(ADV_NEW_HREF)}
-      className="h-[34px] gap-[4px] rounded-[14px] px-[12px] text-[13px] font-bold max-sm:h-[30px] max-sm:rounded-[12px] max-sm:px-[10px] max-sm:text-[12px]"
-    >
-      <span className="max-sm:hidden">담은 매장</span>
-      {count}곳 · 의뢰하기
-      <ArrowRight className="size-[14px]" />
-    </Button>
-  );
-}
+const SEONGSU_STATION: MoveTarget = {
+  lat: 37.544581,
+  lng: 127.055961,
+  level: 4,
+};
 
 export function AdvStoreFinder() {
-  const state = useAdvState();
-  const { data: stores, isLoading } = usePartnersStores({});
-
-  const byMedia = useMemo(
-    () =>
-      new Map(
-        (stores ?? [])
-          .filter((s) => s.mediaId)
-          .map((s) => [s.mediaId as string, s]),
-      ),
-    [stores],
-  );
-  const cartIds = useMemo(
-    () => new Set(state.cart.map((s) => s.id)),
-    [state.cart],
-  );
-
-  const initialView = useMemo(() => initialViewOf(stores ?? []), [stores]);
+  // 매장 유형 탭 — 못 받아 오면 예전처럼 "콜라보 매장" 탭 하나.
+  const { data: storeTypes, isLoading: typesLoading } = useStoreTypeNames();
+  const favorites = useFavoriteStores();
+  const byMedia = favorites.byMedia;
 
   const only = useMemo<MediaFindOnly>(
     () => ({
       category: PARTNERS_MEDIA_CATEGORY,
       label: "콜라보 매장",
-      initialView,
-      toolbar: <CartButton count={state.cart.length} />,
+      storeTypes,
+      // 제휴사 회원에 연결된 매장만 — 연결 전 매장은 콜라보를 받을 사람이 없다(11-11 사용자).
+      linkedOnly: true,
+      initialView: SEONGSU_STATION,
       pickOf: (row: MediaCardRow): CollabPick | undefined => {
         const store = byMedia.get(row.id);
         if (!store) return undefined;
-        const ref = refOfStore(store);
-        const picked = cartIds.has(store.id);
         return {
-          grade: ref.grade,
-          fee: ref.fee,
-          picked,
-          onToggle: () => {
-            advActions.toggleCart(ref);
-            say(
-              picked
-                ? `${eulReul(store.name)} 뺐어요.`
-                : `${eulReul(store.name)} 담았어요.`,
-            );
-          },
+          grade: store.collabGrade ?? null,
+          fee: store.collabFee ?? null,
         };
       },
     }),
-    [byMedia, cartIds, state.cart.length, initialView],
+    [byMedia, storeTypes],
   );
 
-  // 처음 지도 위치를 매장 자리로 잡으려면 매장 목록이 먼저 있어야 한다(지도는 처음 한 번만 위치를 읽는다).
-  if (isLoading) return <LoadingState />;
+  // 매장 유형을 기다린다 — 탭이 "콜라보 매장"으로 잠깐 보였다가 바뀌지 않게.
+  if (typesLoading) return <LoadingState />;
 
   return (
     <div className="absolute inset-0 flex flex-col [--tabbar-space:var(--partners-tabbar-space,0px)]">

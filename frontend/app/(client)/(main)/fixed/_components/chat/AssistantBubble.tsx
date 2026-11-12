@@ -154,7 +154,7 @@ export function AssistantBubble({
                 : [],
             })
           }
-          className="mt-1 rounded-[13px]"
+          className="mt-1"
         >
           상세보기
         </Button>

@@ -6,15 +6,36 @@ import {
   Chip,
   Input,
   Link,
+  Modal,
   RouterProvider,
+  Separator,
   TextArea,
 } from "@heroui/react";
-import { ChevronLeft, Copy, FileText, Phone, Search } from "lucide-react";
+import {
+  ChevronLeft,
+  Copy,
+  Download,
+  FileText,
+  Phone,
+  Search,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import { HeroField } from "@/app/admin/(main)/media/_components/heroFields";
+import {
+  AgreementPdfViewer,
+  useDownloadAgreementPdf,
+} from "@/app/(client)/partners/_components/AgreementPdfPreview";
+import { agreementPdfFileName } from "@/app/(client)/partners/_components/agreementPdf";
+import {
+  AGREEMENT,
+  type Role,
+  type SignatureRecord,
+} from "@/app/(client)/partners/_components/agreementShared";
+import { AdminPanel } from "@/components/admin/AdminPanel";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminCollabApi,
@@ -38,7 +59,7 @@ import {
 } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import { openOrDownloadBlob } from "../../_components/collabUi";
+import { openFileInNewTab } from "../../_components/collabUi";
 import { StoreSearchModal } from "../../_components/StoreSearchModal";
 
 const MEMBERS_HREF = "/admin/collab/members";
@@ -85,17 +106,27 @@ function BizChip({ status }: { status: BizCode }) {
   );
 }
 
-/** 머리 아래 계정 정보 한 칸 — 작은 이름표 · 값. */
+/** 계정 카드 한 칸 — 작은 이름표 위 · 값 아래. */
 function MetaItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[2px]">
+    <div className="flex min-w-0 flex-col gap-[4px]">
       <dt className="text-xs font-medium text-disabled">{label}</dt>
       <dd className="min-w-0 text-sm font-medium text-black">{children}</dd>
     </div>
   );
 }
 
-/** 구역 하나 — HeroUI Card(테두리만, 그림자 없음). */
+/** 회색 값 상자 안 한 줄 — 왼쪽 이름표(고정 폭) · 오른쪽 값. 사업자 인증 · 서명 기록에서 같이 쓴다. */
+function FactRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-x-[12px]">
+      <dt className="text-xs font-medium text-disabled">{label}</dt>
+      <dd className="min-w-0 text-sm text-black">{children}</dd>
+    </div>
+  );
+}
+
+/** 구역 하나 — 어드민 공통 흰 카드(AdminPanel, 테두리 없음 · 회색 바탕 위). */
 function Section({
   title,
   desc,
@@ -110,25 +141,15 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <Card
-      className={cn(
-        "gap-[16px] border border-stroke p-[16px] shadow-none md:p-[24px]",
-        className,
-      )}
+    <AdminPanel
+      title={title}
+      desc={desc}
+      right={right}
+      className={className}
+      contentClassName="gap-[16px]"
     >
-      <Card.Header className="flex-row flex-wrap items-start justify-between gap-[8px]">
-        <div className="flex min-w-0 flex-col gap-[2px]">
-          <Card.Title className="text-base font-bold leading-[24px] text-black md:text-lg md:leading-[28px]">
-            {title}
-          </Card.Title>
-          {desc && (
-            <Card.Description className="text-sm">{desc}</Card.Description>
-          )}
-        </div>
-        {right}
-      </Card.Header>
-      <Card.Content className="flex flex-col gap-[16px]">{children}</Card.Content>
-    </Card>
+      {children}
+    </AdminPanel>
   );
 }
 
@@ -171,6 +192,10 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
     }
   };
 
+  // 깔끔하게(2026-11-12 사용자) — 머리(이름 · 고유번호 · 회사명) 아래 두 칸:
+  // 왼쪽 할 일 순서(사업자 인증 → 기본협약 → 매장) | 오른쪽 계정(아이디 · 연락처 · 가입 · 업데이트).
+  // 위에 따로 있던 계정 네 칸과 아래 "계정 정보"(연락처 입력)를 오른쪽 카드 하나로 합쳤다. 휴대폰은 왼쪽 → 오른쪽 순서로 쌓인다.
+  // 상태(사업자 · 협약)는 각 카드 머리 칩에만 — 머리에 같은 칩을 또 두지 않는다.
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <Link
@@ -181,7 +206,7 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
         제휴사 회원
       </Link>
 
-      <div className="flex flex-col gap-[6px]">
+      <header className="flex flex-col gap-[6px]">
         <div className="flex flex-wrap items-center gap-[8px]">
           <h1 className="text-xl font-bold leading-[28px] text-black md:text-2xl md:leading-[32px]">
             {member.name || member.loginId}
@@ -199,48 +224,19 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
             </Button>
           )}
         </div>
+        {member.companyName && (
+          <p className="text-sm text-tone-4a5565">{member.companyName}</p>
+        )}
+      </header>
+
+      <div className="grid items-start gap-[20px] lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-[24px]">
+        <div className="flex min-w-0 flex-col gap-[20px] md:gap-[24px]">
+          <BizSection member={member} />
+          <AgreementSection member={member} />
+          <StoresSection member={member} />
+        </div>
+        <AccountSection member={member} />
       </div>
-
-      {/* 계정 한눈에 — 이름표(작게) 위 · 값 아래, PC 4칸 · 휴대폰 2칸(2026-11-10 사용자: 깔끔하고 읽기 쉽게). */}
-      <Card variant="secondary" className="p-[16px] shadow-none md:px-[24px]">
-        <dl className="grid grid-cols-2 gap-x-[24px] gap-y-[14px] md:grid-cols-4">
-          <MetaItem label={member.snsProvider ? `아이디 · ${member.snsProvider}` : "아이디"}>
-            <span className="block truncate" title={member.loginId}>
-              {member.loginId}
-            </span>
-          </MetaItem>
-          <MetaItem label="연락처">
-            {member.phone ? (
-              <Link
-                href={`tel:${member.phone}`}
-                className="inline-flex items-center gap-[4px] text-sm font-medium text-primary-800 no-underline"
-              >
-                <Phone className="size-[13px]" />
-                <span className="tabular-nums">
-                  {formatPhone(member.phone)}
-                </span>
-              </Link>
-            ) : (
-              <span className="text-disabled">없음</span>
-            )}
-          </MetaItem>
-          <MetaItem label="가입일시">
-            <span className="tabular-nums">
-              {dotDateTime(member.createdAt)}
-            </span>
-          </MetaItem>
-          <MetaItem label="마지막 업데이트">
-            <span className="tabular-nums">
-              {dotDateTime(member.updatedAt)}
-            </span>
-          </MetaItem>
-        </dl>
-      </Card>
-
-      <BizSection member={member} />
-      <AgreementSection member={member} />
-      <StoresSection member={member} />
-      <AccountSection member={member} />
     </div>
   );
 }
@@ -313,8 +309,10 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
   const openFile = async () => {
     setOpening(true);
     try {
-      const blob = await adminCollabApi.bizFile(member.id);
-      openOrDownloadBlob(blob, member.bizFileName ?? "사업자등록증");
+      await openFileInNewTab(
+        () => adminCollabApi.bizFile(member.id),
+        member.bizFileName ?? "사업자등록증",
+      );
     } catch (err) {
       await alert({
         title: "파일을 열지 못했어요",
@@ -335,64 +333,63 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
     hasFile && (status === "reviewing" || status === "provisional");
   const canReset = ["provisional", "verified", "rejected"].includes(status);
   const busy = action.isPending;
+  /** 담당자가 처리할 차례 — 카드를 옅은 보라로. */
+  const highlight = status === "unregistered" || status === "reviewing";
 
   return (
     <Section
       title="사업자 인증"
       right={<BizChip status={status} />}
-      className={
-        status === "unregistered" || status === "reviewing"
-          ? "border-primary/40 bg-primary-50/30"
-          : undefined
-      }
+      className={highlight ? "bg-primary-50" : undefined}
     >
-      <p className="text-sm text-tone-4a5565">{BIZ_GUIDE[status]}</p>
+      <p className="text-sm leading-[22px] text-tone-4a5565">{BIZ_GUIDE[status]}</p>
 
-      <div className="flex flex-col gap-[4px] text-sm">
-        {hasFile ? (
-          <Card
-            variant="secondary"
-            className="flex-row flex-wrap items-center justify-between gap-[8px] px-[14px] py-[10px] shadow-none"
-          >
-            <span className="flex min-w-0 items-center gap-[8px]">
-              <FileText className="size-[18px] shrink-0 text-tone-4a5565" />
-              <span className="min-w-0">
-                <span className="block truncate font-semibold text-black">
+      {/* 기록은 한 상자에 이름표 | 값 줄로(파일 · 임시 승인 · 인증 완료 · 반려 사유). 처리할 차례(옅은 보라 카드)면 상자는 흰 바탕. */}
+      <dl
+        className={cn(
+          "flex flex-col gap-[10px] rounded-[14px] px-[16px] py-[14px]",
+          highlight ? "bg-surface" : "bg-gray-50",
+        )}
+      >
+        <FactRow label="등록증 파일">
+          {hasFile ? (
+            <span className="flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[6px]">
+              <span className="flex min-w-0 items-center gap-[6px]">
+                <FileText className="size-[16px] shrink-0 text-tone-4a5565" />
+                <span className="min-w-0 break-all font-semibold">
                   {member.bizFileName}
                 </span>
-                <span className="text-xs text-disabled">
+                <span className="shrink-0 text-xs text-disabled">
                   {dotDateTime(member.bizUploadedAt)} 올림
                 </span>
               </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={openFile}
+                isDisabled={opening}
+              >
+                {opening ? "여는 중…" : "파일 보기"}
+              </Button>
             </span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onPress={openFile}
-              isDisabled={opening}
-            >
-              {opening ? "여는 중…" : "파일 보기"}
-            </Button>
-          </Card>
-        ) : (
-          <p className="text-xs text-disabled">올린 등록증 파일이 없어요.</p>
-        )}
+          ) : (
+            <span className="text-disabled">올린 파일이 없어요</span>
+          )}
+        </FactRow>
         {member.bizProvisionalAt && (
-          <p className="text-xs text-disabled">
-            임시 승인 {dotDateTime(member.bizProvisionalAt)}
-          </p>
+          <FactRow label="임시 승인">
+            {dotDateTime(member.bizProvisionalAt)}
+          </FactRow>
         )}
         {member.bizVerifiedAt && status === "verified" && (
-          <p className="text-xs text-disabled">
-            인증 완료 {dotDateTime(member.bizVerifiedAt)}
-          </p>
+          <FactRow label="인증 완료">{dotDateTime(member.bizVerifiedAt)}</FactRow>
         )}
         {status === "rejected" && member.bizRejectReason && (
-          <p className="text-xs text-[#ef4444]">
-            반려 사유: {member.bizRejectReason}
-          </p>
+          <FactRow label="반려 사유">
+            <span className="text-[#ef4444]">{member.bizRejectReason}</span>
+          </FactRow>
         )}
-      </div>
+      </dl>
 
       <div className="grid grid-cols-1 gap-[8px] sm:flex sm:flex-wrap">
         {canProvisional && (
@@ -485,6 +482,7 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
 /**
  * 기본협약 — 동의 시각 · 판(version)과 전자 서명(078: 서명자 이름 · 구분 · 손 서명 그림 · 동의 때 IP, 서명 시각 = 동의 시각).
  * 서명 도입 전에 동의한 회원은 서명 기록이 비어 있다.
+ * 협약을 마쳤으면 계약서 PDF 를 이 자리에서 보고 받는다(2026-11-11 사용자) — 제휴사 4단계와 같은 PDF(agreementPdf, 서명란에 이 회원 서명).
  */
 function AgreementSection({ member }: { member: AdminPartnerMember }) {
   const agreed = !!member.agreedAt;
@@ -498,7 +496,7 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
         </Chip>
       }
     >
-      <p className="text-sm text-tone-4a5565">
+      <p className="text-sm leading-[22px] text-tone-4a5565">
         {agreed
           ? `${dotDateTime(member.agreedAt)}에 기본협약(${member.agreementVersion ?? "-"})에 동의했어요.`
           : member.bizStatus === "unregistered" ||
@@ -508,9 +506,9 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
       </p>
       {agreed &&
         (signature ? (
-          <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:gap-[20px]">
-            {/* 투명 PNG(짙은 남색 잉크) — 흰 바탕 위에. */}
-            <div className="relative h-[96px] w-full max-w-[260px] overflow-hidden rounded-[10px] border border-stroke bg-white">
+          <div className="flex flex-col gap-[12px] rounded-[14px] bg-gray-50 p-[12px] sm:flex-row sm:items-center sm:gap-[20px]">
+            {/* 투명 PNG(짙은 남색 잉크) — 회색 상자 안 흰 칸에. 서명 기록(서명자 · 시각 · IP)과 한 상자로. */}
+            <div className="relative h-[96px] w-full shrink-0 overflow-hidden rounded-[10px] bg-surface sm:w-[220px]">
               <Image
                 src={signature}
                 alt={`${member.signerName ?? "서명자"} 서명`}
@@ -520,24 +518,17 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
                 className="object-contain p-[8px]"
               />
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-[12px] gap-y-[4px] text-sm">
-              <dt className="text-disabled">서명자</dt>
-              <dd className="font-medium text-black">
-                {member.signerName ?? "-"}
+            <dl className="flex min-w-0 flex-col gap-[8px] sm:pr-[8px]">
+              <FactRow label="서명자">
+                <span className="font-medium">{member.signerName ?? "-"}</span>
                 {member.signerRole && (
                   <span className="ml-[6px] text-tone-4a5565">
                     {SIGNER_ROLE_LABEL[member.signerRole] ?? member.signerRole}
                   </span>
                 )}
-              </dd>
-              <dt className="text-disabled">서명 시각</dt>
-              <dd className="tabular-nums text-black">
-                {dotDateTime(member.agreedAt)}
-              </dd>
-              <dt className="text-disabled">IP</dt>
-              <dd className="tabular-nums text-black">
-                {member.signedIp ?? "-"}
-              </dd>
+              </FactRow>
+              <FactRow label="서명 시각">{dotDateTime(member.agreedAt)}</FactRow>
+              <FactRow label="IP">{member.signedIp ?? "-"}</FactRow>
             </dl>
           </div>
         ) : (
@@ -545,7 +536,140 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
             서명 기록 없음(서명 도입 전 동의)
           </p>
         ))}
+      {agreed && <AgreementPdfRow member={member} signatureSrc={signature} />}
     </Section>
+  );
+}
+
+/** 받는 파일 이름에 붙일 회원 구분(고유번호 → 회사명 → 아이디). 파일 이름에 못 쓰는 글자는 뺀다. */
+function memberFileTag(member: AdminPartnerMember) {
+  const tag = member.partnerCode || member.companyName || member.loginId || "";
+  return tag.replace(/[\\/:*?"<>|\s]+/g, "").slice(0, 40);
+}
+
+/**
+ * 계약서 PDF 한 줄 — 사업자등록증 파일 줄과 같은 모양. "보기"는 창 안 미리보기(쪽 넘기기 · 새 창), "다운로드"는 바로 받는다.
+ * PDF 는 지금 판(agreement.json) 문구로 만든다 — 회원이 동의한 판과 다르면 그 사실을 적어 둔다.
+ */
+function AgreementPdfRow({
+  member,
+  signatureSrc,
+}: {
+  member: AdminPartnerMember;
+  signatureSrc: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const pdfSignature: SignatureRecord | null = signatureSrc
+    ? {
+        name: member.signerName ?? "",
+        role: (member.signerRole as Role | null) ?? "representative",
+        src: signatureSrc,
+        signedAt: member.agreedAt,
+      }
+    : null;
+  const tag = memberFileTag(member);
+  const fileName = tag
+    ? agreementPdfFileName().replace(/\.pdf$/, `_${tag}.pdf`)
+    : agreementPdfFileName();
+  const pdf = useDownloadAgreementPdf(pdfSignature, fileName);
+  const versionDiffers =
+    !!member.agreementVersion && member.agreementVersion !== AGREEMENT.version;
+  const title = `${AGREEMENT.document.title} v${AGREEMENT.version}`;
+
+  return (
+    <div className="flex flex-col gap-[4px] text-sm">
+      <Card
+        variant="secondary"
+        className="flex-row flex-wrap items-center justify-between gap-[8px] rounded-[14px] bg-gray-50 px-[16px] py-[12px] shadow-none"
+      >
+        <span className="flex min-w-0 items-center gap-[8px]">
+          <FileText className="size-[18px] shrink-0 text-tone-4a5565" />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-black">
+              계약서 PDF
+            </span>
+            <span className="text-xs text-disabled">
+              {pdfSignature
+                ? `${title} · 서명란에 ${pdfSignature.name || "서명자"} 서명`
+                : `${title} · 서명란 비어 있음`}
+            </span>
+          </span>
+        </span>
+        <span className="flex gap-[8px] max-sm:w-full">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="max-sm:flex-1"
+            onPress={() => setOpen(true)}
+          >
+            보기
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="max-sm:flex-1"
+            isPending={pdf.pending}
+            onPress={pdf.download}
+          >
+            <Download className="size-[14px]" />
+            다운로드
+          </Button>
+        </span>
+      </Card>
+      {versionDiffers && (
+        <p className="text-xs text-warning">
+          이 회원은 v{member.agreementVersion}에 동의했어요. PDF는 지금 판(v
+          {AGREEMENT.version}) 문구로 만들어져요.
+        </p>
+      )}
+
+      <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
+        <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          <Modal.Dialog
+            aria-label="계약서 PDF"
+            className="flex max-h-[92dvh] w-full max-w-[860px] flex-col gap-[16px] rounded-[20px] bg-surface p-[16px] sm:p-[24px]"
+          >
+            <Modal.CloseTrigger
+              aria-label="닫기"
+              className="right-[16px] top-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
+            >
+              <X className="size-[18px]" />
+            </Modal.CloseTrigger>
+            <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
+              <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
+                계약서 PDF
+              </Modal.Heading>
+              <p className="text-sm text-disabled">
+                {member.companyName || member.name || "제휴사"}
+                {member.partnerCode ? ` · ${member.partnerCode}` : ""} ·{" "}
+                {dotDateTime(member.agreedAt)} 동의
+              </p>
+            </Modal.Header>
+            {/* 쪽이 길어 창 안에서 스크롤 — 도구줄(쪽 넘기기)은 위에 붙여 둔다. 열 때만 PDF 를 만든다. */}
+            {open && (
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-stroke">
+                <AgreementPdfViewer
+                  signature={pdfSignature}
+                  stickyToolbar
+                  className="rounded-[12px] shadow-none"
+                />
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                isPending={pdf.pending}
+                onPress={pdf.download}
+                className="max-sm:w-full"
+              >
+                <Download className="size-[16px]" />
+                PDF 다운로드
+              </Button>
+            </div>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </div>
   );
 }
 
@@ -604,8 +728,8 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
 
   return (
     <Section
-      title={`매장 ${member.stores.length}곳`}
-      desc="어드민에 등록한 매장을 검색해 이 회원과 연결해요. 다른 회원에게 연결돼 있던 매장이면 이 회원으로 옮겨요."
+      title="연결 매장"
+      desc={`${member.stores.length}곳`}
       right={
         <Link
           href="/admin/collab/stores?linked=no"
@@ -615,13 +739,18 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
         </Link>
       }
     >
+      {member.stores.length === 0 && (
+        <p className="rounded-[14px] bg-gray-50 px-[16px] py-[18px] text-center text-sm text-disabled">
+          아직 연결한 매장이 없어요.
+        </p>
+      )}
       {member.stores.length > 0 && (
         <ul className="flex flex-col gap-[8px]">
           {member.stores.map((s) => (
             <li key={s.id}>
               <Card
                 variant="secondary"
-                className="flex-row items-center justify-between gap-[8px] px-[14px] py-[10px] shadow-none"
+                className="flex-row items-center justify-between gap-[8px] rounded-[14px] bg-gray-50 px-[16px] py-[12px] shadow-none"
               >
                 <Link
                   href={`/admin/collab/stores/${s.id}`}
@@ -654,16 +783,21 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
           ))}
         </ul>
       )}
-      {/* 매장 상세의 "회원 검색"처럼 — 검색 창에서 골라 바로 연결한다(2026-11-10 사용자). */}
-      <Button
-        variant="primary"
-        className={`${BIG} w-full sm:w-fit`}
-        isDisabled={link.isPending}
-        onPress={() => setSearching(true)}
-      >
-        <Search className="size-[16px]" />
-        {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
-      </Button>
+      {/* 매장 상세의 "회원 검색"처럼 — 검색 창에서 골라 바로 연결한다(2026-11-10 사용자). 설명은 제목 옆에서 버튼 옆 작은 글자로. */}
+      <div className="flex flex-col gap-[8px] sm:flex-row sm:items-center sm:gap-[12px]">
+        <Button
+          variant="primary"
+          className={`${BIG} w-full shrink-0 sm:w-fit`}
+          isDisabled={link.isPending}
+          onPress={() => setSearching(true)}
+        >
+          <Search className="size-[16px]" />
+          {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
+        </Button>
+        <p className="text-xs leading-[18px] text-disabled">
+          어드민에 등록한 매장을 골라 연결해요. 다른 회원에게 연결돼 있던 매장이면 이 회원으로 옮겨요.
+        </p>
+      </div>
       <StoreSearchModal
         isOpen={searching}
         onOpenChange={setSearching}
@@ -676,16 +810,26 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
 }
 
 /**
- * 계정 정보 — 연락처는 여기서 바꾼다(입력하면 '-'가 자동으로, 저장은 숫자만). 비밀번호는 어드민에서 바꾸지 않고 따로 문의(2026-11-10 사용자).
+ * 계정 — 오른쪽 카드(2026-11-12). 아이디 · 연락처 · 가입일시 · 마지막 업데이트.
+ * 연락처는 여기서 바꾼다(edit.svg 아이콘을 눌러 입력 → 저장, '-'는 자동, 저장은 숫자만). 비밀번호는 어드민에서 바꾸지 않고 따로 문의(2026-11-10 사용자).
  */
 function AccountSection({ member }: { member: AdminPartnerMember }) {
   const update = useUpdateCollabMember();
   const { confirm, alert, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
-  const [phone, setPhone] = useState(() => formatPhoneInput(member.phone ?? ""));
+  const [editing, setEditing] = useState(false);
+  const [phone, setPhone] = useState(() =>
+    formatPhoneInput(member.phone ?? ""),
+  );
   const digits = phone.replace(/\D/g, "");
   const changed = digits !== (member.phone ?? "");
-  const invalid = digits.length > 0 && (digits.length < 9 || digits.length > 11);
+  const invalid =
+    digits.length > 0 && (digits.length < 9 || digits.length > 11);
+
+  const close = () => {
+    setEditing(false);
+    setPhone(formatPhoneInput(member.phone ?? ""));
+  };
 
   const save = async () => {
     if (invalid) return;
@@ -703,6 +847,7 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         "연락처를 바꿨어요.",
         digits ? formatPhone(digits) : "연락처를 지웠어요.",
       );
+      setEditing(false);
     } catch (err) {
       await alert({
         title: "연락처를 바꾸지 못했어요",
@@ -713,44 +858,94 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
   };
 
   return (
-    <Section title="계정 정보">
-      <div className="grid grid-cols-1 gap-x-[24px] gap-y-[16px] md:grid-cols-2">
-        <HeroField
-          label="연락처"
-          error={invalid ? "9 ~ 11자리 숫자로 적어 주세요." : undefined}
+    <Section title="계정">
+      <dl className="flex flex-col gap-[16px]">
+        <MetaItem
+          label={
+            member.snsProvider ? `아이디 · ${member.snsProvider}` : "아이디"
+          }
         >
-          <form
-            className="flex items-center gap-[8px]"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save();
-            }}
-          >
-            <Input
-              variant="secondary"
-              fullWidth
-              type="tel"
-              inputMode="tel"
-              autoComplete="off"
-              aria-label="연락처"
-              placeholder="010-1234-5678"
-              maxLength={PHONE_INPUT_MAX_LENGTH}
-              value={phone}
-              onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-              className="h-[48px] text-base sm:h-[40px] sm:text-sm"
-            />
-            <Button
-              type="submit"
-              variant="primary"
-              className={`${BIG} shrink-0`}
-              isDisabled={!changed || invalid || update.isPending}
-            >
-              {update.isPending ? "저장 중…" : "저장"}
-            </Button>
-          </form>
-        </HeroField>
-      </div>
-      <p className="text-xs text-disabled">
+          <span className="break-all">{member.loginId}</span>
+        </MetaItem>
+        <MetaItem label="연락처">
+          {editing ? (
+            <div className="flex flex-col gap-[6px]">
+              <form
+                className="flex items-center gap-[6px]"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void save();
+                }}
+              >
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  autoFocus
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  aria-label="연락처"
+                  placeholder="010-1234-5678"
+                  maxLength={PHONE_INPUT_MAX_LENGTH}
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                  className="h-[44px] min-w-0 text-base sm:h-[40px] sm:text-sm"
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="h-[44px] shrink-0 px-[14px] sm:h-[40px]"
+                  isDisabled={!changed || invalid || update.isPending}
+                >
+                  {update.isPending ? "저장 중…" : "저장"}
+                </Button>
+                <Button
+                  variant="tertiary"
+                  className="h-[44px] shrink-0 px-[12px] sm:h-[40px]"
+                  onPress={close}
+                >
+                  취소
+                </Button>
+              </form>
+              {invalid && (
+                <p className="text-xs text-[#ef4444]">
+                  9 ~ 11자리 숫자로 적어 주세요.
+                </p>
+              )}
+            </div>
+          ) : (
+            <span className="flex items-center justify-between gap-[8px]">
+              {member.phone ? (
+                <Link
+                  href={`tel:${member.phone}`}
+                  className="inline-flex items-center gap-[4px] text-sm font-medium text-primary-800 no-underline"
+                >
+                  <Phone className="size-[13px]" />
+                  <span>{formatPhone(member.phone)}</span>
+                </Link>
+              ) : (
+                <span className="text-disabled">없음</span>
+              )}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label="연락처 수정"
+                onPress={() => setEditing(true)}
+                className="-my-[6px] size-[32px] rounded-[13px] text-gray-600"
+              >
+                <MaskIcon src="/icons/edit.svg" className="size-[16px]" />
+              </Button>
+            </span>
+          )}
+        </MetaItem>
+        <MetaItem label="가입일시">{dotDateTime(member.createdAt)}</MetaItem>
+        <MetaItem label="마지막 업데이트">
+          {dotDateTime(member.updatedAt)}
+        </MetaItem>
+      </dl>
+      <Separator />
+      <p className="text-xs leading-[18px] text-disabled">
         비밀번호는 여기서 바꿀 수 없어요. 따로 문의해 주세요.
       </p>
       {confirmDialog}

@@ -140,7 +140,7 @@ function SectionHeader({
 /** "11.7만명" — 숫자는 크게, "명"은 작게. */
 function Count({ n, className }: { n: number; className?: string }) {
   return (
-    <span className={cn("tabular-nums", className)}>
+    <span className={className}>
       {formatCount(n)}
       <span className="ml-[1px] text-[0.8em] font-medium">명</span>
     </span>
@@ -195,7 +195,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                     max={subwayMax}
                     color={badges[0]?.color ?? "#8b90a7"}
                   />
-                  <span className="text-[11px] leading-[14px] text-zinc-600 dark:text-[#b4b5bf] tabular-nums">
+                  <span className="text-[11px] leading-[14px] text-zinc-600 dark:text-[#b4b5bf]">
                     승차 {formatCount(s.ride)} · 하차 {formatCount(s.alight)}
                   </span>
                 </li>
@@ -220,7 +220,7 @@ export function CrowdTransitSections({ data }: { data: CrowdTransit }) {
                 {
                   label: "정류장",
                   value: (
-                    <span className="tabular-nums">
+                    <span>
                       {bus.stopCount}
                       <span className="ml-[1px] text-[0.8em] font-medium">
                         곳

@@ -8,7 +8,11 @@ import { useState, type ReactNode } from "react";
 import { DownloadIcon } from "@/components/icons";
 import { LicenseFileInfo } from "@/components/common/LicenseFileInfo";
 import { extractApiError } from "@/lib/apiError";
-import { useUpdateBizReg, useUpdateMember, type MemberDetail } from "@/hooks/members";
+import {
+  useUpdateBizReg,
+  useUpdateMember,
+  type MemberDetail,
+} from "@/hooks/members";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { API_BASE_URL, api } from "@/lib/api";
 import { isOptimizable } from "@/lib/media";
@@ -18,7 +22,10 @@ import {
   type MemberCategory,
 } from "@/lib/memberCategory";
 
-const CATEGORY_OPTIONS = MEMBER_CATEGORIES.map(({ value, label }) => ({ value, label }));
+const CATEGORY_OPTIONS = MEMBER_CATEGORIES.map(({ value, label }) => ({
+  value,
+  label,
+}));
 const BIZ_OPTIONS = [
   { value: "unregistered", label: "미등록" },
   { value: "reviewing", label: "검토 대기" },
@@ -27,10 +34,9 @@ const BIZ_OPTIONS = [
   { value: "rejected", label: "인증 반려" },
 ];
 
-/** 흰 판(HeroUI Card) — 테두리만, 그림자 없음. */
-const CARD_CLASS =
-  "gap-[24px] rounded-[12px] border border-tone-cdcdcd p-[36px] shadow-none";
-const CARD_TITLE = "text-xl font-semibold leading-[24px] text-tone-2a2a2a";
+/** 흰 판(HeroUI Card) — 회색 바탕 위 테두리 없는 흰 카드(어드민 공통 AdminPanel 과 같은 모양, 2026-11-12). */
+const CARD_CLASS = "gap-[24px] rounded-[20px] p-[20px] md:p-[32px]";
+const CARD_TITLE = "text-[17px] font-bold leading-[26px] text-black";
 
 /** 한 줄 글 입력(HeroUI Input) — 줄 이름표를 aria-label 로 붙인다. */
 function TextInput({
@@ -95,7 +101,13 @@ function OptionSelect({
   );
 }
 
-function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+function FieldLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required?: boolean;
+}) {
   return (
     <div className="flex w-[160px] shrink-0 items-center gap-[4px]">
       <span className="flex-1 text-xl font-semibold leading-[24px] text-tone-6d6d6d">
@@ -159,7 +171,9 @@ function FilePreview({
           width={323}
           height={landscape ? 200 : 447}
           unoptimized={!isOptimizable(url)}
-          className={landscape ? `${box} h-auto object-contain` : `${box} object-cover`}
+          className={
+            landscape ? `${box} h-auto object-contain` : `${box} object-cover`
+          }
         />
       ) : (
         <iframe
@@ -180,7 +194,11 @@ function FilePreview({
 }
 
 /** 관리자 다운로드 엔드포인트에서 blob 으로 받아 원본 파일명으로 저장(CORS 무관). 실패하면 새 탭으로 연다. */
-async function downloadFile(endpoint: string, filename: string, fallbackUrl: string) {
+async function downloadFile(
+  endpoint: string,
+  filename: string,
+  fallbackUrl: string,
+) {
   try {
     const res = await api.get<Blob>(endpoint, { responseType: "blob" });
     const objUrl = URL.createObjectURL(res.data);
@@ -204,6 +222,16 @@ function ReadValue({ value }: { value: string }) {
   );
 }
 
+/** 마케팅 수신 — "동의 (문자 · 이메일)" · "비동의". 받을 방법(083)은 동의했을 때만 붙인다. */
+function marketingText(member: MemberDetail) {
+  if (!member.marketing_consent) return "비동의";
+  const channels = [
+    member.marketing_sms && "문자",
+    member.marketing_email && "이메일",
+  ].filter(Boolean);
+  return channels.length ? `동의 (${channels.join(" · ")})` : "동의";
+}
+
 export function BasicInfoTab({
   member,
   onList,
@@ -216,7 +244,9 @@ export function BasicInfoTab({
   const updateBiz = useUpdateBizReg();
 
   // 회원 유형 — 회원이 변경을 요청하면 관리자가 여기서 바꾼다(가입 시안 안내 문구).
-  const [category, setCategory] = useState<MemberCategory>(member.member_category);
+  const [category, setCategory] = useState<MemberCategory>(
+    member.member_category,
+  );
   const [position, setPosition] = useState(member.position ?? "");
   const [industry, setIndustry] = useState(member.industry ?? "");
   // 광고주 담당자 정보(068) — 회원이 가입 때 · 내 정보에서 적는다. 직함은 기존 "직책"(position)과 같은 값.
@@ -248,7 +278,6 @@ export function BasicInfoTab({
     ? licenseFileUrl.slice(licenseFileUrl.lastIndexOf("."))
     : "";
   const licenseName = biz?.license_file_name ?? `사업자등록증${licenseExt}`;
-
 
   const saving = updateMember.isPending || updateBiz.isPending;
 
@@ -294,7 +323,7 @@ export function BasicInfoTab({
 
   return (
     <div className="flex flex-col gap-[24px]">
-      <div className="flex w-full items-start gap-[24px]">
+      <div className="flex w-full flex-col items-stretch gap-[20px] lg:flex-row lg:items-start lg:gap-[24px]">
         <div className="flex flex-1 flex-col gap-[24px]">
           <Card className={CARD_CLASS}>
             <p className={CARD_TITLE}>기본 정보</p>
@@ -332,7 +361,8 @@ export function BasicInfoTab({
                 <ReadValue value={member.withdrawn_at?.slice(0, 10) ?? "-"} />
               </Row>
               <Row label="마케팅 수신">
-                <ReadValue value={member.marketing_consent ? "동의" : "비동의"} />
+                {/* 동의했으면 받을 방법(문자 · 이메일, 083)도 — 새 콜라보 알림을 어디로 보낼지. */}
+                <ReadValue value={marketingText(member)} />
               </Row>
               {/* 광고주는 직책을 아래 "담당자 정보"의 직함으로 본다(같은 값). */}
               {!showContact && (
@@ -384,19 +414,44 @@ export function BasicInfoTab({
                 />
               </Row>
               <Row label="사업자명">
-                <TextInput label="사업자명" value={bizName} onChange={setBizName} placeholder="사업자명 입력" />
+                <TextInput
+                  label="사업자명"
+                  value={bizName}
+                  onChange={setBizName}
+                  placeholder="사업자명 입력"
+                />
               </Row>
               <Row label="사업자등록번호">
-                <TextInput label="사업자등록번호" value={bizNo} onChange={setBizNo} placeholder="사업자등록번호 입력" />
+                <TextInput
+                  label="사업자등록번호"
+                  value={bizNo}
+                  onChange={setBizNo}
+                  placeholder="사업자등록번호 입력"
+                />
               </Row>
               <Row label="주소">
-                <TextInput label="주소" value={bizAddr} onChange={setBizAddr} placeholder="주소 입력" />
+                <TextInput
+                  label="주소"
+                  value={bizAddr}
+                  onChange={setBizAddr}
+                  placeholder="주소 입력"
+                />
               </Row>
               <Row label="사업의 종류">
-                <TextInput label="사업의 종류" value={bizType} onChange={setBizType} placeholder="업태 및 종목 입력" />
+                <TextInput
+                  label="사업의 종류"
+                  value={bizType}
+                  onChange={setBizType}
+                  placeholder="업태 및 종목 입력"
+                />
               </Row>
               <Row label="반려 사유">
-                <TextInput label="반려 사유" value={rejectReason} onChange={setRejectReason} placeholder="반려 사유 입력" />
+                <TextInput
+                  label="반려 사유"
+                  value={rejectReason}
+                  onChange={setRejectReason}
+                  placeholder="반려 사유 입력"
+                />
               </Row>
             </div>
 

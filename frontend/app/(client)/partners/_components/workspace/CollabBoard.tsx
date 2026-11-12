@@ -157,7 +157,7 @@ export function PeriodBar({
        * 범례 — PC는 한 줄로 흐르고, 모바일은 네 칸 격자(위 이름 · 아래 날짜)로 칸을 맞춘다.
        * 좁은 화면에서 줄이 들쭉날쭉 꺾이던 것을 정리했다(진행 칸은 날짜가 길어 조금 넓게).
        */}
-      <ul className="flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11px] text-gray-500 tabular-nums max-sm:grid max-sm:grid-cols-[1fr_1fr_1.45fr_1fr] max-sm:gap-x-[6px]">
+      <ul className="flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11px] text-gray-500 max-sm:grid max-sm:grid-cols-[1fr_1fr_1.45fr_1fr] max-sm:gap-x-[6px]">
         <LegendItem color={BAR.recruit.color} label="모집">
           ~{md(c.recruitEnd)}
         </LegendItem>
@@ -232,7 +232,7 @@ export function RecruitCard({
   const waiting = Math.max(0, c.appliedStores - c.targetStores);
   const cardClass = cn(
     "gap-[12px] p-[18px]",
-    kind !== "blocked" && [SHADOW_FLOAT, SHADOW_LIFT],
+    kind !== "blocked" && kind !== "passed" && [SHADOW_FLOAT, SHADOW_LIFT],
     tone.card,
   );
   const body = (
@@ -240,7 +240,7 @@ export function RecruitCard({
       <div className="flex items-center justify-between gap-[8px]">
         <RecruitBadge kind={kind}>{badge}</RecruitBadge>
         {/* 모집 마감일 — 배지(D-day)와 같은 줄 오른쪽. 시계 아이콘 + "11.12 마감"으로 짧게(진행 기간 · 철수일과 헷갈리지 않게 "마감"). */}
-        <span className="flex shrink-0 items-center gap-[4px] text-[12px] text-gray-500 tabular-nums">
+        <span className="flex shrink-0 items-center gap-[4px] text-[12px] text-gray-500">
           <MaskIcon
             src="/icons/clock.svg"
             className="size-[12px] text-gray-400"
@@ -249,7 +249,12 @@ export function RecruitCard({
           마감
         </span>
       </div>
-      <div className={cn("min-w-0", kind === "blocked" && "opacity-60")}>
+      <div
+        className={cn(
+          "min-w-0",
+          (kind === "blocked" || kind === "passed") && "opacity-60",
+        )}
+      >
         {/* 브랜드 — 작은 브랜드 사진(없으면 기본 C) + 이름. */}
         <span className="flex items-center gap-[6px] text-[12px] font-semibold text-gray-500">
           <BrandAvatar
@@ -267,7 +272,7 @@ export function RecruitCard({
             <PeriodBar c={c} today={today} />
           </div>
         ) : (
-          <span className="mt-[2px] flex items-center gap-[4px] text-[12px] text-gray-500 tabular-nums">
+          <span className="mt-[2px] flex items-center gap-[4px] text-[12px] text-gray-500">
             <MaskIcon src="/icons/calendar.svg" className="size-[12px]" />
             진행 {md(c.startDate)} ~ {md(c.endDate)}
           </span>
@@ -278,11 +283,16 @@ export function RecruitCard({
           <span className="text-[12px] break-keep text-gray-500">
             진행 중인 콜라보와 기간이 겹쳐요
           </span>
+        ) : kind === "passed" ? (
+          // 미참여로 답함(11-12) — 마감 전까지 상세에서 참여로 바꿀 수 있다.
+          <span className="text-[12px] break-keep text-gray-500">
+            미참여로 답했어요 · 마감 전까지 바꿀 수 있어요
+          </span>
         ) : (
           <>
             <div className="flex justify-between text-[12px]">
-              <span className="text-gray-500">신청 매장</span>
-              <b className="text-gray-800 tabular-nums">
+              <span className="text-gray-500">참여 매장</span>
+              <b className="text-gray-800">
                 {applied} / {c.targetStores}
                 {waiting > 0 && (
                   <span className="ml-[4px] font-medium text-gray-500">
@@ -328,7 +338,9 @@ function Board() {
     .filter((c) => categoryOf(c, today) === "recruiting")
     .sort(
       (a, b) =>
-        Number(a.standing === "blocked") - Number(b.standing === "blocked") ||
+        // 답할 것 먼저 — 기간 겹침 · 미참여로 답한 콜라보는 뒤로.
+        Number(a.standing === "blocked" || a.standing === "passed") -
+          Number(b.standing === "blocked" || b.standing === "passed") ||
         a.recruitEnd.localeCompare(b.recruitEnd),
     );
   const open = recruiting.filter((c) => c.standing === "none").length;
@@ -362,7 +374,7 @@ function Board() {
             className="size-[13px] shrink-0 text-gray-400"
           />
           매장 한 곳은 한 번에 1건만 진행해요(기간이 겹치면 신청 불가).
-          {recruiting.length > 0 && ` 지금 신청할 수 있는 콜라보 ${open}개.`}
+          {recruiting.length > 0 && ` 참여 여부를 알려 주실 콜라보 ${open}개.`}
         </span>
         {held && (
           <Link
@@ -383,7 +395,7 @@ function Board() {
               aria-hidden
               className="h-[10px] w-px shrink-0 bg-primary-200"
             />
-            <span className="flex shrink-0 items-center gap-[4px] font-semibold text-gray-700 tabular-nums">
+            <span className="flex shrink-0 items-center gap-[4px] font-semibold text-gray-700">
               <MaskIcon
                 src="/icons/calendar.svg"
                 className="size-[12px] text-gray-500 max-sm:hidden"

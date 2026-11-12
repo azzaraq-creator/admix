@@ -131,7 +131,7 @@ function HeaderStat({ label, value }: { label: string; value: ReactNode }) {
       <p className="text-[16px] font-medium leading-[1.4] tracking-[-0.4px] text-gray-500">
         {label}
       </p>
-      <p className="truncate text-[24px] font-semibold leading-[1.4] tracking-[-0.6px] text-gray-900 tabular-nums">
+      <p className="truncate text-[24px] font-semibold leading-[1.4] tracking-[-0.6px] text-gray-900">
         {value}
       </p>
     </div>
@@ -222,7 +222,7 @@ function AmountCell({
     >
       <p
         className={cn(
-          "whitespace-nowrap tabular-nums",
+          "whitespace-nowrap",
           CELL_TEXT,
           strong && "font-bold text-primary-800",
         )}
@@ -421,7 +421,7 @@ function ProductionCell({
       style={{ width }}
       className="flex shrink-0 flex-col items-end justify-center gap-[8px] px-[12px]"
     >
-      <p className={cn("whitespace-nowrap pr-[8px] tabular-nums", CELL_TEXT)}>
+      <p className={cn("whitespace-nowrap pr-[8px]", CELL_TEXT)}>
         {formatNumber(productionAmount(item))}
       </p>
       <CountField
@@ -535,7 +535,7 @@ function PeriodCell({
 }) {
   if (!interactive) {
     return (
-      <Cell width={width} className="whitespace-nowrap tabular-nums">
+      <Cell width={width} className="whitespace-nowrap">
         {startDate ? `${startDate} ~ ${endDate ?? EMPTY}` : "미정"}
       </Cell>
     );
@@ -550,7 +550,7 @@ function PeriodCell({
       {startDate && (
         <>
           <span className="text-[18px] text-gray-400">~</span>
-          <span className="w-[106px] whitespace-nowrap text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-gray-700 tabular-nums">
+          <span className="w-[106px] whitespace-nowrap text-[18px] font-medium leading-[1.4] tracking-[-0.45px] text-gray-700">
             {endDate || EMPTY}
           </span>
         </>
@@ -656,7 +656,7 @@ export function SummaryTemplate({
           {/* "+ @"가 붙으면 카드 폭을 넘지 않게 조금 줄인다. */}
           <p
             className={cn(
-              "truncate font-bold leading-[1.2] tracking-[-0.9px] tabular-nums",
+              "truncate font-bold leading-[1.2] tracking-[-0.9px]",
               adInquiry ? "text-[30px]" : "text-[36px]",
             )}
           >
@@ -689,7 +689,7 @@ export function SummaryTemplate({
             key={item.media_id}
             className="flex min-h-0 w-full flex-1 items-center overflow-hidden border-b border-gray-100"
           >
-            <Cell width={COL.no} className="text-gray-400 tabular-nums">
+            <Cell width={COL.no} className="text-gray-400">
               {startIndex + index + 1}
             </Cell>
             <CategoryCell width={COL.type} value={item.category} />

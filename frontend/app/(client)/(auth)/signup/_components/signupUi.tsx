@@ -160,7 +160,7 @@ export function PrimaryAction({
           "h-[52px] bg-primary-500 text-[15px] font-bold text-white shadow-[0px_12px_14px_rgba(163,59,209,0.2)] data-[disabled=true]:opacity-40 data-[disabled=true]:shadow-none",
           RADIUS.h52,
           // 모바일은 44px(곡률 19px).
-          "max-sm:h-[44px] max-sm:rounded-[19px] max-sm:text-[14px]",
+          "max-sm:h-[44px] rounded-[23px] max-sm:rounded-[19px] max-sm:text-[14px]",
         )}
       >
         {pending ? "처리 중…" : label}
@@ -205,6 +205,28 @@ export function CategoryBadge({ children }: { children: ReactNode }) {
     >
       {children}
     </Chip>
+  );
+}
+
+/**
+ * 콜라보 마케팅 동의 안내 — 제휴사 가입 약관 단계 · 콜라보 내 정보가 같이 쓴다.
+ * 11-12 사용자: 옅은 회색(gray-400)은 안 읽힌다 → 연보라 띠 · 종 아이콘은 "너무 화려" → 장식 없이,
+ * "새로운 콜라보"만 짙은 회색 + 밑줄(굵게는 뺌).
+ */
+export function CollabMarketingNote({ className }: { className?: string }) {
+  return (
+    <p
+      className={cn(
+        "text-[13px] leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]",
+        className,
+      )}
+    >
+      동의하면{" "}
+      <span className="text-gray-900 underline decoration-gray-400 underline-offset-[3px]">
+        새로운 콜라보
+      </span>
+      가 열렸을 때 SMS나 이메일로 알려 드려요.
+    </p>
   );
 }
 

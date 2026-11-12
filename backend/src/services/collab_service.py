@@ -9,17 +9,21 @@
 """
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto
+from src.config import get_settings
+from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto, CollabReportFile
 from src.models.member_profile import BusinessRegistration
 from src.models.partners_store import PartnersStore, PartnersStoreRequest
 from src.models.user import User
+from src.services import collab_request_service
 from src.services import partners_service as ps
 
 KST = timezone(timedelta(hours=9))
@@ -30,10 +34,22 @@ CHECK_PCTS = (0.25, 0.6, 0.9)
 ACTIVE = ("applied", "requested", "confirmed")
 # 기간이 겹치면 다른 콜라보에 신청할 수 없게 하는 참여.
 HOLDING = ("requested", "confirmed")
-PARTICIPANT_STATUSES = ("applied", "requested", "confirmed", "declined", "cancelled")
+# passed — 매장이 모집 기간에 "미참여"로 답함(2026-11-12 사용자). declined 는 신청한 뒤 확정 요청 전에 빠진 것(어드민 처리).
+PARTICIPANT_STATUSES = ("applied", "requested", "confirmed", "declined", "cancelled", "passed")
 COLLAB_STATUSES = ("draft", "published", "cancelled")
 COLLAB_TYPES = ("ready", "made")
 COLLAB_PHOTO_MAX_SIDE = 1600
+# 진행 항목의 준비 주체(2026-11-12 사용자 "콜라보 진행" — admix가 제작할 것을 모아 본다).
+# 광고주 의뢰서 items.prep 과 같은 값: ready 브랜드가 가진 것 · made 브랜드가 만든다 · admix admix가 만든다.
+ITEM_PREPS = ("ready", "made", "admix")
+# 콜라보 진행(끝나지 않은 콜라보) · 콜라보 결과(끝난 콜라보) 단계.
+PROGRESS_PHASES = ("draft", "scheduled", "recruiting", "selecting", "running")
+# 결과 보고서 파일(086) — 콜라보 결과에서 올려 모아 둔다. 사진이 든 PDF 를 생각해 50MB(nginx 100m 안).
+REPORT_FILE_MAX = 50 * 1024 * 1024
+REPORT_FILE_EXTS = {
+    ".pdf", ".ppt", ".pptx", ".key", ".doc", ".docx", ".hwp", ".hwpx", ".xls", ".xlsx", ".zip",
+    ".jpg", ".jpeg", ".png", ".webp",
+}
 ADMIX_CONFIRMER = "admix 대리 확정"
 
 
@@ -140,7 +156,8 @@ def serialize_for_store(
         removalDate=_d(c.removal_date),
         checks=list(c.checks or make_checks(c.start_date, c.end_date)),
         task=c.task or "",
-        items=list(c.items or []),
+        # 준비 주체(prep)는 어드민 콜라보 진행용이라 매장 화면엔 빼고 보낸다.
+        items=[dict(label=it.get("label", ""), note=it.get("note", "")) for it in (c.items or [])],
         space=c.space or "",
         quantity=c.quantity or 0,
         benefit=c.benefit or "",
@@ -262,7 +279,9 @@ def apply(db: Session, user: User, collab_id: str, store_id: str) -> dict:
         raise HTTPException(status_code=400, detail="지금은 신청할 수 없는 콜라보예요.")
     if store.status != "active":
         raise HTTPException(status_code=400, detail="숨김 상태인 매장은 신청할 수 없어요. 담당자에게 문의해 주세요.")
-    if _participant(db, collab, store) is not None:
+    existing = _participant(db, collab, store)
+    # "미참여"로 답했어도 모집 기간 안이면 "참여"로 바꿀 수 있다 — 선착순 순서는 다시 누른 때로.
+    if existing is not None and existing.status != "passed":
         raise HTTPException(status_code=409, detail="이미 신청한 콜라보예요.")
     holding = (
         db.query(Collab)
@@ -276,13 +295,19 @@ def apply(db: Session, user: User, collab_id: str, store_id: str) -> dict:
     )
     if any(_overlaps(collab, h) for h in holding):
         raise HTTPException(status_code=400, detail="진행 중인 콜라보와 기간이 겹쳐 신청할 수 없어요.")
-    db.add(CollabParticipant(collab_id=collab.id, store_id=store.id, user_id=user.id, status="applied"))
+    if existing is not None:
+        existing.status = "applied"
+        existing.user_id = user.id
+        existing.applied_at = datetime.now(timezone.utc)
+        existing.closed_at = None
+    else:
+        db.add(CollabParticipant(collab_id=collab.id, store_id=store.id, user_id=user.id, status="applied"))
     db.commit()
     return _store_view(db, user, store, collab)
 
 
 def withdraw(db: Session, user: User, collab_id: str, store_id: str) -> dict:
-    """신청 취소 — 확정 요청 전, 모집 기간 안에만."""
+    """참여(신청) 취소 — 확정 요청 전, 모집 기간 안에만. 11-12부터 줄을 지우지 않고 "미참여"(passed)로 남긴다."""
     store = ps.own_store(db, user, store_id)
     collab = _get_collab(db, collab_id)
     p = _participant(db, collab, store)
@@ -290,7 +315,33 @@ def withdraw(db: Session, user: User, collab_id: str, store_id: str) -> dict:
         raise HTTPException(status_code=400, detail="취소할 신청이 없어요.")
     if today_kst() > collab.recruit_end:
         raise HTTPException(status_code=400, detail="모집이 끝나 신청을 취소할 수 없어요. 담당자에게 알려 주세요.")
-    db.delete(p)
+    p.status = "passed"
+    p.closed_at = datetime.now(timezone.utc)
+    db.commit()
+    return _store_view(db, user, store, collab)
+
+
+def pass_collab(db: Session, user: User, collab_id: str, store_id: str) -> dict:
+    """미참여로 답하기(2026-11-12 사용자) — 새로 열린 콜라보마다 매장이 참여 / 미참여를 고른다.
+    모집 기간 안에만, 참여(신청)해 둔 것도 확정 요청 전이면 미참여로 바꾼다. 모집이 끝날 때까지 답이 없으면 무응답."""
+    _ensure_agreed(user)
+    store = ps.own_store(db, user, store_id)
+    collab = _get_collab(db, collab_id)
+    today = today_kst()
+    if collab.status != "published" or not (collab.recruit_start <= today <= collab.recruit_end):
+        raise HTTPException(status_code=400, detail="지금은 답할 수 없는 콜라보예요.")
+    p = _participant(db, collab, store)
+    now = datetime.now(timezone.utc)
+    if p is None:
+        db.add(
+            CollabParticipant(
+                collab_id=collab.id, store_id=store.id, user_id=user.id, status="passed", closed_at=now
+            )
+        )
+    elif p.status == "applied":
+        p.status, p.closed_at = "passed", now
+    elif p.status != "passed":
+        raise HTTPException(status_code=400, detail="확정 요청을 받은 콜라보는 담당자에게 알려 주세요.")
     db.commit()
     return _store_view(db, user, store, collab)
 
@@ -460,11 +511,256 @@ def admin_list(
     rows = q.order_by(Collab.recruit_start.desc(), Collab.created_at.desc()).all()
     if phase:
         today = today_kst()
-        rows = [c for c in rows if phase_of(c, today) == phase]
+        # ended — 콜라보 결과(완료 · 취소)를 한 번에.
+        wanted = ("done", "cancelled") if phase == "ended" else (phase,)
+        rows = [c for c in rows if phase_of(c, today) in wanted]
     total = len(rows)
     rows = rows[(max(page, 1) - 1) * page_size : max(page, 1) * page_size]
-    counts = _counts(db, [c.id for c in rows])
-    return total, [admin_serialize(c, counts.get(c.id)) for c in rows]
+    ids = [c.id for c in rows]
+    counts = _counts(db, ids)
+    # 결과 보고서 파일 수(086) — 콜라보 결과 목록 칸.
+    files = dict(
+        db.query(CollabReportFile.collab_id, func.count(CollabReportFile.id))
+        .filter(CollabReportFile.collab_id.in_(ids))
+        .group_by(CollabReportFile.collab_id)
+        .all()
+    ) if ids else {}
+    out = []
+    for c in rows:
+        row = admin_serialize(c, counts.get(c.id))
+        row["reportFileCount"] = files.get(c.id, 0)
+        out.append(row)
+    return total, out
+
+
+# 대시보드 콜라보 일정 달력 — 한 번에 볼 수 있는 기간(달력 한 장은 6주, 앞뒤 여유).
+CALENDAR_MAX_DAYS = 100
+
+
+def admin_calendar(db: Session, start: date, end: date) -> list[dict]:
+    """콜라보 일정 달력(어드민 대시보드, 2026-11-12 사용자) — 모집 시작 ~ 철수일이 [start, end] 와 겹치는 콜라보.
+    취소는 뺀다. 확정 마감(confirm_due, 시각)은 한국 날짜로 바꿔 준다 — 비었으면 다른 화면과 같은 기본값(_default_confirm_due).
+    모집 시작 순."""
+    if end < start:
+        raise HTTPException(status_code=400, detail="기간을 확인해 주세요.")
+    if (end - start).days > CALENDAR_MAX_DAYS:
+        raise HTTPException(status_code=400, detail=f"한 번에 {CALENDAR_MAX_DAYS}일까지 볼 수 있어요.")
+    rows = (
+        db.query(Collab)
+        .filter(Collab.status != "cancelled", Collab.recruit_start <= end, Collab.removal_date >= start)
+        .order_by(Collab.recruit_start, Collab.created_at)
+        .all()
+    )
+    today = today_kst()
+    return [
+        dict(
+            id=str(c.id),
+            brandName=c.brand_name,
+            title=c.title,
+            status=c.status,
+            phase=phase_of(c, today),
+            recruitStart=_d(c.recruit_start),
+            recruitEnd=_d(c.recruit_end),
+            confirmDue=_d((c.confirm_due or _default_confirm_due(c)).astimezone(KST).date()),
+            installDate=_d(c.install_date),
+            startDate=_d(c.start_date),
+            endDate=_d(c.end_date),
+            removalDate=_d(c.removal_date),
+        )
+        for c in rows
+    ]
+
+
+_CHECK_NO = {"check1": 1, "check2": 2, "check3": 3}
+
+
+def _milestones(c: Collab) -> list[tuple[date, str]]:
+    """콜라보 일정 — (날짜, 이름) 날짜순. 확정 기한이 비었으면 다른 화면과 같은 기본값."""
+    due = (c.confirm_due or _default_confirm_due(c)).astimezone(KST).date()
+    out = [
+        (c.recruit_start, "모집 시작"),
+        (c.recruit_end, "모집 마감"),
+        (due, "최종 확정 기한"),
+        (c.install_date, "설치"),
+        (c.start_date, "콜라보 시작"),
+    ]
+    for k in c.checks or make_checks(c.start_date, c.end_date):
+        out.append((date.fromisoformat(k["date"]), f"{_CHECK_NO.get(k['step'], '')}차 점검 사진"))
+    out += [(c.end_date, "콜라보 끝"), (c.removal_date, "철수")]
+    return sorted(out, key=lambda x: x[0])
+
+
+def admin_progress(db: Session) -> list[dict]:
+    """콜라보 진행(어드민 "콜라보 관리 → 콜라보 진행", 2026-11-12 사용자) — 끝나지 않은 콜라보(비공개 ~ 진행 중)마다
+    다음 일정과 확정 매장의 설치 사진 · 늦은 점검 사진 · 재입고 요청 수. 준비할 것(진행 항목 prep)은 items 에 있다.
+    다음 일정이 가까운 순, 비공개는 맨 뒤."""
+    today = today_kst()
+    rows = [
+        c
+        for c in db.query(Collab).filter(Collab.status != "cancelled").all()
+        if phase_of(c, today) in PROGRESS_PHASES
+    ]
+    if not rows:
+        return []
+    ids = [c.id for c in rows]
+    counts = _counts(db, ids)
+    confirmed: dict = {}
+    for p in (
+        db.query(CollabParticipant)
+        .options(selectinload(CollabParticipant.photos))
+        .filter(CollabParticipant.collab_id.in_(ids), CollabParticipant.status == "confirmed")
+    ):
+        confirmed.setdefault(p.collab_id, []).append(p)
+    # 매장 응답(참여 · 미참여 · 아직) — 답할 수 있는 매장 전부 기준(11-12 사용자).
+    stores = db.query(PartnersStore).options(joinedload(PartnersStore.owner)).all()
+    tally: dict = {}
+    for store_rows in _store_responses(db, stores).values():
+        for rc, kind, _ in store_rows:
+            if rc.id in ids:
+                tally.setdefault(rc.id, {k: 0 for k in RESPONSE_KINDS})[kind] += 1
+    out = []
+    for c in rows:
+        due_steps = [
+            k["step"] for k in (c.checks or make_checks(c.start_date, c.end_date)) if k["date"] <= today.isoformat()
+        ]
+        installed = photo_due = restock = 0
+        for p in confirmed.get(c.id, []):
+            done = {ph.step for ph in p.photos}
+            installed += "install" in done
+            photo_due += any(step not in done for step in due_steps)
+            restock += p.restock_requested_at is not None
+        nxt = next(((d, label) for d, label in _milestones(c) if d >= today), None)
+        row = admin_serialize(c, counts.get(c.id))
+        row["progress"] = dict(
+            nextDate=_d(nxt[0]) if nxt else None,
+            nextLabel=nxt[1] if nxt else None,
+            installed=installed,
+            photoDue=photo_due,
+            restock=restock,
+            responses=tally.get(c.id, {k: 0 for k in RESPONSE_KINDS}),
+        )
+        out.append((c.status == "draft", nxt[0] if nxt else date.max, row))
+    out.sort(key=lambda x: (x[0], x[1]))
+    return [row for _, _, row in out]
+
+
+# ── 매장별 콜라보 응답(2026-11-12 사용자) ────────────────────────────────
+# 새로 열린 콜라보마다 매장이 참여 / 미참여로 답한다. 모집 기간이 끝날 때까지 답이 없으면 무응답.
+#   joined 참여(신청한 적 있음 — 그 뒤 확정 · 미선정 · 취소여도) · passed 미참여 · silent 무응답 · waiting 아직 모집 중이라 답 기다림
+# 묻지 않은 콜라보는 세지 않는다: 비공개 · 취소, 매장이 답할 수 있게 되기 전(매장 등록 · 회원 협약 중 늦은 날)에 모집이 끝남,
+# 기간이 겹치는 다른 콜라보를 확정 요청 · 확정해 둬서 신청할 수 없었음(blocked).
+RESPONSE_KINDS = ("joined", "passed", "silent", "waiting")
+
+
+def _answerable_since(store: PartnersStore) -> date | None:
+    """이 매장이 콜라보 참여 여부를 답할 수 있게 된 날(KST). 연결 회원이 없거나 협약 전이면 None.
+    매장을 회원에 연결한 때는 따로 남지 않아 매장 등록일 · 협약일 중 늦은 날로 본다."""
+    owner = store.owner
+    if owner is None or owner.partner_agreed_at is None:
+        return None
+    return max(owner.partner_agreed_at, store.created_at).astimezone(KST).date()
+
+
+def _store_responses(db: Session, stores: list[PartnersStore]) -> dict:
+    """매장마다 [(콜라보, 응답, 참여 줄)] — 응답은 RESPONSE_KINDS. 모집 시작이 늦은 콜라보부터."""
+    out: dict = {s.id: [] for s in stores}
+    if not stores:
+        return out
+    today = today_kst()
+    collabs = (
+        db.query(Collab)
+        .filter(Collab.status != "draft")
+        .order_by(Collab.recruit_start.desc(), Collab.created_at.desc())
+        .all()
+    )
+    by_id = {c.id: c for c in collabs}
+    parts = db.query(CollabParticipant).filter(CollabParticipant.store_id.in_([s.id for s in stores])).all()
+    mine = {(p.store_id, p.collab_id): p for p in parts}
+    holding: dict = {}
+    for p in parts:
+        c = by_id.get(p.collab_id)
+        if c is not None and p.status in HOLDING and c.status != "cancelled":
+            holding.setdefault(p.store_id, []).append(c)
+    for s in stores:
+        since = _answerable_since(s)
+        for c in collabs:
+            p = mine.get((s.id, c.id))
+            if p is not None:
+                out[s.id].append((c, "passed" if p.status == "passed" else "joined", p))
+                continue
+            if c.status != "published" or since is None or since > c.recruit_end or today < c.recruit_start:
+                continue
+            if any(h.id != c.id and _overlaps(c, h) for h in holding.get(s.id, [])):
+                continue
+            out[s.id].append((c, "waiting" if today <= c.recruit_end else "silent", None))
+    return out
+
+
+def _response_counts(rows: list) -> dict:
+    counts = {k: 0 for k in RESPONSE_KINDS}
+    for _, kind, _ in rows:
+        counts[kind] += 1
+    return counts
+
+
+def attach_store_responses(db: Session, items: list[dict]) -> None:
+    """어드민 매장 목록 줄마다 collabResponses{joined, passed, silent, waiting}를 붙인다."""
+    ids = []
+    for it in items:
+        try:
+            ids.append(uuid.UUID(str(it["id"])))
+        except (KeyError, ValueError):
+            pass
+    stores = (
+        db.query(PartnersStore).options(joinedload(PartnersStore.owner)).filter(PartnersStore.id.in_(ids)).all()
+        if ids
+        else []
+    )
+    responses = _store_responses(db, stores)
+    for it in items:
+        try:
+            sid = uuid.UUID(str(it["id"]))
+        except (KeyError, ValueError):
+            continue
+        it["collabResponses"] = _response_counts(responses.get(sid, []))
+
+
+def admin_store_collabs(db: Session, store_id: str) -> dict:
+    """어드민 매장 상세 "콜라보 참여" — 참여 · 미참여 · 무응답 수와 콜라보별 기록(참여한 것은 결과까지)."""
+    try:
+        store = (
+            db.query(PartnersStore)
+            .options(joinedload(PartnersStore.owner))
+            .filter(PartnersStore.id == uuid.UUID(str(store_id)))
+            .first()
+        )
+    except ValueError:
+        store = None
+    if store is None:
+        raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
+    rows = _store_responses(db, [store])[store.id]
+    today = today_kst()
+    items = []
+    for c, kind, p in rows:
+        items.append(
+            dict(
+                collabId=str(c.id),
+                brandName=c.brand_name,
+                title=c.title,
+                phase=phase_of(c, today),
+                recruitStart=_d(c.recruit_start),
+                recruitEnd=_d(c.recruit_end),
+                startDate=_d(c.start_date),
+                endDate=_d(c.end_date),
+                response=kind,
+                status=p.status if p else None,
+                appliedAt=_iso(p.applied_at) if p and kind == "joined" else None,
+                answeredAt=_iso(p.closed_at) if p and kind == "passed" else None,
+                confirmNo=p.confirm_no if p else None,
+            )
+        )
+    since = _answerable_since(store)
+    return dict(counts=_response_counts(rows), since=_d(since) if since else None, items=items)
 
 
 def _parse_date(v, label: str) -> date:
@@ -481,8 +777,13 @@ def _clean_items(items) -> list[dict]:
     for it in items or []:
         label = str((it or {}).get("label") or "").strip()[:40]
         note = str((it or {}).get("note") or "").strip()[:200]
+        prep = (it or {}).get("prep")
         if label:
-            out.append({"label": label, "note": note})
+            row = {"label": label, "note": note}
+            # 누가 준비하나(광고주 의뢰서와 같은 값) — admix 면 콜라보 진행 화면 "admix 제작"에 모인다.
+            if prep in ITEM_PREPS:
+                row["prep"] = prep
+            out.append(row)
     return out
 
 
@@ -580,6 +881,7 @@ def _detail(db: Session, c: Collab) -> dict:
         dict(id=str(n.id), title=n.title, body=n.body, author=n.author, createdAt=_iso(n.created_at))
         for n in c.notices
     ]
+    out["reportFiles"] = [_report_file(f) for f in c.report_files]
     return out
 
 
@@ -649,8 +951,11 @@ def admin_delete(db: Session, collab_id: str) -> None:
         raise HTTPException(
             status_code=400, detail="확정한 매장이 있는 콜라보는 지울 수 없어요. 상태를 '취소'로 바꿔 주세요."
         )
+    paths = [_report_path(f.url) for f in c.report_files]
     db.delete(c)
     db.commit()
+    for path in paths:
+        path.unlink(missing_ok=True)
 
 
 def _get_participant(db: Session, participant_id: str) -> CollabParticipant:
@@ -670,9 +975,18 @@ def admin_add_participant(db: Session, collab_id: str, store_code: str) -> dict:
     store = db.query(PartnersStore).filter(PartnersStore.store_code == raw).first()
     if store is None:
         raise HTTPException(status_code=400, detail=f"매장을 찾지 못했어요: {store_code}")
-    if _participant(db, c, store) is not None:
+    existing = _participant(db, c, store)
+    # 미참여로 답했던 매장(11-12)도 전화로 참여하겠다면 참여로 바꿔 넣는다 — 순서는 지금부터.
+    if existing is not None and existing.status != "passed":
         raise HTTPException(status_code=409, detail="이미 참여 중인 매장이에요.")
-    db.add(CollabParticipant(collab_id=c.id, store_id=store.id, user_id=store.owner_user_id, status="applied"))
+    if existing is not None:
+        existing.status = "applied"
+        existing.applied_at = datetime.now(timezone.utc)
+        existing.closed_at = None
+    else:
+        db.add(
+            CollabParticipant(collab_id=c.id, store_id=store.id, user_id=store.owner_user_id, status="applied")
+        )
     db.commit()
     return _detail(db, c)
 
@@ -745,6 +1059,71 @@ def admin_delete_photo(db: Session, photo_id: str) -> dict:
     return _detail(db, collab)
 
 
+def _report_file(f: CollabReportFile) -> dict:
+    return dict(id=str(f.id), name=f.name, size=f.size, uploadedBy=f.uploaded_by, createdAt=_iso(f.created_at))
+
+
+def _report_path(url: str) -> Path:
+    return Path(get_settings().upload_dir) / url.removeprefix("/uploads/")
+
+
+def _get_report_file(db: Session, file_id: str) -> CollabReportFile:
+    try:
+        f = db.get(CollabReportFile, uuid.UUID(str(file_id)))
+    except ValueError:
+        f = None
+    if f is None:
+        raise HTTPException(status_code=404, detail="보고서 파일을 찾을 수 없어요.")
+    return f
+
+
+def admin_upload_report(db: Session, collab_id: str, file: UploadFile, uploaded_by: str | None) -> dict:
+    """결과 보고서 파일 올리기(086) — 한 번에 하나, 여러 번 올려 모은다. 콜라보 상세 모양으로 돌려준다."""
+    c = _get_collab(db, collab_id)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in REPORT_FILE_EXTS:
+        raise HTTPException(status_code=400, detail="PDF · PPT · 문서 · 엑셀 · 이미지 · ZIP 파일만 올릴 수 있어요.")
+    content = file.file.read(REPORT_FILE_MAX + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="빈 파일이에요.")
+    if len(content) > REPORT_FILE_MAX:
+        raise HTTPException(status_code=400, detail="50MB 이하 파일만 올릴 수 있어요.")
+    rel = f"collab-report/{c.id}/{uuid.uuid4().hex}{ext}"
+    dest = Path(get_settings().upload_dir) / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(content)
+    db.add(
+        CollabReportFile(
+            collab_id=c.id,
+            name=(file.filename or dest.name)[:255],
+            url=f"/uploads/{rel}",
+            size=len(content),
+            uploaded_by=(uploaded_by or "")[:255] or None,
+        )
+    )
+    db.commit()
+    db.refresh(c)
+    return _detail(db, c)
+
+
+def admin_report_file(db: Session, file_id: str) -> tuple[Path, str]:
+    f = _get_report_file(db, file_id)
+    path = _report_path(f.url)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없어요.")
+    return path, f.name
+
+
+def admin_delete_report(db: Session, file_id: str) -> dict:
+    f = _get_report_file(db, file_id)
+    c, path = f.collab, _report_path(f.url)
+    db.delete(f)
+    db.commit()
+    path.unlink(missing_ok=True)
+    db.refresh(c)
+    return _detail(db, c)
+
+
 def admin_add_notice(db: Session, collab_id: str, data: dict) -> dict:
     c = _get_collab(db, collab_id)
     title, body = _txt(data.get("title"), 200), _txt(data.get("body"))
@@ -782,7 +1161,18 @@ def admin_summary(db: Session) -> dict:
         .all()
     )
     biz_counts = dict(biz)
-    has_store = db.query(PartnersStore.id).filter(PartnersStore.owner_user_id == User.id).exists()
+    # 광고주 사업자등록증 검토 대기 — 사이드 메뉴 "광고주 회원" 옆 숫자(11-11 사용자).
+    advertiser_biz_reviewing = (
+        db.query(func.count(BusinessRegistration.id))
+        .join(User, User.id == BusinessRegistration.user_id)
+        .filter(
+            User.member_category == "advertiser",
+            User.status != "withdrawn",
+            BusinessRegistration.status == "reviewing",
+        )
+        .scalar()
+    )
+    has_store =db.query(PartnersStore.id).filter(PartnersStore.owner_user_id == User.id).exists()
     collabs = db.query(Collab).all()
     phases: dict[str, int] = {}
     for c in collabs:
@@ -810,6 +1200,7 @@ def admin_summary(db: Session) -> dict:
             bizReviewing=biz_counts.get("reviewing", 0),
             bizProvisional=biz_counts.get("provisional", 0),
         ),
+        advertisers=dict(bizReviewing=advertiser_biz_reviewing),
         stores=dict(
             total=db.query(func.count(PartnersStore.id)).scalar(),
             unlinked=db.query(func.count(PartnersStore.id)).filter(PartnersStore.owner_user_id.is_(None)).scalar(),
@@ -827,4 +1218,7 @@ def admin_summary(db: Session) -> dict:
         .filter(CollabParticipant.restock_requested_at.isnot(None), CollabParticipant.status == "confirmed")
         .scalar(),
         photoDue=photo_due,
+        # 광고주 콜라보 의뢰 — 접수된 수는 사이드 메뉴 "콜라보 의뢰" 옆 숫자, 안 연 수는 목록 다시 불러오기용(081).
+        collabRequestsSubmitted=collab_request_service.submitted_count(db),
+        collabRequestsNew=collab_request_service.new_count(db),
     )

@@ -23,37 +23,35 @@ export function AddressSearchModal({
   onSelect: (data: DaumPostcodeResult) => void;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label="주소 검색"
-            className="flex w-full max-w-[520px] flex-col gap-[12px] rounded-[20px] bg-surface p-[16px] sm:p-[20px]"
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label="주소 검색"
+          className="flex w-full max-w-[520px] flex-col gap-[12px] rounded-[20px] bg-surface p-[16px] sm:p-[20px]"
+        >
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="right-[12px] top-[12px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black sm:right-[16px] sm:top-[16px]"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="right-[12px] top-[12px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black sm:right-[16px] sm:top-[16px]"
-            >
-              <X className="size-[18px]" />
-            </Modal.CloseTrigger>
-            <Modal.Header className="p-0 pr-[36px]">
-              <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
-                주소 검색
-              </Modal.Heading>
-            </Modal.Header>
-            {/* 열 때마다 검색 화면을 새로 끼운다. */}
-            {isOpen && (
-              <PostcodeFrame
-                onSelect={(data) => {
-                  onSelect(data);
-                  onOpenChange(false);
-                }}
-              />
-            )}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <X className="size-[18px]" />
+          </Modal.CloseTrigger>
+          <Modal.Header className="p-0 pr-[36px]">
+            <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
+              주소 검색
+            </Modal.Heading>
+          </Modal.Header>
+          {/* 열 때마다 검색 화면을 새로 끼운다. */}
+          {isOpen && (
+            <PostcodeFrame
+              onSelect={(data) => {
+                onSelect(data);
+                onOpenChange(false);
+              }}
+            />
+          )}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

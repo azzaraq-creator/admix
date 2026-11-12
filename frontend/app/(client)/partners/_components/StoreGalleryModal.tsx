@@ -56,105 +56,107 @@ export function StoreGalleryModal({
   }, [open, i]);
 
   return (
-    <Modal isOpen={open} onOpenChange={(v) => !v && onIndexChange(null)}>
-      <Modal.Backdrop className="bg-black/85 backdrop-blur-sm">
-        <Modal.Container placement="center" className="px-0">
-          <Modal.Dialog
-            aria-label={`${name} 사진`}
-            className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none bg-transparent p-0 text-white shadow-none"
-          >
-            {/* 위 — 몇 번째 · 닫기 */}
-            <div className="flex items-center justify-between px-[16px] py-[14px] sm:px-[24px]">
-              <span className="text-[14px] font-semibold tabular-nums">
-                <b className="text-white">{i + 1}</b>
-                <span className="text-white/50"> / {total}</span>
-                <span className="ml-[10px] text-white/60">{name}</span>
-              </span>
-              <Modal.CloseTrigger
-                aria-label="닫기"
-                className="static size-[36px] rounded-[13px] bg-white/10 text-white hover:bg-white/20"
+    <Modal.Backdrop
+      isOpen={open}
+      onOpenChange={(v) => !v && onIndexChange(null)}
+      className="bg-black/85 backdrop-blur-sm"
+    >
+      <Modal.Container placement="center" className="px-0">
+        <Modal.Dialog
+          aria-label={`${name} 사진`}
+          className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none bg-transparent p-0 text-white shadow-none"
+        >
+          {/* 위 — 몇 번째 · 닫기 */}
+          <div className="flex items-center justify-between px-[16px] py-[14px] sm:px-[24px]">
+            <span className="text-[14px] font-semibold">
+              <b className="text-white">{i + 1}</b>
+              <span className="text-white/50"> / {total}</span>
+              <span className="ml-[10px] text-white/60">{name}</span>
+            </span>
+            <Modal.CloseTrigger
+              aria-label="닫기"
+              className="static size-[36px] rounded-[15px] bg-white/10 text-white hover:bg-white/20"
+            />
+          </div>
+
+          {/* 가운데 — 큰 사진 + 좌우 버튼 */}
+          <div className="relative min-h-0 flex-1">
+            {images[i] && (
+              <MediaImage
+                key={images[i]}
+                src={mediaSrc(images[i])}
+                alt={`${name} 사진 ${i + 1}`}
+                fill
+                sizes="100vw"
+                className="animate-in fade-in object-contain duration-200"
               />
-            </div>
-
-            {/* 가운데 — 큰 사진 + 좌우 버튼 */}
-            <div className="relative min-h-0 flex-1">
-              {images[i] && (
-                <MediaImage
-                  key={images[i]}
-                  src={mediaSrc(images[i])}
-                  alt={`${name} 사진 ${i + 1}`}
-                  fill
-                  sizes="100vw"
-                  className="animate-in fade-in object-contain duration-200"
-                />
-              )}
-              {total > 1 && (
-                <>
-                  <Button
-                    isIconOnly
-                    aria-label="이전 사진"
-                    onPress={() => go(-1)}
-                    className="absolute top-1/2 left-[12px] size-[44px] -translate-y-1/2 rounded-[16px] bg-white/10 text-white backdrop-blur-md hover:bg-white/20 sm:left-[24px]"
-                  >
-                    <ChevronLeft className="size-[22px]" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    aria-label="다음 사진"
-                    onPress={() => go(1)}
-                    className="absolute top-1/2 right-[12px] size-[44px] -translate-y-1/2 rounded-[16px] bg-white/10 text-white backdrop-blur-md hover:bg-white/20 sm:right-[24px]"
-                  >
-                    <ChevronRight className="size-[22px]" />
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {/* 사진 메모 — 있을 때만, 큰 사진 바로 아래. */}
-            {captions?.[i]?.trim() && (
-              <p
-                key={`memo-${i}`}
-                className="animate-in fade-in mx-auto w-full max-w-[640px] px-[20px] pt-[14px] text-center text-[15px] leading-[1.6] font-medium break-keep whitespace-pre-line text-white/85 duration-200 max-sm:text-[13px]"
-              >
-                {captions[i]}
-              </p>
             )}
-
-            {/* 아래 — 작은 사진 줄 */}
             {total > 1 && (
-              <div
-                ref={stripRef}
-                className="flex justify-center-safe gap-[8px] overflow-x-auto px-[16px] py-[16px]"
-              >
-                {images.map((url, k) => (
-                  <button
-                    key={url}
-                    type="button"
-                    data-thumb={k}
-                    aria-label={`${k + 1}번째 사진`}
-                    aria-current={k === i}
-                    onClick={() => onIndexChange(k)}
-                    className={cn(
-                      "relative size-[56px] shrink-0 overflow-hidden rounded-[12px] ring-2 transition sm:size-[64px]",
-                      k === i
-                        ? "opacity-100 ring-white"
-                        : "opacity-50 ring-transparent hover:opacity-90",
-                    )}
-                  >
-                    <MediaImage
-                      src={mediaSrc(url)}
-                      alt=""
-                      fill
-                      sizes="64px"
-                      className="object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
+              <>
+                <Button
+                  isIconOnly
+                  aria-label="이전 사진"
+                  onPress={() => go(-1)}
+                  className="absolute top-1/2 left-[12px] size-[44px] -translate-y-1/2 rounded-[19px] bg-white/10 text-white backdrop-blur-md hover:bg-white/20 sm:left-[24px]"
+                >
+                  <ChevronLeft className="size-[22px]" />
+                </Button>
+                <Button
+                  isIconOnly
+                  aria-label="다음 사진"
+                  onPress={() => go(1)}
+                  className="absolute top-1/2 right-[12px] size-[44px] -translate-y-1/2 rounded-[19px] bg-white/10 text-white backdrop-blur-md hover:bg-white/20 sm:right-[24px]"
+                >
+                  <ChevronRight className="size-[22px]" />
+                </Button>
+              </>
             )}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+          </div>
+
+          {/* 사진 메모 — 있을 때만, 큰 사진 바로 아래. */}
+          {captions?.[i]?.trim() && (
+            <p
+              key={`memo-${i}`}
+              className="animate-in fade-in mx-auto w-full max-w-[640px] px-[20px] pt-[14px] text-center text-[15px] leading-[1.6] font-medium break-keep whitespace-pre-line text-white/85 duration-200 max-sm:text-[13px]"
+            >
+              {captions[i]}
+            </p>
+          )}
+
+          {/* 아래 — 작은 사진 줄 */}
+          {total > 1 && (
+            <div
+              ref={stripRef}
+              className="flex justify-center-safe gap-[8px] overflow-x-auto px-[16px] py-[16px]"
+            >
+              {images.map((url, k) => (
+                <button
+                  key={url}
+                  type="button"
+                  data-thumb={k}
+                  aria-label={`${k + 1}번째 사진`}
+                  aria-current={k === i}
+                  onClick={() => onIndexChange(k)}
+                  className={cn(
+                    "relative size-[56px] shrink-0 overflow-hidden rounded-[12px] ring-2 transition sm:size-[64px]",
+                    k === i
+                      ? "opacity-100 ring-white"
+                      : "opacity-50 ring-transparent hover:opacity-90",
+                  )}
+                >
+                  <MediaImage
+                    src={mediaSrc(url)}
+                    alt=""
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

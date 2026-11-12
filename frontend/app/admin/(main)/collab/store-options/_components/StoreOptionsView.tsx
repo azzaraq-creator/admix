@@ -1,10 +1,11 @@
 "use client";
 
-import { Button, Input, Modal, Tabs } from "@heroui/react";
+import { Button, Input, Modal, Separator, Tabs } from "@heroui/react";
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { HeroField } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   useCreateStoreType,
@@ -23,7 +24,7 @@ import {
 } from "@/lib/partners";
 
 import { ChipInput } from "../../_components/ChipInput";
-import { CollabPageHead, CollabSection } from "../../_components/collabUi";
+import { CollabPageHead } from "../../_components/collabUi";
 
 const NAME_MAX = 20;
 const NOTE_CHIP_COLOR = {
@@ -33,7 +34,7 @@ const NOTE_CHIP_COLOR = {
 } as const;
 
 /**
- * 매장 항목(/admin/collab/store-options) — 매장 유형(카페 · 식당 …)마다 "매장 어필" 칩 값과
+ * 매장 유형 관리(/admin/collab/store-options) — 매장 유형(카페 · 식당 …)마다 "매장 어필" 칩 값과
  * 자주 쓰는 "조건 메모" 값을 정한다(2026-11-09 사용자, 070). 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
  * 값은 쉼표(,)로 칩을 만들며 적는다.
  */
@@ -46,9 +47,9 @@ export function StoreOptionsView() {
   const current = list.find((t) => t.id === picked) ?? list[0];
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
-        title="매장 항목"
+        title="매장 유형 관리"
         desc="매장 유형마다 매장 어필 칩과 자주 쓰는 조건 메모를 정해요. 매장 화면에서 유형을 고르면 여기 값이 칩으로 보여요."
       >
         <Button variant="primary" onPress={() => setAdding(true)}>
@@ -60,10 +61,12 @@ export function StoreOptionsView() {
       {isLoading ? (
         <LoadingState />
       ) : !current ? (
-        <p className="py-[40px] text-center text-sm text-disabled">
-          아직 매장 유형이 없어요. &quot;유형 추가&quot;로 카페 · 식당 같은
-          유형을 만들어 주세요.
-        </p>
+        <AdminPanel>
+          <p className="py-[40px] text-center text-sm text-disabled">
+            아직 매장 유형이 없어요. &quot;유형 추가&quot;로 카페 · 식당 같은
+            유형을 만들어 주세요.
+          </p>
+        </AdminPanel>
       ) : (
         <>
           <Tabs
@@ -141,7 +144,7 @@ function TypeEditor({
         id: type.id,
         payload: { name: name.trim(), tags, notes },
       });
-      success("매장 항목을 저장했어요.");
+      success("매장 유형을 저장했어요.");
     } catch (err) {
       await alert({
         title: "저장 실패",
@@ -172,58 +175,62 @@ function TypeEditor({
     }
   };
 
+  // 한 판 안에 줄마다 이름 | 칸(매장 관리 목록의 조건 칸과 같은 모양) — 2026-11-12 사용자: 깔끔하게.
   return (
-    <div className="flex flex-col gap-[16px]">
-      <CollabSection
-        title="유형"
-        desc={`이 유형인 매장 ${type.storeCount}곳`}
+    // 흰 카드 하나(테두리 없이) — 줄 사이는 Separator, 맨 아래 삭제 | 되돌리기 · 저장(2026-11-12 어드민 전체 모양).
+    <AdminPanel contentClassName="gap-[20px]">
+      <OptionRow
+        label="유형 이름"
+        required
+        help={`이 유형인 매장 ${type.storeCount}곳`}
       >
-        <div className="max-w-[360px]">
-          <HeroField label="유형 이름" required>
-            <Input
-              variant="secondary"
-              fullWidth
-              aria-label="유형 이름"
-              maxLength={NAME_MAX}
-              placeholder="예: 카페"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </HeroField>
-        </div>
-      </CollabSection>
-
-      <CollabSection
-        title={`매장 어필 칩 ${tags.length}개`}
-        desc="매장 화면에서 눌러 고르는 해시태그예요(개수 제한 없음, 카드에는 3개까지 보여요). 직접 적고 쉼표(,)를 누르면 칩이 돼요."
+        <Input
+          variant="secondary"
+          className="w-full max-w-[320px]"
+          aria-label="유형 이름"
+          maxLength={NAME_MAX}
+          placeholder="예: 카페"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </OptionRow>
+      <Separator />
+      <OptionRow
+        label="매장 어필 칩"
+        count={tags.length}
+        help="매장 화면에서 눌러 고르는 해시태그예요. 광고주 카드에는 3개까지 보여요."
       >
         <ChipInput
           ariaLabel="매장 어필 칩 값"
-          placeholder="예: 뷰맛집, 포토존, 주차가능"
+          placeholder="직접 입력 — 쉼표(,)로 구분해요. 예: 뷰맛집, 포토존"
           values={tags}
           onChange={setTags}
           maxLength={PARTNERS_TAG_MAX_LEN}
           prefix="#"
         />
-      </CollabSection>
-
-      <CollabSection
-        title={`자주 쓰는 조건 메모 ${notes.length}개`}
-        desc={'매장 화면 "조건 메모"에서 눌러 넣는 값이에요. "불가 · 없음"은 빨강, "가능"은 초록으로 보여요.'}
+      </OptionRow>
+      <Separator />
+      <OptionRow
+        label="자주 쓰는 조건 메모"
+        count={notes.length}
+        help="매장 화면 조건 메모에서 눌러 넣어요. “불가 · 없음”은 빨강, “가능”은 초록으로 보여요."
       >
         <ChipInput
           ariaLabel="자주 쓰는 조건 메모 값"
-          placeholder="예: 포스터 부착 불가, 신규 메뉴 가능"
+          placeholder="직접 입력 — 쉼표(,)로 구분해요. 예: 포스터 부착 불가, 신규 메뉴 가능"
           values={notes}
           onChange={setNotes}
           maxLength={PARTNERS_NOTE_MAX_LEN}
           colorOf={(n) => NOTE_CHIP_COLOR[noteTone(n)]}
         />
-      </CollabSection>
+      </OptionRow>
+      <Separator />
 
-      <div className="flex items-center justify-between border-t border-stroke pt-[20px]">
+      <div className="flex items-center justify-between gap-[8px]">
         <Button
-          variant="danger-soft"
+          size="sm"
+          variant="ghost"
+          className="text-[var(--danger)]"
           onPress={del}
           isDisabled={remove.isPending}
         >
@@ -252,6 +259,41 @@ function TypeEditor({
         </div>
       </div>
       {confirmDialog}
+    </AdminPanel>
+  );
+}
+
+/** 편집 한 줄 — 왼쪽 이름(개수) · 설명 | 오른쪽 칸. 모바일은 위아래. */
+function OptionRow({
+  label,
+  required,
+  count,
+  help,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  count?: number;
+  help?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-[10px] md:flex-row md:gap-[24px]">
+      <div className="flex shrink-0 flex-col gap-[4px] md:w-[220px]">
+        <span className="text-sm font-semibold text-black">
+          {label}
+          {required && <span className="ml-[2px] text-[var(--danger)]">*</span>}
+          {count != null && (
+            <span className="ml-[6px] font-medium text-disabled">
+              {count}개
+            </span>
+          )}
+        </span>
+        {help && (
+          <span className="text-xs leading-[18px] text-disabled">{help}</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -267,37 +309,35 @@ function AddTypeModal({
   onCreated: (t: StoreType) => void;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label="유형 추가"
-            className="flex w-full max-w-[420px] flex-col gap-[16px] rounded-[20px] bg-surface p-[20px] sm:p-[24px]"
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label="유형 추가"
+          className="flex w-full max-w-[420px] flex-col gap-[16px] rounded-[20px] bg-surface p-[20px] sm:p-[24px]"
+        >
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="right-[16px] top-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="right-[16px] top-[16px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
-            >
-              <X className="size-[18px]" />
-            </Modal.CloseTrigger>
-            <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
-              <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
-                유형 추가
-              </Modal.Heading>
-              <p className="text-sm text-disabled">
-                예: 베이커리, 주점. 만든 뒤 칩 · 조건 값을 채워 주세요.
-              </p>
-            </Modal.Header>
-            {isOpen && (
-              <AddTypeBody
-                onCancel={() => onOpenChange(false)}
-                onCreated={onCreated}
-              />
-            )}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <X className="size-[18px]" />
+          </Modal.CloseTrigger>
+          <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
+            <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
+              유형 추가
+            </Modal.Heading>
+            <p className="text-sm text-disabled">
+              예: 베이커리, 주점. 만든 뒤 칩 · 조건 값을 채워 주세요.
+            </p>
+          </Modal.Header>
+          {isOpen && (
+            <AddTypeBody
+              onCancel={() => onOpenChange(false)}
+              onCreated={onCreated}
+            />
+          )}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

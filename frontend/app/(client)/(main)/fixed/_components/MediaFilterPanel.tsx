@@ -95,7 +95,7 @@ export function FilterChip({
   // 시안 비율 기준(칩 높이 31px): 글자 12px, X 12px, 간격 7px, 좌우 11px, 모서리 11px.
   // HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 여기서 덮어쓴다.
   return (
-    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[11px] border border-tone-ececef bg-surface px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-zinc-500">
+    <Chip className="flex shrink-0 items-center gap-[7px] rounded-[12.5px] border border-tone-ececef bg-surface px-[11px] py-[6px] text-[12px] max-sm:text-[11px] leading-[17px] font-normal text-zinc-500">
       {label}
       <button
         type="button"
@@ -554,7 +554,7 @@ export function MediaFilterPanel({
             setDraft(EMPTY_MEDIA_FILTER);
             onReset();
           }}
-          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[16px] border border-gray-200 bg-surface px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
+          className="flex h-[40px] shrink-0 items-center gap-[8px] rounded-[17px] border border-gray-200 bg-surface px-[16px] text-[14px] font-medium text-gray-700 hover:bg-gray-50 max-sm:gap-[6px] max-sm:px-[12px] max-sm:text-[11px]"
         >
           <RotateLeftIcon className="m-0 size-[18px] shrink-0 max-sm:size-[15px]" />
           {/* 모바일은 폭이 좁아 버튼 글자를 줄인다. */}

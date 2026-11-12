@@ -86,7 +86,7 @@ export function PartnerMemberField({
             <CloseButton
               aria-label="연결 끊기"
               onPress={() => onChange("")}
-              className="size-[24px] shrink-0 rounded-full bg-transparent text-disabled data-[hovered=true]:bg-black/10 data-[hovered=true]:text-black"
+              className="size-[24px] shrink-0 rounded-[9px] bg-transparent text-disabled data-[hovered=true]:bg-black/10 data-[hovered=true]:text-black"
             >
               <X className="size-[14px]" />
             </CloseButton>
@@ -165,38 +165,36 @@ function MemberSearchModal({
   onSelect: (member: AdminPartnerMember) => void;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label="회원 검색"
-            className="flex max-h-[85dvh] w-full max-w-[560px] flex-col gap-[16px] rounded-[20px] bg-surface p-[20px] sm:p-[24px]"
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label="회원 검색"
+          className="flex max-h-[85dvh] w-full max-w-[560px] flex-col gap-[16px] rounded-[20px] bg-surface p-[20px] sm:p-[24px]"
+        >
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="right-[16px] top-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="right-[16px] top-[16px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
-            >
-              <X className="size-[18px]" />
-            </Modal.CloseTrigger>
-            <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
-              <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
-                회원 검색
-              </Modal.Heading>
-              <p className="text-sm text-disabled">
-                이 매장에 연결할 제휴사 회원을 골라 주세요.
-              </p>
-            </Modal.Header>
-            {/* 창을 열 때마다 검색어를 비운다(안쪽을 열 때만 그린다). */}
-            {isOpen && (
-              <MemberSearchBody
-                selectedCode={selectedCode}
-                onSelect={onSelect}
-              />
-            )}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <X className="size-[18px]" />
+          </Modal.CloseTrigger>
+          <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
+            <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
+              회원 검색
+            </Modal.Heading>
+            <p className="text-sm text-disabled">
+              이 매장에 연결할 제휴사 회원을 골라 주세요.
+            </p>
+          </Modal.Header>
+          {/* 창을 열 때마다 검색어를 비운다(안쪽을 열 때만 그린다). */}
+          {isOpen && (
+            <MemberSearchBody
+              selectedCode={selectedCode}
+              onSelect={onSelect}
+            />
+          )}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -348,7 +346,7 @@ function MemberCard({
           </span>
         )}
         {m.phone && (
-          <span className="ml-auto text-xs tabular-nums text-tone-4a5565">
+          <span className="ml-auto text-xs text-tone-4a5565">
             {formatPhone(m.phone)}
           </span>
         )}

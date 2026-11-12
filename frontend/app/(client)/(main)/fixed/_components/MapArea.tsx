@@ -132,6 +132,7 @@ export function MapArea({
   onLiveViewport,
   demoPlace,
   searchSpot,
+  namePins = false,
 }: {
   className?: string;
   markers?: MapMarker[];
@@ -197,6 +198,8 @@ export function MapArea({
   } | null;
   /** 검색해서 고른 장소 — 그 자리에 빨간 점을 찍는다. */
   searchSpot?: { lat: number; lng: number } | null;
+  /** 핀 대신 늘 이름표, 겹쳐도 묶지 않기 — 광고주 매장 찾기(11-11 사용자). */
+  namePins?: boolean;
 }) {
   const markerObjsRef = useRef<MarkerEntry[]>([]);
 
@@ -223,6 +226,7 @@ export function MapArea({
     onMarkerClick,
     onClusterClick,
     onGroupClick,
+    namePins,
   });
 
   useMapArea({ mapRef, mapReady, area: highlightArea });
@@ -381,6 +385,7 @@ export function MapArea({
     popupId,
     popupPosition,
     onPopupClose,
+    namePins,
   });
 
   return (
@@ -444,7 +449,7 @@ export function MapArea({
             aria-expanded={layersShown}
             aria-label="실시간 정보 (서울)"
             // 모바일은 지도가 좁아 아이콘만(30px 원) — 켜진 수는 오른쪽 위 작은 숫자, 이름은 펼친 창 맨 위에.
-            className="relative flex h-[30px] items-center gap-[6px] rounded-full border-[0.5px] border-white/40 bg-surface/60 pr-[12px] pl-[10px] max-sm:w-[30px] max-sm:justify-center max-sm:p-0 text-[12px] font-semibold text-zinc-900 shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
+            className="relative flex h-[30px] items-center gap-[6px] rounded-[12px] border-[0.5px] border-white/40 bg-surface/60 pr-[12px] pl-[10px] max-sm:w-[30px] max-sm:justify-center max-sm:p-0 text-[12px] font-semibold text-zinc-900 shadow-[0px_4px_16px_rgba(0,0,0,0.14)] backdrop-blur-[6px] backdrop-saturate-[1.8]"
           >
             {/* 아이콘 모양은 public/icons/layer.svg — 글자색으로 칠한다. */}
             <span
@@ -721,33 +726,31 @@ function CrowdPlaceSheet({
   onClose: () => void;
 }) {
   return (
-    <Drawer
+    <Drawer.Backdrop
       isOpen
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <Drawer.Backdrop>
-        <Drawer.Content placement="bottom">
-          {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — HeroUI 기본 85vh는 모바일 주소창 때문에 위가 잘린다. */}
-          <Drawer.Dialog
-            aria-label={`${place.name} 지하철·버스`}
-            className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
+      <Drawer.Content placement="bottom">
+        {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — HeroUI 기본 85vh는 모바일 주소창 때문에 위가 잘린다. */}
+        <Drawer.Dialog
+          aria-label={`${place.name} 지하철·버스`}
+          className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
+        >
+          <Drawer.Handle />
+          <div className="shrink-0 border-b border-tone-f1f1f4 px-[20px] pt-[10px] pb-[14px]">
+            <CrowdPlaceHeader place={place} onClose={onClose} large />
+          </div>
+          <ScrollShadow
+            size={32}
+            className="flex min-h-0 flex-1 flex-col gap-[16px] px-[20px] pt-[16px] pb-[calc(20px+env(safe-area-inset-bottom))]"
           >
-            <Drawer.Handle />
-            <div className="shrink-0 border-b border-tone-f1f1f4 px-[20px] pt-[10px] pb-[14px]">
-              <CrowdPlaceHeader place={place} onClose={onClose} large />
-            </div>
-            <ScrollShadow
-              size={32}
-              className="flex min-h-0 flex-1 flex-col gap-[16px] px-[20px] pt-[16px] pb-[calc(20px+env(safe-area-inset-bottom))]"
-            >
-              <CrowdPlaceBody code={place.code} />
-            </ScrollShadow>
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
-    </Drawer>
+            <CrowdPlaceBody code={place.code} />
+          </ScrollShadow>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 
@@ -838,7 +841,7 @@ function CrowdPlaceHeader({
         </div>
         <span
           className={cn(
-            "text-zinc-700 dark:text-[#c9cad3] tabular-nums",
+            "text-zinc-700 dark:text-[#c9cad3]",
             large ? "text-[13px] leading-[18px]" : "text-[12px] leading-[16px]",
           )}
         >
@@ -855,7 +858,7 @@ function CrowdPlaceHeader({
         onClick={onClose}
         aria-label="닫기"
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full text-zinc-600 dark:text-[#b4b5bf] hover:bg-zinc-100",
+          "flex shrink-0 items-center justify-center rounded-[13px] text-zinc-600 dark:text-[#b4b5bf] hover:bg-zinc-100",
           large ? "-mr-[6px] size-[32px]" : "-mt-[2px] -mr-[4px] size-[24px]",
         )}
       >

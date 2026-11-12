@@ -6,17 +6,20 @@
  *
  * 흐름: 매장 담기(지정 희망) → 의뢰 → admix 검토 · 승인 → 모집 공지 → 매장 선착순 신청(목표를 넘으면 예비 순번)
  *   → 마감 후 광고주 검토(제외 요청 · 예비 매장 미리 승인 · 미달이면 진행 방법) → 매장 최종 확정
- *   → 광고주 진행 확정 = 계산서 발행(확정 매장 금액 합계) → 2일 안 입금 → 준비 · 설치(5곳당 1일)
+ *   → 광고주 진행 확정 = 계산서 발행(확정 매장 금액 합계) → 영업일 5일 안 입금(넘기면 위약금) → 준비 · 설치(5곳당 1일)
  *   → 진행(30 · 50 · 70% 중간 보고) → 철수 · 결과 보고서.
  *
  * 2026-11-09 사용자 결정: 매장 찾기 · 담기 · 예상 비용은 실제 매장(등급 · 금액, 마이그레이션 067).
  * 모집 이후(신청 매장 · 확정 · 계산서 · 보고서)는 아래 예시 매장으로 그린다. 누른 결과는 이 탭(sessionStorage)에만 남는다.
  */
 
+import type { CollabRequestStatus, PlanBlock } from "@/lib/collabPlan";
+import { isHoliday } from "@/lib/krHolidays";
 import {
   COLLAB_GRADE_FEE,
   wonLabel,
   type CollabGrade,
+  type CollabRequestMine,
   type PartnersStore,
 } from "@/lib/partners";
 import {
@@ -24,6 +27,7 @@ import {
   addDays,
   diffDays,
   kst,
+  kstStamp,
   periodDays,
   type Tone,
 } from "@/lib/partnersPreview";
@@ -33,7 +37,7 @@ export { PREVIEW_TODAY };
 // ── 이름표 ───────────────────────────────────────────────────────────
 
 export type CollabType = "ready" | "made";
-/** 모집 코스 — 기본 20일(모집 14 + 조율 4 + 확정 2) · 급건 10일(모집 7 + 조율 2 + 확정 1). */
+/** 모집 코스(11-11 사용자) — 14일(모집 10 + 검토 3 + 확정 1) · 7일(모집 5 + 검토 1 + 확정 1). 화면엔 "기본 · 급건" 없이 일수만. */
 export type Course = "standard" | "rush";
 /** 콜라보 구성(11-10 사용자: 진행물 → 콜라보 구성, 6가지). */
 export type BaseItem = "promo" | "consumable" | "goods" | "display" | "menu" | "space";
@@ -41,19 +45,19 @@ export type ExtraKind = "sns" | "staff";
 
 export const COURSE = {
   standard: {
-    label: "기본 20일",
-    detail: "모집 14 + 조율 4 + 확정 2",
-    total: 20,
-    recruit: 14,
-    review: 4,
-    confirmHours: 48,
+    label: "14일",
+    detail: "모집 10 + 검토 3 + 확정 1",
+    total: 14,
+    recruit: 10,
+    review: 3,
+    confirmHours: 24,
   },
   rush: {
-    label: "급건 10일",
-    detail: "모집 7 + 조율 2 + 확정 1",
-    total: 10,
-    recruit: 7,
-    review: 2,
+    label: "7일",
+    detail: "모집 5 + 검토 1 + 확정 1",
+    total: 7,
+    recruit: 5,
+    review: 1,
     confirmHours: 24,
   },
 } as const;
@@ -62,10 +66,40 @@ export const TYPE_LABEL: Record<CollabType, string> = {
   ready: "준비형",
   made: "제작형",
 };
-export const TYPE_HINT: Record<CollabType, string> = {
-  ready: "물품이 준비돼 있어요",
-  made: "매장 확정 후 굿즈 · 메뉴를 만들어요",
+/**
+ * 기본안 하나의 준비 상태(11-11) — 준비돼 있음 / 직접 제작 예정 / admix에 제작을 맡김.
+ * 예전 콜라보 전체 "유형"(준비형 · 제작형)을 기본안마다 고르게 바꿨다. 콜라보 type 은 여기서 계산한다(하나라도 제작이면 제작형).
+ * 화면엔 처음부터 세 칩이 나란히 — admix 제작은 "제작 예정" 아래 버튼이 아니라 같은 줄 선택지(11-11 사용자).
+ */
+export type ItemPrep = { make: boolean; byAdmix?: boolean };
+/** 콜라보 담당자 — 전화번호는 숫자만. same 이면 브랜드 담당자(없으면 계정 담당자)로 채운 것(11-11 사용자). */
+export interface CollabContact {
+  same: boolean;
+  name: string;
+  phone: string;
+  /** 직책 또는 소속팀. */
+  role: string;
+}
+export type PrepKey = "ready" | "made" | "admix";
+export const PREP_KEYS: PrepKey[] = ["ready", "made", "admix"];
+export const PREP_LABEL: Record<PrepKey, string> = {
+  ready: "준비되어 있어요",
+  made: "제작 예정이에요",
+  admix: "admix에 제작을 맡길게요",
 };
+export const PREP_OF: Record<PrepKey, ItemPrep> = {
+  ready: { make: false },
+  made: { make: true, byAdmix: false },
+  admix: { make: true, byAdmix: true },
+};
+export const prepKeyOf = (p?: ItemPrep): PrepKey | null => (!p ? null : !p.make ? "ready" : p.byAdmix ? "admix" : "made");
+export const typeOfPrep = (items: BaseItem[], prep: AdvCollab["itemPrep"]): CollabType =>
+  items.some((i) => prep?.[i]?.make) ? "made" : "ready";
+/** admix에 제작 대행을 맡긴 기본안. */
+export const admixMakeItems = (c: Pick<AdvCollab, "items" | "itemPrep">) =>
+  c.items.filter((i) => c.itemPrep?.[i]?.make && c.itemPrep[i]?.byAdmix);
+/** 제작하는 기본안 — 직접 제작 + admix 제작 대행. 둘 다 제작 기간을 MAKE_DAYS 로 잡는다. */
+export const makeItems = (c: Pick<AdvCollab, "items" | "itemPrep">) => c.items.filter((i) => c.itemPrep?.[i]?.make);
 export const ITEM_LABEL: Record<BaseItem, string> = {
   promo: "브랜딩 홍보물",
   consumable: "브랜딩 소모품",
@@ -87,13 +121,26 @@ export const EXTRA_LABEL: Record<ExtraKind, string> = {
   staff: "현장 인력 추가",
 };
 
-/** 진행 확정 뒤 입금 기한(일) · 취소 시 50% 환불 기간(일). */
-export const PAYMENT_DAYS = 2;
+/**
+ * 의뢰 뒤 admix 검토(영업일 5일) + 연락(2일 안) — 영업일 7일로 잡는다(11-11 사용자).
+ * 의뢰한 날은 "의뢰일"로 따로 두고 검토는 다음 날부터 센다(11-11 사용자: "당일을 검토에 넣으면 어떡해").
+ * 검토가 끝나 확정되면 그다음 날부터 모집 공지가 나갈 수 있다. 의뢰서의 "총 준비 기간" · 가장 빠른 시작일에 쓴다.
+ */
+export const ADMIX_REVIEW_DAYS = 7;
+/**
+ * 제작 기간 — 품목과 상관없이 약 30일(영업일). admix 제작 대행이든 직접 제작("제작 예정이에요")이든 같다(11-11 사용자).
+ * 일정에 30일을 잡아 주는 값이 아니다(11-12 사용자: "우리만의 계산이라 빠듯할 수 있다고 하면서 다른 날짜를 권하려는 것,
+ * 준비일을 30일 준다는 게 아니야") — 의뢰서에서 매장 확정 뒤 준비 영업일이 이보다 짧으면 "빠듯해요"와 권하는 시작일만 보인다.
+ */
+export const MAKE_DAYS = 30;
+/**
+ * 진행 확정 뒤 입금 기한 — 영업일 5일(11-11 사용자, 넘기면 위약금) · 취소 시 50% 환불 기간(일).
+ * 영업일은 월~금에서 공휴일(krHolidays)을 뺀 날.
+ */
+export const PAYMENT_DAYS = 5;
 export const CANCEL_HALF_REFUND_DAYS = 7;
 /** 설치: 매장 5곳당 1일, 시작 전날까지. */
 export const STORES_PER_INSTALL_DAY = 5;
-/** 제작형: 매장 확정은 시작 41일 전까지(확정 뒤 40일 동안 제작 · 설치). */
-export const MADE_CONFIRM_LEAD = 41;
 /** 중간 보고: 진행 기간의 30 · 50 · 70% 시점. */
 export const CHECK_POINTS = [0.3, 0.5, 0.7] as const;
 
@@ -220,7 +267,7 @@ export interface Entry {
   closedReason?: string;
 }
 
-/** 진행 확정 → 계산서 → 입금(2일) · 취소. */
+/** 진행 확정 → 계산서 → 입금(영업일 5일) · 취소. */
 export interface Billing {
   confirmedAt: string;
   invoiceNo: string;
@@ -277,7 +324,7 @@ export interface AdvCollab {
   endDate: string;
   minStores: number;
   targetStores: number;
-  /** 준비 기간(일) — 준비형은 출력 · 포장, 제작형은 제작. */
+  /** 준비 기간(일) — 옛 값. 11-12부터 일정 계산(scheduleOf)에 쓰지 않는다(준비는 매장 확정 뒤 설치 전까지 남는 날). */
   prepDays: number;
   items: BaseItem[];
   itemNotes: Partial<Record<BaseItem, string>>;
@@ -288,12 +335,32 @@ export interface AdvCollab {
   targetRatio: number;
   benefit: string;
   staffScript: string;
+  /** 옛 "더 하고 싶은 것" — 11-11부터 의뢰서는 추가 기획(extraPlan)으로 받는다. 예시 의뢰에만 남아 있다. */
   extras: { kind: ExtraKind; body: string }[];
+  /** 추가 기획 — 광고주가 자유롭게 적는 원하는 기획(협의 후 결정, 11-11). */
+  extraPlan?: string;
+  /** 추가 기획 첨부 파일 — 예시 화면이라 이름 · 크기만 남긴다. */
+  extraPlanFile?: { name: string; size: number };
+  /** 기본안마다 준비 상태 · admix 제작 대행(11-11) — 제작 대행은 콜라보 비용과 별도로 추가, 확인 후 견적. */
+  itemPrep?: Partial<Record<BaseItem, ItemPrep>>;
+  /** 콜라보 담당자(11-11) — 의뢰서에서 모두 필수. */
+  contact?: CollabContact;
+  /** 서버에 보낸 의뢰(081) — 고쳐 다시 보내면 같은 의뢰를 바꾼다. code 는 문서 번호 CR-YYMMDD-NN. */
+  requestId?: string;
+  requestCode?: string;
   status: PlanStatus;
   requestedAt?: string;
   approvedAt?: string;
-  /** admix 보완 요청 내용. */
+  /** 취소한 때 — 의뢰 취소(검토 중)든 진행 확정 뒤 취소든. 취소해도 내 콜라보에 "취소"로 남는다(11-12 사용자). */
+  cancelledAt?: string;
+  /** admix 보완 요청 내용(옛 예시) — 11-12부터 admix 는 기획안(plan)을 보낸다. */
   reviewNote?: string;
+  /** 서버 의뢰 상태(085) — submitted · proposed(admix 기획안 옴) · revised(내가 고쳐 보냄) · confirmed · cancelled. */
+  requestStatus?: CollabRequestStatus;
+  /** 기획안 차수(085) — 처음 의뢰서 · admix와 오간 차수 · 확정한 때. 위 값(캠페인명 · 기간 …)은 마지막 차수 기준. */
+  plan?: PlanBlock;
+  /** 처음 의뢰서(0차)를 보낸 때 — 기획안 차수 기록 맨 위 줄. */
+  originalAt?: string;
   /** 광고주가 admix에 남긴 말. */
   memo?: string;
   /** 지정 희망 매장 — 담은 매장을 의뢰 때 붙여 둔다. */
@@ -324,6 +391,28 @@ export const storeOf = (c: Pick<AdvCollab, "preferred">, id: string) =>
 
 // ── 날짜 ─────────────────────────────────────────────────────────────
 
+/** 토 · 일. */
+export const isWeekend = (d: string) => {
+  const w = new Date(`${d}T00:00:00Z`).getUTCDay();
+  return w === 0 || w === 6;
+};
+/** 영업일이 아닌 날 — 토 · 일 · 공휴일(11-11 사용자: 공휴일을 달력에 빨간 날로 보이면서 영업일에서도 뺌). */
+export const isOffDay = (d: string) => isWeekend(d) || isHoliday(d);
+/** 영업일 n일 뒤 날짜(주말 · 공휴일 뺌). */
+export const addBusinessDays = (d: string, n: number) => {
+  let x = d;
+  for (let left = n; left > 0; ) {
+    x = addDays(x, 1);
+    if (!isOffDay(x)) left -= 1;
+  }
+  return x;
+};
+/** from ~ to(둘 다 포함) 사이 영업일 수. to 가 from 보다 앞이면 0. */
+export const businessDaysBetween = (from: string, to: string) => {
+  let n = 0;
+  for (let x = from; x <= to; x = addDays(x, 1)) if (!isOffDay(x)) n += 1;
+  return n;
+};
 /** 11.06 (금) */
 export const mdw = (d: string) =>
   `${d.slice(5, 7)}.${d.slice(8, 10)} (${"일월화수목금토"[new Date(`${d.slice(0, 10)}T00:00:00Z`).getUTCDay()]})`;
@@ -363,8 +452,9 @@ export interface Schedule {
 
 type SchedulePlan = Pick<
   AdvCollab,
-  "type" | "course" | "startDate" | "endDate" | "prepDays" | "targetStores"
->;
+  "type" | "course" | "startDate" | "endDate" | "prepDays" | "targetStores" | "items" | "itemPrep"
+> &
+  Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt">>;
 
 /** 30 · 50 · 70% 점검일(진행 n일차, 반올림). 12일 → 4 · 6 · 8일차. */
 export function checkpoints(start: string, end: string) {
@@ -375,31 +465,82 @@ export function checkpoints(start: string, end: string) {
   });
 }
 
-/** 시작일에서 거꾸로 — 설치 → 준비 → 매장 확정 → 검토 → 모집. */
-export function scheduleOf(plan: SchedulePlan, stores = plan.targetStores): Schedule {
+/**
+ * admix 승인일 — 승인됐으면 그날. 아니면 의뢰 다음 영업일부터 검토 7영업일을 채운 날(의뢰가 없으면 오늘 보낸다고 친다).
+ * 검토 중인데 그날이 이미 지났으면 오늘(주말 · 공휴일이면 다음 영업일) — 예상 일정이 지난 날짜로 나오지 않게(11-12 사용자).
+ */
+export function approvalDateOf(p: Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt">>, today = PREVIEW_TODAY) {
+  if (p.approvedAt) return kstDate(p.approvedAt);
+  const due = addBusinessDays(p.requestedAt ? kstDate(p.requestedAt) : today, ADMIX_REVIEW_DAYS);
+  if (p.status === "cancelled" || due >= today) return due;
+  return isOffDay(today) ? addBusinessDays(today, 1) : today;
+}
+
+/**
+ * 일정 — 의뢰에서 앞으로 센다(11-12 사용자: 시작일에서 거꾸로 세니 모집이 지난 날짜로 나오고 의뢰서 예상 일정과 달랐다).
+ * 의뢰 → admix 검토 · 승인(영업일) → 승인 다음 날 모집 공지 → 모집(코스 일수, 주말 포함) → 신청 매장 검토 · 매장 확정(영업일)
+ * → 준비(영업일, 확정 다음 날부터 설치 전날까지 남는 날) → 설치 → 진행 → 철수. 설치 · 진행 · 철수는 고른 시작일 · 종료일 기준.
+ * 영업일 = 주말 · 공휴일엔 진행하지 않는다(11-12 사용자: admix 검토 · 확정, 제작 · 준비, 매장 확정).
+ * 제작 30일(MAKE_DAYS)은 일정에 잡지 않는다 — 의뢰서에서 빠듯함을 알리고 다른 시작일을 권할 때만 쓴다.
+ */
+export function scheduleOf(plan: SchedulePlan, today = PREVIEW_TODAY): Schedule {
   const c = COURSE[plan.course];
-  const inst = installDays(stores);
-  const installStart = addDays(plan.startDate, -inst);
-  let confirmDue = addDays(installStart, -Math.max(0, Math.round(plan.prepDays)) - 1);
-  if (plan.type === "made") {
-    const fixed = addDays(plan.startDate, -MADE_CONFIRM_LEAD);
-    if (fixed < confirmDue) confirmDue = fixed;
-  }
-  const noticeDate = addDays(confirmDue, -(c.total - 1));
-  const reviewEnd = addDays(noticeDate, c.recruit + c.review - 1);
+  const inst = installDays(plan.targetStores);
+  const noticeDate = addDays(approvalDateOf(plan, today), 1);
+  const recruitEnd = addDays(noticeDate, c.recruit - 1);
+  const reviewEnd = addBusinessDays(recruitEnd, c.review);
+  // 확정은 하루(영업일) — 검토가 끝난 다음 영업일.
+  const confirmDue = addBusinessDays(reviewEnd, 1);
   return {
     noticeDate,
     midShareDate: addDays(noticeDate, Math.ceil(c.recruit / 2) - 1),
-    recruitEnd: addDays(noticeDate, c.recruit - 1),
+    recruitEnd,
     reviewEnd,
-    confirmStart: addDays(reviewEnd, 1),
+    confirmStart: confirmDue,
     confirmDue,
-    installStart,
+    installStart: addDays(plan.startDate, -inst),
     installDays: inst,
     startDate: plan.startDate,
     endDate: plan.endDate,
     removalDate: addDays(plan.endDate, 1),
     checks: checkpoints(plan.startDate, plan.endDate),
+  };
+}
+
+/**
+ * 최소 준비 기간(영업일) — 매장 확정 뒤 설치 전까지 이만큼도 안 남으면 의뢰서에서 보내기를 막는다(tooSoon).
+ * 준비 기간은 11-11부터 의뢰서에서 받지 않는다.
+ */
+export const MIN_PREP_DAYS = 3;
+
+/**
+ * 의뢰서 "예상 일정" — 지금(today) 보내면 어떻게 되는지(11-11 사용자). 일정은 콜라보 상세와 같은 scheduleOf 로,
+ * 의뢰일만 오늘로 둔다(고쳐 다시 보낼 때 옛 의뢰일 · 승인을 쓰지 않게). 의뢰서(AdvRequestForm) · 기획안 고치기(collabPlan)가 같이 쓴다.
+ * 시작일은 고른 날 그대로라, 준비 기간은 확정 다음 날부터 설치 전날까지 남는 영업일.
+ */
+export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
+  const s = scheduleOf({ ...d, status: undefined, requestedAt: undefined, approvedAt: undefined }, today);
+  // 준비 기간은 기본 3영업일보다 짧으면 의뢰를 막는다(tooSoon). 제작하는 기본안이 있으면 30영업일이 권장인데,
+  // 못 채워도 막지 않고 알려만 준다(tight — 11-11 사용자: "못하는 건 아니고 못할 수도 있으니 인지하라는 말").
+  // 처음엔 admix에 맡긴 제작만 30영업일로 막았는데, 같은 날 사용자가 직접 제작과 똑같이 늦추기를 권하고
+  // 그대로 진행하면 책임은 광고주에게 있다고만 알리게 했다.
+  const make = makeItems(d).length > 0;
+  const minPrep = MIN_PREP_DAYS;
+  const prep = businessDaysBetween(addDays(s.confirmDue, 1), addDays(s.installStart, -1));
+  const tooSoon = prep < minPrep || s.installStart <= s.confirmDue;
+  /** 확정 뒤 준비 영업일 n일을 채운 다음 날 설치 시작(주말도 됨), 설치 일수 뒤 시작. */
+  const startAfter = (n: number) => addDays(addBusinessDays(s.confirmDue, n), 1 + s.installDays);
+  return {
+    s,
+    make,
+    minPrep,
+    prep,
+    tooSoon,
+    tight: make && !tooSoon && prep < MAKE_DAYS,
+    /** 가장 빠른 시작일. */
+    earliest: startAfter(minPrep),
+    /** 제작(직접 · admix 대행)까지 여유 있는 시작일. */
+    makeReady: startAfter(MAKE_DAYS),
   };
 }
 
@@ -534,12 +675,16 @@ export function costOf(c: AdvCollab) {
   };
 }
 
-/** 목표 매장 수 기준 예상 비용 — 지정 매장은 그 금액, 나머지는 평균 금액. */
+/** 목표 매장 수 기준 예상 비용 — 지정 매장은 그 금액, 나머지는 평균 금액. negotiable = 금액 협의(금액 없음) 지정 매장 수. */
 export function estimateOf(preferred: StoreRef[], target: number, avg: number) {
   const fixed = preferred.reduce((a, s) => a + feeOf(s), 0);
   const rest = Math.max(0, target - preferred.length);
-  return { preferred: fixed, rest, avg, total: fixed + rest * avg };
+  const negotiable = preferred.filter((s) => !s.fee).length;
+  return { preferred: fixed, rest, avg, total: fixed + rest * avg, negotiable };
 }
+/** 예상 비용 글 — 금액 협의 매장이 끼어 있으면 금액 뒤 "+@", 정해진 금액이 하나도 없으면 "금액 협의"(11-11 사용자). */
+export const estimateText = (won: number, negotiable: number) =>
+  negotiable ? (won ? `${wonText(won)} +@` : "금액 협의") : wonText(won);
 
 // ── 진행 확정 · 계산서 · 입금 ─────────────────────────────────────────
 
@@ -575,7 +720,7 @@ export function confirmProceed(c: AdvCollab, now: string): AdvCollab {
       invoiceNo: invoiceNoFor(c.id, now),
       amount: cost.confirmed,
       stores: cost.confirmedCount,
-      dueAt: new Date(Date.parse(now) + PAYMENT_DAYS * 86_400_000).toISOString(),
+      dueAt: endOfDay(addBusinessDays(kstDate(now), PAYMENT_DAYS)),
     },
   };
 }
@@ -592,6 +737,7 @@ export function cancelCollab(c: AdvCollab, now: string): AdvCollab {
   return {
     ...c,
     status: "cancelled",
+    cancelledAt: now,
     billing: c.billing
       ? { ...c.billing, cancelledAt: now, refund: refund ?? undefined }
       : undefined,
@@ -708,7 +854,7 @@ export function tabOf(c: AdvCollab, today = PREVIEW_TODAY): ListTab {
 export function stageOf(c: AdvCollab, today = PREVIEW_TODAY): { label: string; tone: Tone } {
   if (c.status === "cancelled") return { label: "취소", tone: "gray" };
   if (c.status === "requested") return { label: "의뢰 검토 중", tone: "amber" };
-  if (c.status === "returned") return { label: "보완 요청", tone: "red" };
+  if (c.status === "returned") return c.plan ? { label: "기획안 확인", tone: "amber" } : { label: "보완 요청", tone: "red" };
   const p = phaseOf(scheduleOf(c), today);
   if (canConfirmProceed(c, today)) return { label: "진행 확정 대기", tone: "amber" };
   const pay = paymentOf(c, endOfDay(today));
@@ -737,7 +883,7 @@ export function stageOf(c: AdvCollab, today = PREVIEW_TODAY): { label: string; t
 /**
  * 대시보드 단계 — 의뢰부터 진행까지 흐름 순서(완료 · 취소는 밖).
  * stageOf 의 자세한 단계를 여섯 단계로 묶는다: 모집 예정 → 매장 모집, 매장 확정 중 → 매장 검토,
- * 입금 대기 · 지연 → 진행 확정, 설치 → 준비, 보완 요청 → 의뢰 검토.
+ * 입금 대기 · 지연 → 진행 확정, 설치 → 준비, 기획안 확인(옛 보완 요청) → 의뢰 검토.
  * 대시보드 "의뢰 및 매장 모집"에는 앞 네 단계만 칸으로 둔다(BOARD_STEPS) — 준비 · 진행 중은 아래
  * "진행 중인 콜라보"에 카드로 나온다(11-09 사용자).
  */
@@ -818,11 +964,18 @@ export function todoOf(
         ? c.billing.refund !== undefined
           ? `취소했어요 · 50% 공제 후 ${wonText(c.billing.refund)} 환불 예정`
           : "취소했어요 · 환불은 admix와 협의해요"
-        : "의뢰를 취소했어요",
+        : c.cancelledAt
+          ? `${kstStamp(c.cancelledAt)}에 의뢰를 취소했어요`
+          : "의뢰를 취소했어요",
     };
   if (c.status === "returned")
-    return { text: `admix 보완 요청 — ${c.reviewNote ?? "내용을 확인해 주세요"}`, kind: "returned" };
-  if (c.status === "requested") return { text: "admix가 의뢰 내용을 검토하고 있어요" };
+    return c.plan
+      ? { text: "admix 기획안이 왔어요 — 수정 전 · 후를 보고 확정하거나 다시 고쳐 보내 주세요", kind: "returned" }
+      : { text: `admix 보완 요청 — ${c.reviewNote ?? "내용을 확인해 주세요"}`, kind: "returned" };
+  if (c.status === "requested")
+    return {
+      text: c.plan?.rounds.length ? "admix가 고쳐 보낸 기획안을 검토하고 있어요" : "admix가 의뢰 내용을 검토하고 있어요",
+    };
   const st = statsOf(c);
   const s = scheduleOf(c);
   const p = phaseOf(s, today);
@@ -834,10 +987,10 @@ export function todoOf(
   const pay = paymentOf(c, endOfDay(today));
   if (pay === "awaiting" && c.billing)
     return {
-      text: `${mdw(kstDate(c.billing.dueAt))}까지 ${wonText(c.billing.amount)} 입금해 주세요 · 입금 확인 뒤 준비를 시작해요`,
+      text: `${mdw(kstDate(c.billing.dueAt))}까지 ${wonText(c.billing.amount)} 입금해 주세요 · 기한을 넘기면 위약금이 생겨요`,
       kind: "pay",
     };
-  if (pay === "overdue") return { text: "입금 기한이 지나 진행이 멈췄어요 — admix에 연락해 주세요", kind: "pay" };
+  if (pay === "overdue") return { text: "입금 기한이 지나 위약금이 생기고 진행이 멈췄어요 — admix에 연락해 주세요", kind: "pay" };
   if (c.delay?.status === "pending")
     return { text: `일정 조정 확인 중 · 확정 매장 ${c.delay.confirmed.length}/${st.confirmed}곳 확인` };
   if (p === "review" || p === "confirming") {
@@ -860,6 +1013,82 @@ export function todoOf(
   if (p === "preparing" || p === "installing")
     return { text: `${mdw(s.installStart)}부터 매장에 설치해요` };
   return null;
+}
+
+/**
+ * 마지막으로 단계가 바뀐 때(ISO) — 내 콜라보 목록을 이 순서로 놓는다(11-12 사용자: "업데이트순으로, 의뢰는 11/11인데
+ * 검토 단계로 갱신되면서 11/12, 확정되면 모집으로 갱신되면서 11/16 이런 식으로").
+ * 의뢰(고쳐 다시 보낸 때) → admix 검토 시작(의뢰 다음 영업일) → 승인 → 모집 공지 → 매장 검토 → 매장 확정 →
+ * 진행 확정(계산서) · 입금 → 준비 → 설치 → 진행 → 철수 → 완료 가운데 지금까지 지난 것 중 가장 늦은 때. 취소면 취소한 때.
+ * 날짜만 있는 단계는 그날 0시(KST)로 친다.
+ */
+export function updatedAtOf(c: AdvCollab, now = previewNow()): string {
+  if (c.status === "cancelled" && c.cancelledAt) return c.cancelledAt;
+  const day = (d: string) => kst(d, "00:00");
+  const events: (string | undefined)[] = [];
+  if (c.requestedAt) events.push(c.requestedAt, day(addBusinessDays(kstDate(c.requestedAt), 1)));
+  if (c.status === "approved") {
+    const s = scheduleOf(c);
+    events.push(
+      c.approvedAt,
+      day(s.noticeDate),
+      day(addDays(s.recruitEnd, 1)),
+      day(addDays(s.reviewEnd, 1)),
+      day(addDays(s.confirmDue, 1)),
+      day(s.installStart),
+      day(s.startDate),
+      day(s.removalDate),
+      day(addDays(s.removalDate, 1)),
+      c.billing?.confirmedAt,
+      c.billing?.paidAt,
+    );
+  }
+  const limit = Date.parse(now);
+  let best = c.requestedAt ?? now;
+  for (const e of events)
+    if (e && Date.parse(e) <= limit && Date.parse(e) > Date.parse(best)) best = e;
+  return best;
+}
+
+/**
+ * 지금 단계가 얼마나 걸리는지 — 내 콜라보 줄 "지금 상황" 칸의 둘째 줄(11-12 사용자: "예상 몇일 걸리는지도 같이").
+ * 의뢰 검토는 의뢰 다음 날부터 영업일 7일(ADMIX_REVIEW_DAYS), 승인 뒤는 일정(scheduleOf)에서 그 단계가 끝나는 날까지.
+ * 끝난 콜라보 · 취소 · 보완 요청(보완 내용을 먼저 보여 준다)은 없다.
+ */
+export function etaOf(c: AdvCollab, today = PREVIEW_TODAY): string | null {
+  if (c.status === "cancelled" || c.status === "returned") return null;
+  if (c.status === "requested") {
+    const due = addBusinessDays(c.requestedAt ? kstDate(c.requestedAt) : today, ADMIX_REVIEW_DAYS);
+    if (today > due) return "검토 결과를 곧 알려 드려요";
+    if (today === due) return "오늘 검토를 마쳐요";
+    const n = businessDaysBetween(addDays(today, 1), due);
+    return n >= ADMIX_REVIEW_DAYS
+      ? `영업일 ${ADMIX_REVIEW_DAYS}일 걸려요 · ${mdw(due)}까지`
+      : `영업일 ${n}일 남았어요 · ${mdw(due)}까지`;
+  }
+  const s = scheduleOf(c);
+  const left = (end: string) => {
+    const n = diffDays(end, today);
+    return n <= 0 ? "오늘까지" : `${n}일 남음`;
+  };
+  switch (phaseOf(s, today)) {
+    case "upcoming":
+      return `${mdw(s.noticeDate)}부터 모집해요 · ${diffDays(s.noticeDate, today)}일 뒤`;
+    case "recruiting":
+      return `모집 ${COURSE[c.course].recruit}일 · ${mdw(s.recruitEnd)}까지 · ${left(s.recruitEnd)}`;
+    case "review":
+      return `${mdw(s.reviewEnd)}까지 검토해요 · ${left(s.reviewEnd)}`;
+    case "confirming":
+      return `${mdw(s.confirmDue)}까지 확정해요 · ${left(s.confirmDue)}`;
+    case "preparing":
+      return `${mdw(s.installStart)}부터 설치해요 · ${diffDays(s.installStart, today)}일 뒤`;
+    case "installing":
+      return `설치 ${s.installDays}일 · ${mdw(s.startDate)} 진행 시작`;
+    case "running":
+      return `${periodDays(c.startDate, c.endDate)}일 진행 · ${mdw(s.endDate)}까지 · ${left(s.endDate)}`;
+    default:
+      return null;
+  }
 }
 
 /** 원 → "150만 원"(lib/partners wonLabel). */
@@ -887,12 +1116,13 @@ const plan = (
     ...p,
   };
   if (c.status !== "approved" || c.requestedAt) return c;
-  // 승인된 예시 — 모집 공지 4일 전 의뢰, 2일 전 승인으로 채운다.
-  const notice = scheduleOf(c).noticeDate;
+  // 승인된 예시 — 시작일에서 거꾸로(설치 · 준비 · 모집 코스) 모집 공지일을 잡고, 그 전날 승인 · 9일 전 의뢰로 채운다.
+  // 11-12부터 일정은 승인일에서 앞으로 세서(scheduleOf), 예시의 확정 · 준비 날짜는 예전과 하루 이틀 다를 수 있다.
+  const notice = addDays(c.startDate, -installDays(c.targetStores) - Math.max(0, Math.round(c.prepDays)) - COURSE[c.course].total);
   return {
     ...c,
-    requestedAt: kst(addDays(notice, -4), "10:20"),
-    approvedAt: c.approvedAt ?? kst(addDays(notice, -2), "15:00"),
+    requestedAt: kst(addDays(notice, -9), "10:20"),
+    approvedAt: c.approvedAt ?? kst(addDays(notice, -1), "15:00"),
   };
 };
 
@@ -921,7 +1151,7 @@ const billingOf = (c: AdvCollab, paid: boolean): Billing => {
     invoiceNo: invoiceNoFor(c.id, confirmedAt),
     amount: cost.confirmed,
     stores: cost.confirmedCount,
-    dueAt: kst(addDays(s.confirmDue, PAYMENT_DAYS), "18:00"),
+    dueAt: kst(addBusinessDays(s.confirmDue, PAYMENT_DAYS), "18:00"),
     paidAt: paid ? kst(addDays(s.confirmDue, 1), "10:30") : undefined,
   };
 };
@@ -1262,12 +1492,91 @@ export function blankRequest(state: AdvState, brand: string): AdvCollab {
     prepDays: 3,
     // 콜라보 구성은 고르면 조건을 꼭 적어야 해서 미리 골라 두지 않는다(11-10).
     items: [],
+    // 매장 운영(할 일 · 수량 · 혜택 등)은 11-11부터 의뢰서에서 받지 않는다 — admix와 협의해 정한다.
     task: "",
     space: "",
-    quantityPerStore: 300,
+    quantityPerStore: 0,
     targetRatio: 0.2,
     benefit: "",
     status: "requested",
+  });
+}
+
+const isBaseItem = (k: string): k is BaseItem => Object.hasOwn(ITEM_LABEL, k);
+
+/**
+ * 서버에 보낸 의뢰(081) → 내 콜라보 한 줄(11-12). 다른 탭 · 다시 로그인하면 이 탭 저장소엔 없으니 서버 값으로 다시 그린다.
+ * 아직 admix 검토 단계(검토 중)만 있다 — 승인 뒤 단계는 예시 화면 그대로. id 는 서버 의뢰 id 를 그대로 쓴다.
+ */
+export function collabOfRequest(r: CollabRequestMine): AdvCollab {
+  // 기획안이 오갔으면(085) 마지막 차수 내용이 지금 콜라보 — 처음 의뢰서는 plan.original 에 남는다.
+  const rounds = r.rounds ?? [];
+  const c = rounds.length ? rounds[rounds.length - 1].content : null;
+  const title = c?.title ?? r.title;
+  const summary = c ? c.summary : r.summary;
+  const startDate = c?.startDate ?? r.startDate;
+  const endDate = c?.endDate ?? r.endDate;
+  const course = c?.course ?? r.course;
+  const rows = (c?.items ?? r.items).filter((x) => isBaseItem(x.key));
+  const items = rows.map((x) => x.key as BaseItem);
+  const itemPrep = Object.fromEntries(rows.map((x) => [x.key, PREP_OF[x.prep] ?? PREP_OF.ready])) as AdvCollab["itemPrep"];
+  const preferred = c?.preferred ?? r.preferred;
+  const avg = c?.estimate?.avg || r.estimate?.avg;
+  return plan({
+    id: r.id,
+    requestId: r.id,
+    requestCode: r.code,
+    brand: r.brandName,
+    brandImage: r.brandImageUrl,
+    title,
+    summary: summary ?? "",
+    type: typeOfPrep(items, itemPrep),
+    course: course === "rush" ? "rush" : "standard",
+    startDate,
+    endDate,
+    minStores: c?.minStores ?? r.minStores,
+    targetStores: c?.targetStores ?? r.targetStores,
+    // 의뢰서와 같은 규칙 — 제작하는 기본안이 있으면 제작 기간(30일), 아니면 최소 준비(3일).
+    prepDays: makeItems({ items, itemPrep }).length ? MAKE_DAYS : 3,
+    items,
+    itemNotes: Object.fromEntries(rows.map((x) => [x.key, x.note])),
+    itemPrep,
+    extraPlan: (c ? c.extraPlan : r.extraPlan) ?? undefined,
+    extraPlanFile: r.planFile ?? undefined,
+    contact: { same: false, ...r.contact },
+    task: "",
+    space: "",
+    quantityPerStore: 0,
+    targetRatio: 0.2,
+    benefit: "",
+    // 서버 상태(085) → 화면 단계: admix 기획안이 옴 = 기획안 확인(returned), 내가 확정 = 승인(approved, 진행 단계는 아직 예시),
+    // 접수 · 내가 고쳐 보냄 = admix 검토 중. 취소한 의뢰도 지우지 않고 "취소"로 남긴다(084, 11-12 사용자).
+    status:
+      r.status === "cancelled"
+        ? "cancelled"
+        : r.status === "proposed"
+          ? "returned"
+          : r.status === "confirmed"
+            ? "approved"
+            : "requested",
+    requestStatus: r.status as CollabRequestStatus,
+    plan: { original: r.original, rounds, confirmedAt: r.confirmedAt ?? null },
+    // 기획안이 오가기 전에 고쳐 다시 보냈으면 그때, 아니면 처음 보낸 때(광고주가 기획안을 고쳐 보내도 updatedAt 이 바뀐다).
+    originalAt:
+      rounds[0] && Date.parse(r.updatedAt) >= Date.parse(rounds[0].createdAt) ? r.createdAt : r.updatedAt || r.createdAt,
+    approvedAt: r.confirmedAt ?? undefined,
+    cancelledAt: r.cancelledAt ?? undefined,
+    // 고쳐 다시 보냈으면 그때 — 화면의 "의뢰" 시각.
+    requestedAt: r.updatedAt || r.createdAt,
+    memo: r.memo ?? undefined,
+    preferred: preferred.map((p) => ({
+      id: p.id,
+      name: p.name,
+      area: p.area,
+      grade: (p.grade as CollabGrade | null) ?? null,
+      fee: p.fee,
+    })),
+    ...(avg ? { estimateAvg: avg } : {}),
   });
 }
 

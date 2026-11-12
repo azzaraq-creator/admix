@@ -16,12 +16,18 @@ export interface RegisterPayload {
   member_category: MemberCategory;
   company_name?: string;
   marketing_consent: boolean;
+  /** 마케팅 정보 받을 방법(083) — 제휴사 가입 약관 단계에서 고른다. 안 보내면 동의했을 때 둘 다. */
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
 }
 
 /** SNS 가입 마무리 — 제공자 이메일을 그대로 쓰면 이메일 인증 없이 완료된다. */
 export interface SnsCompletePayload {
   email: string;
   marketing_consent: boolean;
+  /** 마케팅 정보 받을 방법(083) — RegisterPayload 와 같다. */
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
   member_category: MemberCategory;
   name: string;
   phone: string;
@@ -34,6 +40,9 @@ export interface ProfileUpdatePayload {
   company_name?: string;
   phone?: string;
   marketing_consent?: boolean;
+  /** 마케팅 정보 받을 방법(083) — 문자 · 이메일, 둘 다 가능. 동의를 켠 채 둘 다 끄면 서버가 막는다. */
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
   member_category?: MemberCategory;
   contact_name?: string;
   position?: string;
@@ -74,6 +83,9 @@ export interface MeResponse {
   business_card_url?: string | null;
   business_card_name?: string | null;
   marketing_consent: boolean;
+  /** 마케팅 정보 받을 방법(083) — 동의했을 때만 뜻이 있다. 예전 서버면 없다. */
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
   created_at: string;
   business_registration: BusinessRegistration | null;
   /** 제휴사(콜라보) 기본협약 동의 시각 — null 이면 아직 동의 전(로그인 시 이어서 하기 창). */

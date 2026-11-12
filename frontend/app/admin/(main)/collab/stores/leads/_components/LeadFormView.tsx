@@ -278,7 +278,7 @@ function LeadForm({
   );
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <Link
         href={LEADS_HREF}
         className="flex w-fit items-center gap-[2px] text-sm font-medium text-disabled hover:text-black"

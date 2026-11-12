@@ -123,7 +123,7 @@ export function MediaPhotoSection({
             "flex w-[200px] shrink-0 flex-col items-center justify-center gap-[10px] rounded-[12px] border-2 border-dashed px-[16px] py-[20px] text-center transition-colors",
             dragging
               ? "border-primary bg-primary-50"
-              : "border-stroke bg-tone-fafafc",
+              : "border-stroke bg-gray-50",
             disabled && !uploading && "opacity-60",
           )}
         >
@@ -224,8 +224,8 @@ function PhotoCard({
   return (
     <Card
       className={cn(
-        "relative w-[200px] shrink-0 gap-0 overflow-hidden border p-0 shadow-none",
-        isThumbnail ? "border-transparent" : "border-stroke",
+        // 사진 카드 테두리는 걷었다(대표 사진만 아래 덧테두리로 표시) — 2026-11-12 테두리 없음.
+        "relative w-[200px] shrink-0 gap-0 overflow-hidden border border-transparent bg-gray-50 p-0 shadow-none",
       )}
     >
       {isThumbnail && (

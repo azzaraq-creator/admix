@@ -156,7 +156,7 @@ function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
                 <ProgressBar.Fill className="bg-primary-500" />
               </ProgressBar.Track>
             </div>
-            <div className="flex justify-between text-[12px] text-gray-500 tabular-nums">
+            <div className="flex justify-between text-[12px] text-gray-500">
               <span>시작 {md(c.startDate)}</span>
               <span>종료 {md(c.endDate)}</span>
               <span>철수 {md(c.removalDate)}</span>
@@ -220,7 +220,7 @@ function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
                   </span>
                   <span
                     className={cn(
-                      "-mt-[4px] text-[11px] tabular-nums",
+                      "-mt-[4px] text-[11px]",
                       now ? "font-semibold text-primary-600" : "text-gray-400",
                     )}
                   >
@@ -268,7 +268,7 @@ function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
           }
           className={cn(
             // 모바일 36px → 곡률 15px(높이/2 − 3px). 사진 올리기는 모바일에서 카메라 아이콘만(36px 네모, 11-08 사용자).
-            "h-[40px] shrink-0 rounded-[14px] px-[16px] font-bold max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[12px] max-sm:text-[13px]",
+            "h-[40px] shrink-0 rounded-[17px] px-[16px] font-bold max-sm:h-[36px] max-sm:rounded-[15px] max-sm:px-[12px] max-sm:text-[13px]",
             due && "max-sm:w-[36px] max-sm:min-w-0 max-sm:px-0",
           )}
         >
@@ -399,7 +399,7 @@ function PhotoStepsFull({
               </span>
               <span
                 className={cn(
-                  "text-[11px] tabular-nums",
+                  "text-[11px]",
                   now ? "font-semibold text-primary-600" : "text-gray-400",
                 )}
               >
@@ -426,7 +426,7 @@ function StageHead({
   return (
     <div className="flex h-[22px] items-baseline justify-between text-[13px]">
       <span className="font-semibold text-gray-700">{label}</span>
-      <span className="text-gray-500 tabular-nums">
+      <span className="text-gray-500">
         <b className="text-[15px] text-gray-900">{value}</b>
         {rest}
       </span>
@@ -578,7 +578,7 @@ function Overview() {
                 {s.label}
               </span>
             </span>
-            <strong className="shrink-0 text-[20px] leading-none font-extrabold text-gray-900 tabular-nums">
+            <strong className="shrink-0 text-[20px] leading-none font-extrabold text-gray-900">
               {s.value}
               <small className="ml-[2px] text-[12px] font-semibold text-gray-400">
                 건
@@ -604,7 +604,7 @@ function Overview() {
               <span className="text-[14px] font-semibold text-gray-600">
                 {s.label}
               </span>
-              <strong className="text-[32px] leading-none font-extrabold text-gray-900 tabular-nums">
+              <strong className="text-[32px] leading-none font-extrabold text-gray-900">
                 {s.value}
                 <small className="ml-[4px] text-[14px] font-semibold text-gray-400">
                   건
@@ -672,7 +672,7 @@ function Overview() {
                   href={collabHref(e.collabId, "dashboard")}
                   className="flex items-baseline gap-[12px] rounded-[12px] px-[10px] py-[10px] text-[14px] no-underline transition-[background-color,box-shadow] hover:bg-surface hover:no-underline hover:shadow-[0_1px_3px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.06)]"
                 >
-                  <time className="w-[40px] shrink-0 text-[12px] text-gray-400 tabular-nums">
+                  <time className="w-[40px] shrink-0 text-[12px] text-gray-400">
                     {kstStamp(e.at).slice(0, 5)}
                   </time>
                   {/* 모바일은 제목 아래 줄에 콜라보 이름 — 좁으면 줄마다 한 줄 · 두 줄이 섞여 들쭉날쭉했다. */}

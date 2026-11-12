@@ -5,6 +5,7 @@ import type { ComponentType, KeyboardEvent, ReactNode, RefObject } from "react";
 
 import {
   FilterIcon,
+  ListIcon,
   MapOutlineIcon,
   RotateLeftIcon,
   type IconProps,
@@ -57,6 +58,9 @@ export function MediaFindTopBar({
   showMapToggle = true,
   mobileView,
   subject = "매체",
+  showSort = true,
+  showFilter = true,
+  listExpand,
 }: {
   keyword: string;
   onKeywordChange: (value: string) => void;
@@ -104,6 +108,15 @@ export function MediaFindTopBar({
   mobileView?: "list" | "map";
   /** 검색창 안내 문구의 찾는 대상 — 광고주 콜라보 매장 찾기는 "매장". */
   subject?: string;
+  /** 정렬 — 광고주 매장 찾기는 숨긴다(11-11 사용자: "정렬은 일단 숨겨줘"). */
+  showSort?: boolean;
+  /** 인구 분포 · 타깃 버튼 — 광고주 매장 찾기는 뺀다(11-11 사용자). */
+  showFilter?: boolean;
+  /**
+   * 지도 크게 보기 대신 "목록 크게 보기"(광고주 매장 찾기, 11-11 사용자) — 누르면 지도를 가리고 목록만.
+   * 주면 오른쪽 끝 버튼이 이것으로 바뀐다(PC · 태블릿만, 모바일은 아래 목록/지도 전환 버튼).
+   */
+  listExpand?: { expanded: boolean; onToggle: () => void };
 }) {
   const oneRow = mobileView != null;
   const isNarrow = !useIsDesktop();
@@ -120,7 +133,7 @@ export function MediaFindTopBar({
     }
   };
 
-  const filterButton = (
+  const filterButton = showFilter && (
     // 숫자는 버튼 오른쪽 위 모서리에 걸친 배지 — 버튼 밖으로 나가므로 감싼 칸에 띄운다(버튼이 넘침을 자를 수 있다).
     <div
       className={cn(
@@ -159,7 +172,7 @@ export function MediaFindTopBar({
   );
 
   // 모바일 한 줄 배치에선 필터 버튼처럼 지도 보기에서만 보인다.
-  const targetButton = onTargetChange && targets.length > 0 && (
+  const targetButton = showFilter && onTargetChange && targets.length > 0 && (
     <MediaTargetSelect
       targets={targets}
       value={target ?? null}
@@ -186,7 +199,7 @@ export function MediaFindTopBar({
     </Button>
   );
 
-  const sortSelect = (
+  const sortSelect = showSort && (
     <MediaSortSelect
       value={sort}
       onChange={onSortChange}
@@ -206,16 +219,26 @@ export function MediaFindTopBar({
   );
 
   // 모바일은 목록/지도 아래쪽에 뜨는 전환 버튼(MediaFindPanel)을 대신 쓴다.
+  // listExpand 가 있으면 지도 크게 보기 대신 목록 크게 보기(지도를 가린다) — 같은 자리 · 같은 모양.
+  const toggleExpanded = listExpand ? listExpand.expanded : mapExpanded;
+  const ToggleIcon =
+    listExpand && !listExpand.expanded ? ListIcon : MapOutlineIcon;
   const mapToggle = showMapToggle && (
     <Button
       variant="ghost"
-      onPress={onToggleMapExpanded}
-      aria-pressed={mapExpanded}
+      onPress={listExpand ? listExpand.onToggle : onToggleMapExpanded}
+      aria-pressed={toggleExpanded}
       className="flex h-[45px] max-sm:hidden shrink-0 items-center gap-[5px] rounded-[20px] bg-gray-800 px-[20px] text-white transition-colors hover:bg-gray-900 active:bg-gray-900 data-[pressed=true]:bg-gray-900 dark:bg-gray-200 dark:hover:bg-gray-300 dark:active:bg-gray-300 dark:data-[pressed=true]:bg-gray-300"
     >
-      <MapOutlineIcon className="m-0 size-[24px] shrink-0" />
+      <ToggleIcon className="m-0 size-[24px] shrink-0" />
       <span className="text-[12px] whitespace-nowrap">
-        {mapExpanded ? "목록 보기" : "지도 크게 보기"}
+        {listExpand
+          ? listExpand.expanded
+            ? "지도 보기"
+            : "목록 크게 보기"
+          : mapExpanded
+            ? "목록 보기"
+            : "지도 크게 보기"}
       </span>
     </Button>
   );

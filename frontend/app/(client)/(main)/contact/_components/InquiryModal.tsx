@@ -161,7 +161,7 @@ function InquiryForm({
     <>
       <Modal.CloseTrigger
         aria-label="닫기"
-        className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
+        className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
       >
         <CloseMediumIcon className="size-[24px]" />
       </Modal.CloseTrigger>
@@ -305,23 +305,21 @@ export function InquiryModal({
   const { data: me } = useMe();
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen={open}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label="문의하기"
-            className="w-full max-w-[640px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
-          >
-            {/* me 도착 시 key 변경으로 remount → 프리필 초기값 재계산 */}
-            <InquiryForm key={me?.id ?? "anon"} me={me} onClose={onClose} />
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label="문의하기"
+          className="w-full max-w-[640px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+        >
+          {/* me 도착 시 key 변경으로 remount → 프리필 초기값 재계산 */}
+          <InquiryForm key={me?.id ?? "anon"} me={me} onClose={onClose} />
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

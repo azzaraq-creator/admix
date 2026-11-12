@@ -11,6 +11,7 @@ import {
   HeroField,
   HeroSelect,
 } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   useAdminCollab,
@@ -22,6 +23,8 @@ import { useSonner } from "@/hooks/useSonner";
 import {
   COLLAB_STATUS_LABEL,
   COLLAB_TYPE_LABEL,
+  ITEM_PREP_LABEL,
+  ITEM_PREPS,
   toLocalInput,
 } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
@@ -201,7 +204,11 @@ function CollabForm({
       removal_date: form.removalDate || null,
       task: orNull(form.task),
       items: form.items
-        .map((it) => ({ label: it.label.trim(), note: it.note.trim() }))
+        .map((it) => ({
+          label: it.label.trim(),
+          note: it.note.trim(),
+          ...(it.prep ? { prep: it.prep } : {}),
+        }))
         .filter((it) => it.label),
       space: orNull(form.space),
       quantity: form.quantity.trim() ? Number(form.quantity) : null,
@@ -231,14 +238,13 @@ function CollabForm({
     router.push(id ? `/admin/collab/collabs/${id}` : "/admin/collab/collabs");
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
         title={id ? "콜라보 수정" : "새 콜라보"}
         desc="공개로 저장하면 모집 기간 동안 제휴사 화면 '콜라보 참여'에 보여요. 설치일 · 철수일을 비우면 시작 전날 · 종료 다음 날로 잡아요."
       />
 
-      <section className="flex flex-col gap-[20px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">기본</h2>
+      <AdminPanel title="기본" contentClassName="gap-[20px]">
         <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
           <HeroField label="브랜드" required error={errors.brandName}>
             <Input
@@ -333,10 +339,9 @@ function CollabForm({
             />
           </HeroField>
         </div>
-      </section>
+      </AdminPanel>
 
-      <section className="flex flex-col gap-[20px] border-t border-stroke pt-[32px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">일정</h2>
+      <AdminPanel title="일정" contentClassName="gap-[20px]">
         <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
           <HeroField label="모집 시작" required error={errors.recruit}>
             <DateInput
@@ -404,12 +409,9 @@ function CollabForm({
             — 날짜를 바꾸면 저장할 때 다시 계산해요.
           </p>
         ) : null}
-      </section>
+      </AdminPanel>
 
-      <section className="flex flex-col gap-[20px] border-t border-stroke pt-[32px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">
-          매장이 할 일
-        </h2>
+      <AdminPanel title="매장이 할 일" contentClassName="gap-[20px]">
         <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
           <div className="md:col-span-2">
             <HeroField
@@ -477,10 +479,9 @@ function CollabForm({
             </HeroField>
           </div>
         </div>
-      </section>
+      </AdminPanel>
 
-      <section className="flex flex-col gap-[20px] border-t border-stroke pt-[32px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">관리</h2>
+      <AdminPanel title="관리" contentClassName="gap-[20px]">
         <HeroField label="관리자 메모" help="제휴사에게는 보이지 않아요.">
           <TextArea
             variant="secondary"
@@ -491,9 +492,9 @@ function CollabForm({
             onChange={(e) => set("adminMemo", e.target.value)}
           />
         </HeroField>
-      </section>
+      </AdminPanel>
 
-      <div className="flex items-center justify-between border-t border-stroke pt-[20px]">
+      <div className="flex items-center justify-between">
         <Button variant="tertiary" onPress={goBack}>
           {id ? "취소" : "목록"}
         </Button>
@@ -545,11 +546,15 @@ function ItemsField({
     <HeroField
       label="진행 항목"
       extra={`(${items.length})`}
-      help="제휴사 상세의 '진행 항목'과 확정 체크리스트에 그대로 보여요."
+      help="제휴사 상세의 '진행 항목'과 확정 체크리스트에 그대로 보여요. 누가 준비하는지는 어드민에만 보이고, 'admix 제작'은 콜라보 진행 화면에 모여요."
     >
       <div className="flex flex-col gap-[8px]">
         {items.map((it, i) => (
-          <div key={i} className="flex items-center gap-[8px]">
+          // 모바일은 준비 주체 칸까지 넣으면 좁아 줄을 바꾼다.
+          <div
+            key={i}
+            className="flex flex-wrap items-center gap-[8px] md:flex-nowrap"
+          >
             <Input
               variant="secondary"
               aria-label="항목 이름"
@@ -568,6 +573,23 @@ function ItemsField({
               value={it.note}
               onChange={(e) => update(i, { note: e.target.value })}
             />
+            {/* 누가 준비하나 — 광고주 의뢰서와 같은 세 값(11-12 사용자 "admix가 제작해야 하는 것" 확인용). */}
+            <div className="w-[128px] shrink-0">
+              <HeroSelect
+                ariaLabel="누가 준비"
+                emptyLabel="미정"
+                value={it.prep ?? ""}
+                onChange={(v) =>
+                  update(i, {
+                    prep: ITEM_PREPS.find((p) => p === v),
+                  })
+                }
+                options={ITEM_PREPS.map((p) => ({
+                  value: p,
+                  label: ITEM_PREP_LABEL[p],
+                }))}
+              />
+            </div>
             <Button
               isIconOnly
               size="sm"
@@ -594,7 +616,7 @@ function ItemsField({
               size="sm"
               variant="outline"
               onPress={() => onChange([...items, { label: s, note: "" }])}
-              className="h-[26px] rounded-full px-[10px] text-xs font-medium text-tone-4a5565"
+              className="h-[26px] rounded-[10px] px-[10px] text-xs font-medium text-tone-4a5565"
             >
               + {s}
             </Button>
@@ -639,7 +661,7 @@ function BrandImageField({
       help="제휴사 카드 · 상세에 보이는 로고나 대표 사진"
     >
       <div className="flex items-center gap-[12px]">
-        <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[12px] border border-stroke bg-zinc-100">
+        <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[12px] bg-zinc-100">
           {src && (
             <Image
               src={src}

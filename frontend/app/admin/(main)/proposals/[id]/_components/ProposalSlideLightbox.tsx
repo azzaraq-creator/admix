@@ -54,97 +54,96 @@ export function ProposalSlideLightbox({
   }, [index, total, onIndexChange]);
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
+      className="bg-scrim/70"
     >
-      <Modal.Backdrop className="bg-scrim/70">
-        <Modal.Container className="h-dvh w-screen max-w-none p-0 sm:max-w-none sm:p-0">
-          <Modal.Dialog
-            aria-label="슬라이드 크게 보기"
-            className="flex size-full max-w-none flex-col gap-[16px] rounded-none bg-transparent p-[36px] shadow-none"
-          >
-            <div className="flex items-center justify-end">
+      <Modal.Container className="h-dvh w-screen max-w-none p-0 sm:max-w-none sm:p-0">
+        <Modal.Dialog
+          aria-label="슬라이드 크게 보기"
+          className="flex size-full max-w-none flex-col gap-[16px] rounded-none bg-transparent p-[36px] shadow-none"
+        >
+          <div className="flex items-center justify-end">
+            <Button
+              isIconOnly
+              variant="ghost"
+              onPress={onClose}
+              aria-label="닫기"
+              className={ICON_BUTTON_CLASS}
+            >
+              <XIcon className="size-[32px]" />
+            </Button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
+            <div className="flex min-h-0 flex-1 items-center gap-[52px]">
               <Button
                 isIconOnly
                 variant="ghost"
-                onPress={onClose}
-                aria-label="닫기"
+                onPress={prev}
+                aria-label="이전 슬라이드"
                 className={ICON_BUTTON_CLASS}
               >
-                <XIcon className="size-[32px]" />
+                <ChevronLeftIcon className="size-[48px]" />
+              </Button>
+              <div className="flex h-full min-w-0 flex-1 items-center justify-center">
+                <div className="relative aspect-[1920/1080] h-full max-w-full overflow-hidden rounded-[4px] bg-surface">
+                  {current && (
+                    <AdminSlideView
+                      slide={current}
+                      summaryProposal={summaryProposal}
+                      updatedAt={updatedAt}
+                    />
+                  )}
+                </div>
+              </div>
+              <Button
+                isIconOnly
+                variant="ghost"
+                onPress={next}
+                aria-label="다음 슬라이드"
+                className={ICON_BUTTON_CLASS}
+              >
+                <ChevronLeftIcon className="size-[48px] rotate-180" />
               </Button>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-              <div className="flex min-h-0 flex-1 items-center gap-[52px]">
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  onPress={prev}
-                  aria-label="이전 슬라이드"
-                  className={ICON_BUTTON_CLASS}
-                >
-                  <ChevronLeftIcon className="size-[48px]" />
-                </Button>
-                <div className="flex h-full min-w-0 flex-1 items-center justify-center">
-                  <div className="relative aspect-[1920/1080] h-full max-w-full overflow-hidden rounded-[4px] bg-surface">
-                    {current && (
-                      <AdminSlideView
-                        slide={current}
-                        summaryProposal={summaryProposal}
-                        updatedAt={updatedAt}
-                      />
-                    )}
-                  </div>
-                </div>
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  onPress={next}
-                  aria-label="다음 슬라이드"
-                  className={ICON_BUTTON_CLASS}
-                >
-                  <ChevronLeftIcon className="size-[48px] rotate-180" />
-                </Button>
-              </div>
-
-              <div className="flex justify-center">
-                <div className="rounded-full bg-scrim/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
-                  <span className="text-white">{index + 1} </span>
-                  <span className="text-tone-767676">/ {total}</span>
-                </div>
+            <div className="flex justify-center">
+              <div className="rounded-full bg-scrim/60 px-[16px] py-[6px] text-[18px] font-semibold leading-[28px] tracking-[-0.04px]">
+                <span className="text-white">{index + 1} </span>
+                <span className="text-tone-767676">/ {total}</span>
               </div>
             </div>
+          </div>
 
-            <div className="flex justify-center gap-[8px] overflow-x-auto px-[100px]">
-              {slides.map((slide, thumbIndex) => (
-                // 썸네일 — 슬라이드 비율(1920:1080)에 높이 68px. 너비는 비율로 정해지게 w-auto.
-                <Button
-                  key={thumbIndex}
-                  variant="ghost"
-                  onPress={() => onIndexChange(thumbIndex)}
-                  aria-label={`${thumbIndex + 1}번째 슬라이드 · ${slide.name}`}
-                  className={cn(
-                    "relative aspect-[1920/1080] h-[68px] w-auto shrink-0 overflow-hidden rounded-[4px] bg-surface p-0 transition-opacity data-[hovered=true]:bg-surface",
-                    thumbIndex === index
-                      ? "ring-2 ring-white"
-                      : "opacity-50 data-[hovered=true]:opacity-80",
-                  )}
-                >
-                  <AdminSlideView
-                    slide={slide}
-                    summaryProposal={summaryProposal}
-                    updatedAt={updatedAt}
-                  />
-                </Button>
-              ))}
-            </div>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+          <div className="flex justify-center gap-[8px] overflow-x-auto px-[100px]">
+            {slides.map((slide, thumbIndex) => (
+              // 썸네일 — 슬라이드 비율(1920:1080)에 높이 68px. 너비는 비율로 정해지게 w-auto.
+              <Button
+                key={thumbIndex}
+                variant="ghost"
+                onPress={() => onIndexChange(thumbIndex)}
+                aria-label={`${thumbIndex + 1}번째 슬라이드 · ${slide.name}`}
+                className={cn(
+                  "relative aspect-[1920/1080] h-[68px] w-auto shrink-0 overflow-hidden rounded-[4px] bg-surface p-0 transition-opacity data-[hovered=true]:bg-surface",
+                  thumbIndex === index
+                    ? "ring-2 ring-white"
+                    : "opacity-50 data-[hovered=true]:opacity-80",
+                )}
+              >
+                <AdminSlideView
+                  slide={slide}
+                  summaryProposal={summaryProposal}
+                  updatedAt={updatedAt}
+                />
+              </Button>
+            ))}
+          </div>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

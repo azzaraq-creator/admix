@@ -3,6 +3,7 @@
 import {
   Button,
   Card,
+  Chip,
   Input,
   Label,
   Link,
@@ -18,7 +19,6 @@ import {
   CheckCircle2,
   CircleX,
   FileText,
-  Hourglass,
   Pencil,
   Receipt,
   RotateCcw,
@@ -28,6 +28,8 @@ import { useState, type ReactNode } from "react";
 
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
+import { LoadingState } from "@/components/common/RouteStates";
+import { partnersApi } from "@/hooks/partners";
 import {
   CANCEL_HALF_REFUND_DAYS,
   COURSE,
@@ -37,7 +39,8 @@ import {
   PAYMENT_DAYS,
   PREVIEW_TODAY,
   STORES_PER_INSTALL_DAY,
-  TYPE_LABEL,
+  addBusinessDays,
+  admixMakeItems,
   applicantRows,
   canConfirmProceed,
   canDelay,
@@ -45,17 +48,20 @@ import {
   delayBlockers,
   endOfDay,
   estimateOf,
+  estimateText,
   expectedRate,
   installDateFor,
   installOrder,
   isLive,
   isReviewing,
   kstDate,
+  makeItems,
   mdw,
   optionLabel,
   outcomeOf,
   paymentOf,
   phaseOf,
+  prepKeyOf,
   previewNow,
   refundFor,
   reportsOf,
@@ -66,8 +72,11 @@ import {
   todoOf,
   wonText,
   type AdvCollab,
+  type PrepKey,
   type ReportKind,
+  type Schedule,
 } from "@/lib/advertiserPreview";
+import { extractApiError } from "@/lib/apiError";
 import { COLLAB_GRADE_LABEL } from "@/lib/partners";
 import {
   addDays,
@@ -76,19 +85,19 @@ import {
   md,
   periodDays,
 } from "@/lib/partnersPreview";
+import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 import {
   LifeSteps,
-  PeriodTicket,
-  STATUS_TONE,
-  SectionRule,
   openedHere,
 } from "../workspace/CollabDetail";
 import { PanelCard, SectionHead, StatusChip } from "../workspace/workspaceUi";
-import { advActions, useAdvState } from "./advStore";
+import { advActions, useAdvServerSync, useAdvState, useRememberSentRequest } from "./advStore";
 import { advListHref } from "./AdvCollabList";
+import { AdvPlanReview } from "./AdvPlanReview";
 import { InvoiceModal, ReportModal } from "./advDocs";
+import { ScheduleCalendar } from "./ScheduleCalendar";
 import {
   ADV_FROM,
   ADV_NEW_HREF,
@@ -107,17 +116,18 @@ import {
 /*
  * /partners/collabs/[id] (광고주) — 콜라보 상세.
  * 위에서부터: 브랜드 · 제목 → 지금 상황(상태 색 카드 + 의뢰 → 모집 → 매장 확정 → 진행 확정 → 진행 → 완료)
- * → 탭(의뢰 내용 · 일정 | 신청 매장 | 확정 매장 · 비용 | 문서(계산서 · 보고서) | 매장 변동) → 아래 고정 줄(지금 할 일 버튼 하나).
+ * → 탭(의뢰 내용 | 일정(달력 + 점선으로 묶은 상세 일정) | 신청 매장 | 확정 매장 · 비용 | 문서(계산서 · 보고서) | 매장 변동) → 아래 고정 줄(지금 할 일 버튼 하나).
  * 진행 중 소진 현황은 보여 주지 않고 보고 시점의 보고서로만 알린다(프로토타입 원칙). 누른 결과는 이 탭에만 남는다.
  */
 
-type Tab = "overview" | "stores" | "confirmed" | "documents" | "changes";
+type Tab = "overview" | "plan" | "schedule" | "stores" | "confirmed" | "documents" | "changes";
 
 function StatusIcon({ c }: { c: AdvCollab }) {
   const cls = "size-[22px]";
   if (c.status === "cancelled") return <CircleX className={cls} />;
-  if (c.status === "requested") return <Hourglass className={cls} />;
-  if (c.status === "returned") return <RotateCcw className={cls} />;
+  if (c.status === "requested") return <MaskIcon src="/icons/review.svg" className={cls} />;
+  // admix 기획안이 왔으면(085) 서류 아이콘, 옛 보완 요청(예시)은 되돌림 아이콘.
+  if (c.status === "returned") return c.plan ? <FileText className={cls} /> : <RotateCcw className={cls} />;
   const phase = phaseOf(scheduleOf(c));
   const pay = paymentOf(c);
   if (canConfirmProceed(c)) return <MaskIcon src="/icons/ringing.svg" className={cls} />;
@@ -166,9 +176,23 @@ function lifeOf(c: AdvCollab) {
   };
 }
 
+/**
+ * 지금 상황 카드 아이콘 칸 색(광고주만) — 카드는 흰 바탕(11-12 사용자: 노란 바탕 "이 색깔도 맘에 안 들어", 목록 상황 칸도 흰 칸).
+ * 검토 · 입금 대기 같은 노랑(amber) 단계도 노랑 대신 보라로. 보완 요청 · 입금 지연(빨강), 완료(초록), 취소(회색)만 다른 색.
+ * 제휴사 상세는 그대로 색 카드(STATUS_TONE).
+ */
+const ADV_PANEL_TONE: Record<ReturnType<typeof stageOf>["tone"], { icon: string; title: string }> = {
+  purple: { icon: "bg-primary-50 text-primary-600", title: "text-gray-900" },
+  amber: { icon: "bg-primary-50 text-primary-600", title: "text-gray-900" },
+  blue: { icon: "bg-sky-50 text-sky-600 dark:bg-sky-400/15 dark:text-sky-300", title: "text-gray-900" },
+  green: { icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300", title: "text-gray-900" },
+  gray: { icon: "bg-gray-100 text-gray-500", title: "text-gray-700" },
+  red: { icon: "bg-red-50 text-red-600 dark:bg-red-400/15 dark:text-red-300", title: "text-error" },
+};
+
 function StatusPanel({ c, showSub }: { c: AdvCollab; showSub: boolean }) {
   const stage = stageOf(c);
-  const tone = STATUS_TONE[stage.tone];
+  const tone = ADV_PANEL_TONE[stage.tone];
   const todo = todoOf(c);
   const s = scheduleOf(c);
   const p = phaseOf(s);
@@ -184,15 +208,12 @@ function StatusPanel({ c, showSub }: { c: AdvCollab; showSub: boolean }) {
   return (
     <section
       aria-label="지금 상황"
-      className={cn("flex flex-col gap-[14px] rounded-[24px] p-[16px] ring-1 ring-inset sm:gap-[16px] sm:p-[22px]", tone.card)}
+      className="flex flex-col gap-[14px] rounded-[24px] bg-surface p-[16px] ring-1 ring-gray-200 ring-inset sm:gap-[16px] sm:p-[22px]"
     >
       <div className="flex items-center gap-[12px] sm:gap-[14px]">
         <span
           aria-hidden
-          className={cn(
-            "flex size-[40px] shrink-0 items-center justify-center rounded-full text-white shadow-[0_4px_12px_rgba(16,24,40,0.12)] sm:size-[44px]",
-            tone.icon,
-          )}
+          className={cn("flex size-[40px] shrink-0 items-center justify-center rounded-full sm:size-[44px]", tone.icon)}
         >
           <StatusIcon c={c} />
         </span>
@@ -205,14 +226,14 @@ function StatusPanel({ c, showSub }: { c: AdvCollab; showSub: boolean }) {
           )}
         </div>
         {meta && (
-          <span className="flex h-[26px] shrink-0 items-center rounded-[10px] bg-surface/80 px-[10px] text-[12px] font-bold text-gray-800 tabular-nums">
+          <span className="flex h-[26px] shrink-0 items-center rounded-[10px] bg-gray-100 px-[10px] text-[12px] font-bold text-gray-800">
             {meta}
           </span>
         )}
       </div>
-      {life && <LifeSteps steps={life.steps} at={life.at} />}
+      {life && <LifeSteps steps={life.steps} at={life.at} className="bg-gray-50" />}
       {c.delay && c.delay.status !== "applied" && isLive(c) && (
-        <p className="flex items-start gap-[8px] border-t border-black/5 pt-[12px] text-[12px] leading-[1.55] break-keep text-gray-600 dark:border-white/10">
+        <p className="flex items-start gap-[8px] border-t border-gray-100 pt-[12px] text-[12px] leading-[1.55] break-keep text-gray-600">
           <CalendarClock className="mt-[2px] size-[14px] shrink-0 text-gray-500" />
           일정 조정 {c.delay.status === "blocked" ? "불가" : "확인 중"} · 시작 {mdw(c.delay.fromStart)} → {mdw(c.delay.newStart)}
         </p>
@@ -234,113 +255,317 @@ function PanelHead({ title, hint, right }: { title: ReactNode; hint?: ReactNode;
   );
 }
 
+/** 기본안 준비 상태 — 상세에선 짧게(의뢰서 선택지 말은 "…맡길게요"처럼 길다). */
+const PREP_SHORT: Record<PrepKey, string> = {
+  ready: "준비 완료",
+  made: "직접 제작",
+  admix: "admix 제작",
+};
+
+/**
+ * 의뢰 내용 한 묶음 — 제목(+ 오른쪽 짧은 설명) 아래 가는 줄, 그 아래 내용. 묶음 사이는 넉넉한 여백으로 띄운다
+ * (11-12 사용자 "좀 더 구분을 해줬으면" — 흰 상자를 늘리지 않고 제목 줄 · 여백 · 두 칸 배치로 나눴다).
+ */
+function Block({ title, aside, children }: { title: ReactNode; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-[12px]">
+      <h3 className="flex flex-wrap items-baseline justify-between gap-x-[8px] gap-y-[2px] border-b border-gray-200 pb-[10px] text-[15px] font-bold text-gray-900">
+        {title}
+        {aside && <span className="text-[12px] font-medium break-keep text-gray-500">{aside}</span>}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/** 의뢰 내용 맨 위 숫자 칸 — 매장 수 · 모집 · 비용. */
+function Fact({ label, value, sub, className }: { label: string; value: ReactNode; sub?: ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-[2px] rounded-[16px] bg-gray-50 px-[14px] py-[12px] sm:px-[16px] sm:py-[14px]", className)}>
+      <span className="text-[12px] font-medium text-gray-500">{label}</span>
+      <span className="text-[17px] leading-[1.35] font-bold break-keep text-gray-900">{value}</span>
+      {sub && <span className="text-[12px] leading-[1.45] break-keep text-gray-500">{sub}</span>}
+    </div>
+  );
+}
+
+/**
+ * "의뢰 내용" 탭 — 숫자 칸(매장 수 · 모집 · 비용) 아래로, 넓은 화면에선 두 칸:
+ * 왼쪽 무엇을(기본안 · 추가 기획 · 매장 운영) | 오른쪽 어디서 · 누구와(지정 희망 매장 · 남긴 말 · 담당자).
+ * 일정은 따로 "일정" 탭(11-12 사용자 "의뢰 내용 따로, 일정 따로").
+ */
 function Overview({ c }: { c: AdvCollab }) {
-  const s = scheduleOf(c);
   const live = isLive(c);
   const cost = costOf(c);
   const est = estimateOf(c.preferred, c.targetStores, c.estimateAvg);
   const applied = new Set(c.entries.map((e) => e.storeId));
-  const rows: [string, ReactNode][] = [
-    ["매장이 할 일", c.task || "-"],
-    [
-      "콜라보 구성",
-      c.items.map((i) => `${ITEM_LABEL[i]}${c.itemNotes[i] ? ` (${c.itemNotes[i]})` : ""}`).join("\n") || "-",
-    ],
-    ["원하는 공간", c.space || "-"],
-    ["매장별 수량", `${c.quantityPerStore.toLocaleString("ko-KR")}개 · 구매 고객의 ${Math.round(c.targetRatio * 100)}%에게 증정`],
-    ["매장 혜택", c.benefit || "-"],
-    ["직원 안내 멘트", c.staffScript ? `“${c.staffScript}”` : "-"],
+  const confirmedCost = live && cost.confirmedCount > 0;
+  // 매장 운영 값(할 일 · 공간 · 수량 · 혜택 · 멘트)은 11-11부터 의뢰서에서 받지 않는다 — 적힌 것만 보인다.
+  const opt = (label: string, value: ReactNode | false | undefined): [string, ReactNode][] => (value ? [[label, value]] : []);
+  const ops: [string, ReactNode][] = [
+    ...opt("매장이 할 일", c.task),
+    ...opt("원하는 공간", c.space),
+    ...opt(
+      "매장별 수량",
+      c.quantityPerStore > 0 &&
+        `${c.quantityPerStore.toLocaleString("ko-KR")}개 · 구매 고객의 ${Math.round(c.targetRatio * 100)}%에게 증정`,
+    ),
+    ...opt("매장 혜택", c.benefit),
+    ...opt("직원 안내 멘트", c.staffScript && `“${c.staffScript}”`),
     ...c.extras.map((x): [string, ReactNode] => [EXTRA_LABEL[x.kind], x.body]),
-    ["규모", `최소 ${c.minStores}곳 · 목표 ${c.targetStores}곳 · ${TYPE_LABEL[c.type]} · ${COURSE[c.course].label}`],
-    [
-      live && cost.confirmedCount ? "비용" : "예상 비용",
-      live && cost.confirmedCount ? (
-        <>
-          <b>{wonText(cost.confirmed)}</b> · 확정 매장 {cost.confirmedCount}곳 금액 합계
-        </>
+  ];
+
+  const what: ReactNode[] = [
+    <Block key="items" title="콜라보 기본안" aside={c.items.length ? `${c.items.length}가지` : undefined}>
+      {c.items.length === 0 ? (
+        <p className="text-[14px] text-gray-500">고른 기본안이 없어요.</p>
       ) : (
-        <>
-          <b>{wonText(est.total)}</b>
-          <span className="text-gray-500">
-            {" "}
-            (지정 매장 {est.preferred ? wonText(est.preferred) : "없음"} + 나머지 {est.rest}곳 × 평균 {wonText(est.avg)}) · 확정
-            매장 금액 합계로 정해져요
-          </span>
-        </>
-      ),
-    ],
-    ...(c.memo ? [["남긴 말", c.memo] as [string, ReactNode]] : []),
-    ...(c.reviewNote ? [["admix 보완 요청", <b key="r" className="text-error">{c.reviewNote}</b>] as [string, ReactNode]] : []),
-  ];
-  const plan: [string, string][] = [
-    [s.noticeDate, "매장 모집 공지"],
-    [s.midShareDate, "모집 현황 공유"],
-    [s.recruitEnd, "모집 마감"],
-    [s.reviewEnd, "신청 매장 검토 마감"],
-    [s.confirmDue, "매장 확정 → 진행 확정 · 계산서"],
-    [addDays(s.confirmDue, PAYMENT_DAYS), `입금 기한(${PAYMENT_DAYS}일)`],
-    [s.installStart, `설치 ${s.installDays}일(${STORES_PER_INSTALL_DAY}곳당 1일)`],
-    [c.startDate, "콜라보 시작"],
-    ...s.checks.map((k, i): [string, string] => [k.date, `중간 보고 ${i + 1}(${Math.round(k.pct * 100)}%)`]),
-    [s.removalDate, "철수 · 결과 보고서"],
-  ];
-  return (
-    <div className="grid items-start gap-[16px] lg:grid-cols-[minmax(0,1fr)_340px]">
-      <PanelCard className="gap-[12px] p-[18px] sm:p-[22px]">
-        <PanelHead title="의뢰 내용" hint={c.requestedAt ? `${kstStamp(c.requestedAt)} 의뢰` : undefined} />
-        <InfoRows rows={rows} />
-        {c.preferred.length > 0 && (
-          <div className="flex flex-col gap-[8px] border-t border-gray-100 pt-[12px]">
-            <span className="text-[13px] font-medium text-gray-500">
-              지정 희망 매장 {c.preferred.length}곳 — admix가 먼저 연락해 신청을 권해요
-            </span>
-            <ul className="flex flex-wrap gap-[8px]">
-              {c.preferred.map((p) => (
-                <li
-                  key={p.id}
-                  className={cn(
-                    "flex items-center gap-[6px] rounded-[12px] px-[10px] py-[5px] text-[13px] ring-1",
-                    applied.has(p.id) ? "bg-primary-50 text-primary-700 ring-primary-100" : "bg-gray-50 text-gray-700 ring-gray-100",
+        <ul className="flex flex-col gap-[6px]">
+          {c.items.map((i) => {
+            const key = prepKeyOf(c.itemPrep?.[i]);
+            return (
+              <li key={i} className="flex flex-col gap-[3px] rounded-[14px] px-[14px] py-[10px] ring-1 ring-gray-100 ring-inset">
+                <span className="flex items-center justify-between gap-[8px]">
+                  <b className="text-[14px] font-semibold break-keep text-gray-900">{ITEM_LABEL[i]}</b>
+                  {key && (
+                    <Chip size="sm" variant="soft" color={key === "admix" ? "accent" : "default"} className="shrink-0">
+                      {PREP_SHORT[key]}
+                    </Chip>
                   )}
-                >
-                  <GradeMark grade={p.grade} />
-                  <b className="font-semibold">{p.name}</b>
-                  <span className="text-[12px] opacity-70">{p.fee ? wonText(p.fee) : "금액 협의"}</span>
-                  {applied.has(p.id) && <span className="text-[11px] font-bold">신청함</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
+                </span>
+                {c.itemNotes[i] && (
+                  <span className="text-[13px] leading-[1.55] break-keep whitespace-pre-wrap text-gray-600">{c.itemNotes[i]}</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {admixMakeItems(c).length > 0 && (
+        <p className="text-[12px] leading-[1.5] break-keep text-gray-500">
+          admix 제작은 콜라보 비용과 따로예요 — 품목 · 수량 · 사양을 확인한 뒤 견적을 드려요.
+        </p>
+      )}
+    </Block>,
+  ];
+  if (c.extraPlan || c.extraPlanFile)
+    what.push(
+      <Block key="extra" title="추가 기획" aside="협의 후 결정해요">
+        {c.extraPlan && <p className="text-[14px] leading-[1.65] break-keep whitespace-pre-wrap text-gray-900">{c.extraPlan}</p>}
+        {c.extraPlanFile && (
+          <span className="flex min-w-0 items-center gap-[8px] self-start rounded-[12px] bg-gray-50 px-[12px] py-[8px] text-[13px] font-semibold text-gray-700">
+            <MaskIcon src="/icons/file-text.svg" className="size-[16px] shrink-0 text-gray-500" />
+            <span className="truncate">{c.extraPlanFile.name}</span>
+          </span>
         )}
-      </PanelCard>
-      <PanelCard className="gap-[10px] p-[18px] sm:p-[22px]">
-        <PanelHead
-          title="일정"
-          hint={live ? "시작일에서 거꾸로 계산했어요" : "admix가 승인하면 이 일정으로 진행해요"}
-          right={<PeriodTicket start={c.startDate} end={c.endDate} />}
-        />
-        <ol className="flex flex-col text-[13px]">
-          {plan.map(([d, t], i) => (
+      </Block>,
+    );
+  if (ops.length > 0)
+    what.push(
+      <Block key="ops" title="매장 운영">
+        <InfoRows rows={ops} />
+      </Block>,
+    );
+
+  const who: ReactNode[] = [];
+  if (c.preferred.length > 0)
+    who.push(
+      <Block key="preferred" title="지정 희망 매장" aside={`${c.preferred.length}곳 · admix가 먼저 연락해 신청을 권해요`}>
+        <ul className="flex flex-wrap gap-[8px]">
+          {c.preferred.map((p) => (
             <li
-              key={t}
+              key={p.id}
               className={cn(
-                "flex items-center justify-between gap-[10px] py-[8px]",
-                i > 0 && "border-t border-gray-100",
-                d < PREVIEW_TODAY && "text-gray-400",
-                d === PREVIEW_TODAY && "font-bold text-primary-600",
+                "flex items-center gap-[6px] rounded-[12px] px-[10px] py-[5px] text-[13px] ring-1",
+                applied.has(p.id) ? "bg-primary-50 text-primary-700 ring-primary-100" : "bg-gray-50 text-gray-700 ring-gray-100",
               )}
             >
-              <span className="break-keep">{t}</span>
-              <span className="shrink-0 tabular-nums">{d === PREVIEW_TODAY ? "오늘" : mdw(d)}</span>
+              <GradeMark grade={p.grade} />
+              <b className="font-semibold">{p.name}</b>
+              <span className="text-[12px] opacity-70">{p.fee ? wonText(p.fee) : "금액 협의"}</span>
+              {applied.has(p.id) && <span className="text-[11px] font-bold">신청함</span>}
             </li>
           ))}
-        </ol>
+        </ul>
+      </Block>,
+    );
+  if (c.memo)
+    who.push(
+      <Block key="memo" title="admix에 남긴 말">
+        <p className="rounded-[14px] bg-gray-50 px-[14px] py-[12px] text-[14px] leading-[1.65] break-keep whitespace-pre-wrap text-gray-900">
+          {c.memo}
+        </p>
+      </Block>,
+    );
+  if (c.contact?.name) {
+    const contact = c.contact;
+    who.push(
+      <Block key="contact" title="콜라보 담당자">
+        <p className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px] text-[14px] text-gray-900">
+          <b className="font-semibold">{contact.name}</b>
+          {contact.role && <span className="text-gray-500">{contact.role}</span>}
+          {contact.phone && <span className="text-gray-700">{formatPhone(contact.phone)}</span>}
+        </p>
+      </Block>,
+    );
+  }
+
+  return (
+    <PanelCard className="gap-[24px] p-[18px] sm:p-[24px]">
+      <PanelHead
+        title="의뢰 내용"
+        hint={c.requestedAt ? `${kstStamp(c.requestedAt)} 의뢰` : undefined}
+        right={c.requestCode && <span className="text-[12px] font-medium text-gray-400">{c.requestCode}</span>}
+      />
+      {c.reviewNote && (
+        <div className="flex flex-col gap-[4px] rounded-[16px] bg-error-bg px-[14px] py-[12px]">
+          <span className="text-[12px] font-bold text-error">admix 보완 요청</span>
+          <p className="text-[14px] leading-[1.6] font-semibold break-keep whitespace-pre-wrap text-gray-900">{c.reviewNote}</p>
+        </div>
+      )}
+      <div className="flex flex-col gap-[8px]">
+        <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3">
+          <Fact label="매장 수" value={`목표 ${c.targetStores}곳`} sub={`최소 ${c.minStores}곳부터 진행`} />
+          {/* "확정 1"처럼 숫자만 다음 줄로 떨어지지 않게 숫자 앞은 줄바꿈 없는 칸으로. */}
+          <Fact label="매장 모집" value={COURSE[c.course].label} sub={COURSE[c.course].detail.replace(/ (\d)/g, " $1")} />
+          <Fact
+            className="col-span-2 sm:col-span-1"
+            label={confirmedCost ? "비용" : "예상 비용"}
+            value={confirmedCost ? wonText(cost.confirmed) : estimateText(est.total, est.negotiable)}
+            sub={confirmedCost ? `확정 매장 ${cost.confirmedCount}곳 금액 합계` : "확정 매장 금액 합계로 정해져요"}
+          />
+        </div>
+        {!confirmedCost && (
+          <p className="px-[2px] text-[12px] leading-[1.5] break-keep text-gray-500">
+            예상 비용 = 지정 매장 {c.preferred.length ? estimateText(est.preferred, est.negotiable) : "없음"} + 나머지 {est.rest}곳 × 평균{" "}
+            {wonText(est.avg)}
+          </p>
+        )}
+      </div>
+      <div className={cn("grid items-start gap-x-[40px] gap-y-[28px]", who.length > 0 && "lg:grid-cols-2")}>
+        <div className="flex min-w-0 flex-col gap-[28px]">{what}</div>
+        {who.length > 0 && <div className="flex min-w-0 flex-col gap-[28px]">{who}</div>}
+      </div>
+    </PanelCard>
+  );
+}
+
+/** 상세 일정 한 줄 — [날짜, 할 일, 날짜 대신 보일 글자]. */
+type PlanRow = [string, string, string?];
+
+/**
+ * 일정 탭 오른쪽 "상세 일정" — 날짜별 할 일을 묶음(의뢰 | 매장 모집 | 매장 확정 · 입금 | 설치 · 진행)으로, 묶음 사이는 점선.
+ * 처음엔 영수증 모양(톱니 가장자리 · 가운데 머리 · 합계 줄)이었는데 11-12 사용자 "진짜 영수증 말고, 점선으로 분리한 건 좋아"
+ * → 달력과 같은 보통 카드로 두고 점선 묶음만 남겼다. 지난 날은 흐리게, 오늘은 보라 "오늘".
+ */
+function ScheduleDetail({ c, s }: { c: AdvCollab; s: Schedule }) {
+  const req = c.requestedAt ? kstDate(c.requestedAt) : undefined;
+  const reviewTo = addDays(s.noticeDate, -1);
+  const groups: { title: string; rows: PlanRow[] }[] = [];
+  if (req)
+    groups.push({
+      title: "의뢰",
+      rows: [
+        [req, "의뢰"],
+        c.approvedAt
+          ? [kstDate(c.approvedAt), "admix 승인"]
+          : req < reviewTo
+            ? [reviewTo, "admix 검토", `~${mdw(reviewTo)}`]
+            : [req, "admix 검토"],
+      ],
+    });
+  groups.push(
+    {
+      title: "매장 모집",
+      rows: [
+        [s.noticeDate, "매장 모집 공지"],
+        [s.midShareDate, "모집 현황 공유"],
+        [s.recruitEnd, "모집 마감"],
+      ],
+    },
+    {
+      title: "매장 확정 · 입금",
+      rows: [
+        [s.reviewEnd, "신청 매장 검토 마감"],
+        [s.confirmDue, "매장 확정 → 진행 확정 · 계산서"],
+        [addBusinessDays(s.confirmDue, PAYMENT_DAYS), `입금 기한(영업일 ${PAYMENT_DAYS}일)`],
+      ],
+    },
+    {
+      title: "설치 · 진행",
+      rows: [
+        [s.installStart, `설치 ${s.installDays}일(${STORES_PER_INSTALL_DAY}곳당 1일)`],
+        [c.startDate, "콜라보 시작"],
+        ...s.checks.map((k, i): PlanRow => [k.date, `중간 보고 ${i + 1}(${Math.round(k.pct * 100)}%)`]),
+        [s.removalDate, "철수 · 결과 보고서"],
+      ],
+    },
+  );
+  return (
+    <PanelCard className="gap-[6px] p-[18px] sm:p-[24px]">
+      <PanelHead
+        title="상세 일정"
+        hint={`콜라보 ${periodDays(c.startDate, c.endDate)}일 · ${mdw(c.startDate)} ~ ${mdw(c.endDate)}`}
+      />
+      <div className="flex flex-col">
+        {groups.map((g, gi) => (
+          <div key={g.title} className={cn("py-[12px]", gi > 0 && "border-t border-dashed border-gray-300")}>
+            <p className="mb-[4px] text-[12px] font-semibold text-gray-500">{g.title}</p>
+            <ol className="flex flex-col">
+              {g.rows.map(([d, t, text]) => {
+                const today = d === PREVIEW_TODAY && !text;
+                const past = d < PREVIEW_TODAY;
+                return (
+                  <li
+                    key={t}
+                    className={cn(
+                      "flex items-baseline justify-between gap-[12px] py-[4px] text-[13px] leading-[1.45]",
+                      past ? "text-gray-400" : "text-gray-700",
+                      today && "font-bold text-primary-600",
+                    )}
+                  >
+                    <span className="min-w-0 break-keep">{t}</span>
+                    <span className={cn("shrink-0 whitespace-nowrap", !past && !today && "font-semibold text-gray-900")}>
+                      {today ? "오늘" : (text ?? mdw(d))}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        ))}
+      </div>
+    </PanelCard>
+  );
+}
+
+/**
+ * "일정" 탭 — 왼쪽 달력(크게) | 오른쪽 상세 일정(점선 묶음, 11-12 사용자). 좁은 화면에선 달력 → 상세 일정.
+ * 달력 카드는 반투명 대신 흰 바탕(11-12 사용자 "캘린더가 더 잘 보이게 흰색으로"), 두 카드는 같은 높이(늘어난 만큼 주 칸이 커진다).
+ */
+function ScheduleTab({ c }: { c: AdvCollab }) {
+  const s = scheduleOf(c);
+  // admix가 승인하기 전(검토 중 · 보완 요청 · 승인 전 취소)은 "예상 일정", 승인되면 "콜라보 일정"(11-12 사용자).
+  // 제목 아래 설명 한 줄("admix가 승인하면 이 일정으로 진행해요" 등)은 뺐다(11-12 사용자 "이거 없애줘").
+  const confirmed = isLive(c) || !!c.approvedAt;
+  return (
+    <div className="grid gap-[16px] lg:grid-cols-[minmax(0,1fr)_340px]">
+      <PanelCard className="gap-[14px] bg-surface p-[18px] backdrop-blur-none sm:p-[24px]">
+        <PanelHead title={confirmed ? "콜라보 일정" : "예상 일정"} />
+        <ScheduleCalendar
+          size="lg"
+          className="flex-1"
+          s={s}
+          requestDate={c.requestedAt ? kstDate(c.requestedAt) : undefined}
+          prepLabel={makeItems(c).length ? "제작 · 준비" : "준비"}
+        />
         {c.delay?.status === "applied" && (
           <p className="text-[12px] text-gray-500">
             일정 조정 완료 · 시작 {mdw(c.delay.fromStart)} → {mdw(c.delay.newStart)}
           </p>
         )}
       </PanelCard>
+      <ScheduleDetail c={c} s={s} />
     </div>
   );
 }
@@ -488,7 +713,7 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
                       {store?.grade ? ` · ${COLLAB_GRADE_LABEL[store.grade]}` : ""}
                       <span className="max-sm:hidden">{store?.spaces?.length ? ` · ${store.spaces.join(" · ")}` : ""}</span>
                     </span>
-                    <span className="flex flex-wrap items-center gap-[6px] text-[12px] text-gray-600 tabular-nums sm:hidden">
+                    <span className="flex flex-wrap items-center gap-[6px] text-[12px] text-gray-600 sm:hidden">
                       {chip}
                       <b className="text-gray-900">{store?.fee ? wonText(store.fee) : "금액 협의"}</b>
                       <span className="text-gray-400">· 예상 소진 {expectedRate(c, store) ?? "-"}%</span>
@@ -496,10 +721,10 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
                   </div>
                 </div>
                 <span className="max-sm:hidden">{chip}</span>
-                <b className="text-right text-[13px] text-gray-900 tabular-nums max-sm:hidden">
+                <b className="text-right text-[13px] text-gray-900 max-sm:hidden">
                   {store?.fee ? wonText(store.fee) : "금액 협의"}
                 </b>
-                <span className="text-[13px] tabular-nums max-sm:hidden">
+                <span className="text-[13px] max-sm:hidden">
                   <RateText c={c} storeId={e.storeId} />
                 </span>
                 <span className="shrink-0 text-right">{action}</span>
@@ -513,7 +738,7 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
         {rows.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-[8px] rounded-[14px] bg-gray-50 px-[12px] py-[10px] text-[13px]">
             <span className="text-gray-600">선정 매장 {cost.selectedCount}곳 금액 합계(예비 제외)</span>
-            <b className="text-gray-900 tabular-nums">{wonText(cost.selected)}</b>
+            <b className="text-gray-900">{wonText(cost.selected)}</b>
           </div>
         )}
         <p className="text-[12px] leading-[1.6] break-keep text-gray-400">
@@ -569,7 +794,7 @@ function Confirmed({
             hint={b ? b.invoiceNo : `확정 매장 ${confirmed.length}곳`}
             right={
               b && (
-                <Button size="sm" variant="tertiary" onPress={onInvoice} className="rounded-[12px] font-semibold">
+                <Button size="sm" variant="tertiary" onPress={onInvoice} className="font-semibold">
                   <FileText className="size-[14px]" />
                   계산서 보기
                 </Button>
@@ -583,9 +808,10 @@ function Confirmed({
                 <b>
                   확정 매장 {confirmed.length}곳 · {wonText(cost.confirmed)}
                 </b>
-                으로 진행을 확정하면 계산서가 바로 발행되고, <b>{PAYMENT_DAYS}일 안에 입금</b>해야 준비가 시작돼요.
+                으로 진행을 확정하면 계산서가 바로 발행되고, <b>영업일 {PAYMENT_DAYS}일 안에 입금</b>해야 준비가 시작돼요.
               </p>
               <ul className="flex list-disc flex-col gap-[3px] pl-[18px] text-[12px] leading-[1.7] break-keep text-gray-500">
+                <li>입금 기한(영업일 {PAYMENT_DAYS}일)을 넘기면 위약금이 생겨요.</li>
                 <li>진행 확정은 매장들과의 약속이에요. 확정 뒤 진행하지 않으면 브랜드 신뢰도에 남아요.</li>
                 <li>확정 뒤 취소: {CANCEL_HALF_REFUND_DAYS}일 이내 50% 공제 후 환불 · 그 뒤는 admix와 협의해요.</li>
                 <li>일정은 설치 전까지 조정을 요청할 수 있어요 — 확정 매장 모두 확인해야 하고, 바뀐 기간에 다른 콜라보가 있는 매장이 있으면 조정하지 않아요.</li>
@@ -605,13 +831,24 @@ function Confirmed({
                   "입금 기한",
                   <span key="d" className={cn(pay === "overdue" && "font-semibold text-error")}>
                     {kstStamp(b.dueAt)}
-                    {pay === "overdue" ? " · 기한이 지나 진행이 멈췄어요 — admix에 연락해 주세요" : ""}
+                    {pay === "overdue" ? " · 기한이 지나 위약금이 생기고 진행이 멈췄어요 — admix에 연락해 주세요" : ""}
                   </span>,
                 ],
                 [
                   "입금",
                   b.paidAt ? `${kstStamp(b.paidAt)} 확인 · 준비 시작` : pay === "cancelled" ? "—" : "입금 확인 대기 (admix가 확인하면 준비를 시작해요)",
                 ],
+                // 확정했는데 아직 입금 전이면 위약금을 눈에 띄게(11-11 사용자).
+                ...(pay === "awaiting"
+                  ? [
+                      [
+                        "위약금",
+                        <span key="p" className="font-semibold text-warning">
+                          {mdw(kstDate(b.dueAt))}까지 입금하지 않으면 위약금이 생겨요
+                        </span>,
+                      ] as [string, ReactNode],
+                    ]
+                  : []),
                 ...(b.cancelledAt
                   ? [
                       [
@@ -625,7 +862,7 @@ function Confirmed({
           )}
           {b && !cancelled && (
             <div className="flex flex-wrap items-center gap-[10px] border-t border-gray-100 pt-[12px]">
-              <Button size="sm" variant="danger-soft" onPress={onCancel} className="rounded-[12px] font-semibold">
+              <Button size="sm" variant="danger-soft" onPress={onCancel} className="font-semibold">
                 콜라보 취소
               </Button>
               <span className="text-[12px] break-keep text-gray-500">
@@ -659,7 +896,7 @@ function Confirmed({
                     <span className="max-sm:hidden">{e.confirmNo ? ` · 확정서 ${e.confirmNo}` : ""}</span>
                   </span>
                 </div>
-                <b className="shrink-0 text-[13px] text-gray-900 tabular-nums">{st?.fee ? wonText(st.fee) : "금액 협의"}</b>
+                <b className="shrink-0 text-[13px] text-gray-900">{st?.fee ? wonText(st.fee) : "금액 협의"}</b>
               </li>
             );
           })}
@@ -700,7 +937,7 @@ function Confirmed({
                     advActions.withdrawDelay(c.id);
                     say("일정 조정 요청을 거뒀어요.");
                   }}
-                  className="self-start rounded-[12px] font-semibold"
+                  className="self-start font-semibold"
                 >
                   요청 거두기
                 </Button>
@@ -786,11 +1023,11 @@ function DocRow({
             <b className={cn("text-[14px]", ready ? "text-gray-900" : "text-gray-400")}>{title}</b>
             {chip}
           </span>
-          <span className="text-[12px] break-keep text-gray-400 tabular-nums">{sub}</span>
+          <span className="text-[12px] break-keep text-gray-400">{sub}</span>
         </span>
       </span>
       {ready ? (
-        <Button size="sm" variant="tertiary" onPress={onOpen} className="shrink-0 rounded-[12px] font-semibold">
+        <Button size="sm" variant="tertiary" onPress={onOpen} className="shrink-0 font-semibold">
           보기
           <ArrowRight className="size-[14px]" />
         </Button>
@@ -877,6 +1114,25 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   const [tab, setTab] = useState<Tab | null>(null);
   const [dialog, setDialog] = useState<"proceed" | "cancel" | "withdraw" | null>(null);
   const [excluding, setExcluding] = useState<string | null>(null);
+  // 의뢰 취소는 서버에도 남긴다(084) — 지우지 않고 "취소"로, 어드민 콜라보 의뢰에도 보인다(11-12 사용자).
+  const rememberSent = useRememberSentRequest();
+  const [withdrawing, setWithdrawing] = useState(false);
+  const withdraw = async () => {
+    if (c.requestId) {
+      setWithdrawing(true);
+      try {
+        rememberSent(await partnersApi.cancelCollabRequest(c.requestId));
+      } catch (err) {
+        say(extractApiError(err) || "의뢰를 취소하지 못했어요. 잠시 뒤 다시 해 주세요.");
+        return;
+      } finally {
+        setWithdrawing(false);
+      }
+    }
+    advActions.withdrawRequest(c.id);
+    setDialog(null);
+    say("의뢰를 취소했어요. 내 콜라보에 취소 내역으로 남아요.");
+  };
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [report, setReport] = useState<ReportKind | null>(null);
 
@@ -884,6 +1140,8 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   const p = phaseOf(s);
   const live = isLive(c);
   const cancelled = c.status === "cancelled";
+  // 승인 전(검토 중 · 보완 요청)에 취소한 의뢰 — 매장 · 비용 · 문서가 없어 의뢰 내용 탭만 보인다.
+  const cancelledBeforeApproval = cancelled && !c.approvedAt;
   const st = statsOf(c);
   const cost = costOf(c);
   const pay = paymentOf(c, endOfDay(PREVIEW_TODAY));
@@ -893,9 +1151,15 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   const ready = reports.filter((r) => r.ready);
   const confirmedCount = st.confirmed;
   const refund = c.billing ? refundFor(c.billing, previewNow()) : null;
+  // admix와 기획안이 오갔으면(085) "기획안" 탭 — 확정 전엔 기획안부터 연다.
+  const planBlock = c.plan?.rounds.length ? c.plan : null;
   const current: Tab =
     tab ??
-    (cancelled
+    (planBlock && (c.status === "returned" || c.status === "requested")
+      ? "plan"
+      : cancelledBeforeApproval
+      ? "overview"
+      : cancelled
       ? "confirmed"
       : !live
         ? "overview"
@@ -914,17 +1178,52 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   };
 
   const tabs: [Tab, string, number?][] = [
-    ["overview", "의뢰 내용 · 일정"],
+    ["overview", "의뢰 내용"],
+    ["plan", "기획안", planBlock?.rounds.length],
+    ["schedule", "일정"],
     ["stores", "신청 매장", st.applied],
     ["confirmed", "확정 매장 · 비용", confirmedCount],
     ["documents", "문서", ready.length + (c.billing ? 1 : 0)],
     ["changes", "매장 변동", c.changes.length],
   ];
-  const shownTabs = tabs.filter(([t]) => live || cancelled || t === "overview");
+  const shownTabs = tabs.filter(([t]) =>
+    t === "plan"
+      ? !!planBlock
+      : t === "overview" || t === "schedule" || (!cancelledBeforeApproval && (live || cancelled)),
+  );
 
   // 아래 고정 줄 — 지금 할 일 하나.
   let bar: ReactNode = null;
-  if (c.status === "returned")
+  if (c.status === "returned" && planBlock)
+    bar = (
+      <ActionBar title="admix 기획안이 왔어요" sub="수정 전 · 후를 보고 확정하거나 다시 고쳐 보내 주세요">
+        <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
+          의뢰 취소
+        </Button>
+        {current !== "plan" && (
+          <Button onPress={() => setTab("plan")} className={BAR_BUTTON}>
+            기획안 보기
+            <ArrowRight className="size-[16px]" />
+          </Button>
+        )}
+      </ActionBar>
+    );
+  else if (c.status === "requested" && planBlock)
+    // 기획안이 오간 뒤엔 의뢰서를 통째로 고치지 않는다 — admix 기획안이 오면 기획안 탭에서 항목별로 고친다.
+    bar = (
+      <ActionBar title="admix가 고친 기획안을 검토하고 있어요" sub="검토 중에는 의뢰를 취소할 수 있어요">
+        <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
+          의뢰 취소
+        </Button>
+        {current !== "plan" && (
+          <Button onPress={() => setTab("plan")} className={BAR_BUTTON}>
+            기획안 보기
+            <ArrowRight className="size-[16px]" />
+          </Button>
+        )}
+      </ActionBar>
+    );
+  else if (c.status === "returned")
     bar = (
       <ActionBar title="admix 보완 요청이 있어요" sub={c.reviewNote}>
         <Button onPress={() => router.push(`${ADV_NEW_HREF}?edit=${c.id}`)} className={BAR_BUTTON}>
@@ -940,14 +1239,14 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           의뢰 취소
         </Button>
         <Button onPress={() => router.push(`${ADV_NEW_HREF}?edit=${c.id}`)} className={BAR_BUTTON}>
-          <Pencil className="size-[16px]" />
+          <MaskIcon src="/icons/square-pen.svg" className="size-[16px]" />
           의뢰 고치기
         </Button>
       </ActionBar>
     );
   else if (canProceed)
     bar = (
-      <ActionBar title={`확정 매장 ${confirmedCount}곳 · ${wonText(cost.confirmed)}`} sub={`진행을 확정하면 계산서가 발행되고 ${PAYMENT_DAYS}일 안에 입금해요`}>
+      <ActionBar title={`확정 매장 ${confirmedCount}곳 · ${wonText(cost.confirmed)}`} sub={`진행을 확정하면 계산서가 발행되고 영업일 ${PAYMENT_DAYS}일 안에 입금해요`}>
         <Button onPress={() => setDialog("proceed")} className={BAR_BUTTON}>
           <CheckCircle2 className="size-[16px]" />
           진행 확정
@@ -956,7 +1255,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
     );
   else if (pay === "awaiting" && c.billing)
     bar = (
-      <ActionBar title={`${mdw(kstDate(c.billing.dueAt))}까지 ${wonText(c.billing.amount)} 입금`} sub="입금이 확인되면 준비를 시작해요">
+      <ActionBar title={`${mdw(kstDate(c.billing.dueAt))}까지 ${wonText(c.billing.amount)} 입금`} sub="기한을 넘기면 위약금이 생겨요 · 입금이 확인되면 준비를 시작해요">
         <Button onPress={() => setInvoiceOpen(true)} className={BAR_BUTTON}>
           <FileText className="size-[16px]" />
           계산서 보기
@@ -965,7 +1264,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
     );
   else if (pay === "overdue")
     bar = (
-      <ActionBar title="입금 기한이 지났어요" sub="진행이 멈췄어요 — admix에 연락해 주세요">
+      <ActionBar title="입금 기한이 지났어요" sub="위약금이 생기고 진행이 멈췄어요 — admix에 연락해 주세요">
         {/* 대화는 없앴다(11-09 사용자) — admix 고객센터 1:1 문의로. */}
         <Button onPress={() => router.push("/contact")} className={BAR_BUTTON}>
           문의하기
@@ -995,14 +1294,12 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
 
   return (
     <div className="flex flex-col gap-[16px] pb-[24px]">
-      <div className="flex items-center justify-between gap-[12px]">
+      {/* 오른쪽의 "제작형 · 모집 14일" 글은 11-12 사용자가 뺐다 — 의뢰 내용에 같은 값이 있다. */}
+      <div className="flex items-center">
         <Button size="sm" variant="ghost" onPress={goBack} className="-ml-[8px] font-semibold text-gray-500">
           <ArrowLeft className="size-[16px]" />
           {from ? "뒤로가기" : "목록으로"}
         </Button>
-        <span className="text-[12px] text-gray-400">
-          {TYPE_LABEL[c.type]} · {COURSE[c.course].label}
-        </span>
       </div>
 
       <header className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-[14px] gap-y-[12px] sm:gap-x-[18px] sm:gap-y-[10px]">
@@ -1028,9 +1325,10 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
         )}
       </header>
 
-      <SectionRule />
-      <StatusPanel c={c} showSub={!bar} />
-      <SectionRule />
+      {/* 머리 · 지금 상황 · 콜라보 정보 사이 구분선은 뺐다(11-12 사용자 "구분선 없애줘") — 여백으로만 띄운다. */}
+      <div className="py-[2px] sm:py-[6px]">
+        <StatusPanel c={c} showSub={!bar} />
+      </div>
 
       <section className="flex flex-col gap-[14px]">
         <SectionHead icon="/icons/open-folder.svg" title="콜라보 정보" />
@@ -1040,7 +1338,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
               {shownTabs.map(([id, label, count]) => (
                 <Tabs.Tab key={id} id={id} className="gap-[5px] rounded-[13px] whitespace-nowrap max-sm:px-[10px] max-sm:text-[13px]">
                   {label}
-                  {!!count && <span className="tabular-nums opacity-60">{count}</span>}
+                  {!!count && <span className="opacity-60">{count}</span>}
                   <Tabs.Indicator className="rounded-[13px]" />
                 </Tabs.Tab>
               ))}
@@ -1048,6 +1346,14 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           </Tabs.ListContainer>
           <Tabs.Panel id="overview" className="pt-[14px]">
             <Overview c={c} />
+          </Tabs.Panel>
+          {planBlock && (
+            <Tabs.Panel id="plan" className="pt-[14px]">
+              <AdvPlanReview c={c} block={planBlock} />
+            </Tabs.Panel>
+          )}
+          <Tabs.Panel id="schedule" className="pt-[14px]">
+            <ScheduleTab c={c} />
           </Tabs.Panel>
           <Tabs.Panel id="stores" className="pt-[14px]">
             <Stores c={c} onExclude={setExcluding} />
@@ -1080,7 +1386,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           advActions.proceed(c.id);
           setDialog(null);
           setTab("confirmed");
-          say(`진행을 확정했어요. 계산서가 발행됐고 ${PAYMENT_DAYS}일 안에 입금하면 준비가 시작돼요.`);
+          say(`진행을 확정했어요. 계산서가 발행됐고 영업일 ${PAYMENT_DAYS}일 안에 입금하면 준비가 시작돼요.`);
         }}
       >
         <p className="text-[15px] text-gray-900">
@@ -1090,7 +1396,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           </b>
         </p>
         <p>
-          확정과 함께 계산서가 발행되고 {PAYMENT_DAYS}일 안에 입금해야 준비가 시작돼요. 진행 확정은 매장들과의 약속이에요 — 확정 뒤
+          확정과 함께 계산서가 발행되고 영업일 {PAYMENT_DAYS}일 안에 입금해야 준비가 시작돼요. 기한을 넘기면 위약금이 생겨요. 진행 확정은 매장들과의 약속이에요 — 확정 뒤
           취소는 {CANCEL_HALF_REFUND_DAYS}일 이내 50% 공제 후 환불이고, 그 뒤는 admix와 협의해요.
         </p>
       </ConfirmModal>
@@ -1122,13 +1428,12 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
         title="의뢰를 취소할까요?"
         confirmLabel="의뢰 취소"
         danger
-        onConfirm={() => {
-          advActions.withdrawRequest(c.id);
-          setDialog(null);
-          say("의뢰를 취소했어요. 비용은 들지 않아요.");
-        }}
+        isDisabled={withdrawing}
+        example={!c.requestId}
+        onConfirm={() => void withdraw()}
       >
-        <p>admix 검토 전이라 비용은 들지 않아요. 같은 내용으로 다시 의뢰하려면 새로 작성해야 해요.</p>
+        <p>admix 검토 전이라 비용은 들지 않아요.</p>
+        <p>취소한 의뢰는 내 콜라보에 취소 내역으로 남고, 다시 의뢰하려면 새로 작성해야 해요.</p>
       </ConfirmModal>
 
       <ConfirmModal
@@ -1157,7 +1462,10 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
 export function AdvCollabDetail({ id, from }: { id: string; from?: string }) {
   const state = useAdvState();
   const c = state.collabs.find((x) => x.id === id);
+  // 다른 탭 · 다시 로그인해 이 탭에 없으면 서버 의뢰를 받아 올 때까지 기다린다(11-12).
+  const synced = useAdvServerSync();
   const known = from && Object.hasOwn(ADV_FROM, from) ? (from as AdvFrom) : undefined;
+  if (!c && !synced) return <LoadingState />;
   if (!c) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-[12px] text-center">

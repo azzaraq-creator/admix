@@ -61,6 +61,14 @@ class Collab(Base):
         passive_deletes=True,
         order_by="CollabNotice.created_at",
     )
+    # 결과 보고서 파일(086) — 올린 순.
+    report_files = relationship(
+        "CollabReportFile",
+        back_populates="collab",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="CollabReportFile.created_at",
+    )
 
 
 class CollabParticipant(Base):
@@ -131,3 +139,21 @@ class CollabNotice(Base):
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     collab = relationship("Collab", back_populates="notices")
+
+
+class CollabReportFile(Base):
+    """콜라보 결과 보고서 파일(086) — 어드민 "콜라보 결과"에서 올려 모아 둔다. 여러 개 가능."""
+
+    __tablename__ = "collab_report_file"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    collab_id = Column(
+        UUID(as_uuid=True), ForeignKey("collab.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String(255), nullable=False)
+    url = Column(String(500), nullable=False)
+    size = Column(Integer, nullable=False)
+    uploaded_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    collab = relationship("Collab", back_populates="report_files")

@@ -120,108 +120,107 @@ export function ImageLightbox({
   }, [count]);
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
+      // 프로젝트의 black 토큰은 남색 계열이라, 사진이 돋보이도록 순수 검정으로 깐다.
+      className="bg-[rgba(0,0,0,0.88)]"
     >
-      {/* 프로젝트의 black 토큰은 남색 계열이라, 사진이 돋보이도록 순수 검정으로 깐다. */}
-      <Modal.Backdrop className="bg-[rgba(0,0,0,0.88)]">
-        <Modal.Container className="h-dvh w-screen max-w-none p-0 sm:max-w-none sm:p-0">
-          <Modal.Dialog
-            aria-label="이미지 크게 보기"
-            className="relative size-full max-w-none gap-0 rounded-none bg-transparent p-0 shadow-none"
+      <Modal.Container className="h-dvh w-screen max-w-none p-0 sm:max-w-none sm:p-0">
+        <Modal.Dialog
+          aria-label="이미지 크게 보기"
+          className="relative size-full max-w-none gap-0 rounded-none bg-transparent p-0 shadow-none"
+        >
+          <div
+            className="relative flex size-full touch-pan-y items-center justify-center overflow-hidden select-none"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            onClick={handleClick}
+            onDragStart={(event) => event.preventDefault()}
           >
             <div
-              className="relative flex size-full touch-pan-y items-center justify-center overflow-hidden select-none"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerEnd}
-              onPointerCancel={handlePointerEnd}
-              onClick={handleClick}
-              onDragStart={(event) => event.preventDefault()}
-            >
-              <div
-                className={cn(
-                  "flex h-full w-full",
-                  dragDx === 0 && "transition-transform duration-250 ease-out",
-                  count > 1 && "cursor-grab active:cursor-grabbing",
-                )}
-                style={{
-                  transform: `translate3d(calc(${-index * 100}% + ${dragDx}px), 0, 0)`,
-                }}
-              >
-                {images.map((src, i) => {
-                  const resolved = mediaSrc(src);
-                  return (
-                    <div
-                      key={`${src}-${i}`}
-                      className="size-full shrink-0 px-[16px] py-[72px] sm:px-[96px]"
-                    >
-                      {/* 작은 원본도 화면에 맞춰 키워 보이도록 박스를 채우고 비율은 유지한다.
-                          가까운 장만 불러온다(멀리 있는 장은 넘길 때 로드). */}
-                      <div className="relative size-full">
-                        {Math.abs(i - index) <= 1 && (
-                          <MediaImage
-                            src={resolved}
-                            alt={`${i + 1}번째 이미지`}
-                            fill
-                            sizes="100vw"
-                            draggable={false}
-                            className="object-contain"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {count > 1 && (
-                <>
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label="이전 이미지"
-                    isDisabled={index === 0}
-                    onPress={() => go(-1)}
-                    className={cn(NAV_BUTTON_CLASS, "left-[16px] sm:left-[28px]")}
-                  >
-                    <ChevronLeftIcon className="size-[26px]" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label="다음 이미지"
-                    isDisabled={index === count - 1}
-                    onPress={() => go(1)}
-                    className={cn(
-                      NAV_BUTTON_CLASS,
-                      "right-[16px] sm:right-[28px]",
-                    )}
-                  >
-                    <ChevronRightIcon className="size-[26px]" />
-                  </Button>
-                  <p className="pointer-events-none absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-full bg-scrim/50 px-[12px] py-[4px] text-[13px] font-medium text-white tabular-nums">
-                    {index + 1} / {count}
-                  </p>
-                </>
+              className={cn(
+                "flex h-full w-full",
+                dragDx === 0 && "transition-transform duration-250 ease-out",
+                count > 1 && "cursor-grab active:cursor-grabbing",
               )}
-
-              <Button
-                isIconOnly
-                variant="ghost"
-                aria-label="크게 보기 닫기"
-                onPress={onClose}
-                className="absolute top-[16px] right-[16px] z-10 size-[44px] rounded-full bg-white/15 p-0 text-white backdrop-blur-sm data-[hovered=true]:bg-white/30 sm:top-[24px] sm:right-[24px]"
-              >
-                <XIcon className="size-[22px]" />
-              </Button>
+              style={{
+                transform: `translate3d(calc(${-index * 100}% + ${dragDx}px), 0, 0)`,
+              }}
+            >
+              {images.map((src, i) => {
+                const resolved = mediaSrc(src);
+                return (
+                  <div
+                    key={`${src}-${i}`}
+                    className="size-full shrink-0 px-[16px] py-[72px] sm:px-[96px]"
+                  >
+                    {/* 작은 원본도 화면에 맞춰 키워 보이도록 박스를 채우고 비율은 유지한다.
+                        가까운 장만 불러온다(멀리 있는 장은 넘길 때 로드). */}
+                    <div className="relative size-full">
+                      {Math.abs(i - index) <= 1 && (
+                        <MediaImage
+                          src={resolved}
+                          alt={`${i + 1}번째 이미지`}
+                          fill
+                          sizes="100vw"
+                          draggable={false}
+                          className="object-contain"
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+
+            {count > 1 && (
+              <>
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  aria-label="이전 이미지"
+                  isDisabled={index === 0}
+                  onPress={() => go(-1)}
+                  className={cn(NAV_BUTTON_CLASS, "left-[16px] sm:left-[28px]")}
+                >
+                  <ChevronLeftIcon className="size-[26px]" />
+                </Button>
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  aria-label="다음 이미지"
+                  isDisabled={index === count - 1}
+                  onPress={() => go(1)}
+                  className={cn(
+                    NAV_BUTTON_CLASS,
+                    "right-[16px] sm:right-[28px]",
+                  )}
+                >
+                  <ChevronRightIcon className="size-[26px]" />
+                </Button>
+                <p className="pointer-events-none absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-full bg-scrim/50 px-[12px] py-[4px] text-[13px] font-medium text-white">
+                  {index + 1} / {count}
+                </p>
+              </>
+            )}
+
+            <Button
+              isIconOnly
+              variant="ghost"
+              aria-label="크게 보기 닫기"
+              onPress={onClose}
+              className="absolute top-[16px] right-[16px] z-10 size-[44px] rounded-[19px] bg-white/15 p-0 text-white backdrop-blur-sm data-[hovered=true]:bg-white/30 sm:top-[24px] sm:right-[24px]"
+            >
+              <XIcon className="size-[22px]" />
+            </Button>
+          </div>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

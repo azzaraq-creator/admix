@@ -17,7 +17,7 @@ import {
 } from "./InfoStep";
 import { MethodStep } from "./MethodStep";
 import { SignupShell } from "./SignupShell";
-import { TermsStep } from "./TermsStep";
+import { TermsStep, type MarketingChannels } from "./TermsStep";
 import { errorDetail, errorStatus } from "./signupUi";
 import { saveSignupCategory, useFinishSignup } from "./useFinishSignup";
 
@@ -68,7 +68,10 @@ export function EmailSignupWizard() {
     sns.start(provider, collab ? "/partners" : undefined);
   };
 
-  const handleSubmit = async (marketingConsent: boolean) => {
+  const handleSubmit = async (
+    marketingConsent: boolean,
+    channels?: MarketingChannels,
+  ) => {
     if (!category || !verifiedEmail) return;
     setSubmitting(true);
     setSubmitError("");
@@ -81,6 +84,9 @@ export function EmailSignupWizard() {
         member_category: category,
         company_name: info.company.trim() || undefined,
         marketing_consent: marketingConsent,
+        // 제휴사 가입에서 고른 받을 방법(SMS · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
+        marketing_sms: channels?.sms,
+        marketing_email: channels?.email,
       });
       setTokens(res.access_token, res.refresh_token, true);
       // 제휴사(콜라보)도 가입 완료 화면으로 — 거기서 "기본협약 하기"로 기본협약 동의에 간다.
@@ -168,6 +174,7 @@ export function EmailSignupWizard() {
         <TermsStep
           pending={submitting}
           error={submitError}
+          partner={partner}
           onSubmit={handleSubmit}
         />
       )}

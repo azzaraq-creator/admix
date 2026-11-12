@@ -21,6 +21,7 @@ import {
   type AdChatOverviewRow,
   useAdminChatOverview,
 } from "@/hooks/adminChat";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { useSonner } from "@/hooks/useSonner";
 
 import { formatChatDateTime, MEMBERSHIP_LABEL } from "./chatFormat";
@@ -134,43 +135,47 @@ export function ChatListView() {
   };
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 흰 카드 두 장(검색 | 목록) — 어드민 목록 화면 공통 모양(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         AI 채팅 관리
       </h1>
 
       {/* 검색 */}
-      <div className="flex flex-wrap items-center gap-[12px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
-        <Input
-          aria-label="이름·이메일 검색"
-          variant="secondary"
-          className="min-w-[280px] flex-1"
-          placeholder="이름·이메일로 검색"
-          value={keywordInput}
-          onChange={(e) => setKeywordInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) submitSearch();
-          }}
-        />
-        <Button variant="primary" onPress={submitSearch}>
-          <Search className="size-[16px]" />
-          검색
-        </Button>
-        {keyword && (
-          <Button
-            variant="tertiary"
-            onPress={() => {
-              setKeywordInput("");
-              setKeyword("");
-              setPage(1);
+      <AdminPanel>
+        <div className="flex flex-wrap items-center gap-[12px]">
+          <Input
+            aria-label="이름·이메일 검색"
+            variant="secondary"
+            className="min-w-[280px] flex-1"
+            placeholder="이름·이메일로 검색"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing)
+                submitSearch();
             }}
-          >
-            초기화
+          />
+          <Button variant="primary" onPress={submitSearch}>
+            <Search className="size-[16px]" />
+            검색
           </Button>
-        )}
-      </div>
+          {keyword && (
+            <Button
+              variant="tertiary"
+              onPress={() => {
+                setKeywordInput("");
+                setKeyword("");
+                setPage(1);
+              }}
+            >
+              초기화
+            </Button>
+          )}
+        </div>
+      </AdminPanel>
 
-      <div className="flex flex-col gap-[16px]">
+      <AdminPanel contentClassName="gap-[16px]">
         <div className="flex flex-wrap items-center justify-between gap-[12px]">
           <div className="flex items-center gap-[16px]">
             {/* 숫자가 바뀌면(데이터 도착·빈 대화 숨기기) 탭을 새로 그려 선택 표시 폭을 다시 잰다 — HeroUI 표시는
@@ -198,9 +203,7 @@ export function ChatListView() {
                       className="gap-[4px] rounded-[13px] whitespace-nowrap"
                     >
                       {label}
-                      <span className="tabular-nums">
-                        {counts[id].toLocaleString()}
-                      </span>
+                      <span>{counts[id].toLocaleString()}</span>
                       <Tabs.Indicator className="rounded-[13px]" />
                     </Tabs.Tab>
                   ))}
@@ -322,19 +325,15 @@ export function ChatListView() {
                     <Table.Cell className="text-gray-600">
                       {r.email || "-"}
                     </Table.Cell>
-                    <Table.Cell className="tabular-nums">
-                      {r.room_count.toLocaleString()}
-                    </Table.Cell>
+                    <Table.Cell>{r.room_count.toLocaleString()}</Table.Cell>
                     <Table.Cell
                       className={
-                        r.message_count === 0
-                          ? "tabular-nums text-disabled"
-                          : "tabular-nums"
+                        r.message_count === 0 ? "text-disabled" : undefined
                       }
                     >
                       {r.message_count.toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell className="whitespace-nowrap text-gray-600 tabular-nums">
+                    <Table.Cell className="whitespace-nowrap text-gray-600">
                       {formatChatDateTime(r.last_used_at)}
                     </Table.Cell>
                   </Table.Row>
@@ -416,7 +415,7 @@ export function ChatListView() {
             </Pagination>
           )}
         </div>
-      </div>
+      </AdminPanel>
     </div>
   );
 }

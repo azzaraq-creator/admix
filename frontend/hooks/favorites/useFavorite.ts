@@ -14,10 +14,14 @@ import { useFavoriteIds } from "./queries";
  * - 비회원: 누르면 위쪽 알림(빨간 X)으로 로그인 후 담을 수 있다고 알린다(관심 매체는 회원 전용).
  * - 회원: 누르는 즉시 하트를 바꾸고(낙관적 갱신) 서버에 저장한다. 실패하면 되돌리고 알린다.
  * - notifyName을 주면 저장이 끝난 뒤 위쪽 알림(Toast)으로 담았다/뺐다를 알린다(매체 찾기 목록).
+ * - label 은 알림 속 이름 — 기본 "관심 매체", 광고주 콜라보 매장 찾기는 "관심 매장"(같은 관심 목록에 담긴다).
  */
 export function useFavorite(
   mediaId: string,
-  { notifyName }: { notifyName?: string } = {},
+  {
+    notifyName,
+    label = "관심 매체",
+  }: { notifyName?: string; label?: string } = {},
 ) {
   const qc = useQueryClient();
   const { data: me } = useMe();
@@ -41,13 +45,13 @@ export function useFavorite(
     onSuccess: (_data, next) => {
       if (notifyName == null) return;
       // 담으면 초록 동그라미 "+", 빼면 빨간 동그라미 "-".
-      if (next) added("관심 매체에 담았어요", notifyName);
-      else removed("관심 매체에서 뺐어요", notifyName);
+      if (next) added(`${label}에 담았어요`, notifyName);
+      else removed(`${label}에서 뺐어요`, notifyName);
     },
     onError: (_err, next, ctx) => {
       qc.setQueryData(favoritesKeys.ids(), ctx?.prev);
       error(
-        next ? "관심 매체에 담지 못했어요" : "관심 매체에서 빼지 못했어요",
+        next ? `${label}에 담지 못했어요` : `${label}에서 빼지 못했어요`,
         "잠시 후 다시 시도해 주세요.",
       );
     },
@@ -58,7 +62,7 @@ export function useFavorite(
 
   const setLiked = (next: boolean) => {
     if (!me) {
-      blocked("로그인 후 관심 매체에 담을 수 있어요");
+      blocked(`로그인 후 ${label}에 담을 수 있어요`);
       return;
     }
     mutation.mutate(next);

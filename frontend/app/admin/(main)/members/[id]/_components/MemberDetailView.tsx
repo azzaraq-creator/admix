@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 
 import { LoadingState } from "@/components/common/RouteStates";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 import { useAdminMe } from "@/hooks/adminAuth";
 import { useMember, type SanctionOut } from "@/hooks/members";
@@ -36,12 +37,15 @@ const TABS: { key: TabKey; label: string; permKey?: string }[] = [
   { key: "sanctions", label: "제재 관리" },
 ];
 
-
 function HeaderStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex w-[152px] flex-col items-center gap-[10px]">
-      <span className="text-sm font-medium leading-normal text-black">{label}</span>
-      <span className="text-xl font-semibold leading-normal text-black">{value}</span>
+      <span className="text-sm font-medium leading-normal text-black">
+        {label}
+      </span>
+      <span className="text-xl font-semibold leading-normal text-black">
+        {value}
+      </span>
     </div>
   );
 }
@@ -49,8 +53,12 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
 function HeaderInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex w-[120px] flex-col gap-[12px]">
-      <span className="text-sm font-medium leading-normal text-tone-494a4a">{label}</span>
-      <span className="text-sm font-semibold leading-normal text-black">{value}</span>
+      <span className="text-sm font-medium leading-normal text-tone-494a4a">
+        {label}
+      </span>
+      <span className="text-sm font-semibold leading-normal text-black">
+        {value}
+      </span>
     </div>
   );
 }
@@ -97,16 +105,19 @@ export function MemberDetailView() {
   }));
 
   return (
-    <div className="flex flex-col gap-[24px]">
-      <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">회원 상세</h1>
+    // 회색 바탕 위 흰 카드(테두리 없음) — 어드민 공통 모양(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
+      <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
+        회원 상세
+      </h1>
 
-      <Card className="flex-row items-center gap-[48px] rounded-[12px] border border-tone-cdcdcd p-[36px] shadow-none">
+      <Card className="flex-col items-stretch gap-[20px] rounded-[20px] p-[20px] md:flex-row md:items-center md:gap-[48px] md:p-[32px]">
         <div className="flex min-w-0 flex-1 items-center gap-[21px]">
-          <div className="flex size-[140px] shrink-0 items-center justify-center rounded-full border border-tone-cdcdcd bg-gray-50">
-            <Building2 className="size-[60px] text-tone-767676" />
+          <div className="flex size-[72px] shrink-0 items-center justify-center rounded-full bg-gray-50 md:size-[140px]">
+            <Building2 className="size-[32px] text-tone-767676 md:size-[60px]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[20px]">
-            <p className="text-[36px] font-semibold leading-[1.4] text-black">
+            <p className="text-2xl font-semibold leading-[1.4] text-black md:text-[36px]">
               {member.name ?? "-"}
             </p>
             <div className="flex flex-wrap items-center gap-x-[22px] gap-y-[16px]">
@@ -122,12 +133,15 @@ export function MemberDetailView() {
                 <BizStatusBadge status={bizStatus} />
               </div>
               <div className="h-[41px] w-px bg-tone-e6e6e6" />
-              <HeaderInfo label="가입일" value={member.created_at.slice(0, 10)} />
+              <HeaderInfo
+                label="가입일"
+                value={member.created_at.slice(0, 10)}
+              />
             </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-stretch gap-[16px] rounded-[8px] border border-tone-cdcdcd p-[16px]">
+        <div className="flex shrink-0 items-stretch gap-[16px] rounded-[12px] bg-gray-50 p-[16px]">
           <HeaderStat label="제안 건수" value={String(member.proposal_count)} />
           <div className="w-px self-stretch bg-tone-e6e6e6" />
           <HeaderStat label="문의 건수" value={String(member.inquiry_count)} />
@@ -162,7 +176,10 @@ export function MemberDetailView() {
       </Tabs>
 
       {tab === "basic" && (
-        <BasicInfoTab member={member} onList={() => router.push("/admin/members")} />
+        <BasicInfoTab
+          member={member}
+          onList={() => router.push("/admin/members")}
+        />
       )}
 
       {tab === "proposals" && <MemberProposalsTab memberId={member.id} />}
@@ -170,29 +187,29 @@ export function MemberDetailView() {
       {tab === "inquiries" && <MemberInquiriesTab memberId={member.id} />}
 
       {tab === "sanctions" && (
-        <div className="flex flex-col gap-[16px]">
-          <div className="flex w-full items-center justify-between">
-            <p className="text-[20px] font-semibold leading-[24px] text-tone-2a2a2a">
-              제재 이력 관리
-            </p>
+        <AdminPanel
+          title="제재 이력 관리"
+          right={
             <Button
               variant="primary"
               onPress={() => setSanctionModal({ mode: "add" })}
             >
               제재 추가
             </Button>
-          </div>
+          }
+        >
           <CommonTable
             columnList={sanctionColumnList}
             data={sanctions}
             useSearch={false}
             pageSize={10}
+            framed={false}
             onRowClick={(row) => {
               const raw = member.sanctions.find((s) => s.id === row.id);
               if (raw) setSanctionModal({ mode: "detail", sanction: raw });
             }}
           />
-        </div>
+        </AdminPanel>
       )}
 
       {tab !== "basic" && (

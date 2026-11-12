@@ -3,6 +3,7 @@
 - 제휴사(콜라보) 회원: 내 매장 보기(등록 · 수정은 어드민만, 069) · 수정 요청, 콜라보 신청 · 확정 · 사진 · 재입고 요청.
 - 광고주·제휴사(콜라보) 회원: 공개 매장 목록·상세(매체 찾기에서 콜라보 매장을 누르면 새 탭으로 여는 화면).
 - 광고주 회원: 내 브랜드(여러 개, 이름 · 사진 — 068) 등록·수정·삭제, 브랜드 사진 올리기.
+- 광고주 회원: 콜라보 의뢰 보내기 · 고쳐 다시 보내기 · 추가 기획 첨부(081, 어드민 "콜라보 의뢰"에서 읽는다).
 어드민 "콜라보 → 매장 관리"는 admin_router(/admin/partners/stores), 나머지 콜라보 어드민은 routers/admin_collab.
 """
 from __future__ import annotations
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.admin import Admin
 from src.models.user import User
-from src.services import advertiser_brand_service, collab_service, partners_service
+from src.services import advertiser_brand_service, collab_request_service, collab_service, partners_service
 from src.utils.deps import get_current_user, require_permission
 
 router = APIRouter(prefix="/partners", tags=["partners"])
@@ -68,14 +69,14 @@ class StoreHoursIn(BaseModel):
 
 
 class AdminPartnersStoreIn(PartnersStoreIn):
-    # 매장 유형(카페 · 식당 …, 어드민 "매장 항목") — null 이면 미지정(070).
+    # 매장 유형(카페 · 식당 …, 어드민 "매장 유형 관리") — null 이면 미지정(070).
     store_type_id: int | None = None
     status: str | None = None
     admin_memo: str | None = None
     owner_login_id: str | None = None
     # 제휴사 회원 고유번호(P-0001) — 비우면(null · "") 연결을 끊는다(069).
     owner_code: str | None = None
-    # 사진과 분류(외관 · 내관 · …) · 분류별 대표 · 메모 — 보내면 image_urls 대신 이것으로 정한다(최대 30장, 069 · 073).
+    # 사진과 분류(외관 · 내관 · …) · 분류별 대표 · 메모 — 보내면 image_urls 대신 이것으로 정한다(장수 제한 없음, 069 · 073).
     images: list[StorePhotoIn] | None = None
     # 운영 시간 입력값 — 보내면 business_hours 글도 이것으로 다시 만든다. null 이면 둘 다 지운다(073).
     hours: StoreHoursIn | None = None
@@ -94,12 +95,11 @@ def _data(body: BaseModel) -> dict:
 
 @router.get("/tag-options")
 def tag_options(db: Session = Depends(get_db)) -> dict:
-    """매장 어필 선택지 — 매장 유형(어드민 "매장 항목")마다 다르다. tags 는 모든 유형의 값을 합친 것."""
+    """매장 어필 선택지 — 매장 유형(어드민 "매장 유형 관리")마다 다르다. tags 는 모든 유형의 값을 합친 것."""
     types = partners_service.list_store_types(db)
     return {
         "tags": list(dict.fromkeys(t for st in types for t in st["tags"])),
         "storeTypes": [{"id": st["id"], "name": st["name"], "tags": st["tags"]} for st in types],
-        "maxImages": partners_service.MAX_IMAGES,
         "photoKinds": list(partners_service.PHOTO_KINDS),
     }
 
@@ -164,6 +164,7 @@ def my_stores(user: User = Depends(get_current_user), db: Session = Depends(get_
 
 class StoreRequestIn(BaseModel):
     # 바꿀 항목(name · address · hours · phone · owner_name · tags · notes)과 새 값 — 값 모양은 항목마다 다르다.
+    # 추가 요청 · 문의는 field "inquiry" + value 글(partners_service.INQUIRY_FIELD).
     field: str = Field(min_length=1, max_length=20)
     value: Any = None
     # 담당자에게 남기는 메모(선택).
@@ -229,6 +230,14 @@ def withdraw_collab(
     return collab_service.withdraw(db, user, collab_id, body.store_id)
 
 
+@router.post("/me/collabs/{collab_id}/pass")
+def pass_collab(
+    collab_id: str, body: CollabStoreIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    """미참여로 답하기 — 모집 기간 안에만(11-12). 답하지 않고 모집이 끝나면 어드민에 무응답으로 센다."""
+    return collab_service.pass_collab(db, user, collab_id, body.store_id)
+
+
 @router.post("/me/collabs/{collab_id}/confirm")
 def confirm_collab(
     collab_id: str, body: CollabConfirmIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -269,6 +278,12 @@ def read_collab_notice(
 class AdvertiserBrandIn(BaseModel):
     name: str | None = Field(default=None, max_length=100)
     image_url: str | None = Field(default=None, max_length=500)
+    # 브랜드 담당자 정보(079, 모두 선택) — 보낸 칸만 바꾸고, 빈 값은 지운다.
+    contact_name: str | None = Field(default=None, max_length=100)
+    contact_title: str | None = Field(default=None, max_length=100)
+    contact_dept: str | None = Field(default=None, max_length=100)
+    contact_phone: str | None = Field(default=None, max_length=30)
+    contact_email: str | None = Field(default=None, max_length=255)
 
 
 @router.post("/brand-images")
@@ -311,6 +326,127 @@ def delete_my_brand(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+# ── 광고주 콜라보 의뢰(081) ────────────────────────────────────────────
+
+
+class CollabRequestContactIn(BaseModel):
+    name: str = Field(default="", max_length=50)
+    phone: str = Field(default="", max_length=30)
+    role: str = Field(default="", max_length=50)
+
+
+class CollabRequestItemIn(BaseModel):
+    key: str = Field(max_length=20)
+    prep: str = Field(max_length=10)
+    note: str = Field(default="", max_length=300)
+
+
+class CollabRequestIn(BaseModel):
+    # 글자 수 · 형식은 서비스에서 화면과 같은 규칙으로 다시 본다(캠페인명 30 · 한 줄 소개 100 · 조건 100 · 추가 기획 · 남길 말 1000).
+    brand_id: str = Field(max_length=40)
+    title: str = Field(max_length=100)
+    summary: str | None = Field(default=None, max_length=300)
+    start_date: str = Field(max_length=10)
+    end_date: str = Field(max_length=10)
+    contact: CollabRequestContactIn
+    items: list[CollabRequestItemIn] = Field(max_length=6)
+    extra_plan: str | None = Field(default=None, max_length=3000)
+    course: str = Field(max_length=20)
+    min_stores: int
+    target_stores: int
+    preferred_store_ids: list[str] = Field(default_factory=list, max_length=50)
+    memo: str | None = Field(default=None, max_length=3000)
+    # 화면이 보여 준 예상 비용 · 일정(참고용).
+    estimate: dict[str, int] | None = None
+    schedule: dict[str, Any] | None = None
+    # 고쳐 다시 보낼 때 — 거짓이면 올려 둔 첨부를 지운다.
+    keep_plan_file: bool = True
+
+
+@router.get("/me/collab-requests")
+def list_collab_requests(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
+    """내가 보낸 콜라보 의뢰(최근 보낸 순) — 내 콜라보 · 대시보드 · 상세가 이걸로 그린다."""
+    return collab_request_service.list_mine(db, user)
+
+
+@router.post("/me/collab-requests", status_code=status.HTTP_201_CREATED)
+def create_collab_request(
+    body: CollabRequestIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    """콜라보 의뢰 보내기 — 확인 창에서 "확실해요"를 체크한 뒤. 문서 번호(CR-YYMMDD-NN)를 돌려준다."""
+    return collab_request_service.create(db, user, body.model_dump())
+
+
+@router.put("/me/collab-requests/{request_id}")
+def update_collab_request(
+    request_id: str,
+    body: CollabRequestIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """고친 의뢰 다시 보내기 — 같은 의뢰를 통째로 바꾼다."""
+    return collab_request_service.update(db, user, request_id, body.model_dump())
+
+
+@router.post("/me/collab-requests/{request_id}/cancel")
+def cancel_collab_request(
+    request_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """의뢰 취소 — 지우지 않고 "취소"로 남긴다(내 콜라보 · 어드민 콜라보 의뢰에 보인다)."""
+    return collab_request_service.cancel(db, user, request_id)
+
+
+class CollabPlanRoundIn(BaseModel):
+    """기획안을 항목별로 다시 고쳐 보내기(085) — 고친 내용 전부 · 항목별 수정 이유 · 펼쳐 둔 차수."""
+
+    content: dict[str, Any]
+    notes: dict[str, str] = Field(default_factory=dict)
+    baseRound: int
+
+
+class CollabPlanConfirmIn(BaseModel):
+    """확정할 admix 기획안 차수 — 그사이 admix가 다시 보냈으면 409."""
+
+    round: int
+
+
+@router.post("/me/collab-requests/{request_id}/rounds")
+def send_collab_request_round(
+    request_id: str,
+    body: CollabPlanRoundIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """admix 기획안을 항목별로 고쳐 다시 보내기 — admix가 다시 검토한다."""
+    return collab_request_service.send_round(db, user, request_id, body.model_dump())
+
+
+@router.post("/me/collab-requests/{request_id}/confirm")
+def confirm_collab_request(
+    request_id: str,
+    body: CollabPlanConfirmIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """admix 기획안 확정 — 의뢰가 '확정'으로 바뀐다."""
+    return collab_request_service.confirm(db, user, request_id, body.model_dump())
+
+
+@router.post("/me/collab-requests/{request_id}/plan-file")
+def upload_collab_request_file(
+    request_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """추가 기획 첨부(기획서 1개, 20MB) — 의뢰를 보낸 다음 올린다."""
+    return collab_request_service.save_plan_file(db, user, request_id, file)
+
+
 @router.get("/stores")
 def list_stores(
     keyword: str | None = Query(default=None),
@@ -339,6 +475,8 @@ def admin_list(
     linked: str | None = Query(default=None),
     # 매장 유형(cafe_store_type.id) — 회원 상세 "매장 검색" 창의 유형 탭(카페 · 식당 …).
     store_type: int | None = Query(default=None),
+    # 콜라보 등급 S · A · B · C, none 이면 아직 미정 — 매장 관리 목록 "등급" 거르기.
+    grade: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     _: Admin = Depends(require_permission("collab")),
@@ -350,9 +488,12 @@ def admin_list(
         status=status_,
         linked=linked,
         store_type=store_type,
+        grade=grade,
         page=page,
         page_size=page_size,
     )
+    # 콜라보 응답 수(참여 · 미참여 · 무응답) — 매장 목록 칸(11-12 사용자).
+    collab_service.attach_store_responses(db, items)
     return {"total": total, "items": items}
 
 
@@ -370,6 +511,14 @@ def admin_upload_image(
     _: Admin = Depends(require_permission("collab")),
 ) -> dict:
     return {"url": partners_service.upload_image(file)}
+
+
+@admin_router.get("/{store_id}/collabs")
+def admin_store_collabs(
+    store_id: str, _: Admin = Depends(require_permission("collab")), db: Session = Depends(get_db)
+) -> dict:
+    """매장 상세 "콜라보 참여" — 참여 · 미참여 · 무응답 수와 콜라보별 기록(11-12 사용자)."""
+    return collab_service.admin_store_collabs(db, store_id)
 
 
 @admin_router.get("/{store_id}")

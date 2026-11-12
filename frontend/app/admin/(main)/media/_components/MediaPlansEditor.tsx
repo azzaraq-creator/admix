@@ -231,8 +231,11 @@ export function MediaPlansEditor({
           <Card
             key={plan.key}
             className={cn(
-              "gap-[16px] border p-[16px] shadow-none",
-              Object.keys(e).length > 0 ? "border-[#d65856]" : "border-stroke",
+              // 상품 하나 — 흰 카드 안의 옅은 회색 상자(테두리 없음). 오류가 있을 때만 빨간 테두리.
+              "gap-[16px] border bg-gray-50 p-[16px] shadow-none",
+              Object.keys(e).length > 0
+                ? "border-[#d65856]"
+                : "border-transparent",
             )}
           >
             <Card.Header className="flex-row items-center justify-between">

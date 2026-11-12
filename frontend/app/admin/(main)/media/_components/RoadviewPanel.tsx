@@ -27,7 +27,7 @@ export function RoadviewPanel({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-[8px] rounded-[12px] border border-stroke p-[16px]">
+    <div className="flex flex-col gap-[8px] rounded-[12px] bg-gray-50 p-[16px]">
       <div className="flex flex-wrap items-center justify-between gap-[8px]">
         {/* 접기·펴기 머리 — 설명이 길어 줄바꿈되도록 HeroUI 버튼의 높이·한 줄 고정을 푼다. */}
         <Button

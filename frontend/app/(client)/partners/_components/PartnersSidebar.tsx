@@ -96,7 +96,7 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
             <span
               aria-label={`신청할 수 있는 콜라보 ${item.badge}개`}
               className={cn(
-                "ml-auto flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-[5px] text-[11px] leading-none font-bold tabular-nums",
+                "ml-auto flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-[5px] text-[11px] leading-none font-bold",
                 active
                   ? "bg-primary text-white"
                   : "bg-primary-100 text-primary",
@@ -179,7 +179,7 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
                     <Image
                       src="/service/admix-text-logo.svg"
                       alt=""
-                      width={43}
+                      width={42}
                       height={12}
                       className="h-[12px] w-auto opacity-50 transition-opacity group-hover:opacity-100 dark:brightness-0 dark:invert"
                     />

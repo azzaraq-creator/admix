@@ -17,6 +17,7 @@ import { parseDate, type DateValue } from "@internationalized/date";
 import { RotateCw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { cn } from "@/lib/utils";
 
 export type TableColumn<T> = {
@@ -53,9 +54,7 @@ type DateRangeSearchOption = {
 };
 
 export type SearchOption =
-  | TextSearchOption
-  | SelectSearchOption
-  | DateRangeSearchOption;
+  TextSearchOption | SelectSearchOption | DateRangeSearchOption;
 
 export type SearchParams = Record<string, string | undefined>;
 
@@ -89,6 +88,11 @@ type CommonTableProps<T> = {
   onPageSizeChange?: (size: number) => void;
   /** 표 이름(화면 읽기용). */
   ariaLabel?: string;
+  /**
+   * 흰 카드로 감쌀지(기본 켬) — 어드민 목록 화면은 검색판 · 목록이 각각 흰 카드(AdminPanel).
+   * 이미 카드 안에 넣는 표(대시보드 · 상세 화면 탭 등)는 false 로 겹 카드를 막는다.
+   */
+  framed?: boolean;
 };
 
 /** 검색 고르기 칸의 "전체" — 빈 문자열은 HeroUI Select 키로 쓸 수 없어 따로 둔다. */
@@ -139,6 +143,7 @@ export function CommonTable<T>({
   onPageChange,
   onPageSizeChange,
   ariaLabel = "목록",
+  framed = true,
 }: CommonTableProps<T>) {
   const [page, setPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
@@ -377,33 +382,36 @@ export function CommonTable<T>({
     );
   };
 
-  return (
-    <div className="flex flex-col gap-[16px]">
-      {showSearch && (
-        <div className="flex flex-col gap-[16px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
-          {searchRows.map((rowOpts, rowIndex) => (
-            <div
-              key={rowIndex}
-              className="flex flex-wrap items-end gap-[16px]"
-            >
-              {rowOpts.map((opt) => renderField(opt))}
-              {rowIndex === searchRows.length - 1 && (
-                <div className="ml-auto flex shrink-0 items-center gap-[8px]">
-                  <Button variant="primary" onPress={handleSearch}>
-                    <Search className="size-[16px]" />
-                    검색
-                  </Button>
-                  <Button variant="tertiary" onPress={handleReset}>
-                    <RotateCw className="size-[16px]" />
-                    초기화
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+  // 검색판 — 판(framed)이면 흰 카드 하나, 아니면(카드 안에 끼운 표) 테두리 없는 옅은 회색 상자.
+  const searchBox = showSearch && (
+    <div
+      className={cn(
+        "flex flex-col gap-[16px]",
+        !framed && "rounded-[14px] bg-gray-50 p-[16px] md:p-[20px]",
       )}
+    >
+      {searchRows.map((rowOpts, rowIndex) => (
+        <div key={rowIndex} className="flex flex-wrap items-end gap-[16px]">
+          {rowOpts.map((opt) => renderField(opt))}
+          {rowIndex === searchRows.length - 1 && (
+            <div className="ml-auto flex shrink-0 items-center gap-[8px]">
+              <Button variant="primary" onPress={handleSearch}>
+                <Search className="size-[16px]" />
+                검색
+              </Button>
+              <Button variant="tertiary" onPress={handleReset}>
+                <RotateCw className="size-[16px]" />
+                초기화
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
+  const list = (
+    <div className="flex min-w-0 flex-col gap-[16px]">
       {showTopBar && (
         <div className="flex flex-wrap items-center justify-between gap-[8px]">
           {totalCount !== undefined ? (
@@ -492,8 +500,7 @@ export function CommonTable<T>({
                         {col.renderer
                           ? col.renderer(item)
                           : (((item as Record<string, unknown>)[col.name] as
-                              | React.ReactNode
-                              | undefined) ?? "-")}
+                              React.ReactNode | undefined) ?? "-")}
                       </Table.Cell>
                     ))}
                   </Table.Row>
@@ -554,6 +561,21 @@ export function CommonTable<T>({
           )}
         </div>
       )}
+    </div>
+  );
+
+  // 어드민 목록 화면: 회색 바탕 위 흰 카드 두 장(검색 | 목록) — 2026-11-12 사용자 "다른 페이지도 매장 상세처럼".
+  if (!framed)
+    return (
+      <div className="flex min-w-0 flex-col gap-[16px]">
+        {searchBox}
+        {list}
+      </div>
+    );
+  return (
+    <div className="flex min-w-0 flex-col gap-[20px] md:gap-[24px]">
+      {searchBox && <AdminPanel>{searchBox}</AdminPanel>}
+      <AdminPanel>{list}</AdminPanel>
     </div>
   );
 }

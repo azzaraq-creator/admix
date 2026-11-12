@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import type { PlanRoundPayload } from "@/lib/collabPlan";
 import { useCallback, useSyncExternalStore } from "react";
 
 import { useMe } from "@/hooks/auth";
@@ -8,6 +10,8 @@ import { api } from "@/lib/api";
 import {
   type AdvertiserBrand,
   type AdvertiserBrandPayload,
+  type CollabRequestMine,
+  type CollabRequestPayload,
   type PartnersStore,
   type StoreRequest,
   type StoreRequestPayload,
@@ -40,6 +44,13 @@ export const partnersApi = {
     api
       .post<StoreRequest>(`/partners/me/stores/${storeId}/requests`, payload)
       .then((r) => r.data),
+  /** 매장 유형 이름(카페 · 식당 …, 어드민 "매장 유형 관리" 순서) — 광고주 매장 찾기 탭. 로그인 없이도 받는다. */
+  storeTypeNames: () =>
+    api
+      .get<{ storeTypes: { id: number; name: string }[] }>(
+        "/partners/tag-options",
+      )
+      .then((r) => r.data.storeTypes.map((t) => t.name)),
   /** 모집 중인 콜라보 — 협약 전 · 매장 연결 전에도 본다(신청 정보 없음). */
   recruiting: () =>
     api.get<StoreCollabs>("/partners/collabs/recruiting").then((r) => r.data),
@@ -59,6 +70,13 @@ export const partnersApi = {
   withdrawCollab: (id: string, storeId: string) =>
     api
       .post<PreviewCollab>(`/partners/me/collabs/${id}/withdraw`, {
+        store_id: storeId,
+      })
+      .then((r) => r.data),
+  /** 미참여로 답하기(11-12) — 모집 기간 안에만, 참여해 둔 것도 확정 요청 전이면 미참여로. */
+  passCollab: (id: string, storeId: string) =>
+    api
+      .post<PreviewCollab>(`/partners/me/collabs/${id}/pass`, {
         store_id: storeId,
       })
       .then((r) => r.data),
@@ -158,6 +176,58 @@ export const partnersApi = {
       .post<{ url: string }>("/partners/brand-images", form)
       .then((r) => r.data.url);
   },
+  /** 내가 보낸 콜라보 의뢰(최근 보낸 순) — 다른 탭 · 다시 로그인해도 내 콜라보에 보이게(11-12). */
+  myCollabRequests: () =>
+    api
+      .get<CollabRequestMine[]>("/partners/me/collab-requests")
+      .then((r) => r.data),
+  /** 광고주 콜라보 의뢰 보내기(081) — 어드민 "콜라보 의뢰"에서 읽는다. */
+  createCollabRequest: (payload: CollabRequestPayload) =>
+    api
+      .post<CollabRequestMine>("/partners/me/collab-requests", payload)
+      .then((r) => r.data),
+  /** 고친 의뢰 다시 보내기 — 같은 의뢰(같은 문서 번호)를 바꾼다. */
+  updateCollabRequest: (id: string, payload: CollabRequestPayload) =>
+    api
+      .put<CollabRequestMine>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}`,
+        payload,
+      )
+      .then((r) => r.data),
+  /** 의뢰 취소 — 지우지 않고 "취소"로 남긴다(084, 내 콜라보 · 어드민에 보인다). */
+  cancelCollabRequest: (id: string) =>
+    api
+      .post<CollabRequestMine>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}/cancel`,
+      )
+      .then((r) => r.data),
+  /** admix 기획안을 항목별로 고쳐 다시 보내기(085) — admix가 다시 검토한다. 바꾼 게 없으면 400, 그사이 바뀌었으면 409. */
+  sendCollabRequestRound: (id: string, payload: PlanRoundPayload) =>
+    api
+      .post<CollabRequestMine>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}/rounds`,
+        payload,
+      )
+      .then((r) => r.data),
+  /** admix 기획안 확정(085) — 본 차수가 마지막 차수일 때만. */
+  confirmCollabRequest: (id: string, round: number) =>
+    api
+      .post<CollabRequestMine>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}/confirm`,
+        { round },
+      )
+      .then((r) => r.data),
+  /** 추가 기획 첨부(기획서 1개, 20MB) — 의뢰를 보낸 다음 올린다. */
+  uploadCollabRequestFile: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<CollabRequestMine>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}/plan-file`,
+        form,
+      )
+      .then((r) => r.data);
+  },
 };
 
 export const partnersKeys = {
@@ -167,13 +237,23 @@ export const partnersKeys = {
     [...partnersKeys.all, "stores", params] as const,
   store: (key: string) => [...partnersKeys.all, "store", key] as const,
   brands: () => [...partnersKeys.all, "brands"] as const,
+  collabRequests: () => [...partnersKeys.all, "collabRequests"] as const,
   requests: (storeId: string) =>
     [...partnersKeys.all, "requests", storeId] as const,
   collabs: () => [...partnersKeys.all, "collabs"] as const,
   storeCollabs: (storeId: string) =>
     [...partnersKeys.collabs(), "store", storeId] as const,
   recruiting: () => [...partnersKeys.collabs(), "recruiting"] as const,
+  storeTypeNames: () => [...partnersKeys.all, "storeTypeNames"] as const,
 };
+
+/** 매장 유형 이름 — 광고주 매장 찾기 탭(전체 · 카페 · 식당 …). 자주 바뀌지 않아 5분 동안 다시 받지 않는다. */
+export const useStoreTypeNames = () =>
+  useQuery({
+    queryKey: partnersKeys.storeTypeNames(),
+    queryFn: partnersApi.storeTypeNames,
+    staleTime: 5 * 60 * 1000,
+  });
 
 /** 광고주 내 브랜드 — 광고주만 받는다. */
 export const useMyBrands = () => {
@@ -181,6 +261,16 @@ export const useMyBrands = () => {
   return useQuery({
     queryKey: partnersKeys.brands(),
     queryFn: partnersApi.myBrands,
+    enabled: me?.member_category === "advertiser",
+  });
+};
+
+/** 광고주가 보낸 콜라보 의뢰 — 광고주만 받는다(advStore 가 내 콜라보 상태에 합친다). */
+export const useMyCollabRequests = () => {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: partnersKeys.collabRequests(),
+    queryFn: partnersApi.myCollabRequests,
     enabled: me?.member_category === "advertiser",
   });
 };
@@ -348,6 +438,10 @@ export function useCollabActions(storeId: string | null | undefined) {
     mutationFn: (id: string) => partnersApi.withdrawCollab(id, sid),
     onSuccess: put,
   });
+  const pass = useMutation({
+    mutationFn: (id: string) => partnersApi.passCollab(id, sid),
+    onSuccess: put,
+  });
   const confirm = useMutation({
     mutationFn: (v: { id: string; confirmer: string; checked: number }) =>
       partnersApi.confirmCollab(v.id, sid, v.confirmer, v.checked),
@@ -384,7 +478,7 @@ export function useCollabActions(storeId: string | null | undefined) {
           },
       ),
   });
-  return { apply, withdraw, confirm, photo, restock, readNotice };
+  return { apply, withdraw, pass, confirm, photo, restock, readNotice };
 }
 
 /** 내 매장 수정 기록. */

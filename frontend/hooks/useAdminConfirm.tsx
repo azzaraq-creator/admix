@@ -48,41 +48,41 @@ export function useAdminConfirm() {
   }, []);
 
   const confirmDialog = (
-    <AlertDialog
+    <AlertDialog.Backdrop
       isOpen={open}
       onOpenChange={(value) => {
         if (!value) settle(false);
       }}
+      isDismissable
+      isKeyboardDismissDisabled={false}
     >
-      <AlertDialog.Backdrop isDismissable isKeyboardDismissDisabled={false}>
-        <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-[20px]">
-            <AlertDialog.Header>
-              <AlertDialog.Heading className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
-                {state?.title}
-              </AlertDialog.Heading>
-            </AlertDialog.Header>
-            {state?.description && (
-              <AlertDialog.Body>
-                <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
-                  {state.description}
-                </div>
-              </AlertDialog.Body>
-            )}
-            <AlertDialog.Footer>
-              {state?.mode === "confirm" && (
-                <Button variant="tertiary" onPress={() => settle(false)}>
-                  {state?.cancelText ?? "취소"}
-                </Button>
-              )}
-              <Button variant="primary" onPress={() => settle(true)}>
-                {state?.confirmText ?? "확인"}
+      <AlertDialog.Container placement="center" size="sm">
+        <AlertDialog.Dialog className="rounded-[20px]">
+          <AlertDialog.Header>
+            <AlertDialog.Heading className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
+              {state?.title}
+            </AlertDialog.Heading>
+          </AlertDialog.Header>
+          {state?.description && (
+            <AlertDialog.Body>
+              <div className="whitespace-pre-line text-sm font-medium leading-[20px] text-disabled">
+                {state.description}
+              </div>
+            </AlertDialog.Body>
+          )}
+          <AlertDialog.Footer>
+            {state?.mode === "confirm" && (
+              <Button variant="tertiary" onPress={() => settle(false)}>
+                {state?.cancelText ?? "취소"}
               </Button>
-            </AlertDialog.Footer>
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
-      </AlertDialog.Backdrop>
-    </AlertDialog>
+            )}
+            <Button variant="primary" onPress={() => settle(true)}>
+              {state?.confirmText ?? "확인"}
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
   );
 
   return { confirm, alert, confirmDialog };

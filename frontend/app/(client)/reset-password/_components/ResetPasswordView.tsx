@@ -109,7 +109,7 @@ export function ResetPasswordView() {
               type="submit"
               disabled={!canSubmit}
               className={cn(
-                "flex w-full items-center justify-center rounded-[8px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
+                "flex w-full items-center justify-center rounded-[25px] px-[24px] py-[16px] text-[16px] font-semibold leading-[24px]",
                 canSubmit
                   ? "bg-primary text-white"
                   : "bg-tone-eeeeee text-gray-500",

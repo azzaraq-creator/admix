@@ -186,225 +186,223 @@ export function AddToProposalModal({
   return (
     <>
       {/* 매체 정보 팝업(시안 02. 매체 상세)과 같은 창 — 모서리 20px, 회색 원형 닫기, 16px 제목. 그 위에 겹쳐 뜬다. */}
-      <Modal
+      <Modal.Backdrop
         isOpen
         onOpenChange={(next) => {
           if (!next) onClose();
         }}
       >
-        <Modal.Backdrop>
-          <Modal.Container placement="center" className="px-[16px] sm:px-0">
-            <Modal.Dialog
-              aria-label="기획안에 담기"
-              className="w-full max-w-[440px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+        <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          <Modal.Dialog
+            aria-label="기획안에 담기"
+            className="w-full max-w-[440px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+          >
+            <Modal.CloseTrigger
+              aria-label="닫기"
+              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
             >
-              <Modal.CloseTrigger
-                aria-label="닫기"
-                className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
-              >
-                <CloseMediumIcon className="size-[24px]" />
-              </Modal.CloseTrigger>
+              <CloseMediumIcon className="size-[24px]" />
+            </Modal.CloseTrigger>
 
-              <Modal.Header className="flex min-h-[28px] shrink-0 flex-col justify-center gap-[4px] p-0 pr-[40px]">
-                <Modal.Heading className="text-[16px] font-semibold text-black">
-                  기획안에 담기
-                </Modal.Heading>
-                <p className="text-[12px] leading-[1.5] text-tone-888888">
-                  {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
-                  {targetIds.length > 1
-                    ? `매체 ${targetIds.length}개를 담을 기획안을 골라 주세요`
-                    : "이 매체를 담을 기획안을 골라 주세요"}
-                  <span className="hidden sm:inline">. </span>
-                  <br className="sm:hidden" />
-                  여러 개를 함께 고를 수 있어요
-                </p>
-              </Modal.Header>
+            <Modal.Header className="flex min-h-[28px] shrink-0 flex-col justify-center gap-[4px] p-0 pr-[40px]">
+              <Modal.Heading className="text-[16px] font-semibold text-black">
+                기획안에 담기
+              </Modal.Heading>
+              <p className="text-[12px] leading-[1.5] text-tone-888888">
+                {/* 모바일은 마침표 없이 두 줄로 끊는다. */}
+                {targetIds.length > 1
+                  ? `매체 ${targetIds.length}개를 담을 기획안을 골라 주세요`
+                  : "이 매체를 담을 기획안을 골라 주세요"}
+                <span className="hidden sm:inline">. </span>
+                <br className="sm:hidden" />
+                여러 개를 함께 고를 수 있어요
+              </p>
+            </Modal.Header>
 
-              {/* 모바일에서 키보드가 올라와 창 높이가 줄면 본문만 스크롤되고 제목·하단 버튼은 제자리에 남는다. */}
-              <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col gap-[10px] overflow-x-hidden overflow-y-auto p-0 [&>*]:shrink-0">
-                {creating ? (
-                  <form
-                    noValidate
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      handleCreate();
+            {/* 모바일에서 키보드가 올라와 창 높이가 줄면 본문만 스크롤되고 제목·하단 버튼은 제자리에 남는다. */}
+            <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col gap-[10px] overflow-x-hidden overflow-y-auto p-0 [&>*]:shrink-0">
+              {creating ? (
+                <form
+                  noValidate
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    handleCreate();
+                  }}
+                  className="flex flex-col gap-[8px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[12px]"
+                >
+                  <TextField
+                    value={newName}
+                    onChange={(value) => {
+                      setNewName(value);
+                      if (nameError) setNameError(null);
                     }}
-                    className="flex flex-col gap-[8px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 p-[12px]"
+                    isInvalid={!!nameError}
+                    maxLength={MAX_NAME_LENGTH}
+                    aria-label="새 기획안 이름"
+                    autoFocus
+                    fullWidth
+                    className="gap-[6px]"
                   >
-                    <TextField
-                      value={newName}
-                      onChange={(value) => {
-                        setNewName(value);
-                        if (nameError) setNameError(null);
-                      }}
-                      isInvalid={!!nameError}
-                      maxLength={MAX_NAME_LENGTH}
-                      aria-label="새 기획안 이름"
-                      autoFocus
+                    <Input
+                      placeholder="예) 2026 하반기 강남 옥외광고"
                       fullWidth
-                      className="gap-[6px]"
-                    >
-                      <Input
-                        placeholder="예) 2026 하반기 강남 옥외광고"
-                        fullWidth
-                        className="h-[44px] rounded-[19px]"
-                      />
-                      <div className="flex items-start justify-between gap-[8px] px-[4px]">
-                        <FieldError>{nameError}</FieldError>
-                        <span className="ml-auto shrink-0 text-[12px] text-gray-400">
-                          {newName.length}/{MAX_NAME_LENGTH}
-                        </span>
-                      </div>
-                    </TextField>
-                    <div className="flex justify-end gap-[6px]">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onPress={cancelCreate}
-                        className={cn(SMALL_ACTION_CLASS, CANCEL_CLASS)}
-                      >
-                        취소
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        isDisabled={!newName.trim()}
-                        isPending={createProposal.isPending}
-                        className={cn(
-                          SMALL_ACTION_CLASS,
-                          "bg-primary-500 text-white",
-                        )}
-                      >
-                        만들기
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  // 기획안 목록 줄과 같은 높이(44px), 점선 테두리로 "추가" 자리임을 보인다.
-                  <Button
-                    variant="ghost"
-                    onPress={() => setCreating(true)}
-                    className="h-[44px] w-full gap-[6px] rounded-[12px] border border-dashed border-zinc-300 bg-surface text-[13px] font-medium text-zinc-600 data-[hovered=true]:bg-zinc-50"
-                  >
-                    <FolderAddIcon className="shrink-0" />새 기획안 만들기
-                  </Button>
-                )}
-
-                <div className="flex items-center justify-between px-[2px] pt-[4px]">
-                  <p className="text-[13px] font-semibold text-zinc-900">
-                    내 기획안
-                    {proposals.length > 0 && (
-                      <span className="ml-[4px] text-zinc-400">
-                        {proposals.length}
+                      className="h-[44px] rounded-[19px]"
+                    />
+                    <div className="flex items-start justify-between gap-[8px] px-[4px]">
+                      <FieldError>{nameError}</FieldError>
+                      <span className="ml-auto shrink-0 text-[12px] text-gray-400">
+                        {newName.length}/{MAX_NAME_LENGTH}
                       </span>
-                    )}
-                  </p>
-                </div>
-
-                {isLoading ? (
-                  // 내 기획안 불러오는 중 — "아직 만든 기획안이 없어요"가 잠깐 보이지 않게.
-                  <div
-                    role="status"
-                    aria-label="불러오는 중"
-                    className="flex justify-center py-[28px]"
-                  >
-                    <SpinningSymbol className="size-[32px]" />
-                  </div>
-                ) : proposals.length === 0 ? (
-                  <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 py-[28px]">
-                    <p className="text-[14px] font-semibold text-zinc-900">
-                      아직 만든 기획안이 없어요
-                    </p>
-                    <p className="text-[12px] text-tone-888888">
-                      새 기획안을 만들어 매체를 담아 보세요.
-                    </p>
-                  </div>
-                ) : (
-                  // HeroUI CheckboxGroup — 줄 전체가 체크박스라 어디를 눌러도 고르고, 키보드(Tab·Space)로도 고른다.
-                  // 이미 담긴 기획안은 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
-                  // 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
-                  <ScrollShadow
-                    size={24}
-                    className="max-h-[264px] shrink-0 [scrollbar-width:thin]"
-                  >
-                    <CheckboxGroup
-                      aria-label="담을 기획안"
-                      value={selected}
-                      onChange={setSelected}
+                    </div>
+                  </TextField>
+                  <div className="flex justify-end gap-[6px]">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onPress={cancelCreate}
+                      className={cn(SMALL_ACTION_CLASS, CANCEL_CLASS)}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      isDisabled={!newName.trim()}
+                      isPending={createProposal.isPending}
                       className={cn(
-                        "flex flex-col gap-[6px]",
-                        HEROUI_CHECKBOX_SCOPE,
+                        SMALL_ACTION_CLASS,
+                        "bg-primary-500 text-white",
                       )}
                     >
-                      {proposals.map((proposal) => (
-                        <Checkbox
-                          key={proposal.id}
-                          value={proposal.id}
-                          isDisabled={hasMedia(proposal)}
-                          // 비활성일 때 HeroUI는 줄 전체를 흐리게 해 "이미 담김" 칩까지 흐려진다.
-                          // 줄은 그대로 두고 체크박스·제목만 흐리게 한다(아래 in-data-[disabled=true]).
-                          className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
-                        >
-                          {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
-                          <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-tone-ececef bg-surface px-[14px] transition-colors data-[hovered=true]:bg-zinc-50 in-data-[selected=true]:bg-tone-f7f7f8">
-                            {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
-                            <Checkbox.Control className="border border-gray-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
-                              <Checkbox.Indicator />
-                            </Checkbox.Control>
-                            <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 in-data-[disabled=true]:text-zinc-400">
-                              {proposal.title}
-                            </Label>
-                            {hasMedia(proposal) && (
-                              // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
-                              <Chip className="shrink-0 rounded-[10px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] font-semibold text-zinc-700">
-                                이미 담김
-                              </Chip>
-                            )}
-                          </Checkbox.Content>
-                        </Checkbox>
-                      ))}
-                    </CheckboxGroup>
-                  </ScrollShadow>
-                )}
-              </Modal.Body>
-
-              <Modal.Footer className="mt-[16px] flex shrink-0 justify-end gap-[8px] p-0">
+                      만들기
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                // 기획안 목록 줄과 같은 높이(44px), 점선 테두리로 "추가" 자리임을 보인다.
                 <Button
-                  type="button"
                   variant="ghost"
-                  onPress={onClose}
-                  className={cn(
-                    ACTION_CLASS,
-                    CANCEL_CLASS,
-                    "w-[96px] max-sm:flex-1",
-                  )}
+                  onPress={() => setCreating(true)}
+                  className="h-[44px] w-full gap-[6px] rounded-[19px] border border-dashed border-zinc-300 bg-surface text-[13px] font-medium text-zinc-600 data-[hovered=true]:bg-zinc-50"
                 >
-                  취소
+                  <FolderAddIcon className="shrink-0" />새 기획안 만들기
                 </Button>
-                <Button
-                  variant="primary"
-                  onPress={() => void handleAdd()}
-                  isDisabled={selected.length === 0}
-                  isPending={submitting}
-                  className={cn(
-                    ACTION_CLASS,
-                    "min-w-[150px] gap-[6px] bg-primary-500 text-white max-sm:min-w-0 max-sm:flex-[1.3]",
+              )}
+
+              <div className="flex items-center justify-between px-[2px] pt-[4px]">
+                <p className="text-[13px] font-semibold text-zinc-900">
+                  내 기획안
+                  {proposals.length > 0 && (
+                    <span className="ml-[4px] text-zinc-400">
+                      {proposals.length}
+                    </span>
                   )}
+                </p>
+              </div>
+
+              {isLoading ? (
+                // 내 기획안 불러오는 중 — "아직 만든 기획안이 없어요"가 잠깐 보이지 않게.
+                <div
+                  role="status"
+                  aria-label="불러오는 중"
+                  className="flex justify-center py-[28px]"
                 >
-                  {!submitting && (
-                    <FolderAddIcon className="my-0 shrink-0 text-zinc-50 dark:text-white" />
-                  )}
-                  {submitting
-                    ? "담는 중..."
-                    : selected.length > 1
-                      ? `${selected.length}개 기획안에 담기`
-                      : "기획안에 담기"}
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+                  <SpinningSymbol className="size-[32px]" />
+                </div>
+              ) : proposals.length === 0 ? (
+                <div className="flex flex-col items-center gap-[6px] rounded-[12px] border border-tone-ececef bg-tone-f7f7f8 py-[28px]">
+                  <p className="text-[14px] font-semibold text-zinc-900">
+                    아직 만든 기획안이 없어요
+                  </p>
+                  <p className="text-[12px] text-tone-888888">
+                    새 기획안을 만들어 매체를 담아 보세요.
+                  </p>
+                </div>
+              ) : (
+                // HeroUI CheckboxGroup — 줄 전체가 체크박스라 어디를 눌러도 고르고, 키보드(Tab·Space)로도 고른다.
+                // 이미 담긴 기획안은 HeroUI 비활성 표시(흐리게)로 고를 수 없다.
+                // 기획안이 많아 넘치면 넘치는 쪽 가장자리를 흐리게(HeroUI ScrollShadow) 한다.
+                <ScrollShadow
+                  size={24}
+                  className="max-h-[264px] shrink-0 [scrollbar-width:thin]"
+                >
+                  <CheckboxGroup
+                    aria-label="담을 기획안"
+                    value={selected}
+                    onChange={setSelected}
+                    className={cn(
+                      "flex flex-col gap-[6px]",
+                      HEROUI_CHECKBOX_SCOPE,
+                    )}
+                  >
+                    {proposals.map((proposal) => (
+                      <Checkbox
+                        key={proposal.id}
+                        value={proposal.id}
+                        isDisabled={hasMedia(proposal)}
+                        // 비활성일 때 HeroUI는 줄 전체를 흐리게 해 "이미 담김" 칩까지 흐려진다.
+                        // 줄은 그대로 두고 체크박스·제목만 흐리게 한다(아래 in-data-[disabled=true]).
+                        className="mt-0 w-full shrink-0 data-[disabled=true]:opacity-100"
+                      >
+                        {/* 줄 44px, 곡률은 매체 정보 칸과 같은 12px. 보라는 체크박스에만 쓰고, 고른 줄은 옅은 회색 바탕만 깐다. */}
+                        <Checkbox.Content className="h-[44px] w-full gap-[10px] rounded-[12px] border border-tone-ececef bg-surface px-[14px] transition-colors data-[hovered=true]:bg-zinc-50 in-data-[selected=true]:bg-tone-f7f7f8">
+                          {/* 흰 바탕에서 보이게 옅은 회색 테두리를 더하고, 켜지면 테두리까지 보라로 채운다(약관 동의 체크박스와 같다). */}
+                          <Checkbox.Control className="border border-gray-300 in-data-[disabled=true]:opacity-40 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                          <Label className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 in-data-[disabled=true]:text-zinc-400">
+                            {proposal.title}
+                          </Label>
+                          {hasMedia(proposal) && (
+                            // 매체 정보 팝업의 회색 카테고리 칩과 같은 모양.
+                            <Chip className="shrink-0 rounded-[8px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] font-semibold text-zinc-700">
+                              이미 담김
+                            </Chip>
+                          )}
+                        </Checkbox.Content>
+                      </Checkbox>
+                    ))}
+                  </CheckboxGroup>
+                </ScrollShadow>
+              )}
+            </Modal.Body>
+
+            <Modal.Footer className="mt-[16px] flex shrink-0 justify-end gap-[8px] p-0">
+              <Button
+                type="button"
+                variant="ghost"
+                onPress={onClose}
+                className={cn(
+                  ACTION_CLASS,
+                  CANCEL_CLASS,
+                  "w-[96px] max-sm:flex-1",
+                )}
+              >
+                취소
+              </Button>
+              <Button
+                variant="primary"
+                onPress={() => void handleAdd()}
+                isDisabled={selected.length === 0}
+                isPending={submitting}
+                className={cn(
+                  ACTION_CLASS,
+                  "min-w-[150px] gap-[6px] bg-primary-500 text-white max-sm:min-w-0 max-sm:flex-[1.3]",
+                )}
+              >
+                {!submitting && (
+                  <FolderAddIcon className="my-0 shrink-0 text-zinc-50 dark:text-white" />
+                )}
+                {submitting
+                  ? "담는 중..."
+                  : selected.length > 1
+                    ? `${selected.length}개 기획안에 담기`
+                    : "기획안에 담기"}
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
       {limitDialog}
     </>
   );

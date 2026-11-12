@@ -142,6 +142,10 @@ def list_fixed_media(
     # 지역 — "서울특별시"(시·도 전체) 또는 "서울특별시 강남구". 여러 개면 OR.
     region: list[str] | None = Query(None),
     sort: str = Query("latest", pattern=media_service.MEDIA_SORT_PATTERN),
+    # 콜라보 매장은 제휴사 회원에 연결된 매장만 — 광고주 매장 찾기(/partners/find)가 켠다.
+    linked_only: bool = Query(False),
+    # 콜라보 매장 유형(카페 · 식당 …) — 광고주 매장 찾기 탭. 여러 개면 OR.
+    store_type: list[str] | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaCardListResponse:
     total, items, counts, category_counts = media_service.list_fixed_media(
@@ -164,6 +168,8 @@ def list_fixed_media(
         keyword=keyword,
         regions=region,
         sort=sort,
+        linked_stores_only=linked_only,
+        store_types=store_type,
     )
     return MediaCardListResponse(
         total=total, items=items, sourceCounts=counts, categoryCounts=category_counts
@@ -189,6 +195,10 @@ def list_fixed_clusters(
     keyword: str | None = Query(None),
     # 지역 — "서울특별시"(시·도 전체) 또는 "서울특별시 강남구". 여러 개면 OR.
     region: list[str] | None = Query(None),
+    # 콜라보 매장은 제휴사 회원에 연결된 매장만 — 광고주 매장 찾기(/partners/find)가 켠다.
+    linked_only: bool = Query(False),
+    # 콜라보 매장 유형(카페 · 식당 …) — 광고주 매장 찾기 탭. 여러 개면 OR.
+    store_type: list[str] | None = Query(None),
     db: Session = Depends(get_db),
 ) -> MediaClusterResponse:
     data = media_service.list_fixed_clusters(
@@ -208,6 +218,8 @@ def list_fixed_clusters(
         exclude_price_inquiry=exclude_price_inquiry,
         keyword=keyword,
         regions=region,
+        linked_stores_only=linked_only,
+        store_types=store_type,
     )
     return MediaClusterResponse(**data)
 

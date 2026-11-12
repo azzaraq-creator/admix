@@ -188,129 +188,127 @@ export function SanctionModal({
   return (
     <>
       {/* 부르는 쪽이 열 때만 그리므로 늘 열린 상태 — 바깥 · Esc · 닫기 버튼은 onClose. */}
-      <Modal
+      <Modal.Backdrop
         isOpen
         onOpenChange={(next) => {
           if (!next) onClose();
         }}
       >
-        <Modal.Backdrop>
-          <Modal.Container placement="center" className="px-[16px] sm:px-0">
-            <Modal.Dialog
-              aria-label="활동 정지"
-              className="flex w-[600px] max-w-full flex-col gap-[24px] rounded-[12px] bg-surface p-[44px]"
+        <Modal.Container placement="center" className="px-[16px] sm:px-0">
+          <Modal.Dialog
+            aria-label="활동 정지"
+            className="flex w-[600px] max-w-full flex-col gap-[24px] rounded-[12px] bg-surface p-[44px]"
+          >
+            <Modal.CloseTrigger
+              aria-label="닫기"
+              className="right-[40px] top-[40px] size-[32px] rounded-[13px] bg-transparent p-0 text-black data-[hovered=true]:bg-gray-50"
             >
-              <Modal.CloseTrigger
-                aria-label="닫기"
-                className="right-[40px] top-[40px] size-[32px] rounded-full bg-transparent p-0 text-black data-[hovered=true]:bg-gray-50"
-              >
-                <XIcon className="size-[24px]" />
-              </Modal.CloseTrigger>
-              <Modal.Header className="p-0 pr-[40px]">
-                <Modal.Heading className="text-[20px] font-semibold leading-[24px] text-tone-202224">
-                  활동 정지
-                </Modal.Heading>
-              </Modal.Header>
+              <XIcon className="size-[24px]" />
+            </Modal.CloseTrigger>
+            <Modal.Header className="p-0 pr-[40px]">
+              <Modal.Heading className="text-[20px] font-semibold leading-[24px] text-tone-202224">
+                활동 정지
+              </Modal.Heading>
+            </Modal.Header>
 
-              <Modal.Body className="mt-0 flex flex-col gap-[24px] text-base">
-                <div className="flex w-full items-center border-b border-tone-f3f2f0">
-                  <span className="flex h-[48px] w-[160px] shrink-0 items-center bg-tone-f5f5f5 px-[24px] text-[16px] leading-[24px] text-tone-555555">
-                    회원ID
-                  </span>
-                  <span className="flex-1 px-[24px] text-[16px] leading-[24px] text-tone-2a2a2a">
-                    {memberEmail}
-                  </span>
-                </div>
+            <Modal.Body className="mt-0 flex flex-col gap-[24px] text-base">
+              <div className="flex w-full items-center border-b border-tone-f3f2f0">
+                <span className="flex h-[48px] w-[160px] shrink-0 items-center bg-tone-f5f5f5 px-[24px] text-[16px] leading-[24px] text-tone-555555">
+                  회원ID
+                </span>
+                <span className="flex-1 px-[24px] text-[16px] leading-[24px] text-tone-2a2a2a">
+                  {memberEmail}
+                </span>
+              </div>
 
-                <div className="flex w-full flex-col gap-[12px]">
-                  <Select
-                    aria-label="정지 사유"
-                    placeholder="정지 사유 선택"
-                    fullWidth
-                    selectedKey={reason || null}
-                    onSelectionChange={(key) =>
-                      setReason(key == null ? "" : String(key))
-                    }
-                  >
-                    <Select.Trigger>
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {REASON_OPTIONS.map((o) => (
-                          <ListBox.Item
-                            key={o.value}
-                            id={o.value}
-                            textValue={o.label}
-                          >
-                            {o.label}
-                            <ListBox.ItemIndicator />
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
+              <div className="flex w-full flex-col gap-[12px]">
+                <Select
+                  aria-label="정지 사유"
+                  placeholder="정지 사유 선택"
+                  fullWidth
+                  selectedKey={reason || null}
+                  onSelectionChange={(key) =>
+                    setReason(key == null ? "" : String(key))
+                  }
+                >
+                  <Select.Trigger>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {REASON_OPTIONS.map((o) => (
+                        <ListBox.Item
+                          key={o.value}
+                          id={o.value}
+                          textValue={o.label}
+                        >
+                          {o.label}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
 
-                  <TextArea
-                    variant="secondary"
-                    fullWidth
-                    aria-label="정지 사유 상세"
-                    value={detail}
-                    onChange={(e) => setDetail(e.target.value)}
-                    placeholder="해당 회원을 정지하려는 사유를 입력해주세요."
-                    className="min-h-[160px] resize-y p-[20px] text-[16px] leading-[24px]"
-                  />
+                <TextArea
+                  variant="secondary"
+                  fullWidth
+                  aria-label="정지 사유 상세"
+                  value={detail}
+                  onChange={(e) => setDetail(e.target.value)}
+                  placeholder="해당 회원을 정지하려는 사유를 입력해주세요."
+                  className="min-h-[160px] resize-y p-[20px] text-[16px] leading-[24px]"
+                />
 
-                  <div className="flex flex-col gap-[8px]">
-                    <p className="text-[16px] font-semibold leading-[1.5] text-tone-555555">
-                      제재 기간 선택
-                    </p>
-                    <div className="flex items-center gap-[10px]">
-                      <PeriodDateField
-                        label="제재 시작일"
-                        value={startDate}
-                        onChange={setStartDate}
-                        maxDate={endDate || undefined}
-                      />
-                      <span className="text-[12px] text-tone-727272">-</span>
-                      <PeriodDateField
-                        label="제재 종료일"
-                        value={endDate}
-                        onChange={setEndDate}
-                        minDate={startDate || undefined}
-                      />
-                    </div>
+                <div className="flex flex-col gap-[8px]">
+                  <p className="text-[16px] font-semibold leading-[1.5] text-tone-555555">
+                    제재 기간 선택
+                  </p>
+                  <div className="flex items-center gap-[10px]">
+                    <PeriodDateField
+                      label="제재 시작일"
+                      value={startDate}
+                      onChange={setStartDate}
+                      maxDate={endDate || undefined}
+                    />
+                    <span className="text-[12px] text-tone-727272">-</span>
+                    <PeriodDateField
+                      label="제재 종료일"
+                      value={endDate}
+                      onChange={setEndDate}
+                      minDate={startDate || undefined}
+                    />
                   </div>
                 </div>
-              </Modal.Body>
+              </div>
+            </Modal.Body>
 
-              <Modal.Footer className="mt-0 flex w-full gap-[12px]">
-                {editing && (
-                  <Button
-                    variant="tertiary"
-                    size="lg"
-                    className="h-[64px] flex-1 text-[18px] font-semibold"
-                    onPress={handleDelete}
-                    isDisabled={pending}
-                  >
-                    삭제
-                  </Button>
-                )}
+            <Modal.Footer className="mt-0 flex w-full gap-[12px]">
+              {editing && (
                 <Button
-                  variant="primary"
+                  variant="tertiary"
                   size="lg"
                   className="h-[64px] flex-1 text-[18px] font-semibold"
-                  onPress={handleSave}
-                  isDisabled={!canSave}
+                  onPress={handleDelete}
+                  isDisabled={pending}
                 >
-                  저장
+                  삭제
                 </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+              )}
+              <Button
+                variant="primary"
+                size="lg"
+                className="h-[64px] flex-1 text-[18px] font-semibold"
+                onPress={handleSave}
+                isDisabled={!canSave}
+              >
+                저장
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
       {confirmDialog}
     </>
   );

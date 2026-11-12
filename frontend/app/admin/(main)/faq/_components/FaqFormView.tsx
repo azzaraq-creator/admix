@@ -5,6 +5,7 @@ import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
 import { useAdminMe } from "@/hooks/adminAuth";
@@ -95,7 +96,11 @@ function FaqForm({
       if (isEdit && id) {
         await updateMutation.mutateAsync({
           id,
-          payload: { title: title.trim(), faq_type: type, content: content.trim() },
+          payload: {
+            title: title.trim(),
+            faq_type: type,
+            content: content.trim(),
+          },
         });
       } else {
         await createMutation.mutateAsync({
@@ -107,7 +112,9 @@ function FaqForm({
       }
       await alert({
         title: isEdit ? "저장 완료" : "등록 완료",
-        description: isEdit ? "저장이 완료되었습니다." : "등록이 완료되었습니다.",
+        description: isEdit
+          ? "저장이 완료되었습니다."
+          : "등록이 완료되었습니다.",
         confirmText: "확인",
       });
       if (!isEdit) goList();
@@ -148,66 +155,74 @@ function FaqForm({
   const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 흰 카드 하나(AdminPanel) — 제목 · 아래 버튼은 카드 밖(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         {isEdit ? "FAQ 상세" : "FAQ 등록"}
       </h1>
 
-      <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
-        <MetaRow label="작성자" value={detail?.author ?? "-"} />
-        <MetaRow label="작성일" value={detail?.created_at?.slice(0, 10) ?? "-"} />
-
-        <FieldRow>
-          <FieldLabel label="제목" />
-          <Input
-            aria-label="제목"
-            className="min-w-0 flex-1"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력"
+      <AdminPanel>
+        <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
+          <MetaRow label="작성자" value={detail?.author ?? "-"} />
+          <MetaRow
+            label="작성일"
+            value={detail?.created_at?.slice(0, 10) ?? "-"}
           />
-        </FieldRow>
-        <FieldRow>
-          <FieldLabel label="유형" />
-          <Select
-            aria-label="유형"
-            className="min-w-0 flex-1"
-            placeholder="유형 선택"
-            selectedKey={type || null}
-            onSelectionChange={(key) => setType(key == null ? "" : String(key))}
-          >
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                {FAQ_TYPE_OPTIONS.map((option) => (
-                  <ListBox.Item
-                    key={option.value}
-                    id={option.value}
-                    textValue={option.label}
-                  >
-                    {option.label}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
-          </Select>
-        </FieldRow>
 
-        <div className="col-span-2 flex items-start gap-[12px]">
-          <FieldLabel label="내용" />
-          <TextArea
-            aria-label="내용"
-            className="h-[140px] min-w-0 flex-1 resize-none"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="내용 입력"
-          />
+          <FieldRow>
+            <FieldLabel label="제목" />
+            <Input
+              aria-label="제목"
+              className="min-w-0 flex-1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목을 입력"
+            />
+          </FieldRow>
+          <FieldRow>
+            <FieldLabel label="유형" />
+            <Select
+              aria-label="유형"
+              className="min-w-0 flex-1"
+              placeholder="유형 선택"
+              selectedKey={type || null}
+              onSelectionChange={(key) =>
+                setType(key == null ? "" : String(key))
+              }
+            >
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {FAQ_TYPE_OPTIONS.map((option) => (
+                    <ListBox.Item
+                      key={option.value}
+                      id={option.value}
+                      textValue={option.label}
+                    >
+                      {option.label}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </FieldRow>
+
+          <div className="col-span-2 flex items-start gap-[12px]">
+            <FieldLabel label="내용" />
+            <TextArea
+              aria-label="내용"
+              className="h-[140px] min-w-0 flex-1 resize-none"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="내용 입력"
+            />
+          </div>
         </div>
-      </div>
+      </AdminPanel>
 
       <div className="flex items-center justify-between">
         <Button variant="outline" onPress={goList}>
@@ -220,7 +235,11 @@ function FaqForm({
             <Button variant="tertiary" onPress={handleDelete}>
               삭제
             </Button>
-            <Button variant="primary" onPress={handleSubmit} isDisabled={saving}>
+            <Button
+              variant="primary"
+              onPress={handleSubmit}
+              isDisabled={saving}
+            >
               저장
             </Button>
           </div>

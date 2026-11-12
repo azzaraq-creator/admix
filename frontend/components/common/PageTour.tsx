@@ -578,7 +578,7 @@ function TourOverlay({
             type="button"
             aria-label="가이드 닫기"
             onClick={onClose}
-            className="-mt-[6px] -mr-[6px] flex size-[28px] shrink-0 items-center justify-center rounded-[8px] text-gray-400 transition-colors hover:bg-gray-50 hover:text-black"
+            className="-mt-[6px] -mr-[6px] flex size-[28px] shrink-0 items-center justify-center rounded-[11px] text-gray-400 transition-colors hover:bg-gray-50 hover:text-black"
           >
             <XIcon className="size-[14px]" />
           </button>

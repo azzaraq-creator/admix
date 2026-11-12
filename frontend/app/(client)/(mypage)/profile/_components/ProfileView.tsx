@@ -3,17 +3,23 @@
 import {
   Button,
   Card,
+  Checkbox,
   Chip,
   Input,
+  Label,
   Popover,
   Switch,
   Tooltip,
 } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
 
+import {
+  CollabMarketingNote,
+  HEROUI_CHECKBOX_SCOPE,
+} from "@/app/(client)/(auth)/signup/_components/signupUi";
 import {
   CircleCheckIcon,
   FileTypeIcon,
@@ -72,6 +78,10 @@ import { PasswordChangeModal } from "./PasswordChangeModal";
  */
 
 type EditableKey = "name" | "phone" | "company_name";
+
+/** admix 내 정보(/profile)의 마케팅 동의 설명 — 콜라보는 CollabMarketingNote(조금 더 진한 글자). */
+const ADMIX_MARKETING_DESC =
+  "새로운 매체와 프로모션 소식을 이메일로 받아볼 수 있어요.";
 
 const FIELD_LABEL: Record<EditableKey, string> = {
   name: "이름",
@@ -308,6 +318,11 @@ export function ProfileView() {
     {},
   );
   const [marketingDraft, setMarketingDraft] = useState<boolean | null>(null);
+  const [channelDraft, setChannelDraft] = useState<{
+    sms: boolean;
+    email: boolean;
+  } | null>(null);
+  const [marketingError, setMarketingError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -323,6 +338,21 @@ export function ProfileView() {
   };
   const savedMarketing = me?.marketing_consent ?? false;
   const marketing = marketingDraft ?? savedMarketing;
+  // 콜라보 내 정보(/partners/profile)에서만 — 새 콜라보 알림 설명 + 받을 방법(문자 · 이메일, 둘 다 가능) 체크박스(11-12 사용자).
+  // admix 내 정보(/profile)는 예전 그대로(방법 없이 동의만 켜면 서버가 둘 다로 본다).
+  const pathname = usePathname();
+  const collab = pathname?.startsWith("/partners") ?? false;
+  const savedChannels = {
+    sms: me?.marketing_sms ?? false,
+    email: me?.marketing_email ?? false,
+  };
+  const channels = channelDraft ?? savedChannels;
+  // 받을 방법은 동의가 켜져 있을 때만 저장한다.
+  const channelsChanged =
+    collab &&
+    marketing &&
+    (channels.sms !== savedChannels.sms ||
+      channels.email !== savedChannels.email);
 
   const category = MEMBER_CATEGORIES.find(
     (c) => c.value === me?.member_category,
@@ -341,8 +371,21 @@ export function ProfileView() {
   const dirty =
     changedFields.length > 0 ||
     (marketingDraft !== null && marketingDraft !== savedMarketing) ||
+    channelsChanged ||
     pendingFile !== null;
   const saving = updateProfile.isPending || uploadBiz.isPending;
+
+  // 동의를 켤 때 고른 방법이 없으면 둘 다 골라 둔다(콜라보) — 하나만 받고 싶으면 끄면 된다.
+  const toggleMarketing = (on: boolean) => {
+    setMarketingDraft(on);
+    setMarketingError(null);
+    if (collab && on && !channels.sms && !channels.email)
+      setChannelDraft({ sms: true, email: true });
+  };
+  const toggleChannel = (key: "sms" | "email", on: boolean) => {
+    setChannelDraft({ ...channels, [key]: on });
+    setMarketingError(null);
+  };
 
   const startEdit = (key: EditableKey) => {
     setDrafts((prev) => ({
@@ -367,6 +410,8 @@ export function ProfileView() {
   const resetAll = () => {
     setDrafts({});
     setMarketingDraft(null);
+    setChannelDraft(null);
+    setMarketingError(null);
     setPendingFile(null);
     setFileError(null);
     setPhoneError(null);
@@ -395,14 +440,24 @@ export function ProfileView() {
       phone?: string;
       company_name?: string;
       marketing_consent?: boolean;
+      marketing_sms?: boolean;
+      marketing_email?: boolean;
     } = {};
     for (const key of changedFields) payload[key] = (drafts[key] ?? "").trim();
     if (payload.phone !== undefined && !isValidPhone(payload.phone)) {
       setPhoneError(PHONE_ERROR_MESSAGE);
       return;
     }
+    if (collab && marketing && !channels.sms && !channels.email) {
+      setMarketingError("SMS나 이메일 중 하나는 골라 주세요.");
+      return;
+    }
     if (marketingDraft !== null && marketingDraft !== savedMarketing)
       payload.marketing_consent = marketingDraft;
+    if (channelsChanged) {
+      payload.marketing_sms = channels.sms;
+      payload.marketing_email = channels.email;
+    }
 
     // 토스트 둘째 줄에 무엇이 바뀌었는지 적는다(예: "이름, 전화번호, 마케팅 정보 수신 동의").
     const savedItems = [
@@ -414,6 +469,10 @@ export function ProfileView() {
               ? "마케팅 정보 수신 동의"
               : "마케팅 정보 수신 동의 철회",
           ]),
+      // 동의는 그대로 두고 받을 방법만 바꿨을 때.
+      ...(channelsChanged && payload.marketing_consent === undefined
+        ? ["마케팅 정보 받을 방법"]
+        : []),
       ...(pendingFile ? ["사업자등록증(검토 요청)"] : []),
     ];
 
@@ -634,7 +693,7 @@ export function ProfileView() {
                         isIconOnly
                         variant="ghost"
                         aria-label="사업자 인증 완료"
-                        className="size-[18px] min-w-0 shrink-0 rounded-full p-0 data-[hovered=true]:bg-transparent sm:hidden"
+                        className="size-[18px] min-w-0 shrink-0 rounded-[6px] p-0 data-[hovered=true]:bg-transparent sm:hidden"
                       >
                         <VerifiedBadgeIcon className="m-0 size-[18px] text-[#16a34a]" />
                       </Button>
@@ -758,7 +817,7 @@ export function ProfileView() {
                       src="/icons/upload.svg"
                       alt=""
                       width={16}
-                      height={20}
+                      height={16}
                     />
                   </span>
                   <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
@@ -833,7 +892,7 @@ export function ProfileView() {
             <div className="flex min-w-0 flex-col gap-[6px]">
               <Switch
                 isSelected={marketing}
-                onChange={setMarketingDraft}
+                onChange={toggleMarketing}
                 className="group gap-[12px]"
               >
                 <Switch.Content className="items-center gap-[12px]">
@@ -844,15 +903,63 @@ export function ProfileView() {
                     <span className="text-[13px] font-medium text-gray-900 sm:text-[14px]">
                       마케팅 정보 수신에 동의해요
                     </span>
-                    <span className="text-[11px] text-gray-400 max-sm:hidden sm:text-[12px]">
-                      새로운 매체와 프로모션 소식을 이메일로 받아볼 수 있어요.
-                    </span>
+                    {!collab && (
+                      <span className="text-[11px] text-gray-400 max-sm:hidden sm:text-[12px]">
+                        {ADMIX_MARKETING_DESC}
+                      </span>
+                    )}
                   </span>
                 </Switch.Content>
               </Switch>
-              <p className="text-[11px] text-gray-400 sm:hidden">
-                새로운 매체와 프로모션 소식을 이메일로 받아볼 수 있어요.
-              </p>
+              {/* 콜라보는 새 콜라보 알림 안내를 읽히게(진한 회색, 11-12 사용자) — 가입 약관 단계와 같은 모양. */}
+              {collab ? (
+                <CollabMarketingNote className="w-fit" />
+              ) : (
+                <p className="text-[11px] text-gray-400 sm:hidden">
+                  {ADMIX_MARKETING_DESC}
+                </p>
+              )}
+              {/* 받을 방법 — 둘 다 고를 수 있다. 동의를 끄면 흐리게 막는다(고른 값은 다시 켤 때 쓴다). */}
+              {collab && (
+                <div
+                  role="group"
+                  aria-label="마케팅 정보 받을 방법"
+                  className="flex flex-wrap items-center gap-x-[16px] gap-y-[6px] pt-[2px]"
+                >
+                  {(
+                    [
+                      ["sms", "SMS"],
+                      ["email", "이메일"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Checkbox
+                      key={key}
+                      isSelected={marketing && channels[key]}
+                      isDisabled={!marketing}
+                      onChange={(on) => toggleChannel(key, on)}
+                      className={cn(HEROUI_CHECKBOX_SCOPE, "flex")}
+                    >
+                      <Checkbox.Content className="cursor-pointer items-center gap-[6px]">
+                        <Checkbox.Control className="border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        {/* Checkbox.Content 가 이미 <label> 이라 글자는 span 으로(label 안 label 방지). */}
+                        <Label
+                          elementType="span"
+                          className="cursor-pointer text-[13px] font-medium text-gray-900 sm:text-[14px]"
+                        >
+                          {label}
+                        </Label>
+                      </Checkbox.Content>
+                    </Checkbox>
+                  ))}
+                </div>
+              )}
+              {marketingError && (
+                <p className="text-[12px] text-danger max-sm:text-[11px]">
+                  {marketingError}
+                </p>
+              )}
             </div>
           </Field>
 
@@ -1109,7 +1216,7 @@ function ContactCard({ me }: { me: MeResponse }) {
             )}
           >
             <span className="flex size-[36px] items-center justify-center rounded-full bg-surface sm:size-[44px]">
-              <Image src="/icons/upload.svg" alt="" width={16} height={20} />
+              <Image src="/icons/upload.svg" alt="" width={16} height={16} />
             </span>
             <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
               명함 파일을 올려 주세요

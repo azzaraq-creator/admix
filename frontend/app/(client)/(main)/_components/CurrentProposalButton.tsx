@@ -3,6 +3,7 @@
 import { Popover, Spinner } from "@heroui/react";
 import { type RefObject, useRef } from "react";
 
+import { ExternalTrigger } from "@/components/common/ExternalTrigger";
 import { OpenFolderIcon, ChevronRightIcon } from "@/components/icons";
 import {
   hideProposalCallout,
@@ -39,6 +40,7 @@ function ProposalCallout({
         if (!next) hideProposalCallout();
       }}
     >
+      <ExternalTrigger />
       <Popover.Content
         triggerRef={triggerRef}
         isNonModal
@@ -92,7 +94,7 @@ function CountBadge({
   return (
     <span
       className={cn(
-        "flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[10px] leading-none font-bold text-white tabular-nums",
+        "flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[10px] leading-none font-bold text-white",
         corner &&
           "absolute -top-[7px] -right-[9px] h-[16px] min-w-[16px] px-[4px] ring-2 ring-white",
         className,
@@ -173,7 +175,7 @@ export function CurrentProposalButton({
           className={cn(
             // 아이콘은 메인 색(보라) — 펼친 카드의 "현재 기획안" 이름표와 같은 색으로, 접혀도 같은 버튼으로 읽히게.
             // (PC 사이드바 전용 — 모바일 상단바는 variant="header"로 따로 그린다.)
-            "flex h-[44px] w-full items-center justify-center rounded-[16px] border bg-surface text-primary transition-colors",
+            "flex h-[44px] w-full items-center justify-center rounded-[19px] border bg-surface text-primary transition-colors",
             open
               ? "border-primary-300 bg-primary-50"
               : "border-gray-200 hover:border-primary-200 hover:bg-primary-50/60",

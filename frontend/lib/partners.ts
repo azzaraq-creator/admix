@@ -1,3 +1,5 @@
+import type { PlanBlock } from "@/lib/collabPlan";
+
 /** 콜라보 — 매체 찾기 카테고리·/partners 대시보드가 같이 쓰는 값. 백엔드 partners_service 와 같다. */
 
 /** 매체 찾기에서 콜라보 매장이 쓰는 카테고리(대). */
@@ -5,8 +7,6 @@ export const PARTNERS_MEDIA_CATEGORY = "콜라보";
 /** 매체 찾기에서 콜라보 매장이 쓰는 카테고리(소) — 백엔드 PARTNERS_MEDIA_SMALL 과 같다. */
 export const PARTNERS_MEDIA_SMALL = "매장";
 
-/** 매장 사진 — 분류를 합쳐 최대 30장(어드민에서만 올린다, 069 · 2026-11-10). 백엔드 partners_service.MAX_IMAGES 와 같다. */
-export const PARTNERS_MAX_IMAGES = 30;
 /** 사진 메모 길이 — 백엔드 PHOTO_MEMO_MAX_LEN 과 같다. */
 export const PARTNERS_PHOTO_MEMO_MAX_LEN = 50;
 /** 올리기 전에 브라우저에서 줄이는 긴 변(px) — 서버도 같은 크기로 한 번 더 줄인다(IMAGE_MAX_SIDE). */
@@ -31,12 +31,15 @@ export function cardTags(tags: string[] | null | undefined): {
 
 /**
  * 매장 사진 분류 — 백엔드 partners_service.PHOTO_KINDS 와 같은 순서 · 값(2026-11-10, 예전 좌석 · 화장실은 내관으로).
+ * DP 가능 공간 · 프로모션 공간은 2026-11-12 사용자 추가.
  * 분류마다 대표 사진이 하나씩 있고, 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다.
  */
 export const PHOTO_KINDS = [
   "exterior",
   "interior",
   "counter",
+  "dp_space",
+  "promo_space",
   "menu",
   "etc",
 ] as const;
@@ -45,9 +48,16 @@ export const PHOTO_KIND_LABEL: Record<PhotoKind, string> = {
   exterior: "외관",
   interior: "내관",
   counter: "카운터",
+  dp_space: "DP 가능 공간",
+  promo_space: "프로모션 공간",
   menu: "메뉴",
   etc: "기타",
 };
+/**
+ * 어드민에서만 보는 분류 — 서버가 광고주 · 제휴사 화면과 매체 찾기에는 내보내지 않는다(2026-11-12 사용자).
+ * 백엔드 partners_service.ADMIN_ONLY_PHOTO_KINDS 와 같다.
+ */
+export const ADMIN_ONLY_PHOTO_KINDS: readonly PhotoKind[] = ["menu"];
 export interface StorePhoto {
   url: string;
   kind: PhotoKind;
@@ -57,6 +67,13 @@ export interface StorePhoto {
   memo?: string;
   /** 올린 때(ISO) — 서버가 처음 저장할 때 붙인다. 어드민 매장 폼 메모 아래에 날짜로 보인다. */
   uploadedAt?: string | null;
+}
+
+/** 사진 분류 화면 이름 — 모르는 값 · 없으면 undefined(카드 사진 이름표를 안 띄운다, 11-12). */
+export function photoKindLabel(kind: string | null | undefined) {
+  return kind && kind in PHOTO_KIND_LABEL
+    ? PHOTO_KIND_LABEL[kind as PhotoKind]
+    : undefined;
 }
 
 /** 카드(매체 찾기 · 광고주 매장 · 내 매장 미리보기)에 보일 분류별 대표 사진 — 분류 순. */
@@ -113,7 +130,7 @@ export function noteTone(note: string): "no" | "ok" | "info" {
 
 /**
  * 매장 유형(카페 · 식당 …, 070) — 유형마다 "매장 어필" 칩 값과 자주 쓰는 "조건 메모" 값이 다르다.
- * 어드민 "콜라보 → 매장 항목"(/admin/collab/store-options)에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
+ * 어드민 "콜라보 → 매장 유형 관리"(/admin/collab/store-options)에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
  */
 export interface StoreType {
   id: number;
@@ -244,6 +261,38 @@ export interface AdminPartnersStore extends PartnersStore {
   gradeScores?: GradeScores;
   /** 상세 조회 때만 — 처리 전 수정 요청 수. */
   requestsPending?: number;
+  /** 목록 조회 때만 — 콜라보 응답 수(11-12). */
+  collabResponses?: StoreCollabCounts;
+}
+
+/**
+ * 매장의 콜라보 응답(11-12 사용자) — 새 콜라보마다 참여 / 미참여를 묻고, 모집이 끝날 때까지 답이 없으면 무응답.
+ * joined 참여(신청한 적 있음) · passed 미참여 · silent 무응답 · waiting 모집 중이라 답 기다림.
+ */
+export type StoreCollabResponse = "joined" | "passed" | "silent" | "waiting";
+export type StoreCollabCounts = Record<StoreCollabResponse, number>;
+
+/** 어드민 매장 상세 "콜라보 참여"(GET /admin/partners/stores/{id}/collabs). */
+export interface AdminStoreCollabs {
+  counts: StoreCollabCounts;
+  /** 이 매장이 답할 수 있게 된 날(매장 등록 · 회원 협약 중 늦은 날) — 연결 회원이 없거나 협약 전이면 null. */
+  since: string | null;
+  items: {
+    collabId: string;
+    brandName: string;
+    title: string;
+    phase: CollabPhase;
+    recruitStart: string;
+    recruitEnd: string;
+    startDate: string;
+    endDate: string;
+    response: StoreCollabResponse;
+    /** 참여 줄 상태(참여 · 미참여만) */
+    status: ParticipantStatus | null;
+    appliedAt: string | null;
+    answeredAt: string | null;
+    confirmNo: string | null;
+  }[];
 }
 
 /** 저장 요청 — 백엔드 PartnersStoreIn(snake_case). */
@@ -295,6 +344,21 @@ export const STORE_REQUEST_FIELDS = {
 } as const;
 export type StoreRequestField = keyof typeof STORE_REQUEST_FIELDS;
 
+/**
+ * 추가 요청 · 문의(11-12) — 위 항목 말고 사진 · 매장 유형 · 콜라보 같은 것도 글로 보낸다.
+ * 백엔드 partners_service.INQUIRY_FIELD · INQUIRY_LABEL · INQUIRY_MAX_LEN 과 같다. 반영할 값이 없어 어드민은 답하고 처리 완료한다.
+ */
+export const STORE_INQUIRY_FIELD = "inquiry";
+export const STORE_INQUIRY_LABEL = "추가 요청 · 문의";
+export const STORE_INQUIRY_MAX_LEN = 1000;
+
+/** 항목(매장명 · 주소 …)을 바꿔 달라는 요청인지 — 아니면 글로 보낸 요청(추가 요청 · 문의, 예전 자유 입력)이다. */
+export function isFieldRequest<T extends Pick<StoreRequest, "field">>(
+  r: T,
+): r is T & { field: StoreRequestField } {
+  return r.field != null && r.field in STORE_REQUEST_FIELDS;
+}
+
 /** 주소 수정 요청 값 — 좌표는 못 찾았으면 비워 보낸다(반영할 때 서버가 주소로 찾는다). */
 export interface StoreAddressValue {
   address: string;
@@ -315,8 +379,8 @@ export type StoreRequestStatus = "pending" | "done" | "rejected";
 export interface StoreRequest {
   id: string;
   storeId: string;
-  /** 예전 자유 입력 요청이면 null — 그때는 after 가 요청 글. */
-  field: StoreRequestField | null;
+  /** 추가 요청 · 문의면 "inquiry", 예전 자유 입력 요청이면 null — 둘 다 after 가 요청 글(isFieldRequest). */
+  field: StoreRequestField | typeof STORE_INQUIRY_FIELD | null;
   fieldLabel: string;
   before: string | null;
   after: string | null;
@@ -332,9 +396,9 @@ export interface StoreRequest {
   handledAt: string | null;
 }
 
-/** 수정 요청 보내기 — 백엔드 StoreRequestIn. */
+/** 수정 요청 보내기 — 백엔드 StoreRequestIn. 추가 요청 · 문의는 value 가 글. */
 export interface StoreRequestPayload {
-  field: StoreRequestField;
+  field: StoreRequestField | typeof STORE_INQUIRY_FIELD;
   value: unknown;
   memo?: string | null;
 }
@@ -391,6 +455,8 @@ export interface AdminPartnerMember {
 export interface CollabItem {
   label: string;
   note: string;
+  /** 누가 준비하나(어드민만, 11-12) — ready 브랜드 보유 · made 브랜드 제작 · admix admix 제작. 매장 화면엔 안 온다. */
+  prep?: "ready" | "made" | "admix";
 }
 
 /** 어드민 콜라보 단계 — 백엔드 collab_service.phase_of. */
@@ -412,8 +478,14 @@ export const COLLAB_PHASE_LABEL: Record<CollabPhase, string> = {
   cancelled: "취소",
 };
 /** 매장 참여 상태 — applied 신청 · requested 확정 요청 · confirmed 확정 · declined 미참여 · cancelled 취소. */
+/** passed — 매장이 모집 기간에 "미참여"로 답함(11-12). declined 는 신청한 뒤 확정 요청 전에 빠진 것(어드민 처리). */
 export type ParticipantStatus =
-  "applied" | "requested" | "confirmed" | "declined" | "cancelled";
+  | "applied"
+  | "requested"
+  | "confirmed"
+  | "declined"
+  | "cancelled"
+  | "passed";
 export type CollabPhotoStep = "install" | "check1" | "check2" | "check3";
 
 /** 어드민 콜라보(069). */
@@ -443,6 +515,8 @@ export interface AdminCollab {
   phase: CollabPhase;
   adminMemo: string | null;
   counts: Record<ParticipantStatus, number>;
+  /** 결과 보고서 파일 수(086) — 목록(GET /admin/collab/collabs)에만. */
+  reportFileCount?: number;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -489,6 +563,17 @@ export interface AdminCollabDetail extends AdminCollab {
     author: string;
     createdAt: string | null;
   }[];
+  /** 결과 보고서 파일(086) — 콜라보 결과에서 올려 모아 둔다. 올린 순. */
+  reportFiles: CollabReportFile[];
+}
+
+/** 결과 보고서 파일 한 개(086). 받기는 GET /admin/collab/reports/{id}/file. */
+export interface CollabReportFile {
+  id: string;
+  name: string;
+  size: number;
+  uploadedBy: string | null;
+  createdAt: string | null;
 }
 
 /** 어드민 콜라보 저장 — 백엔드 CollabIn(snake_case, 날짜는 YYYY-MM-DD, 확정 기한은 ISO). */
@@ -526,12 +611,18 @@ export interface CollabAdminSummary {
     bizReviewing: number;
     bizProvisional: number;
   };
+  /** 광고주 회원 — 사업자등록증 검토 대기 수(사이드 메뉴 "광고주 회원" 옆 숫자). */
+  advertisers: { bizReviewing: number };
   stores: { total: number; unlinked: number; hidden: number };
   requestsPending: number;
   collabs: Partial<Record<CollabPhase, number>>;
   confirmWaiting: number;
   restockOpen: number;
   photoDue: number;
+  /** 접수된 광고주 콜라보 의뢰 수(081) — 사이드 메뉴 "콜라보 의뢰" 옆 숫자. */
+  collabRequestsSubmitted?: number;
+  /** 광고주 콜라보 의뢰 중 어드민이 아직 안 연 것 — 바뀌면 사이드 메뉴가 의뢰 목록을 다시 불러온다. */
+  collabRequestsNew?: number;
 }
 
 /** 광고주 브랜드(068) — 콜라보 화면 "내 브랜드". 한 광고주가 여러 개, 먼저 등록한 것이 앞. */
@@ -540,17 +631,95 @@ export interface AdvertiserBrand {
   name: string;
   /** 사진(/uploads/brand/… 또는 S3) — 없으면 화면에 기본 "C". */
   imageUrl: string | null;
+  /** 브랜드 담당자 정보(079, 모두 선택) — 전화번호는 숫자만. */
+  contactName?: string | null;
+  contactTitle?: string | null;
+  /** 직책 또는 부서. */
+  contactDept?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   createdAt: string | null;
 }
 
-/** 브랜드 저장 요청 — 백엔드 AdvertiserBrandIn. image_url 을 null 로 보내면 사진을 지운다. */
+/** 브랜드 저장 요청 — 백엔드 AdvertiserBrandIn. image_url 을 null 로 보내면 사진을 지운다. 담당자 칸은 빈 값이면 지운다. */
 export interface AdvertiserBrandPayload {
   name?: string;
   image_url?: string | null;
+  contact_name?: string | null;
+  contact_title?: string | null;
+  contact_dept?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
 }
 
 /** 브랜드 이름 최대 글자 수 — 백엔드 advertiser_brand_service.NAME_MAX, 의뢰서 브랜드 칸과 같다. */
 export const BRAND_NAME_MAX = 40;
+
+/** 광고주 콜라보 의뢰 보내기(081) — 백엔드 CollabRequestIn. 글자 수는 서버도 의뢰서와 같은 규칙으로 본다. */
+export interface CollabRequestPayload {
+  brand_id: string;
+  title: string;
+  summary: string | null;
+  start_date: string;
+  end_date: string;
+  contact: { name: string; phone: string; role: string };
+  items: { key: string; prep: "ready" | "made" | "admix"; note: string }[];
+  extra_plan: string | null;
+  course: string;
+  min_stores: number;
+  target_stores: number;
+  preferred_store_ids: string[];
+  memo: string | null;
+  /** 화면이 보여 준 예상 비용 · 일정(참고용). */
+  estimate: { total: number; preferred: number; rest: number; avg: number; negotiable: number };
+  schedule: Record<string, string | number | boolean>;
+  /** 고쳐 다시 보낼 때 — false 면 올려 둔 첨부를 지운다. */
+  keep_plan_file?: boolean;
+}
+
+/**
+ * 내가 보낸 의뢰 한 건 전부(GET /partners/me/collab-requests) — 내 콜라보 · 상세 · 고쳐 다시 보내기를 다시 그린다.
+ * 위 칸들은 처음 보낸 의뢰서(0차) 그대로, 고친 내용은 기획안 차수(original · rounds · confirmedAt, 085)에 있다.
+ */
+export interface CollabRequestMine extends CollabRequestSaved, PlanBlock {
+  brandId: string | null;
+  brandName: string;
+  brandImageUrl: string | null;
+  title: string;
+  summary: string | null;
+  startDate: string;
+  endDate: string;
+  contact: { name: string; phone: string; role: string };
+  items: { key: string; prep: "ready" | "made" | "admix"; note: string }[];
+  extraPlan: string | null;
+  planFile: { name: string; size: number } | null;
+  course: string;
+  minStores: number;
+  targetStores: number;
+  /** 의뢰 당시 매장 이름 · 지역 · 등급 · 금액. */
+  preferred: {
+    id: string;
+    code?: string | null;
+    name: string;
+    area: string;
+    grade: string | null;
+    fee: number | null;
+  }[];
+  memo: string | null;
+  estimate: { total?: number; preferred?: number; rest?: number; avg?: number; negotiable?: number } | null;
+}
+
+/** 보낸 의뢰 — 문서 번호(CR-YYMMDD-NN). */
+export interface CollabRequestSaved {
+  id: string;
+  code: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  /** 광고주가 취소한 때(084) — 취소해도 지우지 않고 남긴다. */
+  cancelledAt: string | null;
+  planFileName: string | null;
+}
 
 // 사진 주소(/uploads/... 상대경로 포함)는 lib/media 의 mediaSrc 로 바꿔 쓴다.
 

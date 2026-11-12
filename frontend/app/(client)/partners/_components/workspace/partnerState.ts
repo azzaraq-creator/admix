@@ -55,7 +55,7 @@ export function usePartnerWorkspace() {
   };
 }
 
-/** 지금 신청할 수 있는 모집 중 콜라보 수 — 메뉴 "콜라보 참여" 옆 숫자. */
+/** 참여 여부를 아직 답하지 않은 모집 중 콜라보 수 — 메뉴 "콜라보 참여" 옆 숫자(미참여로 답한 것 · 기간 겹침은 뺀다). */
 export function useRecruitingCount() {
   const { store } = useSelectedPartnerStore();
   const { data } = useStoreCollabs(store?.id);
@@ -88,14 +88,17 @@ export function useCollabCommands() {
     pending:
       actions.apply.isPending ||
       actions.withdraw.isPending ||
+      actions.pass.isPending ||
       actions.confirm.isPending ||
       actions.photo.isPending ||
       actions.restock.isPending,
     photoPending: actions.photo.isPending,
     apply: (id: string) =>
-      run(actions.apply.mutateAsync(id), "신청하지 못했어요."),
+      run(actions.apply.mutateAsync(id), "참여하지 못했어요."),
     withdraw: (id: string) =>
-      run(actions.withdraw.mutateAsync(id), "신청을 취소하지 못했어요."),
+      run(actions.withdraw.mutateAsync(id), "참여를 취소하지 못했어요."),
+    pass: (id: string) =>
+      run(actions.pass.mutateAsync(id), "미참여로 답하지 못했어요."),
     confirm: async (id: string, confirmer: string, checked: number) =>
       (
         await run(

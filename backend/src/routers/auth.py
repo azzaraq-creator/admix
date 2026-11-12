@@ -54,6 +54,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         member_category=body.member_category,
         company_name=body.company_name,
         marketing_consent=body.marketing_consent,
+        marketing_sms=body.marketing_sms,
+        marketing_email=body.marketing_email,
     )
     access, refresh = auth_service.issue_tokens(db, user, remember=True)
     proposal_service.claim_session_proposals(
@@ -193,6 +195,8 @@ def update_me(
         company_name=body.company_name,
         phone=body.phone,
         marketing_consent=body.marketing_consent,
+        marketing_sms=body.marketing_sms,
+        marketing_email=body.marketing_email,
         member_category=body.member_category,
         contact_name=body.contact_name,
         position=body.position,

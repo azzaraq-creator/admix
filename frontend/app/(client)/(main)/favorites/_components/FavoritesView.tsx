@@ -371,7 +371,7 @@ export function FavoritesView({ member }: { member: boolean }) {
             <Button
               variant="primary"
               onPress={openLoginModal}
-              className="mt-[8px] rounded-[17px] bg-primary-500 text-white md:rounded-[15px]"
+              className="mt-[8px] bg-primary-500 text-white"
             >
               로그인
             </Button>
@@ -388,14 +388,14 @@ export function FavoritesView({ member }: { member: boolean }) {
                 <Button
                   variant="outline"
                   onPress={() => setMixieOpen(true)}
-                  className="rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
+                  className="text-[13px] font-semibold"
                 >
                   AI 믹시에게 물어보기
                 </Button>
                 <Button
                   variant="outline"
                   onPress={() => router.push("/fixed")}
-                  className="rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
+                  className="text-[13px] font-semibold"
                 >
                   매체 찾기로 가기
                 </Button>
@@ -410,7 +410,7 @@ export function FavoritesView({ member }: { member: boolean }) {
               <Button
                 variant="outline"
                 onPress={handleReset}
-                className="mt-[8px] rounded-[17px] text-[13px] font-semibold md:rounded-[15px]"
+                className="mt-[8px] text-[13px] font-semibold"
               >
                 검색 조건 초기화
               </Button>

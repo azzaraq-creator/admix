@@ -474,7 +474,7 @@ function AgreementBody({
                           <CheckMark on />
                         </span>
                       ) : (
-                        <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 tabular-nums max-sm:size-[20px] max-sm:text-[10px]">
+                        <span className="flex size-[24px] shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700 max-sm:size-[20px] max-sm:text-[10px]">
                           {i + 1}
                         </span>
                       )}
@@ -487,7 +487,7 @@ function AgreementBody({
                         >
                           {st.title}
                         </b>
-                        <small className="text-[11px] text-gray-400 tabular-nums max-sm:text-[10px]">
+                        <small className="text-[11px] text-gray-400 max-sm:text-[10px]">
                           {st.detail}
                         </small>
                       </span>
@@ -517,7 +517,7 @@ function AgreementBody({
                     aria-label={`${gi + 1}. ${g.title}${read.includes(g.id) ? " (확인함)" : ""}`}
                     onClick={() => goTopic(gi)}
                     className={cn(
-                      "flex size-[32px] items-center justify-center gap-[6px] rounded-full text-[12px] font-bold tabular-nums transition-colors lg:w-auto lg:px-[14px] lg:text-[13px]",
+                      "flex size-[32px] items-center justify-center gap-[6px] rounded-[13px] text-[12px] font-bold transition-colors lg:w-auto lg:px-[14px] lg:text-[13px]",
                       topic === gi
                         ? "bg-surface text-gray-900 shadow-[0_4px_14px_rgba(42,20,89,0.12)]"
                         : read.includes(g.id)
@@ -602,7 +602,7 @@ function AgreementBody({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-full text-[13px] font-semibold text-gray-600"
+                    className="text-[13px] font-semibold text-gray-600"
                     onPress={() => goTopic(topic - 1)}
                   >
                     <ChevronLeftIcon className="size-[14px]" />
@@ -614,7 +614,7 @@ function AgreementBody({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="rounded-full text-[13px] font-semibold text-gray-600"
+                  className="text-[13px] font-semibold text-gray-600"
                   onPress={() =>
                     topic < GROUPS.length - 1
                       ? goTopic(topic + 1)

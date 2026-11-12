@@ -79,10 +79,11 @@ export function GradeSurvey({
         {answered}개 답함
       </p>
 
+      {/* 질문 묶음 — 테두리 상자 대신 위에 가는 줄로 나눈다(2026-11-12 어드민 흰 카드 · 테두리 없음). */}
       {groups.map((group) => (
         <div
           key={group.key}
-          className="flex flex-col gap-[14px] rounded-[12px] border border-stroke p-[16px]"
+          className="flex flex-col gap-[14px] border-t border-separator pt-[16px]"
         >
           <h3 className="text-[15px] font-bold text-black">{group.title}</h3>
           {group.questions.map((q) => {
@@ -198,7 +199,7 @@ function TierBox({
             size="sm"
             variant="ghost"
             aria-label={`${label} 기준`}
-            className="size-[20px] min-w-0 rounded-full p-0 text-gray-400 data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
+            className="size-[20px] min-w-0 rounded-[7px] p-0 text-gray-400 data-[hovered=true]:bg-transparent data-[hovered=true]:text-gray-600"
           >
             <CircleHelp className="size-[16px]" />
           </Button>
@@ -293,9 +294,7 @@ function PopulationTierBox({ data }: { data?: PopulationTier }) {
                     <Table.Cell className={TIER_CELL_CLASS}>
                       {t.tier}단계
                     </Table.Cell>
-                    <Table.Cell
-                      className={cn(TIER_CELL_CLASS, "text-right tabular-nums")}
-                    >
+                    <Table.Cell className={cn(TIER_CELL_CLASS, "text-right")}>
                       {t.max == null
                         ? `${formatPeople(t.min)} 명 이상`
                         : t.min === 0

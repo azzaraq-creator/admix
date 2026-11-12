@@ -1,4 +1,4 @@
-"""관심 매체 서비스 — 회원별 하트 저장·해제·목록."""
+"""관심 매체 서비스 — 회원별 하트 저장·해제·목록·메모."""
 from __future__ import annotations
 
 import uuid
@@ -131,3 +131,36 @@ def remove_favorite(db: Session, member_id: uuid.UUID, media_id: str) -> None:
         MediaFavorite.member_id == member_id, MediaFavorite.media_id == media_id
     ).delete(synchronize_session=False)
     db.commit()
+
+
+MEMO_MAX = 500
+
+
+def list_favorite_memos(db: Session, member_id: uuid.UUID) -> dict[str, str]:
+    """담은 매체의 메모 — 메모가 있는 것만 {media_id: memo}."""
+    rows = (
+        db.query(MediaFavorite.media_id, MediaFavorite.memo)
+        .filter(MediaFavorite.member_id == member_id, MediaFavorite.memo.isnot(None))
+        .all()
+    )
+    return {r.media_id: r.memo for r in rows}
+
+
+def set_favorite_memo(
+    db: Session, member_id: uuid.UUID, media_id: str, memo: str | None
+) -> MediaFavorite | None:
+    """메모 저장 — 앞뒤 공백을 빼고, 비면 지운다(NULL). 담지 않은 매체면 None.
+
+    길이(MEMO_MAX)는 라우터 스키마가 막고, 여기서도 한 번 더 자른다.
+    """
+    fav = (
+        db.query(MediaFavorite)
+        .filter(MediaFavorite.member_id == member_id, MediaFavorite.media_id == media_id)
+        .first()
+    )
+    if fav is None:
+        return None
+    text = (memo or "").strip()
+    fav.memo = text[:MEMO_MAX] or None
+    db.commit()
+    return fav

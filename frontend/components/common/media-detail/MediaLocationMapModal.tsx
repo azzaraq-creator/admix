@@ -54,59 +54,58 @@ export function MediaLocationMapModal({
 }) {
   const [focusId, setFocusId] = useState<string | null>(null);
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
+      variant="opaque"
     >
-      <Modal.Backdrop variant="opaque">
-        <Modal.Container
-          placement="center"
-          className="sm:w-full sm:max-w-[720px] sm:p-[20px]"
+      <Modal.Container
+        placement="center"
+        className="sm:w-full sm:max-w-[720px] sm:p-[20px]"
+      >
+        <Modal.Dialog
+          aria-label="매체 위치"
+          className="max-h-[min(860px,calc(100dvh-80px))] w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
         >
-          <Modal.Dialog
-            aria-label="매체 위치"
-            className="max-h-[min(860px,calc(100dvh-80px))] w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
-          >
-            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
-              <CloseMediumIcon className="size-[24px]" />
-            </Modal.CloseTrigger>
+          <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
+            <CloseMediumIcon className="size-[24px]" />
+          </Modal.CloseTrigger>
 
-            <div className="flex min-w-0 flex-col gap-[2px] pr-[40px]">
-              <p className="truncate text-[16px] font-semibold text-black">
-                {name}
+          <div className="flex min-w-0 flex-col gap-[2px] pr-[40px]">
+            <p className="truncate text-[16px] font-semibold text-black">
+              {name}
+            </p>
+            {address && (
+              <p className="truncate text-[12px] text-tone-6c757d">
+                {address}
               </p>
-              {address && (
-                <p className="truncate text-[12px] text-tone-6c757d">
-                  {address}
-                </p>
-              )}
-            </div>
+            )}
+          </div>
 
-            <Modal.Body className="m-0 flex min-h-0 flex-1 flex-col gap-[8px] overflow-hidden p-0">
-              <LocationMap
-                name={name}
-                lat={lat}
-                lng={lng}
-                direction={direction}
-                spread={spread}
+          <Modal.Body className="m-0 flex min-h-0 flex-1 flex-col gap-[8px] overflow-hidden p-0">
+            <LocationMap
+              name={name}
+              lat={lat}
+              lng={lng}
+              direction={direction}
+              spread={spread}
+              members={members}
+              focusId={focusId}
+            />
+            {members.length > 0 && (
+              <MemberList
+                current={{ id: CURRENT_ID, name, lat, lng }}
                 members={members}
                 focusId={focusId}
+                onFocus={setFocusId}
               />
-              {members.length > 0 && (
-                <MemberList
-                  current={{ id: CURRENT_ID, name, lat, lng }}
-                  members={members}
-                  focusId={focusId}
-                  onFocus={setFocusId}
-                />
-              )}
-            </Modal.Body>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            )}
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

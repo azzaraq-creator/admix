@@ -287,7 +287,7 @@ export function ContactEmailChangeModal({
                 <p className="text-gray-500">
                   인증번호를 보냈어요. 메일이 안 보이면 스팸함을 확인해 주세요.
                 </p>
-                <span className="shrink-0 font-semibold text-gray-700 tabular-nums">
+                <span className="shrink-0 font-semibold text-gray-700">
                   {formatRemaining(remaining)}
                 </span>
               </div>

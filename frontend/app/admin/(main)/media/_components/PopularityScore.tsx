@@ -37,7 +37,7 @@ export function PopularityScore({ data }: { data?: PopularitySummary }) {
   return (
     <div className="flex items-stretch gap-[16px] rounded-[12px] bg-gray-50 p-[16px] max-sm:flex-col">
       <div className="flex w-[200px] shrink-0 flex-col justify-center gap-[8px] max-sm:w-auto">
-        <p className="text-[28px] font-bold leading-none tracking-[-0.7px] text-gray-900 tabular-nums">
+        <p className="text-[28px] font-bold leading-none tracking-[-0.7px] text-gray-900">
           {data.score}
           <span className="ml-[2px] text-[16px] font-semibold text-gray-600">
             점
@@ -77,13 +77,13 @@ export function PopularityScore({ data }: { data?: PopularitySummary }) {
               </p>
               <p
                 className={cn(
-                  "text-[20px] font-bold leading-tight tabular-nums",
+                  "text-[20px] font-bold leading-tight",
                   empty ? "text-gray-300" : "text-gray-900",
                 )}
               >
                 {item.points}점
               </p>
-              <p className="text-[11px] text-gray-400 tabular-nums">
+              <p className="text-[11px] text-gray-400">
                 {item.people != null
                   ? `${item.people}명 × ${item.weight}점`
                   : "-"}

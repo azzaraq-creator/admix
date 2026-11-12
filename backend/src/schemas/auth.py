@@ -18,6 +18,9 @@ class RegisterRequest(BaseModel):
     member_category: MemberCategory | None = None
     company_name: str | None = None
     marketing_consent: bool = False
+    # 마케팅 정보 받을 방법(083) — 제휴사 가입 약관 단계에서 고른다. 안 보내면 동의했을 때 둘 다.
+    marketing_sms: bool | None = None
+    marketing_email: bool | None = None
     session_id: str | None = None
 
 
@@ -43,6 +46,9 @@ class ProfileUpdateRequest(BaseModel):
     company_name: str | None = None
     phone: str | None = None
     marketing_consent: bool | None = None
+    # 마케팅 정보 받을 방법(083) — 문자 · 이메일, 둘 다 가능. 동의를 켠 채 둘 다 끌 수는 없다.
+    marketing_sms: bool | None = None
+    marketing_email: bool | None = None
     # 회원 유형 — 가입 후에도 회원 정보에서 언제든 바꿀 수 있다. 사업자 인증 상태는 그대로 둔다.
     member_category: MemberCategory | None = None
     # 광고주 담당자 정보(068) — 빈 문자열이면 지운다.
@@ -86,6 +92,8 @@ class UserResponse(BaseModel):
     business_card_url: str | None = None
     business_card_name: str | None = None
     marketing_consent: bool = False
+    marketing_sms: bool = False
+    marketing_email: bool = False
     created_at: datetime
     business_registration: BusinessRegistrationOut | None = None
     # 제휴사(콜라보) 기본협약 동의 시각 — 없으면 동의 전.
@@ -114,6 +122,9 @@ class EmailVerifyConfirm(BaseModel):
 class SnsCompleteRequest(BaseModel):
     email: EmailStr
     marketing_consent: bool = False
+    # 마케팅 정보 받을 방법(083) — RegisterRequest 와 같다.
+    marketing_sms: bool | None = None
+    marketing_email: bool | None = None
     member_category: MemberCategory | None = None
     # 시안상 SNS 가입도 "회원정보 입력" 단계를 거친다. 예전 클라이언트는 보내지 않으므로 선택값.
     name: str | None = None

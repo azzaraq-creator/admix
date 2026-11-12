@@ -15,17 +15,19 @@ import {
   useFilter,
 } from "@heroui/react";
 import { parseTime, type Time } from "@internationalized/date";
-import { ImagePlus, Plus, Search, Star, Trash2 } from "lucide-react";
+import { Plus, Search, Star, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { type DragEvent, useMemo, useRef, useState } from "react";
 
+import { StoreLocationMap } from "@/app/(client)/partners/_components/StoreLocationMap";
 import {
   HERO_ERROR_CLASS,
   HeroField,
   HeroSelect,
 } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import { LoadingState } from "@/components/common/RouteStates";
 import { useStoreTypes } from "@/hooks/adminCollab";
@@ -42,6 +44,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { normalizeCode } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import {
+  ADMIN_ONLY_PHOTO_KINDS,
   CLOSED_DAYS,
   COLLAB_GRADES,
   GRADE_CRITERIA,
@@ -50,7 +53,6 @@ import {
   MAX_HOURS_SLOTS,
   noteTone,
   PARTNERS_IMAGE_MAX_SIDE,
-  PARTNERS_MAX_IMAGES,
   PARTNERS_NOTE_MAX_LEN,
   PARTNERS_PHOTO_MEMO_MAX_LEN,
   PARTNERS_TAG_MAX_LEN,
@@ -84,7 +86,7 @@ import { PartnerMemberField } from "../../_components/PartnerMemberField";
 type FormState = {
   name: string;
   /**
-   * 매장 유형(카페 · 식당 …) — 매장 어필 · 조건 메모 칩 값이 유형에 따라 바뀐다(어드민 "매장 항목", 070).
+   * 매장 유형(카페 · 식당 …) — 매장 어필 · 조건 메모 칩 값이 유형에 따라 바뀐다(어드민 "매장 유형 관리", 070).
    * undefined = 새 매장에서 아직 안 고름(첫 유형으로 저장), null = 미지정.
    */
   storeTypeId: number | null | undefined;
@@ -127,26 +129,29 @@ type FieldKey =
   | "hours"
   | `score:${GradeCriterionKey}`;
 
-/** 큰 구역 하나 = 탭 하나(2026-11-10 사용자: 스크롤 대신 탭으로 넘겨 본다). */
-type FormTab = "photos" | "info" | "notes" | "location" | "grade" | "manage";
+/**
+ * 큰 구역 하나 = 탭 하나(2026-11-10 사용자: 스크롤 대신 탭으로 넘겨 본다).
+ * 순서는 매장 정보 → 매장 사진 → 위치 → 매장 등급 → 관리 — 조건 메모는 따로 탭 없이 매장 정보 맨 끝(2026-11-12 사용자).
+ */
+type FormTab = "info" | "photos" | "location" | "grade" | "manage";
 
 /** keys — 그 탭에 있는 칸. 오류가 있으면 탭에 빨간 숫자가 붙고, 저장할 때 첫 오류 탭으로 옮긴다. */
-const FORM_TABS: { id: FormTab; title: string; keys: readonly FieldKey[] }[] =
-  [
-    { id: "photos", title: "매장 사진", keys: ["images"] },
-    { id: "info", title: "매장 정보", keys: ["name", "storeType", "hours"] },
-    { id: "notes", title: "조건 메모", keys: [] },
-    { id: "location", title: "위치", keys: ["address"] },
-    {
-      id: "grade",
-      title: "매장 등급",
-      keys: ["fee", ...GRADE_CRITERIA.map((c) => `score:${c.key}` as const)],
-    },
-    { id: "manage", title: "관리", keys: [] },
-  ];
+const FORM_TABS: { id: FormTab; title: string; keys: readonly FieldKey[] }[] = [
+  { id: "info", title: "매장 정보", keys: ["name", "storeType", "hours"] },
+  { id: "photos", title: "매장 사진", keys: ["images"] },
+  { id: "location", title: "위치", keys: ["address"] },
+  {
+    id: "grade",
+    title: "매장 등급",
+    keys: ["fee", ...GRADE_CRITERIA.map((c) => `score:${c.key}` as const)],
+  },
+  { id: "manage", title: "관리", keys: [] },
+];
 
 /** 모든 탭을 그려 두고 고른 탭만 보인다(숨은 탭은 inert). */
-const PANEL_CLASS = "pt-[24px] data-[inert]:hidden";
+// 탭 바(회색 바탕 위) 아래 흰 카드(AdminPanel) 한 장 — 2026-11-12 어드민 전체 모양(회색 바탕 + 테두리 없는 흰 카드).
+// HeroUI 탭 패널 기본 안쪽 여백(p-2)은 빼서 카드가 탭 바 · 연결 회원 카드와 같은 폭이 되게.
+const PANEL_CLASS = "p-0 pt-[16px] data-[inert]:hidden";
 
 const EMPTY_SCORES = Object.fromEntries(
   GRADE_CRITERIA.map((c) => [c.key, { score: "", memo: "" }]),
@@ -338,6 +343,10 @@ function hoursPayload(hours: StoreHours): StoreHours | null {
     : null;
 }
 
+/** 광고주 · 제휴사에게도 보이는 사진(메뉴처럼 어드민 전용 분류가 아닌 것). */
+const isPublicPhoto = (p: StorePhoto) =>
+  !ADMIN_ONLY_PHOTO_KINDS.includes(p.kind);
+
 /** 분류마다 첫 장에 대표 표시를 붙인다(저장할 때). */
 function withCovers(list: StorePhoto[]): StorePhoto[] {
   const seen = new Set<PhotoKind>();
@@ -359,18 +368,28 @@ function coordsOf(form: FormState): { lat: number; lng: number } | null {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
+const isFormTab = (v: string | null): v is FormTab =>
+  FORM_TABS.some((t) => t.id === v);
+
 /**
  * 어드민 콜라보 매장 등록·수정 — 주소를 고르면 위도·경도를 자동으로 채운다
  * (카카오 지도 SDK → 못 찾으면 서버 카카오 주소 검색). 저장하면 서버가 매체 찾기 줄(CF-0001)을 함께 맞춘다.
+ * 수정(/stores/{id}/edit)은 매장 상세의 "수정"으로 들어오고(?tab= 이면 그 탭부터), 저장 · 취소하면 상세로 돌아간다(2026-11-12 사용자).
  */
 export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
   const isEdit = mode === "edit";
   const params = useParams<{ id: string }>();
   const id = isEdit ? (params?.id ?? null) : null;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  // 매장 상세의 "수정"으로 들어왔는지 — 그러면 저장 · 취소 때 뒤로 가서 상세로 돌아간다(기록을 쌓지 않게).
+  const fromDetail = searchParams.get("from") === "detail";
   const { data: detail, isLoading, isError } = useAdminPartnersStore(id);
-  // 보던 탭 — 저장 뒤 폼을 새 값으로 다시 그려도 그대로 둔다.
-  const [tab, setTab] = useState<FormTab>("photos");
+  // 보던 탭 — 저장에 실패해 폼을 다시 그려도 그대로 둔다. 처음엔 매장 정보(예전 ?tab=notes 도 조건 메모가 있는 매장 정보로).
+  const [tab, setTab] = useState<FormTab>(
+    isFormTab(tabParam) ? tabParam : "info",
+  );
 
   if (isEdit && isLoading) return <LoadingState />;
   if (isEdit && (isError || !detail))
@@ -393,6 +412,7 @@ export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
       detail={detail}
       tab={tab}
       onTabChange={setTab}
+      fromDetail={fromDetail}
     />
   );
 }
@@ -402,11 +422,14 @@ function PartnersStoreForm({
   detail,
   tab,
   onTabChange,
+  fromDetail,
 }: {
   id: string | null;
   detail: AdminPartnersStore | undefined;
   tab: FormTab;
   onTabChange: (tab: FormTab) => void;
+  /** 매장 상세에서 들어옴 — 저장 · 취소하면 뒤로 가서 상세로. */
+  fromDetail: boolean;
 }) {
   const isEdit = !!id;
   const save = useSaveAdminPartnersStore();
@@ -425,6 +448,8 @@ function PartnersStoreForm({
   );
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [locateError, setLocateError] = useState<string | null>(null);
+  // 주소를 고른 뒤 위치를 찾는 동안 — 위치 탭 지도 자리에 "찾는 중"을 띄운다.
+  const [locating, setLocating] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -454,25 +479,41 @@ function PartnersStoreForm({
     (t) => t.id === typeId,
   );
 
+  const confirmDiscard = () =>
+    confirm({
+      title: "입력한 내용을 모두 버리고 이동할까요?",
+      description: "저장하지 않은 내용은 사라져요.",
+      confirmText: "버리고 이동",
+      cancelText: "계속 입력",
+    });
   // 브라우저 뒤로 가기 · 메뉴 링크 · 목록 버튼 — 입력한 값이 있으면 버리고 이동할지 묻는다.
-  const { leave, release } = useUnsavedChangesGuard(
-    dirty,
-    () =>
-      confirm({
-        title: "입력한 내용을 모두 버리고 이동할까요?",
-        description: "저장하지 않은 내용은 사라져요.",
-        confirmText: "버리고 이동",
-        cancelText: "계속 입력",
-      }),
-    { interceptLinks: true },
-  );
-  const goList = () => void leave("/admin/collab/stores");
+  const { leave, release } = useUnsavedChangesGuard(dirty, confirmDiscard, {
+    interceptLinks: true,
+  });
+  const detailHref = id
+    ? `/admin/collab/stores/${encodeURIComponent(id)}`
+    : null;
+  // 취소 — 상세에서 들어왔으면 뒤로(상세), 아니면 상세로 바꿔 끼워 간다. 새 매장은 목록으로.
+  const goBack = async () => {
+    if (!detailHref) return void leave("/admin/collab/stores");
+    if (!fromDetail) return void leave(detailHref, { replace: true });
+    if (dirty && !(await confirmDiscard())) return;
+    release(undefined, { back: true });
+  };
 
   /**
-   * 주소 → 위도·경도(화면에는 안 보인다). 카카오 지도 SDK가 못 찾으면 서버(카카오 주소 검색)로 한 번 더 찾고,
-   * 그래도 없으면 비워 보낸다 — 저장할 때 서버가 주소로 다시 찾는다.
+   * 주소 → 위도·경도(숫자는 안 보이고 위치 탭 지도에 핀으로 보인다). 카카오 지도 SDK가 못 찾으면 서버(카카오 주소 검색)로
+   * 한 번 더 찾고, 그래도 없으면 비워 보낸다 — 저장할 때 서버가 주소로 다시 찾는다.
    */
   const locate = async (address: string) => {
+    setLocating(true);
+    try {
+      await findCoords(address);
+    } finally {
+      setLocating(false);
+    }
+  };
+  const findCoords = async (address: string) => {
     const coords = await coordsOfAddress(address).catch(() => null);
     if (coords) {
       setForm((prev) => ({
@@ -518,6 +559,9 @@ function PartnersStoreForm({
   const validate = () => {
     const next: Partial<Record<FieldKey, string>> = {};
     if (!form.images.length) next.images = "사진을 1장 이상 올려 주세요.";
+    else if (!form.images.some(isPublicPhoto))
+      next.images =
+        "메뉴 사진은 어드민에서만 보여요. 다른 분류 사진도 1장 이상 올려 주세요.";
     if (!form.name.trim()) next.name = "매장명을 입력해 주세요.";
     if (typeId == null) next.storeType = "매장 유형을 골라 주세요.";
     if (!form.address.trim()) next.address = "매장 주소를 검색해 주세요.";
@@ -573,10 +617,14 @@ function PartnersStoreForm({
           ? `매체 찾기 ${saved.mediaId}로 보여요.`
           : "비공개이거나 위치를 찾지 못해 매체 찾기에는 보이지 않아요.",
       );
-      // 저장한 값이 새 기준 — 이제 떠나도 묻지 않는다.
+      // 저장한 값이 새 기준 — 이제 떠나도 묻지 않는다. 저장하면 상세로 가서 바뀐 값을 확인한다
+      // (수정 화면은 기록에서 바꿔 끼워, 상세에서 뒤로 가기가 다시 수정 화면으로 오지 않게).
       setBaseline(snapshot);
-      if (isEdit) release();
-      else release(`/admin/collab/stores/${saved.id}`, { replace: true });
+      if (isEdit && fromDetail) release(undefined, { back: true });
+      else
+        release(`/admin/collab/stores/${encodeURIComponent(saved.id)}`, {
+          replace: true,
+        });
     } catch (err) {
       await alert({
         title: "저장 실패",
@@ -608,11 +656,11 @@ function PartnersStoreForm({
   };
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <div className="flex flex-col gap-[4px]">
         <div className="flex flex-wrap items-center gap-[8px]">
           <h1 className="text-2xl font-bold leading-[32px] text-black">
-            {isEdit ? "매장 상세" : "매장 등록"}
+            {isEdit ? "매장 수정" : "매장 등록"}
           </h1>
           {detail?.storeCode && (
             <Chip size="lg" variant="soft" color="accent">
@@ -622,20 +670,22 @@ function PartnersStoreForm({
         </div>
       </div>
 
-      {/* 연결 회원 — 맨 위(2026-11-10 사용자). */}
-      <div className="grid grid-cols-2 gap-x-[24px]">
-        <PartnerMemberField
-          wide
-          value={form.ownerCode}
-          onChange={(v) => set("ownerCode", v)}
-          savedCode={detail?.ownerPartnerCode ?? null}
-        />
-      </div>
+      {/* 연결 회원 — 맨 위(2026-11-10 사용자), 흰 카드 한 장. */}
+      <AdminPanel>
+        <div className="grid grid-cols-2 gap-x-[24px]">
+          <PartnerMemberField
+            wide
+            value={form.ownerCode}
+            onChange={(v) => set("ownerCode", v)}
+            savedCode={detail?.ownerPartnerCode ?? null}
+          />
+        </div>
+      </AdminPanel>
 
       {!!detail?.requestsPending && (
         <Link
           href={`/admin/collab/requests?store_id=${detail.id}`}
-          className="flex items-center justify-between gap-[12px] rounded-[12px] border border-tone-f4e3b5 bg-tone-fdf6e3 px-[16px] py-[12px] text-sm font-semibold text-[#9a6b00]"
+          className="flex items-center justify-between gap-[12px] rounded-[12px] bg-tone-fdf6e3 px-[16px] py-[12px] text-sm font-semibold text-[#9a6b00]"
         >
           <span>
             제휴사가 보낸 처리 전 수정 요청이 {detail.requestsPending}건 있어요.
@@ -671,291 +721,312 @@ function PartnersStoreForm({
           </Tabs.List>
         </Tabs.ListContainer>
 
-        <Tabs.Panel id="photos" shouldForceMount className={PANEL_CLASS}>
-          <PartnersPhotoSection
-            photos={form.images}
-            onChange={(images) => {
-              set("images", images);
-              if (images.length)
-                setErrors((prev) => ({ ...prev, images: undefined }));
-            }}
-            error={errors.images}
-          />
-        </Tabs.Panel>
-
         <Tabs.Panel id="info" shouldForceMount className={PANEL_CLASS}>
-          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
-            <HeroField label="매장명" required error={errors.name}>
-              <Input
-                variant="secondary"
-                fullWidth
-                aria-label="매장명"
-                maxLength={100}
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-              />
-            </HeroField>
-            <HeroField
-              label="매장 유형"
-              required
-              error={errors.storeType}
-              help={
-                <Link
-                  href="/admin/collab/store-options"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-primary-800 underline"
-                >
-                  매장 항목에서 관리
-                </Link>
-              }
-            >
-              <HeroSelect
-                ariaLabel="매장 유형"
-                allowEmpty={false}
-                value={typeId != null ? String(typeId) : ""}
-                onChange={(v) => {
-                  set("storeTypeId", v ? Number(v) : null);
-                  setErrors((prev) => ({ ...prev, storeType: undefined }));
-                }}
-                options={storeTypes.map((t) => ({
-                  value: String(t.id),
-                  label: t.name,
-                }))}
-              />
-            </HeroField>
-            <HeroField label="전화번호">
-              <Input
-                variant="secondary"
-                fullWidth
-                aria-label="전화번호"
-                type="tel"
-                inputMode="tel"
-                autoComplete="off"
-                maxLength={STORE_PHONE_INPUT_MAX_LENGTH}
-                value={form.phone}
-                onChange={(e) =>
-                  set("phone", formatStorePhoneInput(e.target.value))
-                }
-              />
-            </HeroField>
-            <HeroField label="사장 이름">
-              <Input
-                variant="secondary"
-                fullWidth
-                aria-label="사장 이름"
-                value={form.ownerName}
-                onChange={(e) => set("ownerName", e.target.value)}
-              />
-            </HeroField>
-            <HeroField
-              wide
-              label="운영 시간"
-              error={errors.hours}
-              help={
-                form.legacyHours && (
-                  <>
-                    예전에 적은 운영 시간: &quot;{form.legacyHours}&quot; — 위에
-                    새로 넣으면 바뀌어요.{" "}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-auto min-w-0 p-0 align-baseline text-xs font-semibold text-primary-800 underline data-[hovered=true]:bg-transparent"
-                      onPress={() => set("legacyHours", "")}
-                    >
-                      지우기
-                    </Button>
-                  </>
-                )
-              }
-            >
-              <BusinessHoursEditor
-                value={form.hours}
-                onChange={(hours) => {
-                  setForm((prev) => ({ ...prev, hours, legacyHours: "" }));
-                  setErrors((prev) => ({ ...prev, hours: undefined }));
-                }}
-              />
-            </HeroField>
-            <HeroField wide label="휴무일">
-              <ClosedDaysPicker
-                value={form.hours.closed}
-                onChange={(closed) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    hours: { ...prev.hours, closed },
-                    legacyHours: "",
-                  }))
-                }
-              />
-            </HeroField>
-            {/* 매장 어필 — 유형별 칩을 누르거나, 직접 적고 쉼표(,)로 칩을 만든다(개수 제한 없음 — 카드에서는 3개 + "+N"). */}
-            <HeroField
-              wide
-              label="매장 어필"
-              extra={form.tags.length ? `(${form.tags.length}개)` : undefined}
-            >
-              <div className="flex flex-col gap-[8px]">
-                <ChipInput
-                  ariaLabel="매장 어필 직접 입력"
-                  placeholder="직접 입력 — 쉼표(,)로 구분해요."
-                  values={form.tags}
-                  onChange={(tags) => set("tags", tags)}
-                  maxLength={PARTNERS_TAG_MAX_LEN}
-                />
-                <ChipPresets
-                  label={storeType ? `${storeType.name} 칩` : "칩"}
-                  options={storeType?.tags ?? []}
-                  values={form.tags}
-                  onChange={(tags) => set("tags", tags)}
-                  empty={
-                    storeType
-                      ? `${storeType.name} 유형에 정해 둔 칩이 없어요. 매장 항목에서 더할 수 있어요.`
-                      : "매장 유형을 고르면 유형별 칩이 보여요."
-                  }
-                />
-              </div>
-            </HeroField>
-          </div>
-        </Tabs.Panel>
-
-        <Tabs.Panel id="notes" shouldForceMount className={PANEL_CLASS}>
-          <NotesSection
-            notes={form.notes}
-            onChange={(notes) => set("notes", notes)}
-            storeType={storeType}
-          />
-        </Tabs.Panel>
-
-        <Tabs.Panel id="location" shouldForceMount className={PANEL_CLASS}>
-          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
-            {/* 칸을 누르면 카카오 우편번호 주소 검색 팝업. 시·도 · 시·군·구 · 위도 · 경도는 안 보이게 함께 채우고,
-                위치를 못 찾으면 저장할 때 서버가 주소로 다시 찾는다. */}
-            <HeroField
-              label="매장 주소"
-              required
-              error={errors.address ?? locateError}
-              wide
-            >
-              <div className="flex items-center gap-[8px]">
+          <AdminPanel>
+            <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
+              <HeroField label="매장명" required error={errors.name}>
                 <Input
                   variant="secondary"
                   fullWidth
-                  readOnly
-                  aria-label="매장 주소"
-                  placeholder="주소를 검색해 주세요"
-                  value={form.address}
-                  onClick={() => setAddressOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setAddressOpen(true);
-                    }
-                  }}
-                  className="cursor-pointer"
-                />
-                <Button
-                  variant="primary"
-                  className="shrink-0"
-                  onPress={() => setAddressOpen(true)}
-                >
-                  <Search className="size-[16px]" />
-                  주소 검색
-                </Button>
-              </div>
-            </HeroField>
-            <HeroField label="상세 주소" wide>
-              <Input
-                variant="secondary"
-                fullWidth
-                aria-label="상세 주소"
-                value={form.addressDetail}
-                onChange={(e) => set("addressDetail", e.target.value)}
-              />
-            </HeroField>
-          </div>
-          <AddressSearchModal
-            isOpen={addressOpen}
-            onOpenChange={setAddressOpen}
-            onSelect={pickAddress}
-          />
-        </Tabs.Panel>
-
-        <Tabs.Panel id="grade" shouldForceMount className={PANEL_CLASS}>
-          <div className="flex flex-col gap-[24px]">
-            <GradeScoresField
-              value={form.gradeScores}
-              onChange={setScore}
-              errors={errors}
-            />
-            <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
-              <HeroField label="등급">
-                <HeroSelect
-                  ariaLabel="콜라보 등급"
-                  emptyLabel="미정"
-                  value={form.collabGrade}
-                  onChange={(v) =>
-                    set(
-                      "collabGrade",
-                      (COLLAB_GRADES as readonly string[]).includes(v)
-                        ? (v as CollabGrade)
-                        : "",
-                    )
-                  }
-                  options={GRADE_OPTIONS}
+                  aria-label="매장명"
+                  maxLength={100}
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
                 />
               </HeroField>
-              <HeroField label="매장 금액(1건)" error={errors.fee}>
+              <HeroField
+                label="매장 유형"
+                required
+                error={errors.storeType}
+                help={
+                  <Link
+                    href="/admin/collab/store-options"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-primary-800 underline"
+                  >
+                    매장 유형 관리에서 바꾸기
+                  </Link>
+                }
+              >
+                <HeroSelect
+                  ariaLabel="매장 유형"
+                  allowEmpty={false}
+                  value={typeId != null ? String(typeId) : ""}
+                  onChange={(v) => {
+                    set("storeTypeId", v ? Number(v) : null);
+                    setErrors((prev) => ({ ...prev, storeType: undefined }));
+                  }}
+                  options={storeTypes.map((t) => ({
+                    value: String(t.id),
+                    label: t.name,
+                  }))}
+                />
+              </HeroField>
+              <HeroField label="전화번호">
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="전화번호"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  maxLength={STORE_PHONE_INPUT_MAX_LENGTH}
+                  value={form.phone}
+                  onChange={(e) =>
+                    set("phone", formatStorePhoneInput(e.target.value))
+                  }
+                />
+              </HeroField>
+              <HeroField label="사장 이름">
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="사장 이름"
+                  value={form.ownerName}
+                  onChange={(e) => set("ownerName", e.target.value)}
+                />
+              </HeroField>
+              <HeroField
+                wide
+                label="운영 시간"
+                error={errors.hours}
+                help={
+                  form.legacyHours && (
+                    <>
+                      예전에 적은 운영 시간: &quot;{form.legacyHours}&quot; —
+                      위에 새로 넣으면 바뀌어요.{" "}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-auto min-w-0 p-0 align-baseline text-xs font-semibold text-primary-800 underline data-[hovered=true]:bg-transparent"
+                        onPress={() => set("legacyHours", "")}
+                      >
+                        지우기
+                      </Button>
+                    </>
+                  )
+                }
+              >
+                <BusinessHoursEditor
+                  value={form.hours}
+                  onChange={(hours) => {
+                    setForm((prev) => ({ ...prev, hours, legacyHours: "" }));
+                    setErrors((prev) => ({ ...prev, hours: undefined }));
+                  }}
+                />
+              </HeroField>
+              <HeroField wide label="휴무일">
+                <ClosedDaysPicker
+                  value={form.hours.closed}
+                  onChange={(closed) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      hours: { ...prev.hours, closed },
+                      legacyHours: "",
+                    }))
+                  }
+                />
+              </HeroField>
+              {/* 매장 어필 — 유형별 칩을 누르거나, 직접 적고 쉼표(,)로 칩을 만든다(개수 제한 없음 — 카드에서는 3개 + "+N"). */}
+              <HeroField
+                wide
+                label="매장 어필"
+                extra={form.tags.length ? `(${form.tags.length}개)` : undefined}
+              >
+                <div className="flex flex-col gap-[8px]">
+                  <ChipInput
+                    ariaLabel="매장 어필 직접 입력"
+                    placeholder="직접 입력 — 쉼표(,)로 구분해요."
+                    values={form.tags}
+                    onChange={(tags) => set("tags", tags)}
+                    maxLength={PARTNERS_TAG_MAX_LEN}
+                  />
+                  <ChipPresets
+                    label={storeType ? `${storeType.name} 칩` : "칩"}
+                    options={storeType?.tags ?? []}
+                    values={form.tags}
+                    onChange={(tags) => set("tags", tags)}
+                    empty={
+                      storeType
+                        ? `${storeType.name} 유형에 정해 둔 칩이 없어요. 매장 유형 관리에서 더할 수 있어요.`
+                        : "매장 유형을 고르면 유형별 칩이 보여요."
+                    }
+                  />
+                </div>
+              </HeroField>
+              {/* 조건 메모 — 따로 탭 없이 매장 정보 맨 끝(2026-11-12 사용자). */}
+              <NotesField
+                notes={form.notes}
+                onChange={(notes) => set("notes", notes)}
+                storeType={storeType}
+              />
+            </div>
+          </AdminPanel>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="photos" shouldForceMount className={PANEL_CLASS}>
+          <AdminPanel>
+            <PartnersPhotoSection
+              photos={form.images}
+              onChange={(images) => {
+                set("images", images);
+                if (images.some(isPublicPhoto))
+                  setErrors((prev) => ({ ...prev, images: undefined }));
+              }}
+              error={errors.images}
+            />
+          </AdminPanel>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="location" shouldForceMount className={PANEL_CLASS}>
+          <AdminPanel>
+            <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
+              {/* 칸을 누르면 카카오 우편번호 주소 검색 팝업. 시·도 · 시·군·구 · 위도 · 경도는 안 보이게 함께 채우고,
+                위치를 못 찾으면 저장할 때 서버가 주소로 다시 찾는다. */}
+              <HeroField
+                label="매장 주소"
+                required
+                error={errors.address ?? locateError}
+                wide
+              >
                 <div className="flex items-center gap-[8px]">
                   <Input
                     variant="secondary"
                     fullWidth
-                    inputMode="decimal"
-                    aria-label="매장 금액(만 원)"
-                    placeholder='비우면 광고주에게 "금액 협의"로 보여요.'
-                    value={form.collabFeeMan}
-                    onChange={(e) => {
-                      set("collabFeeMan", e.target.value);
-                      setErrors((prev) => ({ ...prev, fee: undefined }));
+                    readOnly
+                    aria-label="매장 주소"
+                    placeholder="주소를 검색해 주세요"
+                    value={form.address}
+                    onClick={() => setAddressOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setAddressOpen(true);
+                      }
                     }}
+                    className="cursor-pointer"
                   />
-                  <span className="shrink-0 text-sm text-disabled">만 원</span>
+                  <Button
+                    variant="primary"
+                    className="shrink-0"
+                    onPress={() => setAddressOpen(true)}
+                  >
+                    <Search className="size-[16px]" />
+                    주소 검색
+                  </Button>
                 </div>
               </HeroField>
+              <HeroField label="상세 주소" wide>
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="상세 주소"
+                  value={form.addressDetail}
+                  onChange={(e) => set("addressDetail", e.target.value)}
+                />
+              </HeroField>
+              {/* 고른 주소의 자리 — 매체 찾기 지도와 같은 콜라보 핀 + 매장명(2026-11-12 사용자).
+                숨은 탭에선 지도 크기가 0이라 이 탭을 볼 때만 그린다. */}
+              <HeroField label="지도 위치" wide>
+                <LocationPreview
+                  active={tab === "location"}
+                  coords={coordsOf(form)}
+                  locating={locating}
+                  hasAddress={!!form.address.trim()}
+                  name={form.name.trim() || "매장 위치"}
+                />
+              </HeroField>
             </div>
-          </div>
+            <AddressSearchModal
+              isOpen={addressOpen}
+              onOpenChange={setAddressOpen}
+              onSelect={pickAddress}
+            />
+          </AdminPanel>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="grade" shouldForceMount className={PANEL_CLASS}>
+          <AdminPanel>
+            <div className="flex flex-col gap-[24px]">
+              <GradeScoresField
+                value={form.gradeScores}
+                onChange={setScore}
+                errors={errors}
+              />
+              <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
+                <HeroField label="등급">
+                  <HeroSelect
+                    ariaLabel="콜라보 등급"
+                    emptyLabel="미정"
+                    value={form.collabGrade}
+                    onChange={(v) =>
+                      set(
+                        "collabGrade",
+                        (COLLAB_GRADES as readonly string[]).includes(v)
+                          ? (v as CollabGrade)
+                          : "",
+                      )
+                    }
+                    options={GRADE_OPTIONS}
+                  />
+                </HeroField>
+                <HeroField label="매장 금액(1건)" error={errors.fee}>
+                  <div className="flex items-center gap-[8px]">
+                    <Input
+                      variant="secondary"
+                      fullWidth
+                      inputMode="decimal"
+                      aria-label="매장 금액(만 원)"
+                      placeholder='비우면 광고주에게 "금액 협의"로 보여요.'
+                      value={form.collabFeeMan}
+                      onChange={(e) => {
+                        set("collabFeeMan", e.target.value);
+                        setErrors((prev) => ({ ...prev, fee: undefined }));
+                      }}
+                    />
+                    <span className="shrink-0 text-sm text-disabled">
+                      만 원
+                    </span>
+                  </div>
+                </HeroField>
+              </div>
+            </div>
+          </AdminPanel>
         </Tabs.Panel>
 
         <Tabs.Panel id="manage" shouldForceMount className={PANEL_CLASS}>
-          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
-            <HeroField label="공개 상태" required>
-              <HeroSelect
-                ariaLabel="공개 상태"
-                allowEmpty={false}
-                value={form.status}
-                onChange={(v) =>
-                  set("status", v === "hidden" ? "hidden" : "active")
-                }
-                options={STATUS_OPTIONS}
-              />
-            </HeroField>
-            <HeroField label="관리자 메모" wide>
-              <TextArea
-                variant="secondary"
-                fullWidth
-                aria-label="관리자 메모"
-                rows={3}
-                value={form.adminMemo}
-                onChange={(e) => set("adminMemo", e.target.value)}
-              />
-            </HeroField>
-          </div>
+          <AdminPanel>
+            <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
+              <HeroField label="공개 상태" required>
+                <HeroSelect
+                  ariaLabel="공개 상태"
+                  allowEmpty={false}
+                  value={form.status}
+                  onChange={(v) =>
+                    set("status", v === "hidden" ? "hidden" : "active")
+                  }
+                  options={STATUS_OPTIONS}
+                />
+              </HeroField>
+              <HeroField label="관리자 메모" wide>
+                <TextArea
+                  variant="secondary"
+                  fullWidth
+                  aria-label="관리자 메모"
+                  rows={3}
+                  value={form.adminMemo}
+                  onChange={(e) => set("adminMemo", e.target.value)}
+                />
+              </HeroField>
+            </div>
+          </AdminPanel>
         </Tabs.Panel>
       </Tabs>
 
-      <div className="flex items-center justify-between border-t border-stroke pt-[20px]">
-        <Button variant="tertiary" onPress={goList}>
-          목록
+      <div className="flex items-center justify-between">
+        <Button variant="tertiary" onPress={() => void goBack()}>
+          {isEdit ? "취소" : "목록"}
         </Button>
         <div className="flex items-center gap-[8px]">
           {isEdit && (
@@ -1007,24 +1078,25 @@ function GradeScoresField({
         <div className="flex flex-col gap-[2px]">
           <span className="text-sm font-semibold text-black">등급 점수</span>
           <span className="text-xs text-disabled">
-            항목마다 만점이 비중이에요(합쳐 100점). 이유나 값을 함께 적어 두세요.
+            항목마다 만점이 비중이에요(합쳐 100점). 이유나 값을 함께 적어
+            두세요.
           </span>
         </div>
         <span className="text-sm font-medium text-tone-4a5565">
           합계{" "}
-          <span className="text-lg font-bold tabular-nums text-black">
+          <span className="text-lg font-bold text-black">
             {filled ? total : "-"}
           </span>{" "}
           / 100점
         </span>
       </div>
-      <div className="flex flex-col divide-y divide-stroke rounded-[12px] border border-stroke">
+      <div className="flex flex-col divide-y divide-gray-100">
         {GRADE_CRITERIA.map((c, i) => {
           const error = errors[`score:${c.key}`];
           return (
             <div
               key={c.key}
-              className="grid grid-cols-1 gap-[12px] p-[16px] md:grid-cols-[220px_150px_minmax(0,1fr)] md:items-start"
+              className="grid grid-cols-1 gap-[12px] py-[16px] first:pt-[4px] last:pb-0 md:grid-cols-[220px_150px_minmax(0,1fr)] md:items-start"
             >
               <div className="flex flex-col gap-[2px] md:pt-[6px]">
                 <span className="flex items-center gap-[6px] text-sm font-semibold text-black">
@@ -1077,7 +1149,8 @@ function orderPhotos(list: StorePhoto[]): StorePhoto[] {
 }
 
 /**
- * 매장 사진 — 분류(외관 · 내관 · 카운터 · 메뉴 · 기타)마다 올린다. 합쳐 최대 30장.
+ * 매장 사진 — 분류(외관 · 내관 · 카운터 · DP 가능 공간 · 프로모션 공간 · 메뉴 · 기타)마다 올린다. 장수 제한 없음(2026-11-12 사용자, 예전 30장).
+ * 메뉴 사진은 어드민에서만 보인다 — 서버가 광고주 · 제휴사 화면과 매체 찾기에는 내보내지 않는다(2026-11-12 사용자).
  * 올리기 전에 브라우저에서 긴 변 2000px 로 줄이고(서버도 한 번 더), 분류마다 별(★)로 대표 사진을 정한다.
  * 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다. 사진마다 짧은 메모(광고주 매장 상세에서 사진 설명으로 보인다).
  */
@@ -1101,25 +1174,13 @@ function PartnersPhotoSection({
     total: number;
   }>();
 
-  const remaining = PARTNERS_MAX_IMAGES - photos.length;
   const uploading = progress !== undefined;
-  const full = remaining <= 0;
 
   const addFiles = async (list: FileList | File[] | null, kind: PhotoKind) => {
     if (!list || uploading) return;
-    if (full) {
-      error(`사진은 분류를 합쳐 최대 ${PARTNERS_MAX_IMAGES}장까지예요.`);
-      return;
-    }
     const all = Array.from(list);
-    const imagesOnly = all.filter((f) => f.type.startsWith("image/"));
-    if (imagesOnly.length < all.length)
-      error("이미지 파일만 올릴 수 있습니다.");
-    const files = imagesOnly.slice(0, remaining);
-    if (imagesOnly.length > files.length)
-      error(
-        `사진은 분류를 합쳐 최대 ${PARTNERS_MAX_IMAGES}장까지예요. ${files.length}장만 추가합니다.`,
-      );
+    const files = all.filter((f) => f.type.startsWith("image/"));
+    if (files.length < all.length) error("이미지 파일만 올릴 수 있습니다.");
     if (files.length === 0) return;
     // 올리는 동안엔 삭제 · 분류 바꾸기를 막아 두므로, 시작할 때의 목록 뒤에 올린 사진을 이어 붙인다.
     const added: StorePhoto[] = [];
@@ -1193,14 +1254,12 @@ function PartnersPhotoSection({
               *
             </span>
           </h2>
-          <Chip size="sm" color={full ? "danger" : "default"}>
-            {photos.length}/{PARTNERS_MAX_IMAGES}
-          </Chip>
+          <Chip size="sm">{photos.length}장</Chip>
         </div>
         {fieldError && <p className={HERO_ERROR_CLASS}>{fieldError}</p>}
       </div>
 
-      <div className="flex flex-col divide-y divide-stroke rounded-[12px] border border-stroke">
+      <div className="flex flex-col divide-y divide-gray-100">
         {PHOTO_KINDS.map((kind) => {
           const list = photos.filter((p) => p.kind === kind);
           const busy = progress?.kind === kind;
@@ -1209,25 +1268,32 @@ function PartnersPhotoSection({
               key={kind}
               onDragOver={(e) => {
                 e.preventDefault();
-                if (!full && !uploading) setDragKind(kind);
+                if (!uploading) setDragKind(kind);
               }}
               onDragLeave={() => setDragKind(null)}
               onDrop={(e) => onDrop(e, kind)}
               className={cn(
-                "flex flex-col gap-[10px] p-[14px] transition-colors sm:flex-row sm:items-start",
+                "-mx-[12px] flex flex-col gap-[10px] rounded-[12px] px-[12px] py-[14px] transition-colors sm:flex-row sm:items-start",
                 dragKind === kind && "bg-primary-50",
               )}
             >
               <div
                 className={cn(
-                  "flex w-[96px] shrink-0 items-center gap-[6px]",
+                  "flex w-[120px] shrink-0 flex-col gap-[2px]",
                   list.length ? "sm:pt-[6px]" : "sm:self-center",
                 )}
               >
-                <span className="text-sm font-semibold text-black">
-                  {PHOTO_KIND_LABEL[kind]}
-                </span>
-                <span className="text-xs text-disabled">{list.length}</span>
+                <div className="flex items-center gap-[6px]">
+                  <span className="text-sm font-semibold text-black">
+                    {PHOTO_KIND_LABEL[kind]}
+                  </span>
+                  <span className="text-xs text-disabled">{list.length}</span>
+                </div>
+                {ADMIN_ONLY_PHOTO_KINDS.includes(kind) && (
+                  <span className="text-[11px] leading-[16px] text-disabled">
+                    어드민에서만 보여요
+                  </span>
+                )}
               </div>
               <div className="flex min-w-0 flex-1 items-stretch gap-[10px] overflow-x-auto pb-[2px]">
                 {list.map((photo, i) => (
@@ -1244,12 +1310,15 @@ function PartnersPhotoSection({
                 ))}
                 <Button
                   variant="ghost"
-                  isDisabled={full || uploading}
+                  isDisabled={uploading}
                   onPress={() => pick(kind)}
                   className={cn(
-                    "w-[120px] shrink-0 gap-[6px] rounded-[10px] border-2 border-dashed border-stroke bg-tone-fafafc text-xs font-semibold text-tone-4a5565 data-[hovered=true]:border-primary data-[hovered=true]:text-primary-800",
+                    // 너비는 글자에 맞춘다 — "프로모션 공간 추가"가 줄바꿈되지 않게.
+                    "w-auto min-w-[120px] shrink-0 gap-[6px] whitespace-nowrap px-[16px] border-2 border-dashed border-stroke bg-tone-fafafc text-xs font-semibold text-tone-4a5565 data-[hovered=true]:border-primary data-[hovered=true]:text-primary-800",
                     // 사진이 없는 분류는 낮게 — 다섯 줄이 화면을 다 차지하지 않게.
-                    list.length ? "h-auto min-h-[112px] flex-col" : "h-[44px]",
+                    list.length
+                      ? "h-auto min-h-[112px] flex-col rounded-[10px]"
+                      : "h-[44px] rounded-[19px]",
                     busy && "opacity-100",
                   )}
                 >
@@ -1259,12 +1328,7 @@ function PartnersPhotoSection({
                       {progress.done}/{progress.total}
                     </>
                   ) : (
-                    <>
-                      <ImagePlus
-                        className={list.length ? "size-[22px]" : "size-[16px]"}
-                      />
-                      {full ? "최대 장수" : `${PHOTO_KIND_LABEL[kind]} 추가`}
-                    </>
+                    `${PHOTO_KIND_LABEL[kind]} 추가`
                   )}
                 </Button>
               </div>
@@ -1309,7 +1373,7 @@ function PhotoTile({
   const src = mediaSrc(photo.url);
   const kindLabel = PHOTO_KIND_LABEL[photo.kind];
   return (
-    <Card className="relative w-[160px] shrink-0 gap-0 overflow-hidden border border-stroke p-0 shadow-none">
+    <Card className="relative w-[160px] shrink-0 gap-0 overflow-hidden p-0">
       <div className="relative aspect-[4/3] w-full bg-zinc-100">
         <Image
           src={src}
@@ -1585,10 +1649,61 @@ const NOTE_CHIP_COLOR = {
 } as const;
 
 /**
- * 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" 같은 매장 조건을 개수 제한 없이 적는다.
- * 직접 적고 쉼표(,)로 칩을 만들거나, 매장 유형에 정해 둔 자주 쓰는 조건을 눌러 넣는다(매장 항목).
+ * 위치 탭 지도 — 주소를 고르면 그 자리에 콜라보 핀(매장명 말풍선)을 꽂아 보여 준다. 위치를 찾는 중 · 주소가 없을 때 ·
+ * 위치를 못 찾았을 때는 같은 크기 자리에 안내 글만. active 가 아니면(숨은 탭) 지도를 그리지 않는다 — 크기 0 에서 만들지 않게.
  */
-function NotesSection({
+function LocationPreview({
+  active,
+  coords,
+  locating,
+  hasAddress,
+  name,
+}: {
+  active: boolean;
+  coords: { lat: number; lng: number } | null;
+  locating: boolean;
+  hasAddress: boolean;
+  name: string;
+}) {
+  const box = "h-[240px] w-full overflow-hidden rounded-[12px] md:h-[320px]";
+  if (coords && !locating)
+    return active ? (
+      <StoreLocationMap
+        latitude={coords.lat}
+        longitude={coords.lng}
+        name={name}
+        level={3}
+        className={box}
+      />
+    ) : (
+      <div className={box} />
+    );
+  return (
+    <div
+      className={cn(
+        box,
+        "flex items-center justify-center bg-gray-50 px-[16px] text-center text-sm text-disabled",
+      )}
+    >
+      {locating ? (
+        <span className="inline-flex items-center gap-[8px]">
+          <Spinner size="sm" />
+          위치를 찾는 중이에요.
+        </span>
+      ) : hasAddress ? (
+        "이 주소의 위치를 찾지 못했어요. 저장하면 주소로 한 번 더 찾아요."
+      ) : (
+        "주소를 검색하면 여기에 지도가 보여요."
+      )}
+    </div>
+  );
+}
+
+/**
+ * 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" 같은 매장 조건을 개수 제한 없이 적는다(매장 정보 탭 맨 끝, 매장 어필과 같은 모양).
+ * 직접 적고 쉼표(,)로 칩을 만들거나, 매장 유형에 정해 둔 자주 쓰는 조건을 눌러 넣는다(매장 유형 관리).
+ */
+function NotesField({
   notes,
   onChange,
   storeType,
@@ -1598,40 +1713,35 @@ function NotesSection({
   storeType: StoreType | undefined;
 }) {
   return (
-    <section className="flex flex-col gap-[16px]">
-      <div className="flex flex-col gap-[4px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">
-          조건 메모
-          <span className="ml-[6px] text-sm font-medium text-disabled">
-            {notes.length}개
-          </span>
-        </h2>
-        <p className="text-sm text-disabled">
-          &quot;불가 · 없음&quot;은 빨강, &quot;가능&quot;은 초록으로 보여요.
-        </p>
+    <HeroField
+      wide
+      label="조건 메모"
+      extra={notes.length ? `(${notes.length}개)` : undefined}
+      help="“불가 · 없음”은 빨강, “가능”은 초록으로 보여요."
+    >
+      <div className="flex flex-col gap-[8px]">
+        <ChipInput
+          ariaLabel="조건 메모 직접 입력"
+          placeholder="직접 입력 — 쉼표(,)로 구분해요."
+          values={notes}
+          onChange={onChange}
+          maxLength={PARTNERS_NOTE_MAX_LEN}
+          colorOf={(n) => NOTE_CHIP_COLOR[noteTone(n)]}
+        />
+        <ChipPresets
+          label={
+            storeType ? `${storeType.name} 자주 쓰는 조건` : "자주 쓰는 조건"
+          }
+          options={storeType?.notes ?? []}
+          values={notes}
+          onChange={onChange}
+          empty={
+            storeType
+              ? `${storeType.name} 유형에 정해 둔 조건이 없어요. 매장 유형 관리에서 더할 수 있어요.`
+              : "매장 유형을 고르면 자주 쓰는 조건이 보여요."
+          }
+        />
       </div>
-      <ChipInput
-        className="max-w-[760px]"
-        ariaLabel="조건 메모 직접 입력"
-        placeholder="직접 입력 — 쉼표(,)로 구분해요."
-        values={notes}
-        onChange={onChange}
-        maxLength={PARTNERS_NOTE_MAX_LEN}
-        colorOf={(n) => NOTE_CHIP_COLOR[noteTone(n)]}
-      />
-      <ChipPresets
-        label={
-          storeType ? `${storeType.name} 자주 쓰는 조건` : "자주 쓰는 조건"
-        }
-        options={storeType?.notes ?? []}
-        values={notes}
-        onChange={onChange}
-        empty={
-          storeType
-            ? `${storeType.name} 유형에 정해 둔 조건이 없어요. 매장 항목에서 더할 수 있어요.`
-            : "매장 유형을 고르면 자주 쓰는 조건이 보여요."
-        }
-      />
-    </section>
+    </HeroField>
   );
 }

@@ -4,12 +4,15 @@
  * 광고주 화면(lib/advertiserPreview.ts)은 아직 예시 데이터라 PREVIEW_TODAY 와 날짜 도우미를 여기서 같이 쓴다.
  */
 
-/** 광고주 예시 화면의 기준일 — 제휴사(매장) 화면은 todayKst()(실제 오늘)를 쓴다. */
-export const PREVIEW_TODAY = "2026-11-06";
-
 /** 오늘(KST) "YYYY-MM-DD" — 매장 화면의 단계(모집 중 · 예정 · 진행 중 · 완료)를 이 날짜로 나눈다. */
 export const todayKst = () =>
   new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * 광고주 예시 화면의 기준일 — 11-11부터 실제 오늘(KST)이다(사용자: "오늘이 11일인데 달력엔 6일").
+ * 예전엔 2026-11-06 고정. 화면을 연 때 한 번 정해진다(자정을 넘기면 새로 고쳐야 바뀜).
+ */
+export const PREVIEW_TODAY = todayKst();
 
 export type CollabType = "ready" | "made";
 export type PhotoStep = "install" | "check1" | "check2" | "check3";
@@ -22,7 +25,9 @@ export type Standing =
   | "confirmed"
   | "blocked"
   | "declined"
-  | "cancelled";
+  | "cancelled"
+  // 모집 기간에 "미참여"로 답함(11-12 사용자) — 마감 전까지는 "참여"로 바꿀 수 있다.
+  | "passed";
 /** 콜라보 목록의 칸 — 모집 중 · 예정(신청·확정, 설치 전) · 진행 중(설치~철수) · 완료. */
 export const COLLAB_CATEGORIES = [
   "recruiting",
@@ -169,12 +174,14 @@ export const isFull = (c: PreviewCollab) => c.appliedStores >= c.targetStores;
  * 모집 중 콜라보에서 "이 매장이 지금 무엇을 할 수 있나" — 대시보드 · 콜라보 목록 카드가 같은 기준을 쓴다.
  *   open 신청 가능 · closing 3일 안 마감 · waitlist 목표 매장이 차서 대기 신청만 · blocked 기간이 겹쳐 신청 불가
  */
-export type RecruitKind = "open" | "closing" | "waitlist" | "blocked";
+export type RecruitKind =
+  "open" | "closing" | "waitlist" | "blocked" | "passed";
 export function recruitKindOf(
   c: PreviewCollab,
   today = todayKst(),
 ): RecruitKind {
   if (c.standing === "blocked") return "blocked";
+  if (c.standing === "passed") return "passed";
   if (isFull(c)) return "waitlist";
   return diffDays(c.recruitEnd, today) <= 3 ? "closing" : "open";
 }
@@ -184,6 +191,7 @@ export function recruitBadgeOf(c: PreviewCollab, today = todayKst()) {
   const left = diffDays(c.recruitEnd, today);
   return {
     blocked: "신청 불가",
+    passed: "미참여",
     waitlist: "대기 신청",
     closing: left === 0 ? "오늘 마감" : `마감 임박 D-${left}`,
     open: `모집 중 · D-${left}`,
@@ -199,6 +207,11 @@ export function chipOf(
   switch (c.standing) {
     case "declined":
       return { label: "미참여", tone: "gray" };
+    case "passed":
+      return {
+        label: cat === "recruiting" ? "미참여로 답함" : "미참여",
+        tone: "gray",
+      };
     case "cancelled":
       return { label: "광고주 취소", tone: "red" };
     case "blocked":
@@ -249,6 +262,10 @@ export function nextActionOf(c: PreviewCollab, today = todayKst()) {
       return `${kstStamp(c.confirmDue)}까지 진행 항목을 확인하고 최종 확정해 주세요`;
     case "declined":
       return "이번 콜라보에는 참여하지 않았어요";
+    case "passed":
+      return cat === "recruiting"
+        ? `미참여로 답했어요. 모집 마감(${md(c.recruitEnd)}) 전까지 참여로 바꿀 수 있어요`
+        : "이번 콜라보에는 참여하지 않았어요";
     case "cancelled":
       return "광고주 사정으로 취소됐어요. 매장 책임은 없어요";
     case "confirmed":
@@ -262,8 +279,8 @@ export function nextActionOf(c: PreviewCollab, today = todayKst()) {
       return `설치 ${md(c.installDate)} · admix가 방문 세팅해요`;
     default:
       return isFull(c)
-        ? "대기 신청하면 빠지는 매장이 생길 때 순서대로 연락드려요"
-        : `${md(c.recruitEnd)}까지 선착순 신청`;
+        ? "참여하면 예비로 들어가요. 빠지는 매장이 생길 때 순서대로 연락드려요"
+        : `${md(c.recruitEnd)}까지 참여 · 미참여를 알려 주세요(선착순)`;
   }
 }
 
@@ -322,6 +339,8 @@ export function historyStatusOf(
   today = todayKst(),
 ): HistoryStatus | null {
   if (c.standing === "declined") return "declined";
+  // 미참여로 답한 콜라보 — 모집이 끝난 뒤에 참여 이력에 "미참여"로 남는다(모집 중엔 아직 바꿀 수 있어 목록에).
+  if (c.standing === "passed") return today > c.recruitEnd ? "declined" : null;
   if (c.standing === "cancelled") return "cancelled";
   if (c.standing !== "confirmed") return null;
   const cat = categoryOf(c, today);
@@ -379,7 +398,7 @@ export function todosOf(state: PreviewState, today = todayKst()) {
   const todos: {
     id: string;
     collabId: string;
-    kind: "photo" | "confirm" | "notice";
+    kind: "photo" | "confirm" | "answer" | "notice";
     title: string;
     detail: string;
   }[] = [];
@@ -392,6 +411,15 @@ export function todosOf(state: PreviewState, today = todayKst()) {
         kind: "photo",
         title: `${STEP_LABEL[due.step]} 사진을 올려 주세요`,
         detail: `${c.brand} ${c.title} · ${due.day}일차 남은 수량`,
+      });
+    // 새로 열린 콜라보 — 참여 / 미참여를 묻는다(11-12 사용자). 마감까지 답이 없으면 무응답.
+    if (c.standing === "none" && categoryOf(c, today) === "recruiting")
+      todos.push({
+        id: `answer-${c.id}`,
+        collabId: c.id,
+        kind: "answer",
+        title: "새 콜라보에 참여할까요?",
+        detail: `${c.brand} ${c.title} · ${md(c.recruitEnd)}까지 답해 주세요`,
       });
     if (c.standing === "requested")
       todos.push({
@@ -414,4 +442,4 @@ export function todosOf(state: PreviewState, today = todayKst()) {
   // 확정 요청은 기한이 있으니 맨 위 — 대시보드 "확정할 콜라보" 구역을 알림으로 옮겼다(2026-11-09 사용자).
   return todos.sort((a, b) => TODO_ORDER[a.kind] - TODO_ORDER[b.kind]);
 }
-const TODO_ORDER = { confirm: 0, photo: 1, notice: 2 } as const;
+const TODO_ORDER = { confirm: 0, photo: 1, answer: 2, notice: 3 } as const;

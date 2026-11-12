@@ -52,4 +52,6 @@ def complete(
         name=body.name,
         phone=body.phone,
         company_name=body.company_name,
+        marketing_sms=body.marketing_sms,
+        marketing_email=body.marketing_email,
     )

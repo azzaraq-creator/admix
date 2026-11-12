@@ -4,6 +4,7 @@ import { Button, Chip, Pagination } from "@heroui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { PARTICIPANT_STATUS_LABEL } from "@/lib/adminCollab";
 import {
   COLLAB_PHASE_LABEL,
@@ -48,7 +49,10 @@ export function CollabPageHead({
   );
 }
 
-/** 칸 묶음 — 흰 카드 안의 테두리 상자. */
+/**
+ * 칸 묶음 — 어드민 공통 흰 카드(AdminPanel). 예전엔 흰 판 안의 테두리 상자였는데, 2026-11-12 사용자 요청으로
+ * 회색 바탕 위 테두리 없는 흰 카드로 바꿨다(매장 상세와 같은 모양).
+ */
 export function CollabSection({
   title,
   desc,
@@ -63,23 +67,9 @@ export function CollabSection({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "flex flex-col gap-[16px] rounded-[12px] border border-stroke p-[16px] md:p-[24px]",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-[8px]">
-        <div className="flex min-w-0 flex-col gap-[2px]">
-          <h2 className="text-base font-bold leading-[24px] text-black md:text-lg md:leading-[28px]">
-            {title}
-          </h2>
-          {desc && <p className="text-sm text-disabled">{desc}</p>}
-        </div>
-        {right}
-      </div>
+    <AdminPanel title={title} desc={desc} right={right} className={className}>
       {children}
-    </section>
+    </AdminPanel>
   );
 }
 
@@ -113,6 +103,7 @@ const STATUS_COLOR: Record<
   confirmed: "success",
   declined: "default",
   cancelled: "danger",
+  passed: "default",
 };
 
 export function ParticipantChip({ status }: { status: ParticipantStatus }) {
@@ -149,7 +140,7 @@ export function SimplePager({
       >
         <ChevronLeft className="size-[16px]" />
       </Button>
-      <span className="text-sm tabular-nums text-tone-4a5565">
+      <span className="text-sm text-tone-4a5565">
         {page} / {last}
       </span>
       <Button
@@ -238,18 +229,36 @@ export function PageNav({
   );
 }
 
-/** 받은 파일 저장 · 열기 — 사진 · PDF 는 새 창으로 보여 주고, 그 밖은 내려받는다. */
-export function openOrDownloadBlob(blob: Blob, filename: string) {
+/**
+ * 파일을 받아 새 탭에 띄운다 — 사진 · PDF 는 새 탭에, 그 밖은 탭을 닫고 내려받는다.
+ * 누르는 순간 빈 탭부터 연다: 파일을 다 받은 뒤에 열면 브라우저가 팝업으로 막아 내려받기로 넘어가 버린다
+ * (11-11 사용자 "다운로드가 아닌 새 탭으로"). 받지 못하면 탭을 닫고 오류를 그대로 던진다.
+ */
+export async function openFileInNewTab(
+  load: () => Promise<Blob>,
+  filename: string,
+) {
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.title = filename;
+    win.document.body.textContent = "불러오는 중…";
+  }
+  let blob: Blob;
+  try {
+    blob = await load();
+  } catch (err) {
+    win?.close();
+    throw err;
+  }
   const url = URL.createObjectURL(blob);
   const viewable =
     blob.type.startsWith("image/") || blob.type === "application/pdf";
-  if (viewable) {
-    const win = window.open(url, "_blank");
-    if (win) {
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      return;
-    }
+  if (win && viewable) {
+    win.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
   }
+  win?.close();
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;

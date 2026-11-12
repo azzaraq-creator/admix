@@ -1,7 +1,8 @@
 """콜라보 어드민 · 광고주 회원(11-10) — 콜라보 권한만 있는 관리자도 광고주를 보게 한다.
 
 읽기 전용: 담당자 정보 · 명함 · 브랜드 · 사업자 인증 상태. 계정 수정 · 사업자 인증 처리는 admix 회원 관리(/admin/members)에서 한다.
-콜라보 의뢰는 아직 서버에 없어(광고주 화면 예시 데이터) 여기서 보여 주지 않는다.
+단, 사업자 상호 · 사업자번호는 여기서도 적어 저장한다(11-11 사용자, admin_update_biz).
+목록엔 콜라보 수(collabCount — 보낸 의뢰 중 취소만 뺀 수, 확정 · 진행도 센다)를 붙인다(11-12 사용자).
 """
 from __future__ import annotations
 
@@ -9,11 +10,12 @@ import uuid
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from src.config import get_settings
 from src.models.advertiser_brand import AdvertiserBrand
+from src.models.advertiser_collab_request import AdvertiserCollabRequest
 from src.models.member_profile import BusinessRegistration
 from src.models.user import User
 from src.services import advertiser_brand_service
@@ -67,6 +69,22 @@ def _brands_by_user(db: Session, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, l
     return out
 
 
+def _collab_counts(db: Session, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """회원별 콜라보 수 — 보낸 의뢰 중 취소(cancelled)만 뺀다(접수 · 기획안 · 확정 모두 센다)."""
+    if not user_ids:
+        return {}
+    rows = (
+        db.query(AdvertiserCollabRequest.user_id, func.count(AdvertiserCollabRequest.id))
+        .filter(
+            AdvertiserCollabRequest.user_id.in_(user_ids),
+            AdvertiserCollabRequest.status != "cancelled",
+        )
+        .group_by(AdvertiserCollabRequest.user_id)
+        .all()
+    )
+    return {uid: n for uid, n in rows}
+
+
 def _advertiser_or_404(db: Session, member_id: str) -> User:
     try:
         user = db.get(User, uuid.UUID(member_id))
@@ -101,17 +119,20 @@ def admin_list(
             .filter(AdvertiserBrand.user_id == User.id, AdvertiserBrand.name.ilike(like))
             .exists()
         )
-        q = q.filter(
-            or_(
-                User.login_id.ilike(like),
-                User.email.ilike(like),
-                User.name.ilike(like),
-                User.phone.ilike(like),
-                User.company_name.ilike(like),
-                User.contact_name.ilike(like),
-                has_brand_named,
-            )
-        )
+        conds = [
+            User.login_id.ilike(like),
+            User.email.ilike(like),
+            User.name.ilike(like),
+            User.phone.ilike(like),
+            User.company_name.ilike(like),
+            User.contact_name.ilike(like),
+            has_brand_named,
+        ]
+        # 연락처는 숫자만 저장돼 있고 화면엔 '-'를 넣어 보이므로 "010-1234" 처럼 찾아도 맞게(제휴사 회원과 같다).
+        digits = "".join(ch for ch in kw if ch.isdigit())
+        if len(digits) >= 3 and all(ch.isdigit() or ch in "- " for ch in kw):
+            conds.append(func.regexp_replace(User.phone, "[^0-9]", "", "g").like(f"%{digits}%"))
+        q = q.filter(or_(*conds))
     if biz:
         q = q.outerjoin(BusinessRegistration, BusinessRegistration.user_id == User.id)
         if biz == "unregistered":
@@ -132,13 +153,35 @@ def admin_list(
         .limit(page_size)
         .all()
     )
-    by_user = _brands_by_user(db, [u.id for u in rows])
-    return total, [_summary(u, by_user.get(u.id, [])) for u in rows]
+    ids = [u.id for u in rows]
+    by_user = _brands_by_user(db, ids)
+    counts = _collab_counts(db, ids)
+    return total, [
+        {**_summary(u, by_user.get(u.id, [])), "collabCount": counts.get(u.id, 0)} for u in rows
+    ]
 
 
 def admin_get(db: Session, member_id: str) -> dict:
     user = _advertiser_or_404(db, member_id)
     return _summary(user, _brands_by_user(db, [user.id]).get(user.id, []))
+
+
+def admin_update_biz(db: Session, member_id: str, data: dict) -> dict:
+    """상호 · 사업자번호 — 콜라보 관리자가 직접 적어 저장한다(11-11 사용자). 인증 상태 · 등록증 파일은 그대로.
+
+    빈 값은 지운다. 아직 사업자 정보 줄이 없으면 미등록 상태로 새로 만든다(admix 회원 관리와 같다).
+    """
+    user = _advertiser_or_404(db, member_id)
+    reg = user.business_registration
+    if reg is None:
+        reg = BusinessRegistration(user_id=user.id, status="unregistered")
+        db.add(reg)
+    for key in ("business_name", "business_registration_no"):
+        if key in data:
+            setattr(reg, key, (data[key] or "").strip() or None)
+    db.commit()
+    db.refresh(user)
+    return admin_get(db, member_id)
 
 
 def _upload_path(url: str | None, missing: str) -> Path:

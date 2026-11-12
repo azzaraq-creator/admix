@@ -71,8 +71,10 @@ export function RolesListView() {
   );
 
   return (
-    <div className="flex flex-col gap-[24px]">
-      <h1 className="text-2xl font-bold leading-[32px] text-black">계정 관리</h1>
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
+      <h1 className="text-2xl font-bold leading-[32px] text-black">
+        계정 관리
+      </h1>
 
       <CommonTable<Account>
         columnList={accountColumnList}

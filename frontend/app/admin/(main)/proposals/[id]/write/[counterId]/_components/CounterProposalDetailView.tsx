@@ -5,7 +5,7 @@ import { FileText, List } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AdminCard } from "@/components/admin/AdminCard";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { DownloadIcon } from "@/components/icons";
 import { proposalsApi, useAdminProposalDetail } from "@/hooks/proposals";
@@ -52,34 +52,39 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
   };
 
   return (
-    <AdminCard className="flex flex-col gap-[24px] md:p-[32px]">
+    // 회색 바탕 위 흰 카드 하나(AdminPanel) — 제목 · 아래 버튼은 카드 밖(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
-      {/* 보내 둔 맞춤제안이라 읽기 전용 — 회색 칸(secondary)으로 보여 준다. */}
-      <TextField
-        value={proposalName}
-        isReadOnly
-        className="flex-row items-center gap-[12px]"
-      >
-        <Label
-          isRequired
-          className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
+      <AdminPanel contentClassName="gap-[24px]">
+        {/* 보내 둔 맞춤제안이라 읽기 전용 — 회색 칸(secondary)으로 보여 준다. */}
+        <TextField
+          value={proposalName}
+          isReadOnly
+          className="flex-row items-center gap-[12px]"
         >
-          맞춤기획안 명
-        </Label>
-        <Input variant="secondary" className="flex-1" />
-      </TextField>
+          <Label
+            isRequired
+            className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
+          >
+            맞춤기획안 명
+          </Label>
+          <Input variant="secondary" className="flex-1" />
+        </TextField>
 
-      <p className="text-lg font-bold leading-[28px] text-black">PPT 파일첨부</p>
+        <p className="text-lg font-bold leading-[28px] text-black">
+          PPT 파일첨부
+        </p>
 
-      <div className="flex items-center gap-[12px] rounded-[8px] border border-stroke px-[20px] py-[18px]">
-        <FileText className="size-[24px] shrink-0 text-disabled" />
-        <span className="truncate text-base font-semibold leading-[24px] text-black">
-          {file?.file_name ?? "-"}
-        </span>
-      </div>
+        <div className="flex items-center gap-[12px] rounded-[12px] bg-gray-50 px-[20px] py-[18px]">
+          <FileText className="size-[24px] shrink-0 text-disabled" />
+          <span className="truncate text-base font-semibold leading-[24px] text-black">
+            {file?.file_name ?? "-"}
+          </span>
+        </div>
+      </AdminPanel>
 
       <div className="flex items-center justify-between">
         <Button
@@ -108,8 +113,11 @@ export function CounterProposalDetailView({ proposalId, counterId }: Props) {
       </div>
 
       {lightbox && (
-        <ImageLightbox images={slideImages} onClose={() => setLightbox(false)} />
+        <ImageLightbox
+          images={slideImages}
+          onClose={() => setLightbox(false)}
+        />
       )}
-    </AdminCard>
+    </div>
   );
 }

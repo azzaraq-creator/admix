@@ -363,7 +363,7 @@ export function ProposalsView() {
           data-tour="proposal-new"
           variant="primary"
           onPress={() => setCreateOpen(true)}
-          className="shrink-0 rounded-[17px] md:rounded-[15px]"
+          className="shrink-0"
         >
           <PlusIcon />새 기획안
         </Button>

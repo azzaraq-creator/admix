@@ -403,7 +403,7 @@ export function AiChatPanel({
             }
             onPress={handleSend}
             aria-label="전송"
-            className="size-[34px] shrink-0 rounded-full"
+            className="size-[34px] shrink-0 rounded-[14px]"
           >
             <ArrowUpIcon className="size-[18px]" />
           </Button>
@@ -455,7 +455,7 @@ function SlotBar({
                   onClick={() => onRemove(cat, e.code, valueLabel)}
                   aria-label={`${label} ${valueLabel} 제거`}
                   className={cn(
-                    "flex size-[16px] items-center justify-center rounded text-gray-500 transition-colors hover:bg-primary/15 hover:text-black",
+                    "flex size-[16px] items-center justify-center rounded-[5px] text-gray-500 transition-colors hover:bg-primary/15 hover:text-black",
                     disabled && "cursor-not-allowed opacity-40",
                   )}
                 >

@@ -21,6 +21,7 @@ import {
   useAdminPopGridMonths,
   useAdminPopGridUpload,
 } from "@/hooks/popGrid";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
@@ -133,7 +134,8 @@ export function PopGridAdminView() {
   const months = data?.months ?? [];
 
   return (
-    <div className="flex flex-col gap-[32px]">
+    // 회색 바탕 위 흰 카드(AdminPanel) — 올리기 · 들어 있는 달 · 거주인구를 각각 카드로(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       {confirmDialog}
       <div className="flex flex-col gap-[8px]">
         <h1 className="text-2xl leading-[32px] font-bold text-black">
@@ -147,8 +149,8 @@ export function PopGridAdminView() {
         </p>
       </div>
 
-      <div className="grid gap-[16px] lg:grid-cols-2">
-        <section className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[20px]">
+      <div className="grid gap-[20px] md:gap-[24px] lg:grid-cols-2">
+        <AdminPanel contentClassName="gap-[12px]">
           <div className="flex flex-col gap-[4px]">
             <h2 className="text-base leading-[24px] font-bold text-black">
               ① 인계 월 파일 올리기
@@ -180,12 +182,12 @@ export function PopGridAdminView() {
               <span className="text-sm text-gray-600">{handoverBusy}</span>
             )}
           </div>
-        </section>
+        </AdminPanel>
 
         <SeoulRawUpload />
       </div>
 
-      <section className="flex flex-col gap-[12px]">
+      <AdminPanel contentClassName="gap-[12px]">
         <h2 className="text-base leading-[24px] font-semibold text-black">
           들어 있는 달 {months.length ? `${months.length}개` : ""}
         </h2>
@@ -240,7 +242,10 @@ export function PopGridAdminView() {
                         const s = m.sources[c.key];
                         const has = m.metrics.includes(c.key);
                         return (
-                          <Table.Cell key={c.key} className="px-[8px] text-center">
+                          <Table.Cell
+                            key={c.key}
+                            className="px-[8px] text-center"
+                          >
                             {has ? (
                               <span
                                 className="text-success"
@@ -286,7 +291,7 @@ export function PopGridAdminView() {
             </Table.ScrollContainer>
           </Table>
         )}
-      </section>
+      </AdminPanel>
 
       <HouseholdSection />
     </div>
@@ -374,7 +379,7 @@ function HouseholdSection() {
   };
 
   return (
-    <section className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[20px]">
+    <AdminPanel contentClassName="gap-[12px]">
       {confirmDialog}
       <div className="flex flex-col gap-[4px]">
         <h2 className="text-base leading-[24px] font-bold text-black">
@@ -454,10 +459,10 @@ function HouseholdSection() {
                     <Table.Cell className="font-semibold whitespace-nowrap text-black">
                       {ymText(m.ym)}
                     </Table.Cell>
-                    <Table.Cell className="text-gray-600 tabular-nums">
+                    <Table.Cell className="text-gray-600">
                       {m.dongs}곳
                     </Table.Cell>
-                    <Table.Cell className="text-gray-600 tabular-nums">
+                    <Table.Cell className="text-gray-600">
                       {m.total.toLocaleString()}세대
                     </Table.Cell>
                     <Table.Cell className="whitespace-nowrap text-gray-600">
@@ -485,7 +490,7 @@ function HouseholdSection() {
           </Table.ScrollContainer>
         </Table>
       )}
-    </section>
+    </AdminPanel>
   );
 }
 
@@ -604,7 +609,7 @@ function SeoulRawUpload() {
             : "준비 중";
 
   return (
-    <section className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[20px]">
+    <AdminPanel contentClassName="gap-[12px]">
       {confirmDialog}
       <div className="flex flex-col gap-[4px]">
         <h2 className="text-base leading-[24px] font-bold text-black">
@@ -697,7 +702,7 @@ function SeoulRawUpload() {
               {stageText}
               {progress?.file ? ` · ${progress.file}` : ""}
             </span>
-            {pct != null && <span className="tabular-nums">{pct}%</span>}
+            {pct != null && <span>{pct}%</span>}
           </div>
           {/* 몇 %인지 모를 때(준비·올리는 중)는 5%로 조금만 채워 둔다. */}
           <ProgressBar aria-label={stageText} value={pct ?? 5}>
@@ -722,7 +727,7 @@ function SeoulRawUpload() {
           </Button>
         )}
       </div>
-    </section>
+    </AdminPanel>
   );
 }
 

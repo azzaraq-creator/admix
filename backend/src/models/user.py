@@ -70,6 +70,9 @@ class User(Base):
     position = Column(String(100), nullable=True)
     industry = Column(String(100), nullable=True)
     marketing_consent = Column(Boolean, nullable=False, default=False)
+    # 마케팅 정보 받을 방법(083) — 문자 · 이메일, 둘 다 가능. 동의(marketing_consent)가 켜져 있을 때만 쓴다.
+    marketing_sms = Column(Boolean, nullable=False, default=False, server_default="false")
+    marketing_email = Column(Boolean, nullable=False, default=False, server_default="false")
     status = Column(String(20), nullable=False, default="active")  # active/dormant/sanctioned/withdrawn
     admin_memo = Column(Text, nullable=True)
     withdrawn_at = Column(DateTime(timezone=True), nullable=True)

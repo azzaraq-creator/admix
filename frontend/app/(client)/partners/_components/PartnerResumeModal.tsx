@@ -74,57 +74,55 @@ export function PartnerResumeModal() {
   };
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) dismiss();
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container placement="center" size="sm">
-          <Modal.Dialog aria-label={copy.title}>
-            <Modal.Header className="flex flex-col items-start gap-[12px]">
-              {/* 아이콘 — 문의 작성하기 버튼과 같은 펜(WriteIcon), 회색 동그라미 위. */}
-              <span
-                aria-hidden
-                className="flex size-[44px] items-center justify-center rounded-full bg-gray-100 text-gray-500"
-              >
-                <WriteIcon className="size-[20px]" />
-              </span>
-              <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
-                {copy.title}
-              </Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <p className="text-[14px] leading-[1.65] break-keep text-gray-600">
-                <b className="font-semibold break-all text-gray-900">
-                  {me?.email}
-                </b>{" "}
-                {copy.body}
-              </p>
-            </Modal.Body>
-            <Modal.Footer className="flex gap-[8px]">
-              {/* 버튼 44px → 곡률 19px. */}
-              <Button
-                variant="tertiary"
-                onPress={dismiss}
-                className="h-[44px] flex-1 rounded-[19px] text-[14px] font-semibold"
-              >
-                나중에
-              </Button>
-              <Button
-                onPress={() => {
-                  dismiss();
-                  router.push(copy.href);
-                }}
-                className="h-[44px] flex-1 rounded-[19px] text-[14px] font-bold"
-              >
-                이어서 하기
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+      <Modal.Container placement="center" size="sm">
+        <Modal.Dialog aria-label={copy.title}>
+          <Modal.Header className="flex flex-col items-start gap-[12px]">
+            {/* 아이콘 — 문의 작성하기 버튼과 같은 펜(WriteIcon), 회색 동그라미 위. */}
+            <span
+              aria-hidden
+              className="flex size-[44px] items-center justify-center rounded-full bg-gray-100 text-gray-500"
+            >
+              <WriteIcon className="size-[20px]" />
+            </span>
+            <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
+              {copy.title}
+            </Modal.Heading>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="text-[14px] leading-[1.65] break-keep text-gray-600">
+              <b className="font-semibold break-all text-gray-900">
+                {me?.email}
+              </b>{" "}
+              {copy.body}
+            </p>
+          </Modal.Body>
+          <Modal.Footer className="flex gap-[8px]">
+            {/* 버튼 44px → 곡률 19px. */}
+            <Button
+              variant="tertiary"
+              onPress={dismiss}
+              className="h-[44px] flex-1 rounded-[19px] text-[14px] font-semibold"
+            >
+              나중에
+            </Button>
+            <Button
+              onPress={() => {
+                dismiss();
+                router.push(copy.href);
+              }}
+              className="h-[44px] flex-1 rounded-[19px] text-[14px] font-bold"
+            >
+              이어서 하기
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

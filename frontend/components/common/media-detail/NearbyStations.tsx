@@ -81,7 +81,7 @@ export function NearbyStations({
             {s.name}
           </span>
           <span
-            className="text-[12px] whitespace-nowrap text-tone-6c757d tabular-nums"
+            className="text-[12px] whitespace-nowrap text-tone-6c757d"
             title="매체 위치에서 직선 거리"
           >
             직선 {s.distanceM.toLocaleString()}m

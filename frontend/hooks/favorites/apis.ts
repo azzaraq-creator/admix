@@ -38,4 +38,20 @@ export const favoritesApi = {
     api.put(`/favorites/${encodeURIComponent(mediaId)}`),
   remove: (mediaId: string) =>
     api.delete(`/favorites/${encodeURIComponent(mediaId)}`),
+  /** 담은 매체 메모 — 메모가 있는 것만 {매체 id: 메모}(080, 광고주 관심 매장 카드 아래). */
+  memos: () =>
+    api
+      .get<{ memos: Record<string, string> }>("/favorites/memos")
+      .then((r) => r.data.memos),
+  /** 메모 저장 — 최대 500자(FAVORITE_MEMO_MAX), 비우면 지운다. 담은 매체만(아니면 404). */
+  setMemo: (mediaId: string, memo: string) =>
+    api
+      .put<{ media_id: string; memo: string | null }>(
+        `/favorites/${encodeURIComponent(mediaId)}/memo`,
+        { memo },
+      )
+      .then((r) => r.data.memo),
 };
+
+/** 관심 목록 메모 최대 글자 수 — 백엔드 favorite_service.MEMO_MAX 와 같다. */
+export const FAVORITE_MEMO_MAX = 500;

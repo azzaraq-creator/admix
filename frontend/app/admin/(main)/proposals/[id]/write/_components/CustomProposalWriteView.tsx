@@ -5,7 +5,7 @@ import { FileText, List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-import { AdminCard } from "@/components/admin/AdminCard";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { useUploadCounterProposal } from "@/hooks/proposals";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
@@ -74,90 +74,97 @@ export function CustomProposalWriteView() {
   };
 
   return (
-    <AdminCard className="flex flex-col gap-[24px] md:p-[32px]">
+    // 회색 바탕 위 흰 카드 하나(AdminPanel) — 제목 · 아래 버튼은 카드 밖(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         맞춤제안 작성
       </h1>
 
-      {/* 빈 제목은 [맞춤제안 전송]에서 막는다(아래 오류 문구) — 칸에는 필수 표시(*)만 단다. */}
-      <TextField
-        value={title}
-        onChange={setTitle}
-        className="flex-row items-center gap-[12px]"
-      >
-        <Label
-          isRequired
-          className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
+      <AdminPanel contentClassName="gap-[24px]">
+        {/* 빈 제목은 [맞춤제안 전송]에서 막는다(아래 오류 문구) — 칸에는 필수 표시(*)만 단다. */}
+        <TextField
+          value={title}
+          onChange={setTitle}
+          className="flex-row items-center gap-[12px]"
         >
-          맞춤기획안 명
-        </Label>
-        <Input className="flex-1" />
-      </TextField>
-
-      <p className="text-lg font-bold leading-[28px] text-black">PPT 파일첨부</p>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".ppt,.pptx"
-        className="hidden"
-        onChange={(event) => {
-          handleFile(event.target.files?.[0]);
-          event.target.value = "";
-        }}
-      />
-
-      {fileName ? (
-        <div className="flex items-center justify-between gap-[12px] rounded-[8px] border border-stroke px-[20px] py-[18px]">
-          <div className="flex min-w-0 items-center gap-[12px]">
-            <FileText className="size-[24px] shrink-0 text-disabled" />
-            <span className="truncate text-base font-semibold leading-[24px] text-black">
-              {fileName}
-            </span>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={() => inputRef.current?.click()}
-            isDisabled={uploadMutation.isPending}
-            className="shrink-0"
+          <Label
+            isRequired
+            className="w-[132px] shrink-0 text-base font-semibold leading-[24px] text-tone-2a2a2a"
           >
-            파일 변경
-          </Button>
-        </div>
-      ) : (
-        <div
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            handleFile(event.dataTransfer.files?.[0]);
-          }}
-          className={`flex flex-col items-center justify-center gap-[12px] rounded-[8px] border border-dashed py-[48px] ${
-            dragging ? "border-primary bg-tone-f3fbfb" : "border-stroke"
-          }`}
-        >
-          <p className="text-base font-bold leading-[24px] text-black">
-            파일을 드래그해주시거나 PC에서 직접 선택해주세요
-          </p>
-          <p className="text-sm font-medium leading-[20px] text-disabled">
-            확장자 : PPT, PPTX (최대 100MB)
-          </p>
-          <Button variant="primary" onPress={() => inputRef.current?.click()}>
-            파일 업로드
-          </Button>
-        </div>
-      )}
+            맞춤기획안 명
+          </Label>
+          <Input className="flex-1" />
+        </TextField>
 
-      {error && (
-        <p className="text-sm font-medium leading-[20px] text-[#d65856]">
-          {error}
+        <p className="text-lg font-bold leading-[28px] text-black">
+          PPT 파일첨부
         </p>
-      )}
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".ppt,.pptx"
+          className="hidden"
+          onChange={(event) => {
+            handleFile(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+
+        {fileName ? (
+          <div className="flex items-center justify-between gap-[12px] rounded-[12px] bg-gray-50 px-[20px] py-[18px]">
+            <div className="flex min-w-0 items-center gap-[12px]">
+              <FileText className="size-[24px] shrink-0 text-disabled" />
+              <span className="truncate text-base font-semibold leading-[24px] text-black">
+                {fileName}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onPress={() => inputRef.current?.click()}
+              isDisabled={uploadMutation.isPending}
+              className="shrink-0"
+            >
+              파일 변경
+            </Button>
+          </div>
+        ) : (
+          <div
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              handleFile(event.dataTransfer.files?.[0]);
+            }}
+            className={`flex flex-col items-center justify-center gap-[12px] rounded-[8px] border border-dashed py-[48px] ${
+              dragging
+                ? "border-primary bg-tone-f3fbfb"
+                : "border-stroke bg-gray-50"
+            }`}
+          >
+            <p className="text-base font-bold leading-[24px] text-black">
+              파일을 드래그해주시거나 PC에서 직접 선택해주세요
+            </p>
+            <p className="text-sm font-medium leading-[20px] text-disabled">
+              확장자 : PPT, PPTX (최대 100MB)
+            </p>
+            <Button variant="primary" onPress={() => inputRef.current?.click()}>
+              파일 업로드
+            </Button>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-sm font-medium leading-[20px] text-[#d65856]">
+            {error}
+          </p>
+        )}
+      </AdminPanel>
 
       <div className="flex items-center justify-between">
         <Button variant="outline" onPress={goBack}>
@@ -175,6 +182,6 @@ export function CustomProposalWriteView() {
       </div>
 
       {confirmDialog}
-    </AdminCard>
+    </div>
   );
 }

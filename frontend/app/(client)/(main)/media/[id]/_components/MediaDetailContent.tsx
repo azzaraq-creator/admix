@@ -148,7 +148,7 @@ export function MediaDetailContent({
               <Button
                 variant="primary"
                 size="lg"
-                className="h-auto shrink-0 gap-[8px] rounded-[8px] px-[24px] py-[16px] text-base font-semibold [&_svg]:size-[24px]"
+                className="h-auto shrink-0 gap-[8px] rounded-[25px] px-[24px] py-[16px] text-base font-semibold [&_svg]:size-[24px]"
                 isDisabled={!mediaId}
                 onPress={handleAddProposal}
               >

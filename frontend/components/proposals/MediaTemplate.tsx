@@ -107,7 +107,7 @@ function PriceRow({
           <span className="ml-[8px] text-[14px] text-white/55">{note}</span>
         )}
       </p>
-      <p className="whitespace-nowrap text-[20px] font-semibold leading-[1.4] tabular-nums text-white">
+      <p className="whitespace-nowrap text-[20px] font-semibold leading-[1.4] text-white">
         {value}
       </p>
     </div>
@@ -148,7 +148,7 @@ function PriceCard({ item }: { item: ProposalItem }) {
         <p className="text-[18px] font-semibold leading-[1.4] text-white/85">
           합계
         </p>
-        <p className="whitespace-nowrap text-[36px] font-bold leading-[1.2] tracking-[-0.9px] tabular-nums">
+        <p className="whitespace-nowrap text-[36px] font-bold leading-[1.2] tracking-[-0.9px]">
           {/* 광고비가 없으면(별도 문의) 합계도 알 수 없다. */}
           {ad == null ? AD_FEE_INQUIRY : formatWon(ad + (prod ?? 0))}
         </p>
@@ -355,7 +355,7 @@ export function MediaTemplate({
           <p className="text-[15px] font-medium leading-[1.4] text-gray-500">
             집행 기간
           </p>
-          <p className="whitespace-nowrap text-[22px] font-semibold leading-[1.3] tracking-[-0.55px] text-gray-900 tabular-nums">
+          <p className="whitespace-nowrap text-[22px] font-semibold leading-[1.3] tracking-[-0.55px] text-gray-900">
             {period}
           </p>
         </div>

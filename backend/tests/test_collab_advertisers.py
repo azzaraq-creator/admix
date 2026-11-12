@@ -84,3 +84,69 @@ def test_detail_only_advertiser(db: Session, people):
         with pytest.raises(HTTPException) as e:
             fn(db, str(adv.id))
         assert e.value.status_code == 404
+
+
+def test_summary_counts_advertiser_biz_reviewing(db: Session, people):
+    """사이드 메뉴 "광고주 회원" 숫자 — 광고주의 사업자등록증 검토 대기만 센다(제휴사 것은 빼고)."""
+    from src.models.member_profile import BusinessRegistration
+    from src.services import collab_service
+
+    _, adv, partner = people
+    before = collab_service.admin_summary(db)["advertisers"]["bizReviewing"]
+    db.add_all(
+        [
+            BusinessRegistration(user_id=adv.id, status="reviewing"),
+            BusinessRegistration(user_id=partner.id, status="reviewing"),
+        ]
+    )
+    db.commit()
+    assert collab_service.admin_summary(db)["advertisers"]["bizReviewing"] == before + 1
+
+
+def test_admin_updates_biz_name_and_no(db: Session, people):
+    """관리자가 상호 · 사업자번호를 적어 저장 — 사업자 정보 줄이 없으면 미등록으로 만들고, 빈 값은 지운다."""
+    _, adv, partner = people
+    m = svc.admin_update_biz(
+        db, str(adv.id), {"business_name": "  주식회사 테스트 ", "business_registration_no": "123-45-67890"}
+    )
+    assert (m["bizName"], m["bizNo"], m["bizStatus"]) == ("주식회사 테스트", "123-45-67890", "unregistered")
+    # 보낸 칸만 바꾼다
+    m = svc.admin_update_biz(db, str(adv.id), {"business_registration_no": " "})
+    assert (m["bizName"], m["bizNo"]) == ("주식회사 테스트", None)
+    # 제휴사 회원은 여기서 못 바꾼다
+    with pytest.raises(HTTPException) as e:
+        svc.admin_update_biz(db, str(partner.id), {"business_name": "x"})
+    assert e.value.status_code == 404
+
+
+def test_list_collab_count_skips_cancelled(db: Session, people):
+    """목록 콜라보 수(11-12) — 보낸 의뢰 중 취소만 빼고 센다(접수 · 확정은 센다). 의뢰가 없으면 0."""
+    import datetime
+
+    from src.models.advertiser_collab_request import AdvertiserCollabRequest
+
+    tag, adv, _ = people
+    assert svc.admin_list(db, keyword=tag)[1][0]["collabCount"] == 0
+
+    def req(n: int, status: str) -> AdvertiserCollabRequest:
+        return AdvertiserCollabRequest(
+            code=f"T{tag[:8]}-{n}",
+            user_id=adv.id,
+            brand_name="브랜드",
+            title="테스트",
+            start_date=datetime.date(2026, 12, 1),
+            end_date=datetime.date(2026, 12, 5),
+            contact_name="김담당",
+            contact_phone="01012345678",
+            contact_role="대리",
+            items=[],
+            course="standard",
+            min_stores=1,
+            target_stores=1,
+            preferred=[],
+            status=status,
+        )
+
+    db.add_all([req(1, "submitted"), req(2, "cancelled"), req(3, "confirmed")])
+    db.commit()
+    assert svc.admin_list(db, keyword=tag)[1][0]["collabCount"] == 2

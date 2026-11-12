@@ -153,7 +153,7 @@ export function BizLicenseBlock({ className }: { className?: string }) {
       {member && me?.partner_code && !done && (
         <p className="mt-[10px] inline-flex items-center gap-[8px] rounded-[12px] bg-gray-50 px-[12px] py-[6px] text-[13px] text-gray-600">
           회원 고유번호
-          <b className="font-bold text-gray-900 tabular-nums">
+          <b className="font-bold text-gray-900">
             {me.partner_code}
           </b>
         </p>
@@ -243,7 +243,7 @@ export function AnnexStage({
       {/* 별지 — 누르면 창으로 열고, 창 아래 "읽고 확인했어요"로 확인. */}
       <div className="mt-[20px] flex items-center justify-between sm:mt-[24px]">
         <h3 className="text-[15px] font-bold text-gray-900">별지</h3>
-        <span className="text-[13px] font-semibold text-gray-400 tabular-nums">
+        <span className="text-[13px] font-semibold text-gray-400">
           {viewedCount} / {required.length} 확인
         </span>
       </div>
@@ -472,7 +472,7 @@ export function AnnexStage({
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-full text-[13px] font-semibold text-gray-600"
+          className="text-[13px] font-semibold text-gray-600"
           onPress={onPrev}
         >
           <ChevronLeftIcon className="size-[14px]" />
@@ -481,7 +481,7 @@ export function AnnexStage({
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-full text-[13px] font-semibold text-gray-600"
+          className="text-[13px] font-semibold text-gray-600"
           onPress={onNext}
         >
           다음
@@ -612,7 +612,7 @@ export function ConsentStage({
               <CheckMark on={s.done} />
               {s.label}
             </span>
-            <b className="mt-[6px] text-[14px] font-bold text-gray-900 tabular-nums sm:text-[15px]">
+            <b className="mt-[6px] text-[14px] font-bold text-gray-900 sm:text-[15px]">
               {s.value}
             </b>
           </button>
@@ -694,79 +694,77 @@ export function ConsentStage({
       </p>
 
       {/* 최종 확인 창 — 동의 대상을 한 번 더 보여 주고 동의 접수. */}
-      <Modal
+      <Modal.Backdrop
         isOpen={confirmOpen}
         onOpenChange={(open) => {
           if (!open) cancelConfirm();
         }}
       >
-        <Modal.Backdrop>
-          <Modal.Container placement="center" size="md">
-            <Modal.Dialog aria-label="동의 대상 최종 확인">
-              <Modal.Header>
-                <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
-                  동의 대상을 한 번 더 확인해 주세요
-                </Modal.Heading>
-              </Modal.Header>
-              <Modal.Body>
-                <dl className="flex flex-col divide-y divide-gray-100 text-[14px]">
-                  {[
-                    ["협약", `기본협약 v${AGREEMENT.version}`],
-                    [
-                      "서명자",
-                      <>
-                        {`${ROLE_LABEL[role]}${signerName.trim() ? ` · ${signerName.trim()}` : ""}`}
-                        {/* 서명한 그림 — 이름 아래(11-10 사용자). 흰 종이 위 짙은 잉크 그대로. */}
-                        {signature && (
-                          // eslint-disable-next-line @next/next/no-img-element -- 방금 그린 서명(data URL)
-                          <img
-                            src={signature}
-                            alt={`${signerName.trim() || "서명자"} 서명`}
-                            className="mt-[8px] block h-[64px] w-auto max-w-full rounded-[12px] border border-gray-100 bg-white object-contain"
-                          />
-                        )}
-                      </>,
-                    ],
-                    ["포함 문서", `기본협약 본문 + 별지 ${annexCount}개`],
-                    [
-                      "확인한 내용",
-                      `핵심 주제 ${readCount} / ${topicTotal} · 필수 별지 ${annexViewed} / ${annexTotal}`,
-                    ],
-                  ].map(([k, v]) => (
-                    <div
-                      key={k as string}
-                      className="flex gap-[12px] py-[10px]"
-                    >
-                      <dt className="w-[80px] shrink-0 text-gray-500">{k}</dt>
-                      <dd className="min-w-0 font-semibold break-keep text-gray-900">
-                        {v}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </Modal.Body>
-              <Modal.Footer className="flex gap-[8px]">
-                <Button
-                  variant="tertiary"
-                  onPress={cancelConfirm}
-                  className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
-                >
-                  취소
-                </Button>
-                <Button
-                  onPress={() => {
-                    setConfirmOpen(false);
-                    onSubmit();
-                  }}
-                  className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
-                >
-                  동의하고 가입 마치기
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+        <Modal.Container placement="center" size="md">
+          <Modal.Dialog aria-label="동의 대상 최종 확인">
+            <Modal.Header>
+              <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
+                동의 대상을 한 번 더 확인해 주세요
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body>
+              <dl className="flex flex-col divide-y divide-gray-100 text-[14px]">
+                {[
+                  ["협약", `기본협약 v${AGREEMENT.version}`],
+                  [
+                    "서명자",
+                    <>
+                      {`${ROLE_LABEL[role]}${signerName.trim() ? ` · ${signerName.trim()}` : ""}`}
+                      {/* 서명한 그림 — 이름 아래(11-10 사용자). 흰 종이 위 짙은 잉크 그대로. */}
+                      {signature && (
+                        // eslint-disable-next-line @next/next/no-img-element -- 방금 그린 서명(data URL)
+                        <img
+                          src={signature}
+                          alt={`${signerName.trim() || "서명자"} 서명`}
+                          className="mt-[8px] block h-[64px] w-auto max-w-full rounded-[12px] border border-gray-100 bg-white object-contain"
+                        />
+                      )}
+                    </>,
+                  ],
+                  ["포함 문서", `기본협약 본문 + 별지 ${annexCount}개`],
+                  [
+                    "확인한 내용",
+                    `핵심 주제 ${readCount} / ${topicTotal} · 필수 별지 ${annexViewed} / ${annexTotal}`,
+                  ],
+                ].map(([k, v]) => (
+                  <div
+                    key={k as string}
+                    className="flex gap-[12px] py-[10px]"
+                  >
+                    <dt className="w-[80px] shrink-0 text-gray-500">{k}</dt>
+                    <dd className="min-w-0 font-semibold break-keep text-gray-900">
+                      {v}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Modal.Body>
+            <Modal.Footer className="flex gap-[8px]">
+              <Button
+                variant="tertiary"
+                onPress={cancelConfirm}
+                className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
+              >
+                취소
+              </Button>
+              <Button
+                onPress={() => {
+                  setConfirmOpen(false);
+                  onSubmit();
+                }}
+                className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
+              >
+                동의하고 가입 마치기
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </>
   );
 }

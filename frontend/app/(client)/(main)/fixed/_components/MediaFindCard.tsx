@@ -10,9 +10,10 @@ import {
   Label,
   Skeleton,
   ToggleButton,
+  Tooltip,
 } from "@heroui/react";
 
-import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
+import { PARTNERS_MEDIA_CATEGORY, photoKindLabel } from "@/lib/partners";
 import { formatAdFee } from "@/lib/media";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import {
@@ -40,7 +41,7 @@ import { StopNoChip } from "@/components/common/StopNoChip";
 import {
   CollabFeeCell,
   CollabFeeLine,
-  CollabPickButton,
+  likeLabelOf,
   samePick,
   type CollabPick,
 } from "./collabPick";
@@ -150,6 +151,8 @@ function MediaFindCardImpl({
   compact,
   partnersAccess,
   collabPick,
+  likeTooltip,
+  eager,
 }: {
   row: MediaCardRow;
   selected?: boolean;
@@ -172,23 +175,41 @@ function MediaFindCardImpl({
    * 관심 매체 페이지는 눌러도 매체 정보 창이 떠서 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
-  /** 광고주 콜라보 매장 찾기 — 콜라보 카드에 등급 · 1건 금액과 담기 버튼(새 탭 표시 대신). collabPick.tsx 참고. */
+  /** 광고주 콜라보 매장 찾기 — 콜라보 카드에 등급 · 1건 금액, 하트는 "관심 매장". collabPick.tsx 참고. */
   collabPick?: CollabPick;
+  /**
+   * 하트에 마우스를 올리면 툴팁 — 켜져 있으면 "관심 해제", 꺼져 있으면 "관심 매장(매체)에 담기".
+   * 광고주 관심 매장 화면(/partners/favorites, 11-11 사용자)만 쓴다. 하트 위에선 카드의 새 탭 툴팁은 숨긴다.
+   */
+  likeTooltip?: boolean;
+  /** 처음 화면에 바로 보이는 카드(목록 맨 위 몇 장) — 첫 사진을 늦게 불러오지 않는다(LCP). */
+  eager?: boolean;
 }) {
   const slides =
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
-  // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
-  const { liked, setLiked } = useFavorite(row.id, { notifyName: row.name });
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
   // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
+  // 콜라보 매장 사진마다 분류(외관 · 내관 …) — 큰 카드 사진 왼쪽 아래 이름표(11-12 사용자). 간략히 보기(88px)엔 없다.
+  const photoKinds = partners ? row.partners?.photoKinds : undefined;
+  const slideLabels = photoKinds
+    ? slides.map((src) => photoKindLabel(src ? photoKinds[src] : undefined))
+    : undefined;
   const pick = partners ? collabPick : undefined;
-  // 담기 버튼이 있으면 새 탭 표시는 뺀다(카드를 누르면 그대로 매장 상세가 새 탭으로).
-  const access = partners && !pick ? partnersAccess : undefined;
+  const access = partners ? partnersAccess : undefined;
+  // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
+  // 광고주 콜라보 매장 찾기(pick)에선 같은 목록을 "관심 매장"이라 부른다(/partners/favorites).
+  const likeLabel = likeLabelOf(pick);
+  const { liked, setLiked } = useFavorite(row.id, {
+    notifyName: row.name,
+    label: likeLabel,
+  });
   const locked = access === "locked";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다(콜라보 카드만 상태를 바꾼다).
   const [hovered, setHovered] = useState(false);
+  // 하트에 마우스를 올렸는지(likeTooltip 일 때만) — 하트 툴팁과 새 탭 툴팁이 같이 뜨지 않게.
+  const [likeHovered, setLikeHovered] = useState(false);
   const handleHover = (next: boolean) => {
     if (access) setHovered(next);
     onHoverChange?.(next);
@@ -208,12 +229,13 @@ function MediaFindCardImpl({
     <ToggleButton
       isIconOnly
       variant="ghost"
-      aria-label="관심 매체"
+      aria-label={likeLabel}
       isSelected={liked}
       onChange={setLiked}
+      onHoverChange={likeTooltip ? setLikeHovered : undefined}
       className={cn(
         compact
-          ? "size-[28px] min-w-0 shrink-0 rounded-[10px] p-0"
+          ? "size-[28px] min-w-0 shrink-0 rounded-[11px] p-0"
           : "absolute top-[11px] right-[11px] size-[30px] min-w-0 rounded-[12px] p-0",
         liked
           ? "bg-tone-fff1f0 data-[selected=true]:bg-tone-fff1f0"
@@ -235,6 +257,18 @@ function MediaFindCardImpl({
         )}
       />
     </ToggleButton>
+  );
+
+  // 하트 툴팁 — 버튼을 그대로 트리거로 쓴다(자리 · 모양은 하트 버튼 그대로).
+  const like = likeTooltip ? (
+    <Tooltip delay={0} closeDelay={0}>
+      {likeButton}
+      <Tooltip.Content placement="top" className="whitespace-nowrap">
+        {liked ? "관심 해제" : `${likeLabel}에 담기`}
+      </Tooltip.Content>
+    </Tooltip>
+  ) : (
+    likeButton
   );
 
   const cardClass = cn(
@@ -273,14 +307,15 @@ function MediaFindCardImpl({
           small
           className="size-[88px] shrink-0 rounded-[10px] max-sm:size-[76px]"
           imageClassName={imageHover}
+          eager={eager}
         />
         {/* 하트는 오른쪽 위에 띄운다 — 줄에 넣으면 하트 높이(28px)만큼 이름 줄이 커져 주소와 벌어진다. */}
         <div className="relative flex min-w-0 flex-1 flex-col py-[2px] pr-[2px]">
-          <div className="absolute top-0 right-[2px]">{likeButton}</div>
+          <div className="absolute top-0 right-[2px]">{like}</div>
           <div className="flex min-w-0 items-center pr-[34px]">
             <div className="flex min-w-0 flex-1 items-center gap-[4px]">
               {highlighted && (
-                <Chip className="shrink-0 rounded-[6px] bg-primary-500 px-[5px] py-[1px] text-[10px] leading-[14px] font-bold text-white">
+                <Chip className="shrink-0 rounded-[5px] bg-primary-500 px-[5px] py-[1px] text-[10px] leading-[14px] font-bold text-white">
                   검색한 매체
                 </Chip>
               )}
@@ -323,7 +358,7 @@ function MediaFindCardImpl({
                 variant="ghost"
                 onPress={() => onAddProposal?.()}
                 aria-label="기획안 담기"
-                className="h-[28px] min-w-0 shrink-0 gap-[6px] rounded-[10px] bg-primary-50 px-[8px] text-primary data-[hovered=true]:bg-primary-100"
+                className="h-[28px] min-w-0 shrink-0 gap-[6px] rounded-[11px] bg-primary-50 px-[8px] text-primary data-[hovered=true]:bg-primary-100"
               >
                 <FolderAddIcon className="shrink-0 text-[10px]" />
                 <span className="text-[12px] font-bold max-sm:text-[11px]">
@@ -331,12 +366,11 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
-            {pick && <CollabPickButton pick={pick} variant="compact" />}
             {/* 콜라보는 담기 자리에 새 탭(못 열면 자물쇠) 표시 — 옆 하트와 같은 밝은 회색 칸. */}
             {access && (
               <PartnersAccessMark
                 access={access}
-                hovered={hovered}
+                hovered={hovered && !likeHovered}
                 className="size-[28px] rounded-[10px] bg-gray-100"
               />
             )}
@@ -353,6 +387,8 @@ function MediaFindCardImpl({
         sizes="420px"
         className="h-[199px] w-full rounded-t-[15px]"
         imageClassName={imageHover}
+        labels={slideLabels}
+        eager={eager}
       >
         {selection ? (
           <SelectToggle
@@ -375,19 +411,18 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
-            {pick && <CollabPickButton pick={pick} variant="overlay" />}
             {/* 콜라보는 기획안 담기 자리(사진 왼쪽 위)에 새 탭(못 열면 자물쇠) 표시 — 오른쪽 하트와 같은 흰 칸.
                 툴팁은 오른쪽으로 띄워 사진 위에 얹는다(위로 띄우면 앞 카드를 가린다). */}
             {access && (
               <PartnersAccessMark
                 access={access}
-                hovered={hovered}
+                hovered={hovered && !likeHovered}
                 placement="right"
                 className="absolute top-[11px] left-[11px] size-[30px] rounded-[12px] bg-surface drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)]"
               />
             )}
 
-            {likeButton}
+            {like}
           </>
         )}
       </MediaImageCarousel>
@@ -395,7 +430,7 @@ function MediaFindCardImpl({
       <div className="flex flex-col px-[10px] pt-[11px]">
         <div className="flex min-w-0 items-center gap-[6px]">
           {highlighted && (
-            <Chip className="shrink-0 rounded-[8px] bg-primary-500 px-[6px] py-[2px] text-[11px] max-sm:text-[10px] leading-[15px] font-bold text-white">
+            <Chip className="shrink-0 rounded-[6.5px] bg-primary-500 px-[6px] py-[2px] text-[11px] max-sm:text-[10px] leading-[15px] font-bold text-white">
               검색한 매체
             </Chip>
           )}
@@ -456,7 +491,7 @@ function MediaFindCardImpl({
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
       {pick ? (
-        // 콜라보 담기 — 운영 시간 · 매장 특징 옆에 1건 금액(광고비 칸 자리).
+        // 광고주 매장 찾기 — 운영 시간 · 매장 특징 옆에 1건 금액(광고비 칸 자리).
         <div className="flex items-end justify-between gap-[12px] p-[10px]">
           <PartnersCardDetails
             businessHours={row.partners?.businessHours}
@@ -511,6 +546,8 @@ export const MediaFindCard = memo(
     prev.compact === next.compact &&
     prev.partnersAccess === next.partnersAccess &&
     samePick(prev.collabPick, next.collabPick) &&
+    prev.likeTooltip === next.likeTooltip &&
+    prev.eager === next.eager &&
     !prev.onHoverChange === !next.onHoverChange,
 );
 

@@ -26,7 +26,7 @@ def _utcnow() -> datetime:
 
 class PartnersStoreType(Base):
     """매장 유형(카페 · 식당 …) — 유형마다 "매장 어필" 칩 값과 자주 쓰는 "조건 메모" 값을 둔다(070).
-    어드민 "콜라보 → 매장 항목"에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다(직접 입력도 된다)."""
+    어드민 "콜라보 → 매장 유형 관리"에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다(직접 입력도 된다)."""
 
     __tablename__ = "cafe_store_type"
 
@@ -64,7 +64,7 @@ class PartnersStore(Base):
     district = Column(String(100), nullable=True)
     latitude = Column(Numeric(10, 7), nullable=True)
     longitude = Column(Numeric(10, 7), nullable=True)
-    # 사진 주소(최대 30장) — 분류 순으로 두고, 분류마다 첫 장이 그 분류의 대표 사진(매체 찾기 · 광고주 매장 카드에 보인다).
+    # 사진 주소(장수 제한 없음) — 분류 순으로 두고, 분류마다 첫 장이 그 분류의 대표 사진(매체 찾기 · 광고주 매장 카드에 보인다).
     image_urls = Column(JSONB, nullable=False, default=list, server_default="[]")
     # 사진 분류 — 사진 주소 → exterior 외관 · interior 내관 · counter 카운터 · menu 메뉴 · etc 기타(069, 073).
     image_kinds = Column(JSONB, nullable=False, default=dict, server_default="{}")
@@ -107,14 +107,15 @@ class PartnersStoreRequest(Base):
         UUID(as_uuid=True), ForeignKey("cafe_store.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    # 바꿀 항목 — name · address · hours · phone · owner_name · tags · notes(partners_service.REQUEST_FIELDS). 예전 자유 입력은 비어 있다.
+    # 바꿀 항목 — name · address · hours · phone · owner_name · tags · notes(partners_service.REQUEST_FIELDS).
+    # "inquiry" 는 추가 요청 · 문의(글은 content, 11-12). 예전 자유 입력은 비어 있다.
     field = Column(String(20), nullable=True)
     # "무엇에서 → 무엇으로" 글(서버가 만든다). before_text 는 반영할 때 그때 매장 값으로 다시 맞춘다.
     before_text = Column(Text, nullable=True)
     after_text = Column(Text, nullable=True)
     # 반영할 값 그대로 — 주소는 {address, address_detail, city, district, latitude, longitude}, 운영 시간은 hours 입력값.
     after_value = Column(JSONB, nullable=True)
-    # 담당자에게 남기는 메모(선택). 예전 자유 입력 요청은 이 글이 요청 자체.
+    # 담당자에게 남기는 메모(선택). 추가 요청 · 문의와 예전 자유 입력 요청은 이 글이 요청 자체.
     content = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="pending", server_default="pending")  # pending/done/rejected
     # 담당자 답 — 처리 불가(rejected)면 사유(꼭 적는다).

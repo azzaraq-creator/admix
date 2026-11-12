@@ -20,6 +20,7 @@ import {
   type AdminAdvertiserMember,
 } from "@/lib/adminCollab";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
+import { formatPhone } from "@/lib/phone";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -70,120 +71,97 @@ export function contactLine(m: AdminAdvertiserMember) {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/**
+ * 표 열(11-12 사용자) — 이름 · 아이디 · 담당자명 · 연락처 · 사업자등록증 · 브랜드 · 가입일 · 콜라보.
+ * 값이 말줄임(…)으로 잘리지 않게: 칸마다 줄바꿈 없이 다 보이고, 넓어지면 표가 옆으로 밀린다(CommonTable 가로 스크롤).
+ * 브랜드가 여러 개면 브랜드끼리만 줄을 바꾼다. 콜라보는 보낸 의뢰 중 취소를 뺀 수(collabCount).
+ */
+const NOWRAP = "whitespace-nowrap";
 const columnList: TableColumn<Row>[] = [
-  { name: "no", label: "No", className: "text-disabled" },
   {
     name: "name",
     label: "이름",
-    renderer: (m) => (
-      <span className="flex flex-col">
-        <span>{m.name || "-"}</span>
-        {m.companyName && (
-          <span className="text-xs text-disabled">{m.companyName}</span>
-        )}
-      </span>
-    ),
+    className: `${NOWRAP} font-medium text-black`,
+    renderer: (m) => m.name || "-",
   },
   {
     name: "loginId",
     label: "아이디",
+    className: NOWRAP,
     renderer: (m) => (
-      <span className="block max-w-[220px] truncate" title={m.loginId}>
-        {m.snsProvider ? `${m.snsProvider} · ` : ""}
+      <>
+        {m.snsProvider && (
+          <span className="text-disabled">{m.snsProvider} · </span>
+        )}
         {m.loginId}
-      </span>
+      </>
     ),
   },
   {
     name: "contactName",
-    label: "담당자",
-    renderer: (m) => {
-      const line = contactLine(m);
-      return line ? (
-        <span className="block max-w-[180px] truncate" title={line}>
-          {line}
-        </span>
-      ) : (
-        <span className="text-disabled">-</span>
-      );
-    },
+    label: "담당자명",
+    className: NOWRAP,
+    renderer: (m) =>
+      m.contactName || <span className="text-disabled">-</span>,
   },
-  { name: "phone", label: "연락처", renderer: (m) => m.phone || "-" },
+  // 연락처는 숫자만 저장돼 있어 '-'를 넣어 보인다(제휴사 회원과 같다).
+  {
+    name: "phone",
+    label: "연락처",
+    className: NOWRAP,
+    renderer: (m) => formatPhone(m.phone) || "-",
+  },
+  {
+    name: "bizStatus",
+    label: "사업자등록증",
+    className: NOWRAP,
+    renderer: (m) => <BizStatusBadge status={bizStatusLabel(m.bizStatus)} />,
+  },
   {
     name: "brands",
     label: "브랜드",
     renderer: (m) =>
       m.brands.length ? (
-        <span
-          className="flex max-w-[220px] items-center gap-[8px]"
-          title={m.brands.map((b) => b.name).join(", ")}
-        >
-          <span className="flex -space-x-[6px]">
-            {m.brands.slice(0, 3).map((b) => (
-              <BrandThumb
-                key={b.id}
-                brand={b}
-                size={24}
-                className="ring-2 ring-white"
-              />
-            ))}
-          </span>
-          <span className="min-w-0 truncate">
-            {m.brands[0].name}
-            {m.brands.length > 1 ? ` 외 ${m.brands.length - 1}` : ""}
-          </span>
+        <span className="flex min-w-[140px] flex-wrap items-center gap-x-[12px] gap-y-[6px]">
+          {m.brands.map((b) => (
+            <span
+              key={b.id}
+              className="flex items-center gap-[6px] whitespace-nowrap"
+            >
+              <BrandThumb brand={b} size={22} />
+              {b.name}
+            </span>
+          ))}
         </span>
       ) : (
-        <span className="text-disabled">등록 전</span>
+        <span className="whitespace-nowrap text-disabled">등록 전</span>
       ),
-  },
-  {
-    name: "businessCardUrl",
-    label: "명함",
-    renderer: (m) =>
-      m.businessCardUrl ? (
-        <span>있음</span>
-      ) : (
-        <span className="text-disabled">-</span>
-      ),
-  },
-  {
-    name: "bizStatus",
-    label: "사업자",
-    renderer: (m) => <BizStatusBadge status={bizStatusLabel(m.bizStatus)} />,
   },
   {
     name: "createdAt",
     label: "가입일",
-    className: "text-disabled",
+    className: `${NOWRAP} text-disabled`,
     renderer: (m) => dotDate(m.createdAt),
+  },
+  {
+    name: "collabCount",
+    label: "콜라보",
+    className: NOWRAP,
+    renderer: (m) =>
+      m.collabCount ? (
+        <span className="font-semibold text-black">{m.collabCount}건</span>
+      ) : (
+        <span className="text-disabled">0건</span>
+      ),
   },
 ];
 
-const YES_NO = (yes: string, no: string) => [
-  { label: yes, value: "yes" },
-  { label: no, value: "no" },
-];
-
+// 검색 조건은 사업자등록증 현황 하나만(11-11 사용자 — 브랜드 · 명함 조건은 뺐다).
 const searchOptionList: SearchOption[] = [
   {
     type: "select",
-    name: "brand",
-    label: "브랜드",
-    row: 1,
-    optionList: YES_NO("등록함", "등록 전"),
-  },
-  {
-    type: "select",
-    name: "card",
-    label: "명함",
-    row: 1,
-    optionList: YES_NO("있음", "없음"),
-  },
-  {
-    type: "select",
     name: "biz",
-    label: "사업자",
+    label: "사업자등록증 현황",
     row: 1,
     optionList: BIZ_STATUS_OPTIONS,
   },
@@ -198,14 +176,12 @@ const searchOptionList: SearchOption[] = [
 
 /**
  * 광고주 회원(11-10 사용자: "제휴사 회원뿐 아니라 광고주 회원도") — 최근 가입 순, 읽기 전용.
- * 콜라보 의뢰는 아직 서버에 없어 담당자 정보 · 브랜드 · 사업자 상태만 보여 준다. PC 는 표, 휴대폰은 카드.
+ * 담당자 · 브랜드 · 사업자 상태와 콜라보 수(취소 뺀 의뢰 수)를 보여 준다. PC 는 표, 휴대폰은 카드.
  */
 export function CollabAdvertisersListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState<SearchParams>(() => ({
-    brand: searchParams.get("brand") ?? undefined,
-    card: searchParams.get("card") ?? undefined,
     biz: searchParams.get("biz") ?? undefined,
   }));
   const [page, setPage] = useState(1);
@@ -214,8 +190,6 @@ export function CollabAdvertisersListView() {
     page,
     page_size: pageSize,
     keyword: search.keyword || undefined,
-    brand: search.brand || undefined,
-    card: search.card || undefined,
     biz: search.biz || undefined,
   });
 
@@ -228,13 +202,13 @@ export function CollabAdvertisersListView() {
     [data, page, pageSize],
   );
 
-  const filtered = !!(search.brand || search.card || search.biz);
+  const filtered = !!search.biz;
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
         title="광고주 회원"
-        desc="최근 가입 순이에요. 회원을 눌러 담당자 정보 · 브랜드 · 사업자 상태를 봐요."
+        desc="최근 가입 순이에요. 회원을 눌러 담당자 정보 · 브랜드 · 사업자등록증 현황을 봐요."
       />
 
       <div className="hidden md:block">
@@ -280,7 +254,7 @@ export function CollabAdvertisersListView() {
           <Input
             name="q"
             type="search"
-            variant="secondary"
+            variant="primary"
             fullWidth
             aria-label="광고주 검색"
             placeholder="이름 · 회사 · 연락처 · 브랜드"
@@ -315,7 +289,7 @@ export function CollabAdvertisersListView() {
         </p>
         <ul className="flex flex-col gap-[10px]">
           {data && rows.length === 0 && (
-            <li className="rounded-[12px] border border-stroke py-[40px] text-center text-sm text-disabled">
+            <li className="rounded-[16px] bg-surface py-[40px] text-center shadow-surface text-sm text-disabled">
               광고주 회원이 없습니다.
             </li>
           )}
@@ -323,7 +297,7 @@ export function CollabAdvertisersListView() {
             <li key={m.id}>
               <Link
                 href={`/admin/collab/advertisers/${m.id}`}
-                className="flex flex-col gap-[8px] rounded-[12px] border border-stroke p-[16px] active:bg-tone-f5f6f8"
+                className="flex flex-col gap-[8px] rounded-[16px] bg-surface p-[16px] shadow-surface active:bg-gray-50"
               >
                 <div className="flex items-center justify-between gap-[8px]">
                   <span className="min-w-0 truncate text-base font-semibold text-black">
@@ -337,7 +311,7 @@ export function CollabAdvertisersListView() {
                       {m.companyName}
                     </span>
                   )}
-                  {m.phone && <span>{m.phone}</span>}
+                  {m.phone && <span>{formatPhone(m.phone)}</span>}
                   <span className="text-disabled">
                     가입 {dotDate(m.createdAt)}
                   </span>
@@ -359,6 +333,9 @@ export function CollabAdvertisersListView() {
                     {m.brands.length
                       ? `브랜드 ${m.brands.length}개`
                       : "브랜드 등록 전"}
+                  </Chip>
+                  <Chip size="sm" variant="soft">
+                    콜라보 {m.collabCount ?? 0}건
                   </Chip>
                   {m.businessCardUrl && (
                     <Chip size="sm" variant="soft">

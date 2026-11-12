@@ -2,9 +2,11 @@
 
 import { Button, Card, Link, Modal, toast } from "@heroui/react";
 import { ArrowRight } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
 
 import { MediaImage } from "@/components/common/MediaImage";
+import { useMyBrands } from "@/hooks/partners";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import { type StoreRef } from "@/lib/advertiserPreview";
 import { mediaSrc } from "@/lib/media";
@@ -27,7 +29,11 @@ export const advCollabHref = (id: string, from?: AdvFrom) =>
   `/partners/collabs/${id}${from ? `?from=${from}` : ""}`;
 export const ADV_NEW_HREF = "/partners/collabs/new";
 export const ADV_FIND_HREF = "/partners/find";
+/** 관심 매장 — 매장 찾기에서 하트를 누른 매장(11-11 사용자). */
+export const ADV_FAVORITES_HREF = "/partners/favorites";
 export const ADV_BRANDS_HREF = "/partners/brands";
+/** 내 브랜드 — 들어가자마자 브랜드 등록 창을 연다(브랜드 없이 새 의뢰를 누른 때). */
+export const ADV_BRANDS_NEW_HREF = `${ADV_BRANDS_HREF}?new=1`;
 
 /**
  * 목적격 조사 — "참 커피를" · "예시 카페 R을". 끝 글자 받침으로 고르고, 영문 · 숫자는 읽는 소리로(엘 · 엠 · 엔 · 알 / 영 · 일 · 삼 · 육 · 칠 · 팔).
@@ -183,6 +189,7 @@ export function ConfirmModal({
   onConfirm,
   danger = false,
   isDisabled = false,
+  example = true,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -192,45 +199,78 @@ export function ConfirmModal({
   onConfirm: () => void;
   danger?: boolean;
   isDisabled?: boolean;
+  /** 예시 데이터 안내 한 줄 — 실제 동작(브랜드 등록 안내 등)이면 false. */
+  example?: boolean;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" size="md">
-          <Modal.Dialog aria-label={title}>
-            <Modal.Header>
-              <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
-                {title}
-              </Modal.Heading>
-            </Modal.Header>
-            <Modal.Body className="flex flex-col gap-[8px] text-[14px] leading-[1.6] break-keep text-gray-600">
-              {children}
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="md">
+        <Modal.Dialog aria-label={title}>
+          <Modal.Header>
+            <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
+              {title}
+            </Modal.Heading>
+          </Modal.Header>
+          <Modal.Body className="flex flex-col gap-[8px] text-[14px] leading-[1.6] break-keep text-gray-600">
+            {children}
+            {example && (
               <small className="text-[12px] text-gray-400">
                 예시 화면 — 이 탭에만 기록되고 실제 발행 · 결제 · 전송은 없어요.
               </small>
-            </Modal.Body>
-            <Modal.Footer className="flex gap-[8px]">
-              <Button
-                variant="tertiary"
-                onPress={() => onOpenChange(false)}
-                className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
-              >
-                돌아가기
-              </Button>
-              <Button
-                variant={danger ? "danger" : "primary"}
-                isDisabled={isDisabled}
-                onPress={onConfirm}
-                className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
-              >
-                {confirmLabel}
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="flex gap-[8px]">
+            <Button
+              variant="tertiary"
+              onPress={() => onOpenChange(false)}
+              className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
+            >
+              돌아가기
+            </Button>
+            <Button
+              variant={danger ? "danger" : "primary"}
+              isDisabled={isDisabled}
+              onPress={onConfirm}
+              className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
+            >
+              {confirmLabel}
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
+}
+
+/**
+ * "새 콜라보 의뢰" 버튼(대시보드 · 내 콜라보) — 등록한 브랜드가 없으면 먼저 등록하라는 창을 띄우고,
+ * "브랜드 등록하기"를 누르면 내 브랜드로 가서 등록 창까지 바로 연다(11-11 사용자). dialog 는 화면에 한 번 그린다.
+ */
+export function useNewRequestStart() {
+  const router = useRouter();
+  const brands = useMyBrands();
+  const [needBrand, setNeedBrand] = useState(false);
+  const start = async () => {
+    const list = brands.data ?? (await brands.refetch()).data ?? [];
+    if (list.length) router.push(ADV_NEW_HREF);
+    else setNeedBrand(true);
+  };
+  const dialog = (
+    <ConfirmModal
+      isOpen={needBrand}
+      onOpenChange={setNeedBrand}
+      title="브랜드를 먼저 등록해 주세요"
+      confirmLabel="브랜드 등록하기"
+      example={false}
+      onConfirm={() => {
+        setNeedBrand(false);
+        router.push(ADV_BRANDS_NEW_HREF);
+      }}
+    >
+      <p>콜라보는 등록한 브랜드로 의뢰해요. 내 브랜드에서 브랜드를 등록하면 바로 의뢰할 수 있어요.</p>
+    </ConfirmModal>
+  );
+  return { start, dialog };
 }
 
 /** 인쇄 · PDF 저장 — 문서 본문만 새 창에 담아 브라우저 인쇄 창을 연다(기본협약 인쇄와 같은 방식). */

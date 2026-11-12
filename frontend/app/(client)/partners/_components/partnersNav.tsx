@@ -48,7 +48,10 @@ const ClapIcon = maskIcon("/icons/clap-duo.svg");
 const ReceiptIcon = maskIcon("/icons/receipt.svg");
 const SquareCheckIcon = maskIcon("/icons/square-check.svg");
 const StoreIcon = maskIcon("/icons/store.svg");
-const BrandIcon = maskIcon("/icons/shopping-bag.svg");
+// 내 브랜드 — 물결 테두리 배지(octogram, 11-11 사용자: 쇼핑백 → 태그 → 이것).
+const BrandIcon = maskIcon("/icons/octogram.svg");
+// 관심 매장 — 매장 찾기 카드의 하트와 같은 모양.
+const HeartIcon = maskIcon("/icons/heart.svg");
 
 /** 소개 — 비회원 · 일반 · 대행사 · 매체사만. 광고주 · 제휴사(콜라보)에겐 보이지 않는다. */
 const MENU: PartnersMenuItem[] = [
@@ -113,8 +116,8 @@ const PARTNER_MENU_START = PARTNER_MENU.filter((m) =>
 /**
  * 광고주 회원 — 콜라보 의뢰 · 진행 화면(2026-11-09, 받은 프로토타입의 광고주 화면을 /partners 로).
  * 새 의뢰(/partners/collabs/new)는 메뉴 대신 대시보드 · 내 콜라보 · 매장 찾기의 버튼으로 연다("내 콜라보"가 켜진다).
- * 내 브랜드(11-09 사용자) — 브랜드 여러 개 · 사진.
- * 대화 · 문서함은 없앴다(11-09 사용자, 제휴사와 같이) — 계산서 · 보고서는 콜라보 상세의 "문서" 칸에. 모바일은 네 칸 모두 탭.
+ * 내 브랜드(11-09 사용자) — 브랜드 여러 개 · 사진. 관심 매장(11-11 사용자) — 매장 찾기에서 하트를 누른 매장.
+ * 대화 · 문서함은 없앴다(11-09 사용자, 제휴사와 같이) — 계산서 · 보고서는 콜라보 상세의 "문서" 칸에. 모바일은 다섯 칸 모두 탭.
  */
 const ADVERTISER_MENU: PartnersMenuItem[] = [
   {
@@ -137,6 +140,13 @@ const ADVERTISER_MENU: PartnersMenuItem[] = [
     Icon: StoreIcon,
     href: "/partners/find",
     activePrefix: "/partners/find",
+  },
+  {
+    key: "favorites",
+    label: "관심 매장",
+    Icon: HeartIcon,
+    href: "/partners/favorites",
+    activePrefix: "/partners/favorites",
   },
   {
     key: "brands",
@@ -279,7 +289,7 @@ export function PartnersLogo({
         <Image
           src="/service/admix-text-logo.svg"
           alt=""
-          width={57}
+          width={56}
           height={16}
           priority
           className={cn(

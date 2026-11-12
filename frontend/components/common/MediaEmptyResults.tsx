@@ -39,7 +39,7 @@ export function MediaEmptyResults({
         <Button
           variant="outline"
           onPress={onReset}
-          className="mt-[8px] gap-[6px] rounded-[17px] text-[13px] font-semibold md:rounded-[15px] max-sm:text-[12px]"
+          className="mt-[8px] gap-[6px] text-[13px] font-semibold max-sm:text-[12px]"
         >
           <RotateLeftIcon className="size-[16px]" />
           검색 조건 초기화

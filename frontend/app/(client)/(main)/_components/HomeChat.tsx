@@ -356,7 +356,7 @@ export function HomeChat({
           aria-label="맨 아래로 스크롤"
           tabIndex={showScrollDown ? 0 : -1}
           onClick={scrollToEnd}
-          className={`absolute bottom-full left-1/2 z-10 mb-[10px] flex size-[30px] -translate-x-1/2 items-center justify-center rounded-full bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 ${
+          className={`absolute bottom-full left-1/2 z-10 mb-[10px] flex size-[30px] -translate-x-1/2 items-center justify-center rounded-[12px] bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 ${
             showScrollDown
               ? "translate-y-0 opacity-100"
               : "pointer-events-none translate-y-[6px] opacity-0"

@@ -48,3 +48,13 @@ export const useFavoritePriceHistogram = (
     placeholderData: keepPreviousData,
   });
 };
+
+/** 담은 매체 메모 {매체 id: 메모} — 로그인한 회원만. 하트를 끄면(favoritesKeys.all 무효화) 다시 받는다. */
+export const useFavoriteMemos = () => {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: favoritesKeys.memos(),
+    queryFn: favoritesApi.memos,
+    enabled: !!me,
+  });
+};

@@ -4,7 +4,7 @@
 
 const SCRIPT_ID = "daum-postcode-sdk";
 const SCRIPT_SRC =
-  "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+  "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
 
 /** 우편번호 서비스가 돌려주는 값 중 쓰는 것만. */
 export interface DaumPostcodeResult {

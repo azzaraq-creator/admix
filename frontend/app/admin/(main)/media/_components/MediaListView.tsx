@@ -19,6 +19,7 @@ import { RotateCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { ChevronDownIcon, PlusIcon } from "@/components/icons";
 import {
   mediaApi,
@@ -127,12 +128,8 @@ function MediaSearchBar({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-[16px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
-      <DateRangePicker
-        className="w-[300px]"
-        value={range}
-        onChange={setRange}
-      >
+    <div className="flex flex-wrap items-end gap-[16px]">
+      <DateRangePicker className="w-[300px]" value={range} onChange={setRange}>
         <Label>기간</Label>
         <DateField.Group fullWidth variant="secondary">
           <DateField.Input slot="start">
@@ -316,24 +313,27 @@ export function MediaListView() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 흰 카드 두 장(검색 | 목록) — CommonTable 화면과 같은 모양(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         광고 매체 관리
       </h1>
 
-      <MediaSearchBar
-        onSearch={(next) => {
-          setSearch(next);
-          setPage(1);
-        }}
-      />
+      <AdminPanel>
+        <MediaSearchBar
+          onSearch={(next) => {
+            setSearch(next);
+            setPage(1);
+          }}
+        />
+      </AdminPanel>
 
-      <div className="flex flex-col gap-[16px]">
-        <div className="flex items-center justify-between">
+      <AdminPanel contentClassName="gap-[16px]">
+        <div className="flex flex-wrap items-center justify-between gap-[12px]">
           <p className="text-base font-semibold leading-[24px] text-black">
             총 {total.toLocaleString()}건
           </p>
-          <div className="flex items-center gap-[8px]">
+          <div className="flex flex-wrap items-center gap-[8px]">
             <ExcelDownloadMenu onSelect={handleExcel} />
             <input
               ref={fileInputRef}
@@ -440,7 +440,7 @@ export function MediaListView() {
           </Table.ScrollContainer>
         </Table>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-[12px]">
           <Select
             aria-label="한 페이지에 보일 개수"
             className="w-[140px]"
@@ -512,7 +512,7 @@ export function MediaListView() {
             </Pagination>
           )}
         </div>
-      </div>
+      </AdminPanel>
       {confirmDialog}
     </div>
   );

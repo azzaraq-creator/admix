@@ -1,8 +1,7 @@
 "use client";
 
-import { Button } from "@heroui/react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import {
@@ -14,17 +13,11 @@ import {
 import { useAdminCollabs } from "@/hooks/adminCollab";
 import { COLLAB_TYPE_LABEL, shortDate } from "@/lib/adminCollab";
 import { isOptimizable, mediaSrc } from "@/lib/media";
-import {
-  COLLAB_PHASE_LABEL,
-  type AdminCollab,
-  type CollabPhase,
-} from "@/lib/partners";
+import type { AdminCollab } from "@/lib/partners";
 
 import { CollabPageHead, PhaseChip } from "../../_components/collabUi";
 
 type Row = AdminCollab & { no: string };
-
-const range = (a: string, b: string) => `${shortDate(a)} ~ ${shortDate(b)}`;
 
 const columnList: TableColumn<Row>[] = [
   { name: "no", label: "No", className: "text-disabled" },
@@ -65,27 +58,37 @@ const columnList: TableColumn<Row>[] = [
     renderer: (c) => COLLAB_TYPE_LABEL[c.type] ?? c.type,
   },
   {
-    name: "recruit",
-    label: "모집",
-    className: "whitespace-nowrap",
-    renderer: (c) => range(c.recruitStart, c.recruitEnd),
-  },
-  {
     name: "period",
     label: "콜라보 기간",
     className: "whitespace-nowrap",
-    renderer: (c) => range(c.startDate, c.endDate),
+    renderer: (c) => `${shortDate(c.startDate)} ~ ${shortDate(c.endDate)}`,
   },
   {
-    name: "counts",
-    label: "신청 · 확정 요청 · 확정 / 목표",
+    name: "removal",
+    label: "철수",
+    className: "whitespace-nowrap",
+    renderer: (c) => shortDate(c.removalDate),
+  },
+  {
+    name: "stores",
+    label: "진행 매장 / 목표",
     renderer: (c) => (
-      <span className="whitespace-nowrap tabular-nums">
-        {c.counts.applied ?? 0} · {c.counts.requested ?? 0} ·{" "}
-        <b>{c.counts.confirmed ?? 0}</b>
-        <span className="text-disabled"> / {c.targetStores}</span>
+      <span className="whitespace-nowrap">
+        <b>{c.counts.confirmed ?? 0}곳</b>
+        <span className="text-disabled"> / {c.targetStores}곳</span>
       </span>
     ),
+  },
+  {
+    name: "reportFiles",
+    label: "보고서 파일",
+    className: "whitespace-nowrap",
+    renderer: (c) =>
+      c.reportFileCount ? (
+        `${c.reportFileCount}개`
+      ) : (
+        <span className="text-disabled">-</span>
+      ),
   },
 ];
 
@@ -95,10 +98,10 @@ const searchOptionList: SearchOption[] = [
     name: "phase",
     label: "단계",
     row: 1,
-    optionList: (Object.keys(COLLAB_PHASE_LABEL) as CollabPhase[]).map((p) => ({
-      label: COLLAB_PHASE_LABEL[p],
-      value: p,
-    })),
+    optionList: [
+      { label: "완료", value: "done" },
+      { label: "취소", value: "cancelled" },
+    ],
   },
   {
     type: "text",
@@ -109,19 +112,20 @@ const searchOptionList: SearchOption[] = [
   },
 ];
 
-/** 콜라보 목록 — 모집 시작이 늦은 것부터. 단계는 오늘 날짜로 서버가 정한다. */
-export function CollabListView() {
+/**
+ * 콜라보 결과(어드민 "콜라보 관리 → 콜라보 결과", 2026-11-12 사용자) — 끝난(완료 · 취소) 콜라보를 따로 모은다.
+ * 줄을 누르면 결과 보고서(확정 매장 · 설치 · 점검 사진)를 보고 PDF로 받는다. 철수가 늦은 것부터(모집 시작 순과 같다).
+ */
+export function ResultListView() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [search, setSearch] = useState<SearchParams>(() => ({
-    phase: searchParams.get("phase") ?? undefined,
-  }));
+  const [search, setSearch] = useState<SearchParams>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const { data } = useAdminCollabs({
     page,
     page_size: pageSize,
-    phase: search.phase || undefined,
+    // 단계를 안 고르면 완료 · 취소 둘 다(ended).
+    phase: search.phase || "ended",
     keyword: search.keyword || undefined,
   });
   const rows = useMemo<Row[]>(
@@ -134,10 +138,10 @@ export function CollabListView() {
   );
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
-        title="콜라보"
-        desc="모집 → 선정 · 확정 → 설치 → 진행 → 완료. 공개한 콜라보만 모집 기간에 제휴사 화면에 보여요."
+        title="콜라보 결과"
+        desc="끝난 콜라보예요. 줄을 누르면 보고서 파일을 올리거나 받고, 결과 보고서를 PDF로 저장할 수 있어요."
       />
       <CommonTable<Row>
         columnList={columnList}
@@ -159,17 +163,8 @@ export function CollabListView() {
           setPageSize(n);
           setPage(1);
         }}
-        emptyMessage="콜라보가 없습니다."
-        onRowClick={(c) => router.push(`/admin/collab/collabs/${c.id}`)}
-        topRightContent={
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={() => router.push("/admin/collab/collabs/new")}
-          >
-            새 콜라보
-          </Button>
-        }
+        emptyMessage="끝난 콜라보가 없습니다."
+        onRowClick={(c) => router.push(`/admin/collab/results/${c.id}`)}
       />
     </div>
   );

@@ -56,6 +56,8 @@ def register(
     company_name: str | None = None,
     marketing_consent: bool = False,
     member_category: str | None = None,
+    marketing_sms: bool | None = None,
+    marketing_email: bool | None = None,
 ) -> User:
     if not is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
@@ -72,12 +74,31 @@ def register(
         membership_type=membership_type,
         member_category=member_category or "general",
         company_name=company_name or None,
-        marketing_consent=marketing_consent,
     )
+    set_marketing(user, marketing_consent, marketing_sms, marketing_email)
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
+
+def set_marketing(
+    user: User, consent: bool | None, sms: bool | None = None, email: bool | None = None
+) -> None:
+    """마케팅 정보 수신 동의와 받을 방법(문자 · 이메일, 083) — 보낸 값만 바꾼다.
+    방법을 안 보내고 동의만 켜면(가입 · admix 내 정보) 둘 다 받는 것으로 본다.
+    동의를 켠 채 방법을 모두 끄면 안 된다. 동의를 끄면 고른 방법은 그대로 두었다가 다시 켤 때 쓴다."""
+    if consent is not None:
+        user.marketing_consent = consent
+    if sms is not None:
+        user.marketing_sms = sms
+    if email is not None:
+        user.marketing_email = email
+    if user.marketing_consent and not (user.marketing_sms or user.marketing_email):
+        if sms is None and email is None:
+            user.marketing_sms = user.marketing_email = True
+        else:
+            raise HTTPException(status_code=400, detail="마케팅 정보를 받을 방법을 하나 이상 골라 주세요.")
 
 
 def update_profile(
@@ -87,6 +108,8 @@ def update_profile(
     company_name: str | None = None,
     phone: str | None = None,
     marketing_consent: bool | None = None,
+    marketing_sms: bool | None = None,
+    marketing_email: bool | None = None,
     member_category: str | None = None,
     contact_name: str | None = None,
     position: str | None = None,
@@ -108,8 +131,7 @@ def update_profile(
         ).first():
             raise HTTPException(status_code=409, detail="이미 사용 중인 전화번호입니다.")
         user.phone = phone or None
-    if marketing_consent is not None:
-        user.marketing_consent = marketing_consent
+    set_marketing(user, marketing_consent, marketing_sms, marketing_email)
     db.commit()
     db.refresh(user)
     return user

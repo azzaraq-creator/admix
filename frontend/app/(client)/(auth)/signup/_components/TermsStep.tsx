@@ -18,6 +18,7 @@ import { TermsModal } from "./TermsModal";
 import { SmallChevronRightIcon } from "./signupIcons";
 import {
   CardHeading,
+  CollabMarketingNote,
   FieldMessage,
   HEROUI_CHECKBOX_SCOPE,
   PrimaryAction,
@@ -33,6 +34,16 @@ const REQUIRED_TERMS: { key: string; label: string; tab?: HelpTabKey }[] = [
   { key: "location", label: "위치기반 서비스 이용약관 동의", tab: "location" },
 ];
 const MARKETING_KEY = "marketing";
+/** 마케팅 정보 받을 방법(083) — 제휴사 가입에서만 고른다(11-12 사용자, 콜라보 내 정보와 같은 문구 · 체크박스). */
+export interface MarketingChannels {
+  sms: boolean;
+  email: boolean;
+}
+const CHANNELS = [
+  ["sms", "SMS"],
+  ["email", "이메일"],
+] as const;
+const ALL_CHANNELS = CHANNELS.map(([key]) => key as string);
 /** 전체 동의도 그룹 안의 체크박스다 — 이 값이 들어 있으면 "모두 체크됨". */
 const ALL_KEY = "all";
 const ITEM_KEYS = [...REQUIRED_TERMS.map((term) => term.key), MARKETING_KEY];
@@ -107,17 +118,24 @@ function TermBadge({ required }: { required: boolean }) {
 /**
  * 5단계 — 시안(00. 회원가입 - 약관동의).
  * 전체 동의·필수 4개·선택 1개를 HeroUI CheckboxGroup 하나로 묶는다.
+ * 제휴사(partner) 가입이면 마케팅 동의 설명이 새 콜라보 알림으로 바뀌고, 그 아래 받을 방법(SMS · 이메일, 둘 다 가능)을 고른다.
  */
 export function TermsStep({
   pending,
   error,
+  partner = false,
   onSubmit,
 }: {
   pending: boolean;
   error: string;
-  onSubmit: (marketingConsent: boolean) => void;
+  partner?: boolean;
+  /** channels — 제휴사 가입에서 마케팅에 동의했을 때만 넘긴다. */
+  onSubmit: (marketingConsent: boolean, channels?: MarketingChannels) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
+  // 받을 방법 — 처음엔 둘 다. 마케팅 동의가 꺼져 있으면 흐리게 막고 빈 칸으로 보인다.
+  const [channels, setChannels] = useState<string[]>(ALL_CHANNELS);
+  const [channelError, setChannelError] = useState("");
   /** "보기"로 연 약관(HeroUI Modal). */
   const [openTerm, setOpenTerm] = useState<HelpTabKey | null>(null);
 
@@ -128,13 +146,34 @@ export function TermsStep({
   );
   const marketing = selected.includes(MARKETING_KEY);
 
+  const changeSelection = (next: string[]) => {
+    const resolved = nextSelection(selected, next);
+    // 마케팅 동의를 다시 켰는데 받을 방법을 모두 꺼 뒀으면 둘 다로 되돌린다.
+    if (!marketing && resolved.includes(MARKETING_KEY) && !channels.length)
+      setChannels(ALL_CHANNELS);
+    setChannelError("");
+    setSelected(resolved);
+  };
+
+  const submit = () => {
+    if (!partner || !marketing) return onSubmit(marketing);
+    if (!channels.length) {
+      setChannelError("SMS나 이메일 중 하나는 골라 주세요.");
+      return;
+    }
+    onSubmit(true, {
+      sms: channels.includes("sms"),
+      email: channels.includes("email"),
+    });
+  };
+
   const submitButton = (
     <PrimaryAction
       label="가입 완료"
       note="필수 약관에 모두 동의해야 가입을 완료할 수 있어요"
       disabled={!requiredDone}
       pending={pending}
-      onPress={() => onSubmit(marketing)}
+      onPress={submit}
     />
   );
 
@@ -148,7 +187,7 @@ export function TermsStep({
       <CheckboxGroup
         aria-label="약관 동의"
         value={selected}
-        onChange={(next) => setSelected((prev) => nextSelection(prev, next))}
+        onChange={changeSelection}
         // 체크박스는 globals.css 대신 HeroUI 기본 색·곡률(HEROUI_CHECKBOX_SCOPE)을 쓴다.
         className={cn("flex w-full flex-col gap-[16px]", HEROUI_CHECKBOX_SCOPE)}
       >
@@ -228,14 +267,48 @@ export function TermsStep({
                   마케팅 정보 수신 동의
                 </Label>
               </span>
-              <span className="text-[12px] text-gray-400">
-                신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있어요
-              </span>
+              {!partner && (
+                <span className="text-[12px] text-gray-400">
+                  신규 매체, 이벤트 및 서비스 소식을 받아보실 수 있어요
+                </span>
+              )}
             </span>
           </TermCheckboxBody>
         </Checkbox>
+
+        {/* 제휴사 — 새 콜라보 알림 안내(눈에 띄게, 11-12 사용자). 체크박스 밖이라 눌러도 동의가 바뀌지 않는다. 글자 줄(17 + 16 + 12px)에 맞춘다. */}
+        {partner && <CollabMarketingNote className="-mt-[8px] ml-[45px]" />}
+
+        {/* 제휴사 — 받을 방법(SMS · 이메일). 약관 그룹과 값이 섞이지 않게 따로 묶는다. */}
+        {partner && (
+          <CheckboxGroup
+            aria-label="마케팅 정보 받을 방법"
+            value={marketing ? channels : []}
+            onChange={(next) => {
+              setChannels(next);
+              setChannelError("");
+            }}
+            isDisabled={!marketing}
+            className="-mt-[6px] flex flex-row flex-wrap gap-x-[16px] gap-y-[6px] pl-[45px]"
+          >
+            {CHANNELS.map(([key, label]) => (
+              <Checkbox key={key} value={key} className={NO_GROUP_MARGIN}>
+                {/* 약관 줄과 같은 체크 표시 — 다만 폭은 글자만큼(w-full 이면 한 줄에 하나씩 쌓인다). */}
+                <Checkbox.Content className="items-center gap-[8px]">
+                  <Checkbox.Control className="border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Label className="text-[13px] font-medium text-gray-900">
+                    {label}
+                  </Label>
+                </Checkbox.Content>
+              </Checkbox>
+            ))}
+          </CheckboxGroup>
+        )}
       </CheckboxGroup>
 
+      {channelError && <FieldMessage tone="error">{channelError}</FieldMessage>}
       {error && <FieldMessage tone="error">{error}</FieldMessage>}
 
       <TermsModal tab={openTerm} onClose={() => setOpenTerm(null)} />

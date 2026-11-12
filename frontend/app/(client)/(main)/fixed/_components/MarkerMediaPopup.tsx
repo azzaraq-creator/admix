@@ -10,7 +10,7 @@ import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import {
   CollabFeeCell,
   CollabFeeLine,
-  CollabPickButton,
+  likeLabelOf,
   type CollabPick,
 } from "./collabPick";
 import { formatAdFee } from "@/lib/media";
@@ -80,9 +80,12 @@ function InlinePrice({
 function LikeButton({
   liked,
   onToggle,
+  label,
 }: {
   liked: boolean;
   onToggle: () => void;
+  /** "관심 매체" · 광고주 매장 찾기는 "관심 매장". */
+  label: string;
 }) {
   return (
     // onChange(press)는 카드 클릭(상세 열기)으로 번지지 않는다.
@@ -90,11 +93,11 @@ function LikeButton({
       isIconOnly
       variant="ghost"
       size="sm"
-      aria-label="관심 매체"
+      aria-label={label}
       isSelected={liked}
       onChange={onToggle}
       className={cn(
-        "size-[28px] min-w-0 shrink-0 rounded-[10px] p-0",
+        "size-[28px] min-w-0 shrink-0 rounded-[11px] p-0",
         // 꺼짐도 밝은 회색 바탕을 깔아 하트만 떠 보이지 않게 한다.
         liked
           ? "bg-tone-fff1f0 data-[selected=true]:bg-tone-fff1f0"
@@ -145,7 +148,7 @@ export function MediaPopupCard({
    * 믹시 추천 목록은 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
-  /** 광고주 콜라보 매장 찾기 — 등급 · 1건 금액과 담기 버튼(새 탭 표시 대신). collabPick.tsx 참고. */
+  /** 광고주 콜라보 매장 찾기 — 등급 · 1건 금액, 하트는 "관심 매장". collabPick.tsx 참고. */
   collabPick?: CollabPick;
 }) {
   const slides =
@@ -153,7 +156,7 @@ export function MediaPopupCard({
   // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 상세가 새 탭으로.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   const pick = partners ? collabPick : undefined;
-  const access = partners && !pick ? partnersAccess : undefined;
+  const access = partners ? partnersAccess : undefined;
   const locked = access === "locked";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다.
   const [hovered, setHovered] = useState(false);
@@ -174,9 +177,11 @@ export function MediaPopupCard({
     />
   );
   // 관심 매체 — 회원은 서버에 저장(저장되면 위쪽 알림), 비회원은 로그인 안내 알림.
-  // 지도 팝업과 믹시 추천 목록(ChatMediaList)이 이 카드를 같이 쓴다.
+  // 지도 팝업과 믹시 추천 목록(ChatMediaList)이 이 카드를 같이 쓴다. 광고주 매장 찾기(pick)에선 "관심 매장".
+  const likeLabel = likeLabelOf(pick);
   const { liked, toggle: toggleLiked } = useFavorite(row.id, {
     notifyName: row.name,
+    label: likeLabel,
   });
 
   // 안에 버튼(찜·담기)이 있어 카드 자체는 버튼이 될 수 없으므로, 키보드는 매체명 버튼으로 상세를 연다.
@@ -200,7 +205,7 @@ export function MediaPopupCard({
   // 매체명 첫 줄(20px)에 맞춰 세로 가운데에 놓인다.
   // "검색한 매체" 칩 — 매체 찾기 목록 카드와 같은 모양(보라 바탕·흰 글자).
   const tagChip = tag && (
-    <Chip className="shrink-0 rounded-[8px] bg-primary-500 px-[6px] py-[2px] text-[11px] leading-[15px] font-bold text-white max-sm:text-[10px]">
+    <Chip className="shrink-0 rounded-[6.5px] bg-primary-500 px-[6px] py-[2px] text-[11px] leading-[15px] font-bold text-white max-sm:text-[10px]">
       {tag}
     </Chip>
   );
@@ -210,7 +215,7 @@ export function MediaPopupCard({
       ? { lat: row.lat, lng: row.lng }
       : null;
   const rankBadge = rank != null && (
-    <span className="mt-[1px] inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[11px] leading-none font-bold text-white tabular-nums">
+    <span className="mt-[1px] inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary px-[5px] text-[11px] leading-none font-bold text-white">
       {rank}
     </span>
   );
@@ -248,7 +253,11 @@ export function MediaPopupCard({
             {name}
           </div>
           <div className="col-start-2 row-start-1 flex gap-[4px] sm:row-span-2">
-            <LikeButton liked={liked} onToggle={toggleLiked} />
+            <LikeButton
+              liked={liked}
+              onToggle={toggleLiked}
+              label={likeLabel}
+            />
             {roadviewAt && (
               // 간략히 보기는 아이콘만 — 옆 버튼들과 같은 밝은 회색 바탕.
               <a
@@ -258,7 +267,7 @@ export function MediaPopupCard({
                 aria-label="카카오 로드뷰로 보기"
                 title="카카오 로드뷰로 보기"
                 onClick={(e) => e.stopPropagation()}
-                className="flex size-[28px] shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                className="flex size-[28px] shrink-0 items-center justify-center rounded-[11px] bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
               >
                 <PersonStanding className="size-[16px]" />
               </a>
@@ -270,12 +279,11 @@ export function MediaPopupCard({
                 aria-label="기획안 담기"
                 onPress={() => onAddProposal?.()}
                 // 옆 관심 버튼과 같은 밝은 회색 바탕.
-                className="size-[28px] min-w-0 shrink-0 rounded-[10px] bg-gray-100 p-0 data-[hovered=true]:bg-gray-200"
+                className="size-[28px] min-w-0 shrink-0 rounded-[11px] bg-gray-100 p-0 data-[hovered=true]:bg-gray-200"
               >
                 <FolderAddIcon className="size-[16px] text-primary" />
               </Button>
             )}
-            {pick && <CollabPickButton pick={pick} variant="compact" />}
             {/* 콜라보는 기획안 담기 자리에 새 탭(못 열면 자물쇠) 표시. */}
             {accessMark}
           </div>
@@ -316,7 +324,7 @@ export function MediaPopupCard({
                   title="카카오 로드뷰로 보기"
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="absolute top-[5px] left-[5px] flex h-[20px] items-center gap-[2px] rounded-full bg-black/55 pr-[7px] pl-[5px] text-[10px] font-semibold text-white backdrop-blur-[4px] transition-colors hover:bg-black/75"
+                  className="absolute top-[5px] left-[5px] flex h-[20px] items-center gap-[2px] rounded-[7px] bg-black/55 pr-[7px] pl-[5px] text-[10px] font-semibold text-white backdrop-blur-[4px] transition-colors hover:bg-black/75"
                 >
                   <PersonStanding className="size-[12px] shrink-0" />
                   로드뷰
@@ -336,7 +344,11 @@ export function MediaPopupCard({
                   <StopNoChip stopNo={row.stopNo} className="self-center" />
                 )}
                 {name}
-                <LikeButton liked={liked} onToggle={toggleLiked} />
+                <LikeButton
+                  liked={liked}
+                  onToggle={toggleLiked}
+                  label={likeLabel}
+                />
               </div>
               {row.address && (
                 <div className="flex items-start gap-[3px]">
@@ -349,7 +361,7 @@ export function MediaPopupCard({
                 </div>
               )}
               {row.categoryLarge && (
-                <Chip className="min-w-0 self-start gap-0 rounded-[8px] bg-tone-ededef py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-zinc-500">
+                <Chip className="min-w-0 self-start gap-0 rounded-[7px] bg-tone-ededef py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-zinc-500">
                   {row.categoryLarge}
                   {row.categorySmall && (
                     <>
@@ -363,10 +375,10 @@ export function MediaPopupCard({
           </div>
 
           {pick ? (
-            // 콜라보 담기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리에 매장 담기.
+            // 광고주 매장 찾기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리에 새 탭 표시.
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
               <CollabFeeCell pick={pick} align="start" />
-              <CollabPickButton pick={pick} variant="outline" />
+              {accessMark}
             </div>
           ) : partners ? (
             // 콜라보는 기획안 담기 자리(아래 칸 오른쪽)에 새 탭(못 열면 자물쇠) 표시.
@@ -438,7 +450,7 @@ export function MarkerMediaPopup({
   highlightId?: string | null;
   /** 콜라보 매장 카드를 누를 수 있는지 — MediaPopupCard 참고. */
   partnersAccess?: PartnersCardAccess;
-  /** 광고주 콜라보 매장 찾기 — 카드마다 담기 정보(MediaFindOnly.pickOf). */
+  /** 광고주 콜라보 매장 찾기 — 카드마다 등급 · 1건 금액(MediaFindOnly.pickOf). */
   pickOf?: (row: MediaCardRow) => CollabPick | undefined;
 }) {
   if (rows.length === 0) return null;

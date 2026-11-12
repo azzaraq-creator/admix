@@ -27,7 +27,7 @@ const CATEGORY_COLOR: Record<string, [string, string]> = {
   지하철: ["47,158,68", "#2B8A3E"], // 초록
   쉘터: ["28,126,214", "#1864AB"], // 파랑
   "버스/택시": ["245,159,0", "#E67700"], // 노랑
-  "콜라보": ["156,91,46", "#7A3E14"], // 커피색 — 제휴 매장
+  콜라보: ["156,91,46", "#7A3E14"], // 커피색 — 제휴 매장
 };
 const DEFAULT_COLOR: [string, string] = ["122,63,224", "#5b21c4"]; // 보라
 
@@ -141,7 +141,7 @@ const CATEGORY_PIN: Record<string, string> = {
   지하철: "subway", // 초록
   쉘터: "shelter", // 파랑
   "버스/택시": "bus-taxi", // 노랑
-  "콜라보": "cafe", // 커피색 + 커피잔
+  콜라보: "cafe", // 커피색 + 커피잔
 };
 
 type MarkerCategory = Pick<MapMarker, "categoryLarge" | "categorySmall">;
@@ -215,6 +215,7 @@ export function useMapMarkers({
   onMarkerClick,
   onClusterClick,
   onGroupClick,
+  namePins = false,
 }: {
   mapRef: RefObject<KakaoMap | null>;
   mapReady: boolean;
@@ -231,6 +232,11 @@ export function useMapMarkers({
   onMarkerClick?: (id: string) => void;
   onClusterClick?: (cluster: MapCluster) => void;
   onGroupClick?: (markers: MapMarker[]) => void;
+  /**
+   * 광고주 매장 찾기(11-11 사용자) — 확대 수준과 상관없이 핀 대신 이름표(말풍선), 같은 자리에 겹쳐도 숫자로 묶지 않는다.
+   * (서버 클러스터도 묶지 않게 MediaFindPanel 이 zoom 1 로 묻는다.)
+   */
+  namePins?: boolean;
 }) {
   const clusterOverlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const groupOverlaysRef = useRef<
@@ -306,12 +312,14 @@ export function useMapMarkers({
     );
     if (valid.length === 0) return;
 
-    // 거의 같은 위치(≈11m)의 마커를 그룹핑 → 최대 확대에서도 겹치는 핀을 하나로.
+    // 거의 같은 위치(≈11m)의 마커를 그룹핑 → 최대 확대에서도 겹치는 핀을 하나로. 이름표만(namePins)이면 묶지 않는다.
     const groups = new Map<string, MapMarker[]>();
     valid.forEach((m) => {
-      const key = `${Math.round(m.lat * GROUP_PRECISION)},${Math.round(
-        m.lng * GROUP_PRECISION,
-      )}`;
+      const key = namePins
+        ? m.id
+        : `${Math.round(m.lat * GROUP_PRECISION)},${Math.round(
+            m.lng * GROUP_PRECISION,
+          )}`;
       const arr = groups.get(key);
       if (arr) arr.push(m);
       else groups.set(key, [m]);
@@ -322,7 +330,7 @@ export function useMapMarkers({
       const first = members[0];
       const pos = new maps.LatLng(first.lat, first.lng);
       bounds.extend(pos);
-      if (members.length === 1 && bubbleMode) {
+      if (members.length === 1 && (bubbleMode || namePins)) {
         // 가까이 확대 — 마커 대신 매체명 말풍선.
         const m = first;
         const el = createBubble(m);
@@ -393,7 +401,7 @@ export function useMapMarkers({
     } else {
       map.setBounds(bounds);
     }
-  }, [markers, mapReady, autoFit, mapRef, markerObjsRef, bubbleMode]);
+  }, [markers, mapReady, autoFit, mapRef, markerObjsRef, bubbleMode, namePins]);
 
   // 검색어 지오코딩 결과로 지도 이동(프로그램 이동 → 사용자 이동 아님으로 표시).
   useEffect(() => {

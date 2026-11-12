@@ -12,9 +12,9 @@ type ButtonVariant = "primary" | "secondary" | "tertiary";
 type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  sm: "gap-[4px] px-[12px] py-[8px] text-sm font-medium [&_svg]:size-[18px]",
-  md: "gap-[8px] px-[16px] py-[12px] text-base font-medium [&_svg]:size-[24px]",
-  lg: "gap-[8px] px-[24px] py-[16px] text-base font-semibold [&_svg]:size-[24px]",
+  sm: "gap-[4px] rounded-[15.5px] px-[12px] py-[8px] text-sm font-medium [&_svg]:size-[18px]",
+  md: "gap-[8px] rounded-[21px] px-[16px] py-[12px] text-base font-medium [&_svg]:size-[24px]",
+  lg: "gap-[8px] rounded-[25px] px-[24px] py-[16px] text-base font-semibold [&_svg]:size-[24px]",
 };
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
@@ -46,7 +46,7 @@ export function Button({
     <button
       type="button"
       className={cn(
-        "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-[8px] leading-normal transition-colors active:translate-y-px disabled:pointer-events-none",
+        "inline-flex shrink-0 items-center justify-center whitespace-nowrap leading-normal transition-colors active:translate-y-px disabled:pointer-events-none",
         BUTTON_SIZE[size],
         BUTTON_VARIANT[variant],
         fullWidth && "w-full",
@@ -65,9 +65,9 @@ type IconButtonVariant = "primary" | "secondary" | "tertiary";
 type IconButtonSize = "sm" | "md" | "lg";
 
 const ICON_BUTTON_SIZE: Record<IconButtonSize, string> = {
-  sm: "size-[40px]",
-  md: "size-[48px]",
-  lg: "size-[56px]",
+  sm: "size-[40px] rounded-[17px]",
+  md: "size-[48px] rounded-[21px]",
+  lg: "size-[56px] rounded-[25px]",
 };
 
 const ICON_BUTTON_VARIANT: Record<IconButtonVariant, string> = {
@@ -93,7 +93,7 @@ export function IconButton({
     <button
       type="button"
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-[8px] transition-colors active:translate-y-px disabled:pointer-events-none [&_svg]:size-[24px]",
+        "inline-flex shrink-0 items-center justify-center transition-colors active:translate-y-px disabled:pointer-events-none [&_svg]:size-[24px]",
         ICON_BUTTON_SIZE[size],
         ICON_BUTTON_VARIANT[variant],
         className,
@@ -114,7 +114,7 @@ export function ExcelDownloadButton({
     <button
       type="button"
       className={cn(
-        "flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#4ca452] bg-surface px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-tone-f0f8f1 active:translate-y-px active:bg-tone-dcefdf",
+        "flex h-[40px] items-center gap-[8px] rounded-[17px] border border-[#4ca452] bg-surface px-[17px] text-sm font-semibold leading-[20px] tracking-[-0.28px] text-[#4ca452] transition-colors hover:bg-tone-f0f8f1 active:translate-y-px active:bg-tone-dcefdf",
         className,
       )}
       {...props}
@@ -134,7 +134,7 @@ export function ListButton({
     <button
       type="button"
       className={cn(
-        "flex h-[36px] items-center justify-center gap-[6px] rounded-[6px] border border-tone-ebebeb bg-surface px-[16px] text-sm font-medium leading-[20px] text-tone-0a0a0a transition-colors hover:bg-tone-f7f7f7 active:translate-y-px active:bg-tone-efefef",
+        "flex h-[36px] items-center justify-center gap-[6px] rounded-[15px] border border-tone-ebebeb bg-surface px-[16px] text-sm font-medium leading-[20px] text-tone-0a0a0a transition-colors hover:bg-tone-f7f7f7 active:translate-y-px active:bg-tone-efefef",
         SHADOW,
         className,
       )}
@@ -171,7 +171,7 @@ export function DeleteButton({
     <button
       type="button"
       className={cn(
-        "flex h-[36px] items-center justify-center rounded-[6px] bg-gray-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200 active:translate-y-px active:bg-gray-300",
+        "flex h-[36px] items-center justify-center rounded-[15px] bg-gray-100 px-[16px] text-sm font-medium leading-[20px] text-black transition-colors hover:bg-gray-200 active:translate-y-px active:bg-gray-300",
         className,
       )}
       {...props}

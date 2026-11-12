@@ -308,7 +308,7 @@ const noop = () => {};
 
 /**
  * 매체 찾기 — 목록 + 지도. only 를 주면 한 카테고리만 보는 같은 화면이 된다
- * (광고주 콜라보 매장 찾기 /partners/find: 콜라보 매장만, 카드에 등급 · 금액 · 담기).
+ * (광고주 콜라보 매장 찾기 /partners/find: 콜라보 매장만, 카드에 등급 · 금액, 하트는 관심 매장).
  */
 export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   const searchParams = useSearchParams();
@@ -385,12 +385,13 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
     if (on) setCrowdBounds(lastViewportRef.current);
   };
   // 지도를 넓게 봐도 보여 준다(인구 분포처럼) — 도로 구간은 서버가 화면 가운데에서 가까운 것부터 2,500개까지만 준다.
-  const { data: crowdData } = useMediaCrowd(crowdBounds, crowdOn);
+  // 광고주 매장 찾기는 실시간 정보(실시간 인구 · 도로 현황)를 쓰지 않는다(11-11 사용자) — 켜 둔 기억이 있어도 묻지 않는다.
+  const { data: crowdData } = useMediaCrowd(crowdBounds, crowdOn && !only);
   const tourStep = useActivePageTourStep();
   // 가이드 스위치 단계(map-layers)는 도로 현황을 켠 모습으로 보여 주므로 꺼 둔 사람도 받아 온다.
   const { data: trafficData } = useMediaTraffic(
     crowdBounds,
-    trafficOn || tourStep === "map-layers",
+    (trafficOn || tourStep === "map-layers") && !only,
   );
 
   // zoom_level만 URL에 반영 → 전체 매체를 그 줌 그리드로 다시 클러스터링한다.
@@ -739,22 +740,25 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
                 ? { ...demoPlace, visible: shownStep === "crowd-place" }
                 : null
             }
+            namePins={!!only}
             crowd={
-              mapGuide && demoCrowd
-                ? demoCrowd
-                : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
-                  crowdData?.enabled === false
-                  ? undefined
-                  : {
-                      on: crowdOn,
-                      onToggle: toggleCrowd,
-                      gray: crowdGray,
-                      onToggleGray: setCrowdGraySetting,
-                      labels: crowdLabels,
-                      onToggleLabels: setCrowdLabelsSetting,
-                      places: crowdData?.places ?? [],
-                      loading: !crowdData || crowdData.pending > 0,
-                    }
+              only
+                ? undefined
+                : mapGuide && demoCrowd
+                  ? demoCrowd
+                  : // 서버에 서울시 키가 없으면(enabled=false) 버튼째 숨긴다.
+                    crowdData?.enabled === false
+                    ? undefined
+                    : {
+                        on: crowdOn,
+                        onToggle: toggleCrowd,
+                        gray: crowdGray,
+                        onToggleGray: setCrowdGraySetting,
+                        labels: crowdLabels,
+                        onToggleLabels: setCrowdLabelsSetting,
+                        places: crowdData?.places ?? [],
+                        loading: !crowdData || crowdData.pending > 0,
+                      }
             }
             // 가이드 중에는 예시 상태(useGuidePopGrid) — 실시간 인구 단계에선 끈 스위치만 보여 묶음 모양이 늘 같게.
             popGrid={shownPop}
@@ -765,21 +769,23 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
               setCrowdBounds(b);
             }}
             traffic={
-              mapGuide
-                ? demoTraffic
-                : // 실시간 인구와 같은 기준 — 키가 없으면 숨긴다.
-                  trafficData?.enabled === false
-                  ? undefined
-                  : {
-                      on: trafficOn,
-                      onToggle: toggleTraffic,
-                      links: trafficData?.links ?? [],
-                      // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.
-                      loading:
-                        !trafficData ||
-                        (trafficData.pending > 0 &&
-                          trafficData.links.length === 0),
-                    }
+              only
+                ? undefined
+                : mapGuide
+                  ? demoTraffic
+                  : // 실시간 인구와 같은 기준 — 키가 없으면 숨긴다.
+                    trafficData?.enabled === false
+                    ? undefined
+                    : {
+                        on: trafficOn,
+                        onToggle: toggleTraffic,
+                        links: trafficData?.links ?? [],
+                        // 이미 그린 구간이 있으면 다시 받는 중이어도 "불러오는 중"이라 하지 않는다.
+                        loading:
+                          !trafficData ||
+                          (trafficData.pending > 0 &&
+                            trafficData.links.length === 0),
+                      }
             }
             trafficVolume={
               // 가이드 중엔 그리지 않는다(가이드 예시 인구 분포와 섞이지 않게).

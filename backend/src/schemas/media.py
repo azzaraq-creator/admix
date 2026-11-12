@@ -51,6 +51,8 @@ class PartnersCardInfo(BaseModel):
 
     businessHours: str | None = None
     tags: list[str] = []
+    # 사진 주소 → 분류(exterior · interior …) — 카드 사진 위에 분류를 적는다(11-12). 어드민 전용 분류는 없다.
+    photoKinds: dict[str, str] = {}
 
 
 class MediaCardRow(BaseModel):
@@ -92,6 +94,8 @@ class MediaCategoryCounts(BaseModel):
     all: int
     # category_large → 매체 수(매체가 있는 카테고리만)
     byCategory: dict[str, int]
+    # 콜라보 카테고리만 볼 때(광고주 매장 찾기) — 매장 유형 이름(카페 · 식당 …) → 매장 수(매장이 있는 유형만).
+    byStoreType: dict[str, int] | None = None
 
 
 class MediaCardListResponse(BaseModel):

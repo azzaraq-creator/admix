@@ -60,7 +60,7 @@ function StartButton({
         "h-[52px] bg-primary-100 text-[15px] font-bold text-primary-500 shadow-none transition-[background-color,color,box-shadow] duration-200",
         "data-[hovered=true]:bg-primary-500 data-[hovered=true]:text-white data-[hovered=true]:shadow-[0px_12px_14px_rgba(163,59,209,0.2)]",
         RADIUS.h52,
-        "max-sm:h-[44px] max-sm:rounded-[19px] max-sm:text-[14px]",
+        "max-sm:h-[44px] rounded-[23px] max-sm:rounded-[19px] max-sm:text-[14px]",
       )}
     >
       {children}
@@ -160,7 +160,7 @@ export function SignupCompleteView() {
               className={cn(
                 "h-[44px] text-[14px] font-semibold text-gray-500 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-gray-700",
                 RADIUS.h44,
-                "max-sm:h-[40px] max-sm:rounded-[17px] max-sm:text-[13px]",
+                "max-sm:h-[40px] rounded-[19px] max-sm:rounded-[17px] max-sm:text-[13px]",
               )}
             >
               나중에 하기

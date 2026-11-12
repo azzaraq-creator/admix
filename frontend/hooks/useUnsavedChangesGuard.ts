@@ -10,12 +10,15 @@ const GUARD_STATE = { unsavedChangesGuard: true };
  *
  * - 브라우저 뒤로 가기: 수정이 생기면 같은 주소 기록을 하나 더 쌓아 둔다. 뒤로 가기를 누르면
  *   그 기록만 빠지고 화면은 그대로라, 그때 confirmLeave 를 띄워 나가기면 한 번 더 뒤로 간다.
- * - 화면 안 버튼: leave(href)로 이동하면 같은 확인을 거친다.
+ * - 화면 안 버튼: leave(href)로 이동하면 같은 확인을 거친다. 보내기 · 저장을 마친 뒤처럼 묻지 않고 떠날 땐
+ *   leave(href, { force: true }) — 쌓아 둔 확인용 기록 자리를 바꿔 이동한다. replace: true 면 지금 기록을
+ *   바꿔 끼워 이동한다(수정 화면 "취소"처럼 뒤로 가기로 이 화면에 다시 오지 않게).
  * - 새로고침·탭 닫기: 브라우저 기본 확인창(beforeunload)만 띄울 수 있다.
  * - interceptLinks: 메뉴 · 로고 같은 같은 사이트 링크(Next Link 포함)를 눌러도 같은 확인을 거친다.
  *   새 탭으로 여는 링크 · 보조키(⌘ · Ctrl · Shift · Alt)를 누른 클릭은 그대로 둔다.
  * - release(href): 저장 · 삭제처럼 묻지 않고 떠날 때 — 쌓아 둔 확인용 기록을 먼저 걷어 내,
- *   다음 뒤로 가기가 같은 화면에서 헛돌지 않게 한다.
+ *   다음 뒤로 가기가 같은 화면에서 헛돌지 않게 한다. release(undefined, { back: true }) 는 걷어 낸 뒤
+ *   한 번 더 뒤로 가 들어오기 전 화면으로 돌아간다(상세 → 수정 → 저장 뒤 상세처럼 기록을 쌓지 않을 때).
  */
 export function useUnsavedChangesGuard(
   when: boolean,
@@ -43,7 +46,7 @@ export function useUnsavedChangesGuard(
   }, [when]);
 
   useEffect(() => {
-    const onPopState = async () => {
+    const onBack = async () => {
       const pending = pendingRef.current;
       if (pending) {
         pendingRef.current = null;
@@ -64,24 +67,47 @@ export function useUnsavedChangesGuard(
         guardedRef.current = true;
       }
     };
+    // 일부 Chromium(Orca 내장 브라우저 등)은 같은 주소 기록 사이를 오갈 때 popstate 를 보내지 않는다(주소가 다르면 보냄).
+    // 확인용 기록은 같은 주소라, Navigation API 의 currententrychange(traverse)로 한 번 더 받는다 — 같은 작업 안에
+    // popstate 가 왔으면 그쪽이 이미 처리했으니 건너뛴다(두 번 묻지 않게).
+    let lastPopAt = 0;
+    const onPopState = () => {
+      lastPopAt = Date.now();
+      void onBack();
+    };
+    const onEntryChange = (event: Event) => {
+      if ((event as Event & { navigationType?: string }).navigationType !== "traverse") return;
+      window.setTimeout(() => {
+        if (Date.now() - lastPopAt > 100) void onBack();
+      }, 0);
+    };
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!whenRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("popstate", onPopState);
+    navigation?.addEventListener("currententrychange", onEntryChange);
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => {
       window.removeEventListener("popstate", onPopState);
+      navigation?.removeEventListener("currententrychange", onEntryChange);
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, []);
 
   // 확인용 기록이 남아 있으면 그 자리를 바꿔 이동해, 이동한 뒤 뒤로 가기가 같은 페이지를 두 번 거치지 않게 한다.
   const leave = useCallback(
-    async (href: string) => {
-      if (whenRef.current && !(await confirmRef.current())) return;
-      if (guardedRef.current) {
+    async (
+      href: string,
+      {
+        force = false,
+        replace = false,
+      }: { force?: boolean; replace?: boolean } = {},
+    ) => {
+      if (!force && whenRef.current && !(await confirmRef.current())) return;
+      if (guardedRef.current || replace) {
         guardedRef.current = false;
         router.replace(href);
       } else {
@@ -92,8 +118,15 @@ export function useUnsavedChangesGuard(
   );
 
   const release = useCallback(
-    (href?: string, { replace = false }: { replace?: boolean } = {}) => {
+    (
+      href?: string,
+      { replace = false, back = false }: { replace?: boolean; back?: boolean } = {},
+    ) => {
       const go = () => {
+        if (back) {
+          router.back();
+          return;
+        }
         if (!href) return;
         if (replace) router.replace(href);
         else router.push(href);

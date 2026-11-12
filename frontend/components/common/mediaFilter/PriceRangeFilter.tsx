@@ -167,7 +167,7 @@ function PriceBox({ label, value }: { label: string; value: string }) {
       <span className="text-[12px] font-medium text-gray-500 max-sm:text-[10px]">
         {label}
       </span>
-      <span className="truncate text-[16px] font-bold tabular-nums text-black max-sm:text-[13px]">
+      <span className="truncate text-[16px] font-bold text-black max-sm:text-[13px]">
         {value}
       </span>
     </div>

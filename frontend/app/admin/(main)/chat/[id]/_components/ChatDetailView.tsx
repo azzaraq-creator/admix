@@ -56,7 +56,8 @@ export function ChatDetailView() {
   const kind = searchParams.get("kind") === "member" ? "member" : "guest";
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 테두리 없는 흰 카드들(사람 · 대화 목록 · 대화 내용) — 어드민 공통 모양(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <div className="flex items-center gap-[12px]">
         <Button
           isIconOnly
@@ -95,7 +96,7 @@ function ProfileCard({
   stats: { label: string; value: number }[];
 }) {
   return (
-    <Card className="flex-row items-center gap-[20px] border border-stroke px-[24px] py-[20px] shadow-none">
+    <Card className="flex-row items-center gap-[20px] rounded-[20px] px-[24px] py-[20px]">
       <Avatar className="size-[56px] shrink-0">
         <Avatar.Fallback className="bg-tone-f3f4f8">
           <UserRound className="size-[26px] text-tone-767676" />
@@ -119,7 +120,7 @@ function ProfileCard({
         {stats.map((s) => (
           <div key={s.label} className="flex flex-col items-end gap-[2px]">
             <span className="text-xs text-disabled">{s.label}</span>
-            <span className="text-[20px] font-bold tabular-nums text-black">
+            <span className="text-[20px] font-bold text-black">
               {s.value.toLocaleString()}
             </span>
           </div>
@@ -178,12 +179,11 @@ function MemberDetail({ userId }: { userId: string }) {
         ]}
       />
 
-      <div className="flex items-start gap-[20px]">
-        <Card className="sticky top-[24px] w-[320px] shrink-0 gap-0 border border-stroke p-0 shadow-none">
+      <div className="flex flex-col gap-[20px] md:flex-row md:items-start md:gap-[24px]">
+        <Card className="w-full shrink-0 md:sticky md:top-[24px] md:w-[320px] gap-0 overflow-hidden rounded-[20px] p-0">
           <div className="flex flex-col gap-[10px] border-b border-stroke px-[20px] py-[16px]">
             <p className="text-base font-semibold text-black">
-              대화 목록{" "}
-              <span className="tabular-nums text-disabled">{shown.length}</span>
+              대화 목록 <span className="text-disabled">{shown.length}</span>
             </p>
             {emptyCount > 0 && (
               <Switch
@@ -250,7 +250,7 @@ function SessionItem({ session }: { session: AdUserSession }) {
       >
         {session.title || "제목 없음"}
       </p>
-      <p className="text-xs leading-[16px] text-disabled tabular-nums">
+      <p className="text-xs leading-[16px] text-disabled">
         {formatChatDateTime(session.updated_at)} · 메시지{" "}
         {session.message_count}
       </p>
@@ -274,13 +274,13 @@ function Transcript({
   }, [detail?.id]);
 
   return (
-    <Card className="gap-0 border border-stroke p-0 shadow-none">
+    <Card className="gap-0 overflow-hidden rounded-[20px] p-0">
       <div className="flex items-center justify-between gap-[12px] border-b border-stroke px-[24px] py-[16px]">
         <p className="min-w-0 truncate text-base font-semibold text-black">
           {detail?.title || (isLoading ? "불러오는 중…" : "대화")}
         </p>
         {detail && (
-          <p className="shrink-0 text-xs text-disabled tabular-nums">
+          <p className="shrink-0 text-xs text-disabled">
             {formatChatDateTime(detail.created_at)} 시작 · 메시지{" "}
             {messages.length}
           </p>
@@ -317,7 +317,7 @@ function MessageBubble({ message }: { message: AdMessageOut }) {
         <div className="max-w-[70%] whitespace-pre-line break-words rounded-[16px] rounded-br-[4px] bg-primary px-[14px] py-[10px] text-sm leading-[20px] text-white">
           {message.content || "-"}
         </div>
-        <span className="text-[11px] text-disabled tabular-nums">{time}</span>
+        <span className="text-[11px] text-disabled">{time}</span>
       </div>
     );
   }
@@ -389,7 +389,7 @@ function MessageBubble({ message }: { message: AdMessageOut }) {
             text={`기획안 '${payload.picked.name}' 선택`}
           />
         )}
-        <span className="text-[11px] text-disabled tabular-nums">{time}</span>
+        <span className="text-[11px] text-disabled">{time}</span>
       </div>
     </div>
   );
@@ -408,7 +408,7 @@ function RecommendCard({ rank, item }: { rank: number; item: RecommendItem }) {
       />
       <div className="flex min-w-0 flex-col gap-[2px]">
         <p className="truncate text-sm font-semibold text-black">
-          <span className="mr-[4px] text-primary tabular-nums">{rank}</span>
+          <span className="mr-[4px] text-primary">{rank}</span>
           {item.name ?? "(매체명 없음)"}
         </p>
         {category && (

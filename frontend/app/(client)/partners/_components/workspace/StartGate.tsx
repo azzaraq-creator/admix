@@ -61,7 +61,7 @@ export function StartGate({ agreed }: { agreed: boolean }) {
             {code && (
               <p className="mt-[10px] inline-flex items-center gap-[8px] rounded-[12px] bg-gray-50 px-[12px] py-[6px] text-[13px] text-gray-600">
                 회원 고유번호
-                <b className="font-bold tracking-[0.02em] text-gray-900 tabular-nums">
+                <b className="font-bold tracking-[0.02em] text-gray-900">
                   {code}
                 </b>
               </p>
@@ -138,58 +138,56 @@ function GateModal({
   onAgree: () => void;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" size="sm">
-          <Modal.Dialog aria-label="콜라보 참여 안내">
-            <Modal.CloseTrigger />
-            <Modal.Header className="flex flex-col items-start gap-[10px] pr-[36px]">
-              <span className="flex size-[44px] items-center justify-center rounded-[16px] bg-primary-50 text-primary-500">
-                <MaskIcon
-                  src={agreed ? "/icons/store.svg" : "/icons/square-check.svg"}
-                  className="size-[22px]"
-                />
-              </span>
-              <Modal.Heading className="text-[17px] font-bold break-keep text-gray-900">
-                {agreed
-                  ? "매장이 연결되면 볼 수 있어요"
-                  : "기본협약을 해야 볼 수 있어요"}
-              </Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <p className="text-[14px] leading-[1.6] break-keep text-gray-600">
-                {agreed
-                  ? "admix 담당자가 매장을 연결하면 콜라보 내용을 보고 신청할 수 있어요."
-                  : "콜라보 내용을 보고 신청하려면 기본협약에 동의해 주세요. 사업자등록증도 함께 올려요."}
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="sm">
+        <Modal.Dialog aria-label="콜라보 참여 안내">
+          <Modal.CloseTrigger />
+          <Modal.Header className="flex flex-col items-start gap-[10px] pr-[36px]">
+            <span className="flex size-[44px] items-center justify-center rounded-[16px] bg-primary-50 text-primary-500">
+              <MaskIcon
+                src={agreed ? "/icons/store.svg" : "/icons/square-check.svg"}
+                className="size-[22px]"
+              />
+            </span>
+            <Modal.Heading className="text-[17px] font-bold break-keep text-gray-900">
+              {agreed
+                ? "매장이 연결되면 볼 수 있어요"
+                : "기본협약을 해야 볼 수 있어요"}
+            </Modal.Heading>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="text-[14px] leading-[1.6] break-keep text-gray-600">
+              {agreed
+                ? "admix 담당자가 매장을 연결하면 콜라보 내용을 보고 신청할 수 있어요."
+                : "콜라보 내용을 보고 신청하려면 기본협약에 동의해 주세요. 사업자등록증도 함께 올려요."}
+            </p>
+            {agreed && code && (
+              <p className="mt-[12px] rounded-[14px] bg-gray-50 px-[14px] py-[10px] text-[13px] text-gray-600">
+                담당자에게 회원 고유번호{" "}
+                <b className="font-bold text-gray-900">{code}</b>
+                를 알려 주세요.
               </p>
-              {agreed && code && (
-                <p className="mt-[12px] rounded-[14px] bg-gray-50 px-[14px] py-[10px] text-[13px] text-gray-600">
-                  담당자에게 회원 고유번호{" "}
-                  <b className="font-bold text-gray-900 tabular-nums">{code}</b>
-                  를 알려 주세요.
-                </p>
-              )}
-            </Modal.Body>
-            <Modal.Footer className="flex gap-[8px]">
+            )}
+          </Modal.Body>
+          <Modal.Footer className="flex gap-[8px]">
+            <Button
+              variant="tertiary"
+              onPress={() => onOpenChange(false)}
+              className="h-[44px] flex-1 rounded-[19px] font-semibold"
+            >
+              닫기
+            </Button>
+            {!agreed && (
               <Button
-                variant="tertiary"
-                onPress={() => onOpenChange(false)}
-                className="h-[44px] flex-1 rounded-[19px] font-semibold"
+                onPress={onAgree}
+                className="h-[44px] flex-1 rounded-[19px] font-bold"
               >
-                닫기
+                기본협약 하기
               </Button>
-              {!agreed && (
-                <Button
-                  onPress={onAgree}
-                  className="h-[44px] flex-1 rounded-[19px] font-bold"
-                >
-                  기본협약 하기
-                </Button>
-              )}
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            )}
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

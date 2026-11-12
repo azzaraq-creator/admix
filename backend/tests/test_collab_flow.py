@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from src.config import get_settings
 from src.database import SessionLocal
 from src.models.collab import Collab
+from src.models.media_master import Media
 from src.models.partners_store import PartnersStore
 from src.models.user import User
 from src.services import collab_service as cs
@@ -100,6 +101,41 @@ def test_partner_code_and_store_link(db: Session, partner: User):
     # 한 회원이 매장 여러 곳
     _store(db, partner)
     assert len(ps.list_mine(db, partner)) == 2
+
+
+def test_menu_photos_admin_only(db: Session, partner: User):
+    """메뉴 사진은 어드민에서만 — 광고주 · 제휴사 화면과 매체 찾기에는 나가지 않는다(2026-11-12 사용자)."""
+    ps.ensure_partner_code(db, partner)
+    out = ps.admin_create(
+        db,
+        {
+            "name": f"테스트매장-{uuid.uuid4().hex[:6]}",
+            "address": "서울 성동구 성수동1가 1",
+            "latitude": 37.54,
+            "longitude": 127.05,
+            "images": [
+                {"url": "/uploads/cafe/menu.jpg", "kind": "menu"},
+                {"url": "/uploads/cafe/promo.jpg", "kind": "promo_space"},
+                {"url": "/uploads/cafe/dp.jpg", "kind": "dp_space"},
+                {"url": "/uploads/cafe/menu2.jpg", "kind": "menu"},
+            ],
+            "owner_code": partner.partner_code,
+        },
+    )
+    store = db.get(PartnersStore, uuid.UUID(out["id"]))
+    # 어드민 — 메뉴까지 전부, 분류 순(DP 가능 공간 → 프로모션 공간 → 메뉴).
+    assert [i["kind"] for i in out["images"]] == ["dp_space", "promo_space", "menu", "menu"]
+    assert len(out["imageUrls"]) == 4
+    # 광고주 · 제휴사 — 메뉴는 빠진다(imageUrls 도).
+    for view in (ps.serialize(store), ps.get_public(db, str(store.id), partner), ps.list_mine(db, partner)[0]):
+        assert [i["kind"] for i in view["images"]] == ["dp_space", "promo_space"]
+        assert view["imageUrls"] == ["/uploads/cafe/dp.jpg", "/uploads/cafe/promo.jpg"]
+    # 매체 찾기 — 대표 사진에도 메뉴가 없다.
+    assert ps.cover_urls(store) == ["/uploads/cafe/dp.jpg", "/uploads/cafe/promo.jpg"]
+    db.refresh(store)
+    media = db.get(Media, store.media_id)
+    assert media.thumbnail_url == "/uploads/cafe/dp.jpg"
+    assert sorted(img.image_url for img in media.images) == ["/uploads/cafe/dp.jpg", "/uploads/cafe/promo.jpg"]
 
 
 # 1×1 투명 PNG — 손 서명 대신.
@@ -190,6 +226,43 @@ def test_store_request(db: Session, partner: User):
         ps.create_request(db, partner, str(other.id), "phone", "010-1111-2222")
 
 
+def test_card_photo_kinds(db: Session, partner: User):
+    """매체 찾기 · 광고주 매장 카드 — 사진마다 분류가 붙고, 어드민 전용 분류(메뉴)는 빠진다."""
+    from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
+    from src.services import media_service as ms
+
+    store = _store(db)
+    assert store.media_id
+    items = ms.attach_partners(db, [{"id": store.media_id, "categoryLarge": PARTNERS_MEDIA_CATEGORY}])
+    # 모르는 분류("x")는 기타로 본다.
+    assert items[0]["partners"]["photoKinds"] == {"/uploads/cafe/a.jpg": "exterior", "/uploads/cafe/b.jpg": "etc"}
+    assert ps.photo_kind_map(["a", "b", "c"], {"a": "menu", "b": "seat"}) == {"b": "interior", "c": "etc"}
+
+
+def test_store_inquiry(db: Session, partner: User):
+    """추가 요청 · 문의 — 글로 보내고, 보낼 때마다 따로 쌓이며, 처리 완료해도 매장은 그대로다."""
+    ps.ensure_partner_code(db, partner)
+    store = _store(db, partner)
+    sid = str(store.id)
+    q = ps.create_request(db, partner, sid, "inquiry", "  사진을 새로 찍어 주세요.\n다음 주 화요일 괜찮아요. ")
+    assert q["field"] == "inquiry" and q["fieldLabel"] == "추가 요청 · 문의" and q["status"] == "pending"
+    assert q["after"] == "사진을 새로 찍어 주세요.\n다음 주 화요일 괜찮아요." and q["memo"] is None and q["before"] is None
+    q2 = ps.create_request(db, partner, sid, "inquiry", "정산은 언제 되나요?")
+    assert q2["id"] != q["id"]  # 확인 중이어도 새로 쌓인다
+    with pytest.raises(HTTPException):  # 빈 글
+        ps.create_request(db, partner, sid, "inquiry", "   ")
+    with pytest.raises(HTTPException):  # 너무 긴 글
+        ps.create_request(db, partner, sid, "inquiry", "가" * (ps.INQUIRY_MAX_LEN + 1))
+
+    name = store.name
+    done = ps.admin_update_request(db, q2["id"], {"status": "done", "admin_reply": "매달 10일에 정산돼요."})
+    assert done["status"] == "done" and done["adminReply"] == "매달 10일에 정산돼요."
+    db.refresh(store)
+    assert store.name == name
+    mine = {x["id"]: x for x in ps.list_my_requests(db, partner, sid)}
+    assert mine[q2["id"]]["adminReply"] == "매달 10일에 정산돼요." and mine[q["id"]]["status"] == "pending"
+
+
 def test_apply_request_confirm_and_block(db: Session, partner: User):
     ps.ensure_partner_code(db, partner)
     ps.admin_biz_action(db, str(partner.id), "provisional")
@@ -246,6 +319,161 @@ def test_reserve_and_withdraw(db: Session, partner: User):
     cs.withdraw(db, partner, c["id"], str(s1.id))
     view = next(i for i in cs.list_for_store(db, partner, str(s2.id))["items"] if i["id"] == c["id"])
     assert view["standing"] == "candidate" and view["slotNo"] == 1
+
+
+def test_admin_calendar(db: Session, partner: User):
+    """대시보드 콜라보 일정 달력 — 기간과 겹치는 콜라보만, 취소는 빼고, 확정 마감은 한국 날짜(비면 기본값)."""
+    c = _collab(db)
+    collab = db.get(Collab, uuid.UUID(c["id"]))
+    start, end = collab.recruit_start, collab.removal_date
+    found = [x for x in cs.admin_calendar(db, start, start) if x["id"] == c["id"]]
+    assert len(found) == 1
+    item = found[0]
+    assert item["recruitStart"] == start.isoformat() and item["removalDate"] == end.isoformat()
+    assert item["confirmDue"] == cs._default_confirm_due(collab).date().isoformat()
+    # 철수 다음 날부터는 겹치지 않는다.
+    after = end + timedelta(days=1)
+    assert all(x["id"] != c["id"] for x in cs.admin_calendar(db, after, after + timedelta(days=30)))
+    # 취소한 콜라보는 뺀다.
+    collab.status = "cancelled"
+    db.commit()
+    assert all(x["id"] != c["id"] for x in cs.admin_calendar(db, start, end))
+    with pytest.raises(HTTPException):
+        cs.admin_calendar(db, end, start)
+
+
+def test_admin_progress_and_item_prep(db: Session, partner: User):
+    """콜라보 진행 — 진행 항목 준비 주체(prep)는 어드민에만, 끝나지 않은 콜라보만 다음 일정과 함께."""
+    ps.ensure_partner_code(db, partner)
+    ps.admin_biz_action(db, str(partner.id), "provisional")
+    db.refresh(partner)
+    _agree(db, partner)
+    store = _store(db, partner)
+    c = _collab(db)
+    cs.admin_update(
+        db,
+        c["id"],
+        {"items": [{"label": "샘플링", "note": "", "prep": "admix"}, {"label": "포스터", "prep": "nope"}]},
+    )
+    detail = cs.admin_get(db, c["id"])
+    assert detail["items"] == [{"label": "샘플링", "note": "", "prep": "admix"}, {"label": "포스터", "note": ""}]
+
+    cs.apply(db, partner, c["id"], str(store.id))
+    view = next(i for i in cs.list_for_store(db, partner, str(store.id))["items"] if i["id"] == c["id"])
+    assert all("prep" not in it for it in view["items"])  # 매장 화면엔 빼고
+
+    row = next(x for x in cs.admin_progress(db) if x["id"] == c["id"])
+    collab = db.get(Collab, uuid.UUID(c["id"]))
+    # 모집 중 — 다음 일정은 모집 마감
+    assert row["phase"] == "recruiting"
+    assert row["progress"]["nextDate"] == collab.recruit_end.isoformat()
+    assert row["progress"]["nextLabel"] == "모집 마감"
+    assert row["counts"]["applied"] == 1
+    assert row["progress"]["installed"] == 0 and row["progress"]["restock"] == 0
+
+    assert all(x["id"] != c["id"] for x in cs.admin_list(db, phase="ended", keyword="테스트 콜라보", page_size=100)[1])
+
+    # 끝난 · 취소한 콜라보는 빠지고 콜라보 결과(ended = 완료 · 취소)로 간다.
+    cs.admin_update(db, c["id"], {"status": "cancelled"})
+    assert all(x["id"] != c["id"] for x in cs.admin_progress(db))
+    assert any(x["id"] == c["id"] for x in cs.admin_list(db, phase="ended", keyword="테스트 콜라보", page_size=100)[1])
+
+
+def test_report_files(db: Session, partner: User):
+    """결과 보고서 파일(086) — 올리기 · 목록 수 · 받기 · 지우기, 허용 안 된 형식 · 빈 파일은 막는다."""
+    import io
+
+    from starlette.datastructures import UploadFile as StarletteUpload
+
+    c = _collab(db)
+    detail = cs.admin_upload_report(db, c["id"], StarletteUpload(io.BytesIO(b"%PDF-1.4 test"), filename="결과 보고서.pdf"), "관리자")
+    assert [f["name"] for f in detail["reportFiles"]] == ["결과 보고서.pdf"]
+    f = detail["reportFiles"][0]
+    assert f["size"] == 13 and f["uploadedBy"] == "관리자"
+    path, name = cs.admin_report_file(db, f["id"])
+    assert name == "결과 보고서.pdf" and path.read_bytes() == b"%PDF-1.4 test"
+
+    row = next(x for x in cs.admin_list(db, keyword="테스트 콜라보", page_size=100)[1] if x["id"] == c["id"])
+    assert row["reportFileCount"] == 1
+
+    with pytest.raises(HTTPException):
+        cs.admin_upload_report(db, c["id"], StarletteUpload(io.BytesIO(b"x"), filename="a.exe"), None)
+    with pytest.raises(HTTPException):
+        cs.admin_upload_report(db, c["id"], StarletteUpload(io.BytesIO(b""), filename="a.pdf"), None)
+
+    detail = cs.admin_delete_report(db, f["id"])
+    assert detail["reportFiles"] == [] and not path.exists()
+
+
+def test_store_responses(db: Session, partner: User):
+    """참여 / 미참여 응답(11-12) — 미참여로 답했다가 참여로, 참여 취소는 미참여로. 모집이 끝나도 답이 없으면 무응답."""
+    from datetime import datetime, timezone
+
+    ps.ensure_partner_code(db, partner)
+    ps.admin_biz_action(db, str(partner.id), "provisional")
+    db.refresh(partner)
+    _agree(db, partner)
+    store = _store(db, partner)
+    sid = str(store.id)
+    # 한 달 전부터 답할 수 있던 매장으로.
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    partner.partner_agreed_at = month_ago
+    store.created_at = month_ago
+    db.commit()
+
+    a = _collab(db)  # 모집 중
+    b = _collab(db, offset=40)  # 모집 중(기간 안 겹침)
+    today = cs.today_kst()
+    ended = cs.admin_create(
+        db,
+        {
+            "brand_name": "테스트브랜드",
+            "title": "테스트 콜라보 지난 모집",
+            "recruit_start": (today - timedelta(days=10)).isoformat(),
+            "recruit_end": (today - timedelta(days=5)).isoformat(),
+            "start_date": (today + timedelta(days=60)).isoformat(),
+            "end_date": (today + timedelta(days=70)).isoformat(),
+            "status": "published",
+        },
+    )
+
+    def standing(cid):
+        return next(i for i in cs.list_for_store(db, partner, sid)["items"] if i["id"] == cid)["standing"]
+
+    assert cs.pass_collab(db, partner, a["id"], sid)["standing"] == "passed"
+    counts = cs.admin_store_collabs(db, sid)["counts"]
+    assert counts == {"joined": 0, "passed": 1, "silent": 1, "waiting": 1}
+
+    # 미참여 → 참여(선착순 순서는 다시 누른 때)
+    view = cs.apply(db, partner, a["id"], sid)
+    assert view["standing"] == "candidate" and view["slotNo"] == 1
+    # 참여 취소 → 미참여로 남는다
+    cs.withdraw(db, partner, a["id"], sid)
+    assert standing(a["id"]) == "passed"
+    cs.apply(db, partner, a["id"], sid)
+    cs.pass_collab(db, partner, b["id"], sid)
+
+    out = cs.admin_store_collabs(db, sid)
+    assert out["counts"] == {"joined": 1, "passed": 1, "silent": 1, "waiting": 0}
+    by = {i["collabId"]: i for i in out["items"]}
+    assert by[a["id"]]["response"] == "joined" and by[a["id"]]["status"] == "applied"
+    assert by[b["id"]]["response"] == "passed" and by[b["id"]]["answeredAt"]
+    assert by[ended["id"]]["response"] == "silent"
+
+    # 목록 줄 · 진행 화면에도 같은 수
+    items = [{"id": sid}]
+    cs.attach_store_responses(db, items)
+    assert items[0]["collabResponses"]["joined"] == 1
+    row = next(x for x in cs.admin_progress(db) if x["id"] == a["id"])
+    assert row["progress"]["responses"]["joined"] >= 1
+
+    # 확정 요청을 받은 뒤에는 미참여로 못 바꾼다 · 모집이 끝난 콜라보엔 답할 수 없다
+    pid = next(p["id"] for p in cs.admin_get(db, a["id"])["participants"] if p["storeId"] == sid)
+    cs.admin_update_participant(db, pid, {"status": "requested"})
+    with pytest.raises(HTTPException):
+        cs.pass_collab(db, partner, a["id"], sid)
+    with pytest.raises(HTTPException):
+        cs.pass_collab(db, partner, ended["id"], sid)
 
 
 def test_not_agreed_cannot_apply(db: Session, partner: User):

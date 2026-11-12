@@ -48,7 +48,7 @@ function TermsLine({ line }: { line: string }): ReactNode {
   if (numbered)
     return (
       <p className="flex gap-[8px]">
-        <span className="w-[22px] shrink-0 text-right text-gray-400 tabular-nums">
+        <span className="w-[22px] shrink-0 text-right text-gray-400">
           {numbered[1]}.
         </span>
         <span>{numbered[2]}</span>

@@ -5,11 +5,13 @@
 - GET    /favorites/price-histogram  가격 필터 그래프(내가 담은 매체 기준)
 - PUT    /favorites/{media_id}   담기(멱등)
 - DELETE /favorites/{media_id}   해제(멱등)
+- GET    /favorites/memos        담은 매체 메모({media_id: memo}, 080)
+- PUT    /favorites/{media_id}/memo  메모 저장(최대 500자, 비우면 지움) — 담은 매체만
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -25,12 +27,33 @@ class FavoriteIdsResponse(BaseModel):
     media_ids: list[str]
 
 
+class FavoriteMemosResponse(BaseModel):
+    memos: dict[str, str]
+
+
+class FavoriteMemoBody(BaseModel):
+    memo: str | None = Field(None, max_length=favorite_service.MEMO_MAX)
+
+
+class FavoriteMemoResponse(BaseModel):
+    media_id: str
+    memo: str | None
+
+
 @router.get("/ids", response_model=FavoriteIdsResponse)
 def list_favorite_ids(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FavoriteIdsResponse:
     return FavoriteIdsResponse(media_ids=favorite_service.list_favorite_ids(db, user.id))
+
+
+@router.get("/memos", response_model=FavoriteMemosResponse)
+def list_favorite_memos(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FavoriteMemosResponse:
+    return FavoriteMemosResponse(memos=favorite_service.list_favorite_memos(db, user.id))
 
 
 @router.get("", response_model=MediaCardListResponse)
@@ -117,3 +140,16 @@ def remove_favorite(
 ) -> Response:
     favorite_service.remove_favorite(db, user.id, media_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{media_id}/memo", response_model=FavoriteMemoResponse)
+def set_favorite_memo(
+    media_id: str,
+    body: FavoriteMemoBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FavoriteMemoResponse:
+    fav = favorite_service.set_favorite_memo(db, user.id, media_id, body.memo)
+    if fav is None:
+        raise HTTPException(status_code=404, detail="관심 목록에 없는 매체입니다.")
+    return FavoriteMemoResponse(media_id=media_id, memo=fav.memo)

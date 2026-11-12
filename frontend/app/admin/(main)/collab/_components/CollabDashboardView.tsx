@@ -6,13 +6,10 @@ import Link from "next/link";
 import { LoadingState } from "@/components/common/RouteStates";
 import { useCollabAdminSummary } from "@/hooks/adminCollab";
 import { dotDate } from "@/lib/adminCollab";
-import {
-  COLLAB_PHASE_LABEL,
-  type CollabAdminSummary,
-  type CollabPhase,
-} from "@/lib/partners";
+import type { CollabAdminSummary } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
+import { CollabCalendar } from "./CollabCalendar";
 import { CollabPageHead } from "./collabUi";
 
 type Todo = {
@@ -61,43 +58,32 @@ const todosOf = (s: CollabAdminSummary): Todo[] => [
   },
 ];
 
-const PHASE_ORDER: CollabPhase[] = [
-  "recruiting",
-  "selecting",
-  "running",
-  "scheduled",
-  "draft",
-  "done",
-  "cancelled",
-];
-
-/** 콜라보 어드민 첫 화면 — 지금 처리할 일 숫자와 회원 · 매장 · 콜라보 현황. 숫자를 누르면 그 목록으로. */
+/**
+ * 콜라보 어드민 첫 화면 — 지금 처리할 일 숫자, 그 밑에 콜라보 일정 달력(2026-11-12 사용자, 예전 회원 · 매장 · 콜라보 현황 숫자를 바꿈).
+ * 숫자를 누르면 그 목록으로, 일정 막대를 누르면 콜라보 상세로.
+ */
 export function CollabDashboardView() {
   const { data: s, isLoading } = useCollabAdminSummary();
   if (isLoading || !s) return <LoadingState />;
 
   return (
-    <div className="flex flex-col gap-[28px] md:gap-[40px]">
+    <div className="flex flex-col gap-[24px] md:gap-[32px]">
       <CollabPageHead
         title="콜라보 대시보드"
-        desc={`${dotDate(s.today)} 기준이에요. 숫자를 누르면 해당 목록으로 가요.`}
+        desc={`${dotDate(s.today)} 기준이에요. 숫자를 누르면 해당 목록으로, 일정을 누르면 콜라보 상세로 가요.`}
       />
 
       <section className="flex flex-col gap-[12px]">
         <h2 className="text-lg font-bold leading-[28px] text-black">
           처리할 일
         </h2>
-        <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 md:gap-[16px] xl:grid-cols-3">
           {todosOf(s).map((t) => (
             <Link
               key={t.label}
               href={t.href}
-              className={cn(
-                "flex items-center justify-between gap-[12px] rounded-[12px] border p-[16px] transition-colors hover:bg-gray-50",
-                t.value > 0
-                  ? "border-primary/40 bg-primary-50/40"
-                  : "border-stroke",
-              )}
+              // 테두리 없는 흰 카드(회색 바탕 위) — 할 일이 있으면 숫자만 보라로(은은하게).
+              className="flex items-center justify-between gap-[12px] rounded-[20px] bg-surface p-[18px] shadow-surface transition-colors hover:bg-primary-50/40 md:p-[20px]"
             >
               <span className="flex min-w-0 flex-col gap-[2px]">
                 <span className="text-sm font-semibold text-black">
@@ -108,7 +94,7 @@ export function CollabDashboardView() {
               <span className="flex shrink-0 items-center gap-[4px]">
                 <span
                   className={cn(
-                    "text-2xl font-bold tabular-nums",
+                    "text-2xl font-bold",
                     t.value > 0 ? "text-primary-800" : "text-disabled",
                   )}
                 >
@@ -121,91 +107,7 @@ export function CollabDashboardView() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-[24px] lg:grid-cols-3">
-        <StatList
-          title="제휴사 회원"
-          rows={[
-            {
-              label: "전체",
-              value: s.members.total,
-              href: "/admin/collab/members",
-            },
-            {
-              label: "협약 전",
-              value: s.members.notAgreed,
-              href: "/admin/collab/members?agreement=none",
-            },
-            {
-              label: "협약했는데 매장 연결 전",
-              value: s.members.noStore,
-              href: "/admin/collab/members?agreement=done&store=no",
-            },
-          ]}
-          unit="명"
-        />
-        <StatList
-          title="매장"
-          rows={[
-            {
-              label: "전체",
-              value: s.stores.total,
-              href: "/admin/collab/stores",
-            },
-            {
-              label: "회원 연결 전",
-              value: s.stores.unlinked,
-              href: "/admin/collab/stores?linked=no",
-            },
-            {
-              label: "비공개",
-              value: s.stores.hidden,
-              href: "/admin/collab/stores?status=hidden",
-            },
-          ]}
-          unit="곳"
-        />
-        <StatList
-          title="콜라보"
-          rows={PHASE_ORDER.map((p) => ({
-            label: COLLAB_PHASE_LABEL[p],
-            value: s.collabs[p] ?? 0,
-            href: `/admin/collab/collabs?phase=${p}`,
-          }))}
-          unit="건"
-        />
-      </div>
+      <CollabCalendar today={s.today} />
     </div>
-  );
-}
-
-function StatList({
-  title,
-  rows,
-  unit,
-}: {
-  title: string;
-  rows: { label: string; value: number; href: string }[];
-  unit: string;
-}) {
-  return (
-    <section className="flex flex-col gap-[10px]">
-      <h2 className="text-lg font-bold leading-[28px] text-black">{title}</h2>
-      <ul className="flex flex-col divide-y divide-stroke rounded-[12px] border border-stroke">
-        {rows.map((r) => (
-          <li key={r.label}>
-            <Link
-              href={r.href}
-              className="flex items-center justify-between gap-[12px] px-[16px] py-[12px] text-sm hover:bg-gray-50"
-            >
-              <span className="text-tone-4a5565">{r.label}</span>
-              <span className="font-semibold tabular-nums text-black">
-                {r.value.toLocaleString()}
-                {unit}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

@@ -173,8 +173,10 @@ def complete_sns_signup(
     name: str | None = None,
     phone: str | None = None,
     company_name: str | None = None,
+    marketing_sms: bool | None = None,
+    marketing_email: bool | None = None,
 ) -> User:
-    """SNS 가입 마무리 — 이메일 확정 + 회원정보·약관(마케팅) 동의 저장.
+    """SNS 가입 마무리 — 이메일 확정 + 회원정보·약관(마케팅 동의 · 받을 방법) 저장.
 
     시안(00. 회원가입)상 카카오·네이버 가입은 이메일 인증 단계를 건너뛴다.
     그래서 소셜 제공자가 준 이메일(가입 시 user.email 에 저장)을 그대로 쓰면 인증을
@@ -191,7 +193,7 @@ def complete_sns_signup(
     # 연락받을 이메일은 수신 가능 여부만 확인하므로 이미 가입된 이메일이어도 허용.
     user.email = email
     user.verified = True
-    user.marketing_consent = marketing_consent
+    auth_service.set_marketing(user, marketing_consent, marketing_sms, marketing_email)
     if phone:
         taken = (
             db.query(User).filter(User.phone == phone, User.id != user.id).first()

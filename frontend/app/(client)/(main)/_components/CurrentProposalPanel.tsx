@@ -10,6 +10,7 @@ import {
   planSpecText,
 } from "@/components/common/media-detail/MediaOptions";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
+import { ExternalTrigger } from "@/components/common/ExternalTrigger";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
 import {
   OpenFolderIcon,
@@ -119,21 +120,19 @@ export function CurrentProposalPanel() {
   if (isDesktop) return null;
 
   return (
-    <Drawer isOpen={open} onOpenChange={setCurrentProposalPanelOpen}>
-      <Drawer.Backdrop>
-        <Drawer.Content placement="bottom">
-          {/* 시트 높이 — HeroUI 기본 85vh는 모바일 브라우저에서 주소창·아래 바를 뺀 실제 높이보다
-              커서 위가 잘린다. 보이는 높이(dvh)의 90%로 둔다(관심 매체 "선택한 매체" 시트와 같은 방식). */}
-          <Drawer.Dialog
-            aria-label={CURRENT_PROPOSAL_LABEL}
-            className="flex h-[90dvh] max-h-[90dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
-          >
-            <Drawer.Handle />
-            <CurrentProposalContent headerClassName="pt-[8px]" />
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
-    </Drawer>
+    <Drawer.Backdrop isOpen={open} onOpenChange={setCurrentProposalPanelOpen}>
+      <Drawer.Content placement="bottom">
+        {/* 시트 높이 — HeroUI 기본 85vh는 모바일 브라우저에서 주소창·아래 바를 뺀 실제 높이보다
+            커서 위가 잘린다. 보이는 높이(dvh)의 90%로 둔다(관심 매체 "선택한 매체" 시트와 같은 방식). */}
+        <Drawer.Dialog
+          aria-label={CURRENT_PROPOSAL_LABEL}
+          className="flex h-[90dvh] max-h-[90dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
+        >
+          <Drawer.Handle />
+          <CurrentProposalContent headerClassName="pt-[8px]" />
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 
@@ -149,6 +148,7 @@ export function CurrentProposalPopover({
   const open = useCurrentProposalPanelOpen();
   return (
     <Popover isOpen={open} onOpenChange={setCurrentProposalPanelOpen}>
+      <ExternalTrigger />
       <Popover.Content
         triggerRef={triggerRef}
         placement="right bottom"
@@ -372,7 +372,7 @@ function ProposalBody({
             setCurrentProposalPanelOpen(false);
             router.push(`/proposals/${proposalId}`);
           }}
-          className="h-[44px] w-full gap-[4px] rounded-[17px] bg-primary text-[14px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
+          className="h-[44px] w-full gap-[4px] rounded-[19px] bg-primary text-[14px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
         >
           기획안 보기
           <ChevronRightIcon className="size-[16px]" />

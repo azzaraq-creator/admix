@@ -40,13 +40,17 @@ import { mediaSrc } from "@/lib/media";
 import {
   coverImageUrls,
   noteTone,
-  PARTNERS_MAX_IMAGES,
   PARTNERS_MEDIA_CATEGORY,
   PARTNERS_MEDIA_SMALL,
   PARTNERS_NOTE_MAX_LEN,
   PARTNERS_TAG_MAX_LEN,
   PHOTO_KIND_LABEL,
   PHOTO_KINDS,
+  photoKindLabel,
+  isFieldRequest,
+  STORE_INQUIRY_FIELD,
+  STORE_INQUIRY_LABEL,
+  STORE_INQUIRY_MAX_LEN,
   STORE_REQUEST_FIELDS,
   type PartnersStore,
   type PhotoKind,
@@ -72,8 +76,8 @@ import { PanelCard, SHADOW_FLOAT, StatusChip } from "./workspace/workspaceUi";
  * 매장 등록 · 수정은 admix 담당자가 어드민에서 한다(069). 바꾸고 싶은 줄을 누르면 그 항목의 새 값을 적어 보낸다(074).
  *   ① 제목: 매장 이름(모바일은 "광고주 화면" 버튼도).
  *   ② 왼쪽: 광고주에게 보이는 화면 미리보기(매체 찾기 목록 카드 모양) + 매장 위치.
- *   ③ 오른쪽: 우리 매장 정보(줄마다 수정 요청) + 사진첩(분류 탭 · 스크롤).
- *   ④ 아래: 수정 기록 — 무엇을 무엇에서 무엇으로, 처리 상태, 처리 불가 사유, 마지막 업데이트.
+ *   ③ 오른쪽: 우리 매장 정보(줄마다 수정 요청 + 맨 아래 추가 요청 · 문의) + 사진첩(분류 탭 · 스크롤).
+ *   ④ 아래: 수정 기록 — 무엇을 무엇에서 무엇으로, 처리 상태, 처리 불가 사유 · 담당자 답변, 마지막 업데이트.
  */
 export function StoreFront({
   store,
@@ -92,6 +96,8 @@ export function StoreFront({
     open: boolean;
     key: number;
   } | null>(null);
+  // 추가 요청 · 문의 창 — 열 때마다 입력을 새로(key).
+  const [inquiry, setInquiry] = useState({ open: false, key: 0 });
   const { data: requests, isPending: requestsPending } = useStoreRequests(
     store.id,
   );
@@ -99,12 +105,14 @@ export function StoreFront({
   const pendingOf = useMemo(() => {
     const out = new Map<StoreRequestField, StoreRequest>();
     for (const r of requests ?? [])
-      if (r.status === "pending" && r.field && !out.has(r.field))
+      if (r.status === "pending" && isFieldRequest(r) && !out.has(r.field))
         out.set(r.field, r);
     return out;
   }, [requests]);
   const openRequest = (field: StoreRequestField) =>
     setRequest((prev) => ({ field, open: true, key: (prev?.key ?? 0) + 1 }));
+  const openInquiry = () =>
+    setInquiry((prev) => ({ open: true, key: prev.key + 1 }));
 
   return (
     <div className="flex flex-col gap-[16px] sm:gap-[20px]">
@@ -126,6 +134,7 @@ export function StoreFront({
           bizStatus={bizStatus}
           pendingOf={pendingOf}
           onRequest={openRequest}
+          onInquiry={openInquiry}
           className="max-sm:order-1"
         />
         <PhotoAlbum
@@ -155,6 +164,12 @@ export function StoreFront({
           }
         />
       )}
+      <InquiryModal
+        key={inquiry.key}
+        storeId={store.id}
+        isOpen={inquiry.open}
+        onOpenChange={(open) => setInquiry((prev) => ({ ...prev, open }))}
+      />
       <StoreGalleryModal
         images={store.imageUrls}
         captions={store.imageUrls.map(
@@ -257,6 +272,10 @@ function PreviewFrame({
           slides={slides}
           sizes="400px"
           className="h-[199px] w-full"
+          // 사진마다 분류 이름표 — 매체 찾기 카드와 같다(11-12 사용자).
+          labels={slides.map((src) =>
+            photoKindLabel(store.images.find((p) => p.url === src)?.kind),
+          )}
           onSlideClick={(i) =>
             onOpen(Math.max(0, store.imageUrls.indexOf(covers[i] ?? "")))
           }
@@ -310,41 +329,39 @@ function PreviewModal({
   onOpen: (i: number) => void;
 }) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" size="sm" scroll="inside">
-          <Modal.Dialog aria-label="광고주에게 보이는 화면">
-            <Modal.CloseTrigger />
-            <Modal.Header className="flex flex-col items-start gap-[3px] pr-[36px]">
-              <Modal.Heading className="flex items-center gap-[8px] text-[15px] font-bold text-gray-900">
-                <MaskIcon
-                  src="/icons/fill-eye.svg"
-                  className="h-[15px] w-[17px] shrink-0"
-                />
-                광고주에게 보이는 화면
-              </Modal.Heading>
-              <p className="text-[12px] break-keep text-gray-500">
-                admix 홈 매체 찾기 목록에 이 카드로 보여요.
-              </p>
-            </Modal.Header>
-            <Modal.Body>
-              <PreviewFrame store={store} onOpen={onOpen} />
-            </Modal.Body>
-            {/* 아래 닫기(11-08 사용자) — 기본협약 계약서 창(TextModal)과 같은 회색 버튼. 44px → 곡률 19px. */}
-            <Modal.Footer>
-              <Button
-                variant="tertiary"
-                fullWidth
-                onPress={() => onOpenChange(false)}
-                className="h-[44px] rounded-[19px] text-[14px] font-semibold"
-              >
-                닫기
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="sm" scroll="inside">
+        <Modal.Dialog aria-label="광고주에게 보이는 화면">
+          <Modal.CloseTrigger />
+          <Modal.Header className="flex flex-col items-start gap-[3px] pr-[36px]">
+            <Modal.Heading className="flex items-center gap-[8px] text-[15px] font-bold text-gray-900">
+              <MaskIcon
+                src="/icons/fill-eye.svg"
+                className="h-[15px] w-[17px] shrink-0"
+              />
+              광고주에게 보이는 화면
+            </Modal.Heading>
+            <p className="text-[12px] break-keep text-gray-500">
+              admix 홈 매체 찾기 목록에 이 카드로 보여요.
+            </p>
+          </Modal.Header>
+          <Modal.Body>
+            <PreviewFrame store={store} onOpen={onOpen} />
+          </Modal.Body>
+          {/* 아래 닫기(11-08 사용자) — 기본협약 계약서 창(TextModal)과 같은 회색 버튼. 44px → 곡률 19px. */}
+          <Modal.Footer>
+            <Button
+              variant="tertiary"
+              fullWidth
+              onPress={() => onOpenChange(false)}
+              className="h-[44px] rounded-[19px] text-[14px] font-semibold"
+            >
+              닫기
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -458,18 +475,21 @@ function storeFieldText(
  * ③ 우리 매장 정보 — 한 줄씩 읽기만. 줄을 누르면 그 항목의 수정 요청 창(11-10 사용자: "원하는 부분을 선택해서").
  * 확인 중인 요청이 있는 줄은 "확인 중". 조건(포스터 부착 불가 · 신규 메뉴 가능 …)은 담당자가 적은 메모를 칩으로.
  * 설명 줄은 임시 승인일 때만 — 사업자등록증을 꼭 올려 달라는 부탁(11-10 사용자).
+ * 맨 아래 "추가 요청 · 문의" — 위 줄에 없는 것(사진 · 콜라보 …)도 글로 보낸다(11-12 사용자).
  */
 function ProfileCard({
   store,
   bizStatus,
   pendingOf,
   onRequest,
+  onInquiry,
   className,
 }: {
   store: PartnersStore;
   bizStatus: string;
   pendingOf: Map<StoreRequestField, StoreRequest>;
   onRequest: (field: StoreRequestField) => void;
+  onInquiry: () => void;
   className?: string;
 }) {
   const rows: { field: StoreRequestField; value: ReactNode }[] = [
@@ -591,13 +611,27 @@ function ProfileCard({
           );
         })}
       </ul>
+      {/* 추가 요청 · 문의 — 옆 카드가 더 길면 카드 맨 아래에 붙는다(mt-auto). */}
+      <div className="mt-auto flex items-center justify-between gap-[12px] rounded-[14px] bg-gray-50 py-[10px] pr-[10px] pl-[14px]">
+        <p className="min-w-0 text-[13px] leading-[19px] break-keep text-gray-500 max-sm:text-[12px] max-sm:leading-[18px]">
+          위에 없는 것도 요청하거나 물어볼 수 있어요.
+        </p>
+        <Button
+          size="sm"
+          variant="tertiary"
+          onPress={onInquiry}
+          className="shrink-0 font-semibold"
+        >
+          {STORE_INQUIRY_LABEL}
+        </Button>
+      </div>
     </PanelCard>
   );
 }
 
 /**
  * 우리 매장 사진첩 — 장식 없는 사진 격자(11-10 사용자: "갤러리처럼 깔끔하게", 옛 폴라로이드). 누르면 전체 화면 갤러리.
- * 사진은 담당자가 올린다(최대 30장). 분류마다 첫 장이 대표(별) — 광고주에게 먼저 보인다.
+ * 사진은 담당자가 올린다(장수 제한 없음). 분류마다 첫 장이 대표(별) — 광고주에게 먼저 보인다.
  * 위 탭으로 분류별로 나눠 보고, 많으면 카드 안에서 스크롤(11-10 사용자).
  */
 function PhotoAlbum({
@@ -640,9 +674,8 @@ function PhotoAlbum({
           </>
         }
         right={
-          <span className="shrink-0 text-[13px] text-gray-500 tabular-nums max-sm:text-[12px]">
-            사진 <b className="font-semibold text-gray-900">{photos.length}</b>{" "}
-            / {PARTNERS_MAX_IMAGES}장
+          <span className="shrink-0 text-[13px] text-gray-500 max-sm:text-[12px]">
+            사진 <b className="font-semibold text-gray-900">{photos.length}</b>장
           </span>
         }
       />
@@ -662,7 +695,7 @@ function PhotoAlbum({
                       className="gap-[4px] rounded-[13px] whitespace-nowrap max-sm:min-w-0 max-sm:px-[8px] max-sm:text-[13px]"
                     >
                       {k === "all" ? "전체" : PHOTO_KIND_LABEL[k]}
-                      <span className="text-[12px] tabular-nums opacity-60">
+                      <span className="text-[12px] opacity-60">
                         {k === "all"
                           ? photos.length
                           : photos.filter((p) => p.kind === k).length}
@@ -739,7 +772,7 @@ const STATUS: Record<
 
 /**
  * ④ 수정 기록 — 어떤 항목을 무엇에서 무엇으로 바꿔 달라고 했는지, 처리 상태, 마지막 업데이트(최근 순).
- * 처리 불가면 어드민이 적은 사유가 보인다(11-10 사용자).
+ * 처리 불가면 어드민이 적은 사유가 보인다(11-10 사용자). 추가 요청 · 문의는 보낸 글과 담당자 답변이 보인다.
  */
 function HistoryCard({
   requests,
@@ -777,7 +810,12 @@ function HistoryCard({
 }
 
 function HistoryRow({ r }: { r: StoreRequest }) {
-  const st = STATUS[r.status] ?? STATUS.pending;
+  // 글로 보낸 요청(추가 요청 · 문의)은 매장 값을 바꾸지 않아 "반영" 대신 "처리 완료".
+  const fieldRequest = isFieldRequest(r);
+  const st =
+    r.status === "done" && !fieldRequest
+      ? { ...STATUS.done, label: "처리 완료" }
+      : (STATUS[r.status] ?? STATUS.pending);
   const stamp = r.updatedAt ?? r.createdAt;
   return (
     <li className="flex flex-col gap-[8px] py-[14px] first:pt-0 last:pb-0">
@@ -787,12 +825,12 @@ function HistoryRow({ r }: { r: StoreRequest }) {
           <StatusChip tone={st.tone}>{st.label}</StatusChip>
         </span>
         {stamp && (
-          <span className="text-[12px] text-gray-400 tabular-nums">
+          <span className="text-[12px] text-gray-400">
             마지막 업데이트 {kstFullStamp(stamp)}
           </span>
         )}
       </div>
-      {r.field ? (
+      {fieldRequest ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-[12px] gap-y-[4px] rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep">
           <dt className="text-gray-400">이전</dt>
           <dd
@@ -829,7 +867,11 @@ function HistoryRow({ r }: { r: StoreRequest }) {
           )}
         >
           <b className="mr-[6px] font-semibold">
-            {r.status === "rejected" ? "처리 불가 사유" : "담당자"}
+            {r.status === "rejected"
+              ? "처리 불가 사유"
+              : fieldRequest
+                ? "담당자"
+                : "담당자 답변"}
           </b>
           {r.adminReply}
         </p>
@@ -1006,211 +1048,209 @@ function RequestModal({
 
   return (
     <>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-        <Modal.Backdrop>
-          <Modal.Container placement="center" size="md">
-            <Modal.Dialog aria-label={`${label} 수정 요청`}>
-              <Modal.CloseTrigger />
-              <Form onSubmit={submit} className="flex flex-col">
-                <Modal.Header className="flex flex-col items-start pr-[36px]">
-                  <Modal.Heading className="text-[17px] font-bold text-gray-900">
-                    {label} 수정 요청
-                  </Modal.Heading>
-                </Modal.Header>
-                <Modal.Body className="flex flex-col gap-[16px]">
-                  {pending && (
-                    <p className="rounded-[12px] bg-amber-50 px-[12px] py-[9px] text-[12px] leading-[18px] break-keep text-amber-800 dark:bg-warning-bg dark:text-warning">
-                      확인 중인 요청이 있어요. 다시 보내면 그 요청이 이 값으로
-                      바뀌어요.
-                    </p>
-                  )}
-                  <div className="flex flex-col gap-[6px]">
-                    <span className={FIELD_LABEL}>현재 내용</span>
-                    <p className="rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep text-gray-600">
-                      {now ?? (
-                        <span className="text-gray-400">비어 있어요</span>
-                      )}
-                    </p>
-                  </div>
+      <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+        <Modal.Container placement="center" size="md">
+          <Modal.Dialog aria-label={`${label} 수정 요청`}>
+            <Modal.CloseTrigger />
+            <Form onSubmit={submit} className="flex flex-col">
+              <Modal.Header className="flex flex-col items-start pr-[36px]">
+                <Modal.Heading className="text-[17px] font-bold text-gray-900">
+                  {label} 수정 요청
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="flex flex-col gap-[16px]">
+                {pending && (
+                  <p className="rounded-[12px] bg-amber-50 px-[12px] py-[9px] text-[12px] leading-[18px] break-keep text-amber-800 dark:bg-warning-bg dark:text-warning">
+                    확인 중인 요청이 있어요. 다시 보내면 그 요청이 이 값으로
+                    바뀌어요.
+                  </p>
+                )}
+                <div className="flex flex-col gap-[6px]">
+                  <span className={FIELD_LABEL}>현재 내용</span>
+                  <p className="rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep text-gray-600">
+                    {now ?? (
+                      <span className="text-gray-400">비어 있어요</span>
+                    )}
+                  </p>
+                </div>
 
-                  <div className="flex flex-col gap-[6px]">
-                    <span className={FIELD_LABEL}>수정 내용</span>
-                    {field === "address" ? (
-                      <div className="flex flex-col gap-[8px]">
-                        <div className="flex items-center gap-[8px]">
-                          <Input
-                            variant="secondary"
-                            fullWidth
-                            readOnly
-                            aria-label="주소"
-                            placeholder="주소를 검색해 주세요"
-                            value={address.address}
-                            onClick={() => setSearchOpen(true)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setSearchOpen(true);
-                              }
-                            }}
-                            className="cursor-pointer"
-                          />
-                          <Button
-                            variant="tertiary"
-                            className="shrink-0 rounded-[17px] font-semibold md:rounded-[15px]"
-                            onPress={() => setSearchOpen(true)}
-                          >
-                            <Search className="size-[15px]" />
-                            주소 찾기
-                          </Button>
-                        </div>
+                <div className="flex flex-col gap-[6px]">
+                  <span className={FIELD_LABEL}>수정 내용</span>
+                  {field === "address" ? (
+                    <div className="flex flex-col gap-[8px]">
+                      <div className="flex items-center gap-[8px]">
                         <Input
                           variant="secondary"
                           fullWidth
-                          aria-label="상세 주소"
-                          placeholder="상세 주소(선택) 예) 2층"
-                          maxLength={200}
-                          value={address.address_detail ?? ""}
-                          onChange={(e) =>
-                            setAddress((prev) => ({
-                              ...prev,
-                              address_detail: e.target.value || null,
-                            }))
-                          }
-                        />
-                      </div>
-                    ) : field === "hours" ? (
-                      <div className="flex flex-col gap-[12px]">
-                        <BusinessHoursEditor
-                          variant="secondary"
-                          value={hours}
-                          onChange={(next) => {
-                            setHours(next);
-                            setError(null);
-                          }}
-                        />
-                        <div className="flex flex-col gap-[6px]">
-                          <span className="text-[12px] font-semibold text-gray-500">
-                            휴무일
-                          </span>
-                          <ClosedDaysPicker
-                            variant="secondary"
-                            value={hours.closed}
-                            onChange={(closed) =>
-                              setHours((prev) => ({ ...prev, closed }))
+                          readOnly
+                          aria-label="주소"
+                          placeholder="주소를 검색해 주세요"
+                          value={address.address}
+                          onClick={() => setSearchOpen(true)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSearchOpen(true);
                             }
-                          />
-                        </div>
-                        {legacyHours && !pending && (
-                          <p className="text-[12px] break-keep text-gray-400">
-                            지금 적힌 운영 시간을 입력칸으로 옮기지 못했어요.
-                            새로 넣어 주세요.
-                          </p>
-                        )}
+                          }}
+                          className="cursor-pointer"
+                        />
+                        <Button
+                          variant="tertiary"
+                          className="shrink-0 font-semibold"
+                          onPress={() => setSearchOpen(true)}
+                        >
+                          <Search className="size-[15px]" />
+                          주소 찾기
+                        </Button>
                       </div>
-                    ) : field === "tags" || field === "notes" ? (
-                      <ChipInput
-                        ariaLabel={label}
-                        placeholder={
-                          field === "tags"
-                            ? "예) 뷰맛집, 주차가능 — 쉼표(,)로 구분해요."
-                            : "예) 포스터 부착 불가 — 쉼표(,)로 구분해요."
-                        }
-                        values={list}
-                        onChange={setList}
-                        maxLength={
-                          field === "tags"
-                            ? PARTNERS_TAG_MAX_LEN
-                            : PARTNERS_NOTE_MAX_LEN
-                        }
-                        colorOf={
-                          field === "notes"
-                            ? (n) => NOTE_INPUT_COLOR[noteTone(n)]
-                            : undefined
-                        }
-                      />
-                    ) : (
                       <Input
                         variant="secondary"
                         fullWidth
-                        autoFocus
-                        aria-label={label}
-                        placeholder={
-                          field === "phone"
-                            ? "예) 02-123-4567"
-                            : field === "owner_name"
-                              ? "사장님 이름"
-                              : "매장명"
+                        aria-label="상세 주소"
+                        placeholder="상세 주소(선택) 예) 2층"
+                        maxLength={200}
+                        value={address.address_detail ?? ""}
+                        onChange={(e) =>
+                          setAddress((prev) => ({
+                            ...prev,
+                            address_detail: e.target.value || null,
+                          }))
                         }
-                        inputMode={field === "phone" ? "tel" : undefined}
-                        maxLength={
-                          field === "phone"
-                            ? STORE_PHONE_INPUT_MAX_LENGTH
-                            : field === "owner_name"
-                              ? 100
-                              : 200
-                        }
-                        value={text}
-                        onChange={(e) => {
+                      />
+                    </div>
+                  ) : field === "hours" ? (
+                    <div className="flex flex-col gap-[12px]">
+                      <BusinessHoursEditor
+                        variant="secondary"
+                        value={hours}
+                        onChange={(next) => {
+                          setHours(next);
                           setError(null);
-                          setText(
-                            field === "phone"
-                              ? formatStorePhoneInput(e.target.value)
-                              : e.target.value,
-                          );
                         }}
                       />
-                    )}
-                    {!required && (
-                      <p className="text-[12px] break-keep text-gray-400">
-                        비워서 보내면 이 항목을 지워 달라는 요청이 돼요.
-                      </p>
-                    )}
-                    {error && (
-                      <p className="text-[12px] font-medium text-error">
-                        {error}
-                      </p>
-                    )}
-                  </div>
-
-                  <TextField
-                    value={memo}
-                    onChange={setMemo}
-                    maxLength={500}
-                    className="flex flex-col gap-[6px]"
-                  >
-                    <Label className={FIELD_LABEL}>
-                      담당자에게 남길 말{" "}
-                      <span className="font-normal text-gray-400">(선택)</span>
-                    </Label>
-                    <TextArea
-                      variant="secondary"
-                      rows={2}
-                      className="resize-none"
+                      <div className="flex flex-col gap-[6px]">
+                        <span className="text-[12px] font-semibold text-gray-500">
+                          휴무일
+                        </span>
+                        <ClosedDaysPicker
+                          variant="secondary"
+                          value={hours.closed}
+                          onChange={(closed) =>
+                            setHours((prev) => ({ ...prev, closed }))
+                          }
+                        />
+                      </div>
+                      {legacyHours && !pending && (
+                        <p className="text-[12px] break-keep text-gray-400">
+                          지금 적힌 운영 시간을 입력칸으로 옮기지 못했어요.
+                          새로 넣어 주세요.
+                        </p>
+                      )}
+                    </div>
+                  ) : field === "tags" || field === "notes" ? (
+                    <ChipInput
+                      ariaLabel={label}
+                      placeholder={
+                        field === "tags"
+                          ? "예) 뷰맛집, 주차가능 — 쉼표(,)로 구분해요."
+                          : "예) 포스터 부착 불가 — 쉼표(,)로 구분해요."
+                      }
+                      values={list}
+                      onChange={setList}
+                      maxLength={
+                        field === "tags"
+                          ? PARTNERS_TAG_MAX_LEN
+                          : PARTNERS_NOTE_MAX_LEN
+                      }
+                      colorOf={
+                        field === "notes"
+                          ? (n) => NOTE_INPUT_COLOR[noteTone(n)]
+                          : undefined
+                      }
                     />
-                  </TextField>
-                </Modal.Body>
-                <Modal.Footer className="flex gap-[8px]">
-                  <Button
-                    variant="tertiary"
-                    onPress={() => onOpenChange(false)}
-                    className="h-[44px] shrink-0 rounded-[19px] px-[18px] font-semibold"
-                  >
-                    닫기
-                  </Button>
-                  <Button
-                    type="submit"
-                    isDisabled={!changed}
-                    isPending={create.isPending}
-                    className="h-[44px] flex-1 rounded-[19px] font-bold"
-                  >
-                    보내기
-                  </Button>
-                </Modal.Footer>
-              </Form>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+                  ) : (
+                    <Input
+                      variant="secondary"
+                      fullWidth
+                      autoFocus
+                      aria-label={label}
+                      placeholder={
+                        field === "phone"
+                          ? "예) 02-123-4567"
+                          : field === "owner_name"
+                            ? "사장님 이름"
+                            : "매장명"
+                      }
+                      inputMode={field === "phone" ? "tel" : undefined}
+                      maxLength={
+                        field === "phone"
+                          ? STORE_PHONE_INPUT_MAX_LENGTH
+                          : field === "owner_name"
+                            ? 100
+                            : 200
+                      }
+                      value={text}
+                      onChange={(e) => {
+                        setError(null);
+                        setText(
+                          field === "phone"
+                            ? formatStorePhoneInput(e.target.value)
+                            : e.target.value,
+                        );
+                      }}
+                    />
+                  )}
+                  {!required && (
+                    <p className="text-[12px] break-keep text-gray-400">
+                      비워서 보내면 이 항목을 지워 달라는 요청이 돼요.
+                    </p>
+                  )}
+                  {error && (
+                    <p className="text-[12px] font-medium text-error">
+                      {error}
+                    </p>
+                  )}
+                </div>
+
+                <TextField
+                  value={memo}
+                  onChange={setMemo}
+                  maxLength={500}
+                  className="flex flex-col gap-[6px]"
+                >
+                  <Label className={FIELD_LABEL}>
+                    담당자에게 남길 말{" "}
+                    <span className="font-normal text-gray-400">(선택)</span>
+                  </Label>
+                  <TextArea
+                    variant="secondary"
+                    rows={2}
+                    className="resize-none"
+                  />
+                </TextField>
+              </Modal.Body>
+              <Modal.Footer className="flex gap-[8px]">
+                <Button
+                  variant="tertiary"
+                  onPress={() => onOpenChange(false)}
+                  className="h-[44px] shrink-0 rounded-[19px] px-[18px] font-semibold"
+                >
+                  닫기
+                </Button>
+                <Button
+                  type="submit"
+                  isDisabled={!changed}
+                  isPending={create.isPending}
+                  className="h-[44px] flex-1 rounded-[19px] font-bold"
+                >
+                  보내기
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
       {/* 주소 검색(카카오 우편번호)은 수정 요청 창 위에 겹쳐 연다. */}
       {field === "address" && (
         <AddressSearchModal
@@ -1220,5 +1260,97 @@ function RequestModal({
         />
       )}
     </>
+  );
+}
+
+/**
+ * 추가 요청 · 문의 창 — 우리 매장 정보 줄에 없는 것(사진 · 콜라보 · 정산 …)을 글로 보낸다(11-12 사용자).
+ * 보낼 때마다 새 요청이 되고 어드민 "수정 요청"으로 간다. 담당자 답변은 수정 기록에서 본다.
+ */
+function InquiryModal({
+  storeId,
+  isOpen,
+  onOpenChange,
+}: {
+  storeId: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [text, setText] = useState("");
+  const create = useCreateStoreRequest(storeId);
+  const { success, error: toastError } = useSonner();
+  const body = text.trim();
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!body) return;
+    create.mutate(
+      { field: STORE_INQUIRY_FIELD, value: body },
+      {
+        onSuccess: () => {
+          success(
+            "요청을 보냈어요.",
+            "담당자가 확인하고 답해 드려요. 답변은 수정 기록에서 볼 수 있어요.",
+          );
+          onOpenChange(false);
+        },
+        onError: (err) =>
+          toastError(extractApiError(err, "요청을 보내지 못했어요.")),
+      },
+    );
+  };
+
+  return (
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="md">
+        <Modal.Dialog aria-label={STORE_INQUIRY_LABEL}>
+          <Modal.CloseTrigger />
+          <Form onSubmit={submit} className="flex flex-col">
+            <Modal.Header className="flex flex-col items-start pr-[36px]">
+              <Modal.Heading className="text-[17px] font-bold text-gray-900">
+                {STORE_INQUIRY_LABEL}
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="flex flex-col gap-[6px]">
+              <TextField
+                value={text}
+                onChange={setText}
+                maxLength={STORE_INQUIRY_MAX_LEN}
+                className="flex flex-col gap-[6px]"
+              >
+                <Label className={FIELD_LABEL}>요청 · 문의 내용</Label>
+                <TextArea
+                  variant="secondary"
+                  rows={5}
+                  autoFocus
+                  placeholder="예) 사진을 새로 찍어 주세요."
+                  className="resize-none"
+                />
+              </TextField>
+              <p className="self-end text-[12px] text-gray-400">
+                {text.length} / {STORE_INQUIRY_MAX_LEN}
+              </p>
+            </Modal.Body>
+            <Modal.Footer className="flex gap-[8px]">
+              <Button
+                variant="tertiary"
+                onPress={() => onOpenChange(false)}
+                className="h-[44px] shrink-0 rounded-[19px] px-[18px] font-semibold"
+              >
+                닫기
+              </Button>
+              <Button
+                type="submit"
+                isDisabled={!body}
+                isPending={create.isPending}
+                className="h-[44px] flex-1 rounded-[19px] font-bold"
+              >
+                보내기
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

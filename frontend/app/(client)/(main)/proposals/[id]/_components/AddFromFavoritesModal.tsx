@@ -139,228 +139,226 @@ export function AddFromFavoritesModal({
   const currentSort = SORTS.find((s) => s.key === sort) ?? SORTS[0];
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container
-          placement="center"
-          className="px-[16px] sm:w-full sm:max-w-[930px] sm:px-[20px]"
+      <Modal.Container
+        placement="center"
+        className="px-[16px] sm:w-full sm:max-w-[930px] sm:px-[20px]"
+      >
+        <Modal.Dialog
+          aria-label="관심 매체에서 추가하기"
+          // 창 높이 고정 — 검색 결과가 적거나 없거나, 관심 매체가 없어 카테고리 줄이 빠져도 크기가 그대로다.
+          // 목록 칸(본문)이 남는 높이를 채운다.
+          className="h-[min(780px,calc(100vh-80px))] w-full max-w-full gap-0 rounded-[24px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
         >
-          <Modal.Dialog
-            aria-label="관심 매체에서 추가하기"
-            // 창 높이 고정 — 검색 결과가 적거나 없거나, 관심 매체가 없어 카테고리 줄이 빠져도 크기가 그대로다.
-            // 목록 칸(본문)이 남는 높이를 채운다.
-            className="h-[min(780px,calc(100vh-80px))] w-full max-w-full gap-0 rounded-[24px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)]"
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a"
+            <CloseMediumIcon className="size-[24px]" />
+          </Modal.CloseTrigger>
+
+          {/* 제목 + 총 개수 칩(시안). */}
+          <Modal.Header className="flex min-h-[28px] shrink-0 flex-row items-center gap-[8px] p-0 pr-[40px]">
+            <Modal.Heading className="text-[16px] font-semibold text-black">
+              관심 매체 목록
+            </Modal.Heading>
+            <Chip className="h-[20px] rounded-[7px] bg-tone-f1f1f3 px-[7px] py-0 text-[10px] font-medium text-zinc-500">
+              총 {allRows.length}개
+            </Chip>
+          </Modal.Header>
+
+          {/* 검색 + 정렬. */}
+          <div className="mt-[16px] flex shrink-0 items-center justify-between gap-[10px]">
+            <SearchField
+              aria-label="관심 매체 검색"
+              value={query}
+              onChange={setQuery}
+              className="w-full max-w-[420px]"
             >
-              <CloseMediumIcon className="size-[24px]" />
-            </Modal.CloseTrigger>
+              <SearchField.Group className="h-[36px] rounded-[15px]">
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder="매체명·주소로 검색해 보세요" />
+                <SearchField.ClearButton />
+              </SearchField.Group>
+            </SearchField>
 
-            {/* 제목 + 총 개수 칩(시안). */}
-            <Modal.Header className="flex min-h-[28px] shrink-0 flex-row items-center gap-[8px] p-0 pr-[40px]">
-              <Modal.Heading className="text-[16px] font-semibold text-black">
-                관심 매체 목록
-              </Modal.Heading>
-              <Chip className="h-[20px] rounded-[7px] bg-tone-f1f1f3 px-[7px] py-0 text-[10px] font-medium text-zinc-500">
-                총 {allRows.length}개
-              </Chip>
-            </Modal.Header>
+            <div className="flex shrink-0 items-center gap-[12px]">
+              {/* 이미 담긴 매체가 있을 때만 — 켜면 "이미 담김" 카드를 목록에서 뺀다(HeroUI Switch). */}
+              {addedCount > 0 && (
+                <Switch
+                  size="sm"
+                  isSelected={hideAdded}
+                  onChange={setHideAdded}
+                  className="group flex"
+                >
+                  <Switch.Content className="flex-row-reverse gap-[6px]">
+                    {/* 간략히 보기 토글과 같은 색 — 꺼짐 회색 트랙, 켜짐 보라·흰 손잡이. */}
+                    <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
+                      <Switch.Thumb className="bg-surface!" />
+                    </Switch.Control>
+                    <Label className="text-[13px] font-medium whitespace-nowrap text-zinc-600">
+                      이미 담긴 매체 숨기기
+                      <span className="ml-[3px] text-zinc-400">
+                        {addedCount}
+                      </span>
+                    </Label>
+                  </Switch.Content>
+                </Switch>
+              )}
 
-            {/* 검색 + 정렬. */}
-            <div className="mt-[16px] flex shrink-0 items-center justify-between gap-[10px]">
-              <SearchField
-                aria-label="관심 매체 검색"
-                value={query}
-                onChange={setQuery}
-                className="w-full max-w-[420px]"
-              >
-                <SearchField.Group className="h-[36px] rounded-[15px]">
-                  <SearchField.SearchIcon />
-                  <SearchField.Input placeholder="매체명·주소로 검색해 보세요" />
-                  <SearchField.ClearButton />
-                </SearchField.Group>
-              </SearchField>
-
-              <div className="flex shrink-0 items-center gap-[12px]">
-                {/* 이미 담긴 매체가 있을 때만 — 켜면 "이미 담김" 카드를 목록에서 뺀다(HeroUI Switch). */}
-                {addedCount > 0 && (
-                  <Switch
-                    size="sm"
-                    isSelected={hideAdded}
-                    onChange={setHideAdded}
-                    className="group flex"
+              <Dropdown>
+                <Dropdown.Trigger
+                  aria-label={`정렬: ${currentSort.label}`}
+                  className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-zinc-900 outline-none hover:bg-surface data-[focus-visible=true]:border-focus"
+                >
+                  <SortIcon className="size-[16px] shrink-0 text-zinc-900" />
+                  {currentSort.label}
+                </Dropdown.Trigger>
+                <Dropdown.Popover
+                  placement="bottom end"
+                  className="min-w-[150px]"
+                >
+                  <Dropdown.Menu
+                    aria-label="정렬"
+                    selectionMode="single"
+                    disallowEmptySelection
+                    selectedKeys={new Set([sort])}
+                    onSelectionChange={(keys) => {
+                      const next = [...keys][0];
+                      if (next != null) setSort(next as SortKey);
+                    }}
                   >
-                    <Switch.Content className="flex-row-reverse gap-[6px]">
-                      {/* 간략히 보기 토글과 같은 색 — 꺼짐 회색 트랙, 켜짐 보라·흰 손잡이. */}
-                      <Switch.Control className="bg-zinc-300! group-data-[selected=true]:bg-primary!">
-                        <Switch.Thumb className="bg-surface!" />
-                      </Switch.Control>
-                      <Label className="text-[13px] font-medium whitespace-nowrap text-zinc-600">
-                        이미 담긴 매체 숨기기
-                        <span className="ml-[3px] text-zinc-400">
-                          {addedCount}
+                    {SORTS.map((s) => (
+                      <Dropdown.Item
+                        key={s.key}
+                        id={s.key}
+                        textValue={s.label}
+                      >
+                        <span className="text-[13px] text-zinc-900">
+                          {s.label}
                         </span>
-                      </Label>
-                    </Switch.Content>
-                  </Switch>
-                )}
-
-                <Dropdown>
-                  <Dropdown.Trigger
-                    aria-label={`정렬: ${currentSort.label}`}
-                    className="flex h-[36px] shrink-0 items-center gap-[8px] rounded-[15px] border border-gray-200 bg-gray-100 px-[14px] text-[13px] font-medium whitespace-nowrap text-zinc-900 outline-none hover:bg-surface data-[focus-visible=true]:border-focus"
-                  >
-                    <SortIcon className="size-[16px] shrink-0 text-zinc-900" />
-                    {currentSort.label}
-                  </Dropdown.Trigger>
-                  <Dropdown.Popover
-                    placement="bottom end"
-                    className="min-w-[150px]"
-                  >
-                    <Dropdown.Menu
-                      aria-label="정렬"
-                      selectionMode="single"
-                      disallowEmptySelection
-                      selectedKeys={new Set([sort])}
-                      onSelectionChange={(keys) => {
-                        const next = [...keys][0];
-                        if (next != null) setSort(next as SortKey);
-                      }}
-                    >
-                      {SORTS.map((s) => (
-                        <Dropdown.Item
-                          key={s.key}
-                          id={s.key}
-                          textValue={s.label}
-                        >
-                          <span className="text-[13px] text-zinc-900">
-                            {s.label}
-                          </span>
-                          <Dropdown.ItemIndicator />
-                        </Dropdown.Item>
-                      ))}
-                    </Dropdown.Menu>
-                  </Dropdown.Popover>
-                </Dropdown>
-              </div>
+                        <Dropdown.ItemIndicator />
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
             </div>
+          </div>
 
-            {/* 카테고리 칩 한 줄(내 관심 매체에 있는 대분류만) — 칩 30px → 곡률 12px. */}
-            {categories.length > 1 && (
-              <ScrollShadow
-                orientation="horizontal"
-                hideScrollBar
-                size={24}
-                className="mt-[12px] flex shrink-0 gap-[6px]"
-              >
-                {[ALL, ...categories].map((name) => {
-                  const active = category === name;
-                  return (
-                    <Button
-                      key={name}
-                      variant="ghost"
-                      onPress={() => setCategory(name)}
-                      aria-pressed={active}
-                      className={cn(
-                        "h-[30px] min-w-0 shrink-0 rounded-[12px] border px-[12px] text-[12px] whitespace-nowrap",
-                        active
-                          ? "border-zinc-900 bg-surface font-semibold text-zinc-900"
-                          : "border-tone-ececef bg-surface font-normal text-zinc-500 data-[hovered=true]:bg-zinc-50",
-                      )}
-                    >
-                      {name}
-                      {name !== ALL && (
-                        <span className="ml-[3px] text-zinc-400">
-                          {categoryCounts.get(name)}
-                        </span>
-                      )}
-                    </Button>
-                  );
-                })}
+          {/* 카테고리 칩 한 줄(내 관심 매체에 있는 대분류만) — 칩 30px → 곡률 12px. */}
+          {categories.length > 1 && (
+            <ScrollShadow
+              orientation="horizontal"
+              hideScrollBar
+              size={24}
+              className="mt-[12px] flex shrink-0 gap-[6px]"
+            >
+              {[ALL, ...categories].map((name) => {
+                const active = category === name;
+                return (
+                  <Button
+                    key={name}
+                    variant="ghost"
+                    onPress={() => setCategory(name)}
+                    aria-pressed={active}
+                    className={cn(
+                      "h-[30px] min-w-0 shrink-0 rounded-[12px] border px-[12px] text-[12px] whitespace-nowrap",
+                      active
+                        ? "border-zinc-900 bg-surface font-semibold text-zinc-900"
+                        : "border-tone-ececef bg-surface font-normal text-zinc-500 data-[hovered=true]:bg-zinc-50",
+                    )}
+                  >
+                    {name}
+                    {name !== ALL && (
+                      <span className="ml-[3px] text-zinc-400">
+                        {categoryCounts.get(name)}
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
+            </ScrollShadow>
+          )}
+
+          {/* 목록 칸 — 고정된 창 높이에서 남는 만큼 채우고(HeroUI 기본 flex-1), 넘치면 안쪽 ScrollShadow가
+              스크롤하며 넘치는 쪽 가장자리를 흐리게 한다. */}
+          <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col overflow-hidden p-0">
+            {isLoading ? (
+              <div className="flex flex-1 items-center justify-center py-[40px]">
+                <SpinningSymbol className="size-[32px]" />
+              </div>
+            ) : allRows.length === 0 ? (
+              <EmptyNote
+                title="아직 관심 매체가 없어요"
+                description="매체 찾기에서 마음에 드는 매체에 하트를 눌러 보세요."
+                action={
+                  <Button
+                    variant="outline"
+                    onPress={() => router.push("/fixed")}
+                    className="mt-[6px] h-[32px] rounded-[13px] px-[12px] text-[12px] font-semibold"
+                  >
+                    매체 찾기로 가기
+                  </Button>
+                }
+              />
+            ) : rows.length === 0 ? (
+              <EmptyNote
+                title="조건에 맞는 관심 매체가 없어요"
+                description="다른 검색어를 입력하거나 카테고리를 바꿔 보세요."
+              />
+            ) : (
+              <ScrollShadow size={24} className="min-h-0 flex-1">
+                <div className="grid grid-cols-1 gap-[10px] p-[2px] sm:grid-cols-3">
+                  {rows.map((row) => (
+                    <PickCard
+                      key={row.id}
+                      row={row}
+                      added={existingIds.includes(row.id)}
+                      checked={selected.includes(row.id)}
+                      onChange={(checked) => toggle(row.id, checked)}
+                    />
+                  ))}
+                </div>
               </ScrollShadow>
             )}
+          </Modal.Body>
 
-            {/* 목록 칸 — 고정된 창 높이에서 남는 만큼 채우고(HeroUI 기본 flex-1), 넘치면 안쪽 ScrollShadow가
-                스크롤하며 넘치는 쪽 가장자리를 흐리게 한다. */}
-            <Modal.Body className="m-0 mt-[16px] flex min-h-0 flex-col overflow-hidden p-0">
-              {isLoading ? (
-                <div className="flex flex-1 items-center justify-center py-[40px]">
-                  <SpinningSymbol className="size-[32px]" />
-                </div>
-              ) : allRows.length === 0 ? (
-                <EmptyNote
-                  title="아직 관심 매체가 없어요"
-                  description="매체 찾기에서 마음에 드는 매체에 하트를 눌러 보세요."
-                  action={
-                    <Button
-                      variant="outline"
-                      onPress={() => router.push("/fixed")}
-                      className="mt-[6px] h-[32px] rounded-[13px] px-[12px] text-[12px] font-semibold"
-                    >
-                      매체 찾기로 가기
-                    </Button>
-                  }
-                />
-              ) : rows.length === 0 ? (
-                <EmptyNote
-                  title="조건에 맞는 관심 매체가 없어요"
-                  description="다른 검색어를 입력하거나 카테고리를 바꿔 보세요."
-                />
-              ) : (
-                <ScrollShadow size={24} className="min-h-0 flex-1">
-                  <div className="grid grid-cols-1 gap-[10px] p-[2px] sm:grid-cols-3">
-                    {rows.map((row) => (
-                      <PickCard
-                        key={row.id}
-                        row={row}
-                        added={existingIds.includes(row.id)}
-                        checked={selected.includes(row.id)}
-                        onChange={(checked) => toggle(row.id, checked)}
-                      />
-                    ))}
-                  </div>
-                </ScrollShadow>
+          <Modal.Footer className="mt-[16px] flex shrink-0 items-center justify-end gap-[8px] p-0">
+            <Button
+              variant="ghost"
+              onPress={onClose}
+              className={cn(
+                ACTION_CLASS,
+                "w-[96px] bg-tone-eeeeee text-zinc-900",
               )}
-            </Modal.Body>
-
-            <Modal.Footer className="mt-[16px] flex shrink-0 items-center justify-end gap-[8px] p-0">
-              <Button
-                variant="ghost"
-                onPress={onClose}
-                className={cn(
-                  ACTION_CLASS,
-                  "w-[96px] bg-tone-eeeeee text-zinc-900",
-                )}
-              >
-                닫기
-              </Button>
-              <Button
-                variant="primary"
-                onPress={handleAdd}
-                isDisabled={selected.length === 0}
-                isPending={addItems.isPending}
-                className={cn(
-                  ACTION_CLASS,
-                  "min-w-[150px] bg-primary-500 font-bold text-white",
-                )}
-              >
-                {!addItems.isPending && <FolderAddIcon className="shrink-0" />}
-                {selected.length > 0
-                  ? `${selected.length}개 추가하기`
-                  : "추가하기"}
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            >
+              닫기
+            </Button>
+            <Button
+              variant="primary"
+              onPress={handleAdd}
+              isDisabled={selected.length === 0}
+              isPending={addItems.isPending}
+              className={cn(
+                ACTION_CLASS,
+                "min-w-[150px] bg-primary-500 font-bold text-white",
+              )}
+            >
+              {!addItems.isPending && <FolderAddIcon className="shrink-0" />}
+              {selected.length > 0
+                ? `${selected.length}개 추가하기`
+                : "추가하기"}
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

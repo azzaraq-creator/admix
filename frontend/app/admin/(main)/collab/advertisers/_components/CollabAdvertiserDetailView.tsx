@@ -1,15 +1,21 @@
 "use client";
 
-import { Button, Link as HeroLink } from "@heroui/react";
+import { Button, Input, Link as HeroLink } from "@heroui/react";
 import { ChevronLeft, FileText, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { HeroField } from "@/app/admin/(main)/media/_components/heroFields";
 import { LoadingState } from "@/components/common/RouteStates";
 import { useAdminMe, isCollabOnlyAdmin } from "@/hooks/adminAuth";
-import { adminCollabApi, useCollabAdvertiser } from "@/hooks/adminCollab";
+import {
+  adminCollabApi,
+  useCollabAdvertiser,
+  useUpdateAdvertiserBiz,
+} from "@/hooks/adminCollab";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
+import { useSonner } from "@/hooks/useSonner";
 import {
   dotDate,
   dotDateTime,
@@ -17,17 +23,19 @@ import {
 } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
+import { formatPhone } from "@/lib/phone";
 
 import {
   CollabPageHead,
   CollabSection,
-  openOrDownloadBlob,
+  openFileInNewTab,
 } from "../../_components/collabUi";
 import { BrandThumb } from "./CollabAdvertisersListView";
 
 /**
- * 광고주 회원 상세(읽기 전용, 11-10) — 콜라보 담당자가 의뢰한 광고주가 누구인지 확인하는 화면.
- * 담당자 정보 · 명함 → 브랜드 → 사업자 인증 순. 계정 수정 · 사업자 인증 처리는 admix 회원 관리에서 한다.
+ * 광고주 회원 상세(11-10) — 콜라보 담당자가 의뢰한 광고주가 누구인지 확인하는 화면.
+ * 담당자 정보 → 브랜드 → 사업자 인증 순(명함은 11-11 사용자 요청으로 뺌). 계정 수정 · 사업자 인증 처리는 admix 회원 관리에서 한다.
+ * 상호 · 사업자번호만 여기서 직접 적어 저장한다(11-11 사용자).
  */
 export function CollabAdvertiserDetailView({ id }: { id: string }) {
   const router = useRouter();
@@ -85,7 +93,7 @@ function AdvertiserDetail({ member }: { member: AdminAdvertiserMember }) {
                 className="flex items-center gap-[2px] text-xs text-primary-800 no-underline"
               >
                 <Phone className="size-[12px]" />
-                {member.phone}
+                {formatPhone(member.phone)}
               </HeroLink>
             )}
             <span>가입 {dotDateTime(member.createdAt)}</span>
@@ -126,7 +134,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** 파일 한 줄 — 이름 · 올린 때 + "파일 보기"(이미지 · PDF 는 새 창, 그 밖은 내려받기). */
+/** 파일 한 줄 — 이름 · 올린 때 + "파일 보기"(이미지 · PDF 는 새 탭, 그 밖은 내려받기). */
 function FileRow({
   memberId,
   kind,
@@ -144,8 +152,10 @@ function FileRow({
   const open = async () => {
     setOpening(true);
     try {
-      const blob = await adminCollabApi.advertiserFile(memberId, kind);
-      openOrDownloadBlob(blob, name);
+      await openFileInNewTab(
+        () => adminCollabApi.advertiserFile(memberId, kind),
+        name,
+      );
     } catch (err) {
       await alert({
         title: "파일을 열지 못했어요",
@@ -158,7 +168,7 @@ function FileRow({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-[8px] rounded-[10px] border border-stroke bg-white px-[14px] py-[10px]">
+    <div className="flex flex-wrap items-center justify-between gap-[8px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
       <span className="flex min-w-0 items-center gap-[8px]">
         <FileText className="size-[18px] shrink-0 text-tone-4a5565" />
         <span className="min-w-0">
@@ -182,29 +192,16 @@ function ContactSection({ member }: { member: AdminAdvertiserMember }) {
       title="담당자 정보"
       desc="광고주가 가입할 때 · 내 정보에서 적은 내용이에요."
     >
-      <div className="grid grid-cols-1 gap-[20px] md:grid-cols-2">
-        <dl className="flex flex-col gap-[10px]">
-          <InfoRow label="담당자">{member.contactName}</InfoRow>
-          <InfoRow label="직함">{member.position}</InfoRow>
-          <InfoRow label="소속팀">{member.department}</InfoRow>
-          <InfoRow label="회사">{member.companyName}</InfoRow>
-          <InfoRow label="업종">{member.industry}</InfoRow>
-          <InfoRow label="연락처">{member.phone}</InfoRow>
-          <InfoRow label="이메일">{member.email}</InfoRow>
-        </dl>
-        <div className="flex flex-col gap-[8px]">
-          <p className="text-sm text-disabled">명함</p>
-          {member.businessCardUrl ? (
-            <FileRow
-              memberId={member.id}
-              kind="business-card"
-              name={member.businessCardName ?? "명함"}
-            />
-          ) : (
-            <p className="text-sm text-disabled">올린 명함이 없어요.</p>
-          )}
-        </div>
-      </div>
+      {/* 명함은 이 화면에서 보이지 않는다(11-11 사용자). */}
+      <dl className="flex flex-col gap-[10px]">
+        <InfoRow label="담당자">{member.contactName}</InfoRow>
+        <InfoRow label="직함">{member.position}</InfoRow>
+        <InfoRow label="소속팀">{member.department}</InfoRow>
+        <InfoRow label="회사">{member.companyName}</InfoRow>
+        <InfoRow label="업종">{member.industry}</InfoRow>
+        <InfoRow label="연락처">{formatPhone(member.phone)}</InfoRow>
+        <InfoRow label="이메일">{member.email}</InfoRow>
+      </dl>
     </CollabSection>
   );
 }
@@ -220,7 +217,7 @@ function BrandsSection({ member }: { member: AdminAdvertiserMember }) {
           {member.brands.map((b) => (
             <li
               key={b.id}
-              className="flex items-center gap-[10px] rounded-[10px] border border-stroke p-[10px]"
+              className="flex items-center gap-[10px] rounded-[12px] bg-gray-50 p-[10px]"
             >
               <BrandThumb brand={b} size={48} className="rounded-[10px]" />
               <span className="flex min-w-0 flex-col">
@@ -248,10 +245,7 @@ function BizSection({ member }: { member: AdminAdvertiserMember }) {
       title="사업자 인증"
       right={<BizStatusBadge status={bizStatusLabel(status)} />}
     >
-      <dl className="flex flex-col gap-[10px]">
-        <InfoRow label="상호">{member.bizName}</InfoRow>
-        <InfoRow label="사업자번호">{member.bizNo}</InfoRow>
-      </dl>
+      <BizInfoForm member={member} />
       {member.bizFileName ? (
         <FileRow
           memberId={member.id}
@@ -277,5 +271,88 @@ function BizSection({ member }: { member: AdminAdvertiserMember }) {
         </p>
       )}
     </CollabSection>
+  );
+}
+
+/**
+ * 상호 · 사업자번호 — 관리자가 직접 적어 저장한다(11-11 사용자). 형식은 정하지 않는다(admix 회원 관리와 같다).
+ * 바꾼 게 있을 때만 저장 버튼이 켜진다. 비우고 저장하면 지운다. 인증 상태는 그대로.
+ */
+function BizInfoForm({ member }: { member: AdminAdvertiserMember }) {
+  const update = useUpdateAdvertiserBiz();
+  const { alert, confirmDialog } = useAdminConfirm();
+  const { success } = useSonner();
+  const [bizName, setBizName] = useState(member.bizName ?? "");
+  const [bizNo, setBizNo] = useState(member.bizNo ?? "");
+  const nextName = bizName.trim() || null;
+  const nextNo = bizNo.trim() || null;
+  const changed =
+    nextName !== (member.bizName ?? null) || nextNo !== (member.bizNo ?? null);
+
+  const save = async () => {
+    try {
+      const saved = await update.mutateAsync({
+        id: member.id,
+        bizName: nextName,
+        bizNo: nextNo,
+      });
+      setBizName(saved.bizName ?? "");
+      setBizNo(saved.bizNo ?? "");
+      success("사업자 정보를 저장했어요.");
+    } catch (err) {
+      await alert({
+        title: "저장하지 못했어요",
+        description: extractApiError(err),
+        confirmText: "확인",
+      });
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-[12px] md:flex-row md:items-end"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (changed && !update.isPending) void save();
+      }}
+    >
+      <div className="grid flex-1 grid-cols-1 gap-[12px] md:grid-cols-2">
+        <HeroField label="상호">
+          <Input
+            variant="secondary"
+            fullWidth
+            aria-label="상호"
+            placeholder="상호를 적어 주세요"
+            maxLength={200}
+            value={bizName}
+            onChange={(e) => setBizName(e.target.value)}
+            className="h-[48px] text-base sm:h-[40px] sm:text-sm"
+          />
+        </HeroField>
+        <HeroField label="사업자번호">
+          <Input
+            variant="secondary"
+            fullWidth
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label="사업자번호"
+            placeholder="000-00-00000"
+            maxLength={30}
+            value={bizNo}
+            onChange={(e) => setBizNo(e.target.value)}
+            className="h-[48px] text-base sm:h-[40px] sm:text-sm"
+          />
+        </HeroField>
+      </div>
+      <Button
+        type="submit"
+        variant="primary"
+        isDisabled={!changed || update.isPending}
+        className="h-[48px] w-full shrink-0 text-base font-semibold sm:h-[40px] sm:text-sm md:w-auto"
+      >
+        {update.isPending ? "저장 중…" : "저장"}
+      </Button>
+      {confirmDialog}
+    </form>
   );
 }

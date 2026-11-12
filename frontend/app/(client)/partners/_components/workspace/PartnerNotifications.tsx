@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { ExternalTrigger } from "@/components/common/ExternalTrigger";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { CloseMediumIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -18,14 +19,15 @@ import { usePartnerWorkspace } from "./partnerState";
  * 제휴사 알림 — admix 사이드바의 "현재 기획안" 카드와 같은 자리 · 같은 방식.
  * PC: 사이드바 프로필 위 요약 카드(접히면 종 아이콘 + 숫자), 누르면 오른쪽에 붙는 패널(HeroUI Popover).
  * 모바일: 위 띠 오른쪽 종 아이콘, 누르면 아래에서 올라오는 시트(HeroUI Drawer).
- * 알림 = 고른 매장에서 지금 확인할 일(점검 사진 · 확정 요청 · 새 공지, 서버 — partnerState).
+ * 알림 = 고른 매장에서 지금 확인할 일(점검 사진 · 확정 요청 · 새 콜라보 참여 여부 · 새 공지, 서버 — partnerState).
  */
 
 const LABEL = "알림";
-/** 종류는 제목 앞 점 색으로만 구분 — 사진(노랑) · 확정 요청(하늘) · 공지(회색). */
+/** 종류는 제목 앞 점 색으로만 구분 — 사진(노랑) · 확정 요청(하늘) · 참여 여부(초록, 11-12) · 공지(회색). */
 const KIND_DOT = {
   photo: "bg-amber-400",
   confirm: "bg-sky-400",
+  answer: "bg-emerald-400",
   notice: "bg-gray-300",
 } as const;
 
@@ -77,7 +79,7 @@ function NotificationContent({ onClose }: { onClose: () => void }) {
         <p className="flex items-center gap-[6px] text-[16px] font-bold text-gray-900">
           {LABEL}
           {items.length > 0 && (
-            <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-gray-100 px-[6px] text-[12px] font-semibold text-gray-600 tabular-nums">
+            <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-gray-100 px-[6px] text-[12px] font-semibold text-gray-600">
               {items.length}
             </span>
           )}
@@ -87,7 +89,7 @@ function NotificationContent({ onClose }: { onClose: () => void }) {
           variant="ghost"
           aria-label="닫기"
           onPress={onClose}
-          className="size-[36px] min-w-0 rounded-[14px] text-gray-500"
+          className="size-[36px] min-w-0 rounded-[15px] text-gray-500"
         >
           <CloseMediumIcon className="size-[24px]" />
         </Button>
@@ -170,7 +172,7 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
         title={collapsed ? LABEL : undefined}
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex h-[44px] w-full items-center gap-[9px] overflow-hidden rounded-[16px] pr-[12px] pl-[20px] text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-200",
+          "flex h-[44px] w-full items-center gap-[9px] overflow-hidden rounded-[19px] pr-[12px] pl-[20px] text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-200",
           open ? "bg-gray-100" : "bg-gray-50 hover:bg-gray-100",
         )}
       >
@@ -188,6 +190,7 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
       </button>
       {isDesktop && (
         <Popover isOpen={open} onOpenChange={setOpen}>
+          <ExternalTrigger />
           <Popover.Content
             triggerRef={ref}
             placement="right bottom"
@@ -226,19 +229,17 @@ export function PartnerNotificationHeaderButton() {
         <BellTwoTone badge={items.length > 0} className="h-[20px] w-[18px]" />
       </button>
       {!isDesktop && (
-        <Drawer isOpen={open} onOpenChange={setOpen}>
-          <Drawer.Backdrop>
-            <Drawer.Content placement="bottom">
-              <Drawer.Dialog
-                aria-label={LABEL}
-                className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
-              >
-                <Drawer.Handle />
-                <NotificationContent onClose={() => setOpen(false)} />
-              </Drawer.Dialog>
-            </Drawer.Content>
-          </Drawer.Backdrop>
-        </Drawer>
+        <Drawer.Backdrop isOpen={open} onOpenChange={setOpen}>
+          <Drawer.Content placement="bottom">
+            <Drawer.Dialog
+              aria-label={LABEL}
+              className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-surface p-0 pt-[10px]"
+            >
+              <Drawer.Handle />
+              <NotificationContent onClose={() => setOpen(false)} />
+            </Drawer.Dialog>
+          </Drawer.Content>
+        </Drawer.Backdrop>
       )}
     </>
   );

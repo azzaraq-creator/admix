@@ -42,7 +42,7 @@ export function LocationSearchInput({
       <button
         type="submit"
         aria-label="검색"
-        className="flex shrink-0 items-center justify-center rounded-full bg-primary p-[8px] text-white"
+        className="flex shrink-0 items-center justify-center rounded-[14px] bg-primary p-[8px] text-white"
       >
         <SearchIcon className="size-[18px]" />
       </button>

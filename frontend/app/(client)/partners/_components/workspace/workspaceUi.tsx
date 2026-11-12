@@ -240,6 +240,12 @@ export const RECRUIT_TONE: Record<
     bar: "",
     card: "border-white/40 bg-gray-50/60 hover:border-white/40 max-sm:border-gray-200 max-sm:hover:border-gray-200 max-sm:dark:border-gray-300 max-sm:dark:hover:border-gray-300",
   },
+  // 미참여로 답함(11-12) — 신청 불가와 같이 납작하게. 마감 전까지는 눌러서 참여로 바꿀 수 있다.
+  passed: {
+    badge: "bg-gray-100 text-gray-500",
+    bar: "",
+    card: "border-white/40 bg-gray-50/60 hover:border-white/40 max-sm:border-gray-200 max-sm:hover:border-gray-200 max-sm:dark:border-gray-300 max-sm:dark:hover:border-gray-300",
+  },
 };
 
 export function RecruitBadge({
@@ -253,7 +259,7 @@ export function RecruitBadge({
     <span
       className={cn(
         // 높이 22px 고정 → 곡률은 높이/2 - 3px = 8px.
-        "inline-flex h-[22px] shrink-0 items-center rounded-[8px] px-[10px] text-[12px] leading-none font-bold whitespace-nowrap tabular-nums",
+        "inline-flex h-[22px] shrink-0 items-center rounded-[8px] px-[10px] text-[12px] leading-none font-bold whitespace-nowrap",
         RECRUIT_TONE[kind].badge,
       )}
     >
@@ -303,7 +309,7 @@ export function SectionHead({
         <h2 className="shrink-0 text-[16px] leading-[1.3] font-bold text-gray-900">
           {title}
           {count !== undefined && (
-            <span className="ml-[6px] inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-gray-800 px-[6px] align-[2px] text-[12px] leading-none font-bold text-white dark:bg-gray-300 dark:text-gray-900 tabular-nums">
+            <span className="ml-[6px] inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-gray-800 px-[6px] align-[2px] text-[12px] leading-none font-bold text-white dark:bg-gray-300 dark:text-gray-900">
               {count}
             </span>
           )}

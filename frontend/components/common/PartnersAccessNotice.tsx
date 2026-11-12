@@ -94,79 +94,79 @@ export function PartnersAccessNoticeHost() {
   const guest = current === "guest";
 
   return (
-    <AlertDialog
+    <AlertDialog.Backdrop
       isOpen={current !== null}
       onOpenChange={(next) => {
         if (!next) close();
       }}
+      isDismissable
+      isKeyboardDismissDisabled={false}
     >
-      <AlertDialog.Backdrop isDismissable isKeyboardDismissDisabled={false}>
-        <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-[24px]">
-            <AlertDialog.Header>
-              <AlertDialog.Heading>
-                {guest
-                  ? "로그인이 필요해요"
-                  : "광고주 · 제휴사(콜라보) 전용 메뉴예요"}
-              </AlertDialog.Heading>
-            </AlertDialog.Header>
-            {/* 짧은 설명 한 줄 + "회원 유형 비교 보기" 글자 링크 — 버튼 모양(ghost)은 안쪽 여백 탓에 글자가
-                들여 써지고 위아래가 비어 보여, 설명 바로 아래 붙는 작은 글자 링크로 둔다. */}
-            <AlertDialog.Body className="flex flex-col items-start gap-[6px] text-[14px] leading-[22px] text-gray-600">
-              <p>
-                {guest
-                  ? "로그인하면 콜라보 매장 정보를 볼 수 있어요."
-                  : "어떤 서비스인지 대시보드에서 먼저 둘러보세요."}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  close();
-                  openMemberPlanModal();
-                }}
-                className="text-[13px] font-semibold text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline"
-              >
-                회원 유형 비교 보기
-              </button>
-            </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button
-                variant="tertiary"
-                className={DIALOG_BUTTON}
-                onPress={close}
-              >
-                닫기
-              </Button>
-              {/* 닫기와 같은 회색(tertiary). */}
-              <Button
-                variant="tertiary"
-                className={DIALOG_BUTTON}
-                onPress={() => {
-                  close();
-                  // 매장 상세(비회원)는 대시보드의 로그인 창으로(LOGIN_HREF),
-                  // 메뉴는 콜라보 (소개) 대시보드를 새 탭으로 연다.
-                  if (guest) router.push("/?login=1");
-                  else window.open(PARTNERS_INTRO_HREF, "_blank", "noopener");
-                }}
-              >
-                {guest ? (
-                  "로그인"
-                ) : (
-                  <>
-                    대시보드 보기
-                    {/* 새 탭으로 열린다는 표시 — public/icons/export.svg 를 글자색으로 칠한다. */}
-                    <span
-                      aria-label="새 탭에서 열림"
-                      role="img"
-                      className="size-[14px] shrink-0 bg-current [mask:url(/icons/export.svg)_center/contain_no-repeat]"
-                    />
-                  </>
-                )}
-              </Button>
-            </AlertDialog.Footer>
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
-      </AlertDialog.Backdrop>
-    </AlertDialog>
+      <AlertDialog.Container placement="center" size="sm">
+        <AlertDialog.Dialog className="rounded-[24px]">
+          <AlertDialog.Header>
+            <AlertDialog.Heading>
+              {guest
+                ? "로그인이 필요해요"
+                : "광고주 · 제휴사(콜라보) 전용 메뉴예요"}
+            </AlertDialog.Heading>
+          </AlertDialog.Header>
+          {/* 짧은 설명 한 줄 + "회원 유형 비교 보기" 글자 링크 — 버튼 모양(ghost)은 안쪽 여백 탓에 글자가
+              들여 써지고 위아래가 비어 보여, 설명 바로 아래 붙는 작은 글자 링크로 둔다. */}
+          <AlertDialog.Body className="flex flex-col items-start gap-[6px] text-[14px] leading-[22px] text-gray-600">
+            <p>
+              {guest
+                ? "로그인하면 콜라보 매장 정보를 볼 수 있어요."
+                : "어떤 서비스인지 대시보드에서 먼저 둘러보세요."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                openMemberPlanModal();
+              }}
+              className="text-[13px] font-semibold text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline"
+            >
+              회원 유형 비교 보기
+            </button>
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <Button
+              variant="tertiary"
+              className={DIALOG_BUTTON}
+              onPress={close}
+            >
+              닫기
+            </Button>
+            {/* 닫기와 같은 회색(tertiary). */}
+            <Button
+              variant="tertiary"
+              className={DIALOG_BUTTON}
+              onPress={() => {
+                close();
+                // 매장 상세(비회원)는 대시보드의 로그인 창으로(LOGIN_HREF),
+                // 메뉴는 콜라보 (소개) 대시보드를 새 탭으로 연다.
+                if (guest) router.push("/?login=1");
+                else window.open(PARTNERS_INTRO_HREF, "_blank", "noopener");
+              }}
+            >
+              {guest ? (
+                "로그인"
+              ) : (
+                <>
+                  대시보드 보기
+                  {/* 새 탭으로 열린다는 표시 — public/icons/export.svg 를 글자색으로 칠한다. */}
+                  <span
+                    aria-label="새 탭에서 열림"
+                    role="img"
+                    className="size-[14px] shrink-0 bg-current [mask:url(/icons/export.svg)_center/contain_no-repeat]"
+                  />
+                </>
+              )}
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
   );
 }

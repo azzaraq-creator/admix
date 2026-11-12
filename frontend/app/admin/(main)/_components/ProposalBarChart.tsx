@@ -2,11 +2,23 @@
 
 import { useState } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
+
 import { YearSelect } from "./YearSelect";
 
 const MONTHS = [
-  "1월", "2월", "3월", "4월", "5월", "6월",
-  "7월", "8월", "9월", "10월", "11월", "12월",
+  "1월",
+  "2월",
+  "3월",
+  "4월",
+  "5월",
+  "6월",
+  "7월",
+  "8월",
+  "9월",
+  "10월",
+  "11월",
+  "12월",
 ];
 
 const DIV = 5;
@@ -39,17 +51,19 @@ export function ProposalBarChart({ values }: { values: number[] }) {
   const tipTextY = above ? barTop - 14 : barTop + 22;
 
   return (
-    <div className="flex min-w-0 flex-col gap-[16px] rounded-[12px] border border-stroke p-[16px] md:p-[24px]">
-      <div className="flex items-center justify-between">
-        <p className="text-lg font-bold leading-[28px] text-black">
-          연간 제안 건수
-        </p>
-        <YearSelect />
-      </div>
-
+    // 흰 카드(AdminPanel) — 테두리 상자 대신(2026-11-12 어드민 전체 회색 바탕 + 흰 카드).
+    <AdminPanel
+      title="연간 제안 건수"
+      right={<YearSelect />}
+      contentClassName="gap-[16px]"
+    >
       {/* 좁은 화면에선 축 글자가 읽히도록 최소 폭 유지 + 가로 스크롤 */}
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full min-w-[520px]" role="img">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-auto w-full min-w-[520px]"
+          role="img"
+        >
           {gridValues.map((value) => {
             const y = yFor(value);
             return (
@@ -120,7 +134,14 @@ export function ProposalBarChart({ values }: { values: number[] }) {
 
           {hover !== null && (
             <g pointerEvents="none">
-              <rect x={cx - 26} y={tipRectY} width={52} height={24} rx={4} fill="#2f3442" />
+              <rect
+                x={cx - 26}
+                y={tipRectY}
+                width={52}
+                height={24}
+                rx={4}
+                fill="#2f3442"
+              />
               <text
                 x={cx}
                 y={tipTextY}
@@ -140,6 +161,6 @@ export function ProposalBarChart({ values }: { values: number[] }) {
           제안 건수
         </span>
       </div>
-    </div>
+    </AdminPanel>
   );
 }

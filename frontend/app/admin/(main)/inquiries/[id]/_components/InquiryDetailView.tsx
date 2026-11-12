@@ -7,14 +7,17 @@ import { useState } from "react";
 
 import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
-import { useAnswerInquiry, useInquiry, type InquiryDetail } from "@/hooks/inquiries";
+import {
+  useAnswerInquiry,
+  useInquiry,
+  type InquiryDetail,
+} from "@/hooks/inquiries";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 
 import { InquiryStatusBadge, type InquiryStatus } from "../../_components";
 
-/** 흰 판(HeroUI Card) — 옅은 테두리 · 기본 그림자. */
-const CARD_CLASS =
-  "gap-[24px] rounded-[8px] border border-gray-200 p-[44px]";
+/** 구역(HeroUI Card) — 회색 바탕 위 테두리 없는 흰 카드(어드민 공통 AdminPanel 과 같은 모양, 2026-11-12). */
+const CARD_CLASS = "gap-[24px] rounded-[20px] p-[20px] md:p-[32px]";
 
 function InfoRow({
   label,
@@ -73,7 +76,10 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
     });
     if (!ok) return;
     try {
-      await answerMutation.mutateAsync({ id: inquiry.id, answer: answer.trim() });
+      await answerMutation.mutateAsync({
+        id: inquiry.id,
+        answer: answer.trim(),
+      });
       await alert({
         title: "답변 처리 완료",
         description: "답변 처리가 완료되었습니다.",
@@ -89,11 +95,11 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
   };
 
   return (
-    <div className="flex flex-col gap-[32px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
+      <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
+        문의 상세
+      </h1>
       <Card className={CARD_CLASS}>
-        <h1 className="text-2xl font-semibold leading-[32px] text-tone-2a2a2a">
-          문의 상세
-        </h1>
         <div className="grid grid-cols-2 gap-x-[48px] gap-y-[20px]">
           <InfoRow label="문의자">{inquiry.name}</InfoRow>
           <InfoRow label="이메일">{inquiry.email ?? "-"}</InfoRow>
@@ -113,7 +119,7 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
       </Card>
 
       <Card className={CARD_CLASS}>
-        <h2 className="text-xl font-semibold leading-[28px] text-tone-2a2a2a">
+        <h2 className="text-[17px] font-bold leading-[26px] text-black">
           답변 정보
         </h2>
         <div className="grid grid-cols-2 gap-x-[48px]">
@@ -134,25 +140,27 @@ function InquiryDetail({ inquiry }: { inquiry: InquiryDetail }) {
             answered ? "cursor-default" : ""
           }`}
         />
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onPress={() => router.push("/admin/inquiries")}
-          >
-            <List className="size-[16px]" />
-            목록으로
-          </Button>
-          {!answered && (
-            <Button
-              variant="primary"
-              onPress={handleComplete}
-              isDisabled={answerMutation.isPending}
-            >
-              답변 완료 처리
-            </Button>
-          )}
-        </div>
       </Card>
+
+      {/* 아래 버튼 줄은 카드 밖(회색 바탕) — 다른 어드민 화면과 같은 자리. */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onPress={() => router.push("/admin/inquiries")}
+        >
+          <List className="size-[16px]" />
+          목록으로
+        </Button>
+        {!answered && (
+          <Button
+            variant="primary"
+            onPress={handleComplete}
+            isDisabled={answerMutation.isPending}
+          >
+            답변 완료 처리
+          </Button>
+        )}
+      </div>
 
       {confirmDialog}
     </div>

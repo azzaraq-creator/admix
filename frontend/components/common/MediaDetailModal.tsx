@@ -20,6 +20,7 @@ import {
   RANK_IN_BAR_MIN_HEIGHT,
   ageRanks as getAgeRanks,
 } from "@/components/common/AgeBarChart";
+import { ExternalTrigger } from "@/components/common/ExternalTrigger";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaThumbnail } from "@/components/common/MediaThumbnail";
@@ -119,70 +120,69 @@ export function MediaDetailModal({
   });
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
+      variant="opaque"
     >
-      <Modal.Backdrop variant="opaque">
-        {/* 시안 팝업 폭 940px. HeroUI 기본 사이즈(max-w-lg)는 좁아서 덮어쓴다. */}
-        <Modal.Container
-          placement="center"
-          className="sm:w-full sm:max-w-[980px] sm:p-[20px]"
+      {/* 시안 팝업 폭 940px. HeroUI 기본 사이즈(max-w-lg)는 좁아서 덮어쓴다. */}
+      <Modal.Container
+        placement="center"
+        className="sm:w-full sm:max-w-[980px] sm:p-[20px]"
+      >
+        <Modal.Dialog
+          aria-label="매체 상세"
+          className="w-full max-w-full gap-[10px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
         >
-          <Modal.Dialog
-            aria-label="매체 상세"
-            className="w-full max-w-full gap-[10px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
-          >
-            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
-              <CloseMediumIcon className="size-[24px]" />
-            </Modal.CloseTrigger>
+          <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
+            <CloseMediumIcon className="size-[24px]" />
+          </Modal.CloseTrigger>
 
-            {/* 제목은 줄바꿈되지 않게 고정 폭으로 둔다. 모바일은 설명 문구를 빼고 닫기 버튼(28px)과
-                같은 높이의 헤더 줄로 둔다. */}
-            <div className="flex h-[39px] shrink-0 items-center gap-[8px] pr-[40px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
-              <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
-                매체 정보
-              </p>
-              <p className="truncate text-[12px] text-tone-888888 max-sm:hidden">
-                매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
-              </p>
-            </div>
+          {/* 제목은 줄바꿈되지 않게 고정 폭으로 둔다. 모바일은 설명 문구를 빼고 닫기 버튼(28px)과
+              같은 높이의 헤더 줄로 둔다. */}
+          <div className="flex h-[39px] shrink-0 items-center gap-[8px] pr-[40px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
+            <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
+              매체 정보
+            </p>
+            <p className="truncate text-[12px] text-tone-888888 max-sm:hidden">
+              매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
+            </p>
+          </div>
 
-            <Modal.Body className="m-0 flex flex-col gap-[10px] p-0">
-              {vm ? (
-                <MediaDetailBody
-                  vm={vm}
-                  options={{ value: options, onChange: setOptions }}
-                  locationHint
-                />
-              ) : (
-                <MediaDetailSkeleton />
-              )}
-            </Modal.Body>
-
-            {/* 버튼 줄은 본문 스크롤 밖에 두어 헤더처럼 아래에 고정한다. */}
-            {vm && (
-              <Modal.Footer className="mt-0 gap-[8px]">
-                <DetailActions
-                  liked={liked}
-                  onLikedChange={setLiked}
-                  onClose={onClose}
-                  onAddProposal={() => {
-                    const totals = mediaOptionTotals(vm, options);
-                    onAddProposal?.(vm.id, totals.plan?.planNo, {
-                      months: totals.months,
-                      productionCount: totals.productionCount,
-                    });
-                  }}
-                />
-              </Modal.Footer>
+          <Modal.Body className="m-0 flex flex-col gap-[10px] p-0">
+            {vm ? (
+              <MediaDetailBody
+                vm={vm}
+                options={{ value: options, onChange: setOptions }}
+                locationHint
+              />
+            ) : (
+              <MediaDetailSkeleton />
             )}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+          </Modal.Body>
+
+          {/* 버튼 줄은 본문 스크롤 밖에 두어 헤더처럼 아래에 고정한다. */}
+          {vm && (
+            <Modal.Footer className="mt-0 gap-[8px]">
+              <DetailActions
+                liked={liked}
+                onLikedChange={setLiked}
+                onClose={onClose}
+                onAddProposal={() => {
+                  const totals = mediaOptionTotals(vm, options);
+                  onAddProposal?.(vm.id, totals.plan?.planNo, {
+                    months: totals.months,
+                    productionCount: totals.productionCount,
+                  });
+                }}
+              />
+            </Modal.Footer>
+          )}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -335,6 +335,7 @@ function LocationHintCallout({
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
+      <ExternalTrigger />
       <Popover.Content
         triggerRef={triggerRef}
         isNonModal
@@ -426,7 +427,7 @@ function MediaDetailBody({
               // 쉘터 정류장 번호 — 현장에서 정류장을 찾을 때 쓰는 번호라 매체명 앞에 진한 알약으로. 다크는 zinc 가 뒤집혀 밝아지므로 어두운 회색을 hex 로 고정.
               <span className="mt-[3px] inline-flex shrink-0 items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] dark:bg-[#3f3f46] py-[2px] text-[12px] leading-[18px] whitespace-nowrap text-white max-sm:mt-[1px]">
                 <span className="font-medium text-white/70">정류장 번호</span>
-                <span className="font-bold tabular-nums">{vm.stopNo}</span>
+                <span className="font-bold">{vm.stopNo}</span>
               </span>
             )}
             <p
@@ -492,7 +493,7 @@ function MediaDetailBody({
             <div className="flex items-center gap-[10px]">
               {/* 정렬·shrink-0·가로 패딩(8px)은 HeroUI Chip 기본값이라 색·모서리·세로 여백만 준다. */}
               {vm.categoryLarge && (
-                <Chip className="gap-0 rounded-[10px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500">
+                <Chip className="gap-0 rounded-[8px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500">
                   {vm.categoryLarge}
                   {vm.categorySmall && (
                     <>
@@ -625,7 +626,7 @@ function SpecSection({
         )}
         {/* HeroUI Chip 기본값(회색 배경·20px 행간·font-medium)은 시안 값으로 덮는다. */}
         {oohType && (
-          <Chip className="rounded-full border border-tone-ececef bg-surface px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-tone-8c8c94">
+          <Chip className="rounded-[12.5px] border border-tone-ececef bg-surface px-[12px] py-[6px] text-[12px] leading-[1.43] font-semibold text-tone-8c8c94">
             {/* 글자만 넣으면 Chip이 라벨(좌우 2px 여백)로 감싸 폭이 늘어나서 직접 0으로 둔다. */}
             <Chip.Label className="px-0">{oohType}</Chip.Label>
           </Chip>
@@ -721,7 +722,7 @@ function DetailActions({
         variant="ghost"
         onPress={onClose}
         className={cn(
-          "h-auto rounded-[15px] bg-tone-eeeeee px-[14px] py-[10px] text-[13px] font-medium max-sm:text-[12px] text-zinc-900",
+          "h-auto rounded-[17px] bg-tone-eeeeee px-[14px] py-[10px] text-[13px] font-medium max-sm:text-[12px] text-zinc-900",
           "w-[96px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:px-[8px]",
         )}
       >
@@ -735,7 +736,7 @@ function DetailActions({
         isSelected={liked}
         onChange={setLiked}
         className={cn(
-          "h-auto gap-[9px] rounded-[15px] border px-[14px] py-[10px] text-[13px] transition-colors max-sm:text-[12px]",
+          "h-auto gap-[9px] rounded-[18px] border px-[14px] py-[10px] text-[13px] transition-colors max-sm:text-[12px]",
           "w-[120px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px]",
           liked
             ? "border-tone-ffccc7 bg-tone-fff1f0 font-semibold text-red data-[hovered=true]:bg-tone-ffe7e5 data-[selected=true]:bg-tone-fff1f0 data-[selected=true]:data-[hovered=true]:bg-tone-ffe7e5"
@@ -757,7 +758,7 @@ function DetailActions({
         variant="primary"
         onPress={onAddProposal}
         className={cn(
-          "h-auto gap-[6px] rounded-[15px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white max-sm:text-[12px]",
+          "h-auto gap-[6px] rounded-[17px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white max-sm:text-[12px]",
           "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
         )}
       >
@@ -928,7 +929,7 @@ function StripArrow({
         type="button"
         aria-label={side === "left" ? "이전 이미지들" : "다음 이미지들"}
         onClick={onPress}
-        className="pointer-events-auto flex size-[28px] items-center justify-center rounded-full border border-tone-ececef bg-surface text-zinc-700 shadow-[0px_2px_6px_rgba(0,0,0,0.12)] hover:bg-tone-f7f7f8"
+        className="pointer-events-auto flex size-[28px] items-center justify-center rounded-[11px] border border-tone-ececef bg-surface text-zinc-700 shadow-[0px_2px_6px_rgba(0,0,0,0.12)] hover:bg-tone-f7f7f8"
       >
         <Icon className="size-[16px]" />
       </button>
@@ -1143,7 +1144,7 @@ function PopulationCard({
               <p className="text-[14px] leading-[1.4] font-semibold text-zinc-900">
                 {populationHeading(population)}
               </p>
-              <Chip className="rounded-[20px] bg-zinc-100 px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-zinc-700">
+              <Chip className="rounded-[7px] bg-zinc-100 px-[8px] py-[2px] text-[11px] leading-[1.43] font-semibold text-zinc-700">
                 하루 평균
               </Chip>
             </div>
@@ -1182,7 +1183,7 @@ function PopulationCard({
           {population.congestLevel && (
             <Chip
               className={cn(
-                "rounded-[20px] px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold",
+                "rounded-[9px] px-[10px] py-[4px] text-[11px] leading-[1.43] font-semibold",
                 CONGEST_CHIP[population.congestLevel] ??
                   "bg-gray-100 text-gray-600",
               )}
@@ -1192,7 +1193,7 @@ function PopulationCard({
           )}
           <Chip
             className={cn(
-              "gap-[4px] rounded-[20px] border border-zinc-200 bg-surface px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-zinc-900",
+              "gap-[4px] rounded-[9px] border border-zinc-200 bg-surface px-[9px] py-[3px] text-[11px] leading-[1.43] font-semibold text-zinc-900",
               // 격자 인구는 모바일에서 긴 제목과 한 줄에 서도록 칩을 줄인다.
               bands && "max-sm:gap-[3px] max-sm:px-[7px] max-sm:text-[10px]",
             )}

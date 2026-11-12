@@ -94,7 +94,7 @@ function DateCol({
     <time dateTime={date} className="flex w-[42px] shrink-0 flex-col">
       <span
         className={cn(
-          "text-[14px] leading-[20px] font-bold tabular-nums",
+          "text-[14px] leading-[20px] font-bold",
           state === "due"
             ? "text-warning"
             : state === "done"
@@ -249,7 +249,7 @@ export function RoleItem({
  */
 export function PeriodTicket({ start, end }: { start: string; end: string }) {
   const day = (d: string) => (
-    <span className="tabular-nums">
+    <span>
       {md(d)} <span className="font-medium text-gray-500">({dow(d)})</span>
     </span>
   );
@@ -261,7 +261,7 @@ export function PeriodTicket({ start, end }: { start: string; end: string }) {
       {day(start)}
       <span aria-hidden className="flex items-center">
         <span className="h-[1.5px] w-[10px] bg-primary-200" />
-        <span className="flex h-[18px] items-center rounded-[6px] bg-primary-500 px-[6px] text-[11px] font-bold text-white tabular-nums dark:bg-primary-100 dark:text-primary-700">
+        <span className="flex h-[18px] items-center rounded-[6px] bg-primary-500 px-[6px] text-[11px] font-bold text-white dark:bg-primary-100 dark:text-primary-700">
           {periodDays(start, end)}일
         </span>
         <span className="h-[1.5px] w-[10px] bg-primary-200" />
@@ -291,7 +291,7 @@ function TaskPhase({
     <div className="flex flex-col gap-[8px]">
       <dt className="flex h-[32px] items-center justify-between gap-[8px] rounded-[12px] bg-gray-50 px-[12px]">
         <span className="text-[13px] font-bold text-gray-900">{label}</span>
-        <span className="text-[12px] font-medium text-gray-500 tabular-nums">
+        <span className="text-[12px] font-medium text-gray-500">
           {when}
         </span>
       </dt>
@@ -323,7 +323,7 @@ export function SectionRule() {
 /** 날짜 앞머리 — "11.02 (월)" 굵게. */
 function When({ d }: { d: string }) {
   return (
-    <b className="mr-[6px] font-bold text-gray-900 tabular-nums">
+    <b className="mr-[6px] font-bold text-gray-900">
       {md(d)} ({dow(d)})
     </b>
   );
@@ -395,7 +395,7 @@ function StatusIcon({ c }: { c: PreviewCollab }) {
       ? Hourglass
       : c.standing === "blocked"
         ? Ban
-        : c.standing === "declined"
+        : c.standing === "declined" || c.standing === "passed"
           ? CircleMinus
           : c.standing === "cancelled"
             ? CircleX
@@ -454,11 +454,23 @@ function lifeOf(c: PreviewCollab): { steps: LifeStep[]; at: number } | null {
  * 진행 흐름 — 대시보드 진행 카드의 사진 보고와 같은 모양(끝남 초록 square-check · 지금 보라 네모 · 아직 회색 점선 네모).
  * 끝남 → 끝남 사이 선은 그라데이션 없이 초록 한 색, 끝남 → 지금만 초록에서 보라로.
  */
-export function LifeSteps({ steps, at }: { steps: LifeStep[]; at: number }) {
+export function LifeSteps({
+  steps,
+  at,
+  className,
+}: {
+  steps: LifeStep[];
+  at: number;
+  /** 바탕 바꾸기 — 흰 카드 안(광고주 상세 지금 상황)에선 옅은 회색. */
+  className?: string;
+}) {
   return (
     <ol
       aria-label="진행 흐름"
-      className="flex rounded-[18px] bg-surface/80 px-[4px] py-[14px] sm:px-[12px]"
+      className={cn(
+        "flex rounded-[18px] bg-surface/80 px-[4px] py-[14px] sm:px-[12px]",
+        className,
+      )}
     >
       {steps.map((s, i) => {
         const done = i < at;
@@ -505,7 +517,7 @@ export function LifeSteps({ steps, at }: { steps: LifeStep[]; at: number }) {
             </span>
             <span
               className={cn(
-                "-mt-[4px] text-[11px] whitespace-nowrap tabular-nums",
+                "-mt-[4px] text-[11px] whitespace-nowrap",
                 now ? "font-semibold text-primary-600" : "text-gray-400",
               )}
             >
@@ -575,7 +587,7 @@ function StatusPanel({ c, showSub }: { c: PreviewCollab; showSub: boolean }) {
         </div>
         {meta && (
           // 높이 26px → 곡률 26/2 - 3 = 10px.
-          <span className="flex h-[26px] shrink-0 items-center rounded-[10px] bg-surface/80 px-[10px] text-[12px] font-bold text-gray-800 tabular-nums">
+          <span className="flex h-[26px] shrink-0 items-center rounded-[10px] bg-surface/80 px-[10px] text-[12px] font-bold text-gray-800">
             {meta}
           </span>
         )}
@@ -687,12 +699,20 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   // 아래 고정 줄 — 단계별 버튼 하나. 누를 게 없는 상태(취소 · 미참여 · 기간 겹침 · 후보 · 예비 · 확정 대기 · 완료)는
   // 위 "지금 상황" 카드가 알려 주므로 줄을 띄우지 않는다.
   type Kind =
-    "confirmDialog" | "apply" | "startConfirm" | "photo" | "restock" | null;
+    | "confirmDialog"
+    | "apply"
+    | "pass"
+    | "startConfirm"
+    | "photo"
+    | "restock"
+    | null;
   let action: {
     title: string;
     sub?: string;
     button?: string;
     kind: Kind;
+    /** 큰 버튼 왼쪽 작은 버튼 — 참여 여부를 물을 때 "미참여". */
+    secondary?: { button: string; kind: Kind };
   } | null = null;
   const allChecked = checks.length === items.length;
   if (mode === "confirm")
@@ -704,20 +724,24 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
       button: "최종 확정",
       kind: allChecked ? "confirmDialog" : null,
     };
+  // 새로 열린 콜라보 — 참여 / 미참여를 묻는다(11-12 사용자). 마감까지 답이 없으면 어드민에 무응답으로 남는다.
   else if (cat === "recruiting" && c.standing === "none")
-    action = isFull(c)
-      ? {
-          title: `목표 매장이 찼어요 · 예비 ${c.appliedStores - c.targetStores + 1}번`,
-          sub: "빠지는 매장이 생기면 순서대로 확정 요청을 드려요",
-          button: "대기 신청",
-          kind: "apply",
-        }
-      : {
-          title: `지금 신청하면 선정 후보 ${c.appliedStores + 1}번`,
-          sub: "선착순 접수 · 신청만으로 확정되지 않아요",
-          button: "신청하기",
-          kind: "apply",
-        };
+    action = {
+      title: "이 콜라보에 참여할까요?",
+      sub: isFull(c)
+        ? `${md(c.recruitEnd)}까지 답해 주세요 · 목표 매장이 차서 참여하면 예비 ${c.appliedStores - c.targetStores + 1}번`
+        : `${md(c.recruitEnd)}까지 답해 주세요 · 지금 참여하면 선정 후보 ${c.appliedStores + 1}번(선착순)`,
+      button: "참여",
+      kind: "apply",
+      secondary: { button: "미참여", kind: "pass" },
+    };
+  else if (cat === "recruiting" && c.standing === "passed")
+    action = {
+      title: "미참여로 답했어요",
+      sub: `${md(c.recruitEnd)} 마감 전까지 참여로 바꿀 수 있어요`,
+      button: "참여로 바꾸기",
+      kind: "apply",
+    };
   else if (c.standing === "requested")
     action = {
       title: "최종 확정 요청이 도착했어요",
@@ -749,9 +773,12 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
       if (view)
         say(
           view.standing === "reserve"
-            ? `대기 신청했어요. 예비 ${view.slotNo ?? ""}번이에요.`
-            : `신청했어요. 선정 후보 ${view.slotNo ?? ""}번이에요.`,
+            ? `참여했어요. 목표 매장이 차서 예비 ${view.slotNo ?? ""}번이에요.`
+            : `참여했어요. 선정 후보 ${view.slotNo ?? ""}번이에요.`,
         );
+    } else if (kind === "pass") {
+      if (await commands.pass(c.id))
+        say("미참여로 답했어요. 마감 전까지는 참여로 바꿀 수 있어요.");
     } else if (kind === "startConfirm") setMode("confirm");
     else if (kind === "photo" && dueStep) openPhoto(dueStep.step);
     else if (kind === "restock") {
@@ -1194,7 +1221,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                     when={`${c.checks.map((k) => k.day).join(" · ")}일차`}
                   >
                     <RoleItem>
-                      <b className="font-semibold text-gray-900 tabular-nums">
+                      <b className="font-semibold text-gray-900">
                         {c.checks
                           .map((k) => `${md(k.date)} (${dow(k.date)})`)
                           .join(" · ")}
@@ -1317,7 +1344,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                         <time
                           dateTime={d}
                           className={cn(
-                            "w-[68px] shrink-0 font-bold tabular-nums lg:w-auto",
+                            "w-[68px] shrink-0 font-bold lg:w-auto",
                             past
                               ? "text-gray-400"
                               : next
@@ -1362,7 +1389,10 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                   신청은 선착순이고, 신청만으로 확정되지 않아요. 광고주 검토 후
                   최종 확정 요청을 드려요.
                 </li>
-                <li>확정 요청 전까지는 부담 없이 신청을 취소할 수 있어요.</li>
+                <li>
+                  모집 마감까지 참여 · 미참여를 알려 주세요. 확정 요청 전까지는
+                  부담 없이 참여를 취소하거나 다시 참여할 수 있어요.
+                </li>
                 <li>
                   확정은 진행 항목을 모두 확인한 뒤 매장이 직접 해요. 확정 후
                   진행이 어려우면 금전 책임은 없지만 이후 매칭에 참고돼요.
@@ -1376,11 +1406,11 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                   onPress={async () => {
                     if (await commands.withdraw(c.id))
                       say(
-                        "신청을 취소했어요. 모집 기간에는 다시 신청할 수 있어요.",
+                        "참여를 취소했어요. 미참여로 바뀌었고, 마감 전까지 다시 참여할 수 있어요.",
                       );
                   }}
                 >
-                  신청 취소
+                  참여 취소
                 </Button>
               )}
             </div>
@@ -1403,6 +1433,17 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
               </Card.Description>
             )}
           </div>
+          {action.secondary && (
+            <Button
+              variant="ghost"
+              isPending={commands.pending}
+              onPress={() => void runAction(action.secondary?.kind ?? null)}
+              // 짙은 줄 위 — 옅은 흰 바탕 · 흰 글자로 "참여"(보라)보다 한 단계 약하게.
+              className="h-[46px] shrink-0 rounded-[20px] bg-white/10 px-[18px] text-[14px] font-semibold text-white data-[hovered=true]:bg-white/20 max-sm:h-[40px] max-sm:rounded-[17px] max-sm:px-[12px] max-sm:text-[13px]"
+            >
+              {action.secondary.button}
+            </Button>
+          )}
           {action.button && (
             <Button
               isDisabled={!action.kind}
@@ -1427,41 +1468,39 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
         </Card>
       )}
 
-      <Modal isOpen={dialogOpen} onOpenChange={setDialogOpen}>
-        <Modal.Backdrop>
-          <Modal.Container placement="center" size="md">
-            <Modal.Dialog aria-label="최종 확정">
-              <Modal.Header>
-                <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
-                  위 내용으로 최종 확정할까요?
-                </Modal.Heading>
-              </Modal.Header>
-              <Modal.Body className="flex flex-col gap-[8px] text-[14px] leading-[1.6] break-keep text-gray-600">
-                <p className="font-bold text-gray-900">
-                  확정은 브랜드와의 약속이에요.
-                </p>
-                <p>{CONFIRM_SENTENCE}</p>
-              </Modal.Body>
-              <Modal.Footer className="flex gap-[8px]">
-                <Button
-                  variant="tertiary"
-                  onPress={() => setDialogOpen(false)}
-                  className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
-                >
-                  돌아가기
-                </Button>
-                <Button
-                  onPress={() => void finalConfirm()}
-                  isPending={commands.pending}
-                  className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
-                >
-                  최종 확정
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+      <Modal.Backdrop isOpen={dialogOpen} onOpenChange={setDialogOpen}>
+        <Modal.Container placement="center" size="md">
+          <Modal.Dialog aria-label="최종 확정">
+            <Modal.Header>
+              <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
+                위 내용으로 최종 확정할까요?
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="flex flex-col gap-[8px] text-[14px] leading-[1.6] break-keep text-gray-600">
+              <p className="font-bold text-gray-900">
+                확정은 브랜드와의 약속이에요.
+              </p>
+              <p>{CONFIRM_SENTENCE}</p>
+            </Modal.Body>
+            <Modal.Footer className="flex gap-[8px]">
+              <Button
+                variant="tertiary"
+                onPress={() => setDialogOpen(false)}
+                className="h-[48px] shrink-0 rounded-[21px] px-[20px] text-[15px] font-semibold"
+              >
+                돌아가기
+              </Button>
+              <Button
+                onPress={() => void finalConfirm()}
+                isPending={commands.pending}
+                className="h-[48px] flex-1 rounded-[21px] text-[15px] font-bold"
+              >
+                최종 확정
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </div>
   );
 }

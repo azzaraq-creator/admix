@@ -1,11 +1,12 @@
 "use client";
 
 import { Button, Link } from "@heroui/react";
-import { ArrowRight, Coffee, Plus } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
+import { LoadingState } from "@/components/common/RouteStates";
 import {
   PREVIEW_TODAY,
   diffDays,
@@ -18,7 +19,6 @@ import {
   canConfirmProceed,
   isUnderwayStep,
   endOfDay,
-  feeOf,
   kstDate,
   paymentOf,
   phaseOf,
@@ -28,7 +28,6 @@ import {
   statsOf,
   tabOf,
   todoOf,
-  wonText,
   type AdvCollab,
   type BoardStep,
 } from "@/lib/advertiserPreview";
@@ -45,17 +44,17 @@ import {
   SectionHead,
   StatusChip,
 } from "../workspace/workspaceUi";
-import { useAdvState } from "./advStore";
+import { useAdvServerSync, useAdvState } from "./advStore";
 import {
   ADV_FIND_HREF,
-  ADV_NEW_HREF,
+  useNewRequestStart,
   MoreLink,
-  StoreThumb,
   advCollabHref,
 } from "./advUi";
 
 /*
- * /partners/dashboard (광고주) — 의뢰 및 매장 모집 · 확인할 일 · 진행 중 콜라보 · 담은 매장(admix 대화는 11-09에 없앴다).
+ * /partners/dashboard (광고주) — 의뢰 및 매장 모집 · 확인할 일 · 진행 중 콜라보(admix 대화는 11-09에 없앴다).
+ * 관심 매장은 대시보드에 두지 않는다(11-11 사용자: "대시보드에서 관심 매장 안 뜨게") — 왼쪽 메뉴 "관심 매장"에서만 본다.
  * 프로토타입 "내 콜라보" 첫 화면을 제휴사 대시보드 모양(구역 머리 · 유리 카드)으로 옮겼다.
  * 맨 위 숫자 4칸(확인할 일 · 모집·확정 · 진행 · 완료)은 단계 칸으로 바꿨다(11-09 사용자: 의뢰 검토 중 ·
  * 매장 모집 · 매장 검토 · 진행 확정 대기 · 준비 · 진행 중을 대시보드에서 보이게). 같은 날 이름을 "의뢰 및 매장 모집"으로("매장 정보"가 애매해서 바꿈),
@@ -70,7 +69,7 @@ export const TODO_LABEL = {
   reserve: "예비 매장",
   pay: "입금",
   report: "보고서",
-  returned: "보완 요청",
+  returned: "기획안 확인",
 } as const;
 
 /** 할 일이 급한 순서 — 진행 확정 · 입금 · 보완 요청이 먼저. */
@@ -97,7 +96,11 @@ function boardNoteOf(c: AdvCollab, step: BoardStep): { text: string; warn?: bool
   const st = statsOf(c);
   switch (step) {
     case "request":
-      return c.status === "returned" ? { text: "보완 요청 받음", warn: true } : { text: "admix 검토 중" };
+      return c.status === "returned"
+        ? c.plan
+          ? { text: "admix 기획안 확인" }
+          : { text: "보완 요청 받음", warn: true }
+        : { text: "admix 검토 중" };
     case "recruit":
       return p === "upcoming"
         ? { text: `${md(s.noticeDate)} 모집 시작` }
@@ -109,8 +112,8 @@ function boardNoteOf(c: AdvCollab, step: BoardStep): { text: string; warn?: bool
     case "proceed": {
       if (canConfirmProceed(c)) return { text: `확정 ${st.confirmed}곳 · 진행 확정 필요` };
       const pay = paymentOf(c, endOfDay(PREVIEW_TODAY));
-      if (pay === "overdue") return { text: "입금 기한 지남", warn: true };
-      if (pay === "awaiting" && c.billing) return { text: `${md(kstDate(c.billing.dueAt))}까지 입금` };
+      if (pay === "overdue") return { text: "입금 기한 지남 · 위약금", warn: true };
+      if (pay === "awaiting" && c.billing) return { text: `${md(kstDate(c.billing.dueAt))}까지 입금 · 넘기면 위약금`, warn: true };
       return { text: "admix 확인 중" };
     }
     default:
@@ -147,13 +150,13 @@ function StageBoard({ collabs }: { collabs: AdvCollab[] }) {
             />
             <span className="flex items-baseline justify-between gap-[6px] px-[2px]">
               <span className="flex min-w-0 items-baseline gap-[6px]">
-                <small className="text-[12px] font-bold text-gray-400 tabular-nums">{i + 1}</small>
+                <small className="text-[12px] font-bold text-gray-400">{i + 1}</small>
                 <span className="truncate text-[14px] font-bold text-gray-800">{step.label}</span>
               </span>
               <b
                 aria-label={`${step.items.length}건`}
                 className={cn(
-                  "text-[17px] leading-none font-extrabold tabular-nums",
+                  "text-[17px] leading-none font-extrabold",
                   step.items.length ? "text-gray-900" : "text-gray-300",
                 )}
               >
@@ -187,7 +190,7 @@ function StageBoard({ collabs }: { collabs: AdvCollab[] }) {
                         <b title={c.title} className="truncate text-[13px] font-bold text-gray-900">{c.title}</b>
                         <span
                           className={cn(
-                            "truncate text-[12px] tabular-nums",
+                            "truncate text-[12px]",
                             note.warn ? "font-semibold text-red-500" : "text-gray-500",
                           )}
                         >
@@ -254,7 +257,7 @@ function RunningCard({ c }: { c: AdvCollab }) {
         <div className="flex shrink-0 items-center gap-[8px]">
           <StatusChip tone={stage.tone}>{stage.label}</StatusChip>
           {day >= 1 && day <= total && (
-            <span className="flex h-[22px] items-center rounded-[8px] bg-gray-100 px-[8px] text-[12px] font-bold text-gray-700 tabular-nums">
+            <span className="flex h-[22px] items-center rounded-[8px] bg-gray-100 px-[8px] text-[12px] font-bold text-gray-700">
               {day}일차 / {total}일
             </span>
           )}
@@ -279,7 +282,11 @@ function RunningCard({ c }: { c: AdvCollab }) {
 
 function Overview() {
   const router = useRouter();
+  // 새 콜라보 의뢰 — 브랜드가 없으면 먼저 등록 안내(11-11 사용자).
+  const newRequest = useNewRequestStart();
   const state = useAdvState();
+  // 서버에 보낸 의뢰를 합친다 — 다른 탭 · 다시 로그인해도 보이게(11-12).
+  const synced = useAdvServerSync();
   const todos = todosOf(state.collabs);
   // 진행 중인 콜라보 = 입금을 마친 준비 · 진행 단계(위 네 칸과 겹치지 않게 boardStepOf 로 나눈다).
   const running = state.collabs
@@ -290,16 +297,17 @@ function Overview() {
     const step = boardStepOf(c);
     return step !== null && boardIds.has(step);
   });
-  const cartTotal = state.cart.reduce((a, s) => a + feeOf(s), 0);
-  const unpriced = state.cart.filter((s) => !s.fee).length;
+
+  if (!synced && !state.collabs.length) return <LoadingState />;
 
   return (
     <div className="flex flex-col gap-[32px] sm:gap-[44px]">
+      {newRequest.dialog}
       <section className="flex flex-col gap-[16px]">
         <SectionHead icon="/icons/layer.svg" title="의뢰 및 매장 모집" count={live.length} />
         <StageBoard collabs={state.collabs} />
         <div className="flex gap-[8px] sm:hidden">
-          <Button onPress={() => router.push(ADV_NEW_HREF)} className="h-[44px] flex-1 rounded-[19px] font-bold">
+          <Button onPress={newRequest.start} className="h-[44px] flex-1 rounded-[19px] font-bold">
             <Plus className="size-[16px]" />
             새 콜라보 의뢰
           </Button>
@@ -340,7 +348,7 @@ function Overview() {
                       </b>
                     </span>
                     <StatusChip
-                      tone={todo.kind === "returned" ? "red" : todo.kind === "report" ? "green" : "amber"}
+                      tone={todo.kind === "returned" && !c.plan ? "red" : todo.kind === "report" ? "green" : "amber"}
                       className="max-sm:hidden"
                     >
                       {TODO_LABEL[todo.kind]}
@@ -352,8 +360,10 @@ function Overview() {
             </ul>
           </PanelCard>
         ) : (
-          <EmptyBox icon={<MaskIcon src="/icons/stroke-square-check.svg" className="size-[26px]" />}>
-            지금 확인할 일이 없어요. 진행 확정 · 입금 · 보고서가 생기면 여기에 모여요.
+          // 아이콘 = 종(stroke-notification)에 face-sleep 의 zZ 를 얹은 것(11-11 사용자).
+          <EmptyBox icon={<MaskIcon src="/icons/stroke-notification-sleep.svg" className="size-[26px]" />}>
+            <b className="text-gray-700">지금 확인할 일이 없어요.</b>
+            진행 확정 · 입금 · 보고서가 생기면 여기에 모여요.
           </EmptyBox>
         )}
       </section>
@@ -371,85 +381,31 @@ function Overview() {
             ))}
           </div>
         ) : (
-          <EmptyBox icon={<Coffee className="size-[26px]" />}>
+          <EmptyBox icon={<MaskIcon src="/icons/face-sleep.svg" className="size-[26px]" />}>
             <b className="text-gray-700">진행 중인 콜라보가 없어요.</b>
             입금을 마친 콜라보가 준비 · 설치에 들어가면 이곳에 보여요.
+            {/* 빈 칸 아래 새 콜라보 의뢰(11-11 사용자 — 머리 오른쪽 버튼을 없애며 여기로). 모바일은 위 "의뢰 및 매장 모집"
+                아래에 같은 버튼이 있어 PC 에서만. */}
+            <Button
+              onPress={newRequest.start}
+              className="mt-[8px] h-[42px] rounded-[18px] px-[18px] font-bold max-sm:hidden"
+            >
+              <Plus className="size-[16px]" />
+              새 콜라보 의뢰
+            </Button>
           </EmptyBox>
         )}
       </section>
-
-      <div className="flex flex-col">
-        <section className="flex min-w-0 flex-col gap-[16px]">
-          <SectionHead
-            icon="/icons/store.svg"
-            small
-            title="담은 매장"
-            count={state.cart.length}
-            more={<MoreLink href={ADV_FIND_HREF}>매장 찾기</MoreLink>}
-          />
-          {state.cart.length ? (
-            <PanelCard className={cn("gap-[14px] p-[16px] sm:p-[18px]", SHADOW_FLOAT)}>
-              <ul className="flex flex-wrap gap-[8px]">
-                {state.cart.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex items-center gap-[8px] rounded-[14px] bg-gray-50 py-[5px] pr-[10px] pl-[5px] ring-1 ring-gray-100"
-                  >
-                    <StoreThumb store={s} className="size-[28px] rounded-[9px] text-[12px]" />
-                    <span className="text-[13px] font-semibold text-gray-900">{s.name}</span>
-                    <span className="text-[12px] text-gray-500 tabular-nums">
-                      {s.fee ? wonText(s.fee) : "금액 협의"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-wrap items-center justify-between gap-[10px] border-t border-gray-100 pt-[12px]">
-                <span className="text-[13px] text-gray-600">
-                  합계 <b className="text-gray-900 tabular-nums">{cartTotal ? wonText(cartTotal) : "금액 협의"}</b>
-                  {unpriced > 0 && cartTotal > 0 && <span className="text-gray-400"> · 금액 협의 {unpriced}곳 제외</span>}
-                </span>
-                <Button size="sm" onPress={() => router.push(ADV_NEW_HREF)} className="rounded-[14px] font-bold">
-                  이 매장들로 의뢰하기
-                  <ArrowRight className="size-[14px]" />
-                </Button>
-              </div>
-            </PanelCard>
-          ) : (
-            <EmptyBox icon={<MaskIcon src="/icons/store.svg" className="size-[26px]" />}>
-              매장 찾기에서 마음에 드는 매장을 담으면, 의뢰할 때 지정 희망 매장으로 붙어요.
-            </EmptyBox>
-          )}
-        </section>
-
-      </div>
     </div>
   );
 }
 
 export function AdvDashboard() {
-  const router = useRouter();
   return (
     <div className="flex flex-1 flex-col gap-[16px] sm:gap-[24px]">
-      <PageHead
-        title="대시보드"
-        className="max-sm:sr-only"
-        right={
-          <div className="flex gap-[8px] max-sm:hidden">
-            <Button
-              variant="tertiary"
-              onPress={() => router.push(ADV_FIND_HREF)}
-              className="h-[42px] rounded-[18px] px-[16px] font-semibold"
-            >
-              <MaskIcon src="/icons/store.svg" className="size-[16px]" />
-              매장 찾기
-            </Button>
-            <Button onPress={() => router.push(ADV_NEW_HREF)} className="h-[42px] rounded-[18px] px-[18px] font-bold">
-              <Plus className="size-[16px]" />
-              새 콜라보 의뢰
-            </Button>
-          </div>
-        }
-      />
+      {/* 머리 오른쪽 "매장 찾기 · 새 콜라보 의뢰" 버튼은 11-11 사용자가 없앴다(PC) — 매장 찾기는 왼쪽 메뉴,
+          새 콜라보 의뢰는 "진행 중인 콜라보"가 비었을 때 그 칸 아래에. */}
+      <PageHead title="대시보드" className="max-sm:sr-only" />
       <Overview />
     </div>
   );

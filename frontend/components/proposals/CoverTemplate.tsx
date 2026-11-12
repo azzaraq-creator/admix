@@ -62,7 +62,7 @@ export function CoverTemplate({
           {heading}
         </p>
         <span className="mt-[48px] h-[4px] w-[96px] rounded-full bg-gradient-to-r from-primary-400 to-[#ff7eb3]" />
-        <p className="mt-[28px] text-[32px] font-medium leading-none tracking-[-0.8px] text-white/60 tabular-nums">
+        <p className="mt-[28px] text-[32px] font-medium leading-none tracking-[-0.8px] text-white/60">
           {date}
         </p>
       </div>

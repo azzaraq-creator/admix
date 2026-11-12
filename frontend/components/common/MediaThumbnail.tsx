@@ -16,6 +16,8 @@ type MediaThumbnailProps = {
   children?: React.ReactNode;
   /** 사진(img)에만 줄 클래스 — 예: 카드 hover 때 확대. 바깥 칸이 잘라 주므로 넘치지 않는다. */
   imageClassName?: string;
+  /** 처음 화면에 바로 보이는 사진 — 늦게 불러오기(lazy) 대신 바로 불러온다(목록 맨 위 카드 등, LCP). */
+  eager?: boolean;
 };
 
 /**
@@ -29,6 +31,7 @@ export function MediaThumbnail({
   fallback,
   children,
   imageClassName,
+  eager,
 }: MediaThumbnailProps) {
   const [loaded, setLoaded] = useState(false);
   const resolved = src ? mediaSrc(src) : null;
@@ -47,6 +50,7 @@ export function MediaThumbnail({
             alt=""
             fill
             sizes={sizes}
+            loading={eager ? "eager" : undefined}
             onLoad={() => setLoaded(true)}
             onError={() => setLoaded(true)}
             className={cn(

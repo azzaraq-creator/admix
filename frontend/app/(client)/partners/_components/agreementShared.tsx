@@ -108,7 +108,7 @@ export function StageHeading({
   return (
     <>
       {eyebrow && (
-        <span className="text-[12px] font-semibold text-gray-400 tabular-nums">
+        <span className="text-[12px] font-semibold text-gray-400">
           {eyebrow}
         </span>
       )}
@@ -148,49 +148,47 @@ export function TextModal({
   action?: { label: string; onPress: () => void };
 }) {
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container placement="center" scroll="inside" size="lg">
-          <Modal.Dialog
-            aria-label={title}
-            className="max-h-[80dvh] max-sm:h-[calc(100dvh-64px)] max-sm:max-h-full"
-          >
-            <Modal.Header>
-              <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
-                {title}
-              </Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>{children}</Modal.Body>
-            <Modal.Footer>
-              {/* 버튼 44px → 곡률 19px. */}
-              {action ? (
-                <Button
-                  fullWidth
-                  onPress={action.onPress}
-                  className="h-[44px] rounded-[19px] text-[14px] font-bold"
-                >
-                  {action.label}
-                </Button>
-              ) : (
-                <Button
-                  variant="tertiary"
-                  fullWidth
-                  onPress={onClose}
-                  className="h-[44px] rounded-[19px] text-[14px] font-semibold"
-                >
-                  닫기
-                </Button>
-              )}
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+      <Modal.Container placement="center" scroll="inside" size="lg">
+        <Modal.Dialog
+          aria-label={title}
+          className="max-h-[80dvh] max-sm:h-[calc(100dvh-64px)] max-sm:max-h-full"
+        >
+          <Modal.Header>
+            <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">
+              {title}
+            </Modal.Heading>
+          </Modal.Header>
+          <Modal.Body>{children}</Modal.Body>
+          <Modal.Footer>
+            {/* 버튼 44px → 곡률 19px. */}
+            {action ? (
+              <Button
+                fullWidth
+                onPress={action.onPress}
+                className="h-[44px] rounded-[19px] text-[14px] font-bold"
+              >
+                {action.label}
+              </Button>
+            ) : (
+              <Button
+                variant="tertiary"
+                fullWidth
+                onPress={onClose}
+                className="h-[44px] rounded-[19px] text-[14px] font-semibold"
+              >
+                닫기
+              </Button>
+            )}
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

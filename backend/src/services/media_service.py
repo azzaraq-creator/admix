@@ -43,7 +43,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from src.config import get_settings
 from src.services import ai_index, grade_suggest, popularity
 from src.models.media_image import MediaImage
-from src.models.partners_store import PARTNERS_MEDIA_CATEGORY, PartnersStore
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY, PartnersStore, PartnersStoreType
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.services import operating_area as oa
@@ -351,7 +351,10 @@ def _media_card(m: Media) -> dict:
 
 def attach_partners(db: Session, items: list[dict]) -> list[dict]:
     """콜라보 매장 카드에 매장 값을 붙인다 — 매체 찾기 목록 · 지도 팝업 · 관심 매체 카드가
-    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 매장 특징."""
+    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 매장 특징, 사진마다 분류(11-12)."""
+    # partners_service 가 이 모듈을 가져다 쓰므로(사진 줄이기 등) 여기서는 함수 안에서 가져온다.
+    from src.services.partners_service import photo_kind_map
+
     ids = [it["id"] for it in items if it.get("categoryLarge") == PARTNERS_MEDIA_CATEGORY]
     if not ids:
         return items
@@ -363,6 +366,8 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             PartnersStore.address_detail,
             PartnersStore.business_hours,
             PartnersStore.tags,
+            PartnersStore.image_urls,
+            PartnersStore.image_kinds,
         ).filter(PartnersStore.media_id.in_(ids))
     }
     for it in items:
@@ -370,7 +375,11 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
         if s is None:
             continue
         it["address"] = " ".join(p for p in [s.address, s.address_detail] if p) or it.get("address")
-        it["partners"] = dict(businessHours=s.business_hours, tags=list(s.tags or []))
+        it["partners"] = dict(
+            businessHours=s.business_hours,
+            tags=list(s.tags or []),
+            photoKinds=photo_kind_map(s.image_urls, s.image_kinds),
+        )
     return items
 
 
@@ -564,12 +573,16 @@ def _media_base_query(
     sw_lng: float | None = None,
     keyword: str | None = None,
     regions: list[str] | None = None,
+    linked_stores_only: bool = False,
 ):
     """매체 공통 필터 쿼리. 리스트·지도클러스터가 동일 조건을 공유한다.
 
     media_source=None 이면 고정·이동 매체를 모두 대상으로 한다.
+    linked_stores_only — 콜라보 매장 줄은 제휴사 회원에 연결된 매장만(광고주 매장 찾기 /partners/find).
     """
     base = db.query(Media)
+    if linked_stores_only:
+        base = base.filter(_linked_partners_or_other())
     if media_source is not None:
         base = base.filter(Media.media_source == media_source)
     kw = (keyword or "").strip().lower()
@@ -808,11 +821,14 @@ def list_fixed_media(
     keyword: str | None = None,
     regions: list[str] | None = None,
     sort: str | None = None,
+    linked_stores_only: bool = False,
+    store_types: list[str] | None = None,
 ) -> tuple[int, list[dict], dict[str, int], dict]:
     """매체 찾기 목록 — (매체 수, 카드, 탭별 매체 수 {fixed, moving, all}, 카테고리 탭별 매체 수).
 
     source=all 이면 고정매체와 운행 범위가 지도 영역과 겹치는 이동매체를 한 목록으로 섞어
     같은 정렬로 페이지를 나눈다. 카테고리 탭 숫자는 고른 카테고리와 무관하게 같은 조건으로 센다.
+    콜라보 카테고리만 볼 때(광고주 매장 찾기)는 매장 유형 탭 숫자(byStoreType)도 고른 유형과 무관하게 센다.
     """
     base = _media_base_query(
         db,
@@ -831,6 +847,7 @@ def list_fixed_media(
         sw_lng=sw_lng,
         keyword=keyword,
         regions=regions,
+        linked_stores_only=linked_stores_only,
     )
     by_category = (
         base.filter(Media.media_source.in_(("FIXED", "MOVING")))
@@ -844,6 +861,10 @@ def list_fixed_media(
     )
     if categories:
         base = base.filter(Media.category_large.in_(categories))
+    if categories and set(categories) == {PARTNERS_MEDIA_CATEGORY}:
+        category_counts["byStoreType"] = _store_type_counts(base)
+    if store_types:
+        base = base.filter(_store_type_filter(store_types))
     by_source = dict(
         base.with_entities(Media.media_source, func.count())
         .group_by(Media.media_source)
@@ -956,8 +977,12 @@ def list_fixed_clusters(
     exclude_price_inquiry: bool = False,
     keyword: str | None = None,
     regions: list[str] | None = None,
+    linked_stores_only: bool = False,
+    store_types: list[str] | None = None,
 ) -> dict:
     """FIXED 매체를 zoom_level 그리드로 묶어 클러스터/마커로 반환.
+
+    store_types — 콜라보 매장 유형(카페 · 식당 …)만(광고주 매장 찾기 탭, 목록과 같은 조건).
 
     bbox(ne/sw)가 주어지면 그 영역으로 한정, None이면 전체 매체 대상.
     keyword가 주어지면 매체명 부분일치로 한정(지도=리스트 동일 조건).
@@ -978,7 +1003,10 @@ def list_fixed_clusters(
         sw_lng=sw_lng,
         keyword=keyword,
         regions=regions,
+        linked_stores_only=linked_stores_only,
     )
+    if store_types:
+        base = base.filter(_store_type_filter(store_types))
     rows = base.with_entities(
         Media.media_id,
         Media.name,
@@ -2614,6 +2642,38 @@ BASE_CATEGORIES: dict[str, list[str]] = {
 def _not_partners():
     """콜라보 매장 줄이 아닌 매체 — 카테고리가 비어 있는 매체도 남긴다."""
     return or_(Media.category_large.is_(None), Media.category_large != PARTNERS_MEDIA_CATEGORY)
+
+
+def _store_type_filter(store_types: list[str]):
+    """콜라보 매장 유형(cafe_store_type.name — 카페 · 식당 …)인 매장의 media 줄만(광고주 매장 찾기 탭)."""
+    ids = (
+        select(PartnersStore.media_id)
+        .join(PartnersStoreType, PartnersStoreType.id == PartnersStore.store_type_id)
+        .where(PartnersStoreType.name.in_(store_types), PartnersStore.media_id.isnot(None))
+    )
+    return Media.media_id.in_(ids)
+
+
+def _store_type_counts(base) -> dict[str, int]:
+    """매장 유형 이름 → 매장 수(유형이 있는 매장만) — 매장 찾기 탭 숫자. "전체"는 byCategory 콜라보 수."""
+    rows = (
+        base.filter(Media.media_source.in_(("FIXED", "MOVING")))
+        .join(PartnersStore, PartnersStore.media_id == Media.media_id)
+        .join(PartnersStoreType, PartnersStoreType.id == PartnersStore.store_type_id)
+        .with_entities(PartnersStoreType.name, func.count())
+        .group_by(PartnersStoreType.name)
+        .all()
+    )
+    return {name: n for name, n in rows}
+
+
+def _linked_partners_or_other():
+    """콜라보 매장 줄은 제휴사 회원에 연결된 매장(cafe_store.owner_user_id)만 남기고, 다른 매체는 그대로 둔다.
+    연결을 끊거나 회원을 지우면(SET NULL) 바로 빠진다 — media 줄을 따로 고치지 않아도 된다."""
+    linked = select(PartnersStore.media_id).where(
+        PartnersStore.owner_user_id.isnot(None), PartnersStore.media_id.isnot(None)
+    )
+    return or_(_not_partners(), Media.media_id.in_(linked))
 
 
 def admin_media_field_options(db: Session) -> dict:

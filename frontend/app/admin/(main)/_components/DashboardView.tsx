@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CommonTable } from "@/components/common/Table/CommonTable";
 import { useDashboard } from "@/hooks/dashboard";
 import { useAdminProposals } from "@/hooks/proposals";
@@ -85,35 +86,34 @@ export function DashboardView() {
   );
 
   return (
-    <div className="flex flex-col gap-[32px] md:gap-[48px]">
+    // 회색 바탕 위 흰 카드(AdminPanel) — 숫자 칸 · 차트 · 최근 목록을 각각 카드로(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-xl font-bold leading-[28px] text-black md:text-2xl md:leading-[32px]">
         대시보드
       </h1>
 
-      <div className="grid grid-cols-1 gap-[24px] sm:grid-cols-2 xl:grid-cols-4 xl:gap-[48px]">
+      <div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 md:gap-[24px] xl:grid-cols-4">
         {statCards.map((card) => (
           <StatCardItem key={card.title} card={card} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-[24px] md:gap-[48px] xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-[20px] md:gap-[24px] xl:grid-cols-2">
         <ProposalBarChart values={summary?.proposalMonthly ?? []} />
         <VisitorLineChart values={summary?.visitorMonthly ?? []} />
       </div>
 
-      <div className="flex flex-col gap-[16px]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold leading-[28px] text-black md:text-2xl md:leading-[32px]">
-            최근 제안 리스트
-          </h2>
+      <AdminPanel
+        title="최근 제안 리스트"
+        right={
           <Link
             href="/admin/proposals"
             className="flex h-[36px] items-center rounded-[15px] bg-primary px-[14px] text-sm font-medium leading-[20px] text-white md:h-[40px] md:rounded-[17px] md:px-[16px]"
           >
             더보기
           </Link>
-        </div>
-
+        }
+      >
         <div className="hidden md:block">
           <CommonTable<Proposal>
             columnList={proposalColumnList}
@@ -121,13 +121,14 @@ export function DashboardView() {
             idKey="no"
             useSearch={false}
             pageSize={10}
+            framed={false}
           />
         </div>
 
         {/* 모바일: 7열 테이블 대신 카드 리스트 */}
         <ul className="flex flex-col gap-[12px] md:hidden">
           {recentProposals.length === 0 && (
-            <li className="rounded-[12px] border border-stroke py-[40px] text-center text-sm leading-[20px] text-disabled">
+            <li className="rounded-[12px] bg-gray-50 py-[40px] text-center text-sm leading-[20px] text-disabled">
               최근 제안이 없습니다.
             </li>
           )}
@@ -137,7 +138,7 @@ export function DashboardView() {
             </li>
           ))}
         </ul>
-      </div>
+      </AdminPanel>
     </div>
   );
 }
@@ -146,7 +147,7 @@ function RecentProposalCard({ item }: { item: RecentProposal }) {
   return (
     <Link
       href={`/admin/proposals/${item.id}`}
-      className="flex flex-col gap-[12px] rounded-[12px] border border-stroke p-[16px] active:bg-tone-f5f6f8"
+      className="flex flex-col gap-[12px] rounded-[12px] bg-gray-50 p-[16px] active:bg-gray-100"
     >
       <div className="flex items-start justify-between gap-[12px]">
         <p className="line-clamp-2 min-w-0 text-base font-semibold leading-[24px] text-black">
@@ -162,7 +163,7 @@ function RecentProposalCard({ item }: { item: RecentProposal }) {
         </span>
         <span className="shrink-0">{item.registeredAt}</span>
       </div>
-      <div className="flex items-center justify-between gap-[12px] border-t border-stroke pt-[12px]">
+      <div className="flex items-center justify-between gap-[12px] border-t border-gray-200 pt-[12px]">
         <span className="text-sm leading-[20px] text-disabled">예상 예산</span>
         <span className="text-base font-semibold leading-[24px] text-black">
           {item.totalAmount}
@@ -174,10 +175,7 @@ function RecentProposalCard({ item }: { item: RecentProposal }) {
 
 function StatCardItem({ card }: { card: StatCard }) {
   return (
-    <div className="flex flex-col gap-[16px] max-sm:rounded-[12px] max-sm:border max-sm:border-stroke max-sm:p-[16px]">
-      <p className="text-lg font-bold leading-[28px] text-black">
-        {card.title}
-      </p>
+    <AdminPanel title={card.title} contentClassName="gap-[16px]">
       <div
         className={
           card.columns === 2
@@ -202,11 +200,11 @@ function StatCardItem({ card }: { card: StatCard }) {
       {card.action && (
         <Link
           href={card.action.href}
-          className="flex h-[36px] w-full items-center justify-center rounded-[15px] bg-primary text-xs font-medium leading-[16px] text-white"
+          className="mt-auto flex h-[36px] w-full items-center justify-center rounded-[15px] bg-primary text-xs font-medium leading-[16px] text-white"
         >
           {card.action.label}
         </Link>
       )}
-    </div>
+    </AdminPanel>
   );
 }

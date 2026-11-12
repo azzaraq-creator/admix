@@ -52,7 +52,7 @@ export function PackageMembers({
           <button
             type="button"
             onClick={() => setOpened(p)}
-            className="flex h-[30px] shrink-0 items-center justify-center gap-[5px] rounded-full border border-primary-200 bg-surface px-[12px] text-[12px] font-semibold text-primary hover:bg-primary-100"
+            className="flex h-[30px] shrink-0 items-center justify-center gap-[5px] rounded-[12px] border border-primary-200 bg-surface px-[12px] text-[12px] font-semibold text-primary hover:bg-primary-100"
           >
             <MapIcon className="size-[14px]" aria-hidden />
             지도로 같이 보기
@@ -106,49 +106,48 @@ function PackageMembersModal({
   // 목록에서 누른 매체 — 지도가 그 자리로 가고 말풍선을 맨 앞으로.
   const [focusId, setFocusId] = useState<string | null>(null);
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
+      variant="opaque"
     >
-      <Modal.Backdrop variant="opaque">
-        <Modal.Container
-          placement="center"
-          className="sm:w-full sm:max-w-[720px] sm:p-[20px]"
+      <Modal.Container
+        placement="center"
+        className="sm:w-full sm:max-w-[720px] sm:p-[20px]"
+      >
+        <Modal.Dialog
+          aria-label={`${pkg.name} 함께 묶인 매체`}
+          className="max-h-[min(860px,calc(100dvh-80px))] w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
         >
-          <Modal.Dialog
-            aria-label={`${pkg.name} 함께 묶인 매체`}
-            className="max-h-[min(860px,calc(100dvh-80px))] w-full max-w-full gap-[12px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
-          >
-            <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
-              <CloseMediumIcon className="size-[24px]" />
-            </Modal.CloseTrigger>
+          <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
+            <CloseMediumIcon className="size-[24px]" />
+          </Modal.CloseTrigger>
 
-            <div className="flex min-w-0 flex-col gap-[2px] pr-[40px]">
-              <p className="text-[16px] font-semibold text-black">{pkg.name}</p>
-              {summary && (
-                <p className="text-[12px] text-tone-6c757d tabular-nums">
-                  {summary}
-                </p>
-              )}
-            </div>
+          <div className="flex min-w-0 flex-col gap-[2px] pr-[40px]">
+            <p className="text-[16px] font-semibold text-black">{pkg.name}</p>
+            {summary && (
+              <p className="text-[12px] text-tone-6c757d">
+                {summary}
+              </p>
+            )}
+          </div>
 
-            <Modal.Body className="m-0 flex min-h-0 flex-1 flex-col gap-[8px] overflow-hidden p-0">
-              {points.length > 0 && (
-                <PackageMap points={points} focusId={focusId} />
-              )}
-              <MemberList
-                current={current && { id: CURRENT_ID, ...current }}
-                members={pkg.members}
-                focusId={focusId}
-                onFocus={setFocusId}
-              />
-            </Modal.Body>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+          <Modal.Body className="m-0 flex min-h-0 flex-1 flex-col gap-[8px] overflow-hidden p-0">
+            {points.length > 0 && (
+              <PackageMap points={points} focusId={focusId} />
+            )}
+            <MemberList
+              current={current && { id: CURRENT_ID, ...current }}
+              members={pkg.members}
+              focusId={focusId}
+              onFocus={setFocusId}
+            />
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 

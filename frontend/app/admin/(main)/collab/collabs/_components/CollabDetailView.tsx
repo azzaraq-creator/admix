@@ -39,6 +39,7 @@ import {
   COLLAB_TYPE_LABEL,
   dotDate,
   dotDateTime,
+  ITEM_PREP_LABEL,
   normalizeCode,
   PARTICIPANT_STATUS_LABEL,
   PHOTO_STEP_LABEL,
@@ -110,14 +111,17 @@ function Detail({ collab: c }: { collab: AdminCollabDetail }) {
     }
   };
 
+  // 끝난(완료 · 취소) 콜라보는 콜라보 결과에서 들어오므로 그쪽으로 돌아간다(11-12 메뉴 나눔).
+  const ended = c.phase === "done" || c.phase === "cancelled";
+
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <Link
-        href="/admin/collab/collabs"
+        href={ended ? "/admin/collab/results" : "/admin/collab/collabs"}
         className="flex w-fit items-center gap-[2px] text-sm font-medium text-tone-4a5565 hover:text-black"
       >
         <ChevronLeft className="size-[16px]" />
-        콜라보
+        {ended ? "콜라보 결과" : "콜라보 진행"}
       </Link>
 
       <CollabPageHead
@@ -206,12 +210,11 @@ function InfoSection({ c }: { c: AdminCollabDetail }) {
             key={label}
             className="rounded-[8px] bg-tone-fafafc px-[10px] py-[6px] text-sm"
           >
-            <span className="text-disabled">{label}</span>{" "}
-            <b className="tabular-nums">{v ?? 0}</b>
+            <span className="text-disabled">{label}</span> <b>{v ?? 0}</b>
           </span>
         ))}
         <span className="rounded-[8px] bg-primary-50 px-[10px] py-[6px] text-sm text-primary-800">
-          목표 <b className="tabular-nums">{c.targetStores}</b>곳
+          목표 <b>{c.targetStores}</b>곳
         </span>
       </div>
       <dl className="grid grid-cols-1 gap-x-[32px] gap-y-[10px] md:grid-cols-2">
@@ -247,6 +250,12 @@ function InfoSection({ c }: { c: AdminCollabDetail }) {
                 <span key={it.label} className="block">
                   <b>{it.label}</b>
                   {it.note ? ` — ${it.note}` : ""}
+                  {it.prep && (
+                    <span className="text-disabled">
+                      {" "}
+                      · {ITEM_PREP_LABEL[it.prep]}
+                    </span>
+                  )}
                 </span>
               ))
             : "-"}
@@ -300,6 +309,9 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const open = c.participants.find((p) => p.id === openId) ?? null;
+  // "미참여"로 답한 매장(11-12)은 표에서 빼고 아래 한 줄로 — 참여 매장 수가 부풀지 않게.
+  const rows = c.participants.filter((p) => p.status !== "passed");
+  const passed = c.participants.filter((p) => p.status === "passed");
 
   const candidates = c.participants.filter((p) => p.standing === "candidate");
   const selectedIds = selected
@@ -393,7 +405,7 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
         label: "사진",
         renderer: (p) =>
           p.status === "confirmed" ? (
-            <span className="tabular-nums">
+            <span>
               {new Set(p.photos.map((ph) => ph.step)).size}/
               {1 + c.checks.length}
             </span>
@@ -474,7 +486,7 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
 
   return (
     <CollabSection
-      title={`참여 매장 ${c.participants.length}곳`}
+      title={`참여 매장 ${rows.length}곳`}
       desc="신청 순서대로 목표 수만큼 선정 후보예요. 고른 매장에 확정 요청을 보내면 매장이 직접 확정해요. 줄을 누르면 사진 · 재입고 · 대리 확정을 해요."
       right={
         <form
@@ -537,16 +549,23 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
 
       <CommonTable<Row>
         columnList={columns}
-        data={c.participants}
+        data={rows}
         idKey="id"
         useSearch={false}
         useCheckbox
         selected={selected}
         onChangeSelected={setSelected}
         pageSize={200}
+        framed={false}
         emptyMessage="아직 신청한 매장이 없어요."
         onRowClick={(p) => setOpenId(p.id)}
       />
+      {passed.length > 0 && (
+        <p className="text-xs leading-[18px] text-disabled">
+          미참여로 답한 매장 {passed.length}곳 ·{" "}
+          {passed.map((p) => p.storeName ?? p.storeCode).join(", ")}
+        </p>
+      )}
 
       <ParticipantModal
         collab={c}
@@ -573,24 +592,22 @@ function ParticipantModal({
   onClose: () => void;
 }) {
   return (
-    <Modal isOpen={!!p} onOpenChange={(v) => !v && onClose()}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label="참여 매장"
-            className="max-h-[90dvh] w-full max-w-[640px] gap-0 overflow-y-auto rounded-[20px] bg-surface p-[20px] sm:p-[28px]"
+    <Modal.Backdrop isOpen={!!p} onOpenChange={(v) => !v && onClose()}>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label="참여 매장"
+          className="max-h-[90dvh] w-full max-w-[640px] gap-0 overflow-y-auto rounded-[20px] bg-surface p-[20px] sm:p-[28px]"
+        >
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="right-[16px] top-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="right-[16px] top-[16px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
-            >
-              <X className="size-[18px]" />
-            </Modal.CloseTrigger>
-            {p && <ParticipantBody key={p.id} c={c} p={p} />}
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <X className="size-[18px]" />
+          </Modal.CloseTrigger>
+          {p && <ParticipantBody key={p.id} c={c} p={p} />}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -651,7 +668,7 @@ function ParticipantBody({
         <p className="text-xs text-disabled">{p.storeAddress}</p>
       </Modal.Header>
 
-      <div className="flex flex-col gap-[10px] rounded-[12px] border border-stroke p-[14px]">
+      <div className="flex flex-col gap-[10px] rounded-[12px] bg-gray-50 p-[14px]">
         <div className="flex flex-wrap items-center gap-[8px] text-sm">
           <ParticipantChip status={p.status} />
           {p.status === "applied" && (
@@ -815,7 +832,7 @@ function PhotoSlot({
           {date ? dotDate(date).slice(5) : ""}
         </span>
       </div>
-      <div className="relative aspect-square overflow-hidden rounded-[10px] border border-stroke bg-tone-fafafc">
+      <div className="relative aspect-square overflow-hidden rounded-[12px] bg-gray-50">
         {src ? (
           <>
             <HeroLink
@@ -942,9 +959,12 @@ function NoticesSection({ c }: { c: AdminCollabDetail }) {
       desc="확정 요청을 받았거나 확정한 매장의 콜라보 상세에 보여요."
     >
       {c.notices.length > 0 && (
-        <ul className="flex flex-col divide-y divide-stroke rounded-[10px] border border-stroke">
+        <ul className="flex flex-col gap-[8px]">
           {c.notices.map((n) => (
-            <li key={n.id} className="flex items-start gap-[12px] p-[14px]">
+            <li
+              key={n.id}
+              className="flex items-start gap-[12px] rounded-[12px] bg-gray-50 p-[14px]"
+            >
               <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
                 <p className="text-sm font-semibold text-black">{n.title}</p>
                 <p className="whitespace-pre-wrap text-sm text-tone-4a5565">

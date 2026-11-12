@@ -53,44 +53,42 @@ function DocModal({
 }) {
   const paper = useRef<HTMLDivElement>(null);
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" size="lg" scroll="inside">
-          <Modal.Dialog aria-label={title} className="max-w-[760px]">
-            <Modal.CloseTrigger />
-            <Modal.Header className="flex flex-row items-center gap-[10px] pr-[40px]">
-              <Modal.Heading className="text-[18px] font-bold text-gray-900">
-                {title}
-              </Modal.Heading>
-              <span className="rounded-[8px] bg-gray-100 px-[8px] py-[2px] text-[11px] font-semibold text-gray-500">
-                예시
-              </span>
-            </Modal.Header>
-            <Modal.Body>
-              <div
-                ref={paper}
-                className="flex flex-col gap-[14px] text-[13px] leading-[1.6] break-keep text-gray-700"
-              >
-                {children}
-              </div>
-            </Modal.Body>
-            <Modal.Footer className="flex items-center justify-between gap-[8px]">
-              <small className="text-[12px] text-gray-400">
-                예시 데이터 — 실제 문서가 아니에요.
-              </small>
-              <Button
-                variant="tertiary"
-                onPress={() => printHtml(printTitle, paper.current?.innerHTML)}
-                className="h-[42px] rounded-[18px] px-[16px] font-semibold"
-              >
-                <Printer className="size-[15px]" />
-                인쇄 · PDF 저장
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="lg" scroll="inside">
+        <Modal.Dialog aria-label={title} className="max-w-[760px]">
+          <Modal.CloseTrigger />
+          <Modal.Header className="flex flex-row items-center gap-[10px] pr-[40px]">
+            <Modal.Heading className="text-[18px] font-bold text-gray-900">
+              {title}
+            </Modal.Heading>
+            <span className="rounded-[8px] bg-gray-100 px-[8px] py-[2px] text-[11px] font-semibold text-gray-500">
+              예시
+            </span>
+          </Modal.Header>
+          <Modal.Body>
+            <div
+              ref={paper}
+              className="flex flex-col gap-[14px] text-[13px] leading-[1.6] break-keep text-gray-700"
+            >
+              {children}
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="flex items-center justify-between gap-[8px]">
+            <small className="text-[12px] text-gray-400">
+              예시 데이터 — 실제 문서가 아니에요.
+            </small>
+            <Button
+              variant="tertiary"
+              onPress={() => printHtml(printTitle, paper.current?.innerHTML)}
+              className="h-[42px] rounded-[18px] px-[16px] font-semibold"
+            >
+              <Printer className="size-[15px]" />
+              인쇄 · PDF 저장
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -121,7 +119,7 @@ function DocHead({
             className="rounded-[14px] bg-gray-50 px-[12px] py-[9px] ring-1 ring-gray-100"
           >
             <span className="block text-[11px] text-gray-500">{k}</span>
-            <b className="text-[13px] font-bold break-keep text-gray-900 tabular-nums">
+            <b className="text-[13px] font-bold break-keep text-gray-900">
               {v}
             </b>
           </div>
@@ -140,7 +138,7 @@ function SumGrid({ items }: { items: [string, string][] }) {
           className="rounded-[14px] border border-gray-200 bg-surface px-[12px] py-[10px]"
         >
           <span className="block text-[11px] text-gray-500">{k}</span>
-          <b className="text-[16px] font-extrabold text-gray-900 tabular-nums">
+          <b className="text-[16px] font-extrabold text-gray-900">
             {v}
           </b>
         </div>
@@ -243,7 +241,7 @@ export function InvoiceModal({
         rows={stores.map((s) => [
           <StoreCell key="n" name={s?.name} area={s?.area} />,
           s?.grade ? COLLAB_GRADE_LABEL[s.grade] : "-",
-          <span key="f" className="right font-semibold text-gray-900 tabular-nums">
+          <span key="f" className="right font-semibold text-gray-900">
             {s?.fee ? wonText(s.fee) : "금액 협의"}
           </span>,
         ])}
@@ -254,7 +252,7 @@ export function InvoiceModal({
           ? `${kstStamp(b.paidAt)} 입금을 확인했어요.`
           : b.cancelledAt
             ? `${kstStamp(b.cancelledAt)} 취소 · ${b.refund !== undefined ? `50% 공제 후 ${wonText(b.refund)} 환불` : "환불은 admix와 협의"}`
-            : `${kstStamp(b.dueAt)}까지 입금해 주세요. 입금이 확인되면 준비를 시작해요.`}
+            : `${kstStamp(b.dueAt)}까지 입금해 주세요. 기한을 넘기면 위약금이 생겨요. 입금이 확인되면 준비를 시작해요.`}
       </p>
       <p className="foot text-[12px] text-gray-400">
         매장별 금액은 매장 등급에 따른 1건 기준이에요. 공간 임대료는 따로 없어요.

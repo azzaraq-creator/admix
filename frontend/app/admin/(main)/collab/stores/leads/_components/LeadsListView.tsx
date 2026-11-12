@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { HeroSelect } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import { useCollabLeadMeta, useCollabLeads } from "@/hooks/adminCollab";
 import { dotDate } from "@/lib/adminCollab";
@@ -79,9 +80,7 @@ export function LeadsListView() {
         id: "no",
         label: "No",
         isRowHeader: !hasName,
-        render: (lead) => (
-          <span className="tabular-nums text-disabled">{lead.no}</span>
-        ),
+        render: (lead) => <span className="text-disabled">{lead.no}</span>,
       },
       {
         // 칸이 많아 옆으로 밀어 봐야 하니 맨 앞(No 다음)에 — 누르면 줄 상세로 가지 않고 확정만(버튼이 누르기를 잡는다).
@@ -151,7 +150,7 @@ export function LeadsListView() {
   const ready = !!meta && !!data;
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead title="매장 관리">
         <Button
           variant="primary"
@@ -175,8 +174,8 @@ export function LeadsListView() {
       ) : (
         <>
           {/* PC: 조건 · 표 · 쪽 넘기기 */}
-          <div className="hidden flex-col gap-[16px] md:flex">
-            <div className="flex flex-col gap-[12px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
+          <div className="hidden flex-col gap-[20px] md:flex md:gap-[24px]">
+            <AdminPanel contentClassName="gap-[12px]">
               <div className="grid grid-cols-3 gap-[12px] xl:grid-cols-6">
                 {FILTER_KEYS.map((key) => (
                   <div key={key} className="flex min-w-0 flex-col gap-[6px]">
@@ -220,126 +219,130 @@ export function LeadsListView() {
                   </Button>
                 )}
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-[12px]">
-              <p className="text-sm font-medium text-tone-4a5565">
-                {searching ? "조건에 맞는 " : "모두 "}
-                <span className="font-bold tabular-nums text-black">
-                  {total.toLocaleString()}
-                </span>
-                곳
-                {searching && (
-                  <span className="ml-[6px] text-disabled">
-                    / 전체 {meta.total.toLocaleString()}곳
+            </AdminPanel>
+            <AdminPanel contentClassName="gap-[16px]">
+              <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                <p className="text-sm font-medium text-tone-4a5565">
+                  {searching ? "조건에 맞는 " : "모두 "}
+                  <span className="font-bold text-black">
+                    {total.toLocaleString()}
                   </span>
-                )}
-              </p>
-              <div className="flex items-center gap-[8px]">
-                <div className="w-[140px]">
-                  <HeroSelect
-                    ariaLabel="정렬"
-                    value={sort}
-                    onChange={(v) => {
-                      setSort(v || DEFAULT_SORT);
+                  곳
+                  {searching && (
+                    <span className="ml-[6px] text-disabled">
+                      / 전체 {meta.total.toLocaleString()}곳
+                    </span>
+                  )}
+                </p>
+                <div className="flex items-center gap-[8px]">
+                  <div className="w-[140px]">
+                    <HeroSelect
+                      ariaLabel="정렬"
+                      value={sort}
+                      onChange={(v) => {
+                        setSort(v || DEFAULT_SORT);
+                        setPage(1);
+                      }}
+                      options={LEAD_SORT_OPTIONS}
+                      allowEmpty={false}
+                    />
+                  </div>
+                  <Select
+                    aria-label="한 쪽에 보일 개수"
+                    className="w-[140px]"
+                    variant="secondary"
+                    selectedKey={String(pageSize)}
+                    onSelectionChange={(key) => {
+                      if (key == null) return;
+                      setPageSize(Number(key));
                       setPage(1);
                     }}
-                    options={LEAD_SORT_OPTIONS}
-                    allowEmpty={false}
-                  />
-                </div>
-                <Select
-                  aria-label="한 쪽에 보일 개수"
-                  className="w-[140px]"
-                  variant="secondary"
-                  selectedKey={String(pageSize)}
-                  onSelectionChange={(key) => {
-                    if (key == null) return;
-                    setPageSize(Number(key));
-                    setPage(1);
-                  }}
-                >
-                  <Select.Trigger>
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {PAGE_SIZE_OPTIONS.map((n) => (
-                        <ListBox.Item
-                          key={n}
-                          id={String(n)}
-                          textValue={`${n}개씩 보기`}
-                        >
-                          {n}개씩 보기
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-              </div>
-            </div>
-
-            <Table
-              className={cn("transition-opacity", isFetching && "opacity-60")}
-            >
-              {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
-              <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
-                <Table.Content
-                  aria-label="협업 확정 전 목록"
-                  className="min-w-max"
-                  onRowAction={(key) =>
-                    router.push(`${LEADS_HREF}/${String(key)}`)
-                  }
-                >
-                  <Table.Header columns={columns} className="sticky top-0 z-10">
-                    {(col) => (
-                      <Table.Column
-                        id={col.id}
-                        isRowHeader={col.isRowHeader}
-                        className="whitespace-nowrap"
-                      >
-                        {col.label}
-                      </Table.Column>
-                    )}
-                  </Table.Header>
-                  <Table.Body
-                    items={rows}
-                    dependencies={[columns]}
-                    renderEmptyState={() => (
-                      <p className="py-[48px] text-center text-sm font-medium text-disabled">
-                        {searching
-                          ? "조건에 맞는 영업 기록이 없어요."
-                          : "영업 기록이 없어요."}
-                      </p>
-                    )}
                   >
-                    {(lead) => (
-                      <Table.Row
-                        id={lead.id}
-                        columns={columns}
-                        className="cursor-pointer"
-                      >
-                        {(col) => (
-                          <Table.Cell className="whitespace-nowrap">
-                            {col.render(lead)}
-                          </Table.Cell>
-                        )}
-                      </Table.Row>
-                    )}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+                    <Select.Trigger>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                          <ListBox.Item
+                            key={n}
+                            id={String(n)}
+                            textValue={`${n}개씩 보기`}
+                          >
+                            {n}개씩 보기
+                            <ListBox.ItemIndicator />
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+              </div>
 
-            <PageNav
-              page={page}
-              pageSize={pageSize}
-              total={total}
-              onChange={setPage}
-              className="self-center"
-            />
+              <Table
+                className={cn("transition-opacity", isFetching && "opacity-60")}
+              >
+                {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
+                <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
+                  <Table.Content
+                    aria-label="협업 확정 전 목록"
+                    className="min-w-max"
+                    onRowAction={(key) =>
+                      router.push(`${LEADS_HREF}/${String(key)}`)
+                    }
+                  >
+                    <Table.Header
+                      columns={columns}
+                      className="sticky top-0 z-10"
+                    >
+                      {(col) => (
+                        <Table.Column
+                          id={col.id}
+                          isRowHeader={col.isRowHeader}
+                          className="whitespace-nowrap"
+                        >
+                          {col.label}
+                        </Table.Column>
+                      )}
+                    </Table.Header>
+                    <Table.Body
+                      items={rows}
+                      dependencies={[columns]}
+                      renderEmptyState={() => (
+                        <p className="py-[48px] text-center text-sm font-medium text-disabled">
+                          {searching
+                            ? "조건에 맞는 영업 기록이 없어요."
+                            : "영업 기록이 없어요."}
+                        </p>
+                      )}
+                    >
+                      {(lead) => (
+                        <Table.Row
+                          id={lead.id}
+                          columns={columns}
+                          className="cursor-pointer"
+                        >
+                          {(col) => (
+                            <Table.Cell className="whitespace-nowrap">
+                              {col.render(lead)}
+                            </Table.Cell>
+                          )}
+                        </Table.Row>
+                      )}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
+
+              <PageNav
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onChange={setPage}
+                className="self-center"
+              />
+            </AdminPanel>
           </div>
 
           {/* 휴대폰: 검색 한 칸 + 카드 + 쪽 넘기기 */}
@@ -353,7 +356,7 @@ export function LeadsListView() {
             >
               <Input
                 type="search"
-                variant="secondary"
+                variant="primary"
                 fullWidth
                 aria-label="영업 기록 검색"
                 placeholder="업체명 · 주소 · 연락처"
@@ -389,14 +392,14 @@ export function LeadsListView() {
             </p>
             <ul className="flex flex-col gap-[10px]">
               {rows.length === 0 && (
-                <li className="rounded-[12px] border border-stroke py-[40px] text-center text-sm text-disabled">
+                <li className="rounded-[16px] bg-surface py-[40px] text-center shadow-surface text-sm text-disabled">
                   영업 기록이 없어요.
                 </li>
               )}
               {rows.map((lead) => (
                 <li
                   key={lead.id}
-                  className="flex flex-col overflow-hidden rounded-[12px] border border-stroke"
+                  className="flex flex-col overflow-hidden rounded-[16px] bg-surface shadow-surface"
                 >
                   <Link
                     href={`${LEADS_HREF}/${lead.id}`}
@@ -435,7 +438,7 @@ export function LeadsListView() {
                       </div>
                     )}
                   </Link>
-                  <div className="border-t border-stroke px-[16px] py-[10px]">
+                  <div className="border-t border-gray-100 px-[16px] py-[10px]">
                     <Button
                       size="sm"
                       variant="secondary"

@@ -147,7 +147,7 @@ export function MediaSearchFilter({
           <button
             type="button"
             onClick={reset}
-            className="flex shrink-0 items-center gap-[4px] rounded-[8px] bg-gray-100 px-[12px] py-[8px] text-sm font-medium text-black"
+            className="flex shrink-0 items-center gap-[4px] rounded-[15px] bg-gray-100 px-[12px] py-[8px] text-sm font-medium text-black"
           >
             <RotateCwIcon className="size-[20px] text-primary" />
             초기화
@@ -161,7 +161,7 @@ export function MediaSearchFilter({
                 key={key}
                 type="button"
                 onClick={() => openWith(key)}
-                className={`flex shrink-0 items-center gap-[4px] whitespace-nowrap rounded-[8px] px-[12px] py-[8px] text-sm font-medium ${
+                className={`flex shrink-0 items-center gap-[4px] whitespace-nowrap rounded-[15px] px-[12px] py-[8px] text-sm font-medium ${
                   active
                     ? "bg-primary text-white"
                     : "bg-gray-100 text-black"
@@ -178,7 +178,7 @@ export function MediaSearchFilter({
             type="button"
             aria-label="필터 펼치기"
             onClick={() => setOpen(true)}
-            className="flex items-center rounded-full border border-stroke p-[6px] text-black"
+            className="flex items-center rounded-[11px] border border-stroke p-[6px] text-black"
           >
             <ChevronDownIcon className="size-[24px]" />
           </button>
@@ -203,7 +203,7 @@ export function MediaSearchFilter({
                   key={key}
                   type="button"
                   onClick={() => setActiveKey(key)}
-                  className={`flex flex-1 items-center justify-center gap-[4px] rounded-[8px] px-[12px] py-[8px] text-sm font-medium ${
+                  className={`flex flex-1 items-center justify-center gap-[4px] rounded-[15px] px-[12px] py-[8px] text-sm font-medium ${
                     active
                       ? "bg-primary text-white"
                       : "bg-gray-100 text-black"
@@ -245,7 +245,7 @@ export function MediaSearchFilter({
                 key={opt.value}
                 type="button"
                 onClick={() => toggleChip(activeKey, opt.value)}
-                className={`flex items-center justify-center gap-[4px] rounded-full px-[12px] py-[6px] text-base font-medium ${
+                className={`flex items-center justify-center gap-[4px] rounded-[15px] px-[12px] py-[6px] text-base font-medium ${
                   selected
                     ? "bg-primary text-white"
                     : "bg-gray-100 text-black"
@@ -265,7 +265,7 @@ export function MediaSearchFilter({
         <button
           type="button"
           onClick={reset}
-          className="flex items-center gap-[4px] rounded-[8px] border border-primary bg-surface px-[12px] py-[8px] text-sm font-medium text-primary"
+          className="flex items-center gap-[4px] rounded-[16px] border border-primary bg-surface px-[12px] py-[8px] text-sm font-medium text-primary"
         >
           <RotateCwIcon className="size-[18px] text-primary" />
           초기화
@@ -274,7 +274,7 @@ export function MediaSearchFilter({
           type="button"
           aria-label="필터 접기"
           onClick={() => setOpen(false)}
-          className="flex items-center rounded-full border border-stroke p-[6px] text-black"
+          className="flex items-center rounded-[11px] border border-stroke p-[6px] text-black"
         >
           <ChevronDownIcon className="size-[24px] rotate-180" />
         </button>

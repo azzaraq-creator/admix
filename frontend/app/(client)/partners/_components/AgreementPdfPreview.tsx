@@ -56,25 +56,31 @@ function withBlobUrl(pdf: AgreementPdf, run: (url: string) => void) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function savePdf(pdf: AgreementPdf) {
+function savePdf(pdf: AgreementPdf, fileName = pdf.fileName) {
   withBlobUrl(pdf, (url) => {
     const a = document.createElement("a");
     a.href = url;
-    a.download = pdf.fileName;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     a.remove();
   });
 }
 
-/** "PDF 다운로드" — 아직 안 만들었으면(모바일) 만들어서 받는다. */
-export function useDownloadAgreementPdf(signature: SignatureRecord | null) {
+/**
+ * "PDF 다운로드" — 아직 안 만들었으면(모바일) 만들어서 받는다.
+ * fileName — 받는 파일 이름을 바꿀 때(어드민: 회원마다 구분되게 고유번호를 붙인다). 없으면 기본 이름.
+ */
+export function useDownloadAgreementPdf(
+  signature: SignatureRecord | null,
+  fileName?: string,
+) {
   const qc = useQueryClient();
   const [pending, setPending] = useState(false);
   const download = async () => {
     setPending(true);
     try {
-      savePdf(await qc.fetchQuery(pdfQuery(signature)));
+      savePdf(await qc.fetchQuery(pdfQuery(signature)), fileName);
     } catch {
       toast.danger("PDF를 만들지 못했어요. 잠시 후 다시 해 주세요.", {
         timeout: TOAST_TIMEOUT,
@@ -170,13 +176,20 @@ function PdfPageSvg({ page, label }: { page: PdfPage; label: string }) {
   );
 }
 
-/** PC — 위 도구줄(이전 · 쪽 고르기 · 다음 · 새 창) + 회색 책상 위 한 쪽. */
+/**
+ * PC — 위 도구줄(이전 · 쪽 고르기 · 다음 · 새 창) + 회색 책상 위 한 쪽.
+ * 어드민 회원 상세의 계약서 창에서도 쓴다(2026-11-11) — 창 안에서 쪽을 스크롤해도 도구줄이 위에 남게(stickyToolbar),
+ * 휴대폰 폭에서는 쪽 고르기가 줄어들고 "새 창에서 보기"는 아이콘만(제휴사 화면은 PC 에서만 그린다).
+ */
 export function AgreementPdfViewer({
   signature,
   className,
+  stickyToolbar = false,
 }: {
   signature: SignatureRecord | null;
   className?: string;
+  /** 스크롤하는 창 안에서 도구줄을 위에 붙여 둔다(바깥을 overflow-clip 으로 — hidden 이면 sticky 가 안 먹는다). */
+  stickyToolbar?: boolean;
 }) {
   const { data: pdf, isError, refetch } = useQuery(pdfQuery(signature));
   const [index, setIndex] = useState(0);
@@ -188,11 +201,17 @@ export function AgreementPdfViewer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[20px] bg-surface shadow-[0_6px_18px_rgba(42,20,89,0.08)]",
+        "rounded-[20px] bg-surface shadow-[0_6px_18px_rgba(42,20,89,0.08)]",
+        stickyToolbar ? "overflow-clip" : "overflow-hidden",
         className,
       )}
     >
-      <div className="flex items-center gap-[8px] border-b border-gray-100 px-[14px] py-[10px]">
+      <div
+        className={cn(
+          "flex items-center gap-[8px] border-b border-gray-100 px-[14px] py-[10px]",
+          stickyToolbar && "sticky top-0 z-10 bg-surface",
+        )}
+      >
         <Button
           isIconOnly
           size="sm"
@@ -205,7 +224,7 @@ export function AgreementPdfViewer({
         </Button>
         <Select
           aria-label="쪽 고르기"
-          className="w-[280px] min-w-0"
+          className="w-[280px] min-w-0 max-sm:w-auto max-sm:flex-1"
           isDisabled={!pdf}
           placeholder="PDF를 만들고 있어요"
           selectedKey={pdf ? String(current) : null}
@@ -242,20 +261,22 @@ export function AgreementPdfViewer({
           <ChevronRightIcon className="size-[16px]" />
         </Button>
         {pdf && (
-          <span className="text-[13px] text-gray-500 tabular-nums">
+          <span className="text-[13px] text-gray-500 max-sm:hidden">
             {current + 1} / {total}
           </span>
         )}
         <Button
           size="sm"
           variant="tertiary"
+          aria-label="새 창에서 보기"
           isDisabled={!pdf}
           onPress={() =>
             pdf && withBlobUrl(pdf, (url) => window.open(url, "_blank"))
           }
-          className="ml-auto text-[13px] font-semibold"
+          className="ml-auto shrink-0 text-[13px] font-semibold"
         >
-          <ExternalLink className="size-[14px]" />새 창에서 보기
+          <ExternalLink className="size-[14px]" />
+          <span className="max-sm:hidden">새 창에서 보기</span>
         </Button>
       </div>
 
@@ -267,7 +288,7 @@ export function AgreementPdfViewer({
           if (e.key === "ArrowLeft") go(current - 1);
           if (e.key === "ArrowRight") go(current + 1);
         }}
-        className="bg-gray-100 px-[24px] py-[24px] outline-none focus-visible:ring-2 focus-visible:ring-primary-300 dark:bg-gray-50"
+        className="bg-gray-100 p-[24px] outline-none max-sm:p-[12px] focus-visible:ring-2 focus-visible:ring-primary-300 dark:bg-gray-50"
       >
         <div className="mx-auto w-full max-w-[720px] overflow-hidden rounded-[4px] bg-white shadow-[0_8px_24px_rgba(20,20,40,0.12)]">
           {page ? (

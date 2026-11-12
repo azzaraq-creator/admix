@@ -35,7 +35,7 @@ export function PartnersStoreDashboard() {
             <>
               {" "}
               담당자에게 회원 고유번호{" "}
-              <b className="font-bold text-gray-900 tabular-nums">
+              <b className="font-bold text-gray-900">
                 {me.partner_code}
               </b>
               를 알려 주세요.

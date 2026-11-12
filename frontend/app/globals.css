@@ -95,6 +95,9 @@
   --color-surface: #ffffff;
   /* 덮개·어두운 알약 바탕 — 다크 모드에서도 뒤집지 않는 진한 색. */
   --color-scrim: #2f3442;
+  /* 어드민 사이드 메뉴 바탕 — admix 사용자 화면(흰 바탕)과 다르게 어두운 남색(11-12 사용자).
+     다크 모드에선 화면 바탕(#141519)과 섞이지 않게 한 단계 밝은 남색(html.dark). 위 글자는 text-white/투명도로. */
+  --color-admin-nav: #161a2e;
 
   /* zinc — 화면 곳곳에 hex로 쓰던 Tailwind zinc 값을 정확히 고정한다(다크 모드에서 뒤집힘). */
   --color-zinc-50: #fafafa;
@@ -621,6 +624,7 @@ html.dark {
   --sidebar-foreground: #e4e6ee;
   --sidebar-border: #2a2c36;
 
+  --color-admin-nav: #1d2139;
   --color-surface: #141519;
   --color-primary-50: #1d1a25;
   --color-primary-100: #251f35;
@@ -884,4 +888,118 @@ html.dark .partners-ui {
 /* 실시간 인구 "이름" 끄기 — 장소 이름표만 숨기고 범위는 남긴다(MapArea). 이름표는 인라인 display:flex 라 !important. */
 .map-crowd-no-labels .map-crowd-pill {
   display: none !important;
+}
+
+/* 버튼 · 칩 류 곡률 = 높이 / 2 − 3px (11-11 사용자 "모든 버튼과 칩 radius 값을 높이/2-3px로").
+   HeroUI 기본 크기별 높이에 맞춘 값이다 — 버튼은 768px(md)부터 4px 낮아져 곡률도 2px 줄인다.
+   HeroUI 부품 스타일과 같은 components 층이라, 부품에 className 으로 높이 · 곡률을 따로 준 곳(utilities)은 그 값이 이긴다
+   — 그런 곳은 그 높이에 맞춰 곡률을 같이 적는다. */
+@layer components {
+  /* Button · ToggleButton — sm 36 · md 40 · lg 44px (md 이상 32 · 36 · 40px) */
+  .button,
+  .toggle-button {
+    border-radius: 17px;
+  }
+  .button--sm,
+  .toggle-button--sm {
+    border-radius: 15px;
+  }
+  .button--lg,
+  .toggle-button--lg {
+    border-radius: 19px;
+  }
+  @media (width >= 48rem) {
+    .button,
+    .toggle-button {
+      border-radius: 15px;
+    }
+    .button--sm,
+    .toggle-button--sm {
+      border-radius: 13px;
+    }
+    .button--lg,
+    .toggle-button--lg {
+      border-radius: 17px;
+    }
+  }
+
+  /* 떨어진 ToggleButtonGroup(isDetached) — HeroUI 가 묶음 안에서 곡률을 다시 3xl 로 주므로 같은 값으로 덮는다. */
+  .toggle-button-group--detached .toggle-button {
+    border-radius: 17px;
+  }
+  .toggle-button-group--detached .toggle-button--sm {
+    border-radius: 15px;
+  }
+  .toggle-button-group--detached .toggle-button--lg {
+    border-radius: 19px;
+  }
+  @media (width >= 48rem) {
+    .toggle-button-group--detached .toggle-button {
+      border-radius: 15px;
+    }
+    .toggle-button-group--detached .toggle-button--sm {
+      border-radius: 13px;
+    }
+    .toggle-button-group--detached .toggle-button--lg {
+      border-radius: 17px;
+    }
+  }
+
+  /* 닫기(X) 버튼 · 창 닫기 — 24px */
+  .close-button {
+    border-radius: 9px;
+  }
+
+  /* Chip — sm 20 · md 24 · lg 28px */
+  .chip {
+    border-radius: 9px;
+  }
+  .chip--sm {
+    border-radius: 7px;
+  }
+  .chip--lg {
+    border-radius: 11px;
+  }
+
+  /* Tag(고르는 칩) — sm 20 · md 24 · lg 32px */
+  .tag {
+    border-radius: 9px;
+  }
+  .tag--sm {
+    border-radius: 7px;
+  }
+  .tag--lg {
+    border-radius: 13px;
+  }
+
+  /* Tabs(기본 모양) — 탭 · 고른 표시 32px, 탭 줄 40px. 밑줄 탭(secondary)은 HeroUI 대로 곡률 없음. */
+  .tabs__list-container {
+    border-radius: 17px;
+  }
+  .tabs__tab,
+  .tabs__indicator {
+    border-radius: 13px;
+  }
+
+  /* 쪽 번호 — 36px(md 이상 32px) · sm 32(28) · lg 40(36) */
+  .pagination__link {
+    border-radius: 15px;
+  }
+  .pagination--sm .pagination__link {
+    border-radius: 13px;
+  }
+  .pagination--lg .pagination__link {
+    border-radius: 17px;
+  }
+  @media (width >= 48rem) {
+    .pagination__link {
+      border-radius: 13px;
+    }
+    .pagination--sm .pagination__link {
+      border-radius: 11px;
+    }
+    .pagination--lg .pagination__link {
+      border-radius: 15px;
+    }
+  }
 }

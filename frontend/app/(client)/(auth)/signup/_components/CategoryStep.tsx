@@ -84,7 +84,7 @@ export function CategoryStep({
       <button
         type="button"
         onClick={openMemberPlanModal}
-        className="-mt-[8px] inline-flex items-center gap-[4px] self-start rounded-full bg-gray-100 py-[5px] pr-[10px] pl-[8px] text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 max-sm:-mt-[4px]"
+        className="-mt-[8px] inline-flex items-center gap-[4px] self-start rounded-[10px] bg-gray-100 py-[5px] pr-[10px] pl-[8px] text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 max-sm:-mt-[4px]"
       >
         <CircleQuestionIcon aria-hidden className="size-[14px]" />
         유형 비교

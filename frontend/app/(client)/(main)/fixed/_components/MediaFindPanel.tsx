@@ -10,6 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 
 import {
   useCanOpenPartners,
@@ -110,6 +111,29 @@ const ENTRY_SETTLE_MS = 300;
 
 // 매체 찾기 카테고리 탭 — "전체"는 category 파라미터 없음. 고른 탭은 category 필터 하나로 URL에 남는다.
 const ALL_CATEGORY_TAB = "__all__";
+
+/**
+ * 광고주 매장 찾기 목록 — 카드 폭을 최소 ~ 최대로 두고 목록 폭에 맞춰 한 줄에 여러 개(11-11 사용자).
+ * 최대(지금 목록 카드 폭쯤)를 넘지 않게 칸 수를 늘리되, 최소보다 좁아지면(사진이 찌그러져 보인다) 한 칸 줄인다.
+ * 둘 다 맞출 수 없는 폭이면 최소가 먼저 — 카드는 최대에서 멈추고 남는 자리는 오른쪽 여백.
+ */
+const LIST_GRID_GAP = 12;
+const LIST_CARD_MIN_W = 250;
+const LIST_CARD_MAX_W = 420;
+function listColsFor(width: number): number {
+  let cols = Math.max(
+    1,
+    Math.ceil((width + LIST_GRID_GAP) / (LIST_CARD_MAX_W + LIST_GRID_GAP)),
+  );
+  while (
+    cols > 1 &&
+    (width - LIST_GRID_GAP * (cols - 1)) / cols < LIST_CARD_MIN_W
+  )
+    cols -= 1;
+  return cols;
+}
+const listGridColumns = (cols: number) =>
+  `repeat(${cols}, minmax(0, ${LIST_CARD_MAX_W}px))`;
 // 목록을 이만큼(px) 넘게 내리면 "맨 위로" 버튼을 띄운다.
 const SCROLL_TOP_SHOW_PX = 400;
 // 카테고리가 여러 개 걸린 링크 — 어느 탭과도 맞지 않는 값이라 아무 탭도 골라 보이지 않는다.
@@ -171,7 +195,7 @@ export function MediaFindPanel({
   demo?: { row: MediaCardRow; view?: "map" | "list" } | null;
   /**
    * 한 카테고리만(광고주 콜라보 매장 찾기 /partners/find) — 목록 · 지도 · 검색 추천이 그 카테고리만,
-   * 카테고리 탭은 그 탭 하나만 보이고, 탭 줄 오른쪽에 toolbar, 카드에 담기(pickOf). collabPick.tsx 참고.
+   * 카테고리 탭은 그 탭 하나만 보이고, 탭 줄 오른쪽에 toolbar, 카드에 등급 · 금액(pickOf). collabPick.tsx 참고.
    */
   only?: MediaFindOnly;
 }) {
@@ -180,6 +204,12 @@ export function MediaFindPanel({
   // 카테고리 탭 — 예전 링크의 다른 필터(지역·가격 등)는 읽지 않는다. 한 카테고리만 보는 화면은 URL 대신 그 값.
   const category = only ? [only.category] : sp.getAll("category");
   const onlyCategory = only?.category;
+  const onlyLinked = only?.linkedOnly;
+  // 매장 유형 탭(광고주 매장 찾기) — 고른 유형은 주소 storeType. 목록에 없는 값이면 전체로 본다.
+  const typeTabs = only?.storeTypes?.length ? only.storeTypes : null;
+  const pickedType = sp.get("storeType");
+  const storeType =
+    typeTabs && pickedType && typeTabs.includes(pickedType) ? pickedType : null;
   const zoom = parseZoom(sp);
   const bounds = parseBounds(sp);
   // Enter 검색어(매체명/주소 부분일치). 설정되면 bbox와 상호배제(백엔드가 AND로 걸기 때문).
@@ -265,6 +295,14 @@ export function MediaFindPanel({
       else q.delete("view");
     });
   };
+  // 목록 크게 보기(광고주 매장 찾기, PC·태블릿, 11-11 사용자) — 지도를 가리고 목록만 격자로. URL(view=list)에 남긴다.
+  // 매체 찾기의 지도 크게 보기(view=map)와 같은 칸을 쓴다 — 모바일 목록/지도 전환 버튼은 그대로 view=map.
+  const listExpanded = !!only && sp.get("view") === "list";
+  const setListExpanded = (on: boolean) =>
+    replaceQuery((q) => {
+      if (on) q.set("view", "list");
+      else q.delete("view");
+    });
   // 유동인구 창 — PC·태블릿은 버튼 바로 밑에서 내려오는 창(오른쪽 끝을 버튼에 맞춰 지도 위에 띄운다). 목록·지도는 그대로.
   // 모바일은 지도 보기에서만 버튼이 보이고, 누르면 화면 끝까지 올라오는 Drawer로 연다(닫으면 지도 보기 그대로).
   const isDesktop = useIsDesktop();
@@ -323,6 +361,32 @@ export function MediaFindPanel({
   }, [filterOpen, isDesktop, popGrid]);
   const mapExpanded = demo?.view ? demo.view === "map" : mapExpandedState;
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 광고주 매장 찾기 목록 칸 수 — 목록 칸(좌우 패딩 뺀 폭)이 바뀔 때마다 다시 센다(5:5 · 목록 크게 보기 · 사이드바 접기).
+  // 폭이 바뀐 그 프레임 안에 칸 수까지 맞춘다. 예전엔 ResizeObserver 에서 setState 만 해서 그림이 한두 프레임 먼저
+  // 나갔다 — 목록 크게 보기를 누르면 카드가 2칸 그대로 늘어났다가(420px) 3칸으로, 끄면 3칸 그대로 찌그러졌다가(192px)
+  // 2칸으로 바뀌며 버벅였다(11-11 사용자: "목록 크게 보기를 누르면 카드가 버벅여").
+  const [listCols, setListCols] = useState(1);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!only || mapExpanded || !el) return;
+    const colsNow = () => {
+      const cs = getComputedStyle(el);
+      return listColsFor(
+        el.clientWidth -
+          parseFloat(cs.paddingLeft) -
+          parseFloat(cs.paddingRight),
+      );
+    };
+    // 목록 크게 보기를 켜고 끌 때 — 바뀐 폭으로 그리기 전에(레이아웃 효과 안에서) 바로 센다.
+    setListCols(colsNow());
+    // 사이드바 접기 · 창 크기 — ResizeObserver 는 그리기 직전에 불리므로 flushSync 로 같은 프레임에 칸 수를 맞춘다.
+    const observer = new ResizeObserver(() => {
+      const next = colsNow();
+      flushSync(() => setListCols(next));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [only, mapExpanded, listExpanded]);
   // 목록을 어느 정도 내렸으면 "맨 위로" 버튼을 띄운다(믹시 채팅의 "맨 아래로"와 같은 모양).
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -341,6 +405,8 @@ export function MediaFindPanel({
     category,
     ...bounds,
     keyword,
+    linkedOnly: only?.linkedOnly,
+    storeType: storeType ? [storeType] : undefined,
   };
 
   // 조회 범위가 정해지기 전(첫 진입에서 지도가 아직 영역을 알려 주지 않았을 때)에는 조회하지 않는다.
@@ -390,6 +456,8 @@ export function MediaFindPanel({
       : (foundPinned ?? null)
     : null;
   const listRows = pinned ? rows.filter((r) => r.id !== pinned.id) : rows;
+  // 목록에 빈 안내만 남는 때(불러오기 끝 · 결과 없음 · 고른 매체 · 가이드 예시 없음).
+  const listEmpty = !isLoading && listRows.length === 0 && !pinned && !demo;
   const coordsById = new Map(
     rows
       .filter((r) => r.lat != null && r.lng != null)
@@ -432,8 +500,9 @@ export function MediaFindPanel({
       });
   };
 
+  // 광고주 매장 찾기는 겹쳐도 묶지 않는다(11-11 사용자: 지도에 "2"가 보이지 않게) — 서버는 레벨 1이면 다 낱개로 준다.
   const { data: clusterData } = useFixedClusters(
-    zoom,
+    only ? 1 : zoom,
     scopedFilters,
     scopeReady,
   );
@@ -508,9 +577,11 @@ export function MediaFindPanel({
       const z = q.get("zoom");
       const categories = q.getAll("category");
       const v = q.get("view");
+      const t = q.get("storeType");
       for (const k of [...q.keys()]) q.delete(k);
       if (z != null) q.set("zoom", z);
       if (v != null) q.set("view", v);
+      if (t != null) q.set("storeType", t);
       categories.forEach((v) => q.append("category", v));
       if (view) {
         for (const k of BBOX_KEYS)
@@ -542,6 +613,7 @@ export function MediaFindPanel({
           mediaApi.fixedList(5, 0, {
             keyword: q,
             category: onlyCategory ? [onlyCategory] : undefined,
+            linkedOnly: onlyLinked,
           }),
         ]);
         if (sugSeqRef.current !== seq) return;
@@ -554,7 +626,7 @@ export function MediaFindPanel({
     );
     sugTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [location, onlyCategory]);
+  }, [location, onlyCategory, onlyLinked]);
 
   // 드롭다운 바깥 클릭 시 닫기.
   useEffect(() => {
@@ -681,6 +753,7 @@ export function MediaFindPanel({
           .fixedList(5, 0, {
             keyword: q,
             category: onlyCategory ? [onlyCategory] : undefined,
+            linkedOnly: onlyLinked,
           })
           .then((r) => r.items)
           .catch(() => []),
@@ -807,6 +880,17 @@ export function MediaFindPanel({
           mobileView={mapExpanded ? "map" : "list"}
           subject={only ? "매장" : undefined}
           onToggleMapExpanded={() => setMapExpanded((v) => !v)}
+          // 광고주 매장 찾기 — 정렬 · 타깃 · 인구 분포는 빼고, 지도 크게 보기 대신 목록 크게 보기(11-11 사용자).
+          showSort={!only}
+          showFilter={!only}
+          listExpand={
+            only
+              ? {
+                  expanded: listExpanded,
+                  onToggle: () => setListExpanded(!listExpanded),
+                }
+              : undefined
+          }
           suggestionSlot={
             showSug && (placeSug.length > 0 || mediaSug.length > 0) ? (
               // 검색 추천 — 테두리·그림자는 바깥 칸에 두고, 안쪽 ScrollShadow가 스크롤하며 넘치는 쪽을 흐리게 한다.
@@ -895,28 +979,35 @@ export function MediaFindPanel({
             옆으로 밀어 넘기고, 넘친 쪽 끝을 흐리게 하며 ‹ › 버튼으로도 넘긴다(오른쪽 간략히 보기 자리는 남긴다). */}
         <Tabs
           className="min-w-0"
-          selectedKey={categoryTab}
+          selectedKey={typeTabs ? (storeType ?? ALL_CATEGORY_TAB) : categoryTab}
           onSelectionChange={(key) => {
             setTabPressed(true);
             onHoverArea?.(null);
             scrollRef.current?.scrollTo({ top: 0 });
             commit((q) => {
-              q.delete("category");
-              if (key !== ALL_CATEGORY_TAB) q.set("category", String(key));
+              // 매장 유형 탭이면 storeType, 아니면 카테고리.
+              const param = typeTabs ? "storeType" : "category";
+              q.delete(param);
+              if (key !== ALL_CATEGORY_TAB) q.set(param, String(key));
             });
           }}
         >
           <Tabs.ListContainer className="w-fit max-w-full rounded-[17px]">
-            <Tabs.List aria-label="매체 카테고리">
-              {(only
-                ? [{ key: only.category, label: only.label }]
-                : [
+            <Tabs.List aria-label={typeTabs ? "매장 유형" : "매체 카테고리"}>
+              {(typeTabs
+                ? [
                     { key: ALL_CATEGORY_TAB, label: "전체" },
-                    ...optionsByKey.category.map((o) => ({
-                      key: o.value,
-                      label: o.label,
-                    })),
+                    ...typeTabs.map((t) => ({ key: t, label: t })),
                   ]
+                : only
+                  ? [{ key: only.category, label: only.label }]
+                  : [
+                      { key: ALL_CATEGORY_TAB, label: "전체" },
+                      ...optionsByKey.category.map((o) => ({
+                        key: o.value,
+                        label: o.label,
+                      })),
+                    ]
               ).map(({ key, label }) => (
                 <Tabs.Tab
                   key={key}
@@ -925,10 +1016,15 @@ export function MediaFindPanel({
                 >
                   {label}
                   {categoryCounts && (
-                    <span className="tabular-nums">
-                      {(key === ALL_CATEGORY_TAB
-                        ? categoryCounts.all
-                        : (categoryCounts.byCategory[key] ?? 0)
+                    <span>
+                      {(typeTabs
+                        ? // 매장 유형 탭 — 전체는 콜라보 매장 수(categoryCounts.all 은 모든 카테고리 합).
+                          key === ALL_CATEGORY_TAB
+                          ? (categoryCounts.byCategory[only!.category] ?? 0)
+                          : (categoryCounts.byStoreType?.[key] ?? 0)
+                        : key === ALL_CATEGORY_TAB
+                          ? categoryCounts.all
+                          : (categoryCounts.byCategory[key] ?? 0)
                       ).toLocaleString()}
                     </span>
                   )}
@@ -983,18 +1079,38 @@ export function MediaFindPanel({
             // data-top-scroll·data-bottom-scroll이 둘 다 false(넘칠 게 없음)면 흐림을 끈다.
             // 태블릿(sm~lg)은 460px 고정이면 지도가 쪼그라들어 목록과 지도를 반씩 나눈다 —
             // 좌우 패딩 40px을 더하고 간격 20px의 절반을 빼면 (100% - 20px) / 2 + 40px.
-            className="-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[calc(var(--tabbar-space)+72px)] sm:w-[calc(50%+30px)] lg:w-[460px]"
+            // 광고주 매장 찾기는 PC도 반씩(5:5, 11-11 사용자), 목록 크게 보기면 지도 자리까지 카드 격자.
+            className={cn(
+              "-mx-[20px] flex w-[calc(100%+40px)] data-[top-scroll=false]:data-[bottom-scroll=false]:[mask-image:none] shrink-0 flex-col gap-[10px] px-[20px] max-sm:-mx-[16px] max-sm:w-[calc(100%+32px)] max-sm:px-[16px] max-sm:pb-[calc(var(--tabbar-space)+72px)]",
+              // 광고주 매장 찾기 — 카드 격자(칸 수는 listCols). 카드(HeroUI Card)만 한 칸씩,
+              // 스켈레톤 · 빈 안내 · 무한 스크롤 줄은 한 줄 전체. 목록 크게 보기면 지도 자리까지.
+              // 결과가 없으면 격자를 끄고 빈 안내가 지도 높이만큼 세로로 채운다(11-11 사용자).
+              only &&
+                !listEmpty &&
+                "sm:grid sm:auto-rows-max sm:gap-[12px] sm:[&>:not(.card)]:col-span-full",
+              listExpanded
+                ? null
+                : only
+                  ? "sm:w-[calc(50%+30px)]"
+                  : "sm:w-[calc(50%+30px)] lg:w-[460px]",
+            )}
+            style={
+              only
+                ? { gridTemplateColumns: listGridColumns(listCols) }
+                : undefined
+            }
           >
             {demo && (
               // 가이드 예시 카드 — 기획안 담기·관심 매체 버튼을 밝힌다(가이드 판이 막고 있어 눌리지 않는다).
               <div data-tour="find-card-demo" className="shrink-0">
-                <MediaFindCard row={demo.row} />
+                <MediaFindCard row={demo.row} eager />
               </div>
             )}
             {pinned && (
               <MediaFindCard
                 key={`pin-${pinned.id}`}
                 row={pinned}
+                eager
                 highlighted
                 selected={pinned.id === selectedId}
                 onClick={() => handleItemClick(pinned)}
@@ -1010,11 +1126,23 @@ export function MediaFindPanel({
               // 빙글빙글 도는 심볼을 띄워 불러오는 중임을 보여 준다.
               <div
                 aria-hidden
-                className="flex shrink-0 flex-col gap-[10px] blur-[3px]"
+                // 광고주 매장 찾기는 목록과 같은 격자로(한 줄 전체 칸 안에서 다시 칸을 나눈다).
+                className={cn(
+                  "flex shrink-0 flex-col gap-[10px] blur-[3px]",
+                  only && "sm:grid sm:gap-[12px]",
+                )}
+                style={
+                  only
+                    ? { gridTemplateColumns: listGridColumns(listCols) }
+                    : undefined
+                }
               >
-                {Array.from({ length: 3 }, (_, i) => (
-                  <MediaFindCardSkeleton key={i} compact={compactList} />
-                ))}
+                {Array.from(
+                  { length: only ? Math.max(3, listCols * 2) : 3 },
+                  (_, i) => (
+                    <MediaFindCardSkeleton key={i} compact={compactList} />
+                  ),
+                )}
               </div>
             ) : listRows.length === 0 ? (
               // 고른 매체만 있고 주변 매체가 없으면 빈 안내는 띄우지 않는다.
@@ -1037,10 +1165,12 @@ export function MediaFindPanel({
               )
             ) : (
               <>
-                {listRows.map((row) => (
+                {/* 맨 위 두 장은 처음 화면에 바로 보이므로 사진을 늦게 불러오지 않는다(LCP). */}
+                {listRows.map((row, index) => (
                   <MediaFindCard
                     key={row.id}
                     row={row}
+                    eager={index < 2}
                     selected={row.id === selectedId}
                     onClick={() => handleItemClick(row)}
                     onAddProposal={() => onAddProposal?.(row.id)}
@@ -1071,7 +1201,13 @@ export function MediaFindPanel({
               scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
             }
             className={cn(
-              "absolute bottom-[16px] z-10 flex size-[36px] items-center justify-center rounded-full bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 max-sm:right-0 max-sm:bottom-[calc(var(--tabbar-space)+22px)] sm:left-[calc(25%-5px)] sm:-translate-x-1/2 lg:left-[210px]",
+              "absolute bottom-[16px] z-10 flex size-[36px] items-center justify-center rounded-[15px] bg-gray-800/90 text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:bg-gray-900 max-sm:right-0 max-sm:bottom-[calc(var(--tabbar-space)+22px)] sm:-translate-x-1/2",
+              // 목록 칸 아래 가운데 — 목록 폭(반 · 460px · 전체)을 따른다.
+              listExpanded
+                ? "sm:left-1/2"
+                : only
+                  ? "sm:left-[calc(25%-5px)]"
+                  : "sm:left-[calc(25%-5px)] lg:left-[210px]",
               showScrollTop
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-[6px] opacity-0",
@@ -1087,7 +1223,16 @@ export function MediaFindPanel({
         {!mapExpanded && isLoading && (
           // 목록 칸 위에 겹치는 로딩 막 — 흐린 스켈레톤 위로 엷은 흰 막과 빙글빙글 도는 심볼.
           // 폭은 목록 칸(스크롤 영역의 좌우 패딩을 뺀 카드 폭)과 같게, 모바일은 하단 탭 바를 뺀 높이의 가운데에 둔다.
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-surface/30 max-sm:pb-(--tabbar-space) sm:w-[calc(50%-10px)] lg:w-[420px]">
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-full items-center justify-center bg-surface/30 max-sm:pb-(--tabbar-space)",
+              listExpanded
+                ? "sm:w-full"
+                : only
+                  ? "sm:w-[calc(50%-10px)]"
+                  : "sm:w-[calc(50%-10px)] lg:w-[420px]",
+            )}
+          >
             <SpinningSymbol className="size-[40px]" />
           </div>
         )}
@@ -1097,7 +1242,7 @@ export function MediaFindPanel({
           data-pop-keep-open
           // 모바일 지도는 하단 탭 바 위에서 끝낸다 — 탭 바 밑으로 이어지면 왼쪽 아래 카카오 로고가 가린다.
           className={`min-w-0 flex-1 overflow-hidden rounded-[20px] border border-tone-eeeeee max-sm:mb-[calc(var(--tabbar-space)+8px)] ${
-            mapExpanded ? "block" : "hidden sm:block"
+            mapExpanded ? "block" : listExpanded ? "hidden" : "hidden sm:block"
           }`}
         >
           {mapSlot}

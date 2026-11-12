@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
  * 이미지를 끌고 나서 손을 뗄 때 나는 클릭은 부모(카드 선택)로 번지지 않게 막는다.
  * children은 이미지 위에 겹쳐 그릴 버튼들(담기·찜 등)이다.
  * onSlideClick 을 주면 사진을 눌렀을 때(끌기·겹친 버튼 누르기는 빼고) 지금 보이는 장 번호로 부른다 — 매체 상세의 크게 보기.
+ * labels 를 주면 사진마다 왼쪽 아래에 작은 이름표(콜라보 매장 사진 분류 — 외관 · 내관 …, 11-12 사용자)를 얹는다. 사진과 같이 넘어간다.
  */
 export function MediaImageCarousel({
   slides,
@@ -27,6 +28,8 @@ export function MediaImageCarousel({
   imageClassName,
   onSlideClick,
   small,
+  labels,
+  eager,
   children,
 }: {
   slides: (string | undefined)[];
@@ -38,6 +41,10 @@ export function MediaImageCarousel({
   onSlideClick?: (index: number) => void;
   /** 작은 사진(간략히 보기 88px 등) — 도트를 작게, 장이 많으면(6장 넘음) 도트 대신 "2/8". */
   small?: boolean;
+  /** 장마다 왼쪽 아래 이름표(slides 와 같은 순서, 비면 그 장은 없음). 큰 카드용 — 작은 사진에는 주지 않는다. */
+  labels?: (string | undefined)[];
+  /** 처음 화면에 바로 보이는 카드 — 첫 장만 바로 불러온다(나머지 장은 넘길 때 불러와도 된다). */
+  eager?: boolean;
   children?: ReactNode;
 }) {
   // 이미지 도트 — 시안엔 도트만 있지만 눌러서 바꿀 수 있게 한다.
@@ -128,15 +135,22 @@ export function MediaImageCarousel({
             sizes={sizes}
             className="size-full shrink-0"
             imageClassName={imageClassName}
+            eager={eager && index === 0}
             fallback={<Logo className={cn(logoClassName, "opacity-30")} />}
-          />
+          >
+            {labels?.[index] && (
+              <span className="pointer-events-none absolute bottom-[8px] left-[8px] rounded-[6px] bg-black/55 px-[6px] text-[11px] leading-[18px] font-semibold text-white max-sm:text-[10px] max-sm:leading-[16px]">
+                {labels[index]}
+              </span>
+            )}
+          </MediaThumbnail>
         ))}
       </div>
 
       {children}
 
       {small && slides.length > 6 ? (
-        <span className="pointer-events-none absolute right-[5px] bottom-[5px] rounded-full bg-black/45 px-[5px] text-[10px] leading-[15px] font-medium text-white tabular-nums">
+        <span className="pointer-events-none absolute right-[5px] bottom-[5px] rounded-full bg-black/45 px-[5px] text-[10px] leading-[15px] font-medium text-white">
           {imageIndex + 1}/{slides.length}
         </span>
       ) : (

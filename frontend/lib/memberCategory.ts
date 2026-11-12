@@ -20,7 +20,9 @@ export const MEMBER_CATEGORIES: {
   {
     value: "advertiser",
     label: "광고주",
-    description: ["직접 광고를 집행하는", "기업 · 담당자"],
+    // 광고주는 매장 콜라보(/partners)도 한다 — 가입 유형 카드에서 함께 알린다(11-11 사용자).
+    // "기업 · 담당자"는 줄이 바뀌어도 함께 넘어가게 붙는 공백(U+00A0)으로 잇는다.
+    description: ["직접 광고를 집행하고", "매장과 콜라보하는 기업 · 담당자"],
   },
   {
     value: "agency",

@@ -20,7 +20,7 @@ export function StopNoChip({
         className,
       )}
     >
-      <span className="font-bold tabular-nums">{stopNo}</span>
+      <span className="font-bold">{stopNo}</span>
     </span>
   );
 }

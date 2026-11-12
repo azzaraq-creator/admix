@@ -16,7 +16,7 @@ const cleanChip = (raw: string) =>
 /**
  * 칩 입력칸 — 적다가 쉼표(,)를 누르면 앞의 글이 칩으로 완성된다(2026-11-09 사용자). Enter · 칸을 벗어날 때도 칩이 된다.
  * 쉼표로 여러 개를 한 번에 붙여 넣어도 나눠 넣는다. 빈 칸에서 Backspace 는 마지막 칩을 지운다.
- * 매장 폼(매장 어필 · 조건 메모)과 매장 항목(유형별 값)이 같이 쓴다.
+ * 매장 폼(매장 어필 · 조건 메모)과 매장 유형 관리(유형별 값)가 같이 쓴다.
  */
 export function ChipInput({
   values,
@@ -89,7 +89,7 @@ export function ChipInput({
             <CloseButton
               aria-label={`${v} 지우기`}
               onPress={() => remove(v)}
-              className="size-[18px] min-w-0 rounded-full bg-transparent p-0 text-current data-[hovered=true]:bg-black/10"
+              className="size-[18px] min-w-0 rounded-[6px] bg-transparent p-0 text-current data-[hovered=true]:bg-black/10"
             >
               <X className="size-[11px]" />
             </CloseButton>
@@ -141,7 +141,7 @@ export function ChipInput({
 }
 
 /**
- * 유형별 값 — 매장 유형(매장 항목)에 정해 둔 칩을 눌러 넣고 뺀다(HeroUI TagGroup 여러 개 고르기). 들어간 것은 진하게.
+ * 유형별 값 — 매장 유형(매장 유형 관리)에 정해 둔 칩을 눌러 넣고 뺀다(HeroUI TagGroup 여러 개 고르기). 들어간 것은 진하게.
  * 직접 적은 값(정해 둔 칩이 아닌 것)은 그대로 두고, 새로 고른 칩은 뒤에 붙인다.
  */
 export function ChipPresets({

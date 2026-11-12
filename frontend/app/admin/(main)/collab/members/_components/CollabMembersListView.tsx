@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { HeroSelect } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import { useCollabMembers } from "@/hooks/adminCollab";
 import { BIZ_STATUS_OPTIONS, dotDate } from "@/lib/adminCollab";
@@ -27,7 +28,7 @@ const muted = (text: string) => <span className="text-disabled">{text}</span>;
 
 /** 날짜 · 시각 칸 — 흐리게, 숫자 폭 맞춤. */
 const stamp = (iso: string | null) => (
-  <span className="tabular-nums text-disabled">{formatDateTime(iso)}</span>
+  <span className="text-disabled">{formatDateTime(iso)}</span>
 );
 
 /** 표 칸 하나. */
@@ -42,12 +43,14 @@ const COLUMNS: MemberTableColumn[] = [
   {
     id: "no",
     label: "No",
-    render: (m) => <span className="tabular-nums text-disabled">{m.no}</span>,
+    render: (m) => <span className="text-disabled">{m.no}</span>,
   },
   {
     id: "partnerCode",
     label: "고유번호",
-    render: (m) => <span className="font-semibold">{m.partnerCode ?? "-"}</span>,
+    render: (m) => (
+      <span className="font-semibold">{m.partnerCode ?? "-"}</span>
+    ),
   },
   {
     id: "name",
@@ -76,12 +79,7 @@ const COLUMNS: MemberTableColumn[] = [
     // 숫자만 저장돼 있어 보일 때 '-'를 넣는다(010-1234-5678).
     id: "phone",
     label: "연락처",
-    render: (m) =>
-      m.phone ? (
-        <span className="tabular-nums">{formatPhone(m.phone)}</span>
-      ) : (
-        muted("-")
-      ),
+    render: (m) => (m.phone ? <span>{formatPhone(m.phone)}</span> : muted("-")),
   },
   {
     id: "createdAt",
@@ -93,7 +91,7 @@ const COLUMNS: MemberTableColumn[] = [
     label: "협약",
     render: (m) =>
       m.agreedAt ? (
-        <span className="tabular-nums">{dotDate(m.agreedAt)}</span>
+        <span>{dotDate(m.agreedAt)}</span>
       ) : (
         <span className="text-[#c99a2e]">협약 전</span>
       ),
@@ -218,7 +216,7 @@ export function CollabMembersListView() {
   ];
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
         title="제휴사 회원"
         desc="최근 가입 순이에요. 회원을 눌러 사업자 임시 승인 · 매장 연결을 해요."
@@ -235,8 +233,8 @@ export function CollabMembersListView() {
       ) : (
         <>
           {/* PC: 조건 · 표 · 쪽 넘기기 */}
-          <div className="hidden flex-col gap-[16px] md:flex">
-            <div className="flex flex-col gap-[12px] rounded-[12px] border border-stroke bg-tone-fafafc p-[20px]">
+          <div className="hidden flex-col gap-[20px] md:flex md:gap-[24px]">
+            <AdminPanel contentClassName="gap-[12px]">
               <div className="grid grid-cols-3 gap-[12px] xl:grid-cols-6">
                 {filters.map((f) => (
                   <div key={f.key} className="flex min-w-0 flex-col gap-[6px]">
@@ -280,106 +278,110 @@ export function CollabMembersListView() {
                   </Button>
                 )}
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-[12px]">
-              <p className="text-sm font-medium text-tone-4a5565">
-                {searching ? "조건에 맞는 " : "모두 "}
-                <span className="font-bold tabular-nums text-black">
-                  {total.toLocaleString()}
-                </span>
-                명
-              </p>
-              <Select
-                aria-label="한 쪽에 보일 개수"
-                className="w-[140px]"
-                variant="secondary"
-                selectedKey={String(pageSize)}
-                onSelectionChange={(key) => {
-                  if (key == null) return;
-                  setPageSize(Number(key));
-                  setPage(1);
-                }}
-              >
-                <Select.Trigger>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover>
-                  <ListBox>
-                    {PAGE_SIZE_OPTIONS.map((n) => (
-                      <ListBox.Item
-                        key={n}
-                        id={String(n)}
-                        textValue={`${n}개씩 보기`}
-                      >
-                        {n}개씩 보기
-                        <ListBox.ItemIndicator />
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-            </div>
-
-            <Table
-              className={cn("transition-opacity", isFetching && "opacity-60")}
-            >
-              {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
-              <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
-                <Table.Content
-                  aria-label="제휴사 회원 목록"
-                  className="min-w-max"
-                  onRowAction={(key) =>
-                    router.push(`${MEMBERS_HREF}/${String(key)}`)
-                  }
+            </AdminPanel>
+            <AdminPanel contentClassName="gap-[16px]">
+              <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                <p className="text-sm font-medium text-tone-4a5565">
+                  {searching ? "조건에 맞는 " : "모두 "}
+                  <span className="font-bold text-black">
+                    {total.toLocaleString()}
+                  </span>
+                  명
+                </p>
+                <Select
+                  aria-label="한 쪽에 보일 개수"
+                  className="w-[140px]"
+                  variant="secondary"
+                  selectedKey={String(pageSize)}
+                  onSelectionChange={(key) => {
+                    if (key == null) return;
+                    setPageSize(Number(key));
+                    setPage(1);
+                  }}
                 >
-                  <Table.Header columns={COLUMNS} className="sticky top-0 z-10">
-                    {(col) => (
-                      <Table.Column
-                        id={col.id}
-                        isRowHeader={col.isRowHeader}
-                        className="whitespace-nowrap"
-                      >
-                        {col.label}
-                      </Table.Column>
-                    )}
-                  </Table.Header>
-                  <Table.Body
-                    items={rows}
-                    renderEmptyState={() => (
-                      <p className="py-[48px] text-center text-sm font-medium text-disabled">
-                        {searching
-                          ? "조건에 맞는 회원이 없어요."
-                          : "제휴사 회원이 없어요."}
-                      </p>
-                    )}
-                  >
-                    {(member) => (
-                      <Table.Row
-                        id={member.id}
-                        columns={COLUMNS}
-                        className="cursor-pointer"
-                      >
-                        {(col) => (
-                          <Table.Cell className="whitespace-nowrap">
-                            {col.render(member)}
-                          </Table.Cell>
-                        )}
-                      </Table.Row>
-                    )}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+                  <Select.Trigger>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <ListBox.Item
+                          key={n}
+                          id={String(n)}
+                          textValue={`${n}개씩 보기`}
+                        >
+                          {n}개씩 보기
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              </div>
 
-            <PageNav
-              page={page}
-              pageSize={pageSize}
-              total={total}
-              onChange={setPage}
-              className="self-center"
-            />
+              <Table
+                className={cn("transition-opacity", isFetching && "opacity-60")}
+              >
+                {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
+                <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
+                  <Table.Content
+                    aria-label="제휴사 회원 목록"
+                    className="min-w-max"
+                    onRowAction={(key) =>
+                      router.push(`${MEMBERS_HREF}/${String(key)}`)
+                    }
+                  >
+                    <Table.Header
+                      columns={COLUMNS}
+                      className="sticky top-0 z-10"
+                    >
+                      {(col) => (
+                        <Table.Column
+                          id={col.id}
+                          isRowHeader={col.isRowHeader}
+                          className="whitespace-nowrap"
+                        >
+                          {col.label}
+                        </Table.Column>
+                      )}
+                    </Table.Header>
+                    <Table.Body
+                      items={rows}
+                      renderEmptyState={() => (
+                        <p className="py-[48px] text-center text-sm font-medium text-disabled">
+                          {searching
+                            ? "조건에 맞는 회원이 없어요."
+                            : "제휴사 회원이 없어요."}
+                        </p>
+                      )}
+                    >
+                      {(member) => (
+                        <Table.Row
+                          id={member.id}
+                          columns={COLUMNS}
+                          className="cursor-pointer"
+                        >
+                          {(col) => (
+                            <Table.Cell className="whitespace-nowrap">
+                              {col.render(member)}
+                            </Table.Cell>
+                          )}
+                        </Table.Row>
+                      )}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
+
+              <PageNav
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onChange={setPage}
+                className="self-center"
+              />
+            </AdminPanel>
           </div>
 
           {/* 휴대폰: 검색 한 칸 + 큰 카드 */}
@@ -393,7 +395,7 @@ export function CollabMembersListView() {
             >
               <Input
                 type="search"
-                variant="secondary"
+                variant="primary"
                 fullWidth
                 aria-label="회원 검색"
                 placeholder="이름 · 연락처 · 고유번호"
@@ -426,7 +428,7 @@ export function CollabMembersListView() {
             </p>
             <ul className="flex flex-col gap-[10px]">
               {rows.length === 0 && (
-                <li className="rounded-[12px] border border-stroke py-[40px] text-center text-sm text-disabled">
+                <li className="rounded-[16px] bg-surface py-[40px] text-center shadow-surface text-sm text-disabled">
                   제휴사 회원이 없어요.
                 </li>
               )}
@@ -434,7 +436,7 @@ export function CollabMembersListView() {
                 <li key={m.id}>
                   <Link
                     href={`${MEMBERS_HREF}/${m.id}`}
-                    className="flex flex-col gap-[8px] rounded-[12px] border border-stroke p-[16px] active:bg-tone-f5f6f8"
+                    className="flex flex-col gap-[8px] rounded-[16px] bg-surface p-[16px] shadow-surface active:bg-gray-50"
                   >
                     <div className="flex items-center justify-between gap-[8px]">
                       <span className="min-w-0 truncate text-base font-semibold text-black">
@@ -446,12 +448,8 @@ export function CollabMembersListView() {
                       <span className="font-semibold text-black">
                         {m.partnerCode ?? "-"}
                       </span>
-                      {m.phone && (
-                        <span className="tabular-nums">
-                          {formatPhone(m.phone)}
-                        </span>
-                      )}
-                      <span className="tabular-nums text-disabled">
+                      {m.phone && <span>{formatPhone(m.phone)}</span>}
+                      <span className="text-disabled">
                         가입 {formatDateTime(m.createdAt)}
                       </span>
                     </div>

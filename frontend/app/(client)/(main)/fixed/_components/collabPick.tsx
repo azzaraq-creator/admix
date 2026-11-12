@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@heroui/react";
-import { Check, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { MediaCardRow } from "@/hooks/media";
@@ -12,35 +10,46 @@ import type { MoveTarget } from "./mapTypes";
 
 /*
  * 한 카테고리만 보는 매체 찾기 — 광고주 콜라보 "매장 찾기"(/partners/find)가 매체 찾기 화면(목록 + 지도)을
- * 그대로 쓰면서 콜라보 매장만 보이게 한다. 콜라보 카드의 새 탭 표시 자리에 담기 버튼을, 운영 시간 옆에
- * 등급 · 1건 금액을 단다(금액은 광고주 · 어드민에게만 내려온다, 067).
+ * 그대로 쓰면서 콜라보 매장만 보이게 한다. 콜라보 카드의 운영 시간 옆에 등급 · 1건 금액을 단다
+ * (금액은 광고주 · 어드민에게만 내려온다, 067).
+ * 예전엔 카드에 "매장 담기" 버튼이 있었는데 11-11 사용자가 없앴다 — 대신 하트가 "관심 매장"(/partners/favorites)에 담는다.
+ * 하트 알림 문구도 이 카드에선 "관심 매장"(MediaFindCard · MarkerMediaPopup 이 collabPick 이 있으면 바꾼다).
  */
 
-/** 콜라보 매장 카드 담기 — 등급 · 1건 금액 · 담았는지 · 담기/빼기. */
+/** 콜라보 매장 카드 금액 — 등급 · 1건 금액. 있으면 광고주 매장 찾기 카드(하트 = 관심 매장). */
 export interface CollabPick {
   grade: CollabGrade | null;
   fee: number | null;
-  picked: boolean;
-  onToggle: () => void;
 }
 
 /** 매체 찾기를 한 카테고리로 묶는 설정. */
 export interface MediaFindOnly {
   /** 고정할 카테고리(대분류) — 목록 · 지도 · 검색 추천이 모두 이 카테고리만. */
   category: string;
-  /** 카테고리 탭 자리에 하나만 보이는 탭 이름(예: "콜라보 매장"). */
+  /** 카테고리 탭 자리에 하나만 보이는 탭 이름(예: "콜라보 매장") — storeTypes 가 없을 때만. */
   label: string;
-  /** 탭 줄 오른쪽 끝(간략히 보기 옆) — 담은 매장 · 의뢰하기. */
+  /**
+   * 카테고리 탭 대신 매장 유형 탭(전체 · 카페 · 식당 …, 11-11 사용자: "콜라보 매장" 말고 매장 유형).
+   * 고른 유형은 주소 storeType 에 두고 목록 · 지도에 건다(서버 store_type). 숫자는 고른 유형과 무관하게 센다.
+   */
+  storeTypes?: string[];
+  /** 탭 줄 오른쪽 끝(간략히 보기 옆) — 관심 매장 바로 가기. */
   toolbar?: ReactNode;
-  /** 카드마다 담기 정보 — 없으면(금액 정보가 없는 매장) 원래 새 탭 표시. */
+  /** 카드마다 등급 · 1건 금액 — 없으면(제휴사 연결 매장 목록에 없는 매장) 운영 시간만. */
   pickOf?: (row: MediaCardRow) => CollabPick | undefined;
   /** 처음 지도 위치(주소에 조회 영역이 없을 때) — 없으면 매체 찾기와 같은 강남역. */
   initialView?: MoveTarget;
+  /** 제휴사 회원에 연결된 콜라보 매장만 — 목록 · 지도 · 검색 추천 모두(서버 linked_only). */
+  linkedOnly?: boolean;
 }
 
-/** memo 카드 비교 — 담기 상태 · 등급 · 금액이 같으면 다시 그리지 않는다(onToggle 은 같은 일을 한다). */
+/** memo 카드 비교 — 등급 · 금액이 같으면 다시 그리지 않는다. */
 export const samePick = (a?: CollabPick, b?: CollabPick) =>
-  a?.picked === b?.picked && a?.fee === b?.fee && a?.grade === b?.grade;
+  !a === !b && a?.fee === b?.fee && a?.grade === b?.grade;
+
+/** 하트 이름 — 광고주 매장 찾기 카드(collabPick 있음)는 "관심 매장", 그 밖은 "관심 매체". */
+export const likeLabelOf = (pick?: CollabPick) =>
+  pick ? "관심 매장" : "관심 매체";
 
 export const collabFeeText = (fee: number | null) =>
   fee ? `${fee.toLocaleString()}원` : "금액 협의";
@@ -110,54 +119,5 @@ export function CollabFeeLine({ pick }: { pick: CollabPick }) {
         {collabFeeText(pick.fee)}
       </span>
     </p>
-  );
-}
-
-/**
- * 담기 버튼 — 매체 카드의 "기획안 담기" 자리. 담으면 보라 바탕 "담음".
- *   overlay  큰 카드 사진 왼쪽 위(흰 칩)
- *   compact  간략히 보기 · 지도 간단 팝업(작은 칩)
- *   outline  지도 팝업 아래 칸 오른쪽
- * onPress 는 카드 클릭(매장 상세 새 탭)으로 번지지 않는다.
- */
-export function CollabPickButton({
-  pick,
-  variant,
-}: {
-  pick: CollabPick;
-  variant: "overlay" | "compact" | "outline";
-}) {
-  const Icon = pick.picked ? Check : Plus;
-  return (
-    <Button
-      variant="ghost"
-      aria-pressed={pick.picked}
-      aria-label={pick.picked ? "담은 매장에서 빼기" : "매장 담기"}
-      onPress={pick.onToggle}
-      className={cn(
-        "min-w-0 shrink-0 font-bold",
-        variant === "overlay" &&
-          "absolute top-[11px] left-[11px] h-[30px] gap-[5px] rounded-[12px] px-[12px] text-[12px] drop-shadow-[0px_2px_4px_rgba(0,0,0,0.08)] max-sm:text-[11px]",
-        variant === "compact" &&
-          "h-[28px] gap-[4px] rounded-[10px] px-[8px] text-[12px] max-sm:text-[11px]",
-        variant === "outline" &&
-          "h-[30px] gap-[5px] rounded-[12px] border px-[10px] text-[12px] max-sm:text-[11px]",
-        pick.picked
-          ? "border-primary-500 bg-primary-500 text-white data-[hovered=true]:bg-primary-600"
-          : variant === "overlay"
-            ? "bg-surface text-zinc-900 data-[hovered=true]:bg-surface"
-            : variant === "compact"
-              ? "bg-primary-50 text-primary data-[hovered=true]:bg-primary-100"
-              : "border-gray-200 bg-surface text-zinc-900",
-      )}
-    >
-      <Icon
-        className={cn(
-          "size-[14px] shrink-0",
-          !pick.picked && variant !== "compact" && "text-primary",
-        )}
-      />
-      {pick.picked ? "담음" : variant === "compact" ? "담기" : "매장 담기"}
-    </Button>
   );
 }

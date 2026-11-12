@@ -280,7 +280,7 @@ function ChipButton({
       onClick={onClick}
       className={cn(
         // 흰 카드(OptionCard) 위 — 고르기 전엔 옅은 회색, 고르면 흰 바탕에 회색 테두리·진한 글자(무채색으로 무난하게).
-        "h-[32px] shrink-0 rounded-full border px-[12px] text-[13px] whitespace-nowrap transition-colors max-sm:h-[30px] max-sm:px-[11px] max-sm:text-[12px]",
+        "h-[32px] shrink-0 rounded-[13px] max-sm:rounded-[12px] border px-[12px] text-[13px] whitespace-nowrap transition-colors max-sm:h-[30px] max-sm:px-[11px] max-sm:text-[12px]",
         on
           ? "border-zinc-400 bg-surface font-semibold text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:border-white/40 dark:bg-white/[0.14] dark:text-white"
           : "border-transparent font-normal bg-zinc-900/[0.05] text-zinc-700 hover:bg-zinc-900/[0.09] dark:bg-white/[0.08] dark:text-[#c9cad3] dark:hover:bg-white/[0.12]",
@@ -1227,7 +1227,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
           variant="ghost"
           isDisabled={!state.changed}
           onPress={state.reset}
-          className="-mr-[4px] flex h-[32px] min-w-0 shrink-0 items-center gap-[4px] rounded-full px-[10px] text-[13px] font-medium text-zinc-600 hover:bg-zinc-900/5 max-sm:text-[12px] dark:text-[#b4b5bf]"
+          className="-mr-[4px] flex h-[32px] min-w-0 shrink-0 items-center gap-[4px] rounded-[13px] px-[10px] text-[13px] font-medium text-zinc-600 hover:bg-zinc-900/5 max-sm:text-[12px] dark:text-[#b4b5bf]"
         >
           <RotateLeftIcon className="m-0 size-[16px] shrink-0 max-sm:size-[14px]" />
           초기화
@@ -1236,7 +1236,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
           type="button"
           onClick={close}
           aria-label="인구 분포 닫기"
-          className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
+          className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-[13px] text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
         >
           <XIcon className="size-[20px]" />
         </button>
@@ -1276,7 +1276,7 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
             <Button
               variant="ghost"
               onPress={close}
-              className="flex h-[46px] w-full items-center justify-center rounded-[16px] bg-primary text-[15px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
+              className="flex h-[46px] w-full items-center justify-center rounded-[20px] bg-primary text-[15px] font-bold text-white hover:bg-primary-600 data-[pressed=true]:bg-primary-600"
             >
               완료
             </Button>
@@ -1300,22 +1300,20 @@ export function PopGridTargetPanel({ state }: { state: PopGridState }) {
     );
   // 모바일 — 화면 끝까지 올라오는 Drawer(인구 분포 시트와 같은 바탕·손잡이).
   return (
-    <Drawer
+    <Drawer.Backdrop
       isOpen={state.targetOpen}
       onOpenChange={(open) => state.setTargetOpen(open)}
     >
-      <Drawer.Backdrop>
-        <Drawer.Content placement="bottom">
-          <Drawer.Dialog
-            aria-label="인구 분포"
-            className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[calc(10px+env(safe-area-inset-top))] dark:bg-[#24252b]"
-          >
-            <Drawer.Handle />
-            {body}
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
-    </Drawer>
+      <Drawer.Content placement="bottom">
+        <Drawer.Dialog
+          aria-label="인구 분포"
+          className="flex h-dvh max-h-dvh w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[calc(10px+env(safe-area-inset-top))] dark:bg-[#24252b]"
+        >
+          <Drawer.Handle />
+          {body}
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 
@@ -1384,86 +1382,84 @@ export function PopGridSheet({ state }: { state: PopGridState }) {
   const sel = state.selected;
   const value = sel != null ? (grid?.values[sel] ?? null) : null;
   return (
-    <Drawer
+    <Drawer.Backdrop
       isOpen={state.sheetOpen}
       onOpenChange={(open) => state.setSheetOpen(open)}
     >
-      <Drawer.Backdrop>
-        <Drawer.Content placement="bottom">
-          {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — 실시간 인구 시트와 같다. */}
-          <Drawer.Dialog
-            aria-label="인구 분포"
-            // 바탕은 옅은 회색 — 고른 칩(흰 바탕)이 시트 바탕과 구분되게(다크는 칩보다 한 단계 밝은 회색).
-            className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[10px] dark:bg-[#24252b]"
-          >
-            <Drawer.Handle />
-            <div className="flex shrink-0 items-start justify-between gap-[8px] px-[16px] pt-[8px] pb-[10px]">
-              <div className="flex min-w-0 flex-col gap-[2px]">
-                <span className="text-[17px] leading-[24px] font-bold text-zinc-900">
-                  인구 분포
-                </span>
-                <span className="truncate text-[13px] leading-[18px] text-zinc-700 dark:text-[#c9cad3]">
-                  {isFetching ? "불러오는 중…" : state.summary}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => state.setSheetOpen(false)}
-                aria-label="닫기"
-                className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
-              >
-                <XIcon className="size-[20px]" />
-              </button>
+      <Drawer.Content placement="bottom">
+        {/* 높이는 내용만큼, 길면 보이는 높이(dvh)의 80%까지 — 실시간 인구 시트와 같다. */}
+        <Drawer.Dialog
+          aria-label="인구 분포"
+          // 바탕은 옅은 회색 — 고른 칩(흰 바탕)이 시트 바탕과 구분되게(다크는 칩보다 한 단계 밝은 회색).
+          className="flex max-h-[80dvh] w-full flex-col gap-0 rounded-t-[24px] bg-[#f3f3f6] p-0 pt-[10px] dark:bg-[#24252b]"
+        >
+          <Drawer.Handle />
+          <div className="flex shrink-0 items-start justify-between gap-[8px] px-[16px] pt-[8px] pb-[10px]">
+            <div className="flex min-w-0 flex-col gap-[2px]">
+              <span className="text-[17px] leading-[24px] font-bold text-zinc-900">
+                인구 분포
+              </span>
+              <span className="truncate text-[13px] leading-[18px] text-zinc-700 dark:text-[#c9cad3]">
+                {isFetching ? "불러오는 중…" : state.summary}
+              </span>
             </div>
-            <PopLegend
-              breaks={grid?.breaks ?? []}
-              metric={state.metric}
-              missingMonths={grid?.missingMonths ?? []}
-              extras={state.extras}
-            />
-            {/* 본문(Drawer.Body) 안이어야 내용을 밀 때 시트째 끌려 내려가지 않는다. */}
-            <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-inherit">
-              <ScrollShadow
-                size={32}
-                className="flex min-h-0 flex-1 flex-col overscroll-contain pb-[calc(20px+env(safe-area-inset-bottom))]"
-              >
-                {sel != null && cells && (
-                  <div>
-                    <PopCellSection
-                      cell={cells[sel]}
-                      value={value}
-                      metric={state.metric}
-                      query={{
-                        metric: state.metric,
-                        band: state.band,
-                        sex: state.segOk ? state.sex : "all",
-                        ages: state.segOk ? state.ages : [],
-                      }}
-                      activeMonths={state.activeMonths}
-                      extras={state.overlay ? state.overlayLayers : null}
-                      onClose={() => state.setSelected(null)}
-                    />
-                  </div>
-                )}
-                <div className="border-t border-zinc-900/5 px-[16px] pt-[14px] dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      state.setSheetOpen(false);
-                      state.setTargetOpen(true);
+            <button
+              type="button"
+              onClick={() => state.setSheetOpen(false)}
+              aria-label="닫기"
+              className="-mr-[6px] flex size-[32px] shrink-0 items-center justify-center rounded-[13px] text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
+            >
+              <XIcon className="size-[20px]" />
+            </button>
+          </div>
+          <PopLegend
+            breaks={grid?.breaks ?? []}
+            metric={state.metric}
+            missingMonths={grid?.missingMonths ?? []}
+            extras={state.extras}
+          />
+          {/* 본문(Drawer.Body) 안이어야 내용을 밀 때 시트째 끌려 내려가지 않는다. */}
+          <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-inherit">
+            <ScrollShadow
+              size={32}
+              className="flex min-h-0 flex-1 flex-col overscroll-contain pb-[calc(20px+env(safe-area-inset-bottom))]"
+            >
+              {sel != null && cells && (
+                <div>
+                  <PopCellSection
+                    cell={cells[sel]}
+                    value={value}
+                    metric={state.metric}
+                    query={{
+                      metric: state.metric,
+                      band: state.band,
+                      sex: state.segOk ? state.sex : "all",
+                      ages: state.segOk ? state.ages : [],
                     }}
-                    className="flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[17px] bg-surface text-[13px] font-semibold text-zinc-900"
-                  >
-                    <PopulationGridIcon className="size-[17px]" />
-                    인구 분포 조건 바꾸기
-                  </button>
+                    activeMonths={state.activeMonths}
+                    extras={state.overlay ? state.overlayLayers : null}
+                    onClose={() => state.setSelected(null)}
+                  />
                 </div>
-              </ScrollShadow>
-            </Drawer.Body>
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
-    </Drawer>
+              )}
+              <div className="border-t border-zinc-900/5 px-[16px] pt-[14px] dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    state.setSheetOpen(false);
+                    state.setTargetOpen(true);
+                  }}
+                  className="flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[17px] bg-surface text-[13px] font-semibold text-zinc-900"
+                >
+                  <PopulationGridIcon className="size-[17px]" />
+                  인구 분포 조건 바꾸기
+                </button>
+              </div>
+            </ScrollShadow>
+          </Drawer.Body>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 
@@ -1688,7 +1684,7 @@ export function PopGridLayer({
             type="button"
             onClick={close}
             aria-label="닫기"
-            className="-mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
+            className="-mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-[9px] text-zinc-600 hover:bg-zinc-900/5 dark:text-[#b4b5bf]"
           >
             <XIcon className="size-[16px]" />
           </button>
@@ -1740,7 +1736,7 @@ export function PopGridLayer({
           {cells[sel][1]} {cells[sel][2]}
         </span>
         {tapValueText(state.metric, v) && (
-          <span className="text-[11px] leading-[15px] whitespace-nowrap tabular-nums">
+          <span className="text-[11px] leading-[15px] whitespace-nowrap">
             {tapValueText(state.metric, v)}
           </span>
         )}
@@ -1750,7 +1746,7 @@ export function PopGridLayer({
             setTap(null);
             state.setSheetOpen(true);
           }}
-          className="-mx-[4px] mt-[2px] flex h-[26px] items-center justify-center gap-[3px] rounded-[7px] bg-white/15 px-[8px] text-[11px] font-semibold text-white active:bg-white/25"
+          className="-mx-[4px] mt-[2px] flex h-[26px] items-center justify-center gap-[3px] rounded-[10px] bg-white/15 px-[8px] text-[11px] font-semibold text-white active:bg-white/25"
         >
           자세히 보기
           <ChevronDownIcon className="size-[10px] -rotate-90" />
@@ -1872,7 +1868,7 @@ function PopLegend({
                 className="h-[10px] w-full rounded-[3px]"
                 style={{ background: lv.color }}
               />
-              <span className="text-[10px] leading-[12px] font-medium text-zinc-700 dark:text-[#c9cad3] tabular-nums">
+              <span className="text-[10px] leading-[12px] font-medium text-zinc-700 dark:text-[#c9cad3]">
                 {lv.short}
               </span>
             </div>
@@ -1962,7 +1958,7 @@ function PopCellSection({
           </span>
           {/* 값 줄 — 생활인구는 월별 막대로 충분해 빼고, 거주인구는 세대수만. 서울 순위는 보이지 않는다. */}
           {!multi && metric !== "live" && value != null && (
-            <span className="text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3] tabular-nums">
+            <span className="text-[12px] leading-[16px] text-zinc-700 dark:text-[#c9cad3]">
               {metric === "household" && "주민등록 "}
               {valueText(metric, value)}
             </span>
@@ -1972,7 +1968,7 @@ function PopCellSection({
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="-mt-[2px] -mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-full text-zinc-600 dark:text-[#b4b5bf] hover:bg-zinc-900/5"
+          className="-mt-[2px] -mr-[4px] flex size-[24px] shrink-0 items-center justify-center rounded-[9px] text-zinc-600 dark:text-[#b4b5bf] hover:bg-zinc-900/5"
         >
           <XIcon className="size-[16px]" />
         </button>
@@ -2105,7 +2101,7 @@ function MonthBarsCard({
                 </span>
                 <span
                   className={cn(
-                    "text-[10px] leading-[12px] font-semibold text-zinc-600 tabular-nums dark:text-[#b4b5bf]",
+                    "text-[10px] leading-[12px] font-semibold text-zinc-600 dark:text-[#b4b5bf]",
                     !on && "opacity-50",
                   )}
                 >
@@ -2116,7 +2112,7 @@ function MonthBarsCard({
                   <span
                     role="tooltip"
                     className={cn(
-                      "pointer-events-none absolute bottom-[calc(100%+4px)] z-10 rounded-[8px] bg-scrim/80 px-[8px] py-[4px] text-[11px] leading-[15px] font-semibold whitespace-nowrap text-white tabular-nums shadow-[0px_3px_10px_rgba(0,0,0,0.2)]",
+                      "pointer-events-none absolute bottom-[calc(100%+4px)] z-10 rounded-[8px] bg-scrim/80 px-[8px] py-[4px] text-[11px] leading-[15px] font-semibold whitespace-nowrap text-white shadow-[0px_3px_10px_rgba(0,0,0,0.2)]",
                       i < 2
                         ? "left-0"
                         : i > months.length - 3

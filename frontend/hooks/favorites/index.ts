@@ -3,3 +3,4 @@ export * from "./keys";
 export * from "./queries";
 export * from "./useFavorite";
 export * from "./useRemoveFavorites";
+export * from "./useSaveFavoriteMemo";

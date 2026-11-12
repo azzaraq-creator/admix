@@ -93,6 +93,9 @@ export interface MemberDetail {
   business_card_url: string | null;
   business_card_name: string | null;
   marketing_consent: boolean;
+  /** 마케팅 정보 받을 방법(083) — 동의했을 때만 뜻이 있다. 예전 서버면 없다. */
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
   status: string;
   admin_memo: string | null;
   created_at: string;

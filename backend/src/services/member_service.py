@@ -22,6 +22,7 @@ from src.schemas.member import (
     MemberUpdate,
     SanctionCreate,
 )
+from src.services.auth_service import set_marketing
 
 _CATEGORY = {
     "advertiser": "광고주",
@@ -183,6 +184,8 @@ def get_member(db: Session, user_id: uuid.UUID) -> dict:
         business_card_url=user.business_card_url,
         business_card_name=user.business_card_name,
         marketing_consent=user.marketing_consent,
+        marketing_sms=user.marketing_sms,
+        marketing_email=user.marketing_email,
         status=user.status,
         admin_memo=user.admin_memo,
         created_at=user.created_at,
@@ -220,6 +223,10 @@ def update_member(db: Session, user_id: uuid.UUID, data: MemberUpdate) -> dict:
     user = _get_user(db, user_id)
     fields = data.model_dump(exclude_unset=True)
     for field, value in fields.items():
+        # 마케팅 동의는 받을 방법(083)과 함께 맞춘다 — 방법 없이 켜면 문자 · 이메일 둘 다.
+        if field == "marketing_consent":
+            set_marketing(user, value)
+            continue
         # 담당자 이름 · 소속팀은 빈 값이면 지운다(회원 내 정보와 같다).
         if field in ("contact_name", "department") and isinstance(value, str):
             value = value.strip() or None

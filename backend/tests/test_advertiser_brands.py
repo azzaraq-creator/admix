@@ -101,3 +101,29 @@ def test_contact_info_update(db: Session, advertiser: User):
     # 보내지 않은 칸은 그대로, 빈 값은 지운다
     auth_service.update_profile(db, advertiser, department="")
     assert (advertiser.contact_name, advertiser.department) == ("홍길동", None)
+
+
+def test_brand_contact(db: Session, advertiser: User):
+    """브랜드 담당자 정보(079) — 모두 선택, 전화번호는 숫자만, 보낸 칸만 바뀌고 빈 값은 지운다."""
+    a = bs.create(
+        db,
+        advertiser,
+        {
+            "name": "담당자 브랜드",
+            "contact_name": " 김 담당 ",
+            "contact_title": "팀장",
+            "contact_dept": "마케팅팀",
+            "contact_phone": "010-1234-5678",
+            "contact_email": "brand@test.local",
+        },
+    )
+    assert (a["contactName"], a["contactTitle"], a["contactDept"]) == ("김 담당", "팀장", "마케팅팀")
+    assert a["contactPhone"] == "01012345678" and a["contactEmail"] == "brand@test.local"
+
+    out = bs.update(db, advertiser, a["id"], {"contact_title": "", "contact_phone": None})
+    assert out["contactTitle"] is None and out["contactPhone"] is None
+    assert out["contactName"] == "김 담당" and out["contactDept"] == "마케팅팀"
+
+    for bad in ({"contact_phone": "1234"}, {"contact_email": "not-an-email"}, {"contact_name": "가" * 51}):
+        with pytest.raises(HTTPException):
+            bs.update(db, advertiser, a["id"], bad)

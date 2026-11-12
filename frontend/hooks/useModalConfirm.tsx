@@ -69,109 +69,107 @@ export function useModalConfirm() {
   const danger = options?.destructive || options?.iconTone === "danger";
 
   const confirmDialog = (
-    <Modal
+    <Modal.Backdrop
       isOpen={open}
       onOpenChange={(next) => {
         if (!next) settle(false);
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            role="alertdialog"
-            aria-label={options?.title}
-            style={options?.width ? { maxWidth: options.width } : undefined}
-            className="w-full max-w-[400px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          role="alertdialog"
+          aria-label={options?.title}
+          style={options?.width ? { maxWidth: options.width } : undefined}
+          className="w-full max-w-[400px] gap-0 rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:p-[16px]"
+        >
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
           >
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="top-[20px] right-[20px] z-10 size-[28px] rounded-[14px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]"
-            >
-              <CloseMediumIcon className="size-[24px]" />
-            </Modal.CloseTrigger>
+            <CloseMediumIcon className="size-[24px]" />
+          </Modal.CloseTrigger>
 
-            <Modal.Header className="flex min-h-[28px] flex-col justify-center gap-[6px] p-0 pr-[40px]">
-              {options?.destructive && (
-                // 아이콘 칸 44px → 곡률 19px. 옅은 빨강 바탕.
-                <span className="mb-[6px] flex size-[44px] items-center justify-center rounded-[19px] bg-tone-fef2f2">
-                  <Image src="/icons/trash.svg" alt="" width={22} height={22} />
-                </span>
-              )}
-              {!options?.destructive && options?.icon && (
-                // 아이콘 칸 44px → 곡률 19px. 회색(또는 연보라) 바탕.
-                <span
-                  aria-hidden
-                  className={cn(
-                    "mb-[6px] flex size-[44px] items-center justify-center rounded-[19px]",
-                    options.iconTone === "primary"
-                      ? "bg-primary-50 text-primary-500"
-                      : options.iconTone === "danger"
-                        ? "bg-tone-fef2f2 text-danger"
-                        : "bg-zinc-100 text-zinc-600",
-                  )}
-                >
-                  {options.icon}
-                </span>
-              )}
-              <Modal.Heading
+          <Modal.Header className="flex min-h-[28px] flex-col justify-center gap-[6px] p-0 pr-[40px]">
+            {options?.destructive && (
+              // 아이콘 칸 44px → 곡률 19px. 옅은 빨강 바탕.
+              <span className="mb-[6px] flex size-[44px] items-center justify-center rounded-[19px] bg-tone-fef2f2">
+                <Image src="/icons/trash.svg" alt="" width={22} height={22} />
+              </span>
+            )}
+            {!options?.destructive && options?.icon && (
+              // 아이콘 칸 44px → 곡률 19px. 회색(또는 연보라) 바탕.
+              <span
+                aria-hidden
                 className={cn(
-                  "text-[16px] leading-[1.4] font-semibold break-keep text-black",
-                  options?.compactActions && "font-bold text-gray-900",
+                  "mb-[6px] flex size-[44px] items-center justify-center rounded-[19px]",
+                  options.iconTone === "primary"
+                    ? "bg-primary-50 text-primary-500"
+                    : options.iconTone === "danger"
+                      ? "bg-tone-fef2f2 text-danger"
+                      : "bg-zinc-100 text-zinc-600",
                 )}
               >
-                {options?.title}
-              </Modal.Heading>
-              {options?.description && (
-                <div
-                  className={cn(
-                    "text-[14px] leading-[1.6] whitespace-pre-line text-zinc-500",
-                    options?.compactActions &&
-                      "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-gray-700",
-                  )}
-                >
-                  {options.description}
-                </div>
-              )}
-            </Modal.Header>
-
-            <Modal.Footer
+                {options.icon}
+              </span>
+            )}
+            <Modal.Heading
               className={cn(
-                "mt-[20px] flex gap-[8px] p-0",
-                options?.compactActions && "justify-end",
+                "text-[16px] leading-[1.4] font-semibold break-keep text-black",
+                options?.compactActions && "font-bold text-gray-900",
               )}
             >
-              {!options?.hideCancel && (
-                <Button
-                  variant="ghost"
-                  onPress={() => settle(false)}
-                  className={cn(
-                    ACTION_CLASS,
-                    "bg-tone-eeeeee text-zinc-900",
-                    options?.compactActions && "w-[90px] flex-none",
-                  )}
-                >
-                  {options?.cancelText ?? "취소"}
-                </Button>
-              )}
+              {options?.title}
+            </Modal.Heading>
+            {options?.description && (
+              <div
+                className={cn(
+                  "text-[14px] leading-[1.6] whitespace-pre-line text-zinc-500",
+                  options?.compactActions &&
+                    "pt-[14px] pb-[10px] text-[16px] leading-[23px] text-gray-700",
+                )}
+              >
+                {options.description}
+              </div>
+            )}
+          </Modal.Header>
+
+          <Modal.Footer
+            className={cn(
+              "mt-[20px] flex gap-[8px] p-0",
+              options?.compactActions && "justify-end",
+            )}
+          >
+            {!options?.hideCancel && (
               <Button
-                variant={danger ? "danger" : "primary"}
-                onPress={() => settle(true)}
+                variant="ghost"
+                onPress={() => settle(false)}
                 className={cn(
                   ACTION_CLASS,
-                  options?.compactActions && "w-[130px] flex-none",
-                  !danger &&
-                    (options?.neutral
-                      ? "bg-tone-eeeeee text-zinc-900"
-                      : "bg-primary-500 text-white"),
+                  "bg-tone-eeeeee text-zinc-900",
+                  options?.compactActions && "w-[90px] flex-none",
                 )}
               >
-                {options?.confirmText ?? "확인"}
+                {options?.cancelText ?? "취소"}
               </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            )}
+            <Button
+              variant={danger ? "danger" : "primary"}
+              onPress={() => settle(true)}
+              className={cn(
+                ACTION_CLASS,
+                options?.compactActions && "w-[130px] flex-none",
+                !danger &&
+                  (options?.neutral
+                    ? "bg-tone-eeeeee text-zinc-900"
+                    : "bg-primary-500 text-white"),
+              )}
+            >
+              {options?.confirmText ?? "확인"}
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 
   return { confirm, confirmDialog };

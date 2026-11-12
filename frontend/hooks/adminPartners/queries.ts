@@ -11,6 +11,15 @@ export const useAdminPartnersStores = (params?: AdminPartnersListParams) =>
     placeholderData: keepPreviousData,
   });
 
+/** 매장 콜라보 응답 — 참여 · 미참여 · 무응답 수와 기록(11-12). */
+export const useAdminStoreCollabs = (id: string | null) =>
+  useQuery({
+    queryKey: adminPartnersKeys.collabs(id ?? ""),
+    queryFn: () => adminPartnersApi.collabs(id as string),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+
 export const useAdminPartnersStore = (id: string | null) =>
   useQuery({
     queryKey: adminPartnersKeys.detail(id ?? ""),

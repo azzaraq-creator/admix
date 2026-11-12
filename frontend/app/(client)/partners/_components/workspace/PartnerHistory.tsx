@@ -276,7 +276,7 @@ function History({ initial }: { initial?: Filter }) {
                             )}
                           >
                             {/* 모바일 기간 — 사진 · 이름 묶음 위 왼쪽(11-08 사용자: "날짜를 상단 좌측에"). */}
-                            <span className="mb-[6px] flex items-center gap-[4px] text-[12px] text-gray-500 tabular-nums sm:hidden">
+                            <span className="mb-[6px] flex items-center gap-[4px] text-[12px] text-gray-500 sm:hidden">
                               <MaskIcon
                                 src="/icons/calendar.svg"
                                 className="size-[12px] shrink-0"
@@ -300,7 +300,7 @@ function History({ initial }: { initial?: Filter }) {
                             </span>
                           </span>
                           {/* 운영 기간 — 오른쪽 끝(모바일은 사진 · 이름 묶음 위 왼쪽 줄). */}
-                          <span className="shrink-0 text-[12px] text-gray-500 tabular-nums max-sm:hidden">
+                          <span className="shrink-0 text-[12px] text-gray-500 max-sm:hidden">
                             {md(c.startDate)} ~ {md(c.endDate)}
                           </span>
                         </Link>

@@ -154,7 +154,7 @@ export function MixieChatPanel() {
                 type="button"
                 aria-label="AI 믹시 닫기"
                 onClick={() => setPanelOpen(false)}
-                className="flex size-[28px] items-center justify-center rounded-[8px] text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
+                className="flex size-[28px] items-center justify-center rounded-[11px] text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
               >
                 {/* PC는 패널이 LNB 쪽(왼쪽)으로 미끄러져 들어가므로 왼쪽 화살표, 모바일은 화면을 덮는 창이라 X. */}
                 <XIcon className="size-[16px] sm:hidden" />
@@ -211,46 +211,44 @@ function MobileMixieSheet({
   // 시트 자리를 보이는 영역의 위치에 맞춘다(높이는 HeroUI가 보이는 영역 높이로 맞춘다).
   useVisualViewportTop(open);
   return (
-    <Drawer
+    <Drawer.Backdrop
       isOpen={open}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
-      <Drawer.Backdrop>
-        <Drawer.Content placement="bottom" className="top-(--mixie-vv-top,0px)">
-          {/* 높이는 보이는 영역 전체(키보드가 있으면 그 위까지) — HeroUI 기본 85vh 제한을 푼다. */}
-          <Drawer.Dialog
-            aria-label="AI 믹시 대화"
-            className="flex h-full max-h-full w-full flex-col gap-0 rounded-t-[20px] bg-surface p-0 pt-[8px]"
-          >
-            <Drawer.Handle />
-            <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-gray-200 px-[16px]">
-              <div className="flex items-center gap-[8px]">
-                <MixieIcon className="size-[18px] shrink-0" />
-                <span className="text-[15px] font-semibold text-gray-900">
-                  AI 믹시
-                </span>
-              </div>
-              <div className="flex items-center gap-[12px]">
-                {chat.messages.length > 0 && <NewChatButton />}
-                <button
-                  type="button"
-                  aria-label="AI 믹시 닫기"
-                  onClick={onClose}
-                  className="flex size-[28px] items-center justify-center rounded-[8px] text-gray-500"
-                >
-                  <XIcon className="size-[16px]" />
-                </button>
-              </div>
+      <Drawer.Content placement="bottom" className="top-(--mixie-vv-top,0px)">
+        {/* 높이는 보이는 영역 전체(키보드가 있으면 그 위까지) — HeroUI 기본 85vh 제한을 푼다. */}
+        <Drawer.Dialog
+          aria-label="AI 믹시 대화"
+          className="flex h-full max-h-full w-full flex-col gap-0 rounded-t-[20px] bg-surface p-0 pt-[8px]"
+        >
+          <Drawer.Handle />
+          <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-gray-200 px-[16px]">
+            <div className="flex items-center gap-[8px]">
+              <MixieIcon className="size-[18px] shrink-0" />
+              <span className="text-[15px] font-semibold text-gray-900">
+                AI 믹시
+              </span>
             </div>
-            {/* Drawer.Body 기본 글자색·여백·스크롤은 빼고, 스크롤은 대화(HomeChat)가 맡는다. */}
-            <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 p-0 pt-[16px] text-inherit">
-              <HomeChat variant="panel" />
-            </Drawer.Body>
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
-    </Drawer>
+            <div className="flex items-center gap-[12px]">
+              {chat.messages.length > 0 && <NewChatButton />}
+              <button
+                type="button"
+                aria-label="AI 믹시 닫기"
+                onClick={onClose}
+                className="flex size-[28px] items-center justify-center rounded-[11px] text-gray-500"
+              >
+                <XIcon className="size-[16px]" />
+              </button>
+            </div>
+          </div>
+          {/* Drawer.Body 기본 글자색·여백·스크롤은 빼고, 스크롤은 대화(HomeChat)가 맡는다. */}
+          <Drawer.Body className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 p-0 pt-[16px] text-inherit">
+            <HomeChat variant="panel" />
+          </Drawer.Body>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }

@@ -121,17 +121,17 @@ export default function PptDeckViewer({ deckId, slides, title }: PptDeckViewerPr
           <button
             onClick={goPrev}
             disabled={current === 0}
-            className="rounded px-3 py-1 text-sm hover:bg-zinc-800 disabled:opacity-30"
+            className="rounded-[11px] px-3 py-1 text-sm hover:bg-zinc-800 disabled:opacity-30"
           >
             ◀ 이전
           </button>
-          <span className="min-w-[80px] text-center text-sm tabular-nums">
+          <span className="min-w-[80px] text-center text-sm">
             {current + 1} / {total}
           </span>
           <button
             onClick={goNext}
             disabled={current === total - 1}
-            className="rounded px-3 py-1 text-sm hover:bg-zinc-800 disabled:opacity-30"
+            className="rounded-[11px] px-3 py-1 text-sm hover:bg-zinc-800 disabled:opacity-30"
           >
             다음 ▶
           </button>

@@ -129,7 +129,7 @@ function TabInner({
       <span className="relative shrink-0">
         <Icon className="size-[20px] shrink-0" />
         {!!badge && (
-          <span className="absolute -top-[5px] -right-[9px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-primary px-[4px] text-[9px] leading-none font-bold text-white tabular-nums">
+          <span className="absolute -top-[5px] -right-[9px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-primary px-[4px] text-[9px] leading-none font-bold text-white">
             {badge}
           </span>
         )}

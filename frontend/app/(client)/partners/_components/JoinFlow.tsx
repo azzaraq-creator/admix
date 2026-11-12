@@ -52,7 +52,7 @@ export function JoinFlow({
             ) : i < current ? (
               <CheckMark on />
             ) : (
-              <span className="tabular-nums">
+              <span>
                 {String(i + 1).padStart(2, "0")}
               </span>
             )}

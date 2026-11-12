@@ -240,7 +240,7 @@ export function ServiceIntroView() {
               </div>
               <Link
                   href="/fixed"
-                  className="flex w-fit items-center gap-[4px] rounded-[8px] bg-gray-100 px-[12px] py-[8px] text-sm font-medium text-black"
+                  className="flex w-fit items-center gap-[4px] rounded-[15px] bg-gray-100 px-[12px] py-[8px] text-sm font-medium text-black"
               >
                 매체 둘러보기
                 <ChevronRightIcon className="size-[18px]"/>

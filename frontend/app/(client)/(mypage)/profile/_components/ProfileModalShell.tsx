@@ -49,63 +49,61 @@ export function ProfileModalShell({
   onSubmit: () => void;
 }) {
   return (
-    <Modal isOpen={open} onOpenChange={onOpenChange}>
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label={title}
-            className="w-full max-w-[440px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] max-sm:px-[16px] max-sm:pt-[20px] max-sm:pb-[16px] sm:px-[32px]"
+    <Modal.Backdrop isOpen={open} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label={title}
+          className="w-full max-w-[440px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] max-sm:px-[16px] max-sm:pt-[20px] max-sm:pb-[16px] sm:px-[32px]"
+        >
+          {/* 제목 줄(위 28px + 줄높이 26px)의 가운데(41px)에 X(32px)의 가운데를 맞춘다 → top 25px.
+              모바일은 위 20px + 줄높이 22px → 가운데 31px, X 28px → top 17px. */}
+          {/* X는 배경 없이 회색 아이콘만, 올리면 옅은 회색 원 — 로그인 창 · 유형 비교 창과 같다(11-09 사용자: "배경 원래 없지 않았나"). */}
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="top-[25px] right-[20px] size-[32px] rounded-[13px] max-sm:rounded-[11px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px]"
           >
-            {/* 제목 줄(위 28px + 줄높이 26px)의 가운데(41px)에 X(32px)의 가운데를 맞춘다 → top 25px.
-                모바일은 위 20px + 줄높이 22px → 가운데 31px, X 28px → top 17px. */}
-            {/* X는 배경 없이 회색 아이콘만, 올리면 옅은 회색 원 — 로그인 창 · 유형 비교 창과 같다(11-09 사용자: "배경 원래 없지 않았나"). */}
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="top-[25px] right-[20px] size-[32px] rounded-full bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black max-sm:top-[17px] max-sm:right-[12px] max-sm:size-[28px]"
-            >
-              <XIcon className="size-[20px] max-sm:size-[18px]" />
-            </Modal.CloseTrigger>
+            <XIcon className="size-[20px] max-sm:size-[18px]" />
+          </Modal.CloseTrigger>
 
-            <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[32px]">
-              <Modal.Heading className="text-[18px] leading-[26px] font-bold text-gray-900 max-sm:text-[16px] max-sm:leading-[22px]">
-                {title}
-              </Modal.Heading>
-              {description && (
-                <p className="text-[13px] leading-[20px] text-gray-500 max-sm:text-[12px] max-sm:leading-[18px]">
-                  {description}
-                </p>
-              )}
-            </Modal.Header>
+          <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[32px]">
+            <Modal.Heading className="text-[18px] leading-[26px] font-bold text-gray-900 max-sm:text-[16px] max-sm:leading-[22px]">
+              {title}
+            </Modal.Heading>
+            {description && (
+              <p className="text-[13px] leading-[20px] text-gray-500 max-sm:text-[12px] max-sm:leading-[18px]">
+                {description}
+              </p>
+            )}
+          </Modal.Header>
 
-            {/* Enter로도 제출되게 form으로 감싼다. */}
-            <form
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!submitDisabled && !submitPending) onSubmit();
-              }}
-            >
-              <Modal.Body className="m-0 mt-[20px] overflow-visible p-0 max-sm:mt-[16px]">
-                {children}
-              </Modal.Body>
+          {/* Enter로도 제출되게 form으로 감싼다. */}
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!submitDisabled && !submitPending) onSubmit();
+            }}
+          >
+            <Modal.Body className="m-0 mt-[20px] overflow-visible p-0 max-sm:mt-[16px]">
+              {children}
+            </Modal.Body>
 
-              <Modal.Footer className="mt-[24px] p-0 max-sm:mt-[20px]">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  fullWidth
-                  isDisabled={submitDisabled}
-                  isPending={submitPending}
-                  className="h-[40px] gap-[8px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
-                >
-                  {submitPending && <Spinner size="sm" color="current" />}
-                  {submitPending ? (pendingLabel ?? submitLabel) : submitLabel}
-                </Button>
-              </Modal.Footer>
-            </form>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <Modal.Footer className="mt-[24px] p-0 max-sm:mt-[20px]">
+              <Button
+                type="submit"
+                variant="primary"
+                fullWidth
+                isDisabled={submitDisabled}
+                isPending={submitPending}
+                className="h-[40px] gap-[8px] rounded-[17px] max-sm:h-[36px] max-sm:rounded-[15px]"
+              >
+                {submitPending && <Spinner size="sm" color="current" />}
+                {submitPending ? (pendingLabel ?? submitLabel) : submitLabel}
+              </Button>
+            </Modal.Footer>
+          </form>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

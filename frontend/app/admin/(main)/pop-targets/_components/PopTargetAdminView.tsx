@@ -14,6 +14,7 @@ import {
   useAdminPopTargets,
   useAdminPopTargetUpdate,
 } from "@/hooks/popGrid";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
@@ -89,7 +90,8 @@ export function PopTargetAdminView() {
     editing === "new" ? null : targets.find((t) => t.id === editing);
 
   return (
-    <div className="flex flex-col gap-[32px]">
+    // 회색 바탕 위 흰 카드(AdminPanel) — 고치는 칸 · 타깃 목록을 각각 카드로(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       {confirmDialog}
       <div className="flex items-start justify-between gap-[16px]">
         <div className="flex flex-col gap-[8px]">
@@ -120,7 +122,7 @@ export function PopTargetAdminView() {
         />
       )}
 
-      <section className="flex flex-col gap-[12px]">
+      <AdminPanel contentClassName="gap-[12px]">
         <h2 className="text-base leading-[24px] font-semibold text-black">
           타깃 {targets.length ? `${targets.length}개` : ""}
         </h2>
@@ -204,7 +206,7 @@ export function PopTargetAdminView() {
             </Table.ScrollContainer>
           </Table>
         )}
-      </section>
+      </AdminPanel>
     </div>
   );
 }
@@ -310,7 +312,7 @@ function TargetForm({
   const saving = create.isPending || update.isPending;
 
   return (
-    <section className="flex flex-col gap-[20px] rounded-[12px] border border-primary-200 bg-primary-50/60 p-[20px]">
+    <AdminPanel contentClassName="gap-[20px]">
       <h2 className="text-base leading-[24px] font-bold text-black">
         {target ? `「${target.label}」 수정` : "새 타깃"}
       </h2>
@@ -428,7 +430,7 @@ function TargetForm({
         </div>
       </FieldRow>
 
-      <div className="flex flex-wrap items-center justify-between gap-[12px] border-t border-primary-200 pt-[16px]">
+      <div className="flex flex-wrap items-center justify-between gap-[12px] border-t border-separator pt-[16px]">
         <p className="text-sm text-gray-700">
           매체 찾기에 보일 조건:{" "}
           <span className="font-semibold text-primary">
@@ -444,6 +446,6 @@ function TargetForm({
           </Button>
         </div>
       </div>
-    </section>
+    </AdminPanel>
   );
 }

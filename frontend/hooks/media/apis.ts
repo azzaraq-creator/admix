@@ -45,6 +45,8 @@ export interface OperatingArea {
 export interface PartnersCardInfo {
   businessHours: string | null;
   tags: string[];
+  /** 사진 주소 → 분류(exterior · interior …) — 카드 사진 왼쪽 아래 이름표(11-12). 예전 서버면 없다. */
+  photoKinds?: Record<string, string>;
 }
 
 export interface MediaCardRow {
@@ -81,7 +83,12 @@ export interface MediaCardListResponse {
   /** 매체 찾기 탭별 매체 수 — 탭과 무관하게 같은 조건(지도 영역·검색어·필터)으로 센다. */
   sourceCounts?: { all: number; fixed: number; moving: number } | null;
   /** 매체 찾기 카테고리 탭별 매체 수 — 고른 카테고리와 무관하게 같은 조건으로 센다. */
-  categoryCounts?: { all: number; byCategory: Record<string, number> } | null;
+  categoryCounts?: {
+    all: number;
+    byCategory: Record<string, number>;
+    /** 콜라보 카테고리만 볼 때(광고주 매장 찾기) — 매장 유형 이름 → 매장 수(고른 유형과 무관하게 센다). */
+    byStoreType?: Record<string, number> | null;
+  } | null;
 }
 
 export interface MediaFeature {
@@ -226,6 +233,10 @@ export interface MediaFilterParams {
   sort?: string | null;
   /** 매체 찾기 탭 — 목록·개수·가격 그래프에만 건다. null이면 전체(고정+이동). */
   source?: MediaFindSource | null;
+  /** 콜라보 매장은 제휴사 회원에 연결된 매장만 — 광고주 매장 찾기(/partners/find)만 켠다. 목록·지도에 건다. */
+  linkedOnly?: boolean;
+  /** 콜라보 매장 유형(카페 · 식당 …) — 광고주 매장 찾기 탭. 목록·지도에 건다(서버 store_type). */
+  storeType?: string[];
 }
 
 export interface MapBounds {
@@ -305,6 +316,8 @@ function appendFilters(q: URLSearchParams, f?: MediaFilterParams): void {
   if (f?.excludePriceInquiry) q.set("exclude_price_inquiry", "true");
   if (f?.keyword) q.set("keyword", f.keyword);
   if (f?.sort && f.sort !== "latest") q.set("sort", f.sort);
+  if (f?.linkedOnly) q.set("linked_only", "true");
+  f?.storeType?.forEach((v) => q.append("store_type", v));
 }
 
 function appendBounds(q: URLSearchParams, f?: MediaFilterParams): void {

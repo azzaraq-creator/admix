@@ -47,54 +47,53 @@ export function useAlertConfirm() {
   }, []);
 
   const confirmDialog = (
-    <AlertDialog
+    <AlertDialog.Backdrop
       isOpen={open}
       onOpenChange={(next) => {
         if (!next) settle(false);
       }}
+      isKeyboardDismissDisabled={false}
     >
-      <AlertDialog.Backdrop isKeyboardDismissDisabled={false}>
-        <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-[24px]">
-            <AlertDialog.Header>
-              <AlertDialog.Icon
-                status={options?.destructive ? "danger" : "accent"}
-              >
-                {options?.icon === "trash" ? (
-                  <Image src="/icons/trash.svg" alt="" width={20} height={20} />
-                ) : undefined}
-              </AlertDialog.Icon>
-              <AlertDialog.Heading>{options?.title}</AlertDialog.Heading>
-            </AlertDialog.Header>
-            {options?.description && (
-              <AlertDialog.Body>
-                <div className="text-[14px] leading-[22px] text-gray-500">
-                  {options.description}
-                </div>
-              </AlertDialog.Body>
-            )}
-            <AlertDialog.Footer>
-              {!options?.alertOnly && (
-                <Button
-                  variant="tertiary"
-                  onPress={() => settle(false)}
-                  className={DIALOG_BUTTON}
-                >
-                  {options?.cancelText ?? "취소"}
-                </Button>
-              )}
+      <AlertDialog.Container placement="center" size="sm">
+        <AlertDialog.Dialog className="rounded-[24px]">
+          <AlertDialog.Header>
+            <AlertDialog.Icon
+              status={options?.destructive ? "danger" : "accent"}
+            >
+              {options?.icon === "trash" ? (
+                <Image src="/icons/trash.svg" alt="" width={20} height={20} />
+              ) : undefined}
+            </AlertDialog.Icon>
+            <AlertDialog.Heading>{options?.title}</AlertDialog.Heading>
+          </AlertDialog.Header>
+          {options?.description && (
+            <AlertDialog.Body>
+              <div className="text-[14px] leading-[22px] text-gray-500">
+                {options.description}
+              </div>
+            </AlertDialog.Body>
+          )}
+          <AlertDialog.Footer>
+            {!options?.alertOnly && (
               <Button
-                variant={options?.destructive ? "danger" : "primary"}
-                onPress={() => settle(true)}
+                variant="tertiary"
+                onPress={() => settle(false)}
                 className={DIALOG_BUTTON}
               >
-                {options?.confirmText ?? "확인"}
+                {options?.cancelText ?? "취소"}
               </Button>
-            </AlertDialog.Footer>
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
-      </AlertDialog.Backdrop>
-    </AlertDialog>
+            )}
+            <Button
+              variant={options?.destructive ? "danger" : "primary"}
+              onPress={() => settle(true)}
+              className={DIALOG_BUTTON}
+            >
+              {options?.confirmText ?? "확인"}
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
   );
 
   return { confirm, confirmDialog };

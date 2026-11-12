@@ -40,13 +40,15 @@ from src.services import media_service as ms
 
 log = logging.getLogger(__name__)
 
-# 매장 사진 — 분류(외관 · 내관 · …)를 합쳐 최대 30장, 긴 변 2000px로 줄여 둔다(어드민에서만 올린다, 069 · 2026-11-10 사용자 30장).
-MAX_IMAGES = 30
+# 매장 사진 — 장수 제한 없음(2026-11-12 사용자, 예전 30장), 긴 변 2000px로 줄여 둔다(어드민에서만 올린다, 069).
 IMAGE_MAX_SIDE = 2000
 # 사진 분류 — 화면(frontend/lib/partners.ts PHOTO_KINDS)과 같은 순서 · 값. 분류마다 대표 사진이 하나씩 있고,
 # 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다(2026-11-10 사용자).
-PHOTO_KINDS = ("exterior", "interior", "counter", "menu", "etc")
+# DP 가능 공간 · 프로모션 공간은 2026-11-12 사용자 추가.
+PHOTO_KINDS = ("exterior", "interior", "counter", "dp_space", "promo_space", "menu", "etc")
 DEFAULT_PHOTO_KIND = "etc"
+# 어드민에서만 보는 분류 — 광고주 · 제휴사 화면과 매체 찾기에는 내보내지 않는다(메뉴, 2026-11-12 사용자).
+ADMIN_ONLY_PHOTO_KINDS = frozenset({"menu"})
 # 예전 분류(좌석 · 화장실, ~11-10)는 내관으로 본다 — 073 이 저장된 값도 바꿨다.
 _LEGACY_PHOTO_KIND = {"seat": "interior", "restroom": "interior"}
 PHOTO_MEMO_MAX_LEN = 50
@@ -84,7 +86,7 @@ MAX_COLLAB_FEE = 100_000_000
 GRADE_CRITERIA = {"sales": 50, "seats": 20, "collab": 30}
 GRADE_MEMO_MAX_LEN = 300
 
-# 매장 어필 한 개 길이(인스타그램 해시태그처럼 짧게). 선택지는 매장 유형마다 어드민 "매장 항목"에서 정한다(070).
+# 매장 어필 한 개 길이(인스타그램 해시태그처럼 짧게). 선택지는 매장 유형마다 어드민 "매장 유형 관리"에서 정한다(070).
 TAG_MAX_LEN = 20
 # 매장 유형 — 이름 길이, 유형 하나에 둘 수 있는 칩 · 조건 값 개수(잘못 붙여 넣은 긴 목록을 막는 정도).
 STORE_TYPE_NAME_MAX = 20
@@ -247,9 +249,10 @@ def _photo_kind(kind: str | None) -> str:
     return k if k in PHOTO_KINDS else DEFAULT_PHOTO_KIND
 
 
-def images_of(store: PartnersStore) -> list[dict]:
+def images_of(store: PartnersStore, *, admin: bool = False) -> list[dict]:
     """사진 — [{url, kind, cover, memo, uploadedAt}] (image_urls 순서). cover 는 분류마다 먼저 나오는 한 장(대표).
-    memo 는 광고주 매장 상세에서 사진 설명으로 보인다(2026-11-10 사용자). uploadedAt 은 올린 때(어드민 폼 메모 아래, 075)."""
+    memo 는 광고주 매장 상세에서 사진 설명으로 보인다(2026-11-10 사용자). uploadedAt 은 올린 때(어드민 폼 메모 아래, 075).
+    admin 이 아니면 어드민 전용 분류(메뉴)는 뺀다."""
     kinds = store.image_kinds or {}
     memos = store.image_memos or {}
     dates = store.image_dates or {}
@@ -257,6 +260,8 @@ def images_of(store: PartnersStore) -> list[dict]:
     out: list[dict] = []
     for u in store.image_urls or []:
         kind = _photo_kind(kinds.get(u))
+        if not admin and kind in ADMIN_ONLY_PHOTO_KINDS:
+            continue
         out.append(
             {
                 "url": u,
@@ -271,13 +276,26 @@ def images_of(store: PartnersStore) -> list[dict]:
 
 
 def cover_urls(store: PartnersStore) -> list[str]:
-    """분류별 대표 사진(분류 순) — 매체 찾기 · 광고주 매장 카드에 보인다."""
+    """분류별 대표 사진(분류 순) — 매체 찾기 · 광고주 매장 카드에 보인다. 어드민 전용 분류(메뉴)는 빠진다."""
     covers = {p["kind"]: p["url"] for p in images_of(store) if p["cover"]}
     return [covers[k] for k in PHOTO_KINDS if k in covers]
 
 
+def photo_kind_map(image_urls: list[str] | None, image_kinds: dict | None) -> dict[str, str]:
+    """사진 주소 → 분류(어드민 전용 분류는 뺀다) — 매체 찾기 · 광고주 매장 카드가 사진마다 분류를 적는다(11-12 사용자)."""
+    kinds = image_kinds or {}
+    out: dict[str, str] = {}
+    for u in image_urls or []:
+        kind = _photo_kind(kinds.get(u))
+        if kind not in ADMIN_ONLY_PHOTO_KINDS:
+            out[u] = kind
+    return out
+
+
 def serialize(store: PartnersStore, *, admin: bool = False, pricing: bool = False) -> dict:
-    """pricing — 콜라보 등급·금액을 넣는다(광고주 · 어드민만, 매장 쪽에는 보이지 않는다)."""
+    """pricing — 콜라보 등급·금액을 넣는다(광고주 · 어드민만, 매장 쪽에는 보이지 않는다).
+    admin 이 아니면 어드민 전용 분류(메뉴) 사진은 imageUrls · images 둘 다에서 뺀다."""
+    images = images_of(store, admin=admin)
     out = dict(
         id=str(store.id),
         storeCode=store.store_code,
@@ -291,8 +309,8 @@ def serialize(store: PartnersStore, *, admin: bool = False, pricing: bool = Fals
         district=store.district,
         latitude=_num(store.latitude),
         longitude=_num(store.longitude),
-        imageUrls=list(store.image_urls or []),
-        images=images_of(store),
+        imageUrls=[p["url"] for p in images],
+        images=images,
         phone=store.phone,
         ownerName=store.owner_name,
         tags=list(store.tags or []),
@@ -342,10 +360,7 @@ def _clean_tags(tags) -> list[str]:
 
 def _clean_images(urls) -> list[str]:
     out = [str(u).strip() for u in (urls or []) if str(u).strip()]
-    out = list(dict.fromkeys(out))
-    if len(out) > MAX_IMAGES:
-        raise HTTPException(status_code=400, detail=f"매장 사진은 최대 {MAX_IMAGES}장까지 올릴 수 있어요.")
-    return out
+    return list(dict.fromkeys(out))
 
 
 def _clean_photo_set(images) -> tuple[list[str], dict[str, str], dict[str, str]]:
@@ -659,8 +674,11 @@ def _pricing(user: User | None) -> bool:
 def list_public(
     db: Session, *, keyword: str | None = None, city: str | None = None, user: User | None = None
 ) -> list[dict]:
-    """광고주 콜라보 매장 찾기 — 공개 매장(최근 등록 순). 광고주에게는 등급·금액을 함께 준다."""
-    q = db.query(PartnersStore).filter(PartnersStore.status == "active")
+    """광고주 콜라보 매장 찾기 — 공개 매장(최근 등록 순). 광고주에게는 등급·금액을 함께 준다.
+    제휴사 회원에 연결되지 않은 매장은 뺀다 — 콜라보를 받을 사람이 없다(2026-11-11 사용자)."""
+    q = db.query(PartnersStore).filter(
+        PartnersStore.status == "active", PartnersStore.owner_user_id.isnot(None)
+    )
     q = _keyword_filter(q, keyword)
     if city:
         q = q.filter(PartnersStore.city == city)
@@ -714,6 +732,11 @@ REQUEST_FIELDS = {
 }
 REQUEST_STATUSES = ("pending", "done", "rejected")
 REQUEST_MEMO_MAX_LEN = 500
+# 추가 요청 · 문의(11-12) — 위 항목 말고 사진 · 매장 유형 · 콜라보 같은 것도 글로 보낸다. 글은 content 에 두고,
+# 반영할 값이 없어 어드민 "처리 완료"는 매장을 바꾸지 않는다(답은 admin_reply). 확인 중이어도 보낼 때마다 따로 쌓인다.
+INQUIRY_FIELD = "inquiry"
+INQUIRY_LABEL = "추가 요청 · 문의"
+INQUIRY_MAX_LEN = 1000
 
 
 def _short_text(v, *, max_len: int) -> str | None:
@@ -805,16 +828,17 @@ def _apply_data(field: str, value) -> dict:
 
 
 def serialize_request(r: PartnersStoreRequest, *, admin: bool = False) -> dict:
-    legacy = r.field is None  # 예전 자유 입력 요청 — 글이 곧 요청
+    # 글로 보낸 요청 — 추가 요청 · 문의와 예전 자유 입력(field 없음). 글이 곧 요청이라 after 로 보낸다.
+    free = r.field is None or r.field == INQUIRY_FIELD
     out = dict(
         id=str(r.id),
         storeId=str(r.store_id),
         field=r.field,
-        fieldLabel=REQUEST_FIELDS.get(r.field or "", "기타"),
+        fieldLabel=INQUIRY_LABEL if r.field == INQUIRY_FIELD else REQUEST_FIELDS.get(r.field or "", "기타"),
         before=r.before_text,
-        after=r.content if legacy else r.after_text,
+        after=r.content if free else r.after_text,
         value=r.after_value,
-        memo=None if legacy else r.content,
+        memo=None if free else r.content,
         status=r.status,
         adminReply=r.admin_reply,
         createdAt=r.created_at.isoformat() if r.created_at else None,
@@ -837,8 +861,22 @@ def serialize_request(r: PartnersStoreRequest, *, admin: bool = False) -> dict:
 def create_request(
     db: Session, user: User, store_id: str, field: str, value, memo: str | None = None
 ) -> dict:
-    """내 매장 수정 요청 — 바꿀 항목과 새 값. 같은 항목에 확인 중인 요청이 있으면 그 요청을 새 값으로 바꾼다."""
+    """내 매장 수정 요청 — 바꿀 항목과 새 값. 같은 항목에 확인 중인 요청이 있으면 그 요청을 새 값으로 바꾼다.
+    추가 요청 · 문의(INQUIRY_FIELD)는 value 가 글이고, 보낼 때마다 새 요청이 된다."""
     store = own_store(db, user, store_id)
+    if field == INQUIRY_FIELD:
+        text = (value if isinstance(value, str) else "").strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="요청하거나 문의할 내용을 적어 주세요.")
+        if len(text) > INQUIRY_MAX_LEN:
+            raise HTTPException(status_code=400, detail=f"{INQUIRY_MAX_LEN}자까지 적을 수 있어요.")
+        r = PartnersStoreRequest(
+            store_id=store.id, user_id=user.id, field=INQUIRY_FIELD, content=text, status="pending"
+        )
+        db.add(r)
+        db.commit()
+        db.refresh(r)
+        return serialize_request(r)
     if field not in REQUEST_FIELDS:
         raise HTTPException(status_code=400, detail="바꿀 항목을 골라 주세요.")
     value = _clean_request_value(field, value)
@@ -893,10 +931,12 @@ def admin_list(
     status: str | None = None,
     linked: str | None = None,
     store_type: int | None = None,
+    grade: str | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[int, list[dict]]:
-    """linked — yes(제휴사와 연결됨) · no(아직 연결 전), 비우면 전체. store_type — 매장 유형 id(비우면 전체)."""
+    """linked — yes(제휴사와 연결됨) · no(아직 연결 전), 비우면 전체. store_type — 매장 유형 id(비우면 전체).
+    grade — 콜라보 등급(S · A · B · C), none 이면 등급 미정, 비우면 전체."""
     q = db.query(PartnersStore).options(joinedload(PartnersStore.owner), joinedload(PartnersStore.store_type))
     kw = (keyword or "").strip()
     if kw:
@@ -921,6 +961,10 @@ def admin_list(
         q = q.filter(PartnersStore.owner_user_id.is_(None))
     if store_type is not None:
         q = q.filter(PartnersStore.store_type_id == store_type)
+    if grade == "none":
+        q = q.filter(PartnersStore.collab_grade.is_(None))
+    elif grade in COLLAB_GRADES:
+        q = q.filter(PartnersStore.collab_grade == grade)
     total = q.count()
     rows = (
         q.order_by(PartnersStore.created_at.desc())
@@ -1024,7 +1068,7 @@ def admin_delete(db: Session, store_id: str) -> None:
     db.commit()
 
 
-# ── 어드민 · 매장 유형(매장 항목) ───────────────────────────────────────
+# ── 어드민 · 매장 유형(매장 유형 관리) ───────────────────────────────────────
 
 
 def _clean_values(values, *, max_len: int, label: str) -> list[str]:

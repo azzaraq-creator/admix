@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { BizAction } from "@/lib/adminCollab";
+import type { AdminAdvCollabRequestDetail, BizAction } from "@/lib/adminCollab";
+import type { PlanRoundPayload } from "@/lib/collabPlan";
 import type {
   AdminCollabDetail,
   AdminCollabPayload,
@@ -35,6 +36,32 @@ function useCollabSaved() {
     void queryClient.invalidateQueries({ queryKey: adminCollabKeys.summary() });
   };
 }
+
+/** 광고주 상호 · 사업자번호 저장 — 받은 상세로 바로 바꾸고 광고주 목록은 다시 불러온다. */
+export const useUpdateAdvertiserBiz = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      bizName,
+      bizNo,
+    }: {
+      id: string;
+      bizName: string | null;
+      bizNo: string | null;
+    }) =>
+      adminCollabApi.updateAdvertiserBiz(id, {
+        business_name: bizName,
+        business_registration_no: bizNo,
+      }),
+    onSuccess: (member) => {
+      queryClient.setQueryData(adminCollabKeys.advertiser(member.id), member);
+      void queryClient.invalidateQueries({
+        queryKey: [...adminCollabKeys.all, "advertisers"],
+      });
+    },
+  });
+};
 
 export const useBizAction = () => {
   const onSaved = useMemberSaved();
@@ -192,6 +219,24 @@ export const useDeleteParticipantPhoto = () => {
   });
 };
 
+/** 결과 보고서 파일 올리기(086) — 하나씩. 여러 개는 차례로 부른다. */
+export const useUploadCollabReport = () => {
+  const onSaved = useCollabSaved();
+  return useMutation({
+    mutationFn: ({ collabId, file }: { collabId: string; file: File }) =>
+      adminCollabApi.uploadReport(collabId, file),
+    onSuccess: onSaved,
+  });
+};
+
+export const useDeleteCollabReport = () => {
+  const onSaved = useCollabSaved();
+  return useMutation({
+    mutationFn: (fileId: string) => adminCollabApi.deleteReport(fileId),
+    onSuccess: onSaved,
+  });
+};
+
 export const useAddCollabNotice = () => {
   const onSaved = useCollabSaved();
   return useMutation({
@@ -217,7 +262,7 @@ export const useDeleteCollabNotice = () => {
 export const useUploadCollabImage = () =>
   useMutation({ mutationFn: (file: File) => adminCollabApi.uploadImage(file) });
 
-/** 매장 항목 — 유형 더하기 · 고치기 · 지우기. 매장 목록(유형 이름)도 같이 다시 불러온다. */
+/** 매장 유형 관리 — 유형 더하기 · 고치기 · 지우기. 매장 목록(유형 이름)도 같이 다시 불러온다. */
 function useStoreTypesSaved() {
   const queryClient = useQueryClient();
   return () => {
@@ -251,5 +296,21 @@ export const useDeleteStoreType = () => {
   return useMutation({
     mutationFn: (id: number) => adminCollabApi.deleteStoreType(id),
     onSuccess: onSaved,
+  });
+};
+
+/** admix 기획안 보내기(085) — 받은 의뢰서로 바로 바꾸고 목록 · 사이드 메뉴 숫자는 다시 불러온다. */
+export const useSendAdvRequestRound = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: PlanRoundPayload }) =>
+      adminCollabApi.sendAdvRequestRound(id, payload),
+    onSuccess: (detail: AdminAdvCollabRequestDetail) => {
+      queryClient.setQueryData(adminCollabKeys.advRequest(detail.id), detail);
+      void queryClient.invalidateQueries({
+        queryKey: [...adminCollabKeys.all, "advRequests"],
+      });
+      void queryClient.invalidateQueries({ queryKey: adminCollabKeys.summary() });
+    },
   });
 };

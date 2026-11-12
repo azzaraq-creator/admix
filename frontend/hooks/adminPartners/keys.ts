@@ -5,4 +5,5 @@ export const adminPartnersKeys = {
   list: (params?: AdminPartnersListParams) =>
     [...adminPartnersKeys.all, "list", params ?? {}] as const,
   detail: (id: string) => [...adminPartnersKeys.all, "detail", id] as const,
+  collabs: (id: string) => [...adminPartnersKeys.all, "collabs", id] as const,
 };

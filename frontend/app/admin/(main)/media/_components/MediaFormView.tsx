@@ -12,6 +12,7 @@ import {
   type RegisterOptions,
 } from "react-hook-form";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminMediaPreviewQuery,
@@ -1353,7 +1354,8 @@ function MediaForm({
   ];
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 흰 카드(AdminPanel) — 구역마다 카드 하나(2026-11-12 어드민 전체 같은 모양).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <div className="flex flex-col gap-[4px]">
         <h1 className="text-2xl font-bold leading-[32px] text-black">
           {isEdit ? "광고 매체 상세" : "광고 매체 등록"}
@@ -1392,29 +1394,24 @@ function MediaForm({
             key={t.id}
             id={t.id}
             shouldForceMount
-            className="pt-[24px] data-[inert]:hidden"
+            className="px-0 pb-0 pt-[20px] data-[inert]:hidden md:pt-[24px]"
           >
-            {/* 구역이 여럿이면 구역 제목으로 나누고 사이에 선을 긋는다. 기본 정보 탭은 사진이 맨 위. */}
-            <div className="flex flex-col gap-[32px]">
+            {/* 구역마다 흰 카드 하나 — 구역이 여럿이면 카드 위에 구역 제목. 기본 정보 탭은 사진 카드가 맨 위. */}
+            <div className="flex flex-col gap-[20px] md:gap-[24px]">
               {t.id === "basic" && (
-                <MediaPhotoSection
-                  mediaId={id}
-                  images={detail?.images ?? []}
-                  pendingFiles={pendingFiles}
-                  onPendingChange={setPendingFiles}
-                />
+                <AdminPanel>
+                  <MediaPhotoSection
+                    mediaId={id}
+                    images={detail?.images ?? []}
+                    pendingFiles={pendingFiles}
+                    onPendingChange={setPendingFiles}
+                  />
+                </AdminPanel>
               )}
-              {t.sections.map((section, i) => {
-                const divided = i > 0 || t.id === "basic";
+              {t.sections.map((section) => {
                 const titled = t.sections.length > 1 || t.id === "basic";
                 return (
-                  <div
-                    key={section.key}
-                    className={cn(
-                      "flex flex-col gap-[20px]",
-                      divided && "border-t border-stroke pt-[32px]",
-                    )}
-                  >
+                  <AdminPanel key={section.key} contentClassName="gap-[20px]">
                     {(titled || section.description) && (
                       <div className="flex flex-col gap-[4px]">
                         {titled && (
@@ -1430,7 +1427,7 @@ function MediaForm({
                       </div>
                     )}
                     {renderSectionBody(section)}
-                  </div>
+                  </AdminPanel>
                 );
               })}
             </div>
@@ -1438,7 +1435,7 @@ function MediaForm({
         ))}
       </Tabs>
 
-      <div className="flex items-center justify-between border-t border-stroke pt-[20px]">
+      <div className="flex items-center justify-between">
         <Button variant="tertiary" onPress={goList}>
           목록
         </Button>

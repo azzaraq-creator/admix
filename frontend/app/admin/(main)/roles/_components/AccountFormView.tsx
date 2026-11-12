@@ -1,17 +1,11 @@
 "use client";
 
-import {
-  Button,
-  Checkbox,
-  Input,
-  Label,
-  ListBox,
-  Select,
-} from "@heroui/react";
+import { Button, Checkbox, Input, Label, ListBox, Select } from "@heroui/react";
 import { List } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { LoadingState } from "@/components/common/RouteStates";
 import { extractApiError } from "@/lib/apiError";
 import {
@@ -235,103 +229,105 @@ function AccountForm({
   const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="flex flex-col gap-[24px]">
+    // 회색 바탕 위 흰 카드(AdminPanel) — 계정 정보 | 권한 설정, 제목 · 아래 버튼은 카드 밖(2026-11-12).
+    <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <h1 className="text-2xl font-bold leading-[32px] text-black">
         {isEdit ? "계정 상세" : "계정 생성"}
       </h1>
 
-      <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
-        <Field label="계정 유형" required>
-          <OptionSelect
-            label="계정 유형"
-            placeholder="유형 선택"
-            value={type}
-            options={ACCOUNT_TYPE_OPTIONS}
-            onChange={(v) => setType(v ?? "")}
-          />
-        </Field>
-        <Field label="이름" required>
-          <Input
-            aria-label="이름"
-            fullWidth
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="이름 입력"
-          />
-        </Field>
-        <Field label="이메일(ID)" required>
-          <Input
-            aria-label="이메일(ID)"
-            fullWidth
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일 입력"
-            disabled={isEdit}
-          />
-        </Field>
-        <Field label="비밀번호" required={!isEdit}>
-          <Input
-            aria-label="비밀번호"
-            fullWidth
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={
-              isEdit ? "변경 시 입력 (8자 이상)" : "비밀번호 입력 (8자 이상)"
-            }
-          />
-        </Field>
-        <Field label="부서/역할">
-          <Input
-            aria-label="부서/역할"
-            fullWidth
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            placeholder="부서/역할 입력"
-          />
-        </Field>
-        <Field label="전화번호">
-          <Input
-            aria-label="전화번호"
-            fullWidth
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="전화번호 입력"
-          />
-        </Field>
-        {isEdit && (
-          <>
-            <Field label="상태">
-              <OptionSelect
-                label="상태"
-                placeholder="상태 선택"
-                value={status}
-                options={STATUS_OPTIONS}
-                onChange={(v) => {
-                  if (v) setStatus(v as AdminStatus);
-                }}
-              />
-            </Field>
-            <Field label="생성일">
-              <span className="text-sm font-medium leading-[20px] text-disabled">
-                {detail?.created_at?.slice(0, 10) ?? "-"}
-              </span>
-            </Field>
-          </>
-        )}
-      </div>
+      <AdminPanel>
+        <div className="grid grid-cols-2 gap-x-[48px] gap-y-[16px]">
+          <Field label="계정 유형" required>
+            <OptionSelect
+              label="계정 유형"
+              placeholder="유형 선택"
+              value={type}
+              options={ACCOUNT_TYPE_OPTIONS}
+              onChange={(v) => setType(v ?? "")}
+            />
+          </Field>
+          <Field label="이름" required>
+            <Input
+              aria-label="이름"
+              fullWidth
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="이름 입력"
+            />
+          </Field>
+          <Field label="이메일(ID)" required>
+            <Input
+              aria-label="이메일(ID)"
+              fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="이메일 입력"
+              disabled={isEdit}
+            />
+          </Field>
+          <Field label="비밀번호" required={!isEdit}>
+            <Input
+              aria-label="비밀번호"
+              fullWidth
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={
+                isEdit ? "변경 시 입력 (8자 이상)" : "비밀번호 입력 (8자 이상)"
+              }
+            />
+          </Field>
+          <Field label="부서/역할">
+            <Input
+              aria-label="부서/역할"
+              fullWidth
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              placeholder="부서/역할 입력"
+            />
+          </Field>
+          <Field label="전화번호">
+            <Input
+              aria-label="전화번호"
+              fullWidth
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="전화번호 입력"
+            />
+          </Field>
+          {isEdit && (
+            <>
+              <Field label="상태">
+                <OptionSelect
+                  label="상태"
+                  placeholder="상태 선택"
+                  value={status}
+                  options={STATUS_OPTIONS}
+                  onChange={(v) => {
+                    if (v) setStatus(v as AdminStatus);
+                  }}
+                />
+              </Field>
+              <Field label="생성일">
+                <span className="text-sm font-medium leading-[20px] text-disabled">
+                  {detail?.created_at?.slice(0, 10) ?? "-"}
+                </span>
+              </Field>
+            </>
+          )}
+        </div>
+      </AdminPanel>
 
       {type !== "마스터 계정" && (
-        <>
-          <p className="text-lg font-bold leading-[28px] text-black">권한 설정</p>
+        <AdminPanel title="권한 설정">
           <div className="grid grid-cols-3 gap-[16px]">
             {PERMISSIONS.map((perm) => (
-              // 테두리 칸 어디를 눌러도 체크된다(누르는 영역 = Checkbox.Content).
+              // 칸 어디를 눌러도 체크된다(누르는 영역 = Checkbox.Content). 테두리 없이 옅은 회색 칸(2026-11-12).
               <Checkbox
                 key={perm}
                 isSelected={perms.includes(PERMISSION_KEYS[perm])}
                 onChange={() => togglePerm(perm)}
-                className={`${CHECKBOX_ACCENT} flex rounded-[8px] border border-stroke`}
+                className={`${CHECKBOX_ACCENT} flex rounded-[12px] bg-gray-50`}
               >
                 <Checkbox.Content className="w-full cursor-pointer items-center gap-[10px] px-[20px] py-[14px]">
                   <Checkbox.Control>
@@ -348,7 +344,7 @@ function AccountForm({
               </Checkbox>
             ))}
           </div>
-        </>
+        </AdminPanel>
       )}
 
       <div className="flex items-center justify-between">

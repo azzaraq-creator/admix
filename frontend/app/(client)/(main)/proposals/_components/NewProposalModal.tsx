@@ -89,97 +89,95 @@ export function NewProposalModal({
   };
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen={open}
       onOpenChange={(value) => {
         if (!value) reset();
         onOpenChange(value);
       }}
     >
-      <Modal.Backdrop>
-        <Modal.Container placement="center" className="px-[16px] sm:px-0">
-          <Modal.Dialog
-            aria-label={copy.heading}
-            className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
+      <Modal.Container placement="center" className="px-[16px] sm:px-0">
+        <Modal.Dialog
+          aria-label={copy.heading}
+          className="w-full max-w-[420px] gap-0 rounded-[24px] bg-surface px-[24px] pt-[28px] pb-[24px] shadow-[0px_20px_60px_-12px_rgba(47,52,66,0.28)] sm:px-[28px]"
+        >
+          {/* 닫기 32px → 곡률 13px. */}
+          <Modal.CloseTrigger
+            aria-label="닫기"
+            className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
           >
-            {/* 닫기 32px → 곡률 13px. */}
-            <Modal.CloseTrigger
-              aria-label="닫기"
-              className="top-[16px] right-[16px] size-[32px] rounded-[13px] bg-transparent p-0 text-gray-400 data-[hovered=true]:bg-gray-50 data-[hovered=true]:text-black"
-            >
-              <XIcon className="size-[20px]" />
-            </Modal.CloseTrigger>
+            <XIcon className="size-[20px]" />
+          </Modal.CloseTrigger>
 
-            <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
-              <Modal.Heading className="text-[18px] font-bold text-gray-900">
-                {copy.heading}
-              </Modal.Heading>
-              <p className="text-[13px] leading-[1.5] text-gray-500">
-                {copy.description}
-              </p>
-            </Modal.Header>
+          <Modal.Header className="flex flex-col gap-[6px] p-0 pr-[32px]">
+            <Modal.Heading className="text-[18px] font-bold text-gray-900">
+              {copy.heading}
+            </Modal.Heading>
+            <p className="text-[13px] leading-[1.5] text-gray-500">
+              {copy.description}
+            </p>
+          </Modal.Header>
 
-            <form
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleCreate();
-              }}
-              className="flex flex-col"
-            >
-              <Modal.Body className="m-0 mt-[20px] overflow-visible p-0">
-                <TextField
-                  value={name}
-                  onChange={(value) => {
-                    setName(value);
-                    if (error) setError(null);
-                  }}
-                  isInvalid={!!error}
-                  maxLength={MAX_NAME_LENGTH}
-                  aria-label="기획안 이름"
-                  autoFocus
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleCreate();
+            }}
+            className="flex flex-col"
+          >
+            <Modal.Body className="m-0 mt-[20px] overflow-visible p-0">
+              <TextField
+                value={name}
+                onChange={(value) => {
+                  setName(value);
+                  if (error) setError(null);
+                }}
+                isInvalid={!!error}
+                maxLength={MAX_NAME_LENGTH}
+                aria-label="기획안 이름"
+                autoFocus
+                fullWidth
+                className="gap-[6px]"
+              >
+                <Input
+                  placeholder="예) 2026 하반기 강남 옥외광고"
+                  // 모바일 키보드의 엔터 키를 "완료"로 표시한다 — 누르면 바로 만들어진다.
+                  enterKeyHint="done"
                   fullWidth
-                  className="gap-[6px]"
-                >
-                  <Input
-                    placeholder="예) 2026 하반기 강남 옥외광고"
-                    // 모바일 키보드의 엔터 키를 "완료"로 표시한다 — 누르면 바로 만들어진다.
-                    enterKeyHint="done"
-                    fullWidth
-                    className="h-[44px] rounded-[19px]"
-                  />
-                  <div className="flex items-start justify-between gap-[8px] px-[4px]">
-                    <FieldError>{error}</FieldError>
-                    <span className="ml-auto shrink-0 text-[12px] text-gray-400">
-                      {name.length}/{MAX_NAME_LENGTH}
-                    </span>
-                  </div>
-                </TextField>
-              </Modal.Body>
+                  className="h-[44px] rounded-[19px]"
+                />
+                <div className="flex items-start justify-between gap-[8px] px-[4px]">
+                  <FieldError>{error}</FieldError>
+                  <span className="ml-auto shrink-0 text-[12px] text-gray-400">
+                    {name.length}/{MAX_NAME_LENGTH}
+                  </span>
+                </div>
+              </TextField>
+            </Modal.Body>
 
-              <Modal.Footer className="mt-[20px] flex justify-end gap-[8px] p-0">
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  onPress={close}
-                  className={ACTION_CLASS}
-                >
-                  취소
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  isDisabled={!trimmed}
-                  isPending={submitting}
-                  className={`${ACTION_CLASS} bg-primary text-white`}
-                >
-                  {submitting ? copy.pending : copy.submit}
-                </Button>
-              </Modal.Footer>
-            </form>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+            <Modal.Footer className="mt-[20px] flex justify-end gap-[8px] p-0">
+              <Button
+                type="button"
+                variant="tertiary"
+                onPress={close}
+                className={ACTION_CLASS}
+              >
+                취소
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isDisabled={!trimmed}
+                isPending={submitting}
+                className={`${ACTION_CLASS} bg-primary text-white`}
+              >
+                {submitting ? copy.pending : copy.submit}
+              </Button>
+            </Modal.Footer>
+          </form>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

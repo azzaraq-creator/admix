@@ -7,6 +7,7 @@ import {
   FieldError,
   Input,
   InputGroup,
+  Separator,
   TextField,
 } from "@heroui/react";
 import { useState } from "react";
@@ -15,7 +16,7 @@ import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
-import { EyeIcon } from "@/components/icons";
+import { EyeIcon, InfoIcon } from "@/components/icons";
 import { authApi, type ProfileUpdatePayload } from "@/hooks/auth";
 import {
   PHONE_INPUT_MAX_LENGTH,
@@ -42,8 +43,10 @@ export type SignupInfo = {
   phone: string;
   company: string;
   file: File | null;
-  /** 광고주 담당자 정보(선택) — 이름 · 직함 · 소속팀. 가입 뒤 내 정보에 저장한다(명함은 내 정보에서). */
-  contactName: string;
+  /**
+   * 광고주 담당자 정보(선택) — 직함 · 소속팀. 가입 뒤 내 정보에 저장한다(명함은 내 정보에서).
+   * 담당자 이름은 위 "이름" 칸과 겹쳐 가입에서는 받지 않는다(11-11 사용자) — 내 정보에서 적는다.
+   */
   position: string;
   department: string;
 };
@@ -55,7 +58,6 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   phone: "",
   company: "",
   file: null,
-  contactName: "",
   position: "",
   department: "",
 };
@@ -63,16 +65,12 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
 /** 가입 뒤 내 정보에 저장할 담당자 정보 — 적은 칸만(없으면 null, 저장 요청을 보내지 않는다). */
 export function contactOf(info: SignupInfo): ContactInfo | null {
   const out: ContactInfo = {};
-  if (info.contactName.trim()) out.contact_name = info.contactName.trim();
   if (info.position.trim()) out.position = info.position.trim();
   if (info.department.trim()) out.department = info.department.trim();
   return Object.keys(out).length ? out : null;
 }
 
-export type ContactInfo = Pick<
-  ProfileUpdatePayload,
-  "contact_name" | "position" | "department"
->;
+export type ContactInfo = Pick<ProfileUpdatePayload, "position" | "department">;
 
 /** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — InputGroup.Suffix 안에 둔다. */
 function PasswordToggle({
@@ -118,8 +116,9 @@ export function InfoStep({
    */
   partner?: boolean;
   /**
-   * 광고주 — "정보 추가 입력" 상자 없이 회사명 · 사업자등록증 · 담당자 이름 · 직함 · 소속팀을 다른 칸과 같은 모양으로
-   * 잇는다. 모두 선택이라 * 도 "(선택)"도 붙이지 않고, 사업자등록증 아래에 올리지 않으면 이용이 제한된다고 알린다(11-09 사용자).
+   * 광고주 — "정보 추가 입력" 상자 없이 회사명 · 직함 · 소속팀 · 사업자등록증을 다른 칸과 같은 모양으로
+   * 잇는다(연락처 아래와 사업자등록증 위에 구분선). 모두 선택이라 * 도 "(선택)"도 붙이지 않고, 사업자등록증 아래에
+   * 올리면 모든 기능을 쓸 수 있다고 잘 보이게, 검토 · 승인 최대 3일은 작게 알린다(11-09 · 11-11 사용자).
    * 브랜드 사진은 콜라보 "내 브랜드"로 옮겨 여기서 받지 않는다.
    */
   advertiser?: boolean;
@@ -207,16 +206,20 @@ export function InfoStep({
         onError={setFileError}
         onRemove={() => set("file", null)}
       />
-      {fileError ? (
-        <FieldMessage tone="error">{fileError}</FieldMessage>
-      ) : advertiser ? (
-        <FieldMessage>
-          <p className="break-keep">
-            사업자등록증을 올리지 않으면 서비스 이용이 제한됩니다.
+      {fileError && <FieldMessage tone="error">{fileError}</FieldMessage>}
+      {advertiser ? (
+        // 광고주 — 올리면 무엇이 좋은지 보라 글씨로(상자 없이, 안내 아이콘 = public/icons/info.svg 와 같은 도형),
+        // 걸리는 시간은 그 아래 작게(11-11 사용자).
+        <div className="flex flex-col gap-[4px]">
+          <p className="flex items-start gap-[6px] text-[13px] leading-[20px] font-semibold break-keep text-primary-500">
+            <InfoIcon aria-hidden className="mt-[3px] size-[14px] shrink-0" />
+            사업자등록증을 올리면 admix의 모든 기능을 이용할 수 있습니다.
           </p>
-          <p className="break-keep">검토 후 3영업일 이내에 반영됩니다.</p>
-        </FieldMessage>
-      ) : (
+          <p className="pl-[20px] text-[12px] break-keep text-gray-400">
+            검토 및 승인까지 최대 3일이 걸립니다.
+          </p>
+        </div>
+      ) : fileError ? null : (
         <FieldMessage>
           사업자등록증은 검토 후 3영업일 이내 담당자가 확인 후 반영이 됩니다.
         </FieldMessage>
@@ -376,8 +379,10 @@ export function InfoStep({
         </TextField>
 
         {/* 제휴사(콜라보)는 회사명 · 사업자등록증을 받지 않는다 — 사업자등록증은 기본협약 협약서 단계에서 올린다(11-10 사용자). */}
+        {/* 광고주 — 구분선 · 회사명 · 담당자 정보(직함 · 소속팀) · 구분선 · 사업자등록증 순(11-11 사용자). */}
         {partner ? null : advertiser ? (
           <>
+            <Separator className="my-[4px] bg-tone-ececef" />
             <TextField
               autoComplete="organization"
               value={values.company}
@@ -388,21 +393,6 @@ export function InfoStep({
               <FieldLabel>회사명</FieldLabel>
               <Input
                 placeholder="회사명을 입력해 주세요."
-                className="h-[44px] rounded-[19px]"
-              />
-            </TextField>
-            {bizCert}
-            <TextField
-              autoComplete="off"
-              value={values.contactName}
-              onChange={(value) => set("contactName", value)}
-              fullWidth
-              className="gap-[8px]"
-            >
-              <FieldLabel>담당자 이름</FieldLabel>
-              <Input
-                placeholder="담당자 이름을 입력해 주세요."
-                maxLength={50}
                 className="h-[44px] rounded-[19px]"
               />
             </TextField>
@@ -434,6 +424,8 @@ export function InfoStep({
                 className="h-[44px] rounded-[19px]"
               />
             </TextField>
+            <Separator className="my-[4px] bg-tone-ececef" />
+            {bizCert}
           </>
         ) : (
           <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">

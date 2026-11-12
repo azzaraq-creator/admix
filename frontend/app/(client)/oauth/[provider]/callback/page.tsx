@@ -70,7 +70,7 @@ function OAuthCallback() {
           <button
             type="button"
             onClick={() => router.replace("/")}
-            className="rounded-[8px] bg-primary px-[24px] py-[12px] text-white"
+            className="rounded-[21px] bg-primary px-[24px] py-[12px] text-white"
           >
             홈으로
           </button>

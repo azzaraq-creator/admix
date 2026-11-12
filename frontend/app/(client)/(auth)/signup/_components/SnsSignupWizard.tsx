@@ -22,7 +22,7 @@ import {
   type SignupInfo,
 } from "./InfoStep";
 import { SignupShell } from "./SignupShell";
-import { TermsStep } from "./TermsStep";
+import { TermsStep, type MarketingChannels } from "./TermsStep";
 import { errorDetail, errorStatus } from "./signupUi";
 import { loadSignupCategory, useFinishSignup } from "./useFinishSignup";
 
@@ -104,7 +104,10 @@ function SnsSignupFlow({ me, collab }: { me: MeResponse; collab: boolean }) {
   const prev = index > 0 ? flow[index - 1] : undefined;
   const next = () => setStep(flow[index + 1]);
 
-  const handleSubmit = async (marketingConsent: boolean) => {
+  const handleSubmit = async (
+    marketingConsent: boolean,
+    channels?: MarketingChannels,
+  ) => {
     if (!category || !verifiedEmail) return;
     setSubmitting(true);
     setSubmitError("");
@@ -112,6 +115,9 @@ function SnsSignupFlow({ me, collab }: { me: MeResponse; collab: boolean }) {
       await authApi.completeSnsSignup({
         email: verifiedEmail,
         marketing_consent: marketingConsent,
+        // 제휴사 가입에서 고른 받을 방법(SMS · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
+        marketing_sms: channels?.sms,
+        marketing_email: channels?.email,
         member_category: category,
         name: info.name.trim(),
         phone: info.phone,
@@ -180,6 +186,7 @@ function SnsSignupFlow({ me, collab }: { me: MeResponse; collab: boolean }) {
         <TermsStep
           pending={submitting}
           error={submitError}
+          partner={category === "partner"}
           onSubmit={handleSubmit}
         />
       )}
