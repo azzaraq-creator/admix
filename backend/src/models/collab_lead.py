@@ -43,6 +43,8 @@ class CollabLead(Base):
     conversation = Column(Text, nullable=True)  # 대화 내용
     followup_memo = Column(Text, nullable=True)  # 후속 메모
     photo_ids = Column(JSONB, nullable=False, default=list, server_default="[]")  # 원본 앱 사진 id(파일은 없음)
+    # 매장 사진(088) — [{url, kind, memo, uploadedAt}], 협업 확정 매장 사진과 같은 분류. 확정하면 매장 사진으로 옮겨진다.
+    photos = Column(JSONB, nullable=False, default=list, server_default="[]")
     custom = Column(JSONB, nullable=False, default=dict, server_default="{}")  # 사용자 정의 칸 값(cf_*)
     source_data = Column(JSONB, nullable=True)  # 가져올 때의 원본 행 전체
     # 가입한 제휴사 회원(072) — 상세 맨 위 "회원 검색"에서 고른다. 회원을 지우면 연결만 풀린다.

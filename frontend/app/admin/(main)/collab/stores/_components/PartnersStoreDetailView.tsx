@@ -696,6 +696,12 @@ function PhotoThumb({
           {photo.memo}
         </p>
       )}
+      {/* 올린 일시(2026-11-12 사용자) — 수정 폼은 날짜만, 상세는 시각까지. */}
+      {photo.uploadedAt && (
+        <p className="-mt-[2px] px-[2px] text-[11px] leading-[16px] text-disabled">
+          {dotDateTime(photo.uploadedAt)} 업로드
+        </p>
+      )}
     </div>
   );
 }

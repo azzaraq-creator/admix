@@ -3,6 +3,7 @@
  * 칸 이름(key)은 원본 앱과 같고, 칸 이름표 · 순서 · 보이기는 서버의 칸 설정(meta.columns · customFields)을 따른다.
  */
 import type { PageParams } from "@/lib/adminCollab";
+import type { StorePhoto } from "@/lib/partners";
 
 /** 기본 칸 설정 — 원본 sales_settings.columns 한 줄. */
 export interface LeadColumn {
@@ -74,6 +75,8 @@ export interface CollabLead {
   followupMemo: string;
   /** 원본 앱 사진 id — 사진 파일은 함께 오지 않았다. */
   photoIds: string[];
+  /** 매장 사진(088) — 협업 확정 매장 사진과 같은 분류 · 모양. 협업 확정하면 매장 사진으로 옮겨진다. */
+  photos: StorePhoto[];
   custom: Record<string, LeadCustomValue>;
   createdAt: string;
   updatedAt: string;

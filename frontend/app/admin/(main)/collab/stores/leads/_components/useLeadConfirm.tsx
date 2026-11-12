@@ -46,7 +46,10 @@ export function useLeadConfirm() {
   const { success } = useSonner();
 
   const run = useCallback(
-    async (lead: Pick<CollabLead, "id" | "name" | "address" | "custom">) => {
+    async (
+      lead: Pick<CollabLead, "id" | "name" | "address" | "custom" | "photos">,
+    ) => {
+      const photoCount = lead.photos?.length ?? 0;
       const ok = await confirm({
         // 11-12 사용자 — 제목은 묻는 말, 본문은 매장명 한 줄 + 짧은 설명.
         title: "협업 확정하실 건가요?",
@@ -57,7 +60,10 @@ export function useLeadConfirm() {
               <span className="font-semibold text-black">{lead.name}</span>
             </p>
             <p className="mt-[6px] break-keep">
-              협업 확정 매장에 비공개로 추가돼요. 영업 기록은 그대로 남아요.
+              협업 확정 매장에 비공개로 추가돼요.
+              {photoCount > 0 &&
+                ` 매장 사진 ${photoCount}장도 함께 옮겨요.`}{" "}
+              영업 기록은 그대로 남아요.
             </p>
           </>
         ),

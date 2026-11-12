@@ -19,7 +19,13 @@ import { Plus, Search, Star, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { type DragEvent, useMemo, useRef, useState } from "react";
+import {
+  type DragEvent,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { StoreLocationMap } from "@/app/(client)/partners/_components/StoreLocationMap";
 import {
@@ -1153,15 +1159,21 @@ function orderPhotos(list: StorePhoto[]): StorePhoto[] {
  * 메뉴 사진은 어드민에서만 보인다 — 서버가 광고주 · 제휴사 화면과 매체 찾기에는 내보내지 않는다(2026-11-12 사용자).
  * 올리기 전에 브라우저에서 긴 변 2000px 로 줄이고(서버도 한 번 더), 분류마다 별(★)로 대표 사진을 정한다.
  * 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다. 사진마다 짧은 메모(광고주 매장 상세에서 사진 설명으로 보인다).
+ * 영업 기록 상세 "매장 사진" 탭(088)도 같은 칸으로 올린다 — 그쪽은 꼭 넣을 칸이 아니라 required={false}, 제목 아래 안내는 note.
  */
-function PartnersPhotoSection({
+export function PartnersPhotoSection({
   photos,
   onChange,
   error: fieldError,
+  required = true,
+  note,
 }: {
   photos: StorePhoto[];
   onChange: (photos: StorePhoto[]) => void;
   error?: string;
+  required?: boolean;
+  /** 제목 아래 짧은 안내 */
+  note?: ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const targetKind = useRef<PhotoKind>("exterior");
@@ -1250,12 +1262,15 @@ function PartnersPhotoSection({
         <div className="flex items-center gap-[8px]">
           <h2 className="text-lg font-bold leading-[28px] text-black">
             매장 사진
-            <span aria-hidden className="ml-[2px] text-[var(--danger)]">
-              *
-            </span>
+            {required && (
+              <span aria-hidden className="ml-[2px] text-[var(--danger)]">
+                *
+              </span>
+            )}
           </h2>
           <Chip size="sm">{photos.length}장</Chip>
         </div>
+        {note && <p className="break-keep text-sm text-tone-4a5565">{note}</p>}
         {fieldError && <p className={HERO_ERROR_CLASS}>{fieldError}</p>}
       </div>
 

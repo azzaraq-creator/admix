@@ -18,6 +18,7 @@ import { AdminPanel } from "@/components/admin/AdminPanel";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import { useStoreTypes } from "@/hooks/adminCollab";
 import { useAdminPartnersStores } from "@/hooks/adminPartners";
+import { dotDateTime } from "@/lib/adminCollab";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 import {
   COLLAB_GRADES,
@@ -69,8 +70,8 @@ interface StoreTableColumn {
 }
 
 /**
- * 칸 순서 — No · 매장 ID · 등급 · 대표 사진 · 매장명 · 유형 · 주소 · 콜라보 금액 · 연결 회원(2026-11-12 사용자).
- * 매장 어필 · 매체 찾기 ID · 상태 · 등록 · 수정 일시는 목록에서 뺐다(매장 상세에서 본다). 비공개 매장만 매장명 옆에 흐리게 "비공개".
+ * 칸 순서 — No · 매장 ID · 등급 · 대표 사진 · 매장명 · 유형 · 주소 · 콜라보 금액 · 연결 회원 · 콜라보 응답 · 생성 · 업데이트 일시(2026-11-12 사용자).
+ * 매장 어필 · 매체 찾기 ID · 상태는 목록에서 뺐다(매장 상세에서 본다). 비공개 매장만 매장명 옆에 흐리게 "비공개".
  */
 const COLUMNS: StoreTableColumn[] = [
   {
@@ -177,6 +178,17 @@ const COLUMNS: StoreTableColumn[] = [
         </span>
       );
     },
+  },
+  // 맨 끝에 생성 · 업데이트 일시(2026-11-12 사용자).
+  {
+    id: "createdAt",
+    label: "생성일시",
+    render: (s) => dotDateTime(s.createdAt),
+  },
+  {
+    id: "updatedAt",
+    label: "업데이트일시",
+    render: (s) => dotDateTime(s.updatedAt),
   },
 ];
 

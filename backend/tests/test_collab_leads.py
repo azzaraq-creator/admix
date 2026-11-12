@@ -384,3 +384,82 @@ def test_confirm_uses_location_from_screen(db: Session):
         if store_id:
             db.query(PartnersStore).filter(PartnersStore.id == uuid.UUID(store_id)).delete(synchronize_session=False)
             db.commit()
+
+
+def test_lead_photos_saved_by_kind_and_keep_upload_time(db: Session):
+    """11-12 — 영업 기록 매장 사진(088): 분류 순 · 대표 맨 앞으로 정리, 모르는 분류는 기타, 이미 있던 사진은 올린 때를 그대로."""
+    made = ls.create_lead(
+        db,
+        {
+            "name": f"테스트영업-{uuid.uuid4().hex[:6]}",
+            "photos": [
+                {"url": "/uploads/cafe/b.jpg", "kind": "interior", "memo": " 창가  자리 "},
+                {"url": "/uploads/cafe/a.jpg", "kind": "exterior"},
+                {"url": "/uploads/cafe/a.jpg", "kind": "menu"},  # 같은 주소는 한 번만
+                {"url": "/uploads/cafe/c.jpg", "kind": "모름"},
+            ],
+        },
+    )
+    photos = made["photos"]
+    assert [p["url"] for p in photos] == ["/uploads/cafe/a.jpg", "/uploads/cafe/b.jpg", "/uploads/cafe/c.jpg"]
+    assert [p["kind"] for p in photos] == ["exterior", "interior", "etc"]
+    assert all(p["cover"] for p in photos) and photos[1]["memo"] == "창가 자리"
+    first_at = photos[0]["uploadedAt"]
+    assert first_at
+
+    # 대표 바꾸기 · 새 사진 — 있던 사진의 올린 때는 그대로.
+    saved = ls.update_lead(
+        db,
+        made["id"],
+        {
+            "photos": [
+                {"url": "/uploads/cafe/d.jpg", "kind": "exterior", "cover": True},
+                *photos,
+            ]
+        },
+    )
+    by_url = {p["url"]: p for p in saved["photos"]}
+    assert [p["url"] for p in saved["photos"]][:2] == ["/uploads/cafe/d.jpg", "/uploads/cafe/a.jpg"]
+    assert by_url["/uploads/cafe/d.jpg"]["cover"] and not by_url["/uploads/cafe/a.jpg"]["cover"]
+    assert by_url["/uploads/cafe/a.jpg"]["uploadedAt"] == first_at
+
+    # 사진을 안 보내면 그대로, 원본 모양(to_source)에는 없다.
+    assert len(ls.update_lead(db, made["id"], {"note": "메모"})["photos"]) == 4
+    assert "photos" not in ls.to_source(ls._get(db, made["id"]))
+
+    with pytest.raises(HTTPException) as e:
+        ls.update_lead(db, made["id"], {"photos": [{"url": "/x.jpg", "kind": "etc", "memo": "가" * 51}]})
+    assert e.value.status_code == 400
+
+
+def test_confirm_moves_lead_photos_to_store(db: Session):
+    """11-12 — 협업 확정하면 영업 기록 매장 사진이 매장 사진으로(분류 · 대표 · 메모 · 올린 때 그대로)."""
+    from src.models.partners_store import PartnersStore
+
+    made = ls.create_lead(
+        db,
+        {
+            "name": f"테스트영업-{uuid.uuid4().hex[:6]}",
+            "address": "서울 성동구 연무장길 1",
+            "photos": [
+                {"url": "/uploads/cafe/x1.jpg", "kind": "exterior", "memo": "정문"},
+                {"url": "/uploads/cafe/x2.jpg", "kind": "menu"},
+            ],
+        },
+    )
+    store_id = None
+    try:
+        out = ls.confirm_lead(db, made["id"])
+        store_id = out["store"]["id"]
+        images = out["store"]["images"]
+        assert [(p["url"], p["kind"], p["memo"]) for p in images] == [
+            ("/uploads/cafe/x1.jpg", "exterior", "정문"),
+            ("/uploads/cafe/x2.jpg", "menu", ""),
+        ]
+        dates = {p["url"]: p["uploadedAt"] for p in made["photos"]}
+        assert all(p["uploadedAt"] == dates[p["url"]] for p in images)
+        assert out["lead"]["photos"] == made["photos"]  # 영업 기록 사진은 그대로 남는다
+    finally:
+        if store_id:
+            db.query(PartnersStore).filter(PartnersStore.id == uuid.UUID(store_id)).delete(synchronize_session=False)
+            db.commit()

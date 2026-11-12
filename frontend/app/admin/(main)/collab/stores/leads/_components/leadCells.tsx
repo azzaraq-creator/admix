@@ -36,19 +36,22 @@ export function UrlLink({ url, width = 200 }: { url: string; width?: number }) {
     .replace(/^www\./i, "");
   return (
     // HeroUI Link — 눌러도 표 줄 열기(onRowAction)로 번지지 않는다(react-aria press 가 막는다).
-    // 잘린 주소는 올려 두면 Tooltip 으로 다 보인다.
+    // 잘린 주소는 올려 두면 Tooltip 으로 다 보인다. HeroUI .link 가 width: fit-content 라 max-w-full 이 있어야 잘린다
+    // (없으면 긴 네이버지도 주소가 상세 화면을 옆으로 밀었다, 11-12).
     <Tooltip delay={400} closeDelay={0}>
       <Tooltip.Trigger className="block" style={{ maxWidth: width }}>
         <Link
           href={url.trim()}
           target="_blank"
           rel="noreferrer"
-          className="block truncate text-left text-sm text-primary-800 no-underline underline-offset-2 data-[hovered=true]:underline"
+          className="block max-w-full truncate text-left text-sm text-primary-800 no-underline underline-offset-2 data-[hovered=true]:underline"
         >
           {shown}
         </Link>
       </Tooltip.Trigger>
-      <Tooltip.Content className="max-w-[360px] break-all">{url}</Tooltip.Content>
+      <Tooltip.Content className="max-w-[360px] break-all">
+        {url}
+      </Tooltip.Content>
     </Tooltip>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, Switch, TextArea } from "@heroui/react";
+import { Button, Input, Switch, Tabs, TextArea } from "@heroui/react";
 import {
   ChevronLeft,
   CircleCheck,
@@ -17,6 +17,7 @@ import {
   HeroCombo,
   HeroField,
 } from "@/app/admin/(main)/media/_components/heroFields";
+import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import {
@@ -42,19 +43,40 @@ import {
   type LeadFacetKey,
 } from "@/lib/collabLeads";
 import type { DaumPostcodeResult } from "@/lib/daumPostcode";
+import type { StorePhoto } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 import { ChipInput } from "../../../_components/ChipInput";
 import { CollabPageHead, CollabSection } from "../../../_components/collabUi";
 import { PartnerMemberField } from "../../../_components/PartnerMemberField";
+import { PartnersPhotoSection } from "../../_components/PartnersStoreFormView";
 import { labelOf, UrlLink } from "./leadCells";
 import { findLeadLocation, useLeadConfirm } from "./useLeadConfirm";
 import { LEADS_HREF, STORES_HREF } from "../../_components/StoresTabs";
 
 /** 화면에서 고치는 값 — 추가 항목은 입력칸 글자로 들고 있다가 저장할 때 숫자 칸만 숫자로 돌린다. */
-type FormState = Required<Omit<CollabLeadPayload, "custom" | "location">> & {
+type FormState = Required<
+  Omit<CollabLeadPayload, "custom" | "location" | "photos">
+> & {
   custom: Record<string, string>;
+  photos: StorePhoto[];
 };
+
+/**
+ * 주제별 탭(2026-11-12 사용자: 보기 편하게 Tabs로, 둘째 탭은 매장 사진) — 협업 확정 매장 폼과 같은 모양.
+ * 지번주소는 추가 항목이지만 주소라서 업체 정보 탭 "주소" 아래에 둔다.
+ */
+type LeadTab = "info" | "photos" | "sales" | "contact" | "extra";
+const LEAD_TABS: { id: LeadTab; title: string }[] = [
+  { id: "info", title: "업체 정보" },
+  { id: "photos", title: "매장 사진" },
+  { id: "sales", title: "영업 진행" },
+  { id: "contact", title: "담당자 · 대화" },
+  { id: "extra", title: "추가 항목" },
+];
+/** 모든 탭을 그려 두고 고른 탭만 보인다(숨은 탭은 inert) — 매장 폼 PANEL_CLASS 와 같다. */
+const PANEL_CLASS =
+  "flex flex-col gap-[20px] p-0 pt-[16px] data-[inert]:hidden md:gap-[24px]";
 
 const EMPTY: FormState = {
   date: "",
@@ -81,6 +103,7 @@ const EMPTY: FormState = {
   followupMemo: "",
   partnerCode: "",
   custom: {},
+  photos: [],
 };
 
 const toForm = (lead: CollabLead): FormState => ({
@@ -107,6 +130,7 @@ const toForm = (lead: CollabLead): FormState => ({
   conversation: lead.conversation,
   followupMemo: lead.followupMemo,
   partnerCode: lead.partnerCode,
+  photos: lead.photos,
   custom: Object.fromEntries(
     Object.entries(lead.custom).map(([k, v]) => [k, String(v)]),
   ),
@@ -137,6 +161,8 @@ function toPayload(
  * id 가 없으면 새로 만들기.
  */
 export function LeadFormView({ id }: { id?: string }) {
+  // 보던 탭 — 저장하면 폼(LeadForm)을 새로 그리니 탭은 여기서 들고 있는다.
+  const [tab, setTab] = useState<LeadTab>("info");
   const { data: meta, isLoading: metaLoading } = useCollabLeadMeta();
   const { data: lead, isLoading, isError } = useCollabLead(id ?? null);
   if (metaLoading || (id && isLoading)) return <LoadingState />;
@@ -154,6 +180,8 @@ export function LeadFormView({ id }: { id?: string }) {
       key={lead ? `${lead.id}-${lead.updatedAt}` : "new"}
       lead={lead}
       meta={meta}
+      tab={tab}
+      onTabChange={setTab}
     />
   );
 }
@@ -161,9 +189,13 @@ export function LeadFormView({ id }: { id?: string }) {
 function LeadForm({
   lead,
   meta,
+  tab,
+  onTabChange,
 }: {
   lead: CollabLead | undefined;
   meta: CollabLeadMeta | undefined;
+  tab: LeadTab;
+  onTabChange: (tab: LeadTab) => void;
 }) {
   const router = useRouter();
   const create = useCreateCollabLead();
@@ -190,9 +222,13 @@ function LeadForm({
   const extraKeys = Object.keys(form.custom).filter(
     (k) => k !== LEAD_LOT_DETAIL_KEY && !fields.some((f) => f.key === k),
   );
+  // 지번주소는 업체 정보 탭에(주소 아래), 나머지 추가 항목은 추가 항목 탭에.
+  const lotField = fields.find((f) => f.key === LEAD_LOT_ADDRESS_KEY);
+  const customFields = fields.filter((f) => f.key !== LEAD_LOT_ADDRESS_KEY);
 
   const save = async () => {
     if (!form.name.trim()) {
+      onTabChange("info");
       await alert({ title: "업체명을 적어 주세요", confirmText: "확인" });
       return;
     }
@@ -400,7 +436,7 @@ function LeadForm({
         </Button>
       </CollabPageHead>
 
-      {/* 이 매장이 가입했으면 맨 위에서 제휴사 회원과 잇는다(072) — 매장 상세의 "연결 회원"과 같은 회원 검색 창. */}
+      {/* 이 매장이 가입했으면 맨 위에서 제휴사 회원과 잇는다(072) — 매장 상세의 "연결 회원"과 같은 회원 검색 창. 탭 위에 둔다(매장 폼과 같다). */}
       <CollabSection
         title="제휴사 회원 연결"
         desc={
@@ -421,157 +457,222 @@ function LeadForm({
         </Grid>
       </CollabSection>
 
-      <CollabSection title="업체 정보">
-        <Grid>
-          <HeroField label={label("name")} required>
-            {text("name", label("name"))}
-          </HeroField>
-          <HeroField label={label("type")}>{combo("type")}</HeroField>
-          <HeroField label={label("region")}>{combo("region")}</HeroField>
-          <HeroField label={label("grade")}>{combo("grade")}</HeroField>
-          <Wide>
-            <HeroField label={label("address")}>
-              {text("address", label("address"))}
-            </HeroField>
-          </Wide>
-        </Grid>
-      </CollabSection>
-
-      <CollabSection title="영업 진행">
-        <Grid>
-          <HeroField label={label("date")}>
-            {text("date", label("date"), "date")}
-          </HeroField>
-          <HeroField label={label("owner")}>{combo("owner")}</HeroField>
-          <HeroField label={label("status")}>{combo("status")}</HeroField>
-          <HeroField label={label("potential")}>{combo("potential")}</HeroField>
-          <HeroField label={label("followupDate")}>
-            {text("followupDate", label("followupDate"), "date")}
-          </HeroField>
-          <HeroField label={LEAD_EXTRA_LABEL.revisit}>
-            <Switch
-              size="sm"
-              className="h-[40px] [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-              isSelected={form.revisit}
-              onChange={(v) => set("revisit", v)}
-            >
-              <Switch.Content>
-                <Switch.Control>
-                  <Switch.Thumb className="bg-surface!" />
-                </Switch.Control>
-                <span className="text-sm text-tone-4a5565">
-                  {form.revisit ? "예" : "아니요"}
-                </span>
-              </Switch.Content>
-            </Switch>
-          </HeroField>
-          <Wide>
-            <HeroField
-              label={label("purposes")}
-              help="쉼표(,)를 누르면 칩이 돼요."
-            >
-              {chips("purposes")}
-            </HeroField>
-          </Wide>
-          <HeroField label={label("contacts")}>{chips("contacts")}</HeroField>
-          <HeroField label={label("reactions")}>{chips("reactions")}</HeroField>
-          <Wide>
-            <HeroField label={label("note")}>
-              {longText("note", label("note"), 2)}
-            </HeroField>
-          </Wide>
-        </Grid>
-      </CollabSection>
-
-      <CollabSection title="매장 담당자">
-        <Grid>
-          <HeroField label={LEAD_EXTRA_LABEL.contactName}>
-            {text("contactName", LEAD_EXTRA_LABEL.contactName)}
-          </HeroField>
-          <HeroField label={LEAD_EXTRA_LABEL.contactTitle}>
-            {text("contactTitle", LEAD_EXTRA_LABEL.contactTitle)}
-          </HeroField>
-          <HeroField label={LEAD_EXTRA_LABEL.contactPhone}>
-            {text("contactPhone", LEAD_EXTRA_LABEL.contactPhone, "tel")}
-          </HeroField>
-          <HeroField label={LEAD_EXTRA_LABEL.contactEmail}>
-            {text("contactEmail", LEAD_EXTRA_LABEL.contactEmail)}
-          </HeroField>
-          <Wide>
-            <HeroField label={LEAD_EXTRA_LABEL.contactOther}>
-              {text("contactOther", LEAD_EXTRA_LABEL.contactOther)}
-            </HeroField>
-          </Wide>
-        </Grid>
-      </CollabSection>
-
-      <CollabSection title="대화 · 후속">
-        <Grid>
-          <Wide>
-            <HeroField label={LEAD_EXTRA_LABEL.conversation}>
-              {longText("conversation", LEAD_EXTRA_LABEL.conversation, 8)}
-            </HeroField>
-          </Wide>
-          <Wide>
-            <HeroField label={LEAD_EXTRA_LABEL.followupMemo}>
-              {longText("followupMemo", LEAD_EXTRA_LABEL.followupMemo, 4)}
-            </HeroField>
-          </Wide>
-        </Grid>
-      </CollabSection>
-
-      <CollabSection
-        title="추가 항목"
-        desc="원본 영업 앱에서 직접 만든 칸이에요. 값은 원본 그대로예요(숫자 칸에 글이 있어도 바꾸지 않았어요)."
+      <Tabs
+        selectedKey={tab}
+        onSelectionChange={(key) => onTabChange(String(key) as LeadTab)}
       >
-        <Grid>
-          {fields.map((f) =>
-            f.key === LEAD_LOT_ADDRESS_KEY ? (
-              <LotAddressField
-                key={f.key}
-                label={f.label}
-                base={form.custom[f.key] ?? ""}
-                detail={form.custom[LEAD_LOT_DETAIL_KEY] ?? ""}
-                onBase={(v) => setCustom(f.key, v)}
-                onDetail={(v) => setCustom(LEAD_LOT_DETAIL_KEY, v)}
-              />
-            ) : (
-              <CustomField
-                key={f.key}
-                field={f}
-                value={form.custom[f.key] ?? ""}
-                onChange={(v) => setCustom(f.key, v)}
-              />
-            ),
-          )}
-          {extraKeys.map((k) => (
-            <CustomField
-              key={k}
-              field={{ key: k, type: "text", label: k, visible: true }}
-              value={form.custom[k] ?? ""}
-              onChange={(v) => setCustom(k, v)}
-              help="칸 설정에 없는 원본 칸이에요."
-            />
-          ))}
-        </Grid>
-      </CollabSection>
+        <Tabs.ListContainer className="max-w-full overflow-x-auto">
+          <Tabs.List aria-label="영업 기록 구역">
+            {LEAD_TABS.map((t) => (
+              <Tabs.Tab
+                key={t.id}
+                id={t.id}
+                className="gap-[4px] whitespace-nowrap"
+              >
+                {t.title}
+                {t.id === "photos" && form.photos.length > 0 && (
+                  <span className="text-xs font-medium text-disabled">
+                    {form.photos.length}
+                  </span>
+                )}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
 
-      {lead?.hasSource && (
-        <CollabSection title="원본">
-          <dl className="grid grid-cols-[120px_1fr] gap-x-[16px] gap-y-[8px] text-sm">
-            <dt className="text-disabled">원본 id</dt>
-            <dd className="font-medium">{lead.sourceId}</dd>
-            <dt className="text-disabled">처음 등록</dt>
-            <dd>{dotDateTime(lead.createdAt)}</dd>
-            <dt className="text-disabled">{LEAD_EXTRA_LABEL.photoIds}</dt>
-            <dd>
-              {lead.photoIds.length
-                ? `원본 앱 사진 ${lead.photoIds.length}장 — 사진 파일은 함께 오지 않아 id만 남겨 뒀어요.`
-                : "없음"}
-            </dd>
-          </dl>
-        </CollabSection>
-      )}
+        <Tabs.Panel id="info" shouldForceMount className={PANEL_CLASS}>
+          <CollabSection title="업체 정보">
+            <Grid>
+              <HeroField label={label("name")} required>
+                {text("name", label("name"))}
+              </HeroField>
+              <HeroField label={label("type")}>{combo("type")}</HeroField>
+              <HeroField label={label("region")}>{combo("region")}</HeroField>
+              <HeroField label={label("grade")}>{combo("grade")}</HeroField>
+              <Wide>
+                <HeroField label={label("address")}>
+                  {text("address", label("address"))}
+                </HeroField>
+              </Wide>
+              {lotField && (
+                <LotAddressField
+                  label={lotField.label}
+                  base={form.custom[lotField.key] ?? ""}
+                  detail={form.custom[LEAD_LOT_DETAIL_KEY] ?? ""}
+                  onBase={(v) => setCustom(lotField.key, v)}
+                  onDetail={(v) => setCustom(LEAD_LOT_DETAIL_KEY, v)}
+                />
+              )}
+            </Grid>
+          </CollabSection>
+        </Tabs.Panel>
+
+        {/* 매장 사진(088) — 협업 확정 매장 폼과 같은 칸. 확정하면 매장 사진으로 옮겨진다(그 뒤로는 매장에서 고친다). */}
+        <Tabs.Panel id="photos" shouldForceMount className={PANEL_CLASS}>
+          <AdminPanel>
+            <PartnersPhotoSection
+              required={false}
+              photos={form.photos}
+              onChange={(photos) => set("photos", photos)}
+              note={
+                lead?.storeId ? (
+                  <>
+                    협업 확정한 뒤로는 매장 사진을 협업 확정 매장(
+                    {lead.storeCode})에서 고쳐요. 여기서 고쳐도 매장 사진은
+                    바뀌지 않아요.{" "}
+                    <Link
+                      href={`${STORES_HREF}/${lead.storeId}/edit?tab=photos`}
+                      className="font-semibold text-black underline"
+                    >
+                      매장 사진 고치기
+                    </Link>
+                  </>
+                ) : (
+                  "분류마다 올려 두면 협업 확정할 때 협업 확정 매장 사진으로 함께 옮겨요."
+                )
+              }
+            />
+          </AdminPanel>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="sales" shouldForceMount className={PANEL_CLASS}>
+          <CollabSection title="영업 진행">
+            <Grid>
+              <HeroField label={label("date")}>
+                {text("date", label("date"), "date")}
+              </HeroField>
+              <HeroField label={label("owner")}>{combo("owner")}</HeroField>
+              <HeroField label={label("status")}>{combo("status")}</HeroField>
+              <HeroField label={label("potential")}>
+                {combo("potential")}
+              </HeroField>
+              <HeroField label={label("followupDate")}>
+                {text("followupDate", label("followupDate"), "date")}
+              </HeroField>
+              <HeroField label={LEAD_EXTRA_LABEL.revisit}>
+                <Switch
+                  size="sm"
+                  className="h-[40px] [--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
+                  isSelected={form.revisit}
+                  onChange={(v) => set("revisit", v)}
+                >
+                  <Switch.Content>
+                    <Switch.Control>
+                      <Switch.Thumb className="bg-surface!" />
+                    </Switch.Control>
+                    <span className="text-sm text-tone-4a5565">
+                      {form.revisit ? "예" : "아니요"}
+                    </span>
+                  </Switch.Content>
+                </Switch>
+              </HeroField>
+              <Wide>
+                <HeroField
+                  label={label("purposes")}
+                  help="쉼표(,)를 누르면 칩이 돼요."
+                >
+                  {chips("purposes")}
+                </HeroField>
+              </Wide>
+              <HeroField label={label("contacts")}>
+                {chips("contacts")}
+              </HeroField>
+              <HeroField label={label("reactions")}>
+                {chips("reactions")}
+              </HeroField>
+              <Wide>
+                <HeroField label={label("note")}>
+                  {longText("note", label("note"), 2)}
+                </HeroField>
+              </Wide>
+            </Grid>
+          </CollabSection>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="contact" shouldForceMount className={PANEL_CLASS}>
+          <CollabSection title="매장 담당자">
+            <Grid>
+              <HeroField label={LEAD_EXTRA_LABEL.contactName}>
+                {text("contactName", LEAD_EXTRA_LABEL.contactName)}
+              </HeroField>
+              <HeroField label={LEAD_EXTRA_LABEL.contactTitle}>
+                {text("contactTitle", LEAD_EXTRA_LABEL.contactTitle)}
+              </HeroField>
+              <HeroField label={LEAD_EXTRA_LABEL.contactPhone}>
+                {text("contactPhone", LEAD_EXTRA_LABEL.contactPhone, "tel")}
+              </HeroField>
+              <HeroField label={LEAD_EXTRA_LABEL.contactEmail}>
+                {text("contactEmail", LEAD_EXTRA_LABEL.contactEmail)}
+              </HeroField>
+              <Wide>
+                <HeroField label={LEAD_EXTRA_LABEL.contactOther}>
+                  {text("contactOther", LEAD_EXTRA_LABEL.contactOther)}
+                </HeroField>
+              </Wide>
+            </Grid>
+          </CollabSection>
+
+          <CollabSection title="대화 · 후속">
+            <Grid>
+              <Wide>
+                <HeroField label={LEAD_EXTRA_LABEL.conversation}>
+                  {longText("conversation", LEAD_EXTRA_LABEL.conversation, 8)}
+                </HeroField>
+              </Wide>
+              <Wide>
+                <HeroField label={LEAD_EXTRA_LABEL.followupMemo}>
+                  {longText("followupMemo", LEAD_EXTRA_LABEL.followupMemo, 4)}
+                </HeroField>
+              </Wide>
+            </Grid>
+          </CollabSection>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="extra" shouldForceMount className={PANEL_CLASS}>
+          <CollabSection
+            title="추가 항목"
+            desc="원본 영업 앱에서 직접 만든 칸이에요. 값은 원본 그대로예요(숫자 칸에 글이 있어도 바꾸지 않았어요)."
+          >
+            <Grid>
+              {customFields.map((f) => (
+                <CustomField
+                  key={f.key}
+                  field={f}
+                  value={form.custom[f.key] ?? ""}
+                  onChange={(v) => setCustom(f.key, v)}
+                />
+              ))}
+              {extraKeys.map((k) => (
+                <CustomField
+                  key={k}
+                  field={{ key: k, type: "text", label: k, visible: true }}
+                  value={form.custom[k] ?? ""}
+                  onChange={(v) => setCustom(k, v)}
+                  help="칸 설정에 없는 원본 칸이에요."
+                />
+              ))}
+            </Grid>
+          </CollabSection>
+
+          {lead?.hasSource && (
+            <CollabSection title="원본">
+              <dl className="grid grid-cols-[120px_1fr] gap-x-[16px] gap-y-[8px] text-sm">
+                <dt className="text-disabled">원본 id</dt>
+                <dd className="font-medium">{lead.sourceId}</dd>
+                <dt className="text-disabled">처음 등록</dt>
+                <dd>{dotDateTime(lead.createdAt)}</dd>
+                <dt className="text-disabled">{LEAD_EXTRA_LABEL.photoIds}</dt>
+                <dd>
+                  {lead.photoIds.length
+                    ? `원본 앱 사진 ${lead.photoIds.length}장 — 사진 파일은 함께 오지 않아 id만 남겨 뒀어요.`
+                    : "없음"}
+                </dd>
+              </dl>
+            </CollabSection>
+          )}
+        </Tabs.Panel>
+      </Tabs>
       {confirmDialog}
       {leadConfirm.dialog}
     </div>

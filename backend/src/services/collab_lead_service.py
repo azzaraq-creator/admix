@@ -70,6 +70,26 @@ def serialize(lead: CollabLead) -> dict:
     # 협업 확정으로 만든 매장(076) — 없으면 "". 확정해도 영업 기록 목록엔 그대로 남는다(11-12).
     out["storeId"] = str(lead.store_id) if lead.store_id else ""
     out["storeCode"] = (lead.store.store_code or "") if lead.store else ""
+    out["photos"] = photos_of(lead)
+    return out
+
+
+def photos_of(lead: CollabLead) -> list[dict]:
+    """매장 사진(088) — [{url, kind, cover, memo, uploadedAt}] 저장 순서. cover 는 분류마다 먼저 나오는 한 장(대표)."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for p in lead.photos or []:
+        kind = partners_service._photo_kind(p.get("kind"))
+        out.append(
+            {
+                "url": p.get("url") or "",
+                "kind": kind,
+                "cover": kind not in seen,
+                "memo": p.get("memo") or "",
+                "uploadedAt": p.get("uploadedAt"),
+            }
+        )
+        seen.add(kind)
     return out
 
 
@@ -81,6 +101,7 @@ def to_source(lead: CollabLead) -> dict:
     out.pop("partnerCode")  # 원본 앱에 없는 칸(072)
     out.pop("storeId")  # 원본 앱에 없는 칸(076)
     out.pop("storeCode")
+    out.pop("photos")  # 원본 앱에 없는 칸(088) — 원본 사진은 photoIds
     out["id"] = lead.source_id or ""
     out["revisit"] = "yes" if lead.revisit else "no"
     return out
@@ -155,6 +176,15 @@ def _parse_dt(value) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _clean_photos(lead: CollabLead, value) -> list[dict]:
+    """[{url, kind, cover, memo}] → 저장 모양. 정리 규칙(분류 순 · 대표 맨 앞 · 메모 길이)은 협업 확정 매장 사진과 같다.
+    올린 때는 이미 있던 사진은 그대로, 처음 보는 주소만 지금 시각."""
+    urls, kinds, memos = partners_service._clean_photo_set(value if isinstance(value, list) else [])
+    dates = {p.get("url"): p.get("uploadedAt") for p in lead.photos or []}
+    now = datetime.now(timezone.utc).isoformat()
+    return [{"url": u, "kind": kinds[u], "memo": memos.get(u, ""), "uploadedAt": dates.get(u) or now} for u in urls]
+
+
 def _apply(lead: CollabLead, data: dict, *, raw: bool = False) -> None:
     """보낸 칸만 바꾼다. raw — 원본 파일 가져오기(글자를 다듬지 않는다)."""
     for key, (attr, max_len) in TEXT_FIELDS.items():
@@ -171,6 +201,8 @@ def _apply(lead: CollabLead, data: dict, *, raw: bool = False) -> None:
         lead.revisit = v in (True, "yes", "Y", "y", "true", 1)
     if "custom" in data:
         lead.custom = _custom(data["custom"])
+    if "photos" in data and not raw:
+        lead.photos = _clean_photos(lead, data["photos"])
     if not lead.name:
         raise HTTPException(status_code=400, detail="업체명을 적어 주세요.")
 
@@ -398,7 +430,8 @@ def confirm_lead(db: Session, lead_id: str, location: dict | None = None) -> dic
     """협업 확정 — 영업 기록 칸으로 협업 확정 매장(S-0001 …)을 만들고 기록과 잇는다.
 
     매장은 비공개로 만든다(사진 · 금액을 채우고 어드민이 공개로 바꾼다). 옮기는 칸: 업체명 · 주소(없으면 지번주소 + 상세) · 업체 유형(매장 유형) ·
-    매장 담당자 연락처(전화번호) · 대표/사장이면 그 이름(사장 이름) · 연결한 제휴사 회원. 영업 기록은 지우지 않고 목록에도 남는다.
+    매장 담당자 연락처(전화번호) · 대표/사장이면 그 이름(사장 이름) · 연결한 제휴사 회원 · 매장 사진(088). 영업 기록은 지우지 않고 목록에도 남는다.
+    확정한 뒤로 매장 사진은 협업 확정 매장에서 고친다(영업 기록 사진을 고쳐도 매장엔 반영되지 않는다).
     location — 화면이 찾은 위치(없으면 서버가 주소로 찾는다).
     """
     lead = _get(db, lead_id)
@@ -434,7 +467,14 @@ def _make_store(db: Session, lead: CollabLead, location: dict | None):
     data.update(_location_of(location))
     if lead.partner and lead.partner.partner_code:
         data["owner_code"] = lead.partner.partner_code
+    # 영업 기록 매장 사진(088)은 매장 사진으로 — 분류 · 대표 · 메모 그대로, 올린 때도 영업 기록에 올린 때로.
+    photos = lead.photos or []
+    if photos:
+        data["images"] = [{"url": p.get("url"), "kind": p.get("kind"), "memo": p.get("memo")} for p in photos]
     store = partners_service.create_store(db, data)
+    if photos:
+        dates = {p.get("url"): p.get("uploadedAt") for p in photos}
+        store.image_dates = {u: dates.get(u) or d for u, d in (store.image_dates or {}).items()}
     lead.store_id = store.id
     lead.store = store
     lead.updated_at = datetime.now(timezone.utc)
