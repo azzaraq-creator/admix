@@ -4,6 +4,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 
 import { BackCloseOverlays } from "@/components/common/BackCloseOverlays";
 
+import { AccountSwitchWatch } from "./_components/AccountSwitchWatch";
 import { GaPageView } from "./_components/GaPageView";
 
 // 사용자(client) 화면에만 GA4 로드. admin/deck 제외.
@@ -16,6 +17,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       {children}
       {/* 휴대폰 뒤로가기로 Drawer·Modal 닫기 */}
       <BackCloseOverlays />
+      {/* 다른 탭에서 슈퍼 계정을 바꾸면 이 탭도 새 계정으로 */}
+      <AccountSwitchWatch />
       {GA_ID && (
         <>
           <GoogleAnalytics gaId={GA_ID} />

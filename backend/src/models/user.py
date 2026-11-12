@@ -14,13 +14,17 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import object_session, relationship
 
 from src.database import Base
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# 회원 유형 순서 — 가입 화면 카드와 같다(프런트 lib/memberCategory.ts MEMBER_CATEGORIES).
+CATEGORY_ORDER = ("general", "advertiser", "agency", "media_owner", "partner")
 
 
 class User(Base):
@@ -73,6 +77,8 @@ class User(Base):
     # 마케팅 정보 받을 방법(083) — 문자 · 이메일, 둘 다 가능. 동의(marketing_consent)가 켜져 있을 때만 쓴다.
     marketing_sms = Column(Boolean, nullable=False, default=False, server_default="false")
     marketing_email = Column(Boolean, nullable=False, default=False, server_default="false")
+    # 슈퍼 계정 묶음(087) — 유형마다 따로 쓰는 계정들을 같은 값으로 묶어 프로필 메뉴 "계정 전환"으로 오간다. 보통 회원은 비어 있다.
+    account_group_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     status = Column(String(20), nullable=False, default="active")  # active/dormant/sanctioned/withdrawn
     admin_memo = Column(Text, nullable=True)
     withdrawn_at = Column(DateTime(timezone=True), nullable=True)
@@ -101,6 +107,21 @@ class User(Base):
         "Proposal", back_populates="member", passive_deletes=True
     )
     inquiries = relationship("Inquiry", back_populates="member")
+
+    @property
+    def linked_accounts(self) -> list[dict]:
+        """같은 묶음(account_group_id)의 계정들 — 자기 자신 포함, 회원 유형 순서(일반 · 광고주 · 대행사 · 매체사 · 제휴사).
+        묶음이 없으면 빈 목록. 탈퇴한 계정은 뺀다."""
+        session = object_session(self)
+        if self.account_group_id is None or session is None:
+            return []
+        rows = (
+            session.query(User.id, User.member_category)
+            .filter(User.account_group_id == self.account_group_id, User.status != "withdrawn")
+            .all()
+        )
+        rows.sort(key=lambda r: CATEGORY_ORDER.index(r.member_category) if r.member_category in CATEGORY_ORDER else 99)
+        return [{"id": r.id, "member_category": r.member_category} for r in rows]
 
     @property
     def sns_provider(self) -> str | None:

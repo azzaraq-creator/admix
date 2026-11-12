@@ -30,6 +30,7 @@ from src.schemas.auth import (
     ProfileUpdateRequest,
     RefreshRequest,
     RegisterRequest,
+    SwitchAccountRequest,
     TokenResponse,
     UserResponse,
 )
@@ -92,6 +93,19 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     if current_user.member_category == "partner" and not current_user.partner_code:
         partners_service.ensure_partner_code(db, current_user)
     return current_user
+
+
+@router.post("/switch-account", response_model=TokenResponse)
+def switch_account(
+    body: SwitchAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    """슈퍼 계정(087) "계정 전환" — 같은 묶음의 다른 유형 계정으로 새 토큰을 준다. 묶음 밖 계정은 403."""
+    access, refresh_token = auth_service.switch_account(
+        db, current_user, body.user_id, remember=body.remember, refresh_token=body.refresh_token
+    )
+    return TokenResponse(access_token=access, refresh_token=refresh_token)
 
 
 @router.post("/me/business-registration", response_model=UserResponse)

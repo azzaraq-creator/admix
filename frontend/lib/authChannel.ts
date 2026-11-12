@@ -8,7 +8,7 @@
 
 const CHANNEL = "admix-auth";
 
-type AuthMessage = { type: "logout" };
+type AuthMessage = { type: "logout" } | { type: "switch" };
 
 function openChannel(): BroadcastChannel | null {
   if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
@@ -38,6 +38,27 @@ export function onLogoutAnnounced(listener: () => void): () => void {
   if (!channel) return () => {};
   channel.onmessage = (event: MessageEvent<AuthMessage>) => {
     if (event.data?.type === "logout") listener();
+  };
+  return () => channel.close();
+}
+
+/** 다른 탭에 "계정을 바꿨어요"를 알린다(슈퍼 계정 계정 전환, 087) — 받은 탭은 새 계정으로 다시 그린다. */
+export function announceSwitch() {
+  const channel = openChannel();
+  if (!channel) return;
+  try {
+    channel.postMessage({ type: "switch" } satisfies AuthMessage);
+  } finally {
+    channel.close();
+  }
+}
+
+/** 다른 탭의 계정 전환 알림을 받는다. 돌려준 함수를 부르면 그만 받는다. */
+export function onSwitchAnnounced(listener: () => void): () => void {
+  const channel = openChannel();
+  if (!channel) return () => {};
+  channel.onmessage = (event: MessageEvent<AuthMessage>) => {
+    if (event.data?.type === "switch") listener();
   };
   return () => channel.close();
 }

@@ -97,6 +97,13 @@ export interface MeResponse {
   partner_signature_url?: string | null;
   /** 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 이 번호로 매장을 연결한다. */
   partner_code?: string | null;
+  /** 슈퍼 계정 묶음(087) — 자기 자신 포함, 회원 유형 순서. 보통 회원은 빈 목록(계정 전환 메뉴 없음). */
+  linked_accounts?: LinkedAccount[];
+}
+
+export interface LinkedAccount {
+  id: string;
+  member_category: MemberCategory;
 }
 
 export const authApi = {
@@ -149,6 +156,15 @@ export const authApi = {
     api.post<MeResponse>("/auth/sns/complete", payload).then((r) => r.data),
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refresh_token: refreshToken }),
+  /** 슈퍼 계정 "계정 전환" — 같은 묶음의 다른 유형 계정 토큰. 지금 리프레시 토큰은 서버가 폐기한다. */
+  switchAccount: (userId: string, remember: boolean, refreshToken: string | null) =>
+    api
+      .post<LoginResponse>("/auth/switch-account", {
+        user_id: userId,
+        remember,
+        refresh_token: refreshToken,
+      })
+      .then((r) => r.data),
   me: () => api.get<MeResponse>("/auth/me").then((r) => r.data),
   uploadBusinessRegistration: (file: File) => {
     const form = new FormData();

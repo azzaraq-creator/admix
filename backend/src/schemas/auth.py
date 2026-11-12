@@ -71,6 +71,21 @@ class PasswordResetConfirm(BaseModel):
     new_password: str = Field(min_length=8)
 
 
+class LinkedAccountOut(BaseModel):
+    """슈퍼 계정 묶음(087)의 계정 하나 — 프로필 메뉴 "계정 전환" 목록."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    member_category: str
+
+
+class SwitchAccountRequest(BaseModel):
+    """계정 전환 — 같은 묶음의 다른 계정으로 새 토큰을 받는다. 지금 리프레시 토큰을 주면 폐기한다."""
+    user_id: uuid.UUID
+    remember: bool = False
+    refresh_token: str | None = None
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -104,6 +119,8 @@ class UserResponse(BaseModel):
     partner_signature_url: str | None = None
     # 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 매장을 이 번호로 연결한다.
     partner_code: str | None = None
+    # 슈퍼 계정 묶음(087) — 자기 자신 포함. 보통 회원은 빈 목록이고 계정 전환 메뉴가 없다.
+    linked_accounts: list[LinkedAccountOut] = []
 
 
 class OAuthUrlResponse(BaseModel):

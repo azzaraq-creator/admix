@@ -1,12 +1,19 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 
-import { announceLogout } from "@/lib/authChannel";
+import { announceLogout, announceSwitch } from "@/lib/authChannel";
+import { canUsePartners, type MemberCategory } from "@/lib/memberCategory";
 import { clearSessionId } from "@/lib/session";
-import { clearUserToken, getRefreshToken } from "@/lib/userToken";
+import {
+  clearUserToken,
+  getPersist,
+  getRefreshToken,
+  setTokens,
+} from "@/lib/userToken";
 
 import {
   authApi,
+  type LinkedAccount,
   type ProfileUpdatePayload,
   type RegisterPayload,
 } from "./apis";
@@ -39,6 +46,34 @@ export const useLogout = () => {
     router.push(to);
   };
 };
+
+/**
+ * 슈퍼 계정 "계정 전환"(087) — 같은 묶음의 다른 유형 계정으로 바꾸고 화면을 처음부터 다시 연다.
+ * 계정마다 데이터가 따로라 캐시를 버리고 새로 그린다. 콜라보 화면은 콜라보 첫 화면(/partners — 유형에 맞게 보여 준다),
+ * admix 화면은 지금 주소 그대로. 같은 브라우저의 다른 탭에도 알려 새 계정으로 다시 그리게 한다(AccountSwitchWatch).
+ */
+export const useSwitchAccount = () => {
+  const pathname = usePathname();
+  return useMutation({
+    mutationFn: (to: LinkedAccount) =>
+      authApi.switchAccount(to.id, getPersist(), getRefreshToken()),
+    onSuccess: (res, to) => {
+      setTokens(res.access_token, res.refresh_token, getPersist());
+      announceSwitch();
+      reloadForAccount(pathname, to.member_category);
+    },
+  });
+};
+
+/**
+ * 계정이 바뀐 뒤 다시 열 주소 — 콜라보 화면은 콜라보 첫 화면(콜라보를 못 쓰는 유형이면 admix 첫 화면), admix 화면은 지금 주소.
+ * category 를 모르면(다른 탭이 알림만 받았을 때) 콜라보 첫 화면 — 거기서 유형에 맞게 안내한다.
+ */
+export function reloadForAccount(pathname: string, category?: MemberCategory) {
+  if (!pathname.startsWith("/partners")) window.location.reload();
+  else if (category && !canUsePartners(category)) window.location.assign("/");
+  else window.location.assign("/partners");
+}
 
 export const useLogin = () =>
   useMutation({

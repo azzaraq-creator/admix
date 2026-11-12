@@ -15,6 +15,11 @@ import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
 import { useLogout } from "@/hooks/auth";
 import { cn } from "@/lib/utils";
 
+import {
+  ACCOUNT_KEY_PREFIX,
+  ACCOUNT_TRIGGER_KEY,
+  AccountSwitchSubmenu,
+} from "./AccountSwitchMenu";
 import { collabScript } from "./collabFont";
 import { THEME_KEY_PREFIX, ThemeSubmenu } from "./ThemeMenu";
 import { openLoginModal } from "./useLoginModal";
@@ -26,7 +31,8 @@ const MENU_ICON = "size-[16px] shrink-0 text-gray-500";
 const COLLAB_KEY = "collab";
 
 /**
- * 프로필 메뉴 항목([화면 모드] · 내 정보 · 약관 및 정책 | 로그아웃) — PC 사이드바와 모바일 상단바의 Dropdown이 같이 쓴다.
+ * 프로필 메뉴 항목([화면 모드] · [계정 전환 |] 내 정보 · 약관 및 정책 | 로그아웃) — PC 사이드바와 모바일 상단바의 Dropdown이 같이 쓴다.
+ * 계정 전환은 슈퍼 계정(087)만 — admix · 콜라보 화면 모두 이 메뉴라 어디서든 바꿀 수 있다.
  * onNavigate: 이동하기 전에 할 일(모바일 사이드바 닫기 등).
  * withTheme: 맨 위에 화면 모드 줄 — 모바일 상단바만. PC는 사이드바 가이드 줄 위에 따로 있다.
  * backToAdmix: 로그아웃 위에 "admix로 돌아가기" — 콜라보 모바일 위 띠만(사이드바가 없어 돌아갈 줄이 없다).
@@ -58,6 +64,12 @@ export function ProfileMenu({
       onAction={(key) => {
         // 화면 모드 줄·하위 메뉴는 ThemeSubmenu가 처리한다.
         if (String(key).startsWith(THEME_KEY_PREFIX) || key === "theme") return;
+        // 계정 전환 줄 · 하위 메뉴는 AccountSwitchSubmenu가 처리한다.
+        if (
+          String(key).startsWith(ACCOUNT_KEY_PREFIX) ||
+          key === ACCOUNT_TRIGGER_KEY
+        )
+          return;
         if (key === "logout") {
           void logout();
           return;
@@ -71,6 +83,8 @@ export function ProfileMenu({
       }}
     >
       {withTheme ? <ThemeSubmenu /> : null}
+      {/* 슈퍼 계정(087)만 — 일반 · 광고주 · 대행사 · 매체사 · 제휴사 계정 사이를 오간다. 보통 회원은 없다. */}
+      <AccountSwitchSubmenu />
       <Dropdown.Item id={profileHref} textValue="내 정보">
         <ProfileFilledIcon className={MENU_ICON} />
         <span className="text-sm font-medium text-black">내 정보</span>

@@ -141,6 +141,12 @@ def authenticate(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.login_id == email).first()
     if user is None or user.password is None or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    ensure_can_sign_in(db, user)
+    return user
+
+
+def ensure_can_sign_in(db: Session, user: User) -> None:
+    """로그인해도 되는 계정인지 — 탈퇴 · 지금 제재 중이면 403. 로그인과 계정 전환이 같이 쓴다."""
     if user.status == "withdrawn":
         raise HTTPException(status_code=403, detail="탈퇴한 계정입니다.")
     # 제재는 status 플래그가 아니라 제재 기간(오늘이 start_date~end_date 사이)으로 판정.
@@ -160,7 +166,29 @@ def authenticate(db: Session, email: str, password: str) -> User:
     )
     if active_sanction is not None:
         raise HTTPException(status_code=403, detail="서비스 이용이 제한되었습니다.")
-    return user
+
+
+def switch_account(
+    db: Session,
+    current: User,
+    target_id,
+    remember: bool = False,
+    refresh_token: str | None = None,
+) -> tuple[str, str]:
+    """슈퍼 계정 묶음(087) 안에서 다른 계정으로 옮긴다 — 같은 묶음일 때만. 지금 계정의 리프레시 토큰은 폐기한다."""
+    target = db.query(User).filter(User.id == target_id).first()
+    if (
+        target is None
+        or current.account_group_id is None
+        or target.account_group_id != current.account_group_id
+    ):
+        raise HTTPException(status_code=403, detail="전환할 수 없는 계정이에요.")
+    ensure_can_sign_in(db, target)
+    if refresh_token:
+        row = db.query(RefreshToken).filter(RefreshToken.token == hash_token(refresh_token)).first()
+        if row is not None and row.user_id == current.id:
+            row.revoked = True
+    return issue_tokens(db, target, remember=remember)
 
 
 def withdraw(db: Session, user: User) -> None:
