@@ -49,7 +49,7 @@ class CollabLead(Base):
     partner_user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    # 협업 확정으로 만든 매장(076) — 차 있으면 "협업 확정 전" 목록에서 빠진다. 매장을 지우면 연결만 풀린다.
+    # 협업 확정으로 만든 매장(076) — 확정해도 영업 기록 목록엔 남는다(11-12). 매장을 지우면 연결만 풀린다.
     store_id = Column(
         UUID(as_uuid=True), ForeignKey("cafe_store.id", ondelete="SET NULL"), nullable=True, index=True
     )

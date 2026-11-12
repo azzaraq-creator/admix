@@ -194,7 +194,7 @@ const LINKED_OPTIONS = [
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 /**
- * 콜라보 어드민 "매장 관리" → 협업 확정 카페 — 매장은 어드민에서만 등록한다(069). 제휴사는 가입만 하고,
+ * 콜라보 어드민 "매장 관리" → 협업 확정 매장(11-12 "협업 확정 카페"에서 이름 바꿈) — 매장은 어드민에서만 등록한다(069). 제휴사는 가입만 하고,
  * 담당자가 매장 ID(S-0001)를 회원 고유번호(P-0001)와 잇는다. ?linked=no 로 들어오면 연결 전 매장만.
  * 위는 검색 + 고르기 칩(유형 · 등급 · 회원 연결 — admix 매체 찾기 필터 칩과 같은 모양, 2026-11-12 사용자: 상태 대신 등급 · 유형).
  */
@@ -385,7 +385,7 @@ export function PartnersStoreListView() {
               {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
               <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
                 <Table.Content
-                  aria-label="협업 확정 카페 목록"
+                  aria-label="협업 확정 매장 목록"
                   className="min-w-max"
                   onRowAction={(key) =>
                     router.push(`${STORES_HREF}/${String(key)}`)

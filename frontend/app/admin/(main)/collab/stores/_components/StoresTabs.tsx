@@ -7,14 +7,14 @@ export const STORES_HREF = "/admin/collab/stores";
 export const LEADS_HREF = "/admin/collab/stores/leads";
 
 const TABS = [
-  { key: "stores", label: "협업 확정 카페", href: STORES_HREF },
-  { key: "leads", label: "협업 확정 전", href: LEADS_HREF },
+  { key: "stores", label: "협업 확정 매장", href: STORES_HREF },
+  { key: "leads", label: "영업 기록", href: LEADS_HREF },
 ] as const;
 
 type StoresTab = (typeof TABS)[number]["key"];
 
 /**
- * 콜라보 어드민 "매장 관리" 안의 두 목록 — 어드민이 등록한 매장(협업 확정 카페)과 가입 전 매장 영업 기록(협업 확정 전, 071).
+ * 콜라보 어드민 "매장 관리" 안의 두 목록 — 어드민이 등록한 매장(협업 확정 매장, 11-12까지 "협업 확정 카페")과 매장 영업 기록(영업 기록, 071 — 11-12 "협업 확정 전"에서 이름 바꿈, 확정해도 남는다).
  * 사이드바는 "매장 관리" 하나로 두고 화면 위에서 오간다(2026-11-10 사용자: 영업 DB 를 매장 화면에서 보이게).
  */
 export function StoresTabs({ current }: { current: StoresTab }) {

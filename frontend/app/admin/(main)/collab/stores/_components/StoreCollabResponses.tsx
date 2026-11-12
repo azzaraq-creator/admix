@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { useAdminStoreCollabs } from "@/hooks/adminPartners";
-import { dotDate, dotDateTime, shortDate } from "@/lib/adminCollab";
+import { dotDateTime, shortDate } from "@/lib/adminCollab";
 import type { AdminStoreCollabs, StoreCollabResponse } from "@/lib/partners";
 
 type Item = AdminStoreCollabs["items"][number];
@@ -86,15 +86,8 @@ export function StoreCollabResponses({ storeId }: { storeId: string }) {
               </div>
             ))}
           </div>
-          {data.since ? (
-            <p className="text-xs text-disabled">
-              {dotDate(data.since)}부터 답할 수 있었어요(매장 등록 · 회원 협약
-              중 늦은 날). 기간이 겹치는 콜라보를 진행 중이라 신청할 수 없던
-              모집은 세지 않아요.
-              {data.counts.waiting > 0 &&
-                ` 지금 모집 중인 ${data.counts.waiting}건은 아직 답을 기다려요.`}
-            </p>
-          ) : (
+          {/* 언제부터 답할 수 있었는지 · 세지 않는 모집 안내는 뺐다(2026-11-12 사용자). 답 기다리는 수는 탭에 보인다. */}
+          {!data.since && (
             <p className="text-xs text-disabled">
               연결 회원이 기본협약을 마치면 새 콜라보마다 참여 여부를 물어요.
             </p>

@@ -1,7 +1,14 @@
 "use client";
 
 import { Button, Input, Switch, TextArea } from "@heroui/react";
-import { ChevronLeft, CircleCheck, Store, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  CircleCheck,
+  Search,
+  Store,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -10,6 +17,7 @@ import {
   HeroCombo,
   HeroField,
 } from "@/app/admin/(main)/media/_components/heroFields";
+import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import {
   useCollabLead,
@@ -24,6 +32,8 @@ import { dotDateTime } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import {
   LEAD_EXTRA_LABEL,
+  LEAD_LOT_ADDRESS_KEY,
+  LEAD_LOT_DETAIL_KEY,
   type CollabLead,
   type CollabLeadMeta,
   type CollabLeadPayload,
@@ -31,17 +41,18 @@ import {
   type LeadCustomValue,
   type LeadFacetKey,
 } from "@/lib/collabLeads";
+import type { DaumPostcodeResult } from "@/lib/daumPostcode";
 import { cn } from "@/lib/utils";
 
 import { ChipInput } from "../../../_components/ChipInput";
 import { CollabPageHead, CollabSection } from "../../../_components/collabUi";
 import { PartnerMemberField } from "../../../_components/PartnerMemberField";
 import { labelOf, UrlLink } from "./leadCells";
-import { useLeadConfirm } from "./useLeadConfirm";
+import { findLeadLocation, useLeadConfirm } from "./useLeadConfirm";
 import { LEADS_HREF, STORES_HREF } from "../../_components/StoresTabs";
 
 /** 화면에서 고치는 값 — 추가 항목은 입력칸 글자로 들고 있다가 저장할 때 숫자 칸만 숫자로 돌린다. */
-type FormState = Required<Omit<CollabLeadPayload, "custom">> & {
+type FormState = Required<Omit<CollabLeadPayload, "custom" | "location">> & {
   custom: Record<string, string>;
 };
 
@@ -112,6 +123,8 @@ function toPayload(
   const custom: Record<string, LeadCustomValue> = {};
   for (const [key, raw] of Object.entries(form.custom)) {
     const text = raw.trim();
+    // 지번주소 상세는 원본에 없던 키 — 비면 넣지 않는다(적었다 지운 것만으로 "고침"이 되지 않게, 지우면 키째 빠진다).
+    if (key === LEAD_LOT_DETAIL_KEY && !text) continue;
     custom[key] =
       typeOf.get(key) === "number" && NUMERIC.test(text) ? Number(text) : text;
   }
@@ -175,7 +188,7 @@ function LeadForm({
 
   // 칸 설정에 없는 추가 항목 값(원본에만 있던 칸)도 빠뜨리지 않고 뒤에 보인다.
   const extraKeys = Object.keys(form.custom).filter(
-    (k) => !fields.some((f) => f.key === k),
+    (k) => k !== LEAD_LOT_DETAIL_KEY && !fields.some((f) => f.key === k),
   );
 
   const save = async () => {
@@ -184,13 +197,32 @@ function LeadForm({
       return;
     }
     const payload = toPayload(form, fields);
+    // 회원 연결 = 협업 확정(11-12 사용자) — 확정 전 기록에 회원이 이어져 있으면 이 저장으로 서버가 매장을 만든다.
+    // 그때 쓸 매장 위치를 확정 버튼처럼 화면에서 먼저 찾아 같이 보낸다.
+    if (form.partnerCode.trim() && !lead?.storeId)
+      payload.location = await findLeadLocation(form);
+    /** 이 저장으로 협업 확정됐으면 알림 둘째 줄 — 매장 번호와 회원에게도 보인다는 것. */
+    const confirmedNote = (saved: CollabLead) =>
+      saved.storeCode && !lead?.storeCode
+        ? `협업 확정 ${saved.storeCode}(비공개) — 연결한 회원에게도 연결 매장으로 보여요.`
+        : undefined;
     try {
       if (lead) {
-        await update.mutateAsync({ id: lead.id, payload });
-        success("영업 기록을 저장했어요.");
+        const saved = await update.mutateAsync({ id: lead.id, payload });
+        const note = confirmedNote(saved);
+        success(
+          note ? "저장하고 협업 확정했어요." : "영업 기록을 저장했어요.",
+          note,
+        );
       } else {
         const created = await create.mutateAsync(payload);
-        success("영업 기록을 추가했어요.");
+        const note = confirmedNote(created);
+        success(
+          note
+            ? "영업 기록을 추가하고 협업 확정했어요."
+            : "영업 기록을 추가했어요.",
+          note,
+        );
         router.replace(`${LEADS_HREF}/${created.id}`);
       }
     } catch (err) {
@@ -231,12 +263,26 @@ function LeadForm({
     if (dirty) {
       await alert({
         title: "저장한 뒤에 확정해 주세요",
-        description: "협업 확정 카페는 저장된 영업 기록 값으로 만들어요.",
+        description: "협업 확정 매장은 저장된 영업 기록 값으로 만들어요.",
         confirmText: "확인",
       });
       return;
     }
     await leadConfirm.run(lead);
+  };
+
+  /** 협업 취소 — 끝나면 기록을 다시 불러와 화면이 새로 그려지니, 고친 게 있으면 먼저 저장하게 한다. */
+  const cancelStore = async () => {
+    if (!lead) return;
+    if (dirty) {
+      await alert({
+        title: "저장한 뒤에 취소해 주세요",
+        description: "저장하지 않은 고친 내용이 사라질 수 있어요.",
+        confirmText: "확인",
+      });
+      return;
+    }
+    await leadConfirm.cancel(lead);
   };
 
   const text = (key: keyof FormState, ariaLabel: string, type = "text") => (
@@ -284,7 +330,7 @@ function LeadForm({
         className="flex w-fit items-center gap-[2px] text-sm font-medium text-disabled hover:text-black"
       >
         <ChevronLeft className="size-[16px]" />
-        협업 확정 전
+        영업 기록
       </Link>
       <CollabPageHead
         title={lead ? lead.name : "영업 기록 추가"}
@@ -312,14 +358,25 @@ function LeadForm({
           </Button>
         )}
         {lead?.storeId ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={() => router.push(`${STORES_HREF}/${lead.storeId}`)}
-          >
-            <Store className="size-[15px]" />
-            협업 확정 카페 보기
-          </Button>
+          <>
+            <Button
+              variant="tertiary"
+              size="sm"
+              onPress={cancelStore}
+              isDisabled={leadConfirm.cancelling || saving}
+            >
+              <Undo2 className="size-[15px]" />
+              {leadConfirm.cancelling ? "취소 중…" : "협업 취소"}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push(`${STORES_HREF}/${lead.storeId}`)}
+            >
+              <Store className="size-[15px]" />
+              협업 확정 매장 보기
+            </Button>
+          </>
         ) : (
           lead && (
             <Button
@@ -346,7 +403,12 @@ function LeadForm({
       {/* 이 매장이 가입했으면 맨 위에서 제휴사 회원과 잇는다(072) — 매장 상세의 "연결 회원"과 같은 회원 검색 창. */}
       <CollabSection
         title="제휴사 회원 연결"
-        desc="이 매장이 제휴사로 가입했으면 회원을 골라 연결해요."
+        desc={
+          // 회원 화면의 연결 매장은 협업 확정 매장 쪽 연결이라, 여기서 이으면 확정까지 같이 된다(11-12 사용자).
+          lead?.storeId
+            ? `연결 회원을 바꾸면 협업 확정 매장(${lead.storeCode})의 연결 회원도 같이 바뀌어요.`
+            : "이 매장이 제휴사로 가입했으면 회원을 골라 연결해요. 연결하고 저장하면 협업 확정돼요."
+        }
       >
         <Grid>
           <PartnerMemberField
@@ -463,14 +525,25 @@ function LeadForm({
         desc="원본 영업 앱에서 직접 만든 칸이에요. 값은 원본 그대로예요(숫자 칸에 글이 있어도 바꾸지 않았어요)."
       >
         <Grid>
-          {fields.map((f) => (
-            <CustomField
-              key={f.key}
-              field={f}
-              value={form.custom[f.key] ?? ""}
-              onChange={(v) => setCustom(f.key, v)}
-            />
-          ))}
+          {fields.map((f) =>
+            f.key === LEAD_LOT_ADDRESS_KEY ? (
+              <LotAddressField
+                key={f.key}
+                label={f.label}
+                base={form.custom[f.key] ?? ""}
+                detail={form.custom[LEAD_LOT_DETAIL_KEY] ?? ""}
+                onBase={(v) => setCustom(f.key, v)}
+                onDetail={(v) => setCustom(LEAD_LOT_DETAIL_KEY, v)}
+              />
+            ) : (
+              <CustomField
+                key={f.key}
+                field={f}
+                value={form.custom[f.key] ?? ""}
+                onChange={(v) => setCustom(f.key, v)}
+              />
+            ),
+          )}
           {extraKeys.map((k) => (
             <CustomField
               key={k}
@@ -553,6 +626,89 @@ function CustomField({
     </HeroField>
   );
   return field.type === "textarea" || url ? <Wide>{content}</Wide> : content;
+}
+
+/**
+ * 추가 항목 "지번주소" — 칸이나 "주소 검색"을 누르면 카카오 우편번호 주소 검색이 뜨고, 고른 주소의 지번으로 기본 주소를 채운다
+ * (도로명을 골라도 지번으로). 층 · 호수 같은 상세 주소는 옆 칸에 따로 적는다(2026-11-12 사용자). 원본 값은 그대로 보인다.
+ */
+function LotAddressField({
+  label,
+  base,
+  detail,
+  onBase,
+  onDetail,
+}: {
+  label: string;
+  base: string;
+  detail: string;
+  onBase: (value: string) => void;
+  onDetail: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { error } = useSonner();
+  const pick = (data: DaumPostcodeResult) => {
+    const jibun = data.jibunAddress || data.autoJibunAddress;
+    if (!jibun) {
+      error(
+        "지번주소를 찾지 못했어요",
+        "검색 결과에서 지번 주소를 눌러 골라 주세요.",
+      );
+      return;
+    }
+    onBase(jibun);
+  };
+  return (
+    <Wide>
+      <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
+        <HeroField label={label}>
+          <div className="flex items-center gap-[8px]">
+            <Input
+              variant="secondary"
+              fullWidth
+              readOnly
+              aria-label={label}
+              placeholder="주소를 검색해 주세요"
+              value={base}
+              onClick={() => setOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpen(true);
+                }
+              }}
+              className="cursor-pointer"
+            />
+            {/* 휴대폰에선 주소가 잘리지 않게 돋보기만. */}
+            <Button
+              variant="secondary"
+              className="shrink-0 max-sm:w-[40px] max-sm:px-0"
+              aria-label="주소 검색"
+              onPress={() => setOpen(true)}
+            >
+              <Search className="size-[16px]" />
+              <span className="max-sm:hidden">주소 검색</span>
+            </Button>
+          </div>
+        </HeroField>
+        <HeroField label="상세 주소">
+          <Input
+            variant="secondary"
+            fullWidth
+            aria-label="상세 주소"
+            placeholder="층 · 호수 등"
+            value={detail}
+            onChange={(e) => onDetail(e.target.value)}
+          />
+        </HeroField>
+      </div>
+      <AddressSearchModal
+        isOpen={open}
+        onOpenChange={setOpen}
+        onSelect={pick}
+      />
+    </Wide>
+  );
 }
 
 function Grid({ children }: { children: ReactNode }) {

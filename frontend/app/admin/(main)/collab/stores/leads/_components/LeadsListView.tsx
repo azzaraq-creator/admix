@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Chip, Input, ListBox, Select, Table } from "@heroui/react";
-import { CircleCheck, Plus, Search } from "lucide-react";
+import { CircleCheck, Plus, Search, Store } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
@@ -12,14 +12,20 @@ import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import { useCollabLeadMeta, useCollabLeads } from "@/hooks/adminCollab";
 import { dotDate } from "@/lib/adminCollab";
 import {
+  LEAD_LOT_ADDRESS_KEY,
   LEAD_SORT_OPTIONS,
+  lotAddressOf,
   type CollabLead,
   type LeadFacetKey,
 } from "@/lib/collabLeads";
 import { cn } from "@/lib/utils";
 
 import { CollabPageHead, PageNav } from "../../../_components/collabUi";
-import { LEADS_HREF, StoresTabs } from "../../_components/StoresTabs";
+import {
+  LEADS_HREF,
+  STORES_HREF,
+  StoresTabs,
+} from "../../_components/StoresTabs";
 import { baseCell, columnsOf, customCell, labelOf } from "./leadCells";
 import { useLeadConfirm } from "./useLeadConfirm";
 
@@ -48,7 +54,7 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
 const DEFAULT_SORT = LEAD_SORT_OPTIONS[0].value;
 
 /**
- * 매장 관리 → 협업 확정 전 — 가입 전 매장 영업 기록(원본 영업 앱에서 가져옴, 071). HeroUI Table · Pagination.
+ * 매장 관리 → 영업 기록 — 매장 영업 기록(원본 영업 앱에서 가져옴, 071). HeroUI Table · Pagination.
  * 칸은 칸 설정의 순서 · 이름표 · 보이기 그대로: 기본 칸 다음에 추가 항목(권역명 · 인스타그램 …).
  * PC 는 가로로 긴 표(옆으로 밀어 봄, 머리줄은 위에 붙어 있음), 휴대폰은 카드.
  */
@@ -68,7 +74,8 @@ export function LeadsListView() {
     ...filters,
     sort: sort === DEFAULT_SORT ? undefined : sort,
   });
-  // 줄마다 "확정" — 협업 확정 카페에 비공개 매장을 만들고 이 목록에서 뺀다(076).
+  // 줄마다 "확정" — 협업 확정 매장에 비공개 매장을 만든다(076). 확정한 줄도 이 목록에 그대로 남고(11-12 사용자 —
+  // 두 목록은 칸이 달라 따로 둔다), 버튼 자리에 만든 매장 번호가 떠 누르면 그 매장으로 간다.
   const { run: confirmLead, pendingId, dialog } = useLeadConfirm();
 
   const columns = useMemo<LeadTableColumn[]>(() => {
@@ -86,17 +93,28 @@ export function LeadsListView() {
         // 칸이 많아 옆으로 밀어 봐야 하니 맨 앞(No 다음)에 — 누르면 줄 상세로 가지 않고 확정만(버튼이 누르기를 잡는다).
         id: "confirm",
         label: "협업 확정",
-        render: (lead) => (
-          <Button
-            size="sm"
-            variant="secondary"
-            isDisabled={!!pendingId}
-            onPress={() => void confirmLead(lead)}
-          >
-            <CircleCheck className="size-[14px]" />
-            {pendingId === lead.id ? "확정 중…" : "확정"}
-          </Button>
-        ),
+        render: (lead) =>
+          lead.storeId ? (
+            <Button
+              size="sm"
+              variant="tertiary"
+              aria-label={`협업 확정 매장 ${lead.storeCode} 보기`}
+              onPress={() => router.push(`${STORES_HREF}/${lead.storeId}`)}
+            >
+              <Store className="size-[14px]" />
+              {lead.storeCode || "확정됨"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              isDisabled={!!pendingId}
+              onPress={() => void confirmLead(lead)}
+            >
+              <CircleCheck className="size-[14px]" />
+              {pendingId === lead.id ? "확정 중…" : "확정"}
+            </Button>
+          ),
       },
       ...base.map((c): LeadTableColumn => ({
         id: `base:${c.key}`,
@@ -114,10 +132,17 @@ export function LeadsListView() {
       ...custom.map((f): LeadTableColumn => ({
         id: `custom:${f.key}`,
         label: f.label,
-        render: (lead) => customCell(f, lead.custom[f.key]),
+        // 지번주소는 기본 + 상세를 한 줄로(상세는 같은 추가 항목 안 따로 둔 키).
+        render: (lead) =>
+          customCell(
+            f,
+            f.key === LEAD_LOT_ADDRESS_KEY
+              ? lotAddressOf(lead.custom)
+              : lead.custom[f.key],
+          ),
       })),
     ];
-  }, [meta, pendingId, confirmLead]);
+  }, [meta, pendingId, confirmLead, router]);
 
   const rows = useMemo<Row[]>(
     () =>
@@ -165,7 +190,7 @@ export function LeadsListView() {
 
       {metaError || isError ? (
         <ErrorState
-          title="협업 확정 전 목록을 불러오지 못했어요"
+          title="영업 기록을 불러오지 못했어요"
           message="잠시 후 다시 시도해 주세요."
           homeHref={LEADS_HREF}
         />
@@ -286,7 +311,7 @@ export function LeadsListView() {
                 {/* 칸이 많아 옆으로 밀어 보고, 길면 표 안에서 위아래로 — 가로 막대가 늘 화면 안에 있다. */}
                 <Table.ScrollContainer className="max-h-[calc(100dvh-240px)] overflow-y-auto">
                   <Table.Content
-                    aria-label="협업 확정 전 목록"
+                    aria-label="영업 기록 목록"
                     className="min-w-max"
                     onRowAction={(key) =>
                       router.push(`${LEADS_HREF}/${String(key)}`)
@@ -439,16 +464,31 @@ export function LeadsListView() {
                     )}
                   </Link>
                   <div className="border-t border-gray-100 px-[16px] py-[10px]">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      fullWidth
-                      isDisabled={!!pendingId}
-                      onPress={() => void confirmLead(lead)}
-                    >
-                      <CircleCheck className="size-[14px]" />
-                      {pendingId === lead.id ? "확정 중…" : "협업 확정"}
-                    </Button>
+                    {lead.storeId ? (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        fullWidth
+                        onPress={() =>
+                          router.push(`${STORES_HREF}/${lead.storeId}`)
+                        }
+                      >
+                        <Store className="size-[14px]" />
+                        협업 확정 매장 보기
+                        {lead.storeCode && ` · ${lead.storeCode}`}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        fullWidth
+                        isDisabled={!!pendingId}
+                        onPress={() => void confirmLead(lead)}
+                      >
+                        <CircleCheck className="size-[14px]" />
+                        {pendingId === lead.id ? "확정 중…" : "협업 확정"}
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}

@@ -13,7 +13,8 @@ from sqlalchemy import String, cast, func, nulls_last, or_
 from sqlalchemy.orm import Session
 
 from src.models.collab_lead import CollabLead, CollabLeadSetting
-from src.models.partners_store import PartnersStoreType
+from src.models.collab import CollabParticipant
+from src.models.partners_store import PartnersStoreRequest, PartnersStoreType
 from src.services import partners_service
 from src.services.partners_service import partner_by_code
 
@@ -66,7 +67,7 @@ def serialize(lead: CollabLead) -> dict:
     out["hasSource"] = lead.source_data is not None
     # 연결한 제휴사 회원 고유번호(072) — 없으면 "". 회원 이름 · 상태는 화면이 고유번호로 따로 불러온다.
     out["partnerCode"] = (lead.partner.partner_code or "") if lead.partner else ""
-    # 협업 확정으로 만든 매장(076) — 없으면 "". 차 있으면 "협업 확정 전" 목록에 보이지 않는다.
+    # 협업 확정으로 만든 매장(076) — 없으면 "". 확정해도 영업 기록 목록엔 그대로 남는다(11-12).
     out["storeId"] = str(lead.store_id) if lead.store_id else ""
     out["storeCode"] = (lead.store.store_code or "") if lead.store else ""
     return out
@@ -198,7 +199,7 @@ def meta(db: Session) -> dict:
         col = getattr(CollabLead, attr)
         rows = (
             db.query(col, func.count())
-            .filter(col.isnot(None), CollabLead.store_id.is_(None))
+            .filter(col.isnot(None))
             .group_by(col)
             .order_by(func.count().desc(), col)
             .all()
@@ -208,7 +209,7 @@ def meta(db: Session) -> dict:
         "columns": list(setting.columns) if setting else [],
         "customFields": list(setting.custom_fields) if setting else [],
         "facets": facets,
-        "total": db.query(func.count(CollabLead.id)).filter(CollabLead.store_id.is_(None)).scalar() or 0,
+        "total": db.query(func.count(CollabLead.id)).scalar() or 0,
     }
 
 
@@ -221,8 +222,8 @@ def list_leads(
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[int, list[dict]]:
-    # 협업 확정한 기록(매장으로 옮긴 것)은 "협업 확정 전" 목록에서 뺀다(076).
-    q = db.query(CollabLead).filter(CollabLead.store_id.is_(None))
+    # 협업 확정한 기록도 그대로 보인다(2026-11-12 사용자 — 영업 기록과 협업 확정 매장은 칸이 달라 따로 둔다). 확정 여부는 storeCode 로.
+    q = db.query(CollabLead)
     kw = (keyword or "").strip()
     if kw:
         like = f"%{kw}%"
@@ -274,31 +275,69 @@ def get_lead(db: Session, lead_id: str) -> dict:
 
 
 def create_lead(db: Session, data: dict) -> dict:
+    """새 영업 기록. 제휴사 회원을 연결해 만들면 바로 협업 확정(_sync_partner_store)."""
     lead = CollabLead(id=uuid.uuid4())
     _apply(lead, data)
     _apply_partner(db, lead, data)
     lead.sort_order = (db.query(func.max(CollabLead.sort_order)).scalar() or 0) + 1
-    db.add(lead)
-    db.commit()
+    try:
+        db.add(lead)
+        db.flush()
+        _sync_partner_store(db, lead, None, data)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(lead)
     return serialize(lead)
 
 
 def update_lead(db: Session, lead_id: str, data: dict) -> dict:
+    """보낸 칸만 바꾼다. 제휴사 회원 연결이 바뀌면 협업 확정 매장도 맞춘다(_sync_partner_store)."""
     lead = _get(db, lead_id)
+    prev_partner = lead.partner_user_id
     try:
         _apply(lead, data)
         _apply_partner(db, lead, data)
-    except HTTPException:
+        lead.updated_at = datetime.now(timezone.utc)
+        _sync_partner_store(db, lead, prev_partner, data)
+        db.commit()
+    except Exception:
         db.rollback()  # 반쯤 바뀐 값이 세션에 남지 않게
         raise
-    lead.updated_at = datetime.now(timezone.utc)
-    db.commit()
     db.refresh(lead)
     return serialize(lead)
 
 
-# ── 협업 확정(영업 기록 → 협업 확정 카페) ─────────────────────────────
+def _sync_partner_store(db: Session, lead: CollabLead, prev_partner: uuid.UUID | None, data: dict) -> None:
+    """제휴사 회원 연결 = 협업 확정(2026-11-12 사용자: "회원을 연결하면 자동으로 협업 확정, 회원에게도 뜨게").
+
+    회원 화면의 "연결 매장"은 매장의 연결 회원(owner)이라, 영업 기록에만 회원을 이어 두면 회원 쪽엔 매장이 없다.
+    - 확정 전 기록에 회원이 연결돼 있으면(이번에 보낸 partnerCode 기준) 그 회원을 연결 회원으로 매장을 만든다 — 주소가 없으면 막는다.
+    - 확정한 기록은 회원이 바뀔 때 매장 연결 회원도 같이 바꾼다. 끊으면, 매장이 그 회원과 이어져 있을 때만 매장 쪽도 끊는다.
+    커밋은 부르는 쪽에서.
+    """
+    if "partnerCode" not in data:
+        return
+    store = lead.store
+    if store is None:
+        if lead.partner_user_id:
+            if not _store_address_of(lead)[0]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="회원을 연결하면 협업 확정돼요. 주소나 지번주소를 먼저 적어 주세요.",
+                )
+            _make_store(db, lead, data.get("location"))
+        return
+    if lead.partner_user_id == prev_partner:
+        return
+    if lead.partner_user_id:
+        store.owner_user_id = lead.partner_user_id
+    elif store.owner_user_id == prev_partner:
+        store.owner_user_id = None
+
+
+# ── 협업 확정(영업 기록 → 협업 확정 매장) ─────────────────────────────
 
 # 사장 이름 칸에 옮길 매장 담당자 직함 — 매니저 · 관리자 같은 직원 이름은 옮기지 않는다.
 OWNER_TITLES = ("대표", "사장", "점주", "오너")
@@ -317,41 +356,126 @@ def _store_type_for(db: Session, biz_type: str | None) -> int | None:
     return types[0].id if types else None
 
 
-def confirm_lead(db: Session, lead_id: str) -> dict:
-    """협업 확정 — 영업 기록 칸으로 협업 확정 카페(매장 S-0001 …)를 만들고 기록과 잇는다.
+# 추가 항목 "지번주소"(원본 칸)와 상세 주소(11-12, 상세 화면에서 카카오 주소 검색 + 직접 적기).
+LOT_ADDRESS_KEY = "cf_lot_address"
+LOT_DETAIL_KEY = "cf_lot_address_detail"
 
-    매장은 비공개로 만든다(사진 · 금액을 채우고 어드민이 공개로 바꾼다). 옮기는 칸: 업체명 · 주소 · 업체 유형(매장 유형) ·
-    매장 담당자 연락처(전화번호) · 대표/사장이면 그 이름(사장 이름) · 연결한 제휴사 회원. 영업 기록은 지우지 않는다.
+
+def _store_address_of(lead: CollabLead) -> tuple[str, str | None]:
+    """매장에 옮길 주소 — "주소" 칸이 있으면 그대로(층 · 호수가 섞여 있어 상세는 따로 두지 않는다), 비었으면 지번주소 + 상세 주소."""
+    address = (lead.address or "").strip()
+    if address:
+        return address, None
+    custom = lead.custom or {}
+    lot = str(custom.get(LOT_ADDRESS_KEY) or "").strip()
+    detail = str(custom.get(LOT_DETAIL_KEY) or "").strip()
+    return lot, (detail or None) if lot else None
+
+
+def _location_of(location: dict | None) -> dict:
+    """화면이 카카오 지도로 찾아 보낸 위치(위도 · 경도 · 시도 · 구군) — 맞는 값만 매장 값으로 쓴다(11-12).
+
+    서버 카카오 주소 검색은 키가 없거나 주소에 층 · 호수가 섞이면 못 찾아 지도가 안 뜨던 것(치르 · 베를린하우스).
+    """
+    out: dict = {}
+    if not isinstance(location, dict):
+        return out
+    try:
+        lat, lng = float(location.get("latitude")), float(location.get("longitude"))
+    except (TypeError, ValueError):
+        return out
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return out
+    out.update(latitude=lat, longitude=lng)
+    for key in ("city", "district"):
+        value = location.get(key)
+        if isinstance(value, str) and value.strip() and len(value) <= 50:
+            out[key] = value.strip()
+    return out
+
+
+def confirm_lead(db: Session, lead_id: str, location: dict | None = None) -> dict:
+    """협업 확정 — 영업 기록 칸으로 협업 확정 매장(S-0001 …)을 만들고 기록과 잇는다.
+
+    매장은 비공개로 만든다(사진 · 금액을 채우고 어드민이 공개로 바꾼다). 옮기는 칸: 업체명 · 주소(없으면 지번주소 + 상세) · 업체 유형(매장 유형) ·
+    매장 담당자 연락처(전화번호) · 대표/사장이면 그 이름(사장 이름) · 연결한 제휴사 회원. 영업 기록은 지우지 않고 목록에도 남는다.
+    location — 화면이 찾은 위치(없으면 서버가 주소로 찾는다).
     """
     lead = _get(db, lead_id)
     if lead.store_id:
         code = lead.store.store_code if lead.store else ""
-        raise HTTPException(status_code=409, detail=f"이미 협업 확정 카페로 옮긴 기록이에요{f'({code})' if code else ''}.")
-    if not (lead.address or "").strip():
-        raise HTTPException(status_code=400, detail="주소가 없어 확정할 수 없어요. 영업 기록에 주소를 먼저 적어 주세요.")
-    phone = (lead.contact_phone or "").strip()
-    title = lead.contact_title or ""
-    data: dict = {
-        "name": lead.name,
-        "address": lead.address,
-        "store_type_id": _store_type_for(db, lead.biz_type),
-        "status": "hidden",
-        "phone": phone if len(phone) <= 30 else None,
-        "owner_name": lead.contact_name if any(t in title for t in OWNER_TITLES) else None,
-    }
-    if lead.partner and lead.partner.partner_code:
-        data["owner_code"] = lead.partner.partner_code
+        raise HTTPException(status_code=409, detail=f"이미 협업 확정한 매장이에요{f'({code})' if code else ''}.")
     try:
-        store = partners_service.create_store(db, data)
-        lead.store_id = store.id
-        lead.store = store
-        lead.updated_at = datetime.now(timezone.utc)
+        store = _make_store(db, lead, location)
         db.commit()
     except Exception:
         db.rollback()
         raise
     db.refresh(store)
     return {"lead": serialize(lead), "store": partners_service.serialize(store, admin=True)}
+
+
+def _make_store(db: Session, lead: CollabLead, location: dict | None):
+    """영업 기록 칸으로 비공개 매장을 만들고 기록과 잇는다(커밋은 부르는 쪽에서) — 확정 버튼 · 회원 연결이 같이 쓴다."""
+    address, address_detail = _store_address_of(lead)
+    if not address:
+        raise HTTPException(status_code=400, detail="주소가 없어 확정할 수 없어요. 영업 기록에 주소나 지번주소를 먼저 적어 주세요.")
+    phone = (lead.contact_phone or "").strip()
+    title = lead.contact_title or ""
+    data: dict = {
+        "name": lead.name,
+        "address": address,
+        "address_detail": address_detail,
+        "store_type_id": _store_type_for(db, lead.biz_type),
+        "status": "hidden",
+        "phone": phone if len(phone) <= 30 else None,
+        "owner_name": lead.contact_name if any(t in title for t in OWNER_TITLES) else None,
+    }
+    data.update(_location_of(location))
+    if lead.partner and lead.partner.partner_code:
+        data["owner_code"] = lead.partner.partner_code
+    store = partners_service.create_store(db, data)
+    lead.store_id = store.id
+    lead.store = store
+    lead.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    return store
+
+
+def cancel_lead(db: Session, lead_id: str) -> dict:
+    """협업 취소(2026-11-12 사용자) — 확정의 반대. 확정으로 만든 협업 확정 매장을 지우고 영업 기록을 확정 전으로 되돌린다.
+
+    매장에 콜라보 참여 · 수정 요청 기록이 있으면 막는다(매장을 지우면 그 기록도 함께 지워진다 — 그땐 매장을 비공개로).
+    매체 찾기에 보이던 매장이면 그 media 줄도 지운다. 매장 사진 · 금액 · 등급처럼 매장에 넣은 값은 함께 사라진다.
+    """
+    lead = _get(db, lead_id)
+    store = lead.store
+    if not store:
+        raise HTTPException(status_code=409, detail="협업 확정한 매장이 아니에요.")
+    code = store.store_code or ""
+    joined = db.query(func.count(CollabParticipant.id)).filter(CollabParticipant.store_id == store.id).scalar() or 0
+    requests = db.query(func.count(PartnersStoreRequest.id)).filter(PartnersStoreRequest.store_id == store.id).scalar() or 0
+    if joined or requests:
+        what = " · ".join(t for t, n in (("콜라보 참여", joined), ("수정 요청", requests)) if n)
+        raise HTTPException(
+            status_code=409,
+            detail=f"{code} 매장에 {what} 기록이 있어 협업을 취소할 수 없어요. 협업 확정 매장에서 비공개로 바꿔 주세요.",
+        )
+    try:
+        lead.store_id = None
+        lead.store = None
+        # 회원 연결 = 협업 확정이라(11-12) 취소하면 연결한 회원도 끊는다 — 남겨 두면 다음 저장 때 다시 확정된다.
+        lead.partner_user_id = None
+        lead.partner = None
+        lead.updated_at = datetime.now(timezone.utc)
+        db.flush()
+        partners_service._delete_store(db, store)  # 매장 수정의 "삭제"와 같은 지우기(매체 찾기 media 줄도)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(lead)
+    return {"lead": serialize(lead), "storeCode": code}
 
 
 def delete_lead(db: Session, lead_id: str) -> None:

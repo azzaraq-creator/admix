@@ -5,6 +5,7 @@ import { dotDate } from "@/lib/adminCollab";
 import {
   DEFAULT_LEAD_COLUMNS,
   isUrl,
+  lotAddressOf,
   type CollabLead,
   type CollabLeadMeta,
   type LeadColumn,
@@ -72,6 +73,11 @@ export function baseCell(lead: CollabLead, key: string): ReactNode {
     return value ? dotDate(String(value)) : DASH;
   if (key === "name")
     return <span className="whitespace-nowrap font-semibold">{lead.name}</span>;
+  // 주소가 비었으면 지번주소(+ 상세)로 — 상세 화면에서 지번주소만 적은 곳도 주소 칸에 보이게(2026-11-12 사용자).
+  if (key === "address") {
+    const address = lead.address.trim() || lotAddressOf(lead.custom);
+    return address ? <Clip text={address} /> : DASH;
+  }
   if (Array.isArray(value))
     return value.length ? <Clip text={value.join(", ")} width={160} /> : DASH;
   if (typeof value === "boolean") return value ? "예" : "아니요";

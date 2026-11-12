@@ -10,6 +10,7 @@ import type { Paged } from "@/lib/adminCollab";
 import type {
   CollabLead,
   CollabLeadListParams,
+  CollabLeadLocation,
   CollabLeadMeta,
   CollabLeadPayload,
 } from "@/lib/collabLeads";
@@ -41,12 +42,23 @@ export const collabLeadsApi = {
       .then((r) => r.data),
   remove: (id: string) =>
     api.delete(`/admin/collab/leads/${encodeURIComponent(id)}`),
-  confirm: (id: string) =>
+  /** location — 화면이 카카오 지도로 찾은 위치(없으면 서버가 주소로 찾는다, 11-12). */
+  confirm: (id: string, location?: CollabLeadLocation | null) =>
     api
       .post<{
         lead: CollabLead;
         store: AdminPartnersStore;
-      }>(`/admin/collab/leads/${encodeURIComponent(id)}/confirm`)
+      }>(
+        `/admin/collab/leads/${encodeURIComponent(id)}/confirm`,
+        location ?? undefined,
+      )
+      .then((r) => r.data),
+  cancel: (id: string) =>
+    api
+      .post<{
+        lead: CollabLead;
+        storeCode: string;
+      }>(`/admin/collab/leads/${encodeURIComponent(id)}/cancel`)
       .then((r) => r.data),
 };
 
@@ -81,6 +93,17 @@ export const useCollabLead = (id: string | null) =>
   });
 
 /** 저장하면 받은 값으로 상세를 바꾸고 목록 · 조건 값은 다시 불러온다. */
+/** 협업 확정 매장 · 제휴사 회원 쪽 — 확정 · 취소 · 회원 연결(= 확정, 11-12)이 매장과 회원의 연결 매장을 바꾼다. */
+function refreshStoreSide(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: adminPartnersKeys.all });
+  void queryClient.invalidateQueries({
+    queryKey: [...adminCollabKeys.all, "member"],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: [...adminCollabKeys.all, "members"],
+  });
+}
+
 function useLeadSaved() {
   const queryClient = useQueryClient();
   return (lead: CollabLead) => {
@@ -89,6 +112,7 @@ function useLeadSaved() {
       queryKey: [...collabLeadKeys.all, "list"],
     });
     void queryClient.invalidateQueries({ queryKey: collabLeadKeys.meta() });
+    refreshStoreSide(queryClient);
   };
 }
 
@@ -120,18 +144,40 @@ export const useDeleteCollabLead = () => {
   });
 };
 
-/** 협업 확정 — 협업 확정 카페(비공개 매장)를 만들고 이 기록을 "협업 확정 전" 목록에서 뺀다(076). */
+/** 협업 확정 — 협업 확정 매장(비공개)을 만들고 이 기록과 잇는다(076). 기록은 목록에 그대로 남는다(11-12). */
 export const useConfirmCollabLead = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => collabLeadsApi.confirm(id),
+    mutationFn: ({
+      id,
+      location,
+    }: {
+      id: string;
+      location?: CollabLeadLocation | null;
+    }) => collabLeadsApi.confirm(id, location),
     onSuccess: ({ lead }) => {
       queryClient.setQueryData(collabLeadKeys.detail(lead.id), lead);
       void queryClient.invalidateQueries({
         queryKey: [...collabLeadKeys.all, "list"],
       });
       void queryClient.invalidateQueries({ queryKey: collabLeadKeys.meta() });
-      void queryClient.invalidateQueries({ queryKey: adminPartnersKeys.all });
+      refreshStoreSide(queryClient);
+    },
+  });
+};
+
+/** 협업 취소(11-12) — 확정으로 만든 협업 확정 매장을 지우고 기록을 확정 전으로. 매장에 참여 · 수정 요청 기록이 있으면 서버가 막는다. */
+export const useCancelCollabLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => collabLeadsApi.cancel(id),
+    onSuccess: ({ lead }) => {
+      queryClient.setQueryData(collabLeadKeys.detail(lead.id), lead);
+      void queryClient.invalidateQueries({
+        queryKey: [...collabLeadKeys.all, "list"],
+      });
+      void queryClient.invalidateQueries({ queryKey: collabLeadKeys.meta() });
+      refreshStoreSide(queryClient);
     },
   });
 };

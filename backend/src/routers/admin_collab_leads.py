@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Body, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -73,9 +73,18 @@ def update_lead(lead_id: str, body: dict, _: Admin = Perm, db: Session = Depends
 
 
 @router.post("/{lead_id}/confirm")
-def confirm_lead(lead_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
-    """협업 확정 — 이 영업 기록으로 협업 확정 카페(비공개 매장)를 만들고, "협업 확정 전" 목록에서 뺀다(076)."""
-    return collab_lead_service.confirm_lead(db, lead_id)
+def confirm_lead(
+    lead_id: str, body: dict | None = Body(default=None), _: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """협업 확정 — 이 영업 기록으로 협업 확정 매장(비공개)을 만들고 기록과 잇는다(076). 기록은 목록에 그대로 남는다(11-12).
+    body(선택) — 화면이 카카오 지도로 찾은 위치 {latitude, longitude, city, district}."""
+    return collab_lead_service.confirm_lead(db, lead_id, body)
+
+
+@router.post("/{lead_id}/cancel")
+def cancel_lead(lead_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
+    """협업 취소 — 확정으로 만든 협업 확정 매장을 지우고 기록을 확정 전으로(11-12). 콜라보 참여 · 수정 요청이 있으면 409."""
+    return collab_lead_service.cancel_lead(db, lead_id)
 
 
 @router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)

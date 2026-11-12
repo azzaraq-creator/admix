@@ -103,6 +103,12 @@ export interface KakaoPolyline {
 export interface KakaoGeocoderResult {
   x: string;
   y: string;
+  /** 지번 주소 쪽 — region_1depth_name(시·도) · region_2depth_name(구·군). */
+  address?: { region_1depth_name?: string; region_2depth_name?: string } | null;
+  road_address?: {
+    region_1depth_name?: string;
+    region_2depth_name?: string;
+  } | null;
 }
 
 export interface KakaoPlacesResult {
@@ -306,6 +312,60 @@ export async function coordsOfAddress(
       });
     });
   });
+}
+
+export interface AddressLocation {
+  lat: number;
+  lng: number;
+  /** 시·도 — "서울" */
+  city?: string;
+  /** 시·군·구 — "성동구" */
+  district?: string;
+}
+
+/**
+ * 손으로 적은 주소 → 위치(시·도 · 구·군 함께). 층 · 호수 · 건물명이 붙어 있으면 못 찾으니
+ * 괄호를 떼고, 그래도 없으면 끝 단어를 하나씩 떼어 다시 찾는다("…아차산로11길 33 1층" → "…아차산로11길 33").
+ * 영업 기록 협업 확정에서 쓴다(2026-11-12 — 서버 주소 검색이 못 찾아 지도가 안 뜨던 것).
+ */
+export async function locateAddress(
+  address: string,
+): Promise<AddressLocation | null> {
+  const base = address
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!base) return null;
+  await loadKakaoSdk();
+  const maps = window.kakao?.maps;
+  if (!maps) return null;
+  const services = await new Promise<KakaoServices | undefined>((resolve) =>
+    maps.load(() => resolve(maps.services)),
+  );
+  if (!services) return null;
+  const geocoder = new services.Geocoder();
+  const search = (query: string) =>
+    new Promise<KakaoGeocoderResult | null>((resolve) =>
+      geocoder.addressSearch(query, (result, status) =>
+        resolve(
+          status === services.Status.OK && result.length > 0 ? result[0] : null,
+        ),
+      ),
+    );
+  const words = base.split(" ");
+  // "서울 성동구 OO길 12"처럼 적어도 세 단어는 남긴다.
+  for (let n = words.length; n >= Math.min(3, words.length); n--) {
+    const hit = await search(words.slice(0, n).join(" "));
+    if (!hit) continue;
+    const region = hit.road_address ?? hit.address ?? {};
+    return {
+      lat: Number(hit.y),
+      lng: Number(hit.x),
+      city: region.region_1depth_name || undefined,
+      district: region.region_2depth_name || undefined,
+    };
+  }
+  return null;
 }
 
 export interface KakaoPlace {

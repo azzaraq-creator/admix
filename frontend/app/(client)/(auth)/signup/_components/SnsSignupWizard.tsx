@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { authApi, useMe, type MeResponse } from "@/hooks/auth";
@@ -49,12 +49,21 @@ export function SnsSignupWizard() {
   const router = useRouter();
   const collab = isCollabSignup(useSearchParams());
   const { data: me, isError } = useMe();
+  /** 들어왔을 때 회원 정보를 이미 봤는지 — "가입을 마친 계정이면 홈으로"는 그때 한 번만 본다. */
+  const checked = useRef(false);
 
   useEffect(() => {
-    // 소셜 로그인 토큰이 없거나 만료됐으면 처음부터(콜라보 가입이면 콜라보 가입 1단계), 이미 가입을 마친 계정이면 홈으로.
-    if (isError || !getUserToken())
+    // 소셜 로그인 토큰이 없거나 만료됐으면 처음부터(콜라보 가입이면 콜라보 가입 1단계).
+    if (isError || !getUserToken()) {
       router.replace(collab ? COLLAB_SIGNUP_HREF : "/signup");
-    else if (me?.verified) router.replace("/");
+      return;
+    }
+    // 이미 가입을 마친 계정으로 들어왔으면 홈으로 — 들어온 순간에만.
+    // 여기서 가입을 마쳐 verified 가 된 뒤에도 보면 가입 완료 화면으로 가던 길을 홈으로 덮어써,
+    // 제휴사는 가입 완료 화면 대신 홈에서 "진행 중인 기본협약 동의" 창을 보게 된다(11-12 사용자 제보).
+    if (!me || checked.current) return;
+    checked.current = true;
+    if (me.verified) router.replace("/");
   }, [me, isError, router, collab]);
 
   if (!me || me.verified) {
