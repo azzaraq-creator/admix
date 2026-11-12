@@ -238,6 +238,23 @@ class PlanRoundIn(BaseModel):
     baseRound: int
 
 
+@router.post("/collab-requests/{request_id}/plan-files", status_code=status.HTTP_201_CREATED)
+def upload_collab_request_round_file(
+    request_id: str, file: UploadFile = File(...), _: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """admix 기획안 첨부 올리기 — {id, name, size, by} 를 돌려준다. 기획안 보낼 때 content.files 에 넣어야 광고주에게 간다."""
+    return collab_request_service.admin_upload_round_file(db, request_id, file)
+
+
+@router.get("/collab-requests/{request_id}/plan-files/{file_id}")
+def collab_request_round_file(
+    request_id: str, file_id: str, _: Admin = Perm, db: Session = Depends(get_db)
+) -> FileResponse:
+    """기획안 첨부 받기 — "request" 는 광고주 의뢰서 첨부."""
+    path, filename = collab_request_service.admin_round_file(db, request_id, file_id)
+    return FileResponse(path, filename=filename)
+
+
 @router.post("/collab-requests/{request_id}/rounds")
 def send_collab_request_round(
     request_id: str, body: PlanRoundIn, admin: Admin = Perm, db: Session = Depends(get_db)

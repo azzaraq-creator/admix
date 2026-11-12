@@ -217,6 +217,14 @@ export const partnersApi = {
         { round },
       )
       .then((r) => r.data),
+  /** 기획안 첨부 받기(11-12) — admix 가 기획안에 붙인 파일 · 내 의뢰서 첨부("request"). */
+  collabRequestPlanFile: (id: string, fileId: string) =>
+    api
+      .get<Blob>(
+        `/partners/me/collab-requests/${encodeURIComponent(id)}/plan-files/${encodeURIComponent(fileId)}`,
+        { responseType: "blob" },
+      )
+      .then((r) => r.data),
   /** 추가 기획 첨부(기획서 1개, 20MB) — 의뢰를 보낸 다음 올린다. */
   uploadCollabRequestFile: (id: string, file: File) => {
     const form = new FormData();

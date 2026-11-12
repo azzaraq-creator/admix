@@ -394,3 +394,76 @@ def test_plan_round_validation(db: Session, advertiser: User):
     with pytest.raises(HTTPException) as e:
         rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(req), "baseRound": 0})
     assert e.value.status_code == 409
+
+
+def test_plan_round_files(db: Session, advertiser: User):
+    """기획안 첨부(2026-11-12) — 광고주 의뢰서 첨부는 0차부터 "request", admix 가 올린 파일은 보낼 때 차수에 들어간다."""
+    brand = bs.create(db, advertiser, {"name": "기획안첨부", "image_url": None})
+    req = rs.create(db, advertiser, _payload(brand["id"], extra_plan="인형탈 쓰기"))
+    rid = req["id"]
+    rs.save_plan_file(db, advertiser, rid, UploadFile(file=io.BytesIO(b"cat"), filename="cat.png"))
+    doc = rs.admin_get(db, rid)
+    assert doc["original"]["files"] == [{"id": "request", "name": "cat.png", "size": 3, "by": "advertiser"}]
+
+    # 올리기만 하면 광고주에겐 아직 안 보인다.
+    up = rs.admin_upload_round_file(db, rid, UploadFile(file=io.BytesIO(b"%PDF plan"), filename="admix 기획서.pdf"))
+    assert up["by"] == "admix" and up["size"] == 9 and up["name"] == "admix 기획서.pdf"
+    with pytest.raises(HTTPException) as e:
+        rs.round_file(db, advertiser, rid, up["id"])
+    assert e.value.status_code == 404
+    assert rs.admin_round_file(db, rid, up["id"])[0].read_bytes() == b"%PDF plan"
+    with pytest.raises(HTTPException):  # 허용하지 않는 파일
+        rs.admin_upload_round_file(db, rid, UploadFile(file=io.BytesIO(b"x"), filename="run.exe"))
+
+    # 없는 파일 id · 엉뚱한 id 는 막는다.
+    for bad in ({"id": "0" * 32 + ".pdf"}, {"id": "../../etc/passwd"}):
+        with pytest.raises(HTTPException) as e:
+            rs.admin_send_round(
+                db, _Admin(), rid, {"content": _round_content(doc, files=[*doc["original"]["files"], bad]), "baseRound": 0}
+            )
+        assert e.value.status_code == 400
+
+    # 1차 — 광고주 첨부는 두고 admix 파일을 더해 보낸다 → 추가 기획 '수정'.
+    files = [*doc["original"]["files"], {"id": up["id"], "name": "admix 기획서.pdf", "size": 1, "by": "advertiser"}]
+    one = rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(doc, files=files), "baseRound": 0})
+    r1 = one["rounds"][-1]
+    assert r1["changed"] == ["extraPlan"]
+    assert [f["id"] for f in r1["content"]["files"]] == ["request", up["id"]]
+    assert r1["content"]["files"][1] == {"id": up["id"], "name": "admix 기획서.pdf", "size": 9, "by": "admix"}
+
+    # 광고주는 차수에 들어간 파일 · 자기 첨부를 받는다.
+    path, name = rs.round_file(db, advertiser, rid, up["id"])
+    assert name == "admix 기획서.pdf" and path.read_bytes() == b"%PDF plan"
+    assert rs.round_file(db, advertiser, rid, "request")[1] == "cat.png"
+    other = _user(db)
+    try:
+        with pytest.raises(HTTPException) as e:  # 남의 의뢰 첨부는 못 받는다
+            rs.round_file(db, other, rid, up["id"])
+        assert e.value.status_code == 404
+    finally:
+        db.delete(other)
+        db.commit()
+
+    # 광고주가 고쳐 보낼 땐 첨부를 바꿀 수 없다 — 보낸 목록은 무시하고 앞 차수 그대로.
+    mine = rs.list_mine(db, advertiser)[0]
+    two = rs.send_round(
+        db, advertiser, rid, {"content": _round_content(mine, summary="바꿈", files=[]), "baseRound": 1}
+    )
+    assert two["rounds"][-1]["changed"] == ["summary"]
+    assert [f["id"] for f in two["rounds"][-1]["content"]["files"]] == ["request", up["id"]]
+
+    # files 가 없는 옛 차수는 앞 차수 목록을 이어받는다(첨부 전 차수).
+    from src.models.advertiser_collab_request import AdvertiserCollabRequestRound as Round
+    row = db.query(Round).filter(Round.request_id == uuid.UUID(rid), Round.round_no == 2).one()
+    row.content = {k: v for k, v in row.content.items() if k != "files"}
+    db.commit()
+    again = rs.admin_get(db, rid)
+    assert [f["id"] for f in again["rounds"][-1]["content"]["files"]] == ["request", up["id"]]
+
+    # 3차 — admix 가 자기 파일을 빼서 보낸다.
+    three = rs.admin_send_round(
+        db, _Admin(), rid, {"content": _round_content(again, files=again["original"]["files"]), "baseRound": 2}
+    )
+    assert three["rounds"][-1]["changed"] == ["extraPlan"]
+    assert [f["id"] for f in three["rounds"][-1]["content"]["files"]] == ["request"]
+    rs.admin_round_file(db, rid, up["id"])[0].unlink()

@@ -108,6 +108,15 @@ export const ITEM_LABEL: Record<BaseItem, string> = {
   menu: "협업 메뉴",
   space: "공간 연출",
 };
+/** 기본안마다 조건 예시 — 의뢰서 "조건" 칸(예) …)과 기획안 고치기 칸(조건(예: …))이 같이 쓴다(11-12 사용자: "항목에 맞게"). */
+export const ITEM_EXAMPLE: Record<BaseItem, string> = {
+  promo: "계산대 옆 A4 포스터 1장",
+  consumable: "컵홀더 · 스티커를 음료 전체에 사용",
+  goods: "구매 시 증정 · 1인 1개 · 상온 보관",
+  display: "진열대 1개 · 제품 3종 · 시향 가능",
+  menu: "브랜드 시럽 시즌 음료 1종 · 레시피 제공",
+  space: "창가 쪽 브랜드존 1곳 · 소품 설치",
+};
 export const ITEM_HINT: Record<BaseItem, string> = {
   promo: "포스터, 배너, 소형 출력물 등",
   consumable: "컵홀더, 컵받침, 스티커 등",

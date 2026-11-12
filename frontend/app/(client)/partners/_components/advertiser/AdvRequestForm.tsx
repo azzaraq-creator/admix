@@ -37,6 +37,7 @@ import {
   CANCEL_HALF_REFUND_DAYS,
   COURSE,
   EXTRA_LABEL,
+  ITEM_EXAMPLE,
   ITEM_HINT,
   ITEM_LABEL,
   PAYMENT_DAYS,
@@ -193,15 +194,10 @@ const withPrep = (x: AdvCollab, items: BaseItem[], itemPrep: AdvCollab["itemPrep
   return { ...x, items, itemPrep, type, prepDays };
 };
 
-/** 고른 구성마다 적는 조건 칸 — 고르면 꼭 적어야 한다(11-10). */
-const ITEM_PLACEHOLDER: Record<BaseItem, string> = {
-  promo: "예) 계산대 옆 A4 포스터 1장",
-  consumable: "예) 컵홀더 · 스티커를 음료 전체에 사용",
-  goods: "예) 구매 시 증정 · 1인 1개 · 상온 보관",
-  display: "예) 진열대 1개 · 제품 3종 · 시향 가능",
-  menu: "예) 브랜드 시럽 시즌 음료 1종 · 레시피 제공",
-  space: "예) 창가 쪽 브랜드존 1곳 · 소품 설치",
-};
+/** 고른 구성마다 적는 조건 칸 — 고르면 꼭 적어야 한다(11-10). 예시는 기획안 고치기와 같이 쓴다(ITEM_EXAMPLE). */
+const ITEM_PLACEHOLDER = Object.fromEntries(
+  Object.entries(ITEM_EXAMPLE).map(([k, v]) => [k, `예) ${v}`]),
+) as Record<BaseItem, string>;
 
 type ErrorKey =
   | "brand"

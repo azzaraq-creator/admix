@@ -125,7 +125,7 @@ function AdvertiserDetail({ member }: { member: AdminAdvertiserMember }) {
   );
 }
 
-function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+export function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex gap-[12px] text-sm">
       <dt className="w-[72px] shrink-0 text-disabled">{label}</dt>
@@ -135,7 +135,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** 파일 한 줄 — 이름 · 올린 때 + "파일 보기"(이미지 · PDF 는 새 탭, 그 밖은 내려받기). */
-function FileRow({
+export function FileRow({
   memberId,
   kind,
   name,

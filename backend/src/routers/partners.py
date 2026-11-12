@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -445,6 +446,18 @@ def upload_collab_request_file(
 ) -> dict:
     """추가 기획 첨부(기획서 1개, 20MB) — 의뢰를 보낸 다음 올린다."""
     return collab_request_service.save_plan_file(db, user, request_id, file)
+
+
+@router.get("/me/collab-requests/{request_id}/plan-files/{file_id}")
+def collab_request_round_file(
+    request_id: str,
+    file_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """기획안 첨부 받기 — 차수에 들어간 파일(admix가 붙인 파일 · 내 의뢰서 첨부 "request")만."""
+    path, filename = collab_request_service.round_file(db, user, request_id, file_id)
+    return FileResponse(path, filename=filename)
 
 
 @router.get("/stores")

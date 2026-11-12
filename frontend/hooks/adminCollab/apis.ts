@@ -1,4 +1,4 @@
-import type { PlanRoundPayload } from "@/lib/collabPlan";
+import type { PlanFile, PlanRoundPayload } from "@/lib/collabPlan";
 import { api } from "@/lib/api";
 import type {
   AdminAdvertiserMember,
@@ -169,6 +169,25 @@ export const adminCollabApi = {
       .get<Blob>(`/admin/collab/collab-requests/${enc(id)}/plan-file`, {
         responseType: "blob",
       })
+      .then((r) => r.data),
+  /** 기획안 첨부 올리기(11-12) — 올려 두기만 한다. 기획안을 보낼 때 content.files 에 넣어야 광고주에게 간다. */
+  uploadAdvRequestPlanFile: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<PlanFile>(
+        `/admin/collab/collab-requests/${enc(id)}/plan-files`,
+        form,
+      )
+      .then((r) => r.data);
+  },
+  /** 기획안 첨부 받기 — "request" 는 광고주 의뢰서 첨부. */
+  advRequestPlanFile: (id: string, fileId: string) =>
+    api
+      .get<Blob>(
+        `/admin/collab/collab-requests/${enc(id)}/plan-files/${enc(fileId)}`,
+        { responseType: "blob" },
+      )
       .then((r) => r.data),
 
   // ── 매장 수정 요청 ──

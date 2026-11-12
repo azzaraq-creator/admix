@@ -9,6 +9,7 @@ import {
   PlanCompare,
   PlanEditor,
   PlanHistory,
+  type PlanFileActions,
 } from "@/components/collabPlan/PlanSheet";
 import { partnersApi, usePartnersStores } from "@/hooks/partners";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
@@ -24,16 +25,19 @@ import {
   planErrorsOf,
   planStoreOf,
   roundLabel,
+  roundNo,
   roundPayloadOf,
   type PlanBlock,
   type PlanContent,
   type PlanFieldKey,
+  type PlanStore,
 } from "@/lib/collabPlan";
 import { kstStamp } from "@/lib/partnersPreview";
 
 import { PanelCard } from "../workspace/workspaceUi";
 import { useRememberSentRequest } from "./advStore";
 import { ConfirmModal, say } from "./advUi";
+import { PlanStoreModal } from "./PlanStoreModal";
 
 const CARD = "gap-[14px] bg-surface p-[18px] backdrop-blur-none sm:p-[24px]";
 
@@ -49,6 +53,11 @@ export function AdvPlanReview({
   block: PlanBlock;
 }) {
   const requestId = c.requestId!;
+  // 추가 기획 첨부(11-12) — admix 가 기획안에 붙인 파일 · 내 의뢰서 첨부를 받아 본다(기획안에서 첨부를 바꾸지는 않는다).
+  const fileActions: PlanFileActions = {
+    load: (f) => partnersApi.collabRequestPlanFile(requestId, f.id),
+    onError: (err) => say(extractApiError(err) || "첨부 파일을 열지 못했어요."),
+  };
   const rememberSent = useRememberSentRequest();
   const stores = usePartnersStores({});
   const options = useMemo(
@@ -71,6 +80,9 @@ export function AdvPlanReview({
     null,
   );
   const [busy, setBusy] = useState(false);
+  // 지정 희망 매장 정보 팝업(11-13) — 닫히는 동안에도 내용이 남게 매장은 따로 둔다.
+  const [storeView, setStoreView] = useState<PlanStore | null>(null);
+  const [storeOpen, setStoreOpen] = useState(false);
   const editing = draft !== null;
   const changed = draft ? changedKeys(latest.content, draft) : [];
   const dirty =
@@ -150,7 +162,7 @@ export function AdvPlanReview({
       }
     : myTurn
       ? {
-          title: `admix가 ${latest.round}차 기획안을 보냈어요`,
+          title: `admix가 ${roundNo(latest.round)}차 기획안을 보냈어요`,
           hint: `${at} · 바뀐 항목을 확인하고 확정하거나 다시 고쳐 보내 주세요`,
         }
       : {
@@ -185,6 +197,7 @@ export function AdvPlanReview({
               errors={errors}
               storeOptions={options}
               avg={avg}
+              fileActions={fileActions}
             />
             <div className="flex flex-wrap items-center justify-end gap-[8px]">
               <Button
@@ -245,11 +258,15 @@ export function AdvPlanReview({
               before={cmp.before}
               after={latest}
               notes={cmp.notes}
-              noteBy={latest.author}
               beforeLabel={
                 cmp.before ? `수정 전 · ${roundLabel(cmp.before)}` : undefined
               }
               afterLabel={`수정 후 · ${roundLabel(latest)}`}
+              fileActions={fileActions}
+              onStore={(s) => {
+                setStoreView(s);
+                setStoreOpen(true);
+              }}
             />
           </PanelCard>
         )}
@@ -261,16 +278,17 @@ export function AdvPlanReview({
             주고받은 기획안
           </Card.Title>
           <Card.Description className="text-[12px] text-gray-500">
-            {AUTHOR_LABEL.admix}와 {cmp.versions.length - 1}차까지 주고받았어요
+            {AUTHOR_LABEL.admix}와 {cmp.versions.length}차까지 주고받았어요
           </Card.Description>
         </div>
         <PlanHistory versions={cmp.versions} formatAt={kstStamp} />
       </PanelCard>
 
+      <PlanStoreModal store={storeView} isOpen={storeOpen} onOpenChange={setStoreOpen} />
       <ConfirmModal
         isOpen={dialog === "confirm"}
         onOpenChange={(o) => !o && setDialog(null)}
-        title={`${latest.round}차 기획안으로 확정할까요?`}
+        title={`${roundNo(latest.round)}차 기획안으로 확정할까요?`}
         confirmLabel="이대로 확정"
         isDisabled={busy}
         example={false}

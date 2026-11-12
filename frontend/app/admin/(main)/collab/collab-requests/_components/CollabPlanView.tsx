@@ -1,17 +1,19 @@
 "use client";
 
 import { Button, Chip } from "@heroui/react";
-import { Send } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import {
   PlanCompare,
   PlanEditor,
+  type PlanFileActions,
   PlanHistory,
 } from "@/components/collabPlan/PlanSheet";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useAdminPartnersStores } from "@/hooks/adminPartners";
+import { adminCollabApi } from "@/hooks/adminCollab/apis";
 import { useSendAdvRequestRound } from "@/hooks/adminCollab/mutations";
 import { useSonner } from "@/hooks/useSonner";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
@@ -26,6 +28,8 @@ import {
   changedKeys,
   compareOf,
   fieldLabel,
+  fieldText,
+  filesOf,
   latestRound,
   planAvgOf,
   planErrorsOf,
@@ -35,6 +39,77 @@ import {
   type PlanContent,
   type PlanFieldKey,
 } from "@/lib/collabPlan";
+
+/** 광고주에게 보내기 아이콘 — send.svg(11-12 사용자, 의뢰 보내기 · 기획안 상세 보내기와 같은 그림). */
+const SEND_ICON = "/icons/proposal-detail/send.svg";
+
+/**
+ * 보내기 확인 창 — 고친 항목마다 이름 · 지금 · 수정(2026-11-12 사용자: "내가 수정한 부분을 깔끔하게").
+ * 긴 글은 두 줄까지, 추가 기획은 글이 바뀐 때만 글을, 첨부는 더한 · 뺀 파일 이름을 따로 적는다.
+ */
+function ChangeSummary({
+  keys,
+  before,
+  after,
+}: {
+  keys: PlanFieldKey[];
+  before: PlanContent;
+  after: PlanContent;
+}) {
+  const lines = (k: PlanFieldKey) => {
+    if (k !== "extraPlan")
+      return [
+        { tag: "지금", text: fieldText(before, k) },
+        { tag: "수정", text: fieldText(after, k) },
+      ];
+    const out: { tag: string; text: string }[] = [];
+    const b = (before.extraPlan ?? "").trim();
+    const a = (after.extraPlan ?? "").trim();
+    if (b !== a)
+      out.push({ tag: "지금", text: b || "-" }, { tag: "수정", text: a || "-" });
+    const ids = (c: PlanContent) => new Set(filesOf(c).map((f) => f.id));
+    const added = filesOf(after).filter((f) => !ids(before).has(f.id));
+    const removed = filesOf(before).filter((f) => !ids(after).has(f.id));
+    if (added.length)
+      out.push({ tag: "첨부", text: `${added.map((f) => f.name).join(", ")} 더함` });
+    if (removed.length)
+      out.push({ tag: "첨부", text: `${removed.map((f) => f.name).join(", ")} 뺌` });
+    return out;
+  };
+  return (
+    <div className="flex flex-col gap-[12px] whitespace-normal">
+      <ul className="flex max-h-[320px] flex-col divide-y divide-gray-100 overflow-y-auto rounded-[12px] bg-gray-50 px-[14px]">
+        {keys.map((k) => (
+          <li key={k} className="flex flex-col gap-[4px] py-[10px]">
+            <span className="text-sm font-semibold text-black">
+              {fieldLabel(k)}
+            </span>
+            {lines(k).map((l, i) => (
+              <span
+                key={i}
+                className="grid grid-cols-[32px_minmax(0,1fr)] gap-[6px] text-xs leading-[18px]"
+              >
+                <span className="text-disabled">{l.tag}</span>
+                <span
+                  className={
+                    l.tag === "지금"
+                      ? "line-clamp-2 break-keep text-gray-500"
+                      : "line-clamp-2 break-keep font-semibold text-gray-800"
+                  }
+                >
+                  {l.text}
+                </span>
+              </span>
+            ))}
+          </li>
+        ))}
+      </ul>
+      <p className="break-keep">
+        광고주는 수정 전 · 후를 같이 보고 확정하거나 다시 고쳐 보내요.
+      </p>
+    </div>
+  );
+}
 
 /**
  * 어드민 콜라보 의뢰 → 기획안(085, 2026-11-12 사용자) — 광고주 의뢰서를 항목별로 고쳐 광고주에게 보낸다.
@@ -51,6 +126,14 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
     () => (stores.data?.items ?? []).map(planStoreOf),
     [stores.data],
   );
+
+  // 추가 기획 첨부(11-12) — 광고주 의뢰서 첨부("request") · admix가 기획안에 붙인 파일. 고칠 때 파일 첨부 · 빼기.
+  const fileActions: PlanFileActions = {
+    load: (f) => adminCollabApi.advRequestPlanFile(doc.id, f.id),
+    onError: (err) => error("첨부 파일을 열지 못했어요", extractApiError(err)),
+  };
+  const uploadFile = (file: File) =>
+    adminCollabApi.uploadAdvRequestPlanFile(doc.id, file);
 
   const cmp = compareOf(doc, doc.createdAt);
   const latest = cmp.after;
@@ -118,9 +201,11 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
       title: n
         ? `${n}개 항목을 고쳐 광고주에게 보낼까요?`
         : "바꾼 항목 없이 보낼까요?",
-      description: n
-        ? `${changed.map(fieldLabel).join(", ")}\n광고주는 수정 전 · 후를 같이 보고 확정하거나 다시 고쳐 보내요.`
-        : "의뢰 내용 그대로 진행해도 된다는 기획안이에요. 광고주가 바로 확정할 수 있어요.",
+      description: n ? (
+        <ChangeSummary keys={changed} before={latest.content} after={draft} />
+      ) : (
+        "의뢰 내용 그대로 진행해도 된다는 기획안이에요. 광고주가 바로 확정할 수 있어요."
+      ),
       confirmText: "보내기",
     });
     if (!ok) return;
@@ -197,6 +282,8 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
               errors={errors}
               storeOptions={options}
               avg={avg}
+              fileActions={fileActions}
+              onUploadFile={uploadFile}
             />
             <div className="flex flex-wrap items-center justify-end gap-[8px]">
               <Button
@@ -211,14 +298,14 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
                 onPress={submit}
                 isPending={send.isPending}
               >
-                <Send className="size-[16px]" />
+                <MaskIcon src={SEND_ICON} className="size-[16px]" />
                 광고주에게 보내기
               </Button>
             </div>
           </AdminPanel>
         ) : (
           <AdminPanel
-            title={cmp.before ? "수정 전 · 후" : "처음 의뢰서"}
+            title={cmp.before ? "수정 전 · 후" : roundLabel(latest)}
             desc={
               cmp.before
                 ? `${roundLabel(cmp.before)} → ${roundLabel(latest)}`
@@ -229,9 +316,9 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
               before={cmp.before}
               after={latest}
               notes={cmp.notes}
-              noteBy={latest.author}
               beforeLabel={cmp.before ? roundLabel(cmp.before) : undefined}
               afterLabel={roundLabel(latest)}
+              fileActions={fileActions}
             />
           </AdminPanel>
         )}
@@ -239,7 +326,7 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
 
       <AdminPanel
         title="차수 기록"
-        desc={`${cmp.versions.length - 1}차까지`}
+        desc={`${cmp.versions.length}차까지`}
         className="h-fit"
       >
         <PlanHistory versions={cmp.versions} formatAt={dotDateTime} />

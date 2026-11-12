@@ -52,7 +52,23 @@ export interface PlanEstimate {
   negotiable?: number;
 }
 
-/** 한 차수의 고칠 수 있는 내용 전부(회사 · 담당자 · 남긴 말 · 첨부는 의뢰서 그대로). */
+/**
+ * 추가 기획 첨부(2026-11-12 사용자: "어드민도 파일을 첨부할 수 있게") — id "request" 는 광고주가 의뢰서에 붙인 파일(0차부터),
+ * 나머지는 admix 가 기획안에 붙인 파일(먼저 올려 두고 보낼 때 차수에 넣는다). 광고주는 기획안에서 첨부를 바꾸지 않는다.
+ */
+export interface PlanFile {
+  id: string;
+  name: string;
+  size: number | null;
+  by: PlanAuthor;
+}
+
+/** 기획안 첨부 — 의뢰서 첨부와 같은 확장자 · 20MB, 차수 하나에 10개까지. */
+export const PLAN_FILE_ACCEPT = ".pdf,.ppt,.pptx,.key,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.zip,image/*";
+export const PLAN_FILE_MAX = 20 * 1024 * 1024;
+export const PLAN_FILE_MAX_COUNT = 10;
+
+/** 한 차수의 고칠 수 있는 내용 전부(회사 · 담당자 · 남긴 말은 의뢰서 그대로). */
 export interface PlanContent {
   title: string;
   summary: string | null;
@@ -63,6 +79,8 @@ export interface PlanContent {
   targetStores: number;
   items: PlanItem[];
   extraPlan: string | null;
+  /** 추가 기획 첨부 — 서버가 늘 채워 준다(첨부 전 옛 차수는 앞 차수 목록을 이어받는다). */
+  files?: PlanFile[];
   preferred: PlanStore[];
   estimate: PlanEstimate | null;
   schedule: Record<string, string | number | boolean> | null;
@@ -129,6 +147,7 @@ export const PLAN_FIELDS: { key: PlanFieldKey; label: string }[] = [
 export const fieldLabel = (k: string) => PLAN_FIELDS.find((f) => f.key === k)?.label ?? k;
 
 const itemOf = (c: PlanContent, k: BaseItem) => c.items.find((x) => x.key === k);
+export const filesOf = (c: PlanContent | null | undefined): PlanFile[] => c?.files ?? [];
 const blank = (v: string | null | undefined) => (v ?? "").trim();
 
 /** 항목 하나의 비교 값(문자열) — 빈 글자와 없음은 같게 본다. 서버 _field_value 와 같은 규칙. */
@@ -136,8 +155,12 @@ export function fieldValue(c: PlanContent, k: PlanFieldKey): string {
   switch (k) {
     case "title":
     case "summary":
-    case "extraPlan":
       return blank(c[k]);
+    case "extraPlan":
+      // 추가 기획 = 글 + 첨부 — 파일을 붙이거나 빼도 이 항목이 '수정'(서버와 같다).
+      return `${blank(c.extraPlan)}|${filesOf(c)
+        .map((f) => f.id)
+        .join(",")}`;
     case "course":
       return c.course;
     case "period":
@@ -209,9 +232,15 @@ export const latestContent = (b: PlanBlock) => b.rounds[b.rounds.length - 1]?.co
 
 export const AUTHOR_LABEL: Record<PlanAuthor, string> = { admix: "admix", advertiser: "광고주" };
 
-/** 차수 이름 — 0차는 처음 의뢰서. */
+/**
+ * 화면 차수 번호 — 광고주가 처음 보낸 의뢰서(서버 0차)가 "1차", 그다음부터 하나씩(2026-11-12 사용자: "처음이 아니라
+ * 1차 의뢰서로 해서 n차로"). 서버 · 저장 값은 그대로 0부터.
+ */
+export const roundNo = (round: number) => round + 1;
+
+/** 차수 이름 — 1차 의뢰서 · 2차 · admix · 3차 · 광고주 …(광고주 화면도 같다). */
 export const roundLabel = (v: Pick<PlanVersion, "round" | "author">) =>
-  v.round === 0 ? "처음 의뢰서" : `${v.round}차 · ${AUTHOR_LABEL[v.author]}`;
+  v.round === 0 ? "1차 의뢰서" : `${roundNo(v.round)}차 · ${AUTHOR_LABEL[v.author]}`;
 
 // ── 보이는 글 ────────────────────────────────────────────────────────
 
@@ -234,7 +263,8 @@ export function fieldText(c: PlanContent, k: PlanFieldKey): string {
     case "summary":
       return blank(c.summary) || "-";
     case "extraPlan":
-      return blank(c.extraPlan) || "-";
+      // 글 없이 첨부만 있으면 글 칸은 비우고 아래 파일 줄만 보인다.
+      return blank(c.extraPlan) || (filesOf(c).length ? "" : "-");
     case "course":
       return courseText(c.course);
     case "period":

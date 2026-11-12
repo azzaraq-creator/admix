@@ -1,12 +1,13 @@
 "use client";
 
-import { Alert, Button, Chip, Tabs } from "@heroui/react";
+import { Alert, Button, Checkbox, Chip, Label, Tabs } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, FileText, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminCollabApi,
@@ -35,10 +36,15 @@ import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 import { openFileInNewTab } from "../../_components/collabUi";
+import { AdvertiserInfoModal } from "../../advertisers/_components/AdvertiserInfoModal";
 import { BrandThumb } from "../../advertisers/_components/CollabAdvertisersListView";
 import { CollabPlanView } from "./CollabPlanView";
 
 type Doc = AdminAdvCollabRequestDetail;
+
+/** HeroUI 체크박스 원래 액센트(브랜드 보라 바탕 + 흰 체크) — 계정 관리 권한 칸과 같다. */
+const CHECKBOX_ACCENT =
+  "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)]";
 
 /** 2026.11.06 (금) */
 const ymdw = (d: string) => `${d.slice(0, 4)}.${mdw(d)}`;
@@ -90,9 +96,9 @@ export function CollabRequestDocView({ id }: { id: string }) {
 }
 
 function RequestDoc({ doc }: { doc: Doc }) {
-  const router = useRouter();
   const { error } = useSonner();
   const [opening, setOpening] = useState(false);
+  const [memberOpen, setMemberOpen] = useState(false);
   const course = COURSE[doc.course];
   // 고쳐 다시 보냄 — 기획안이 오가기 전 의뢰서를 고친 때만(광고주가 기획안을 고쳐 보내도 updated_at 이 바뀐다).
   const firstRoundAt = doc.rounds[0]
@@ -151,34 +157,27 @@ function RequestDoc({ doc }: { doc: Doc }) {
           <ChevronLeft className="size-[16px]" />
           콜라보 의뢰
         </Link>
-        <div className="flex flex-wrap items-center gap-[8px]">
-          {doc.planFile && (
-            <Button
-              size="sm"
-              variant="tertiary"
-              isPending={opening}
-              onPress={openPlanFile}
-              className="font-semibold"
-            >
-              <FileText className="size-[16px]" />
-              첨부 기획서
-            </Button>
-          )}
-          {advertiser && (
-            <Button
-              size="sm"
-              variant="tertiary"
-              onPress={() =>
-                router.push(`/admin/collab/advertisers/${advertiser.id}`)
-              }
-              className="font-semibold"
-            >
-              <UserRound className="size-[16px]" />
-              광고주 회원
-            </Button>
-          )}
-        </div>
+        {/* 첨부 기획서 버튼은 뺐다 — 서류 "추가 기획" 칸에서 연다(11-12 사용자). */}
+        {advertiser && (
+          <Button
+            size="sm"
+            variant="tertiary"
+            // 페이지를 옮기지 않고 팝업으로 회원 정보를 본다(11-12 사용자).
+            onPress={() => setMemberOpen(true)}
+            className="font-semibold"
+          >
+            <UserRound className="size-[16px]" />
+            광고주 회원
+          </Button>
+        )}
       </div>
+      {advertiser && (
+        <AdvertiserInfoModal
+          memberId={advertiser.id}
+          isOpen={memberOpen}
+          onOpenChange={setMemberOpen}
+        />
+      )}
 
       {/* 광고주가 취소한 의뢰(084) — 지우지 않고 내용은 그대로 둔다. */}
       {doc.cancelledAt && (
@@ -202,15 +201,16 @@ function RequestDoc({ doc }: { doc: Doc }) {
           <Tabs.List aria-label="의뢰 보기">
             <Tabs.Tab id="plan" className="gap-[6px] whitespace-nowrap">
               기획안
+              {/* 처음 의뢰서가 1차라 마지막 차수 = 기획안 수 + 1(11-12 사용자 "1차 의뢰서로 해서 n차로"). */}
               {doc.rounds.length > 0 && (
                 <span className="text-xs font-medium text-disabled">
-                  {doc.rounds.length}차
+                  {doc.rounds.length + 1}차
                 </span>
               )}
               <Tabs.Indicator />
             </Tabs.Tab>
             <Tabs.Tab id="doc" className="whitespace-nowrap">
-              처음 의뢰서
+              1차 의뢰서
               <Tabs.Indicator />
             </Tabs.Tab>
           </Tabs.List>
@@ -232,8 +232,13 @@ function RequestDoc({ doc }: { doc: Doc }) {
               {/* 머리 — 문서 번호 · 접수 */}
               <header className="flex flex-col gap-[28px]">
                 <div className="flex flex-wrap items-start justify-between gap-[12px]">
-                  <span className="text-lg font-extrabold tracking-[-0.02em] text-primary-800">
-                    admix
+                  {/* 글자 로고(11-12 사용자) — 원본 833×236, 높이 20px, 회색(11-13 사용자: "회색으로").
+                      마스크로 한 색을 입힌다. 종이는 다크 모드에서도 흰색이라 뒤집히지 않는 고정 회색(tone). */}
+                  <span role="img" aria-label="admix" className="flex">
+                    <MaskIcon
+                      src="/service/admix-text-logo.svg"
+                      className="h-[20px] w-[71px] text-tone-8c8c94"
+                    />
                   </span>
                   <dl className="grid grid-cols-[auto_auto] gap-x-[12px] gap-y-[2px] text-xs text-tone-4a5565">
                     <dt>문서 번호</dt>
@@ -266,15 +271,11 @@ function RequestDoc({ doc }: { doc: Doc }) {
                   </dl>
                 </div>
 
-                <div className="flex flex-col items-center gap-[6px]">
+                <div className="flex flex-col items-center">
                   {/* 자간을 벌린 만큼 왼쪽도 띄워 가운데를 맞춘다. */}
                   <h1 className="pl-[0.5em] text-2xl font-extrabold tracking-[0.5em] md:text-[30px]">
                     콜라보 의뢰서
                   </h1>
-                  <p className="text-xs text-disabled">
-                    광고주가 보내기 전 내용을 확인하고 &ldquo;이대로
-                    의뢰할게요&rdquo;에 체크해 보냈어요.
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-[14px] border-y-2 border-black py-[18px]">
@@ -524,17 +525,17 @@ function RequestDoc({ doc }: { doc: Doc }) {
                   desc="의뢰할 때 계산한 일정 · 주말과 공휴일은 영업일에서 빼요"
                 >
                   <ScheduleTable doc={doc} />
-                  {/* 광고주가 확인 창에서 체크한 동의(11-12 사용자) — 기록이라 ※ 안내보다 또렷하게 상자로. */}
+                  {/* 광고주가 확인 창에서 체크한 동의 — 서류 맨 아래 확인처럼 체크 표시로(11-12 사용자). 글은 광고주가 체크한 문장 그대로. */}
                   {doc.schedule.earlyStartAgreed && (
-                    <p className="rounded-[4px] border border-gray-200 bg-gray-50/60 px-[16px] py-[12px] text-sm leading-[1.7] break-keep">
-                      <b className="font-bold">광고주 동의</b> · 준비 기간이
-                      빠듯하다는 안내
-                      {doc.schedule.recommendedStart
-                        ? `(${mdw(doc.schedule.recommendedStart)} 이후 시작 권장)`
-                        : ""}
-                      를 보고, 권한 날짜보다 일찍 진행하는 데 동의했어요. 준비가
-                      늦어져 일정이 밀려도 admix에 책임을 묻지 않기로 했어요.
-                    </p>
+                    <AgreedCheck
+                      note={`광고주 동의 · 준비 기간이 빠듯하다는 안내${
+                        doc.schedule.recommendedStart
+                          ? `(${mdw(doc.schedule.recommendedStart)} 이후 시작 권장)`
+                          : ""
+                      }를 보고 권한 날짜보다 일찍 진행하기로 했어요.`}
+                    >
+                      일정이 밀려도 admix에 책임을 묻지 않을게요.
+                    </AgreedCheck>
                   )}
                   {!doc.schedule.earlyStartAgreed &&
                     doc.schedule.makeItems &&
@@ -560,6 +561,9 @@ function RequestDoc({ doc }: { doc: Doc }) {
 
               {/* 끝맺음 */}
               <footer className="flex flex-col items-center gap-[20px] border-t border-gray-200 pt-[32px] text-center">
+                {/* 광고주가 보내기 전에 체크한 확인(11-12 사용자: 머리 대신 서류 맨 아래에 체크 표시로). */}
+                {/* 광고주가 보낼 때 체크한 문장 그대로(RequestConfirmModal). */}
+                <AgreedCheck>내용을 확인했어요. 이대로 의뢰할게요.</AgreedCheck>
                 <p className="text-base font-semibold">
                   위와 같이 콜라보를 의뢰합니다.
                 </p>
@@ -579,6 +583,7 @@ function RequestDoc({ doc }: { doc: Doc }) {
                     )}
                   </dd>
                 </dl>
+                {/* 받는 곳은 로고 말고 글자로(11-12 사용자: "로고 말고 그냥 admix 텍스트가 낫겠다"). 서류 머리 로고는 그대로. */}
                 <p className="self-end text-base font-bold tracking-[0.08em]">
                   admix 귀중
                 </p>
@@ -592,6 +597,31 @@ function RequestDoc({ doc }: { doc: Doc }) {
 }
 
 /* ── 서류 부품 ───────────────────────────────────────────── */
+
+/**
+ * 광고주가 체크한 확인 · 동의 — 읽기 전용으로 체크된 HeroUI 체크박스 + 광고주가 본 문장.
+ * note: 체크 아래 작은 회색 설명(무엇을 보고 체크했는지). 서류 맨 아래 확인과 예상 일정의 빠듯함 동의가 같이 쓴다.
+ */
+function AgreedCheck({ note, children }: { note?: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-[4px]">
+      <Checkbox isSelected isReadOnly className={CHECKBOX_ACCENT}>
+        <Checkbox.Content className="items-center gap-[8px]">
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+          {/* Checkbox.Content 가 이미 <label> 이라 글자는 span 으로(label 안 label 방지). */}
+          <Label elementType="span" className="text-sm font-semibold break-keep text-black">
+            {children}
+          </Label>
+        </Checkbox.Content>
+      </Checkbox>
+      {note && (
+        <p className="pl-[24px] text-left text-xs leading-[1.6] break-keep text-tone-4a5565">{note}</p>
+      )}
+    </div>
+  );
+}
 
 function DocSection({
   no,

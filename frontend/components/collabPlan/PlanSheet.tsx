@@ -22,11 +22,12 @@ import {
   TextArea,
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
-import { ArrowRight, ChevronDown, RotateCcw, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, FileText, Paperclip, RotateCcw, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import {
   COURSE,
+  ITEM_EXAMPLE,
   ITEM_LABEL,
   PREP_KEYS,
   PREP_LABEL,
@@ -42,97 +43,296 @@ import {
   derivedOf,
   estimateLine,
   fieldText,
+  filesOf,
+  PLAN_FILE_ACCEPT,
+  PLAN_FILE_MAX,
+  PLAN_FILE_MAX_COUNT,
   roundLabel,
   scheduleLine,
   shownFields,
   storeText,
-  type PlanAuthor,
   type PlanContent,
   type PlanFieldKey,
+  type PlanFile,
   type PlanStore,
   type PlanVersion,
 } from "@/lib/collabPlan";
+import { extractApiError } from "@/lib/apiError";
+import { openFileInNewTab } from "@/lib/openFileInNewTab";
 import { PREVIEW_TODAY, addDays, periodDays } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
 const NOTE_MAX = 300;
 
-// ── 비교 ─────────────────────────────────────────────────────────────
+/**
+ * 추가 기획 첨부 받기 — 쓰는 쪽(어드민 · 광고주)이 자기 API 로 파일을 받아 준다. 누르면 새 탭(사진 · PDF) 또는 내려받기.
+ * (2026-11-12 사용자: "첨부한 파일이 안 떠" · "어드민도 파일을 첨부할 수 있게")
+ */
+export interface PlanFileActions {
+  load: (f: PlanFile) => Promise<Blob>;
+  onError?: (err: unknown) => void;
+}
 
-/** 바뀐 항목 한 줄 — 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
-function ChangedRow({
-  label,
-  before,
-  after,
-  note,
-  noteBy,
-  beforeLabel,
-  afterLabel,
+function fileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
+/**
+ * 첨부 파일 — 광고주 첨부 · admix 첨부 두 묶음(작은 회색 제목, 없는 묶음은 안 보임, 2026-11-12 사용자: "구분해 줘").
+ * 줄은 아이콘 · 이름 · 크기 · 열기, 고치는 중이면 admix 파일에 빼기.
+ */
+function FileList({
+  files,
+  actions,
+  onRemove,
 }: {
-  label: string;
-  before: string;
-  after: string;
-  note?: string;
-  noteBy: PlanAuthor;
-  beforeLabel: string;
-  afterLabel: string;
+  files: PlanFile[];
+  actions?: PlanFileActions;
+  onRemove?: (f: PlanFile) => void;
+}) {
+  const [opening, setOpening] = useState<string | null>(null);
+  if (!files.length) return null;
+  const open = async (f: PlanFile) => {
+    if (!actions) return;
+    setOpening(f.id);
+    try {
+      await openFileInNewTab(() => actions.load(f), f.name);
+    } catch (err) {
+      actions.onError?.(err);
+    } finally {
+      setOpening(null);
+    }
+  };
+  const groups = (["advertiser", "admix"] as const)
+    .map((by) => ({ by, files: files.filter((f) => f.by === by) }))
+    .filter((g) => g.files.length);
+  return (
+    <div className="flex flex-col gap-[10px]">
+      {groups.map((g) => (
+        <div key={g.by} className="flex flex-col gap-[6px]">
+          <span className="text-xs font-medium text-disabled">{AUTHOR_LABEL[g.by]} 첨부</span>
+          <ul className="flex flex-col gap-[6px]">
+            {g.files.map((f) => (
+              <FileRow
+                key={f.id}
+                file={f}
+                opening={opening === f.id}
+                onOpen={actions && (() => open(f))}
+                onRemove={onRemove}
+              />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FileRow({
+  file: f,
+  opening,
+  onOpen,
+  onRemove,
+}: {
+  file: PlanFile;
+  opening: boolean;
+  onOpen?: () => void;
+  onRemove?: (f: PlanFile) => void;
 }) {
   return (
-    <div className="flex flex-col gap-[10px] py-[16px]">
-      <div className="flex items-center gap-[8px]">
-        <span className="text-sm font-bold text-black">{label}</span>
-        <Chip size="sm" variant="soft" color="accent">
-          수정
-        </Chip>
+    <li className="flex min-w-0 items-center gap-[8px] rounded-[10px] border border-gray-200 bg-surface py-[6px] pr-[6px] pl-[12px]">
+      <FileText aria-hidden className="size-[16px] shrink-0 text-gray-500" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="line-clamp-2 text-sm font-semibold break-all text-gray-800">{f.name}</span>
+        {f.size != null && <span className="text-xs text-disabled">{fileSize(f.size)}</span>}
+      </span>
+      <span className="flex shrink-0 items-center gap-[4px]">
+        {onOpen && (
+          <Button size="sm" variant="tertiary" isPending={opening} onPress={onOpen} className="h-[30px] font-semibold">
+            열기
+          </Button>
+        )}
+        {onRemove && f.by === "admix" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            isIconOnly
+            aria-label={`${f.name} 빼기`}
+            onPress={() => onRemove(f)}
+            className="size-[30px] min-w-0 text-gray-500"
+          >
+            <X className="size-[14px]" />
+          </Button>
+        )}
+      </span>
+    </li>
+  );
+}
+
+/** 파일 첨부 — 고르면 바로 올리고(쓰는 쪽 onUpload) 목록에 더한다. 보내기 전엔 상대에게 보이지 않는다. */
+function FileUpload({
+  count,
+  onUpload,
+  onAdd,
+}: {
+  count: number;
+  onUpload: (file: File) => Promise<PlanFile>;
+  onAdd: (files: PlanFile[]) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  // 올리는 사이에 고친 글이 덮이지 않게 — 다 올린 뒤엔 그때의 onAdd(마지막 draft 기준)를 부른다.
+  const addRef = useRef(onAdd);
+  useEffect(() => {
+    addRef.current = onAdd;
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pick = async (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = ""; // 같은 파일을 다시 골라도 바뀌게
+    if (!picked.length) return;
+    if (count + picked.length > PLAN_FILE_MAX_COUNT) {
+      setError(`첨부 파일은 ${PLAN_FILE_MAX_COUNT}개까지예요.`);
+      return;
+    }
+    if (picked.some((f) => f.size > PLAN_FILE_MAX)) {
+      setError("20MB 이하 파일만 올릴 수 있어요.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    const added: PlanFile[] = [];
+    try {
+      for (const f of picked) added.push(await onUpload(f));
+    } catch (err) {
+      setError(extractApiError(err) || "파일을 올리지 못했어요.");
+    } finally {
+      setBusy(false);
+      if (added.length) addRef.current(added);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <div className="flex flex-wrap items-center gap-[8px]">
+        <input ref={input} type="file" hidden multiple accept={PLAN_FILE_ACCEPT} onChange={pick} />
+        <Button
+          size="sm"
+          variant="tertiary"
+          isPending={busy}
+          isDisabled={count >= PLAN_FILE_MAX_COUNT}
+          onPress={() => input.current?.click()}
+          className="font-semibold"
+        >
+          <Paperclip className="size-[14px]" />
+          파일 첨부
+        </Button>
+        <span className="text-xs text-disabled">
+          PDF · PPT · 문서 · 이미지, 파일마다 20MB · {PLAN_FILE_MAX_COUNT}개까지 · 보내면 광고주가 받아 볼 수 있어요
+        </span>
       </div>
-      <div className="grid gap-[8px] sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-stretch">
-        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
-          <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
-          <p className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</p>
-        </div>
-        <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 sm:block" />
-        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
-          <span className="text-xs font-medium text-disabled">{afterLabel}</span>
-          <p className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</p>
-        </div>
-      </div>
-      {note && (
-        <p className="whitespace-pre-wrap break-keep text-sm leading-[21px] text-gray-700">
-          <span className="mr-[6px] font-semibold text-black">{AUTHOR_LABEL[noteBy]} 메모</span>
-          {note}
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-danger">
+          {error}
         </p>
       )}
     </div>
   );
 }
 
-/** 그대로인 항목 — 이름표 | 값 한 줄씩, 처음엔 접어 둔다. */
-function SameRows({ rows, open: initialOpen }: { rows: { label: string; text: string }[]; open?: boolean }) {
-  const [open, setOpen] = useState(!!initialOpen);
-  if (!rows.length) return null;
+// ── 비교 ─────────────────────────────────────────────────────────────
+
+/** 항목 줄 칸 — 그대로인 줄 · 바뀐 줄이 같은 칸(이름표 | 값)이라 위아래로 나란히 읽힌다. */
+const ROW_GRID = "grid gap-[6px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-[12px]";
+
+/** 그대로인 항목 — 옅은 이름표 | 값 한 줄. */
+function SameRow({ label, value, extra }: { label: string; value: ReactNode; extra?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-[8px] pt-[14px]">
-      <Button
-        size="sm"
-        variant="ghost"
-        onPress={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="-ml-[8px] w-fit text-gray-600"
-      >
-        그대로인 항목 {rows.length}개
-        <ChevronDown className={cn("size-[14px] transition-transform", open && "rotate-180")} />
-      </Button>
-      {open && (
-        <dl className="flex flex-col gap-[10px]">
-          {rows.map((r) => (
-            <div key={r.label} className="grid gap-[2px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-[12px]">
-              <dt className="text-sm text-disabled">{r.label}</dt>
-              <dd className="whitespace-pre-wrap break-keep text-sm text-gray-700">{r.text}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </div>
+    <li className={cn(ROW_GRID, "py-[12px]")}>
+      <span className="text-sm text-disabled">{label}</span>
+      <div className="flex min-w-0 flex-col gap-[8px]">
+        {value && <div className="whitespace-pre-wrap break-keep text-sm text-gray-700">{value}</div>}
+        {extra}
+      </div>
+    </li>
+  );
+}
+
+/** 바뀐 항목 — 진한 이름표 + "수정", 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
+function ChangedRow({
+  label,
+  before,
+  after,
+  note,
+  beforeLabel,
+  afterLabel,
+  beforeExtra,
+  afterExtra,
+}: {
+  label: string;
+  before: ReactNode;
+  after: ReactNode;
+  note?: string;
+  beforeLabel: string;
+  afterLabel: string;
+  /** 글 아래 덧붙임(추가 기획 첨부) — 수정 전 · 후 칸 안에. */
+  beforeExtra?: ReactNode;
+  afterExtra?: ReactNode;
+}) {
+  return (
+    <li className={cn(ROW_GRID, "py-[16px]")}>
+      <div className="flex items-center gap-[8px] sm:flex-col sm:items-start sm:gap-[6px]">
+        <span className="text-sm font-bold text-black">{label}</span>
+        <Chip size="sm" variant="soft" color="accent">
+          수정
+        </Chip>
+      </div>
+      <div className="flex min-w-0 flex-col gap-[10px]">
+        <div className="grid gap-[8px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
+          <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+            <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
+            {before && <div className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</div>}
+            {beforeExtra}
+          </div>
+          <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 md:block" />
+          <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+            <span className="text-xs font-medium text-disabled">{afterLabel}</span>
+            {after && (
+              <div className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</div>
+            )}
+            {afterExtra}
+          </div>
+        </div>
+        {note && (
+          <p className="whitespace-pre-wrap break-keep text-sm leading-[21px] text-gray-700">
+            <span className="mr-[6px] font-semibold text-black">수정 이유</span>
+            {note}
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** 지정 희망 매장 이름 — 누르면 그 매장 정보 팝업(쓰는 쪽 onStore, 2026-11-13 사용자: "어느 매장인지 볼 수 있게"). */
+function StoreNames({ stores, onStore }: { stores: PlanStore[]; onStore: (s: PlanStore) => void }) {
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-[6px] gap-y-[2px]">
+      {stores.map((s, i) => (
+        <span key={s.id} className="inline-flex items-baseline">
+          <Button
+            variant="ghost"
+            onPress={() => onStore(s)}
+            aria-label={`${s.name} 매장 정보 보기`}
+            className="h-auto min-h-0 min-w-0 rounded-[4px] bg-transparent p-0 text-sm font-[inherit] text-inherit underline decoration-gray-300 underline-offset-[3px] data-[hovered=true]:bg-transparent data-[hovered=true]:text-primary data-[hovered=true]:decoration-primary"
+          >
+            {s.name}
+          </Button>
+          {i < stores.length - 1 && <span aria-hidden>,</span>}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -167,29 +367,38 @@ function DerivedRows({ before, after }: { before: PlanContent | null; after: Pla
 }
 
 /**
- * 수정 전 · 후 비교 — 바뀐 항목은 나란히, 그대로인 항목은 접어 둔다.
- * before 가 없으면(처음 의뢰서뿐) 모든 항목을 한 줄씩 보인다.
+ * 수정 전 · 후 비교 — 모든 항목을 의뢰서 순서대로 보이고, 바뀐 항목만 모양을 달리한다(이름표 진하게 + "수정" · 수정 전 → 후 · 수정 이유).
+ * (2026-11-13 사용자: "그대로인 항목을 밑에 따로 분리하지 말고 다 보여주되 수정된 것만 다르게") before 가 없으면(1차 의뢰서뿐) 모두 그대로인 줄.
  */
 export function PlanCompare({
   before,
   after,
   notes,
-  noteBy,
   beforeLabel = "수정 전",
   afterLabel = "수정 후",
+  fileActions,
+  onStore,
 }: {
   before: PlanVersion | null;
   after: PlanVersion;
   notes: Record<string, string>;
-  noteBy: PlanAuthor;
   beforeLabel?: string;
   afterLabel?: string;
+  /** 추가 기획 첨부 받기 — 없으면 파일 이름만. */
+  fileActions?: PlanFileActions;
+  /** 지정 희망 매장 이름을 누르면 — 없으면 이름 글자만. */
+  onStore?: (s: PlanStore) => void;
 }) {
   const fields = shownFields(before?.content, after.content);
   const changed = new Set(before ? changedKeys(before.content, after.content) : []);
-  const same = fields
-    .filter((f) => !changed.has(f.key))
-    .map((f) => ({ label: f.label, text: fieldText(after.content, f.key) }));
+  const extraOf = (k: PlanFieldKey, c: PlanContent | undefined) =>
+    k === "extraPlan" && filesOf(c).length ? <FileList files={filesOf(c)} actions={fileActions} /> : undefined;
+  const valueOf = (c: PlanContent, k: PlanFieldKey): ReactNode =>
+    k === "preferred" && onStore && c.preferred.length ? (
+      <StoreNames stores={c.preferred} onStore={onStore} />
+    ) : (
+      fieldText(c, k)
+    );
   return (
     <div className="flex flex-col">
       {before && !changed.size && (
@@ -197,24 +406,30 @@ export function PlanCompare({
           바꾼 항목이 없어요 — {roundLabel(before)} 내용 그대로예요.
         </p>
       )}
-      {fields
-        .filter((f) => changed.has(f.key))
-        .map((f, i) => (
-          <div key={f.key}>
-            {i > 0 && <Separator />}
+      <ul className="flex flex-col divide-y divide-gray-100">
+        {fields.map((f) =>
+          changed.has(f.key) && before ? (
             <ChangedRow
+              key={f.key}
               label={f.label}
-              before={fieldText(before!.content, f.key)}
-              after={fieldText(after.content, f.key)}
+              before={valueOf(before.content, f.key)}
+              after={valueOf(after.content, f.key)}
               note={notes[f.key]}
-              noteBy={noteBy}
               beforeLabel={beforeLabel}
               afterLabel={afterLabel}
+              beforeExtra={extraOf(f.key, before.content)}
+              afterExtra={extraOf(f.key, after.content)}
             />
-          </div>
-        ))}
-      {changed.size > 0 && <Separator />}
-      <SameRows rows={same} open={!before} />
+          ) : (
+            <SameRow
+              key={f.key}
+              label={f.label}
+              value={valueOf(after.content, f.key)}
+              extra={extraOf(f.key, after.content)}
+            />
+          ),
+        )}
+      </ul>
       <div className="pt-[16px]">
         <DerivedRows before={before?.content ?? null} after={after.content} />
       </div>
@@ -243,7 +458,7 @@ export function PlanHistory({ versions, formatAt }: { versions: PlanVersion[]; f
             {v.round > 0 && (
               <p className="break-keep text-xs text-gray-600">
                 {changed.length
-                  ? `${changed.length}개 항목 수정 · ${changed
+                  ? `${changed.length}개 항목 수정: ${changed
                       .map((k) => shownFields(v.content).find((f) => f.key === k)?.label ?? k)
                       .join(", ")}`
                   : "바꾼 항목 없이 보냄"}
@@ -501,6 +716,8 @@ export function PlanEditor({
   errors,
   storeOptions,
   avg,
+  fileActions,
+  onUploadFile,
 }: {
   base: PlanContent;
   draft: PlanContent;
@@ -510,6 +727,10 @@ export function PlanEditor({
   errors: Partial<Record<PlanFieldKey, string>>;
   storeOptions: PlanStore[];
   avg: number;
+  /** 추가 기획 첨부 받기. */
+  fileActions?: PlanFileActions;
+  /** 있으면 파일 첨부 · admix 파일 빼기(어드민만, 11-12). 광고주는 기획안에서 첨부를 바꾸지 않는다. */
+  onUploadFile?: (file: File) => Promise<PlanFile>;
 }) {
   const changed = useMemo(() => new Set(changedKeys(base, draft)), [base, draft]);
   const set = (patch: Partial<PlanContent>) => onDraft({ ...draft, ...patch });
@@ -522,6 +743,7 @@ export function PlanEditor({
     onNotes(rest);
     if (k === "period") return set({ startDate: base.startDate, endDate: base.endDate });
     if (k === "stores") return set({ minStores: base.minStores, targetStores: base.targetStores });
+    if (k === "extraPlan") return set({ extraPlan: base.extraPlan, files: base.files });
     if (k.startsWith("item:")) {
       const key = k.slice(5);
       const was = base.items.find((x) => x.key === key);
@@ -667,7 +889,7 @@ export function PlanEditor({
                 aria-label={`${ITEM_LABEL[key]} 조건`}
                 value={cur.note}
                 maxLength={100}
-                placeholder="조건(예: 문 양면에 A4 포스터 각 1장씩)"
+                placeholder={`조건(예: ${ITEM_EXAMPLE[key]})`}
                 onChange={(e) => setItem(key, { note: e.target.value })}
                 className="w-full"
               />
@@ -679,16 +901,30 @@ export function PlanEditor({
     row(
       "extraPlan",
       "추가 기획",
-      <TextArea
-        variant="secondary"
-        aria-label="추가 기획"
-        rows={4}
-        value={draft.extraPlan ?? ""}
-        maxLength={1000}
-        placeholder="비워 둘 수 있어요"
-        onChange={(e) => set({ extraPlan: e.target.value })}
-        className="w-full"
-      />,
+      <div className="flex flex-col gap-[8px]">
+        <TextArea
+          variant="secondary"
+          aria-label="추가 기획"
+          rows={4}
+          value={draft.extraPlan ?? ""}
+          maxLength={1000}
+          placeholder="비워 둘 수 있어요"
+          onChange={(e) => set({ extraPlan: e.target.value })}
+          className="w-full"
+        />
+        <FileList
+          files={filesOf(draft)}
+          actions={fileActions}
+          onRemove={onUploadFile ? (f) => set({ files: filesOf(draft).filter((x) => x.id !== f.id) }) : undefined}
+        />
+        {onUploadFile && (
+          <FileUpload
+            count={filesOf(draft).length}
+            onUpload={onUploadFile}
+            onAdd={(added) => set({ files: [...filesOf(draft), ...added] })}
+          />
+        )}
+      </div>,
     ),
     row(
       "preferred",

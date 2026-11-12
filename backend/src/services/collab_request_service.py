@@ -3,6 +3,11 @@
 광고주: create(보내기) · update(고친 의뢰 다시 보내기, 같은 줄) · save_plan_file(추가 기획 첨부).
 어드민: admin_list · admin_get(처음 열면 admin_viewed_at) · plan_file · new_count(사이드 메뉴 숫자).
 
+기획안 첨부(2026-11-12 사용자: "어드민도 파일을 첨부할 수 있게"): 차수 내용의 files — 추가 기획에 붙은 파일 목록
+[{id, name, size, by}]. 광고주가 의뢰서에 붙인 파일은 id "request"(0차부터 들어 있다), admix가 기획안에 붙인 파일은
+admin_upload_round_file 로 먼저 올려 두고(uploads/collab-request-plan/<의뢰 id>/<id>) 보낼 때 목록에 넣는다.
+광고주는 차수에 들어간 파일만 받을 수 있다(round_file). files 가 없는 옛 차수는 바로 앞 차수 목록을 이어받는다.
+
 기획안 차수(085, 2026-11-12 사용자): admix가 의뢰를 항목별로 고쳐 보내면(admin_send_round → proposed) 광고주가
 수정 전 · 후를 보고 다시 고쳐 보내거나(send_round → revised) 확정한다(confirm → confirmed). 몇 차례든 오간다.
 의뢰 표 줄은 광고주가 처음 보낸 의뢰서(0차) 그대로 두고, 고친 내용은 차수 표에 통째로 쌓는다.
@@ -11,6 +16,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -43,6 +49,11 @@ PLAN_FILE_EXTS = {
     ".pdf", ".ppt", ".pptx", ".key", ".doc", ".docx", ".hwp", ".hwpx", ".xls", ".xlsx", ".zip",
     ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic",
 }
+# 기획안 첨부 — 차수 하나에 모두 합쳐 10개까지(광고주 의뢰서 첨부 포함), 파일마다 20MB.
+ROUND_FILE_MAX_COUNT = 10
+REQUEST_FILE_ID = "request"
+ROUND_FILE_DIR = "collab-request-plan"
+ROUND_FILE_ID = re.compile(r"^[0-9a-f]{32}\.[a-z0-9]{1,5}$")
 
 
 def _today_kst() -> date:
@@ -390,12 +401,7 @@ def save_plan_file(db: Session, user: User, request_id: str, file: UploadFile) -
     ensure_advertiser(user)
     req = _mine_or_404(db, user, request_id)
     _not_cancelled(req)
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in PLAN_FILE_EXTS:
-        raise _bad("PDF · PPT · 문서 · 이미지 파일만 올릴 수 있어요.")
-    content = file.file.read(PLAN_FILE_MAX + 1)
-    if len(content) > PLAN_FILE_MAX:
-        raise _bad("20MB 이하 파일만 올릴 수 있어요.")
+    ext, content = _read_upload(file)
     _remove_plan_file(req)
     rel = f"collab-request/{user.id}/{uuid.uuid4().hex}{ext}"
     dest = Path(get_settings().upload_dir) / rel
@@ -407,6 +413,34 @@ def save_plan_file(db: Session, user: User, request_id: str, file: UploadFile) -
     db.commit()
     db.refresh(req)
     return serialize_mine_full(req)
+
+
+def _read_upload(file: UploadFile) -> tuple[str, bytes]:
+    """첨부 검사 — 의뢰서 첨부와 같은 확장자 · 20MB."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in PLAN_FILE_EXTS:
+        raise _bad("PDF · PPT · 문서 · 이미지 파일만 올릴 수 있어요.")
+    content = file.file.read(PLAN_FILE_MAX + 1)
+    if len(content) > PLAN_FILE_MAX:
+        raise _bad("20MB 이하 파일만 올릴 수 있어요.")
+    return ext, content
+
+
+def _round_file_path(req: AdvertiserCollabRequest, file_id: str) -> Path | None:
+    if not isinstance(file_id, str) or not ROUND_FILE_ID.match(file_id):
+        return None
+    return Path(get_settings().upload_dir) / ROUND_FILE_DIR / str(req.id) / file_id
+
+
+def _request_file_entry(req: AdvertiserCollabRequest) -> dict | None:
+    if not req.plan_file_url:
+        return None
+    return {
+        "id": REQUEST_FILE_ID,
+        "name": req.plan_file_name or "첨부 파일",
+        "size": req.plan_file_size,
+        "by": "advertiser",
+    }
 
 
 # ── 어드민 ───────────────────────────────────────────────────────────────
@@ -604,14 +638,29 @@ def _original_content(req: AdvertiserCollabRequest) -> dict:
         "targetStores": req.target_stores,
         "items": req.items or [],
         "extraPlan": req.extra_plan,
+        "files": [f for f in [_request_file_entry(req)] if f],
         "preferred": req.preferred or [],
         "estimate": req.estimate,
         "schedule": req.schedule,
     }
 
 
+def _round_contents(req: AdvertiserCollabRequest) -> list[dict]:
+    """차수마다 내용 — files 가 없는 옛 차수(첨부 전)는 바로 앞 차수의 목록을 이어받는다. 0차는 넣지 않는다."""
+    files = _original_content(req)["files"]
+    out: list[dict] = []
+    for r in req.rounds or []:
+        content = dict(r.content or {})
+        if not isinstance(content.get("files"), list):
+            content["files"] = files
+        files = content["files"]
+        out.append(content)
+    return out
+
+
 def _latest_content(req: AdvertiserCollabRequest) -> dict:
-    return req.rounds[-1].content if req.rounds else _original_content(req)
+    contents = _round_contents(req)
+    return contents[-1] if contents else _original_content(req)
 
 
 def _field_value(content: dict, key: str):
@@ -626,6 +675,11 @@ def _field_value(content: dict, key: str):
         return (row.get("prep"), (row.get("note") or "").strip()) if row else None
     if key == "preferred":
         return [p.get("id") for p in content.get("preferred") or []]
+    if key == "extraPlan":
+        # 추가 기획 = 글 + 첨부 — 파일을 붙이거나 빼도 이 항목이 '수정'이다.
+        v = content.get("extraPlan")
+        text = v.strip() if isinstance(v, str) and v.strip() else None
+        return (text, [f.get("id") for f in content.get("files") or [] if isinstance(f, dict)])
     v = content.get(key)
     return v.strip() if isinstance(v, str) and v.strip() else (v or None)
 
@@ -634,7 +688,38 @@ def changed_keys(before: dict, after: dict) -> list[str]:
     return [k for k in FIELD_KEYS if _field_value(before, k) != _field_value(after, k)]
 
 
-def _clean_content(db: Session, raw, base: dict) -> dict:
+def _clean_files(req: AdvertiserCollabRequest, raw, base: dict, *, author: str) -> list[dict]:
+    """추가 기획 첨부 목록 — 광고주는 기획안에서 첨부를 바꾸지 않는다(앞 차수 그대로).
+    admix 는 앞 차수에 있던 파일 · 광고주 의뢰서 첨부를 남기거나 빼고, 미리 올려 둔 파일(admin_upload_round_file)을 더한다."""
+    known = {f.get("id"): f for f in base.get("files") or [] if isinstance(f, dict)}
+    if author != "admix":
+        return list(known.values())
+    if raw is None:
+        return list(known.values())
+    if not isinstance(raw, list):
+        raise _bad("첨부 파일 값이 올바르지 않아요.")
+    request_file = _request_file_entry(req)
+    out: list[dict] = []
+    for f in raw:
+        fid = f.get("id") if isinstance(f, dict) else None
+        if not isinstance(fid, str) or any(x["id"] == fid for x in out):
+            continue
+        if fid in known:
+            out.append(known[fid])
+        elif fid == REQUEST_FILE_ID and request_file:
+            out.append(request_file)
+        else:
+            path = _round_file_path(req, fid)
+            if path is None or not path.is_file():
+                raise _bad("올린 첨부 파일을 찾을 수 없어요. 파일을 다시 올려 주세요.")
+            name = _text(f.get("name") if isinstance(f.get("name"), str) else None, max_len=255, label="파일 이름")
+            out.append({"id": fid, "name": name or fid, "size": path.stat().st_size, "by": "admix"})
+    if len(out) > ROUND_FILE_MAX_COUNT:
+        raise _bad(f"첨부 파일은 {ROUND_FILE_MAX_COUNT}개까지예요.")
+    return out
+
+
+def _clean_content(db: Session, req: AdvertiserCollabRequest, raw, base: dict, *, author: str) -> dict:
     """차수 하나의 내용 — 의뢰서와 같은 규칙으로 검사한다. 지정 희망 매장은 앞 차수에 있던 매장은 그때 값 그대로,
     새로 넣은 매장만 매장 표에서 찾아 적는다(금액이 바뀌었다고 '수정'으로 보이지 않게)."""
     if not isinstance(raw, dict):
@@ -663,6 +748,7 @@ def _clean_content(db: Session, raw, base: dict) -> dict:
 
     out["items"] = _items(raw.get("items"))
     out["extraPlan"] = _text(raw.get("extraPlan"), max_len=1000, label="추가 기획")
+    out["files"] = _clean_files(req, raw.get("files"), base, author=author)
 
     ids = raw.get("preferredIds")
     if ids is None:
@@ -697,12 +783,12 @@ def _clean_notes(raw) -> dict:
     return out
 
 
-def serialize_round(r: AdvertiserCollabRequestRound) -> dict:
+def serialize_round(r: AdvertiserCollabRequestRound, content: dict | None = None) -> dict:
     return {
         "round": r.round_no,
         "author": r.author,
         "baseRound": r.base_round_no,
-        "content": r.content,
+        "content": content if content is not None else r.content,
         "notes": r.notes or {},
         "changed": r.changed or [],
         "createdAt": _iso(r.created_at),
@@ -713,7 +799,7 @@ def _plan_block(req: AdvertiserCollabRequest) -> dict:
     """의뢰 응답에 붙는 기획안 — 0차(처음 의뢰서) · 차수들 · 확정한 때."""
     return {
         "original": _original_content(req),
-        "rounds": [serialize_round(r) for r in req.rounds or []],
+        "rounds": [serialize_round(r, c) for r, c in zip(req.rounds or [], _round_contents(req))],
         "confirmedAt": _iso(req.confirmed_at),
     }
 
@@ -740,7 +826,7 @@ def _add_round(
 ) -> AdvertiserCollabRequestRound:
     _check_base(req, data)
     base = _latest_content(req)
-    content = _clean_content(db, data.get("content"), base)
+    content = _clean_content(db, req, data.get("content"), base, author=author)
     changed = changed_keys(base, content)
     if require_change and not changed:
         raise _bad("바꾼 항목이 없어요. 그대로 괜찮으면 확정해 주세요.")
@@ -788,6 +874,51 @@ def admin_send_round(db: Session, admin: Admin, request_id: str, data: dict) -> 
     _commit_round(db)
     db.refresh(req)
     return admin_get(db, request_id)
+
+
+def admin_upload_round_file(db: Session, request_id: str, file: UploadFile) -> dict:
+    """admix 기획안 첨부 올리기 — 파일만 올려 두고 id 를 돌려준다. 기획안을 보낼 때 content.files 에 넣어야 광고주에게 간다."""
+    req = _admin_or_404(db, request_id)
+    if req.status == "cancelled":
+        raise HTTPException(status_code=409, detail="광고주가 취소한 의뢰예요.")
+    if req.status == "confirmed":
+        raise HTTPException(status_code=409, detail="광고주가 이미 확정한 기획안이에요.")
+    ext, content = _read_upload(file)
+    file_id = f"{uuid.uuid4().hex}{ext}"
+    dest = _round_file_path(req, file_id)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(content)
+    name = (file.filename or file_id)[:255]
+    return {"id": file_id, "name": name, "size": len(content), "by": "admix"}
+
+
+def _file_of(req: AdvertiserCollabRequest, file_id: str, *, sent_only: bool) -> tuple[Path, str]:
+    """첨부 한 개 — "request" 는 광고주 의뢰서 첨부. sent_only 면 차수에 넣어 보낸 파일만(광고주)."""
+    if file_id == REQUEST_FILE_ID:
+        path = _plan_path(req.plan_file_url)
+        name = req.plan_file_name
+    else:
+        listed = next(
+            (f for c in _round_contents(req) for f in c.get("files") or [] if f.get("id") == file_id),
+            None,
+        )
+        if sent_only and listed is None:
+            raise HTTPException(status_code=404, detail="첨부 파일이 없어요.")
+        path = _round_file_path(req, file_id)
+        name = listed.get("name") if listed else None
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없어요.")
+    return path, (name or path.name)
+
+
+def admin_round_file(db: Session, request_id: str, file_id: str) -> tuple[Path, str]:
+    return _file_of(_admin_or_404(db, request_id), file_id, sent_only=False)
+
+
+def round_file(db: Session, user: User, request_id: str, file_id: str) -> tuple[Path, str]:
+    """광고주가 기획안 첨부 받기 — 내 의뢰의, 차수에 들어간 파일(또는 내 의뢰서 첨부)만."""
+    ensure_advertiser(user)
+    return _file_of(_mine_or_404(db, user, request_id), file_id, sent_only=True)
 
 
 def send_round(db: Session, user: User, request_id: str, data: dict) -> dict:

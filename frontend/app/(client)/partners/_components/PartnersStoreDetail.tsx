@@ -74,10 +74,13 @@ export function PartnersStoreDetail({
 export function PartnersStoreInfo({
   store,
   badges,
+  stacked = false,
 }: {
   store: PartnersStore;
   /** 이름 위 배지 줄 끝에 더 붙일 것(내 매장의 매체 찾기 노출 등). */
   badges?: React.ReactNode;
+  /** 사진 아래 정보 — 좁은 팝업(기획안 지정 희망 매장, 11-13)처럼 화면은 넓어도 칸이 좁을 때. */
+  stacked?: boolean;
 }) {
   const [photo, setPhoto] = useState(0);
   // 분류별 대표 사진(카드에 보이는 것) 다음에 나머지 사진.
@@ -93,9 +96,9 @@ export function PartnersStoreInfo({
   ];
 
   return (
-    <div className="grid gap-[20px] lg:grid-cols-[1.25fr_1fr]">
-      {/* 사진 — 큰 사진 + 아래 작은 사진 줄 */}
-      <section className="flex flex-col gap-[8px]">
+    <div className={cn("grid gap-[20px]", !stacked && "lg:grid-cols-[1.25fr_1fr]")}>
+      {/* 사진 — 큰 사진 + 아래 작은 사진 줄. min-w-0: 작은 사진 줄 폭(사진 수 × 70px)이 칸을 밀어 넓히지 않게 */}
+      <section className="flex min-w-0 flex-col gap-[8px]">
         <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-gray-100">
           {current && (
             <MediaImage
