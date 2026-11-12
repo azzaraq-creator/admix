@@ -3,6 +3,7 @@
 import { Dropdown, Separator } from "@heroui/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 
 import {
   ArrowLeftIcon,
@@ -35,6 +36,7 @@ const COLLAB_KEY = "collab";
  * 계정 전환은 슈퍼 계정(087)만 — admix · 콜라보 화면 모두 이 메뉴라 어디서든 바꿀 수 있다.
  * onNavigate: 이동하기 전에 할 일(모바일 사이드바 닫기 등).
  * withTheme: 맨 위에 화면 모드 줄 — 모바일 상단바만. PC는 사이드바 가이드 줄 위에 따로 있다.
+ * top: 화면 모드 줄 위에 둘 줄 — 콜라보 모바일의 광고주 브랜드 전환(BrandSwitchSubmenu, 키는 "brand"로 시작).
  * backToAdmix: 로그아웃 위에 "admix로 돌아가기" — 콜라보 모바일 위 띠만(사이드바가 없어 돌아갈 줄이 없다).
  * withCollab: 로그아웃 위에 "Collaboration ↗" — admix 모바일 상단바만(PC는 사이드바 맨 아래에 따로 있다, 11-08 사용자).
  */
@@ -45,8 +47,10 @@ export function ProfileMenu({
   withCollab = false,
   profileHref = "/profile",
   helpHref = "/help",
+  top,
 }: {
   onNavigate?: () => void;
+  top?: ReactNode;
   withTheme?: boolean;
   backToAdmix?: boolean;
   withCollab?: boolean;
@@ -64,6 +68,8 @@ export function ProfileMenu({
       onAction={(key) => {
         // 화면 모드 줄·하위 메뉴는 ThemeSubmenu가 처리한다.
         if (String(key).startsWith(THEME_KEY_PREFIX) || key === "theme") return;
+        // 브랜드 전환 줄 · 하위 메뉴(top)는 스스로 처리한다.
+        if (String(key).startsWith("brand")) return;
         // 계정 전환 줄 · 하위 메뉴는 AccountSwitchSubmenu가 처리한다.
         if (
           String(key).startsWith(ACCOUNT_KEY_PREFIX) ||
@@ -82,6 +88,7 @@ export function ProfileMenu({
         router.push(String(key));
       }}
     >
+      {top}
       {withTheme ? <ThemeSubmenu /> : null}
       {/* 슈퍼 계정(087)만 — 일반 · 광고주 · 대행사 · 매체사 · 제휴사 계정 사이를 오간다. 보통 회원은 없다. */}
       <AccountSwitchSubmenu />

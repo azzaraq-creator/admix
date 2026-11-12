@@ -33,6 +33,7 @@ import {
   PartnersMobileHeader,
   PartnersMobileTabBar,
 } from "./PartnersMobileNav";
+import { BrandSwitchButton } from "./advertiser/BrandSwitch";
 import { PartnerNotificationCard } from "./workspace/PartnerNotifications";
 
 // admix 사이드바(Sidebar.tsx)와 같은 줄 모양 — 38px(곡률 16px), 아이콘 18px.
@@ -197,6 +198,8 @@ export function PartnersSidebar({ member = false }: { member?: boolean }) {
                 <hr className="mx-[6px] my-[14px] border-t border-gray-200" />
               </div>
             )}
+            {/* 광고주 브랜드 전환 — 브랜드가 둘 이상일 때만, 화면 모드 위에 구분선을 두고(11-12 사용자). */}
+            <BrandSwitchButton collapsed={collapsed} />
             {/* 화면 모드 — admix 사이드바와 같은 보조 줄(32px → 곡률 13px). */}
             <ThemeMenu
               placement={collapsed ? "right bottom" : "top start"}

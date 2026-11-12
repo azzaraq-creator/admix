@@ -44,7 +44,8 @@ import {
   SectionHead,
   StatusChip,
 } from "../workspace/workspaceUi";
-import { useAdvServerSync, useAdvState } from "./advStore";
+import { useBrandCollabs } from "./advBrandSelect";
+import { useAdvServerSync } from "./advStore";
 import {
   ADV_FIND_HREF,
   useNewRequestStart,
@@ -284,28 +285,29 @@ function Overview() {
   const router = useRouter();
   // 새 콜라보 의뢰 — 브랜드가 없으면 먼저 등록 안내(11-11 사용자).
   const newRequest = useNewRequestStart();
-  const state = useAdvState();
+  // 사이드바에서 고른 브랜드 것만(11-12 사용자) — "모든 브랜드"면 전부.
+  const collabs = useBrandCollabs();
   // 서버에 보낸 의뢰를 합친다 — 다른 탭 · 다시 로그인해도 보이게(11-12).
   const synced = useAdvServerSync();
-  const todos = todosOf(state.collabs);
+  const todos = todosOf(collabs);
   // 진행 중인 콜라보 = 입금을 마친 준비 · 진행 단계(위 네 칸과 겹치지 않게 boardStepOf 로 나눈다).
-  const running = state.collabs
+  const running = collabs
     .filter((c) => isUnderwayStep(boardStepOf(c)))
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
   const boardIds = new Set(BOARD_STEPS.map((step) => step.id));
-  const live = state.collabs.filter((c) => {
+  const live = collabs.filter((c) => {
     const step = boardStepOf(c);
     return step !== null && boardIds.has(step);
   });
 
-  if (!synced && !state.collabs.length) return <LoadingState />;
+  if (!synced && !collabs.length) return <LoadingState />;
 
   return (
     <div className="flex flex-col gap-[32px] sm:gap-[44px]">
       {newRequest.dialog}
       <section className="flex flex-col gap-[16px]">
         <SectionHead icon="/icons/layer.svg" title="의뢰 및 매장 모집" count={live.length} />
-        <StageBoard collabs={state.collabs} />
+        <StageBoard collabs={collabs} />
         <div className="flex gap-[8px] sm:hidden">
           <Button onPress={newRequest.start} className="h-[44px] flex-1 rounded-[19px] font-bold">
             <Plus className="size-[16px]" />

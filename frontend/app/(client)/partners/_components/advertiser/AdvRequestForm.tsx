@@ -72,6 +72,7 @@ import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/
 
 import { PageHead, PanelCard } from "../workspace/workspaceUi";
 import { useFavoriteStores } from "./favoriteStores";
+import { useBrandSelect } from "./advBrandSelect";
 import { advActions, useAdvReady, useAdvServerSync, useAdvState, useRememberSentRequest } from "./advStore";
 import { PreferredStorePicker } from "./PreferredStorePicker";
 import { RequestConfirmModal, TightNote } from "./RequestConfirmModal";
@@ -676,6 +677,8 @@ function RequestForm({
     const next: AdvCollab = {
       ...d,
       brand: d.brand.trim(),
+      // 브랜드 전환(사이드바)으로 거를 때 쓴다 — 이름을 나중에 바꿔도 같은 브랜드로 묶이게.
+      brandId,
       title: d.title.trim(),
       summary: d.summary.trim(),
       contact: { ...contact, name: contact.name.trim(), role: contact.role.trim() },
@@ -1352,6 +1355,8 @@ function RequestForm({
 
 function Loaded({ editId, brands }: { editId?: string; brands: AdvertiserBrand[] }) {
   const state = useAdvState();
+  // 사이드바에서 브랜드를 골라 두었으면 새 의뢰는 그 브랜드로 시작한다(11-12 사용자 "브랜드 전환").
+  const { selected } = useBrandSelect();
   const editing = editId ? state.collabs.find((c) => c.id === editId) : undefined;
   // 고칠 의뢰가 이 탭에 없으면 서버 의뢰를 받아 올 때까지 기다린다(11-12).
   const synced = useAdvServerSync();
@@ -1387,8 +1392,8 @@ function Loaded({ editId, brands }: { editId?: string; brands: AdvertiserBrand[]
       </div>
     );
   }
-  // 새 의뢰는 내 브랜드 중 먼저 등록한 것으로 시작한다(없으면 비워 두고 내 브랜드로 안내).
-  const first = brands[0];
+  // 새 의뢰는 고른 브랜드(사이드바 브랜드 전환), 없으면 내 브랜드 중 먼저 등록한 것으로 시작한다(없으면 비워 두고 내 브랜드로 안내).
+  const first = selected ?? brands[0];
   const initial = editing ?? {
     ...blankRequest(state, first?.name ?? ""),
     brandImage: first?.imageUrl ?? null,

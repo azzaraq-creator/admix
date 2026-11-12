@@ -20,6 +20,7 @@ import {
   usePartnersNav,
   type PartnersMenuItem,
 } from "./partnersNav";
+import { BrandSwitchSubmenu } from "./advertiser/BrandSwitch";
 import { PartnerNotificationHeaderButton } from "./workspace/PartnerNotifications";
 
 /*
@@ -77,6 +78,8 @@ function AccountButton({ member }: { member: boolean }) {
       >
         {me ? (
           <ProfileMenu
+            // 광고주 브랜드가 둘 이상이면 화면 모드 위에 브랜드 전환 + 구분선(11-12 사용자).
+            top={<BrandSwitchSubmenu />}
             withTheme
             backToAdmix
             profileHref="/partners/profile"

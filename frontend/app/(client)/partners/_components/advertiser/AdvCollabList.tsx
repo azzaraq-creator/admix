@@ -34,7 +34,8 @@ import { md, type Tone } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
 import { EmptyBox, PageHead, StatusChip } from "../workspace/workspaceUi";
-import { useAdvServerSync, useAdvState } from "./advStore";
+import { useBrandCollabs } from "./advBrandSelect";
+import { useAdvServerSync } from "./advStore";
 import { advCollabHref, useNewRequestStart } from "./advUi";
 
 /*
@@ -99,7 +100,8 @@ export function AdvCollabList({ tab }: { tab?: string }) {
   const router = useRouter();
   // 새 콜라보 의뢰 — 브랜드가 없으면 먼저 등록 안내(11-11 사용자).
   const newRequest = useNewRequestStart();
-  const state = useAdvState();
+  // 사이드바에서 고른 브랜드 것만(11-12 사용자) — "모든 브랜드"면 전부.
+  const collabs = useBrandCollabs();
   // 서버에 보낸 의뢰를 합친다 — 다른 탭 · 다시 로그인해도 보이게(11-12).
   const synced = useAdvServerSync();
   const isDesktop = useIsDesktop();
@@ -119,7 +121,7 @@ export function AdvCollabList({ tab }: { tab?: string }) {
 
   // 업데이트순 — 마지막으로 단계가 바뀐 때가 늦은 것 먼저(11-12 사용자). 의뢰 11.11 → 검토 시작 11.12 → 모집 11.16 …
   // 예전엔 진행 시작일 늦은 순이었다(11-09 "최신순으로 정렬해 줘"). 같으면 나중에 의뢰한 것 먼저.
-  const sorted = state.collabs
+  const sorted = collabs
     .map((c) => ({ c, updated: updatedAtOf(c) }))
     .sort(
       (a, b) =>
@@ -151,7 +153,7 @@ export function AdvCollabList({ tab }: { tab?: string }) {
   };
 
   // 보낸 의뢰를 받는 동안 — 빈 목록("아직 없어요")이 잠깐 보이지 않게.
-  if (!synced && !state.collabs.length) return <LoadingState />;
+  if (!synced && !collabs.length) return <LoadingState />;
 
   return (
     <div className="flex flex-1 flex-col gap-[12px] sm:gap-[16px]">

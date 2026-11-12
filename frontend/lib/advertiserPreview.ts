@@ -315,6 +315,8 @@ export interface StoreReport {
 export interface AdvCollab {
   id: string;
   brand: string;
+  /** 내 브랜드 id(068) — 브랜드 전환(사이드바)으로 거를 때 쓴다. 예전에 이 탭에 저장한 의뢰는 없어서 이름(brand)으로 견준다. */
+  brandId?: string | null;
   brandImage?: string | null;
   title: string;
   summary: string;
@@ -1527,6 +1529,7 @@ export function collabOfRequest(r: CollabRequestMine): AdvCollab {
     requestId: r.id,
     requestCode: r.code,
     brand: r.brandName,
+    brandId: r.brandId,
     brandImage: r.brandImageUrl,
     title,
     summary: summary ?? "",
