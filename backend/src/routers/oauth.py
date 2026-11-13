@@ -54,4 +54,5 @@ def complete(
         company_name=body.company_name,
         marketing_sms=body.marketing_sms,
         marketing_email=body.marketing_email,
+        store_info=body.store_info.model_dump() if body.store_info else None,
     )

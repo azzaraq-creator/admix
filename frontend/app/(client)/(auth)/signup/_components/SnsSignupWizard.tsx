@@ -19,6 +19,7 @@ import {
   EMPTY_SIGNUP_INFO,
   InfoStep,
   contactOf,
+  storeInfoOf,
   type SignupInfo,
 } from "./InfoStep";
 import { SignupShell } from "./SignupShell";
@@ -131,6 +132,8 @@ function SnsSignupFlow({ me, collab }: { me: MeResponse; collab: boolean }) {
         name: info.name.trim(),
         phone: info.phone,
         company_name: info.company.trim() || undefined,
+        // 제휴사(콜라보) 매장 정보(089) — 필수, 서버가 사업자 등록 줄에 저장한다.
+        store_info: category === "partner" ? storeInfoOf(info) : undefined,
       });
       await finish(
         info.file,

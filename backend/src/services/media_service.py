@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from src.config import get_settings
 from src.services import ai_index, grade_suggest, popularity
 from src.models.media_image import MediaImage
+from src.models.collab_lead import CollabLead
 from src.models.partners_store import PARTNERS_MEDIA_CATEGORY, PartnersStore, PartnersStoreType
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
@@ -370,16 +371,30 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             PartnersStore.image_kinds,
         ).filter(PartnersStore.media_id.in_(ids))
     }
+    # 지도에 뜬 영업 기록(협업 확정 전 매장, 090) — 운영 시간 · 매장 특징은 아직 없고, 사진 분류만.
+    lead_ids = [i for i in ids if i not in stores]
+    leads = (
+        {r.media_id: r for r in db.query(CollabLead).filter(CollabLead.media_id.in_(lead_ids))} if lead_ids else {}
+    )
     for it in items:
         s = stores.get(it["id"])
-        if s is None:
+        if s is not None:
+            it["address"] = " ".join(p for p in [s.address, s.address_detail] if p) or it.get("address")
+            it["partners"] = dict(
+                businessHours=s.business_hours,
+                tags=list(s.tags or []),
+                photoKinds=photo_kind_map(s.image_urls, s.image_kinds),
+            )
             continue
-        it["address"] = " ".join(p for p in [s.address, s.address_detail] if p) or it.get("address")
-        it["partners"] = dict(
-            businessHours=s.business_hours,
-            tags=list(s.tags or []),
-            photoKinds=photo_kind_map(s.image_urls, s.image_kinds),
-        )
+        lead = leads.get(it["id"])
+        if lead is not None:
+            photos = lead.photos or []
+            it["partners"] = dict(
+                businessHours=None,
+                tags=[],
+                photoKinds=photo_kind_map([p.get("url") for p in photos], {p.get("url"): p.get("kind") for p in photos}),
+                unconfirmed=True,
+            )
     return items
 
 
@@ -2645,26 +2660,36 @@ def _not_partners():
 
 
 def _store_type_filter(store_types: list[str]):
-    """콜라보 매장 유형(cafe_store_type.name — 카페 · 식당 …)인 매장의 media 줄만(광고주 매장 찾기 탭)."""
+    """콜라보 매장 유형(cafe_store_type.name — 카페 · 식당 …)인 매장의 media 줄만(광고주 매장 찾기 탭).
+    지도에 뜬 영업 기록(090)은 업체 유형을 맞춘 매장 유형(collab_lead.store_type_id)으로."""
     ids = (
         select(PartnersStore.media_id)
         .join(PartnersStoreType, PartnersStoreType.id == PartnersStore.store_type_id)
         .where(PartnersStoreType.name.in_(store_types), PartnersStore.media_id.isnot(None))
     )
-    return Media.media_id.in_(ids)
+    lead_ids = (
+        select(CollabLead.media_id)
+        .join(PartnersStoreType, PartnersStoreType.id == CollabLead.store_type_id)
+        .where(PartnersStoreType.name.in_(store_types), CollabLead.media_id.isnot(None))
+    )
+    return or_(Media.media_id.in_(ids), Media.media_id.in_(lead_ids))
 
 
 def _store_type_counts(base) -> dict[str, int]:
     """매장 유형 이름 → 매장 수(유형이 있는 매장만) — 매장 찾기 탭 숫자. "전체"는 byCategory 콜라보 수."""
-    rows = (
-        base.filter(Media.media_source.in_(("FIXED", "MOVING")))
-        .join(PartnersStore, PartnersStore.media_id == Media.media_id)
-        .join(PartnersStoreType, PartnersStoreType.id == PartnersStore.store_type_id)
-        .with_entities(PartnersStoreType.name, func.count())
-        .group_by(PartnersStoreType.name)
-        .all()
-    )
-    return {name: n for name, n in rows}
+    counts: dict[str, int] = {}
+    for owner in (PartnersStore, CollabLead):  # 매장 + 지도에 뜬 영업 기록(090)
+        rows = (
+            base.filter(Media.media_source.in_(("FIXED", "MOVING")))
+            .join(owner, owner.media_id == Media.media_id)
+            .join(PartnersStoreType, PartnersStoreType.id == owner.store_type_id)
+            .with_entities(PartnersStoreType.name, func.count())
+            .group_by(PartnersStoreType.name)
+            .all()
+        )
+        for name, n in rows:
+            counts[name] = counts.get(name, 0) + n
+    return counts
 
 
 def _linked_partners_or_other():

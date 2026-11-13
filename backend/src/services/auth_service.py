@@ -9,7 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from src.config import get_settings
-from src.models.member_profile import MemberSanction
+from src.models.member_profile import BusinessRegistration, MemberSanction
 from src.models.proposal import Proposal
 from src.models.user import EmailVerification, PasswordReset, RefreshToken, User
 from src.utils.security import (
@@ -58,9 +58,12 @@ def register(
     member_category: str | None = None,
     marketing_sms: bool | None = None,
     marketing_email: bool | None = None,
+    store_info: dict | None = None,
 ) -> User:
     if not is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
+    # 제휴사(콜라보) 매장 정보는 계정을 만들기 전에 먼저 확인한다(빠졌으면 계정도 만들지 않는다).
+    store = clean_partner_store_info(store_info) if member_category == "partner" else None
     if db.query(User).filter(User.login_id == email).first():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
     if phone and db.query(User).filter(User.phone == phone).first():
@@ -77,9 +80,50 @@ def register(
     )
     set_marketing(user, marketing_consent, marketing_sms, marketing_email)
     db.add(user)
+    if store:
+        apply_partner_store_info(db, user, store)
     db.commit()
     db.refresh(user)
     return user
+
+
+def clean_partner_store_info(info: dict | None) -> dict:
+    """제휴사 가입 "매장 정보"(089, 2026-11-13 사용자) — 상호 · 사업자 번호 · 대표자명 · 주소는 필수, 상세 주소는 선택.
+    사업자 번호는 숫자 10자리를 000-00-00000 으로 맞춰 저장한다(광고주 사업자 번호와 같은 모양). 빠지거나 틀리면 400."""
+    info = info or {}
+    out = {
+        key: str(info.get(key) or "").strip()
+        for key in ("business_name", "business_registration_no", "representative_name", "address", "address_detail")
+    }
+    missing = [
+        label
+        for key, label in (
+            ("business_name", "상호"),
+            ("business_registration_no", "사업자 번호"),
+            ("representative_name", "대표자명"),
+            ("address", "주소"),
+        )
+        if not out[key]
+    ]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"매장 정보({' · '.join(missing)})를 입력해 주세요.")
+    digits = "".join(ch for ch in out["business_registration_no"] if ch.isdigit())
+    if len(digits) != 10:
+        raise HTTPException(status_code=400, detail="사업자 번호는 숫자 10자리로 입력해 주세요.")
+    out["business_registration_no"] = f"{digits[:3]}-{digits[3:5]}-{digits[5:]}"
+    out["address_detail"] = out["address_detail"] or None
+    return out
+
+
+def apply_partner_store_info(db: Session, user: User, store: dict) -> None:
+    """확인한 매장 정보를 사업자 등록 줄에 적는다 — 줄이 없으면 미등록 상태로 만든다(인증 상태 · 등록증 파일은 그대로)."""
+    reg = user.business_registration
+    if reg is None:
+        reg = BusinessRegistration(status="unregistered")
+        user.business_registration = reg
+        db.add(reg)
+    for key, value in store.items():
+        setattr(reg, key, value)
 
 
 def set_marketing(

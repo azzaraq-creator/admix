@@ -76,19 +76,12 @@ export function CategoryStep({
   const hint = value ? CATEGORY_HINT[value] : undefined;
   return (
     <SignupCard>
+      {/* "유형 비교"는 제목 줄 오른쪽 끝(11-13 사용자, 모바일 · PC 같이). */}
       <CardHeading
         title="회원 유형을 선택해 주세요"
         description="가입 후에도 회원 정보에서 언제든 회원 유형을 바꿀 수 있어요."
+        titleAside={<PlanCompareButton className="shrink-0" />}
       />
-      {/* 유형별로 쓸 수 있는 기능 — 플랜 비교 표 창. 아이콘 + 짧은 문구 알약. */}
-      <button
-        type="button"
-        onClick={openMemberPlanModal}
-        className="-mt-[8px] inline-flex items-center gap-[4px] self-start rounded-[10px] bg-gray-100 py-[5px] pr-[10px] pl-[8px] text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 max-sm:-mt-[4px]"
-      >
-        <CircleQuestionIcon aria-hidden className="size-[14px]" />
-        유형 비교
-      </button>
 
       <RadioGroup
         aria-label="회원 유형"
@@ -128,8 +121,8 @@ export function CategoryStep({
       {/* 일반 · 제휴사(콜라보)를 고르면 다음 버튼 바로 위에 HeroUI 툴팁으로 알려 준다
           (일반: 나중에 바꿀 수 있음. 제휴사 안내는 가입 완료 화면 버튼 "기본협약 하기"로 옮겼다).
           누르는 창이 아닌 안내라 Popover 대신 Tooltip — 마우스와 상관없이 고른 동안 열어 둔다(isOpen 고정).
-          PC는 툴팁이 위 카드를 가리지 않게 자리를 미리 비워 둔다(고를 때 버튼이 밀리지 않게 항상). */}
-      <div className="flex w-full flex-col max-sm:mt-auto sm:mt-[34px]">
+          툴팁 자리를 따로 비우지 않는다 — 툴팁이 위 카드에 겹쳐도 버튼은 유형 목록 가까이(11-13 사용자: "겹쳐도 되니까 좁혀줘", 34px → 8px). */}
+      <div className="flex w-full flex-col max-sm:mt-auto sm:mt-[8px]">
         <Tooltip isOpen={!!hint} delay={0} closeDelay={0}>
           <PrimaryAction label="다음" disabled={!value} onPress={onNext} />
           <Tooltip.Content showArrow placement="top">
@@ -139,6 +132,23 @@ export function CategoryStep({
         </Tooltip>
       </div>
     </SignupCard>
+  );
+}
+
+/** 유형별로 쓸 수 있는 기능 — 플랜 비교 표 창을 여는 알약(아이콘 + 짧은 문구). 자리는 className으로. */
+function PlanCompareButton({ className }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={openMemberPlanModal}
+      className={cn(
+        "inline-flex items-center gap-[4px] rounded-[10px] bg-gray-100 py-[5px] pr-[10px] pl-[8px] text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-200",
+        className,
+      )}
+    >
+      <CircleQuestionIcon aria-hidden className="size-[14px]" />
+      유형 비교
+    </button>
   );
 }
 

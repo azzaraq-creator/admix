@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import String, cast, func, nulls_last, or_
@@ -14,7 +15,9 @@ from sqlalchemy.orm import Session
 
 from src.models.collab_lead import CollabLead, CollabLeadSetting
 from src.models.collab import CollabParticipant
-from src.models.partners_store import PartnersStoreRequest, PartnersStoreType
+from src.models.media_master import Media
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY, PartnersStoreRequest, PartnersStoreType
+from src.services import media_service as ms
 from src.services import partners_service
 from src.services.partners_service import partner_by_code
 
@@ -71,6 +74,10 @@ def serialize(lead: CollabLead) -> dict:
     out["storeId"] = str(lead.store_id) if lead.store_id else ""
     out["storeCode"] = (lead.store.store_code or "") if lead.store else ""
     out["photos"] = photos_of(lead)
+    # 광고주 지도(090) — 위치가 없으면 지도에 안 뜬다. mediaId 는 지도에 영업 기록으로 떠 있을 때만(확정 매장이 이어받으면 "").
+    out["latitude"] = float(lead.latitude) if lead.latitude is not None else None
+    out["longitude"] = float(lead.longitude) if lead.longitude is not None else None
+    out["mediaId"] = lead.media_id or ""
     return out
 
 
@@ -102,6 +109,8 @@ def to_source(lead: CollabLead) -> dict:
     out.pop("storeId")  # 원본 앱에 없는 칸(076)
     out.pop("storeCode")
     out.pop("photos")  # 원본 앱에 없는 칸(088) — 원본 사진은 photoIds
+    for key in ("latitude", "longitude", "mediaId"):  # 원본 앱에 없는 칸(090)
+        out.pop(key)
     out["id"] = lead.source_id or ""
     out["revisit"] = "yes" if lead.revisit else "no"
     return out
@@ -310,12 +319,14 @@ def create_lead(db: Session, data: dict) -> dict:
     """새 영업 기록. 제휴사 회원을 연결해 만들면 바로 협업 확정(_sync_partner_store)."""
     lead = CollabLead(id=uuid.uuid4())
     _apply(lead, data)
+    _apply_location(lead, data, None)
     _apply_partner(db, lead, data)
     lead.sort_order = (db.query(func.max(CollabLead.sort_order)).scalar() or 0) + 1
     try:
         db.add(lead)
         db.flush()
         _sync_partner_store(db, lead, None, data)
+        sync_lead_media(db, lead)
         db.commit()
     except Exception:
         db.rollback()
@@ -328,11 +339,14 @@ def update_lead(db: Session, lead_id: str, data: dict) -> dict:
     """보낸 칸만 바꾼다. 제휴사 회원 연결이 바뀌면 협업 확정 매장도 맞춘다(_sync_partner_store)."""
     lead = _get(db, lead_id)
     prev_partner = lead.partner_user_id
+    prev_address = _store_address_of(lead)[0]
     try:
         _apply(lead, data)
+        _apply_location(lead, data, prev_address)
         _apply_partner(db, lead, data)
         lead.updated_at = datetime.now(timezone.utc)
         _sync_partner_store(db, lead, prev_partner, data)
+        sync_lead_media(db, lead)
         db.commit()
     except Exception:
         db.rollback()  # 반쯤 바뀐 값이 세션에 남지 않게
@@ -439,7 +453,9 @@ def confirm_lead(db: Session, lead_id: str, location: dict | None = None) -> dic
         code = lead.store.store_code if lead.store else ""
         raise HTTPException(status_code=409, detail=f"이미 협업 확정한 매장이에요{f'({code})' if code else ''}.")
     try:
+        _set_location(lead, _location_of(location))
         store = _make_store(db, lead, location)
+        sync_lead_media(db, lead)  # 확정 매장은 비공개라 지도엔 영업 기록이 그대로 뜬다
         db.commit()
     except Exception:
         db.rollback()
@@ -464,7 +480,8 @@ def _make_store(db: Session, lead: CollabLead, location: dict | None):
         "phone": phone if len(phone) <= 30 else None,
         "owner_name": lead.contact_name if any(t in title for t in OWNER_TITLES) else None,
     }
-    data.update(_location_of(location))
+    # 위치 — 화면이 찾아 보낸 값, 없으면 영업 기록에 있는 위치(090).
+    data.update(_location_of(location) or _lead_location(lead))
     if lead.partner and lead.partner.partner_code:
         data["owner_code"] = lead.partner.partner_code
     # 영업 기록 매장 사진(088)은 매장 사진으로 — 분류 · 대표 · 메모 그대로, 올린 때도 영업 기록에 올린 때로.
@@ -502,14 +519,13 @@ def cancel_lead(db: Session, lead_id: str) -> dict:
             detail=f"{code} 매장에 {what} 기록이 있어 협업을 취소할 수 없어요. 협업 확정 매장에서 비공개로 바꿔 주세요.",
         )
     try:
-        lead.store_id = None
-        lead.store = None
         # 회원 연결 = 협업 확정이라(11-12) 취소하면 연결한 회원도 끊는다 — 남겨 두면 다음 저장 때 다시 확정된다.
         lead.partner_user_id = None
         lead.partner = None
         lead.updated_at = datetime.now(timezone.utc)
         db.flush()
-        partners_service._delete_store(db, store)  # 매장 수정의 "삭제"와 같은 지우기(매체 찾기 media 줄도)
+        # 매장 수정의 "삭제"와 같은 지우기 — 영업 기록과의 연결도 끊고, 지도 자리(매체 ID)는 영업 기록이 이어받는다(090).
+        partners_service._delete_store(db, store)
         db.commit()
     except Exception:
         db.rollback()
@@ -519,8 +535,170 @@ def cancel_lead(db: Session, lead_id: str) -> dict:
 
 
 def delete_lead(db: Session, lead_id: str) -> None:
-    db.delete(_get(db, lead_id))
+    lead = _get(db, lead_id)
+    _drop_media(db, lead)  # 지도 줄도(090) — 협업 확정 매장이 이어받은 줄은 매장 것이라 그대로
+    db.delete(lead)
     db.commit()
+
+
+# ── 광고주 지도(090) ────────────────────────────────────────────────────
+# 2026-11-13 사용자: "협업 확정과 관련없이 매장 관리 안에 있는 매장이라면 지도에서 다 뜨게" — 영업 기록도 매체 찾기 콜라보 탭 ·
+# 광고주 매장 찾기(/partners/find)에 매장처럼 뜬다. 위치는 화면이 카카오 지도로 찾아 보낸다(서버 주소 검색은 키가 없거나 층 · 호수를 못 읽는다).
+# 광고주 쪽엔 업체명 · 매장 유형 · 주소 · 위치 · 매장 사진만 — 담당자 · 연락처 · 대화 · 영업 등급 같은 영업 칸은 보내지 않는다.
+
+
+def _set_location(lead: CollabLead, loc: dict) -> None:
+    """_location_of 로 고른 값을 영업 기록 위치로(비어 있으면 그대로 둔다)."""
+    if not loc:
+        return
+    lead.latitude = Decimal(str(loc["latitude"]))
+    lead.longitude = Decimal(str(loc["longitude"]))
+    lead.city = loc.get("city")
+    lead.district = loc.get("district")
+
+
+def _clear_location(lead: CollabLead) -> None:
+    lead.latitude = lead.longitude = lead.city = lead.district = None
+
+
+def _apply_location(lead: CollabLead, data: dict, prev_address: str | None) -> None:
+    """저장할 때 위치 — 화면이 찾아 보낸 값(location)을 쓴다. 못 찾았는데 주소가 바뀌었으면 지운다(옛 자리에 핀이 남지 않게)."""
+    loc = _location_of(data.get("location"))
+    if loc:
+        _set_location(lead, loc)
+    elif _store_address_of(lead)[0] != (prev_address or ""):
+        _clear_location(lead)
+
+
+def _lead_location(lead: CollabLead) -> dict:
+    """영업 기록 위치 → 매장 값 모양(협업 확정 때 화면이 위치를 못 보냈으면 이걸로)."""
+    if lead.latitude is None or lead.longitude is None:
+        return {}
+    out: dict = {"latitude": float(lead.latitude), "longitude": float(lead.longitude)}
+    for key in ("city", "district"):
+        if getattr(lead, key):
+            out[key] = getattr(lead, key)
+    return out
+
+
+def _public_photos(lead: CollabLead) -> list[dict]:
+    """광고주에게 보일 사진 — 어드민 전용 분류(메뉴)는 빼고, 메모는 영업 메모일 수 있어 보내지 않는다."""
+    return [
+        {**p, "memo": "", "uploadedAt": None}
+        for p in photos_of(lead)
+        if p["kind"] not in partners_service.ADMIN_ONLY_PHOTO_KINDS
+    ]
+
+
+def _cover_urls(lead: CollabLead) -> list[str]:
+    """분류별 대표 사진(분류 순) — 매장의 cover_urls 와 같은 규칙."""
+    covers = {p["kind"]: p["url"] for p in _public_photos(lead) if p["cover"]}
+    return [covers[k] for k in partners_service.PHOTO_KINDS if k in covers]
+
+
+def _drop_media(db: Session, lead: CollabLead) -> None:
+    m = db.get(Media, lead.media_id) if lead.media_id else None
+    lead.media_id = None
+    db.flush()
+    if m is not None:
+        db.delete(m)
+        db.flush()
+
+
+def sync_lead_media(db: Session, lead: CollabLead) -> None:
+    """영업 기록을 지도용 media 줄에 맞춘다(커밋은 부르는 쪽에서). 위치가 있고 협업 확정 매장이 지도에 떠 있지 않을 때만 뜬다.
+
+    확정 매장이 지도에 뜨면(공개 + 위치) 매장이 이 줄(매체 ID)을 이어받는다 — partners_service.sync_media.
+    """
+    lead.store_type_id = _store_type_for(db, lead.biz_type)
+    store = lead.store
+    if store is not None and partners_service.on_map(store):
+        if store.media_id is None:
+            partners_service.sync_media(db, store)  # 매장이 이 줄을 이어받는다
+        _drop_media(db, lead)
+        return
+    if lead.latitude is None or lead.longitude is None:
+        _drop_media(db, lead)
+        return
+    m = db.get(Media, lead.media_id) if lead.media_id else None
+    if m is None:
+        m = Media(media_id=ms._next_media_id(db, PARTNERS_MEDIA_CATEGORY))
+        db.add(m)
+        db.flush()
+        lead.media_id = m.media_id
+    address, address_detail = _store_address_of(lead)
+    partners_service.fill_media(
+        db,
+        m,
+        name=lead.name,
+        address=address or None,
+        address_detail=address_detail,
+        city=lead.city,
+        district=lead.district,
+        latitude=lead.latitude,
+        longitude=lead.longitude,
+        description=None,
+        image_urls=_cover_urls(lead),
+    )
+
+
+def serialize_public(lead: CollabLead, *, pricing: bool = False) -> dict:
+    """지도에 뜬 영업 기록 → 광고주 매장 모양(partners_service.serialize 와 같은 칸). 영업 칸(담당자 · 연락처 · 메모 · 영업 등급)은 넣지 않는다.
+    unconfirmed — 협업 확정 전 매장(등급 · 금액이 아직 없어 "금액 협의")."""
+    address, address_detail = _store_address_of(lead)
+    images = _public_photos(lead)
+    out = dict(
+        id=str(lead.id),
+        storeCode=None,
+        mediaId=lead.media_id,
+        name=lead.name,
+        storeTypeId=lead.store_type_id,
+        storeType=lead.store_type.name if lead.store_type else None,
+        address=address,
+        addressDetail=address_detail,
+        city=lead.city,
+        district=lead.district,
+        latitude=float(lead.latitude) if lead.latitude is not None else None,
+        longitude=float(lead.longitude) if lead.longitude is not None else None,
+        imageUrls=[p["url"] for p in images],
+        images=images,
+        phone=None,
+        ownerName=None,
+        tags=[],
+        notes=[],
+        businessHours=None,
+        hours=None,
+        status="active",
+        unconfirmed=True,
+        createdAt=_iso(lead.created_at) or None,
+        updatedAt=_iso(lead.updated_at) or None,
+    )
+    if pricing:
+        out.update(collabGrade=None, collabFee=None)
+    return out
+
+
+def list_public(db: Session, *, keyword: str | None = None, city: str | None = None, pricing: bool = False) -> list[dict]:
+    """광고주 매장 찾기 목록에 붙일 영업 기록 — 지도에 떠 있는 것만(원본 순서). 검색은 업체명 · 주소 · 구군만."""
+    q = db.query(CollabLead).filter(CollabLead.media_id.isnot(None))
+    kw = (keyword or "").strip()
+    if kw:
+        like = f"%{kw}%"
+        q = q.filter(or_(CollabLead.name.ilike(like), CollabLead.address.ilike(like), CollabLead.district.ilike(like)))
+    if city:
+        q = q.filter(CollabLead.city == city)
+    return [serialize_public(r, pricing=pricing) for r in q.order_by(CollabLead.sort_order).all()]
+
+
+def get_public(db: Session, key: str, *, pricing: bool = False) -> dict | None:
+    """영업 기록 id(UUID) 또는 지도 매체 ID(CF-0001) — 지도에 떠 있는 것만, 아니면 None."""
+    try:
+        lead = db.get(CollabLead, uuid.UUID(key))
+    except ValueError:
+        lead = db.query(CollabLead).filter(CollabLead.media_id == key).first()
+    if lead is None or lead.media_id is None:
+        return None
+    return serialize_public(lead, pricing=pricing)
 
 
 # ── 원본 영업 앱 파일 가져오기 ──────────────────────────────────────────
@@ -542,6 +720,7 @@ def import_source(db: Session, settings_file: dict, records_file: dict) -> dict:
         db.add(setting)
 
     created = updated = 0
+    touched: list[CollabLead] = []
     rows = records_file.get("rows") or []
     for index, row in enumerate(rows):
         data = row.get("data") or {}
@@ -555,11 +734,18 @@ def import_source(db: Session, settings_file: dict, records_file: dict) -> dict:
             lead = CollabLead(id=uuid.uuid4(), source_id=source_id)
             db.add(lead)
             created += 1
+        prev_address = _store_address_of(lead)[0]
         _apply(lead, data, raw=True)
+        if _store_address_of(lead)[0] != prev_address:
+            _clear_location(lead)  # 주소가 바뀌면 옛 위치는 버린다(090) — 화면에서 다시 저장하면 새로 찾는다
+        touched.append(lead)
         lead.sort_order = index + 1
         lead.source_data = row
         lead.created_at = _parse_dt(data.get("createdAt")) or _parse_dt(row.get("created_at")) or datetime.now(timezone.utc)
         lead.updated_at = _parse_dt(data.get("updatedAt")) or _parse_dt(row.get("updated_at")) or lead.created_at
+    db.flush()
+    for lead in touched:
+        sync_lead_media(db, lead)  # 이름 · 주소가 바뀌었으면 지도 줄도
     db.commit()
 
     mismatches = verify_against_source(db, rows)

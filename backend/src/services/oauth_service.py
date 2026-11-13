@@ -175,6 +175,7 @@ def complete_sns_signup(
     company_name: str | None = None,
     marketing_sms: bool | None = None,
     marketing_email: bool | None = None,
+    store_info: dict | None = None,
 ) -> User:
     """SNS 가입 마무리 — 이메일 확정 + 회원정보·약관(마케팅 동의 · 받을 방법) 저장.
 
@@ -190,6 +191,9 @@ def complete_sns_signup(
     )
     if email != provider_email and not auth_service.is_email_verified(db, email):
         raise HTTPException(status_code=400, detail="이메일 인증이 필요합니다.")
+    # 제휴사(콜라보)는 매장 정보가 꼭 있어야 한다(089) — 무엇을 바꾸기 전에 먼저 확인한다.
+    final_category = member_category if member_category is not None else user.member_category
+    store = auth_service.clean_partner_store_info(store_info) if final_category == "partner" else None
     # 연락받을 이메일은 수신 가능 여부만 확인하므로 이미 가입된 이메일이어도 허용.
     user.email = email
     user.verified = True
@@ -208,6 +212,8 @@ def complete_sns_signup(
         user.name = name
     if company_name is not None:
         user.company_name = company_name or None
+    if store:
+        auth_service.apply_partner_store_info(db, user, store)
     db.commit()
     db.refresh(user)
     return user

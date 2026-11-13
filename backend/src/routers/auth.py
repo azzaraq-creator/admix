@@ -57,6 +57,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         marketing_consent=body.marketing_consent,
         marketing_sms=body.marketing_sms,
         marketing_email=body.marketing_email,
+        store_info=body.store_info.model_dump() if body.store_info else None,
     )
     access, refresh = auth_service.issue_tokens(db, user, remember=True)
     proposal_service.claim_session_proposals(

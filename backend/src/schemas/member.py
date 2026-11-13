@@ -41,6 +41,9 @@ class BusinessRegistrationOut(BaseModel):
     business_name: str | None = None
     business_registration_no: str | None = None
     address: str | None = None
+    # 제휴사 가입 "매장 정보"(089) — 대표자명 · 상세 주소.
+    representative_name: str | None = None
+    address_detail: str | None = None
     business_type: str | None = None
     reject_reason: str | None = None
     license_file_url: str | None = None
@@ -142,5 +145,7 @@ class BusinessRegistrationUpdate(BaseModel):
     business_name: str | None = None
     business_registration_no: str | None = None
     address: str | None = None
+    representative_name: str | None = None
+    address_detail: str | None = None
     business_type: str | None = None
     reject_reason: str | None = None

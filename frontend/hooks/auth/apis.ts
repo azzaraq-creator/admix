@@ -19,6 +19,20 @@ export interface RegisterPayload {
   /** 마케팅 정보 받을 방법(083) — 제휴사 가입 약관 단계에서 고른다. 안 보내면 동의했을 때 둘 다. */
   marketing_sms?: boolean;
   marketing_email?: boolean;
+  /** 제휴사(콜라보) 매장 정보(089) — 제휴사는 꼭 보낸다. */
+  store_info?: PartnerStoreInfoPayload;
+}
+
+/**
+ * 제휴사 가입 "매장 정보"(089, 2026-11-13 사용자) — 상호 · 사업자 번호 · 대표자명 · 주소는 필수, 상세 주소는 선택.
+ * 사업자 번호는 숫자만 보내도 된다(서버가 000-00-00000 으로 맞춰 저장).
+ */
+export interface PartnerStoreInfoPayload {
+  business_name: string;
+  business_registration_no: string;
+  representative_name: string;
+  address: string;
+  address_detail?: string | null;
 }
 
 /** SNS 가입 마무리 — 제공자 이메일을 그대로 쓰면 이메일 인증 없이 완료된다. */
@@ -32,6 +46,8 @@ export interface SnsCompletePayload {
   name: string;
   phone: string;
   company_name?: string;
+  /** 제휴사(콜라보) 매장 정보(089) — RegisterPayload 와 같다. */
+  store_info?: PartnerStoreInfoPayload;
 }
 
 /** 내 정보 고치기 — 보낸 칸만 바뀐다. 담당자 정보(광고주)는 빈 문자열이면 지운다. */
@@ -56,6 +72,9 @@ export interface BusinessRegistration {
   business_name: string | null;
   business_registration_no: string | null;
   address: string | null;
+  /** 제휴사 가입 "매장 정보"(089) — 대표자명 · 상세 주소. 기본협약 계약서 빈칸을 채운다. */
+  representative_name?: string | null;
+  address_detail?: string | null;
   business_type: string | null;
   reject_reason: string | null;
   license_file_url: string | null;

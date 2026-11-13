@@ -243,6 +243,8 @@ export interface PartnersStore {
   updatedAt: string | null;
   /** 상세 조회 때만 — 내가 등록한 매장인지. */
   isMine?: boolean;
+  /** 협업 확정 전 매장(영업 기록, 090) — 광고주 지도에 매장처럼 뜬다. 등급 · 금액 · 운영 시간 · 연락처가 아직 없다. */
+  unconfirmed?: boolean;
   /** 콜라보 등급 · 매장별 금액(1건, 원) — 광고주 · 어드민에게만 온다(매장 화면에는 없다). */
   collabGrade?: CollabGrade | null;
   collabFee?: number | null;
@@ -443,6 +445,12 @@ export interface AdminPartnerMember {
   bizProvisionalAt: string | null;
   bizVerifiedAt: string | null;
   bizRejectReason: string | null;
+  /** 가입 때 적은 매장 정보(089, 11-13) — 상호 · 사업자 번호(000-00-00000) · 대표자명 · 주소 · 상세 주소. 그 전에 가입한 회원은 비어 있다. */
+  bizName?: string | null;
+  bizNo?: string | null;
+  bizRepresentative?: string | null;
+  bizAddress?: string | null;
+  bizAddressDetail?: string | null;
   stores: {
     id: string;
     storeCode: string | null;
@@ -480,12 +488,7 @@ export const COLLAB_PHASE_LABEL: Record<CollabPhase, string> = {
 /** 매장 참여 상태 — applied 신청 · requested 확정 요청 · confirmed 확정 · declined 미참여 · cancelled 취소. */
 /** passed — 매장이 모집 기간에 "미참여"로 답함(11-12). declined 는 신청한 뒤 확정 요청 전에 빠진 것(어드민 처리). */
 export type ParticipantStatus =
-  | "applied"
-  | "requested"
-  | "confirmed"
-  | "declined"
-  | "cancelled"
-  | "passed";
+  "applied" | "requested" | "confirmed" | "declined" | "cancelled" | "passed";
 export type CollabPhotoStep = "install" | "check1" | "check2" | "check3";
 
 /** 어드민 콜라보(069). */

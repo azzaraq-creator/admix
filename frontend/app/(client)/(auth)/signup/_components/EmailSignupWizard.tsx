@@ -13,6 +13,7 @@ import {
   EMPTY_SIGNUP_INFO,
   InfoStep,
   contactOf,
+  storeInfoOf,
   type SignupInfo,
 } from "./InfoStep";
 import { MethodStep } from "./MethodStep";
@@ -87,6 +88,8 @@ export function EmailSignupWizard() {
         // 제휴사 가입에서 고른 받을 방법(SMS · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
         marketing_sms: channels?.sms,
         marketing_email: channels?.email,
+        // 제휴사(콜라보) 매장 정보(089) — 필수, 서버가 사업자 등록 줄에 저장한다.
+        store_info: category === "partner" ? storeInfoOf(info) : undefined,
       });
       setTokens(res.access_token, res.refresh_token, true);
       // 제휴사(콜라보)도 가입 완료 화면으로 — 거기서 "기본협약 하기"로 기본협약 동의에 간다.

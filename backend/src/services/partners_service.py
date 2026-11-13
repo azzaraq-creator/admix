@@ -31,6 +31,7 @@ from src.models.partners_store import (
     PartnersStoreRequest,
     PartnersStoreType,
 )
+from src.models.collab_lead import CollabLead
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.member_profile import BusinessRegistration
@@ -159,11 +160,12 @@ SIGNER_NAME_MAX_LEN = 50
 # 서명 그림 — 화면이 보내는 PNG(data URL). 손 서명 한 장이면 수십 KB라 넉넉히 1MB까지.
 SIGNATURE_MAX_BYTES = 1024 * 1024
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_PNG_DATA_URL = "data:image/png;base64,"
 
 
 def _save_signature(user: User, data_url: str) -> str:
     """서명 그림 저장 — "data:image/png;base64,…" 를 풀어 PNG 인지 보고 upload_dir/partner-signature/{회원 id}/ 에 둔다."""
-    prefix = "data:image/png;base64,"
+    prefix = _PNG_DATA_URL
     if not isinstance(data_url, str) or not data_url.startswith(prefix):
         raise HTTPException(status_code=400, detail="서명을 다시 해 주세요.")
     try:
@@ -225,13 +227,25 @@ def agree(
     return agreement_record(user)
 
 
+# 진행 상태 크기 — 체크 · 이름 같은 작은 JSON에 완료한 손 서명 그림(PNG data URL)이 함께 실린다
+# (11-13 사용자: 서명을 완료하고 새로고침해도 남게). 동의 때 받는 서명 크기(1.5MB)에 여유를 둔다.
+AGREEMENT_PROGRESS_MAX_LEN = 1_600_000
+
+
 def save_agreement_progress(db: Session, user: User, progress: object) -> dict:
-    """기본협약 진행 상태 저장 — 동의 전에만. 화면이 정한 작은 JSON(dict)만 받는다."""
+    """기본협약 진행 상태 저장 — 동의 전에만. 화면이 정한 JSON(dict)만 받는다.
+    signature 는 완료한 손 서명(PNG data URL)만 — 동의를 마치면 진행 상태와 함께 지워지고 서명은 파일로 남는다."""
     ensure_partner(user)
     if user.partner_agreed_at is not None:
         return {"ok": True}
-    if progress is not None and (not isinstance(progress, dict) or len(json.dumps(progress)) > 10_000):
-        raise HTTPException(status_code=400, detail="진행 상태를 저장하지 못했어요.")
+    if progress is not None:
+        signature = progress.get("signature") if isinstance(progress, dict) else None
+        if (
+            not isinstance(progress, dict)
+            or len(json.dumps(progress)) > AGREEMENT_PROGRESS_MAX_LEN
+            or (signature is not None and not (isinstance(signature, str) and signature.startswith(_PNG_DATA_URL)))
+        ):
+            raise HTTPException(status_code=400, detail="진행 상태를 저장하지 못했어요.")
     user.partner_agreement_progress = progress
     db.commit()
     return {"ok": True}
@@ -559,52 +573,126 @@ def geocode(address: str) -> dict:
 # ── 매체 찾기 연동(media 줄) ───────────────────────────────────────────
 
 
-def sync_media(db: Session, store: PartnersStore) -> None:
-    """매장 값을 매체 찾기용 media 줄에 맞춘다. 커밋은 부르는 쪽에서."""
-    visible = store.status == "active" and store.latitude is not None and store.longitude is not None
-    m = db.get(Media, store.media_id) if store.media_id else None
-    if not visible:
-        if m is not None:
-            store.media_id = None
-            db.flush()
-            db.delete(m)
-        return
-    if m is None:
-        m = Media(media_id=ms._next_media_id(db, PARTNERS_MEDIA_CATEGORY))
-        db.add(m)
-        db.flush()
-        store.media_id = m.media_id
-    m.name = store.name
+def on_map(store: PartnersStore) -> bool:
+    """매장이 지도(매체 찾기 · 매장 찾기)에 뜨는지 — 공개 + 위치."""
+    return store.status == "active" and store.latitude is not None and store.longitude is not None
+
+
+def _lead_of(db: Session, store: PartnersStore) -> CollabLead | None:
+    """협업 확정으로 만든 매장이면 그 영업 기록(090 — 매장이 지도에 없을 땐 영업 기록이 지도에 뜬다)."""
+    if store.id is None:
+        return None
+    return db.query(CollabLead).filter(CollabLead.store_id == store.id).first()
+
+
+def fill_media(
+    db: Session,
+    m: Media,
+    *,
+    name: str,
+    address: str | None,
+    address_detail: str | None,
+    city: str | None,
+    district: str | None,
+    latitude,
+    longitude,
+    description: str | None,
+    image_urls: list[str],
+) -> None:
+    """지도용 media 줄(콜라보 매장 카테고리)에 값을 채운다 — 매장 · 영업 기록(090)이 같이 쓴다."""
+    m.name = name
     m.second_name = None
     m.category_large = PARTNERS_MEDIA_CATEGORY
     m.category_small = PARTNERS_MEDIA_SMALL
     m.media_source = "FIXED"
-    m.address = store.address
-    m.accurate_address = store.address
-    m.address_detail = store.address_detail
-    m.city = store.city
-    m.district = store.district
-    m.latitude = store.latitude
-    m.longitude = store.longitude
-    m.description = " ".join(f"#{t}" for t in (store.tags or [])) or None
-    # 매체 찾기 카드에는 분류별 대표 사진만(분류 순) — 나머지는 매장 상세에서 본다(2026-11-10 사용자).
-    urls = cover_urls(store)
-    m.thumbnail_url = urls[0] if urls else None
-    m.image_count = len(urls)
+    m.address = address
+    m.accurate_address = address
+    m.address_detail = address_detail
+    m.city = city
+    m.district = district
+    m.latitude = latitude
+    m.longitude = longitude
+    m.description = description
+    m.thumbnail_url = image_urls[0] if image_urls else None
+    m.image_count = len(image_urls)
     db.query(MediaImage).filter(MediaImage.media_id == m.media_id).delete(synchronize_session=False)
-    for i, url in enumerate(urls):
+    for i, url in enumerate(image_urls):
         db.add(MediaImage(media_id=m.media_id, image_url=url, sort_order=i, is_thumbnail=i == 0))
     db.flush()
     db.expire(m, ["images"])
 
 
+def sync_media(db: Session, store: PartnersStore) -> None:
+    """매장 값을 매체 찾기용 media 줄에 맞춘다. 커밋은 부르는 쪽에서.
+
+    협업 확정으로 만든 매장이면 지도 자리(매체 ID)를 영업 기록과 주고받는다(090) — 매장이 지도에 뜨면 영업 기록 줄을 이어받고,
+    비공개로 바꾸면 영업 기록이 다시 그 줄로 뜬다. 매체 ID 가 그대로라 광고주가 누른 하트(관심 매장)가 끊기지 않는다.
+    """
+    lead = _lead_of(db, store)
+    m = db.get(Media, store.media_id) if store.media_id else None
+    if not on_map(store):
+        if m is not None:
+            store.media_id = None
+            db.flush()
+            if lead is not None and lead.media_id is None:
+                lead.media_id = m.media_id
+                db.flush()
+            else:
+                db.delete(m)
+        if lead is not None:
+            from src.services import collab_lead_service  # 그쪽이 이 모듈을 가져다 쓴다
+
+            collab_lead_service.sync_lead_media(db, lead)
+        return
+    if m is None and lead is not None and lead.media_id:
+        m = db.get(Media, lead.media_id)
+        lead.media_id = None
+        db.flush()
+        if m is not None:
+            store.media_id = m.media_id
+            db.flush()
+    if m is None:
+        m = Media(media_id=ms._next_media_id(db, PARTNERS_MEDIA_CATEGORY))
+        db.add(m)
+        db.flush()
+        store.media_id = m.media_id
+    # 매체 찾기 카드에는 분류별 대표 사진만(분류 순) — 나머지는 매장 상세에서 본다(2026-11-10 사용자).
+    fill_media(
+        db,
+        m,
+        name=store.name,
+        address=store.address,
+        address_detail=store.address_detail,
+        city=store.city,
+        district=store.district,
+        latitude=store.latitude,
+        longitude=store.longitude,
+        description=" ".join(f"#{t}" for t in (store.tags or [])) or None,
+        image_urls=cover_urls(store),
+    )
+
+
 def _delete_store(db: Session, store: PartnersStore) -> None:
+    """매장을 지운다(커밋은 부르는 쪽에서). 협업 확정으로 만든 매장이면 영업 기록은 확정 전으로 — 지도 자리도 영업 기록이 이어받는다(090)."""
+    lead = _lead_of(db, store)
     m = db.get(Media, store.media_id) if store.media_id else None
     store.media_id = None
     db.flush()
     if m is not None:
-        db.delete(m)
+        if lead is not None and lead.media_id is None:
+            lead.media_id = m.media_id
+        else:
+            db.delete(m)
+    if lead is not None:
+        lead.store_id = None
+        lead.store = None
+    db.flush()
     db.delete(store)
+    db.flush()
+    if lead is not None:
+        from src.services import collab_lead_service
+
+        collab_lead_service.sync_lead_media(db, lead)
 
 
 # ── 사진 올리기 ────────────────────────────────────────────────────────
@@ -639,13 +727,17 @@ def upload_image(file: UploadFile, folder: str = "cafe", max_side: int = IMAGE_M
 # ── 조회 ────────────────────────────────────────────────────────────────
 
 
+def _find_store(db: Session, key: str) -> PartnersStore | None:
+    """매장 id(UUID) 또는 매체 찾기 media_id(CF-0001)로 찾는다."""
+    try:
+        return db.get(PartnersStore, uuid.UUID(key))
+    except ValueError:
+        return db.query(PartnersStore).filter(PartnersStore.media_id == key).first()
+
+
 def _get_or_404(db: Session, key: str) -> PartnersStore:
     """매장 id(UUID) 또는 매체 찾기 media_id(CF-0001)로 찾는다."""
-    store = None
-    try:
-        store = db.get(PartnersStore, uuid.UUID(key))
-    except ValueError:
-        store = db.query(PartnersStore).filter(PartnersStore.media_id == key).first()
+    store = _find_store(db, key)
     if store is None:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
     return store
@@ -674,20 +766,31 @@ def _pricing(user: User | None) -> bool:
 def list_public(
     db: Session, *, keyword: str | None = None, city: str | None = None, user: User | None = None
 ) -> list[dict]:
-    """광고주 콜라보 매장 찾기 — 공개 매장(최근 등록 순). 광고주에게는 등급·금액을 함께 준다.
-    제휴사 회원에 연결되지 않은 매장은 뺀다 — 콜라보를 받을 사람이 없다(2026-11-11 사용자)."""
-    q = db.query(PartnersStore).filter(
-        PartnersStore.status == "active", PartnersStore.owner_user_id.isnot(None)
-    )
+    """광고주 콜라보 매장 찾기 — 공개 매장(최근 등록 순) 다음에 지도에 뜬 영업 기록(협업 확정 전 매장, 090). 광고주에게는 등급·금액을 함께 준다.
+    협업 확정과 상관없이 매장 관리에 있는 매장은 모두 보인다(2026-11-13 사용자) — 예전엔 제휴사 회원에 연결된 매장만(11-11)."""
+    from src.services import collab_lead_service  # 그쪽이 이 모듈을 가져다 쓴다
+
+    q = db.query(PartnersStore).filter(PartnersStore.status == "active")
     q = _keyword_filter(q, keyword)
     if city:
         q = q.filter(PartnersStore.city == city)
     pricing = _pricing(user)
-    return [serialize(s, pricing=pricing) for s in q.order_by(PartnersStore.created_at.desc()).all()]
+    stores = [serialize(s, pricing=pricing) for s in q.order_by(PartnersStore.created_at.desc()).all()]
+    leads = collab_lead_service.list_public(db, keyword=keyword, city=city, pricing=pricing)
+    return stores + leads
 
 
 def get_public(db: Session, key: str, user: User) -> dict:
-    store = _get_or_404(db, key)
+    store = _find_store(db, key)
+    if store is None:
+        # 지도에 뜬 영업 기록(090) — 매장 모양으로, 공개해도 되는 칸만.
+        from src.services import collab_lead_service
+
+        out = collab_lead_service.get_public(db, key, pricing=_pricing(user))
+        if out is None:
+            raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
+        out["isMine"] = False
+        return out
     # 숨긴 매장은 주인만 본다.
     if store.status != "active" and store.owner_user_id != user.id:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
@@ -1265,6 +1368,12 @@ def _member_summary(u: User, stores: list[PartnersStore]) -> dict:
         bizProvisionalAt=reg.provisional_at.isoformat() if reg and reg.provisional_at else None,
         bizVerifiedAt=reg.verified_at.isoformat() if reg and reg.verified_at else None,
         bizRejectReason=reg.reject_reason if reg else None,
+        # 가입 때 적은 매장 정보(089) — 상호 · 사업자 번호(000-00-00000) · 대표자명 · 주소(+ 상세 주소).
+        bizName=reg.business_name if reg else None,
+        bizNo=reg.business_registration_no if reg else None,
+        bizRepresentative=reg.representative_name if reg else None,
+        bizAddress=reg.address if reg else None,
+        bizAddressDetail=reg.address_detail if reg else None,
         stores=[
             dict(id=str(s.id), storeCode=s.store_code, name=s.name, status=s.status) for s in stores
         ],

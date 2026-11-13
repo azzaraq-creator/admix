@@ -35,11 +35,11 @@ export interface MediaFindOnly {
   storeTypes?: string[];
   /** 탭 줄 오른쪽 끝(간략히 보기 옆) — 관심 매장 바로 가기. */
   toolbar?: ReactNode;
-  /** 카드마다 등급 · 1건 금액 — 없으면(제휴사 연결 매장 목록에 없는 매장) 운영 시간만. */
+  /** 카드마다 등급 · 1건 금액 — 없으면(매장 찾기 목록에 없는 매장) 운영 시간만. */
   pickOf?: (row: MediaCardRow) => CollabPick | undefined;
   /** 처음 지도 위치(주소에 조회 영역이 없을 때) — 없으면 매체 찾기와 같은 강남역. */
   initialView?: MoveTarget;
-  /** 제휴사 회원에 연결된 콜라보 매장만 — 목록 · 지도 · 검색 추천 모두(서버 linked_only). */
+  /** 제휴사 회원에 연결된 콜라보 매장만 — 목록 · 지도 · 검색 추천 모두(서버 linked_only). 11-13부터 매장 찾기도 안 쓴다(모든 매장). */
   linkedOnly?: boolean;
 }
 

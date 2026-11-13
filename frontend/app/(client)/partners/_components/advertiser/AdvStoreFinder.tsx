@@ -18,6 +18,8 @@ import { useFavoriteStores } from "./favoriteStores";
 /*
  * /partners/find (광고주) — admix 매체 찾기 화면(목록 + 지도 · 검색 · 인구 분포 · 실시간 인구)을 그대로 쓰고
  * 콜라보 매장만 보이게 한다(11-09 사용자: "매체 찾기와 동일하게, 지도도 보여 주고 매장만").
+ * 협업 확정과 상관없이 매장 관리에 있는 매장은 모두 — 공개한 협업 확정 매장 + 영업 기록(협업 확정 전 매장, 090, 11-13 사용자).
+ * 예전엔 제휴사 회원에 연결된 매장만 보였다(11-11, linkedOnly). 영업 기록은 등급 · 금액이 아직 없어 "금액 협의".
  * 탭은 "콜라보 매장" 하나 대신 매장 유형(전체 · 카페 · 식당 …, 어드민 "매장 유형 관리" 순서, 11-11 사용자).
  * 카드 · 지도 말풍선에 등급 · 1건 금액(어드민이 정한 값, 067). 하트를 누르면 관심 매장(/partners/favorites)에 담긴다 —
  * 예전 "매장 담기" 버튼은 11-11 사용자가 없앴다(관심 매장에서 골라 의뢰하거나, 의뢰서의 "관심 매장 고르기"로 지정 희망 매장을 고른다).
@@ -54,8 +56,6 @@ export function AdvStoreFinder() {
       category: PARTNERS_MEDIA_CATEGORY,
       label: "콜라보 매장",
       storeTypes,
-      // 제휴사 회원에 연결된 매장만 — 연결 전 매장은 콜라보를 받을 사람이 없다(11-11 사용자).
-      linkedOnly: true,
       initialView: SEONGSU_STATION,
       pickOf: (row: MediaCardRow): CollabPick | undefined => {
         const store = byMedia.get(row.id);

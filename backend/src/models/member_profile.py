@@ -42,6 +42,9 @@ class BusinessRegistration(Base):
     business_name = Column(String(200), nullable=True)
     business_registration_no = Column(String(30), nullable=True)
     address = Column(String(500), nullable=True)
+    # 제휴사 가입 "매장 정보"(089) — 대표자명(가입 때 필수) · 상세 주소(층 · 호수, 선택). 주소(address)는 카카오 우편번호 검색으로 고른 도로명.
+    representative_name = Column(String(100), nullable=True)
+    address_detail = Column(String(200), nullable=True)
     business_type = Column(String(200), nullable=True)
     reject_reason = Column(Text, nullable=True)
     license_file_url = Column(String(1000), nullable=True)

@@ -31,6 +31,7 @@ import {
 import { agreementPdfFileName } from "@/app/(client)/partners/_components/agreementPdf";
 import {
   AGREEMENT,
+  partyOf,
   type Role,
   type SignatureRecord,
 } from "@/app/(client)/partners/_components/agreementShared";
@@ -235,9 +236,36 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
           <AgreementSection member={member} />
           <StoresSection member={member} />
         </div>
-        <AccountSection member={member} />
+        <div className="flex min-w-0 flex-col gap-[20px] md:gap-[24px]">
+          <AccountSection member={member} />
+          <StoreInfoSection member={member} />
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 가입 때 적은 매장 정보(089, 11-13 사용자) — 상호 · 사업자 번호 · 대표자명 · 주소. 읽기만 한다.
+ * 사업자등록증과 맞는지 볼 때 쓴다. 그 전에 가입한 회원은 비어 있다.
+ */
+function StoreInfoSection({ member }: { member: AdminPartnerMember }) {
+  const address = [member.bizAddress, member.bizAddressDetail]
+    .filter(Boolean)
+    .join(" ");
+  const empty = (value: string | null | undefined) =>
+    value || <span className="text-disabled">없음</span>;
+  return (
+    <Section title="매장 정보" desc="가입할 때 적은 내용이에요.">
+      <dl className="flex flex-col gap-[16px]">
+        <MetaItem label="상호">{empty(member.bizName)}</MetaItem>
+        <MetaItem label="사업자 번호">{empty(member.bizNo)}</MetaItem>
+        <MetaItem label="대표자명">{empty(member.bizRepresentative)}</MetaItem>
+        <MetaItem label="주소">
+          <span className="break-keep">{empty(address)}</span>
+        </MetaItem>
+      </dl>
+    </Section>
   );
 }
 
@@ -571,7 +599,15 @@ function AgreementPdfRow({
   const fileName = tag
     ? agreementPdfFileName().replace(/\.pdf$/, `_${tag}.pdf`)
     : agreementPdfFileName();
-  const pdf = useDownloadAgreementPdf(pdfSignature, fileName);
+  // 가입 때 적은 매장 정보(089) — 회원이 받는 계약서와 같게 매장 측 빈칸을 채운다.
+  const party = partyOf({
+    business_name: member.bizName,
+    business_registration_no: member.bizNo,
+    representative_name: member.bizRepresentative,
+    address: member.bizAddress,
+    address_detail: member.bizAddressDetail,
+  });
+  const pdf = useDownloadAgreementPdf(pdfSignature, fileName, party);
   const versionDiffers =
     !!member.agreementVersion && member.agreementVersion !== AGREEMENT.version;
   const title = `${AGREEMENT.document.title} v${AGREEMENT.version}`;
@@ -650,6 +686,7 @@ function AgreementPdfRow({
               <div className="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-stroke">
                 <AgreementPdfViewer
                   signature={pdfSignature}
+                  party={party}
                   stickyToolbar
                   className="rounded-[12px] shadow-none"
                 />

@@ -6,10 +6,12 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
 from src.models.collab_lead import CollabLead
+from src.models.media_master import Media
 from src.services import collab_lead_service as ls
 
 
@@ -20,8 +22,12 @@ def db() -> Session:
         yield s
     finally:
         s.rollback()
-        s.query(CollabLead).filter(CollabLead.source_id.like("test-lead-%")).delete(synchronize_session=False)
-        s.query(CollabLead).filter(CollabLead.name.like("테스트영업-%")).delete(synchronize_session=False)
+        test_leads = or_(CollabLead.source_id.like("test-lead-%"), CollabLead.name.like("테스트영업-%"))
+        # 지도 줄(090)도 — 위치를 넣은 시험 기록은 media 줄이 생긴다(기록만 지우면 지도에 남는다).
+        media_ids = [m for (m,) in s.query(CollabLead.media_id).filter(test_leads, CollabLead.media_id.isnot(None))]
+        s.query(CollabLead).filter(test_leads).delete(synchronize_session=False)
+        if media_ids:
+            s.query(Media).filter(Media.media_id.in_(media_ids)).delete(synchronize_session=False)
         s.commit()
         s.close()
 

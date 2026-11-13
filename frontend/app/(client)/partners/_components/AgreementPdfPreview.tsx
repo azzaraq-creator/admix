@@ -17,7 +17,11 @@ import {
   PAGE_W,
   type PdfPage,
 } from "./agreementPdf";
-import type { SignatureRecord } from "./agreementShared";
+import {
+  type AgreementParty,
+  partyKey,
+  type SignatureRecord,
+} from "./agreementShared";
 
 /*
  * 4단계 계약서 PDF 미리보기 · 내려받기(2026-11-10 사용자: "PDF로 계약서를 미리보기로 보여줘").
@@ -37,9 +41,18 @@ const signatureKey = (s: SignatureRecord | null) =>
       ]
     : null;
 
-const pdfQuery = (signature: SignatureRecord | null) => ({
-  queryKey: ["partners", "agreement-pdf", signatureKey(signature)],
-  queryFn: () => buildAgreementPdf(signature),
+/** party — 가입 때 적은 매장 정보(089). 계약서 서명란 · 별지의 매장 측 빈칸을 채운다. 바뀌면 다시 만든다. */
+const pdfQuery = (
+  signature: SignatureRecord | null,
+  party: AgreementParty | null = null,
+) => ({
+  queryKey: [
+    "partners",
+    "agreement-pdf",
+    signatureKey(signature),
+    partyKey(party),
+  ],
+  queryFn: () => buildAgreementPdf(signature, party),
   staleTime: Infinity,
   gcTime: 10 * 60_000,
   retry: 1,
@@ -74,13 +87,14 @@ function savePdf(pdf: AgreementPdf, fileName = pdf.fileName) {
 export function useDownloadAgreementPdf(
   signature: SignatureRecord | null,
   fileName?: string,
+  party: AgreementParty | null = null,
 ) {
   const qc = useQueryClient();
   const [pending, setPending] = useState(false);
   const download = async () => {
     setPending(true);
     try {
-      savePdf(await qc.fetchQuery(pdfQuery(signature)), fileName);
+      savePdf(await qc.fetchQuery(pdfQuery(signature, party)), fileName);
     } catch {
       toast.danger("PDF를 만들지 못했어요. 잠시 후 다시 해 주세요.", {
         timeout: TOAST_TIMEOUT,
@@ -183,15 +197,18 @@ function PdfPageSvg({ page, label }: { page: PdfPage; label: string }) {
  */
 export function AgreementPdfViewer({
   signature,
+  party = null,
   className,
   stickyToolbar = false,
 }: {
   signature: SignatureRecord | null;
+  /** 가입 때 적은 매장 정보(089) — 계약서 매장 측 빈칸을 채운다. */
+  party?: AgreementParty | null;
   className?: string;
   /** 스크롤하는 창 안에서 도구줄을 위에 붙여 둔다(바깥을 overflow-clip 으로 — hidden 이면 sticky 가 안 먹는다). */
   stickyToolbar?: boolean;
 }) {
-  const { data: pdf, isError, refetch } = useQuery(pdfQuery(signature));
+  const { data: pdf, isError, refetch } = useQuery(pdfQuery(signature, party));
   const [index, setIndex] = useState(0);
   const total = pdf?.pages.length ?? 0;
   const current = Math.min(index, Math.max(total - 1, 0));
@@ -283,7 +300,7 @@ export function AgreementPdfViewer({
       {/* 책상 — 키보드 ← → 로도 넘긴다. */}
       <div
         tabIndex={pdf ? 0 : -1}
-        aria-label="계약서 PDF 미리보기"
+        aria-label="협약서 PDF 미리보기"
         onKeyDown={(e) => {
           if (e.key === "ArrowLeft") go(current - 1);
           if (e.key === "ArrowRight") go(current + 1);

@@ -2,6 +2,7 @@
 
 import { Button } from "@heroui/react";
 import { Check, RotateCcw } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -12,8 +13,11 @@ import { cn } from "@/lib/utils";
  * 그리고 "완료"를 누르면 투명 바탕 PNG(data URL)를 onChange 로 넘기고 칸을 잠근다(11-10 사용자: "완료 버튼을 넣어서 완료가 되면 서명 완료").
  * 너무 짧은 선(점 하나 등)은 서명으로 치지 않아 "완료"가 꺼져 있다. 다시 하려면 "다시 그리기"(지우고 onChange(null)).
  * 내보내는 그림은 화면 배율과 상관없이 칸 크기의 2배로 맞춘다(파일 크기를 일정하게).
- * 바탕은 다크 모드에서도 흰 종이 — 잉크(짙은 남색)를 그대로 저장해 계약서 · 인쇄에 쓴다.
+ * 다크 모드는 칸을 어둡게, 선은 흰색으로 보인다(11-13 사용자). 내보내는 그림은 늘 짙은 남색 잉크 — 계약서 · 인쇄는 흰 종이라서.
+ * 화면 선 색은 칸의 글자 색(text-*)을 읽어 칠한다 — 다크 변형(.light 안은 라이트)을 CSS 와 똑같이 따른다.
  * defaultValue(전에 완료한 PNG)를 주면 그 그림을 깔고 완료된 채로 시작한다 — 단계를 오가도 서명이 남아 보이게.
+ * 휴대폰에서 그리다 손가락이 칸 밖으로 나가거나 오래 누르면 주변 글자가 선택(드래그)됐다(11-13 사용자: "참으로 불편해") —
+ * 칸은 글자 선택 · 길게 누르기 메뉴를 끄고, 터치 시작은 브라우저 기본 동작을 막고, 긋는 동안은 화면 전체 글자 선택을 잠시 끈다.
  */
 
 type Point = { x: number; y: number };
@@ -23,6 +27,19 @@ const LINE_WIDTH = 2.4;
 const EXPORT_SCALE = 2;
 /** 선 길이 합이 이보다 짧으면(px) 서명으로 치지 않는다. */
 const MIN_INK_LENGTH = 40;
+
+/** 긋는 동안 화면 전체 글자 선택을 끈다(손가락이 칸 밖으로 나가도 다른 글자가 잡히지 않게). 끝나면 되돌린다. */
+function lockPageSelection(lock: boolean) {
+  const root = document.documentElement.style;
+  if (lock) {
+    window.getSelection()?.removeAllRanges();
+    root.setProperty("user-select", "none");
+    root.setProperty("-webkit-user-select", "none");
+  } else {
+    root.removeProperty("user-select");
+    root.removeProperty("-webkit-user-select");
+  }
+}
 
 function drawStrokes(
   ctx: CanvasRenderingContext2D,
@@ -55,6 +72,15 @@ function drawStrokes(
     ctx.lineTo(last.x, last.y);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** 그린 것(전 서명 + 선)을 모양 그대로 한 색으로 칠한다 — 화면에서만(다크 모드면 흰 선). */
+function recolor(ctx: CanvasRenderingContext2D, color: string) {
+  ctx.save();
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.restore();
 }
 
@@ -108,6 +134,8 @@ export function SignaturePad({
   const [hasInk, setHasInk] = useState(!!defaultValue);
   /** 완료 — 칸을 잠그고 그림을 넘긴 상태. */
   const [done, setDone] = useState(!!defaultValue);
+  /** 테마가 바뀌면 화면 선 색을 다시 칠한다. */
+  const { resolvedTheme } = useTheme();
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -124,6 +152,7 @@ export function SignaturePad({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBase(ctx, base.current, dpr);
     drawStrokes(ctx, strokes.current, dpr);
+    recolor(ctx, getComputedStyle(wrap).color);
   }, [height]);
 
   // 전 서명 — 처음 한 번만 깐다(그 뒤 바뀌는 값은 이 칸이 내보낸 것).
@@ -138,6 +167,23 @@ export function SignaturePad({
     img.src = initial.current;
   }, [redraw]);
 
+  // 터치 시작 · 이동의 브라우저 기본 동작(글자 선택 · 돋보기 · 길게 누르기 메뉴)을 막는다.
+  // React 터치 이벤트는 passive라 preventDefault가 안 먹어서 직접 단다. 포인터 이벤트(그리기)는 그대로 온다.
+  // 완료한 칸은 더 그리지 않으니 막지 않는다.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || done) return;
+    const block = (e: TouchEvent) => e.preventDefault();
+    canvas.addEventListener("touchstart", block, { passive: false });
+    canvas.addEventListener("touchmove", block, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", block);
+      canvas.removeEventListener("touchmove", block);
+    };
+  }, [done]);
+  // 긋다가 칸이 사라져도(단계 이동 등) 화면 글자 선택은 되돌린다.
+  useEffect(() => () => lockPageSelection(false), []);
+
   useEffect(() => {
     redraw();
     const wrap = wrapRef.current;
@@ -145,7 +191,7 @@ export function SignaturePad({
     const ro = new ResizeObserver(() => redraw());
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [redraw]);
+  }, [redraw, resolvedTheme]);
 
   const pointOf = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -170,6 +216,7 @@ export function SignaturePad({
   const finish = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (drawing.current !== e.pointerId) return;
     drawing.current = null;
+    lockPageSelection(false);
     setHasInk(inkLength(strokes.current) >= MIN_INK_LENGTH);
   };
 
@@ -195,7 +242,10 @@ export function SignaturePad({
       <div
         ref={wrapRef}
         className={cn(
-          "relative w-full overflow-hidden rounded-[19px] border bg-white transition-colors",
+          // 글자 색 = 화면에 보이는 선 색(라이트 남색 · 다크 흰색).
+          "relative w-full overflow-hidden rounded-[19px] border bg-white text-[#161a2e] transition-colors dark:bg-gray-50 dark:text-white",
+          // 칸 안(안내 글 · 캔버스)은 글자 선택 · 길게 누르기 메뉴를 끈다.
+          "select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]",
           done ? "border-gray-100" : "border-gray-200",
         )}
         style={{ height }}
@@ -218,6 +268,7 @@ export function SignaturePad({
             e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
             drawing.current = e.pointerId;
+            lockPageSelection(true);
             strokes.current.push([pointOf(e)]);
             setEmpty(false);
             redraw();

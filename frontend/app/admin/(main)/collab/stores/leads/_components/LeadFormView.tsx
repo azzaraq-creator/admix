@@ -35,6 +35,7 @@ import {
   LEAD_EXTRA_LABEL,
   LEAD_LOT_ADDRESS_KEY,
   LEAD_LOT_DETAIL_KEY,
+  storeAddressOf,
   type CollabLead,
   type CollabLeadMeta,
   type CollabLeadPayload,
@@ -233,9 +234,16 @@ function LeadForm({
       return;
     }
     const payload = toPayload(form, fields);
-    // 회원 연결 = 협업 확정(11-12 사용자) — 확정 전 기록에 회원이 이어져 있으면 이 저장으로 서버가 매장을 만든다.
-    // 그때 쓸 매장 위치를 확정 버튼처럼 화면에서 먼저 찾아 같이 보낸다.
-    if (form.partnerCode.trim() && !lead?.storeId)
+    // 위치는 화면에서 카카오 지도로 찾아 같이 보낸다 — 광고주 지도(090, 주소가 바뀌었거나 아직 위치가 없을 때)와
+    // 회원 연결 = 협업 확정(11-12 사용자, 확정 전 기록에 회원이 이어져 있으면 이 저장으로 서버가 매장을 만든다)이 같이 쓴다.
+    const address = storeAddressOf(form);
+    const moved = !lead || address !== storeAddressOf(lead);
+    if (
+      address &&
+      (moved ||
+        lead?.latitude == null ||
+        (form.partnerCode.trim() && !lead?.storeId))
+    )
       payload.location = await findLeadLocation(form);
     /** 이 저장으로 협업 확정됐으면 알림 둘째 줄 — 매장 번호와 회원에게도 보인다는 것. */
     const confirmedNote = (saved: CollabLead) =>

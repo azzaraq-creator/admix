@@ -63,6 +63,88 @@ export const ROLE_LABEL: Record<Role, string> = {
   delegate: "위임받은 담당자",
 };
 
+/**
+ * 계약서에 채울 매장 측 사업자 정보 — 제휴사 가입 "매장 정보"(089, 2026-11-13 사용자: "협약 마지막 계약서에 자동으로").
+ * 주소는 도로명 주소 + 상세 주소(층 · 호). 그 전에 가입해 비어 있으면 null — 계약서 빈칸 그대로.
+ */
+export type AgreementParty = {
+  businessName: string | null;
+  businessNo: string | null;
+  representative: string | null;
+  address: string | null;
+};
+
+/** 사업자 등록 줄(내 정보 business_registration · 어드민 회원 상세) → 계약서 매장 정보. 채울 값이 하나도 없으면 null. */
+export function partyOf(
+  reg:
+    | {
+        business_name?: string | null;
+        business_registration_no?: string | null;
+        representative_name?: string | null;
+        address?: string | null;
+        address_detail?: string | null;
+      }
+    | null
+    | undefined,
+): AgreementParty | null {
+  if (!reg) return null;
+  const party: AgreementParty = {
+    businessName: reg.business_name?.trim() || null,
+    businessNo: reg.business_registration_no?.trim() || null,
+    representative: reg.representative_name?.trim() || null,
+    address:
+      [reg.address, reg.address_detail]
+        .map((v) => v?.trim())
+        .filter(Boolean)
+        .join(" ") || null,
+  };
+  return Object.values(party).some(Boolean) ? party : null;
+}
+
+/** 계약서 PDF 를 다시 만들지 가르는 값. */
+export const partyKey = (p: AgreementParty | null) =>
+  p ? [p.businessName, p.businessNo, p.representative, p.address] : null;
+
+/**
+ * 계약서 서명란 · 별지의 매장 측 빈칸을 매장 정보로 채운 표 — 모바일 전체 보기(DocContent)와 PDF(agreementPdf)가 같이 쓴다.
+ * - 서명란 카페 운영사업자 칸: 상호 · 사업자등록번호 · 사업자 주소 · 대표자(서명했으면 각 화면이 서명자로 덮는다).
+ * - 별지: 대상 매장(상호) · 매장 주소 · 운영사업자와 권한(상호 · 사업자번호 · 대표자 · 서명자).
+ * 값이 없는 칸은 원래 빈칸([기재] · [   ]) 그대로 둔다. 서명 그림 · 서명일은 각 화면이 따로 넣는다.
+ */
+export function filledContract(
+  party: AgreementParty | null,
+  signerName?: string | null,
+) {
+  const doc = agreement.document;
+  const or = (value: string | null | undefined, fallback: string) =>
+    value || fallback;
+  const box = (value: string | null | undefined) => `[${value || "   "}]`;
+  const signatureTable = doc.signatureTable.map((row) => {
+    const out = [...row];
+    if (row[0] === "법인명 또는 상호") out[2] = or(party?.businessName, row[2]);
+    if (row[0] === "사업자등록번호") out[2] = or(party?.businessNo, row[2]);
+    if (row[0] === "사업자 주소") out[2] = or(party?.address, row[2]);
+    if (row[0] === "대표자 또는 수임자" && party?.representative)
+      out[2] = `${party.representative} (대표자)`;
+    return out;
+  });
+  const annexTable = doc.annexTable.map((row) => {
+    const out = [...row];
+    if (row[0] === "대상 매장") out[1] = or(party?.businessName, row[1]);
+    if (row[0] === "매장 주소") out[1] = or(party?.address, row[1]);
+    if (row[0] === "운영사업자와 권한" && (party || signerName))
+      out[1] =
+        `상호·법인명 ${box(party?.businessName)} / 사업자번호 ${box(party?.businessNo)}\n` +
+        `대표자 ${box(party?.representative)} / 서명자 ${box(signerName)} / 위임 근거 [해당 시]`;
+    return out;
+  });
+  return {
+    signatureTable,
+    annexStore: or(party?.businessName, doc.annexStore),
+    annexTable,
+  };
+}
+
 /** 흰 유리 — 소개 화면 카드 · 칩과 같은 바탕 · 테두리 · 그림자. */
 export const GLASS =
   "border border-white bg-surface/70 shadow-[0_24px_60px_rgba(42,20,89,0.10)] backdrop-blur-md dark:border-gray-100";
@@ -157,7 +239,8 @@ export function TextModal({
       <Modal.Container placement="center" scroll="inside" size="lg">
         <Modal.Dialog
           aria-label={title}
-          className="max-h-[80dvh] max-sm:h-[calc(100dvh-64px)] max-sm:max-h-full"
+          // 높이는 내용만큼(11-13 사용자: 짧은 별지 창이 너무 높다) — 긴 글만 화면 높이에서 멈추고 안에서 스크롤된다.
+          className="max-h-[80dvh] max-sm:max-h-[calc(100dvh-64px)]"
         >
           <Modal.Header>
             <Modal.Heading className="text-[18px] font-bold break-keep text-gray-900">

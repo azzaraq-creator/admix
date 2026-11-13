@@ -88,6 +88,11 @@ export interface CollabLead {
   storeId: string;
   /** 그 매장 ID(S-0001) — 없으면 "". */
   storeCode: string;
+  /** 광고주 지도 위치(090) — 주소(없으면 지번주소)를 화면이 카카오 지도로 찾아 저장한다. 없으면 지도에 안 뜬다. */
+  latitude: number | null;
+  longitude: number | null;
+  /** 지도에 영업 기록으로 떠 있는 매체 ID(CF-0001) — 협업 확정 매장이 지도에 뜨면 매장이 이어받아 "". */
+  mediaId: string;
 }
 
 /** 협업 확정 때 같이 보내는 매장 위치 — 화면이 카카오 지도로 찾는다(서버 주소 검색은 키가 없거나 층 · 호수가 붙으면 못 찾음, 11-12). */
@@ -109,9 +114,15 @@ export type CollabLeadPayload = Partial<
     | "photoIds"
     | "storeId"
     | "storeCode"
+    | "latitude"
+    | "longitude"
+    | "mediaId"
   >
 > & {
-  /** 이 저장으로 협업 확정될 때(회원을 처음 이을 때) 매장 위치 — 저장 값은 아니다. */
+  /**
+   * 화면이 카카오 지도로 찾은 위치 — 영업 기록 지도 위치(090)로 저장하고, 이 저장으로 협업 확정될 때(회원을 처음 이을 때) 매장 위치로도 쓴다.
+   * 주소가 바뀌었는데 못 찾으면(null) 서버가 옛 위치를 지운다.
+   */
   location?: CollabLeadLocation | null;
 };
 

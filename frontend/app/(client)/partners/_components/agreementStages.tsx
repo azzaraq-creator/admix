@@ -37,6 +37,8 @@ import {
   AGREEMENT,
   type Annex,
   CheckMark,
+  type AgreementParty,
+  filledContract,
   formatSignDate,
   ROLE_LABEL,
   rowTone,
@@ -71,14 +73,18 @@ const BIZ_TEXT: Record<string, string> = {
   rejected: "반려 · 다시 올려 주세요",
 };
 
-/** 인증을 기다리는 동안 회원 정보를 다시 받는 간격 — 담당자가 어드민에서 임시 승인하면 바로 풀리게. */
+/** 인증을 기다리는 동안 회원 정보를 다시 받는 간격 — 담당자가 어드민에서 임시 승인 · 되돌리기 하면 바로 바뀌게. */
 const BIZ_POLL_MS = 5000;
 
 /**
  * 사업자등록증 — 협약 필수(2026-11-09). 올리거나(검토 중) 담당자가 임시 승인하면 끝.
- * 아직이면 몇 초마다 회원 정보를 다시 받아 임시 승인을 바로 알아챈다.
+ * 인증 완료 · 협약 동의 전까지 몇 초마다 회원 정보를 다시 받아 임시 승인 · 되돌리기 · 반려를 바로 알아챈다.
  * 로그인 전(미리보기)이면 안내만.
  */
+/** 협약서 단계 칸 id — 최종 동의 단계 "서명" · "사업자등록증" 요약을 누르면 이 칸으로 내려간다(11-13 사용자, 모바일 · PC). */
+export const BIZ_LICENSE_ANCHOR = "partner-biz-license";
+export const SIGNATURE_ANCHOR = "partner-signature";
+
 export function BizLicenseBlock({ className }: { className?: string }) {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
@@ -91,14 +97,17 @@ export function BizLicenseBlock({ className }: { className?: string }) {
   const status = reg?.status ?? "unregistered";
   const done = AGREEABLE_BIZ.has(status);
 
+  // 임시 승인 · 검토 중이어도 계속 확인한다 — 담당자가 어드민에서 되돌리거나 반려하면 바로 다시 막히게(11-13 사용자:
+  // 임시 승인을 되돌렸는데 계속 "임시 승인"으로 보였다). 인증을 마쳤거나 협약에 동의한 뒤에는 멈춘다.
+  const watching = member && status !== "verified" && !me?.partner_agreed_at;
   useEffect(() => {
-    if (!member || done) return;
+    if (!watching) return;
     const t = window.setInterval(
       () => void queryClient.invalidateQueries({ queryKey: authKeys.me }),
       BIZ_POLL_MS,
     );
     return () => window.clearInterval(t);
-  }, [member, done, queryClient]);
+  }, [watching, queryClient]);
 
   const uploadFile = (file: File) => {
     setFileError("");
@@ -106,7 +115,7 @@ export function BizLicenseBlock({ className }: { className?: string }) {
     upload.mutate(file, {
       onSuccess: () =>
         toast("사업자등록증을 올렸어요", {
-          description: "이제 최종 동의할 수 있어요.",
+          description: "이제 최종 확인할 수 있어요.",
           timeout: TOAST_TIMEOUT,
         }),
       onError: (err) => {
@@ -123,8 +132,9 @@ export function BizLicenseBlock({ className }: { className?: string }) {
 
   return (
     <div
+      id={BIZ_LICENSE_ANCHOR}
       className={cn(
-        "rounded-[24px] border p-[16px]",
+        "scroll-mt-[16px] rounded-[24px] border p-[16px]",
         done ? "border-gray-100 bg-gray-50" : "border-gray-200 bg-surface",
         className,
       )}
@@ -191,6 +201,7 @@ export function AnnexStage({
   role,
   onRole,
   signerName,
+  askSignerName,
   onSignerName,
   signature,
   signed,
@@ -208,6 +219,8 @@ export function AnnexStage({
   role: Role;
   onRole: (role: Role) => void;
   signerName: string;
+  /** 가입 정보로 서명자 이름을 알 수 없을 때만 이름 칸을 띄운다(11-13 사용자: 이름 칸은 뺀다). */
+  askSignerName: boolean;
   onSignerName: (name: string) => void;
   /** 지금 그린 손 서명(PNG data URL) — 단계를 오가도 칸에 다시 깔린다. */
   signature: string | null;
@@ -227,10 +240,10 @@ export function AnnexStage({
     <>
       {/* 제목 뒤 빨간 점 — 중요 표시(11-10 사용자). 페이지 제목(기본협약 동의) 보라 점과 같은 모양, 제목 크기에 맞춰 한 단계 작게. */}
       <StageHeading
-        eyebrow="2 / 4 · 협약서"
+        eyebrow="2 / 4 · 전자 서명"
         title={
           <>
-            협약서 (전자결재)
+            전자 서명
             <span
               aria-hidden
               className="ml-[4px] inline-block size-[6px] rounded-full bg-red-500 align-baseline sm:ml-[5px] sm:size-[7px]"
@@ -242,6 +255,7 @@ export function AnnexStage({
 
       {/* 별지 — 누르면 창으로 열고, 창 아래 "읽고 확인했어요"로 확인. */}
       <div className="mt-[20px] flex items-center justify-between sm:mt-[24px]">
+        {/* "필수" 배지는 뺐다 — 이 단계는 다 필수라 별지에만 붙으면 어색하다(11-13 사용자). */}
         <h3 className="text-[15px] font-bold text-gray-900">별지</h3>
         <span className="text-[13px] font-semibold text-gray-400">
           {viewedCount} / {required.length} 확인
@@ -252,7 +266,7 @@ export function AnnexStage({
           const done = viewed.includes(a.id);
           return (
             <li key={a.id}>
-              {/* 무채색 위주 — 할 일(안 본 필수 별지)은 흰 바탕 + 회색 테두리 + 옅은 빨강 "필수" 배지 + 테두리 "열어 보기" 버튼,
+              {/* 무채색 위주 — 할 일(안 본 별지)은 흰 바탕 + 회색 테두리 + 테두리 "확인하기" 버튼(11-13 사용자: 꼭 읽고 체크하는 내용이라 "열어 보기" 대신),
                   다 봤으면 회색 바탕 + 체크 + "확인 완료"로 가라앉힌다. 줄 높이 약 60px → 곡률 21px. */}
               <button
                 type="button"
@@ -273,28 +287,29 @@ export function AnnexStage({
                     <FileTextIcon className="size-[13px]" />
                   </span>
                 )}
+                {/* "필수" 배지는 붙이지 않는다(11-13 사용자: 다 필수라 어색) — 줄에는 확인 완료 · 참고만. */}
                 <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-[8px] gap-y-[4px]">
                   <b className="text-[14px] font-semibold break-keep text-gray-900">
                     {a.title}
                   </b>
-                  <span
-                    className={cn(
-                      "rounded-full px-[8px] py-[2px] text-[11px] font-bold whitespace-nowrap",
-                      done
-                        ? "bg-gray-200 text-gray-500"
-                        : a.required
-                          ? "bg-red-50 text-red-500 dark:bg-red-500/10"
+                  {(done || !a.required) && (
+                    <span
+                      className={cn(
+                        "rounded-full px-[8px] py-[2px] text-[11px] font-bold whitespace-nowrap",
+                        done
+                          ? "bg-gray-200 text-gray-500"
                           : "bg-gray-200 text-gray-600",
-                    )}
-                  >
-                    {done ? "확인 완료" : a.required ? "필수" : "참고"}
-                  </span>
+                      )}
+                    >
+                      {done ? "확인 완료" : "참고"}
+                    </span>
+                  )}
                 </span>
                 {done ? (
                   <ChevronRightIcon className="size-[16px] shrink-0 text-gray-400" />
                 ) : (
                   <span className="flex shrink-0 items-center gap-[2px] rounded-full border border-gray-200 py-[5px] pr-[7px] pl-[11px] text-[12px] font-semibold whitespace-nowrap text-gray-700">
-                    열어 보기
+                    확인하기
                     <ChevronRightIcon className="size-[14px]" />
                   </span>
                 )}
@@ -320,9 +335,9 @@ export function AnnexStage({
         </p>
       </TextModal>
 
-      {/* 당사자 — 협약 제공자 · 협력 매장. */}
+      {/* 당사자 — 협약 제공자 · 협력 매장. 모바일도 PC처럼 좌우 두 칸, 칸 · 글자는 한 단계 작게(11-13 사용자: "사이즈를 줄여"). */}
       <h3 className="mt-[24px] text-[15px] font-bold text-gray-900">당사자</h3>
-      <div className="mt-[10px] grid gap-[8px] sm:grid-cols-2">
+      <div className="mt-[10px] grid grid-cols-2 gap-[8px] max-sm:gap-[6px]">
         {[
           {
             label: "협약 제공자",
@@ -337,15 +352,15 @@ export function AnnexStage({
         ].map(({ label, name, note }) => (
           <div
             key={label}
-            className="rounded-[21px] border border-gray-100 bg-gray-50 p-[14px]"
+            className="rounded-[21px] border border-gray-100 bg-gray-50 p-[14px] max-sm:rounded-[17px] max-sm:px-[12px] max-sm:py-[10px]"
           >
-            <small className="text-[12px] font-semibold text-gray-400">
+            <small className="text-[12px] font-semibold text-gray-400 max-sm:text-[11px]">
               {label}
             </small>
-            <b className="mt-[2px] block text-[14px] font-bold text-gray-900">
+            <b className="mt-[2px] block text-[14px] font-bold text-gray-900 max-sm:mt-0 max-sm:text-[13px]">
               {name}
             </b>
-            <p className="mt-[2px] text-[12px] break-keep text-gray-500">
+            <p className="mt-[2px] text-[12px] break-keep text-gray-500 max-sm:mt-0 max-sm:text-[11px]">
               {note}
             </p>
           </div>
@@ -386,16 +401,13 @@ export function AnnexStage({
           </Radio>
         ))}
       </RadioGroup>
-      <p className="mt-[8px] text-[12px] leading-[1.6] break-keep text-gray-500">
-        서명자 구분을 바꾸면 별지 확인과 서명을 다시 해요. 위임받은 담당자는
-        위임 권한 확인 자료도 확인해야 해요.
-      </p>
 
       {/* 서명 — 휴대폰 명의 본인확인 대신 서명자 이름 + 손 서명(11-10 사용자: "전자 사인으로"). 최종 동의 때 서버에 남고 계약서 서명란에 들어간다.
           아직이면 흰 바탕 + 회색 테두리, 마쳤으면 회색 바탕으로 가라앉힌다. 서명자 구분을 바꾸면 다시 한다(칸을 새로 그린다, key). */}
       <div
+        id={SIGNATURE_ANCHOR}
         className={cn(
-          "mt-[20px] rounded-[24px] border p-[16px]",
+          "mt-[20px] scroll-mt-[16px] rounded-[24px] border p-[16px]",
           signed ? "border-gray-100 bg-gray-50" : "border-gray-200 bg-surface",
         )}
       >
@@ -431,36 +443,29 @@ export function AnnexStage({
           )
         ) : (
           <>
-            <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-600">
-              {ROLE_LABEL[role]} 본인이 직접 서명해 주세요. 최종 동의하면 이
-              이름과 서명이 협약서 서명란에 들어가요.
-            </p>
-            <TextField
-              value={signerName}
-              onChange={onSignerName}
-              maxLength={50}
-              autoComplete="name"
-              fullWidth
-              className="mt-[14px] gap-[6px]"
-            >
-              <Label className="text-[13px] font-semibold text-gray-700">
-                서명자 이름
-              </Label>
-              <Input className="h-[44px] rounded-[19px]" />
-            </TextField>
+            {askSignerName && (
+              <TextField
+                value={signerName}
+                onChange={onSignerName}
+                maxLength={50}
+                autoComplete="name"
+                fullWidth
+                className="mt-[14px] gap-[6px]"
+              >
+                <Label className="text-[13px] font-semibold text-gray-700">
+                  서명자 이름
+                </Label>
+                <Input className="h-[44px] rounded-[19px]" />
+              </TextField>
+            )}
             {/* 그리고 "완료"를 눌러야 서명 완료(11-10 사용자). 이름이 비었으면 완료를 막는다. */}
             <SignaturePad
               key={role}
               defaultValue={signature}
               onChange={onSignature}
-              completeDisabled={!signerName.trim()}
+              completeDisabled={askSignerName && !signerName.trim()}
               className="mt-[12px]"
             />
-            {!signerName.trim() && !signature && (
-              <p className="mt-[6px] text-right text-[12px] break-keep text-gray-500">
-                서명자 이름을 적으면 완료할 수 있어요.
-              </p>
-            )}
           </>
         )}
       </div>
@@ -517,6 +522,8 @@ export function ConsentStage({
   blockers,
   onGoTopics,
   onGoAnnex,
+  onGoSign,
+  onGoBiz,
   onSubmit,
   agreed = false,
   onGoDocument,
@@ -542,6 +549,9 @@ export function ConsentStage({
   blockers: string[];
   onGoTopics: () => void;
   onGoAnnex: () => void;
+  /** "서명" · "사업자등록증" 요약 — 없으면 onGoAnnex. */
+  onGoSign?: () => void;
+  onGoBiz?: () => void;
   onSubmit: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -571,19 +581,19 @@ export function ConsentStage({
       label: "서명",
       value: signed ? "완료" : "서명 전",
       done: signed,
-      onPress: onGoAnnex,
+      onPress: onGoSign ?? onGoAnnex,
     },
     {
       label: "사업자등록증",
       value: bizDone ? "확인" : "올리기 전",
       done: bizDone,
-      onPress: onGoAnnex,
+      onPress: onGoBiz ?? onGoAnnex,
     },
   ];
 
   return (
     <>
-      <StageHeading eyebrow="3 / 4 · 최종 동의" title="최종 동의" />
+      <StageHeading eyebrow="3 / 4 · 최종 확인" title="최종 확인" />
 
       <div className="mt-[16px] rounded-[21px] bg-gray-50/80 px-[16px] py-[12px] sm:mt-[20px]">
         <small className="text-[12px] font-semibold text-gray-400">
@@ -645,19 +655,7 @@ export function ConsentStage({
         ))}
       </ul>
 
-      {/* 남은 일 — 다 끝나야 버튼이 켜진다. */}
-      {!agreed && blockers.length > 0 && (
-        <div className="mt-[16px] rounded-[21px] bg-gray-50/80 px-[16px] py-[12px]">
-          <b className="text-[13px] font-bold text-gray-800">
-            진행 전 확인할 사항
-          </b>
-          <ul className="mt-[6px] flex list-disc flex-col gap-[2px] pl-[18px] text-[13px] leading-[1.6] break-keep text-gray-600">
-            {blockers.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* 남은 일 목록("진행 전 확인할 사항")은 뺐다(11-13 사용자) — 위 진행 칸 · 체크로 보이고, 다 끝나야 버튼이 켜진다. */}
 
       {agreed ? (
         <div className="mt-[20px] flex flex-col gap-[12px] sm:mt-[24px]">
@@ -670,7 +668,7 @@ export function ConsentStage({
             onPress={onGoDocument}
             className="h-[52px] rounded-[23px] text-[15px] font-bold"
           >
-            계약서 보기
+            협약서 보기
             <ChevronRightIcon className="size-[16px]" />
           </Button>
         </div>
@@ -679,7 +677,7 @@ export function ConsentStage({
           fullWidth
           size="lg"
           // 모든 체크(핵심 주제 · 필수 별지 · 서명 · 사업자등록증 · 최종 동의 3개)가 켜져야 눌린다(11-10 사용자).
-          // 남은 일은 버튼 위 목록(blockers)에 보인다.
+          // 남은 일(blockers)은 목록으로 보이지 않고 버튼만 막는다(11-13 사용자).
           isDisabled={blockers.length > 0}
           className="mt-[20px] h-[52px] rounded-[23px] text-[15px] font-bold shadow-[0_12px_28px_rgba(122,63,224,0.4)] data-[disabled=true]:shadow-none sm:mt-[24px]"
           onPress={() => setConfirmOpen(true)}
@@ -688,10 +686,6 @@ export function ConsentStage({
           <ChevronRightIcon className="size-[16px]" />
         </Button>
       )}
-      <p className="mt-[12px] text-center text-[12px] leading-[1.6] break-keep text-gray-500">
-        같은 최종 문서에 admix도 승인해야 체결돼요. 개별 콜라보는 매장이
-        신청하고 최종 확정해야 진행돼요.
-      </p>
 
       {/* 최종 확인 창 — 동의 대상을 한 번 더 보여 주고 동의 접수. */}
       <Modal.Backdrop
@@ -818,24 +812,27 @@ function DocTable({
 export function DocumentStage({
   onNext,
   signature,
+  party = null,
 }: {
   onNext?: () => void;
   /** 카페 쪽 서명란에 넣을 서명(없으면 빈 서명란 그대로). */
   signature?: SignatureRecord | null;
+  /** 가입 때 적은 매장 정보(089, 11-13 사용자) — 서명란 · 별지의 매장 측 빈칸을 채운다(없으면 빈칸 그대로). */
+  party?: AgreementParty | null;
 }) {
   const isDesktop = useIsDesktop();
   // 모바일 — 종이 대신 버튼 → 계약서 창(11-08 사용자: "팝업 띄워서 볼 수 있게").
   const [docOpen, setDocOpen] = useState(false);
   /** PDF 다운로드 — PC 는 미리보기로 만든 것을 그대로, 모바일은 누를 때 만든다. */
-  const pdf = useDownloadAgreementPdf(signature ?? null);
+  const pdf = useDownloadAgreementPdf(signature ?? null, undefined, party);
 
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-[12px]">
         <div className="min-w-0">
           <StageHeading
-            eyebrow="4 / 4 · 계약서·다운로드"
-            title="계약서 전체 보기"
+            eyebrow="4 / 4 · 협약서·다운로드"
+            title="협약서 전체 보기"
           />
         </div>
         {/* 모바일은 머리에서 빼고 아래 계약서 카드 안 버튼으로(11-08 사용자: "깔끔하게 정리").
@@ -850,7 +847,7 @@ export function DocumentStage({
             src="/icons/pdf.svg"
             alt=""
             width={34}
-            height={36}
+            height={34}
             className="-my-[8px] shrink-0"
           />
           PDF 다운로드
@@ -908,11 +905,11 @@ export function DocumentStage({
       </div>
       <TextModal
         isOpen={docOpen}
-        title="계약서 전체 보기"
+        title="협약서 전체 보기"
         onClose={() => setDocOpen(false)}
       >
         <div className="text-[13px] leading-[1.65] break-keep text-gray-700">
-          <DocContent signature={signature} />
+          <DocContent signature={signature} party={party} />
         </div>
       </TextModal>
 
@@ -920,6 +917,7 @@ export function DocumentStage({
       {isDesktop && (
         <AgreementPdfViewer
           signature={signature ?? null}
+          party={party}
           className="mt-[20px] max-sm:hidden"
         />
       )}
@@ -948,11 +946,19 @@ export function DocumentStage({
  * 계약서 본문 — 모바일 계약서 창(전체 보기). PC 는 같은 내용을 PDF 미리보기(agreementPdf)로 본다.
  * 제목은 모바일 17px(11-08 사용자: "타이틀 폰트 줄여줘").
  */
-function DocContent({ signature }: { signature?: SignatureRecord | null }) {
+function DocContent({
+  signature,
+  party = null,
+}: {
+  signature?: SignatureRecord | null;
+  party?: AgreementParty | null;
+}) {
+  // 매장 측 빈칸(상호 · 사업자등록번호 · 주소 · 대표자 · 별지)은 가입 때 적은 매장 정보로 채운 표 — PDF 와 같다.
+  const contract = filledContract(party, signature?.name);
   // 서명란 카페 운영사업자 칸(셋째 칸) — 서명자 · 손 서명 · 서명일을 채운다.
   const signCells: Record<string, ReactNode> = {};
   if (signature) {
-    DOC.signatureTable.forEach((row, r) => {
+    contract.signatureTable.forEach((row, r) => {
       if (row[0] === "대표자 또는 수임자")
         signCells[`${r}-2`] =
           `${signature.name} (${ROLE_LABEL[signature.role]})`;
@@ -999,15 +1005,17 @@ function DocContent({ signature }: { signature?: SignatureRecord | null }) {
 
       <p className="mt-[24px] font-semibold text-gray-900">{DOC.closing}</p>
       <div className="mt-[10px] overflow-x-auto">
-        <DocTable rows={DOC.signatureTable} head="row" cells={signCells} />
+        <DocTable rows={contract.signatureTable} head="row" cells={signCells} />
       </div>
 
       <h2 className="mt-[32px] text-[15px] font-bold text-gray-900">
         {DOC.annexTitle}
       </h2>
-      <p className="mt-[4px] font-semibold text-gray-800">{DOC.annexStore}</p>
+      <p className="mt-[4px] font-semibold text-gray-800">
+        {contract.annexStore}
+      </p>
       <div className="mt-[10px] overflow-x-auto">
-        <DocTable rows={DOC.annexTable} head="col" />
+        <DocTable rows={contract.annexTable} head="col" />
       </div>
       <div className="mt-[10px] flex flex-col gap-[4px]">
         {DOC.annexNotes.map((n) => (

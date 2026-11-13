@@ -17,6 +17,8 @@ import type { PDFFont, PDFImage } from "pdf-lib";
 
 import {
   AGREEMENT,
+  type AgreementParty,
+  filledContract,
   formatSignDate,
   ROLE_LABEL,
   SECTIONS,
@@ -322,7 +324,10 @@ function pageTitle(labels: Label[]) {
 
 export async function buildAgreementPdf(
   signature: SignatureRecord | null,
+  /** 가입 때 적은 매장 정보(089) — 서명란 · 별지의 매장 측 빈칸을 채운다. 없으면 빈칸 그대로. */
+  party: AgreementParty | null = null,
 ): Promise<AgreementPdf> {
+  const contract = filledContract(party, signature?.name);
   const [
     { PDFDocument, rgb, LineCapStyle },
     fontkit,
@@ -349,7 +354,12 @@ export async function buildAgreementPdf(
   let [pdf, regular, bold] = await start(subsetFonts);
   // subset 에 없는 글자(드문 이름 글자 등)가 있으면 전체 글꼴로. 못 받으면 subset 그대로(없는 글자는 빈칸).
   const covered = new Set(regular.getCharacterSet());
-  const allText = JSON.stringify([DOC, SECTIONS, signature?.name ?? ""]);
+  const allText = JSON.stringify([
+    DOC,
+    SECTIONS,
+    signature?.name ?? "",
+    contract,
+  ]);
   if (Array.from(allText).some((ch) => !covered.has(ch.codePointAt(0) ?? 0))) {
     try {
       [pdf, regular, bold] = await start(await loadFonts(FULL_FONT_URLS));
@@ -569,7 +579,8 @@ export async function buildAgreementPdf(
 
   /* 4. 서명란 — 맺음말과 표를 한 쪽에(나뉘면 다음 쪽으로). */
   block = { key: "sign", text: "서명란" };
-  const signRows: Cell[][] = DOC.signatureTable.map((row) =>
+  // 매장 측 칸은 가입 때 적은 매장 정보로 채운 표(filledContract) — 서명했으면 아래에서 서명자 · 서명 · 서명일로 덮는다.
+  const signRows: Cell[][] = contract.signatureTable.map((row) =>
     row.map((text) => ({ text })),
   );
   if (signature) {
@@ -594,9 +605,9 @@ export async function buildAgreementPdf(
   block = { key: "annex", text: "별지" };
   newPage();
   heading(DOC.annexTitle, 12.5, 0, 4);
-  paragraph(DOC.annexStore, { bold: true, color: COLOR.ink, gap: 10 });
+  paragraph(contract.annexStore, { bold: true, color: COLOR.ink, gap: 10 });
   table(
-    DOC.annexTable.map((row) => row.map((text) => ({ text }))),
+    contract.annexTable.map((row) => row.map((text) => ({ text }))),
     [0.28, 0.72],
     { headCol: true },
   );

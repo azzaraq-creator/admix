@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -55,11 +55,21 @@ class CollabLead(Base):
     store_id = Column(
         UUID(as_uuid=True), ForeignKey("cafe_store.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # 광고주 지도(090, 2026-11-13 사용자 — 협업 확정 전 매장도 지도에) — 주소(없으면 지번주소)를 화면이 카카오 지도로 찾은 위치.
+    latitude = Column(Numeric(10, 7), nullable=True)
+    longitude = Column(Numeric(10, 7), nullable=True)
+    city = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    # 업체 유형(biz_type)을 맞춘 매장 유형(카페 · 식당 …) — 매장 찾기 유형 탭. 지도 줄을 맞출 때 같이 정한다.
+    store_type_id = Column(Integer, ForeignKey("cafe_store_type.id", ondelete="SET NULL"), nullable=True)
+    # 지도용 media 줄(CF-0001). 협업 확정 매장이 지도에 뜨면 그 매장이 이 줄(매체 ID)을 이어받고 여기는 비운다.
+    media_id = Column(String(20), ForeignKey("media.media_id", ondelete="SET NULL"), nullable=True, unique=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     partner = relationship("User", foreign_keys=[partner_user_id], lazy="selectin")
     store = relationship("PartnersStore", foreign_keys=[store_id], lazy="selectin")
+    store_type = relationship("PartnersStoreType", foreign_keys=[store_type_id], lazy="selectin")
 
 
 class CollabLeadSetting(Base):

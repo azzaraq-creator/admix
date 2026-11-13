@@ -9,6 +9,17 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from src.schemas.member import BusinessRegistrationOut, MemberCategory
 
 
+class PartnerStoreInfo(BaseModel):
+    """제휴사 가입 "매장 정보"(089, 2026-11-13 사용자) — 상호 · 사업자 번호 · 대표자명 · 주소는 필수, 상세 주소는 선택.
+    사업자 번호는 숫자 10자리('-'는 있어도 없어도 된다 — 서버가 000-00-00000 으로 맞춰 저장)."""
+
+    business_name: str = Field(max_length=200)
+    business_registration_no: str = Field(max_length=30)
+    representative_name: str = Field(max_length=100)
+    address: str = Field(max_length=500)
+    address_detail: str | None = Field(default=None, max_length=200)
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
@@ -21,6 +32,8 @@ class RegisterRequest(BaseModel):
     # 마케팅 정보 받을 방법(083) — 제휴사 가입 약관 단계에서 고른다. 안 보내면 동의했을 때 둘 다.
     marketing_sms: bool | None = None
     marketing_email: bool | None = None
+    # 제휴사(콜라보)는 꼭 보낸다(089) — 다른 유형은 보내도 저장하지 않는다.
+    store_info: PartnerStoreInfo | None = None
     session_id: str | None = None
 
 
@@ -147,3 +160,5 @@ class SnsCompleteRequest(BaseModel):
     name: str | None = None
     phone: str | None = None
     company_name: str | None = None
+    # 제휴사(콜라보) 매장 정보(089) — RegisterRequest 와 같다.
+    store_info: PartnerStoreInfo | None = None

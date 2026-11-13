@@ -61,11 +61,19 @@ export function CardHeading({
   title,
   description,
   center,
+  titleAside,
 }: {
-  title: string;
+  title: ReactNode;
   description: ReactNode;
   center?: boolean;
+  /** 제목 줄 오른쪽 끝에 붙는 작은 버튼 등(예: 가입 1단계 모바일 "유형 비교"). */
+  titleAside?: ReactNode;
 }) {
+  const heading = (
+    <Card.Title className="text-[24px] leading-normal font-bold text-gray-900 max-sm:text-[19px] sm:text-[28px]">
+      {title}
+    </Card.Title>
+  );
   return (
     <Card.Header
       className={cn(
@@ -73,9 +81,14 @@ export function CardHeading({
         center && "text-center",
       )}
     >
-      <Card.Title className="text-[24px] leading-normal font-bold text-gray-900 max-sm:text-[19px] sm:text-[28px]">
-        {title}
-      </Card.Title>
+      {titleAside ? (
+        <div className="flex items-center justify-between gap-[8px]">
+          {heading}
+          {titleAside}
+        </div>
+      ) : (
+        heading
+      )}
       <Card.Description className="text-[14px] leading-[1.5] break-keep text-gray-500 max-sm:text-[12px]">
         {description}
       </Card.Description>

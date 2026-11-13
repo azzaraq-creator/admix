@@ -12,12 +12,17 @@ import {
 } from "@heroui/react";
 import { useState } from "react";
 
+import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
 import { EyeIcon, InfoIcon } from "@/components/icons";
-import { authApi, type ProfileUpdatePayload } from "@/hooks/auth";
+import {
+  authApi,
+  type PartnerStoreInfoPayload,
+  type ProfileUpdatePayload,
+} from "@/hooks/auth";
 import {
   PHONE_INPUT_MAX_LENGTH,
   formatPhoneInput,
@@ -33,6 +38,7 @@ import {
   FieldMessage,
   PrimaryAction,
   RADIUS,
+  SideButton,
   SignupCard,
 } from "./signupUi";
 
@@ -49,6 +55,15 @@ export type SignupInfo = {
    */
   position: string;
   department: string;
+  /**
+   * 제휴사(콜라보) 매장 정보(11-13 사용자) — 상호 · 사업자 번호(숫자만) · 대표자명 · 주소(카카오 우편번호 검색)는 필수, 상세 주소는 선택.
+   * 가입 요청에 같이 보내 사업자 등록 줄에 저장한다(089).
+   */
+  storeName: string;
+  bizNo: string;
+  ceoName: string;
+  address: string;
+  addressDetail: string;
 };
 
 export const EMPTY_SIGNUP_INFO: SignupInfo = {
@@ -60,7 +75,34 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   file: null,
   position: "",
   department: "",
+  storeName: "",
+  bizNo: "",
+  ceoName: "",
+  address: "",
+  addressDetail: "",
 };
+
+/** 사업자 번호 숫자 자릿수 — 000-00-00000. */
+const BIZ_NO_DIGITS = 10;
+
+/** 사업자 번호 입력 — 숫자만 10자리까지 받아 000-00-00000 으로 나눠 보여 준다. */
+function formatBizNoInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, BIZ_NO_DIGITS);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+}
+
+/** 제휴사 가입 요청에 실을 매장 정보(089). */
+export function storeInfoOf(info: SignupInfo): PartnerStoreInfoPayload {
+  return {
+    business_name: info.storeName.trim(),
+    business_registration_no: info.bizNo,
+    representative_name: info.ceoName.trim(),
+    address: info.address,
+    address_detail: info.addressDetail.trim() || null,
+  };
+}
 
 /** 가입 뒤 내 정보에 저장할 담당자 정보 — 적은 칸만(없으면 null, 저장 요청을 보내지 않는다). */
 export function contactOf(info: SignupInfo): ContactInfo | null {
@@ -111,7 +153,8 @@ export function InfoStep({
   /** 일반 회원에게는 사업자등록증 칸을 보이지 않는다. */
   showBizCert: boolean;
   /**
-   * 제휴사(콜라보) — "정보 추가 입력"(회사명) · 사업자등록증 칸 없이 이름 · 연락처까지만.
+   * 제휴사(콜라보) — "정보 추가 입력"(회사명) · 사업자등록증 칸 없이, 연락처 아래 구분선 · "매장 정보"(상호 · 사업자 번호 ·
+   * 대표자명 · 주소 필수, 상세 주소 선택, 11-13 사용자). 주소는 카카오(다음) 우편번호 검색으로 고르고 상세 주소(층 · 호)는 직접 적는다.
    * 사업자등록증은 기본협약 협약서 단계에서 같은 모양(BizLicenseDropzone)으로 올린다(11-10 사용자).
    */
   partner?: boolean;
@@ -135,6 +178,7 @@ export function InfoStep({
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [addressOpen, setAddressOpen] = useState(false);
 
   const set = <K extends keyof SignupInfo>(key: K, value: SignupInfo[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -158,6 +202,16 @@ export function InfoStep({
     phone: isValidPhone(values.phone)
       ? ""
       : "전화번호를 9~11자리 숫자로 입력해 주세요.",
+    // 제휴사(콜라보) 매장 정보 — 상세 주소만 선택이고 나머지는 필수(11-13 사용자: "상세 주소는 선택 입력").
+    storeName:
+      partner && !values.storeName.trim() ? "상호를 입력해 주세요." : "",
+    bizNo:
+      partner && values.bizNo.length !== BIZ_NO_DIGITS
+        ? "사업자 번호 10자리를 입력해 주세요."
+        : "",
+    ceoName:
+      partner && !values.ceoName.trim() ? "대표자명을 입력해 주세요." : "",
+    address: partner && !values.address ? "주소를 검색해 주세요." : "",
   };
   const valid = !Object.values(errors).some(Boolean);
 
@@ -334,6 +388,9 @@ export function InfoStep({
           </>
         )}
 
+        {/* 계정(이메일 · 비밀번호)과 본인 정보(이름부터)를 가르는 줄 — 아래 광고주 구분선과 같은 모양(11-13 사용자). */}
+        <Separator className="my-[4px] bg-tone-ececef" />
+
         <TextField
           autoComplete="name"
           value={values.name}
@@ -378,9 +435,131 @@ export function InfoStep({
           )}
         </TextField>
 
-        {/* 제휴사(콜라보)는 회사명 · 사업자등록증을 받지 않는다 — 사업자등록증은 기본협약 협약서 단계에서 올린다(11-10 사용자). */}
+        {/* 제휴사(콜라보)는 회사명 · 사업자등록증 대신 구분선 · "매장 정보"(상호 · 사업자 번호 · 대표자명 · 주소, 필수, 11-13 사용자).
+            사업자등록증은 기본협약 협약서 단계에서 올린다(11-10 사용자). */}
         {/* 광고주 — 구분선 · 회사명 · 담당자 정보(직함 · 소속팀) · 구분선 · 사업자등록증 순(11-11 사용자). */}
-        {partner ? null : advertiser ? (
+        {partner ? (
+          <>
+            <Separator className="my-[4px] bg-tone-ececef" />
+            <p className="text-[15px] font-bold text-gray-900">매장 정보</p>
+            <TextField
+              autoComplete="organization"
+              value={values.storeName}
+              onChange={(value) => set("storeName", value)}
+              isInvalid={submitted && !!errors.storeName}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel required>상호</FieldLabel>
+              <Input
+                placeholder="상호를 입력해 주세요."
+                maxLength={200}
+                className="h-[44px] rounded-[19px]"
+              />
+              <FieldError>{errors.storeName}</FieldError>
+            </TextField>
+            <TextField
+              inputMode="numeric"
+              autoComplete="off"
+              // 화면에는 000-00-00000 으로 나눠 보여 주고, 값(전송 · 검사)은 숫자만 둔다 — 연락처와 같은 방식.
+              value={formatBizNoInput(values.bizNo)}
+              onChange={(value) =>
+                set("bizNo", formatBizNoInput(value).replace(/\D/g, ""))
+              }
+              isInvalid={submitted && !!errors.bizNo}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel required>사업자 번호</FieldLabel>
+              <Input
+                placeholder="123-45-67890"
+                maxLength={BIZ_NO_DIGITS + 2}
+                className="h-[44px] rounded-[19px]"
+              />
+              <FieldError>{errors.bizNo}</FieldError>
+              {!(submitted && errors.bizNo) && (
+                <Description>
+                  {"숫자만 입력하면 '-'는 자동으로 들어갑니다."}
+                </Description>
+              )}
+            </TextField>
+            <TextField
+              autoComplete="off"
+              value={values.ceoName}
+              onChange={(value) => set("ceoName", value)}
+              isInvalid={submitted && !!errors.ceoName}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel required>대표자명</FieldLabel>
+              <Input
+                placeholder="대표자명을 입력해 주세요."
+                maxLength={100}
+                className="h-[44px] rounded-[19px]"
+              />
+              <FieldError>{errors.ceoName}</FieldError>
+            </TextField>
+            {/* 주소 — 칸이나 "주소 검색"을 누르면 카카오(다음) 우편번호 검색 창(AddressSearchModal, 어드민 매장 주소와 같다). 상세 주소(층 · 호수)는 직접, 선택. */}
+            <TextField
+              value={values.address}
+              isReadOnly
+              isInvalid={submitted && !!errors.address}
+              fullWidth
+              className="gap-[8px]"
+            >
+              <FieldLabel required>주소</FieldLabel>
+              <div className="flex w-full gap-[12px] max-sm:gap-[8px]">
+                <Input
+                  placeholder="주소를 검색해 주세요."
+                  onClick={() => setAddressOpen(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setAddressOpen(true);
+                    }
+                  }}
+                  className="h-[44px] cursor-pointer rounded-[19px]"
+                />
+                <SideButton
+                  onPress={() => setAddressOpen(true)}
+                  className="max-sm:w-[64px] max-sm:text-[12px]"
+                >
+                  {/* 버튼 안 글자는 한 덩어리(span)로 — 버튼의 요소 간격이 글자 사이에 끼지 않게. */}
+                  <span>
+                    <span className="max-sm:hidden">주소 </span>검색
+                  </span>
+                </SideButton>
+              </div>
+              <FieldError>{errors.address}</FieldError>
+            </TextField>
+            <TextField
+              aria-label="상세 주소"
+              autoComplete="off"
+              value={values.addressDetail}
+              onChange={(value) => set("addressDetail", value)}
+              fullWidth
+              className="-mt-[8px]"
+            >
+              <Input
+                placeholder="상세 주소를 입력해 주세요. (선택)"
+                maxLength={200}
+                className="h-[44px] rounded-[19px]"
+              />
+            </TextField>
+            <AddressSearchModal
+              isOpen={addressOpen}
+              onOpenChange={setAddressOpen}
+              onSelect={(data) =>
+                set(
+                  "address",
+                  data.roadAddress ||
+                    data.jibunAddress ||
+                    data.autoJibunAddress,
+                )
+              }
+            />
+          </>
+        ) : advertiser ? (
           <>
             <Separator className="my-[4px] bg-tone-ececef" />
             <TextField

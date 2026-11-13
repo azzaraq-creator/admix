@@ -136,7 +136,9 @@ export function SignupShell({
       {/* 모바일은 한 화면에 들어오도록 위아래 여백·간격을 줄이고 위에서부터 채운다. */}
       {/* 화면 높이가 낮은 태블릿·PC(아이패드 가로 등, 820px 이하)는 위아래 여백을 줄여 스크롤이 생기지 않게 한다. */}
       <main className="flex flex-1 flex-col items-center justify-center px-[16px] py-[40px] max-sm:justify-start max-sm:py-[16px] sm:[@media(max-height:820px)]:py-[24px]">
-        <div className="flex w-full max-w-[480px] flex-col gap-[24px] max-sm:flex-1 max-sm:gap-[14px]">
+        {/* 입력칸 글씨 — HeroUI 기본은 모바일 16px · PC 14px라 모바일이 더 커 보여서 모바일도 14px(11-13 사용자).
+            아이폰 확대는 viewport 최대 배율 1(app/layout.tsx)로 막혀 있다. */}
+        <div className="flex w-full max-w-[480px] flex-col gap-[24px] max-sm:flex-1 max-sm:gap-[14px] max-sm:[&_input]:text-[14px]">
           {step != null && <Stepper current={step} />}
           {onBack && (
             <Button

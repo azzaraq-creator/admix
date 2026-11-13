@@ -45,11 +45,14 @@ import {
   StageHeading,
   TextModal,
   annexesFor,
+  partyOf,
 } from "./agreementShared";
 import { JoinAccount, JoinFlow, JoinFlowWithStore } from "./JoinFlow";
 import {
   AGREEABLE_BIZ,
   AnnexStage,
+  BIZ_LICENSE_ANCHOR,
+  SIGNATURE_ANCHOR,
   ConsentStage,
   DocumentStage,
 } from "./agreementStages";
@@ -62,7 +65,7 @@ import {
  * 단계는 언제든 오갈 수 있고, 최종 동의 버튼만 앞 단계를 다 마쳐야 켜진다.
  * 문구는 미리보기의 기본협약(v1.3) 데이터(agreement.json)를 그대로 옮겼다 — 조항을 새로 짓지 않는다.
  * 서명은 협약서 단계에서 서명자 이름 + 손 서명(SignaturePad)으로 받고, 최종 동의 때 서버에 함께 남긴다(078 — 휴대폰 명의 본인확인 대신, 11-10 사용자).
- * 손 서명 그림은 진행 상태에 저장하지 않는다(크기) — 다시 들어오면 이름만 남고 서명은 다시 한다.
+ * 완료한 손 서명 그림(PNG data URL)도 진행 상태에 남긴다 — 새로고침하거나 다시 들어와도 서명이 그대로다(11-13 사용자).
  * 사업자등록증은 꼭 올려야 최종 동의할 수 있다(담당자 임시 승인이면 등록증 없이도, 069).
  * 동의를 접수하면 4단계(계약서)로 넘어가고, 계약서 아래 "대시보드로" — 매장은 담당자가 어드민에서 등록 · 연결한다.
  * 사이드바 메뉴 "기본 협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 연결이 연결 여부 체크로 보이고, "대시보드로" 버튼은 없다.
@@ -79,10 +82,15 @@ type Progress = {
   read: string[];
   role: Role;
   viewed: string[];
-  /** 서명자 이름 — 손 서명 그림은 저장하지 않는다. */
+  /** 직접 적은 서명자 이름(가입 정보로 이름을 알 수 없을 때만). */
   signerName: string;
   consents: boolean[];
+  /** 완료한 손 서명(PNG data URL) — "다시 그리기"면 null. 동의를 마치면 서버가 진행 상태째 지운다. */
+  signature: string | null;
 };
+
+/** 모바일 화면(Tailwind sm 미만)인지 — 누를 때 한 번 본다. */
+const isMobileView = () => window.matchMedia("(max-width: 639.98px)").matches;
 
 const DEFAULT_PROGRESS: Progress = {
   stage: "topics",
@@ -92,6 +100,7 @@ const DEFAULT_PROGRESS: Progress = {
   viewed: [],
   signerName: "",
   consents: [false, false, false],
+  signature: null,
 };
 
 /** 적용 조항 원문 창 — 지금 보는 주제의 조항만. 버튼은 "닫기" 하나. */
@@ -176,6 +185,7 @@ function agreedProgress(saved: Partial<Progress>): Progress {
       .map((a) => a.id),
     signerName: saved.signerName ?? "",
     consents: [true, true, true],
+    signature: null,
   };
 }
 
@@ -200,9 +210,23 @@ function AgreementBody({
   const [read, setRead] = useState<string[]>(saved.read ?? []);
   const [role, setRole] = useState<Role>(saved.role ?? "representative");
   const [viewed, setViewed] = useState<string[]>(saved.viewed ?? []);
-  const [signerName, setSignerName] = useState(saved.signerName ?? "");
-  /** 손 서명(PNG data URL) — 화면 안에서만 들고 있다가 최종 동의 때 보낸다. */
-  const [signature, setSignature] = useState<string | null>(null);
+  /** 직접 적은 서명자 이름 — 가입 정보로 이름을 알 수 없을 때만 받는다. */
+  const [typedSignerName, setTypedSignerName] = useState(
+    saved.signerName ?? "",
+  );
+  // 서명자 이름은 따로 묻지 않는다(11-13 사용자) — 대표자는 가입 때 적은 대표자명(089), 위임 담당자는 회원 이름.
+  // 둘 다 없는 제휴사(매장 정보 없이 가입한 예전 회원)만 협약서 단계에 이름 칸이 뜬다 — 서버가 이름 없는 서명은 받지 않는다.
+  const knownSignerName =
+    (role === "representative"
+      ? me?.business_registration?.representative_name?.trim()
+      : "") ||
+    me?.name?.trim() ||
+    "";
+  const signerName = knownSignerName || typedSignerName;
+  /** 손 서명(PNG data URL) — 진행 상태에 같이 남겨 새로고침해도 칸에 다시 깔리고, 최종 동의 때 보낸다. */
+  const [signature, setSignature] = useState<string | null>(
+    saved.signature ?? null,
+  );
   const [consents, setConsents] = useState(
     saved.consents ?? [false, false, false],
   );
@@ -229,7 +253,10 @@ function AgreementBody({
   const topicsDone = read.length === GROUPS.length;
   const annexDone = annexViewed === requiredAnnex.length;
   // 서명 — 이름 + 손 서명. 이미 동의했으면 끝(서버에 남은 서명을 보여 준다).
-  const signed = submitted || (!!signerName.trim() && !!signature);
+  // 로그인 전 미리보기는 서버에 남기지 않으니 이름 없이 서명만으로 마친다.
+  const askSignerName = member && !knownSignerName;
+  const signed =
+    submitted || (!!signature && (!!signerName.trim() || !askSignerName));
   const signerDone = annexDone && signed;
   // 사업자등록증 — 올렸거나(검토 중 · 인증) 담당자가 임시 승인했으면 끝. 로그인 전 미리보기는 막지 않는다.
   const bizDone =
@@ -263,7 +290,10 @@ function AgreementBody({
     role === "delegate" &&
       !viewed.includes("delegation") &&
       "위임 권한 확인 자료를 확인해 주세요.",
-    !signed && "협약서 단계에서 서명자 이름을 적고 서명해 주세요.",
+    !signed &&
+      (!askSignerName
+        ? "협약서 단계에서 서명해 주세요."
+        : "협약서 단계에서 서명자 이름을 적고 서명해 주세요."),
     !bizDone &&
       "사업자등록증을 올려 주세요. 담당자가 함께 있다면 임시 승인을 요청해 주세요.",
     !consents.every(Boolean) && "최종 동의 항목을 모두 체크해 주세요.",
@@ -277,8 +307,9 @@ function AgreementBody({
     read,
     role,
     viewed,
-    signerName,
+    signerName: typedSignerName,
     consents,
+    signature,
   } satisfies Progress);
   const lastSaved = useRef(JSON.stringify({ ...DEFAULT_PROGRESS, ...saved }));
   useEffect(() => {
@@ -309,14 +340,42 @@ function AgreementBody({
   };
   useEffect(() => cancelAdvance, []);
 
-  const scrollTop = () =>
-    readerTop.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  /**
+   * 단계 · 주제를 바꾸면 읽는 칸 맨 위로. "nearest"는 칸이 화면보다 길면(모바일) 움직이지 않아서,
+   * 모바일은 칸 위끝이 스크롤 영역(main) 위로 올라가 있으면 맨 위에 맞춘다(11-13 사용자: 체크 뒤 다음 주제로 갈 때 위로).
+   */
+  const scrollTop = () => {
+    const el = readerTop.current;
+    if (!el) return;
+    const mobile = isMobileView();
+    const viewTop = el.closest("main")?.getBoundingClientRect().top ?? 0;
+    const above = el.getBoundingClientRect().top < viewTop;
+    el.scrollIntoView({
+      block: mobile && above ? "start" : "nearest",
+      behavior: "smooth",
+    });
+  };
 
   const goStage = (next: Stage) => {
     cancelAdvance();
     setStage(next);
     scrollTop();
   };
+  /** 단계를 옮긴 뒤 그 단계 안 칸(id)으로 내려간다 — 새 단계가 그려진 다음(아래 effect) 민다. */
+  const pendingAnchor = useRef<string | null>(null);
+  const goStageAt = (next: Stage, anchor: string) => {
+    cancelAdvance();
+    pendingAnchor.current = anchor;
+    setStage(next);
+  };
+  useEffect(() => {
+    const id = pendingAnchor.current;
+    if (!id) return;
+    pendingAnchor.current = null;
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [stage]);
   const goTopic = (index: number) => {
     cancelAdvance();
     setStage("topics");
@@ -353,7 +412,7 @@ function AgreementBody({
     if (next === role) return;
     setRole(next);
     setViewed([]);
-    setSignerName("");
+    setTypedSignerName("");
     setSignature(null);
     setConsents([false, false, false]);
   };
@@ -368,7 +427,7 @@ function AgreementBody({
       },
       {
         id: "annex",
-        title: "협약서",
+        title: "전자 서명",
         // 별지 · 서명에 사업자등록증까지 끝나야 체크(11-10 사용자: 등록증 안 올렸는데 체크되면 안 된다).
         detail: !signerDone
           ? "별지와 권한 확인"
@@ -379,14 +438,15 @@ function AgreementBody({
       },
       {
         id: "consent",
-        title: "최종 동의",
+        title: "최종 확인",
         detail: submitted ? "접수 완료" : "확인 내용 모아보기",
         done: submitted,
       },
       {
         id: "document",
-        title: "계약서·다운로드",
-        detail: submitted ? "전체 계약서 보기" : "최종 동의 후 열려요",
+        // 단계 이름 — 2 전자 서명 · 3 최종 확인 · 4 협약서·다운로드(11-13 사용자: "계약서가 아니라 협약서").
+        title: "협약서·다운로드",
+        detail: submitted ? "전체 협약서 보기" : "최종 확인 후 열려요",
         done: false,
       },
     ];
@@ -639,7 +699,8 @@ function AgreementBody({
               role={role}
               onRole={changeRole}
               signerName={signerName}
-              onSignerName={setSignerName}
+              askSignerName={askSignerName}
+              onSignerName={setTypedSignerName}
               signed={signed}
               signature={signature}
               onSignature={setSignature}
@@ -675,6 +736,9 @@ function AgreementBody({
                 goTopic(firstUnread >= 0 ? firstUnread : 0);
               }}
               onGoAnnex={() => goStage("annex")}
+              // 서명 · 사업자등록증은 협약서 단계의 그 칸까지 내려간다(11-13 사용자, 모바일 · PC).
+              onGoSign={() => goStageAt("annex", SIGNATURE_ANCHOR)}
+              onGoBiz={() => goStageAt("annex", BIZ_LICENSE_ANCHOR)}
               onSubmit={async () => {
                 if (submitting) return;
                 if (member) {
@@ -711,6 +775,8 @@ function AgreementBody({
           {stage === "document" && (
             <DocumentStage
               signature={docSignature}
+              // 가입 때 적은 매장 정보(089) — 계약서 서명란 · 별지의 매장 측 빈칸을 채운다(11-13 사용자).
+              party={partyOf(me?.business_registration)}
               onNext={
                 fromMenu || storeRegistered
                   ? undefined
