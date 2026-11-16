@@ -82,6 +82,9 @@ class User(Base):
     status = Column(String(20), nullable=False, default="active")  # active/dormant/sanctioned/withdrawn
     admin_memo = Column(Text, nullable=True)
     withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    # 마지막 로그인(091) — 토큰을 새로 받을 때마다(로그인 · 소셜 · 계정 전환 · 로그인 유지) auth_service.issue_tokens 가 적는다.
+    # updated_at(마지막 업데이트)은 바꾸지 않는다.
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 

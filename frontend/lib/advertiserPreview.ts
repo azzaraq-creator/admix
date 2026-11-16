@@ -137,11 +137,18 @@ export const EXTRA_LABEL: Record<ExtraKind, string> = {
  */
 export const ADMIX_REVIEW_DAYS = 7;
 /**
- * 제작 기간 — 품목과 상관없이 약 30일(영업일). admix 제작 대행이든 직접 제작("제작 예정이에요")이든 같다(11-11 사용자).
- * 일정에 30일을 잡아 주는 값이 아니다(11-12 사용자: "우리만의 계산이라 빠듯할 수 있다고 하면서 다른 날짜를 권하려는 것,
+ * 제작 기간 — 품목과 상관없이 영업일 약 20일(11-16 사용자: 30일에서 "영업일 기준 20일로"). admix 제작 대행이든
+ * 직접 제작("제작 예정이에요")이든 같다(11-11 사용자).
+ * 일정에 20일을 잡아 주는 값이 아니다(11-12 사용자: "우리만의 계산이라 빠듯할 수 있다고 하면서 다른 날짜를 권하려는 것,
  * 준비일을 30일 준다는 게 아니야") — 의뢰서에서 매장 확정 뒤 준비 영업일이 이보다 짧으면 "빠듯해요"와 권하는 시작일만 보인다.
  */
-export const MAKE_DAYS = 30;
+export const MAKE_DAYS = 20;
+/**
+ * admix 제작 대행이 있는데 확정 뒤 준비 영업일이 이만큼 이하 — 빠듯함 안내에 "의뢰를 보고 함께 협의해요"를 더한다
+ * (11-16 사용자: "준비 기간이 14일밖에 안 남았는데 admix 제작을 원하면 기간이 타이트하지만 일단 보고 협의해 보자").
+ * 막지 않는다. 직접 제작만 있으면 붙이지 않는다.
+ */
+export const ADMIX_MAKE_TALK_DAYS = 14;
 /**
  * 진행 확정 뒤 입금 기한 — 영업일 5일(11-11 사용자, 넘기면 위약금) · 취소 시 50% 환불 기간(일).
  * 영업일은 월~금에서 공휴일(krHolidays)을 뺀 날.
@@ -492,7 +499,7 @@ export function approvalDateOf(p: Partial<Pick<AdvCollab, "status" | "requestedA
  * 의뢰 → admix 검토 · 승인(영업일) → 승인 다음 날 모집 공지 → 모집(코스 일수, 주말 포함) → 신청 매장 검토 · 매장 확정(영업일)
  * → 준비(영업일, 확정 다음 날부터 설치 전날까지 남는 날) → 설치 → 진행 → 철수. 설치 · 진행 · 철수는 고른 시작일 · 종료일 기준.
  * 영업일 = 주말 · 공휴일엔 진행하지 않는다(11-12 사용자: admix 검토 · 확정, 제작 · 준비, 매장 확정).
- * 제작 30일(MAKE_DAYS)은 일정에 잡지 않는다 — 의뢰서에서 빠듯함을 알리고 다른 시작일을 권할 때만 쓴다.
+ * 제작 20일(MAKE_DAYS)은 일정에 잡지 않는다 — 의뢰서에서 빠듯함을 알리고 다른 시작일을 권할 때만 쓴다.
  */
 export function scheduleOf(plan: SchedulePlan, today = PREVIEW_TODAY): Schedule {
   const c = COURSE[plan.course];
@@ -520,7 +527,8 @@ export function scheduleOf(plan: SchedulePlan, today = PREVIEW_TODAY): Schedule 
 
 /**
  * 최소 준비 기간(영업일) — 매장 확정 뒤 설치 전까지 이만큼도 안 남으면 의뢰서에서 보내기를 막는다(tooSoon).
- * 준비 기간은 11-11부터 의뢰서에서 받지 않는다.
+ * 준비 기간은 11-11부터 의뢰서에서 받지 않는다. 11-16에 "준비 기간(영업일 1일)"로 1로 줄였다가 같은 날 "최소 3일로 계산해 줘"로 3.
+ * 의뢰서 달력에서 고를 수 있는 첫날(earliestRequestStart)도 이 값으로 센다.
  */
 export const MIN_PREP_DAYS = 3;
 
@@ -531,11 +539,12 @@ export const MIN_PREP_DAYS = 3;
  */
 export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
   const s = scheduleOf({ ...d, status: undefined, requestedAt: undefined, approvedAt: undefined }, today);
-  // 준비 기간은 기본 3영업일보다 짧으면 의뢰를 막는다(tooSoon). 제작하는 기본안이 있으면 30영업일이 권장인데,
+  // 준비 기간은 기본 3영업일보다 짧으면 의뢰를 막는다(tooSoon). 제작하는 기본안이 있으면 20영업일(MAKE_DAYS)이 권장인데,
   // 못 채워도 막지 않고 알려만 준다(tight — 11-11 사용자: "못하는 건 아니고 못할 수도 있으니 인지하라는 말").
   // 처음엔 admix에 맡긴 제작만 30영업일로 막았는데, 같은 날 사용자가 직접 제작과 똑같이 늦추기를 권하고
   // 그대로 진행하면 책임은 광고주에게 있다고만 알리게 했다.
   const make = makeItems(d).length > 0;
+  const admixMake = admixMakeItems(d).length > 0;
   const minPrep = MIN_PREP_DAYS;
   const prep = businessDaysBetween(addDays(s.confirmDue, 1), addDays(s.installStart, -1));
   const tooSoon = prep < minPrep || s.installStart <= s.confirmDue;
@@ -548,11 +557,25 @@ export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
     prep,
     tooSoon,
     tight: make && !tooSoon && prep < MAKE_DAYS,
+    /** admix 제작 대행 + 준비 영업일 14일 이하 — 빠듯함 안내에 "의뢰를 보고 함께 협의해요"를 더한다(11-16 사용자). */
+    admixTalk: admixMake && !tooSoon && prep <= ADMIX_MAKE_TALK_DAYS,
     /** 가장 빠른 시작일. */
     earliest: startAfter(minPrep),
     /** 제작(직접 · admix 대행)까지 여유 있는 시작일. */
     makeReady: startAfter(MAKE_DAYS),
   };
+}
+
+/**
+ * 의뢰서 달력에서 고를 수 있는 가장 빠른 시작일(11-16 사용자) — 오늘 보내면 admix 검토(영업일 7일) → 매장 모집(가장 짧은
+ * 7일 코스의 5일) → 신청 매장 검토 · 확정(영업일 2일) → 준비(영업일 MIN_PREP_DAYS) → 설치(최소 1일)를 마친 다음 날.
+ * 이보다 앞 날짜는 달력에서 고를 수 없다. 14일 코스이거나 목표 매장이 많아 설치가 길면 더 늦어지는데, 그건 보낼 때 검사한다(tooSoon).
+ */
+export function earliestRequestStart(today = PREVIEW_TODAY) {
+  return requestPlanPreviewOf(
+    { type: "ready", course: "rush", startDate: today, endDate: today, prepDays: MIN_PREP_DAYS, targetStores: 1, items: [] },
+    today,
+  ).earliest;
 }
 
 export type Phase =
@@ -1548,7 +1571,7 @@ export function collabOfRequest(r: CollabRequestMine): AdvCollab {
     endDate,
     minStores: c?.minStores ?? r.minStores,
     targetStores: c?.targetStores ?? r.targetStores,
-    // 의뢰서와 같은 규칙 — 제작하는 기본안이 있으면 제작 기간(30일), 아니면 최소 준비(3일).
+    // 의뢰서와 같은 규칙 — 제작하는 기본안이 있으면 제작 기간(20영업일), 아니면 최소 준비(3일).
     prepDays: makeItems({ items, itemPrep }).length ? MAKE_DAYS : 3,
     items,
     itemNotes: Object.fromEntries(rows.map((x) => [x.key, x.note])),

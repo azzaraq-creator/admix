@@ -17,6 +17,7 @@ import { useCollabAdvertisers } from "@/hooks/adminCollab";
 import {
   BIZ_STATUS_OPTIONS,
   dotDate,
+  dotDateTime,
   type AdminAdvertiserMember,
 } from "@/lib/adminCollab";
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
@@ -72,7 +73,7 @@ export function contactLine(m: AdminAdvertiserMember) {
 }
 
 /**
- * 표 열(11-12 사용자) — 이름 · 아이디 · 담당자명 · 연락처 · 사업자등록증 · 브랜드 · 가입일 · 콜라보.
+ * 표 열(11-12 사용자) — 이름 · 아이디 · 담당자명 · 연락처 · 사업자등록증 · 브랜드 · 가입일 · 마지막 로그인(11-16) · 콜라보.
  * 값이 말줄임(…)으로 잘리지 않게: 칸마다 줄바꿈 없이 다 보이고, 넓어지면 표가 옆으로 밀린다(CommonTable 가로 스크롤).
  * 브랜드가 여러 개면 브랜드끼리만 줄을 바꾼다. 콜라보는 보낸 의뢰 중 취소를 뺀 수(collabCount).
  */
@@ -142,6 +143,13 @@ const columnList: TableColumn<Row>[] = [
     label: "가입일",
     className: `${NOWRAP} text-disabled`,
     renderer: (m) => dotDate(m.createdAt),
+  },
+  {
+    // 로그인 · 로그인 유지로 토큰을 새로 받은 마지막 시각(091, 2026-11-16 사용자).
+    name: "lastLoginAt",
+    label: "마지막 로그인",
+    className: `${NOWRAP} text-disabled`,
+    renderer: (m) => dotDateTime(m.lastLoginAt),
   },
   {
     name: "collabCount",
@@ -315,6 +323,11 @@ export function CollabAdvertisersListView() {
                   <span className="text-disabled">
                     가입 {dotDate(m.createdAt)}
                   </span>
+                  {m.lastLoginAt && (
+                    <span className="text-disabled">
+                      로그인 {dotDateTime(m.lastLoginAt)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-[6px]">
                   {m.brands.length > 0 && (

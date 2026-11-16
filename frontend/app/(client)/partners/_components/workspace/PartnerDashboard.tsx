@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 import { collabHref } from "./CollabBoard";
 import { useCollabCommands, usePartnerWorkspace } from "./partnerState";
+import { useProvisionalGate } from "./ProvisionalGate";
 import { StartGate } from "./StartGate";
 import {
   EmptyBox,
@@ -73,6 +74,7 @@ const SHADOW_HERO =
  */
 function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
   const router = useRouter();
+  const gate = useProvisionalGate();
   const commands = useCollabCommands();
   const total = periodDays(c.startDate, c.endDate);
   const day = Math.min(total, Math.max(0, diffDays(today, c.startDate) + 1));
@@ -264,7 +266,7 @@ function ActiveCard({ c, today }: { c: PreviewCollab; today: string }) {
           onPress={() =>
             due
               ? fileRef.current?.click()
-              : router.push(collabHref(c.id, "dashboard"))
+              : gate.block() || router.push(collabHref(c.id, "dashboard"))
           }
           className={cn(
             // 모바일 36px → 곡률 15px(높이/2 − 3px). 사진 올리기는 모바일에서 카메라 아이콘만(36px 네모, 11-08 사용자).

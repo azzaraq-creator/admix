@@ -6,7 +6,7 @@ canonical 값은 목록 응답에서만 한글로 변환(상세는 canonical 유
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -53,6 +53,14 @@ def _fmt_date(dt) -> str:
     return dt.date().isoformat() if dt is not None else "-"
 
 
+_KST = timezone(timedelta(hours=9))
+
+
+def _fmt_kst_datetime(dt) -> str:
+    """엑셀용 한국 시각 'YYYY-MM-DD HH:MM' — 없으면 '-'."""
+    return dt.astimezone(_KST).strftime("%Y-%m-%d %H:%M") if dt is not None else "-"
+
+
 def _map_member(u) -> dict:
     biz = u.business_registration
     return dict(
@@ -67,6 +75,8 @@ def _map_member(u) -> dict:
         marketing="동의" if u.marketing_consent else "비동의",
         status=_STATUS.get(u.status, u.status),
         joinedAt=_fmt_date(u.created_at),
+        # 마지막 로그인(091) — ISO, 화면이 브라우저 시각으로 바꿔 보인다. 기록이 없으면 None.
+        lastLoginAt=u.last_login_at.isoformat() if u.last_login_at else None,
     )
 
 
@@ -134,7 +144,15 @@ _EXPORT_COLUMNS = [
     ("marketing", "마케팅 수신"),
     ("status", "상태"),
     ("joinedAt", "가입일"),
+    ("lastLoginAt", "마지막 로그인"),
 ]
+
+
+def _export_value(row: dict, key: str):
+    if key == "lastLoginAt":
+        raw = row.get(key)
+        return _fmt_kst_datetime(datetime.fromisoformat(raw)) if raw else "-"
+    return row.get(key, "")
 
 
 def export_members_xlsx(db: Session) -> bytes:
@@ -149,7 +167,7 @@ def export_members_xlsx(db: Session) -> bytes:
     ws.title = "members"
     ws.append([label for _, label in _EXPORT_COLUMNS])
     for r in rows:
-        ws.append([r.get(key, "") for key, _ in _EXPORT_COLUMNS])
+        ws.append([_export_value(r, key) for key, _ in _EXPORT_COLUMNS])
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 import { collabHref } from "./CollabBoard";
 import { usePartnerWorkspace } from "./partnerState";
+import { useProvisionalGate } from "./ProvisionalGate";
 
 /*
  * 제휴사 알림 — admix 사이드바의 "현재 기획안" 카드와 같은 자리 · 같은 방식.
@@ -72,6 +73,7 @@ function useNotifications() {
 /** 패널 안 — 제목 · 닫기 · 알림 목록. */
 function NotificationContent({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const gate = useProvisionalGate();
   const items = useNotifications();
   return (
     <>
@@ -102,6 +104,8 @@ function NotificationContent({ onClose }: { onClose: () => void }) {
             const item = items.find((t) => t.id === key);
             if (!item) return;
             onClose();
+            // 임시 승인이면 상세 대신 안내 창(ProvisionalGate).
+            if (gate.block()) return;
             router.push(collabHref(item.collabId, "notifications"));
           }}
           className="min-h-0 flex-1 gap-[2px] overflow-y-auto p-[8px]"

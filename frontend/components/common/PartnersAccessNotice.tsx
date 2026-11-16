@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { useMe } from "@/hooks/auth";
-import { PARTNERS_DASHBOARD_HREF, partnersStoreHref } from "@/lib/partners";
+import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { getUserToken } from "@/lib/userToken";
 import { canUsePartners } from "@/lib/memberCategory";
 
@@ -37,45 +37,66 @@ export const openPartnersNotice = (next: NoticeKind = "member") => setKind(next)
 export const PARTNERS_INTRO_HREF = "/partners?intro=1";
 
 /**
- * 콜라보 매장 상세를 열 수 있는 회원인지(광고주·제휴사(콜라보)) — 매체 찾기 목록·지도 말풍선의 콜라보 카드는
- * 그 외(비회원·일반·대행사·매체사)에겐 보이기만 하고 눌리지 않는다.
+ * 콜라보 매장 정보 팝업을 열 수 있는 회원 — 광고주만. 제휴사(콜라보)도 콜라보 메뉴는 쓰지만 매체 찾기에서
+ * 다른 매장 팝업은 못 연다(11-16 사용자: "제휴사도 다른 회원 유형들과 동일하게 막아줘").
+ * 제휴사가 자기 매장을 "광고주에게 보이는 화면"(/partners/stores/[id])으로 보는 건 그대로라 서버(ensure_viewer)는 막지 않는다.
+ */
+const canOpenPartnersStore = (category: string | null | undefined) =>
+  category === "advertiser";
+
+/**
+ * 콜라보 매장 정보 팝업을 열 수 있는 회원인지(광고주) — 매체 찾기 목록·지도 말풍선의 콜라보 카드는
+ * 그 외(비회원·일반·대행사·매체사·제휴사)에겐 보이기만 하고 눌리지 않는다(자물쇠).
  * 로그인했는데 회원 정보를 아직 받는 중이면 열 수 있는 쪽으로 본다(useOpenPartners 와 같다).
  */
 export function useCanOpenPartners() {
   const { data: me } = useMe();
   const loading = !me && !!getUserToken();
-  return loading || canUsePartners(me?.member_category);
+  return loading || canOpenPartnersStore(me?.member_category);
 }
 
 /**
- * 콜라보 화면을 새 탭으로 연다 — 광고주·제휴사(콜라보)만. 그 외는 안내 창.
- * - 메뉴(/partners): 제휴사(콜라보)는 곧바로 대시보드(/partners/dashboard), 광고주는 /partners.
- *   비회원·일반·대행사·매체사는 "전용 메뉴" 안내 창(대시보드 보기).
- * - 매장 상세(storeKey): 비회원은 로그인 안내 창, 그 외 회원은 "전용 메뉴" 안내 창.
+ * 콜라보 화면을 새 탭으로 연다 — 광고주·제휴사(콜라보)만. 그 외는 "전용 메뉴" 안내 창(대시보드 보기).
+ * 제휴사(콜라보)는 곧바로 대시보드(/partners/dashboard), 광고주는 /partners.
  */
 export function useOpenPartners() {
   const { data: me } = useMe();
   // 로그인했는데 회원 정보를 아직 받는 중이면 비회원으로 보지 않고 그냥 연다 — /partners 가 유형에 맞게 보여 준다
   // (제휴사면 거기서 대시보드로 보낸다).
-  return (storeKey?: string) => {
+  return () => {
     const loading = !me && !!getUserToken();
-    if (!loading && !me && storeKey) {
-      openPartnersNotice("guest");
-      return;
-    }
     if (!loading && !canUsePartners(me?.member_category)) {
       openPartnersNotice("member");
       return;
     }
     window.open(
-      storeKey
-        ? partnersStoreHref(storeKey)
-        : me?.member_category === "partner"
-          ? PARTNERS_DASHBOARD_HREF
-          : "/partners",
+      me?.member_category === "partner" ? PARTNERS_DASHBOARD_HREF : "/partners",
       "_blank",
       "noopener",
     );
+  };
+}
+
+/**
+ * 콜라보 매장 정보 팝업(StoreDetailModal)을 띄워도 되는지 — 광고주만.
+ * 안 되면 안내 창(비회원은 로그인 안내, 콜라보 메뉴를 못 쓰는 회원은 "전용 메뉴")을 띄우고 false.
+ * 제휴사(콜라보)는 이미 콜라보 회원이라 "전용 메뉴" 창 없이 그냥 막는다(카드에 자물쇠 · 툴팁이 있다).
+ * 예전엔 매장 상세를 새 탭으로 열었다(11-16 사용자: "admix처럼 상세 팝업이 뜨게").
+ */
+export function usePartnersStoreGate() {
+  const { data: me } = useMe();
+  return () => {
+    // 로그인했는데 회원 정보를 아직 받는 중이면 연다 — 팝업이 매장 정보를 못 받으면 안내 문구를 띄운다.
+    if (!me && getUserToken()) return true;
+    if (!me) {
+      openPartnersNotice("guest");
+      return false;
+    }
+    if (!canOpenPartnersStore(me.member_category)) {
+      if (!canUsePartners(me.member_category)) openPartnersNotice("member");
+      return false;
+    }
+    return true;
   };
 }
 

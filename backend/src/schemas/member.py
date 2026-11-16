@@ -27,6 +27,8 @@ class MemberRow(BaseModel):
     marketing: str
     status: str
     joinedAt: str
+    # 마지막 로그인(091) — ISO 시각, 기록이 없으면 None.
+    lastLoginAt: str | None = None
 
 
 class MemberListResponse(BaseModel):

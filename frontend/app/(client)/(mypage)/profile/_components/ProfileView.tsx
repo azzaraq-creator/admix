@@ -14,7 +14,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   CollabMarketingNote,
@@ -50,6 +50,7 @@ import { avatarColorClass } from "@/lib/avatarColor";
 import { extractApiError } from "@/lib/apiError";
 import { formatDate } from "@/lib/date";
 import { MEMBER_CATEGORIES, type MemberCategory } from "@/lib/memberCategory";
+import { BIZ_LICENSE_ANCHOR } from "@/lib/partners";
 import {
   formatPhone,
   formatPhoneInput,
@@ -263,11 +264,14 @@ function SectionCard({
 
 /** 한 줄 항목 — 왼쪽 150px 이름, 오른쪽 내용. 좁은 화면에선 위아래로 쌓는다. */
 function Field({
+  id,
   label,
   children,
   alignTop,
   required,
 }: {
+  /** 주소 끝 #id 로 열면 이 칸으로 스크롤(사업자등록증 — 콜라보 임시 승인 안내 창 "내 정보로 이동"). */
+  id?: string;
   label: string;
   children: ReactNode;
   alignTop?: boolean;
@@ -275,6 +279,7 @@ function Field({
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "flex flex-col gap-[6px] border-t border-gray-100 py-[12px] sm:flex-row sm:gap-[16px] sm:py-[16px]",
         alignTop ? "sm:items-start" : "sm:items-center",
@@ -364,6 +369,19 @@ export function ProfileView() {
   const bizFileUrl = bizReg?.license_file_url
     ? `${API_BASE_URL}${bizReg.license_file_url}`
     : null;
+
+  // 주소 끝이 #biz-license 면(콜라보 임시 승인 안내 창 "내 정보로 이동") 회원 정보를 받은 뒤 사업자등록증 칸으로 스크롤한다.
+  // 칸 가운데로 — PC · 모바일 모두 위 띠 · 아래 탭 바에 가리지 않게(11-16 사용자).
+  const loaded = Boolean(me);
+  useEffect(() => {
+    if (!loaded || window.location.hash !== `#${BIZ_LICENSE_ANCHOR}`) return;
+    const frame = requestAnimationFrame(() =>
+      document
+        .getElementById(BIZ_LICENSE_ANCHOR)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [loaded]);
 
   const changedFields = (Object.keys(drafts) as EditableKey[]).filter(
     (key) => (drafts[key] ?? "").trim() !== saved[key],
@@ -782,7 +800,7 @@ export function ProfileView() {
           {editableField("company_name", "회사 이름")}
 
           {!isGeneral && (
-            <Field label="사업자등록증" alignTop>
+            <Field id={BIZ_LICENSE_ANCHOR} label="사업자등록증" alignTop>
               <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
                 <input
                   ref={fileInputRef}
@@ -913,7 +931,10 @@ export function ProfileView() {
               </Switch>
               {/* 콜라보는 새 콜라보 알림 안내를 읽히게(진한 회색, 11-12 사용자) — 가입 약관 단계와 같은 모양. */}
               {collab ? (
-                <CollabMarketingNote className="w-fit" />
+                <CollabMarketingNote
+                  advertiser={me?.member_category === "advertiser"}
+                  className="w-fit"
+                />
               ) : (
                 <p className="text-[11px] text-gray-400 sm:hidden">
                   {ADMIX_MARKETING_DESC}
@@ -991,7 +1012,9 @@ export function ProfileView() {
           </div>
         </SectionCard>
 
-        {me.member_category === "advertiser" && <ContactCard me={me} />}
+        {me.member_category === "advertiser" && (
+          <ContactCard me={me} card={!collab} />
+        )}
 
         {/* 회원 탈퇴는 눈에 띄지 않게 카드 아래 작은 글자 링크로 둔다. 자세한 안내는 확인창에서. */}
         <div className="flex justify-end px-[4px]">
@@ -1038,8 +1061,9 @@ const CARD_ACCEPT = "application/pdf,image/png,image/jpeg,image/webp";
 /**
  * 담당자 정보(광고주) — 이름 · 직함 · 소속팀은 "수정"을 눌러 그 자리에서 고치고, 명함은 끌어다 놓거나 골라 두었다가
  * 아래 "저장하기"로 한 번에(회원 정보와 같은 방식). 가입 때 적은 값(선택)이 여기 들어온다. 직함은 어드민 회원 상세의 "직책"과 같은 값.
+ * 콜라보 내 정보(/partners/profile)엔 명함 칸이 없다(card=false, 11-16 사용자 "명함 빼줘") — admix 내 정보는 그대로.
  */
-function ContactCard({ me }: { me: MeResponse }) {
+function ContactCard({ me, card = true }: { me: MeResponse; card?: boolean }) {
   const queryClient = useQueryClient();
   const updateProfile = useUpdateProfile();
   const uploadCard = useUploadBusinessCard();
@@ -1188,81 +1212,83 @@ function ContactCard({ me }: { me: MeResponse }) {
         );
       })}
 
-      <Field label="명함" alignTop>
-        <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={CARD_ACCEPT}
-            className="hidden"
-            onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
-          />
-          <div
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              pickFile(event.dataTransfer.files?.[0] ?? null);
-            }}
-            className={cn(
-              "flex w-full flex-col items-center gap-[4px] rounded-[18px] border border-dashed px-[14px] py-[16px] text-center transition-colors sm:gap-[6px] sm:px-[20px] sm:py-[22px]",
-              dragging
-                ? "border-primary-300 bg-primary-50"
-                : "border-gray-200 bg-gray-50",
-            )}
-          >
-            <span className="flex size-[36px] items-center justify-center rounded-full bg-surface sm:size-[44px]">
-              <Image src="/icons/upload.svg" alt="" width={16} height={16} />
-            </span>
-            <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
-              명함 파일을 올려 주세요
-            </p>
-            <p className="pb-[6px] text-[11px] text-gray-400 sm:text-[12px]">
-              끌어다 놓거나 파일을 골라 주세요 · 최대 10MB, PDF·JPG·PNG·WEBP
-            </p>
-            <Button
-              variant="secondary"
-              onPress={() => fileInputRef.current?.click()}
-              className={UPLOAD_BUTTON}
-            >
-              파일 선택
-            </Button>
-          </div>
-
-          {pendingFile ? (
-            <FileRow
-              name={pendingFile.name}
-              meta={formatSize(pendingFile.size)}
-              badge={{ label: "저장 대기", status: "waiting" }}
-              onRemove={() => {
-                setPendingFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-              }}
-              removeLabel="삭제"
+      {card && (
+        <Field label="명함" alignTop>
+          <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={CARD_ACCEPT}
+              className="hidden"
+              onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
             />
-          ) : (
-            me.business_card_name && (
-              <FileRow
-                name={me.business_card_name}
-                href={cardUrl}
-                onRemove={handleDeleteCard}
-                removeLabel="명함 삭제"
-                removeDisabled={deleteCard.isPending}
-              />
-            )
-          )}
+            <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                pickFile(event.dataTransfer.files?.[0] ?? null);
+              }}
+              className={cn(
+                "flex w-full flex-col items-center gap-[4px] rounded-[18px] border border-dashed px-[14px] py-[16px] text-center transition-colors sm:gap-[6px] sm:px-[20px] sm:py-[22px]",
+                dragging
+                  ? "border-primary-300 bg-primary-50"
+                  : "border-gray-200 bg-gray-50",
+              )}
+            >
+              <span className="flex size-[36px] items-center justify-center rounded-full bg-surface sm:size-[44px]">
+                <Image src="/icons/upload.svg" alt="" width={16} height={16} />
+              </span>
+              <p className="text-[13px] font-semibold text-gray-900 sm:text-[14px]">
+                명함 파일을 올려 주세요
+              </p>
+              <p className="pb-[6px] text-[11px] text-gray-400 sm:text-[12px]">
+                끌어다 놓거나 파일을 골라 주세요 · 최대 10MB, PDF·JPG·PNG·WEBP
+              </p>
+              <Button
+                variant="secondary"
+                onPress={() => fileInputRef.current?.click()}
+                className={UPLOAD_BUTTON}
+              >
+                파일 선택
+              </Button>
+            </div>
 
-          {fileError && (
-            <p className="text-[12px] text-danger max-sm:text-[11px]">
-              {fileError}
-            </p>
-          )}
-        </div>
-      </Field>
+            {pendingFile ? (
+              <FileRow
+                name={pendingFile.name}
+                meta={formatSize(pendingFile.size)}
+                badge={{ label: "저장 대기", status: "waiting" }}
+                onRemove={() => {
+                  setPendingFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                removeLabel="삭제"
+              />
+            ) : (
+              me.business_card_name && (
+                <FileRow
+                  name={me.business_card_name}
+                  href={cardUrl}
+                  onRemove={handleDeleteCard}
+                  removeLabel="명함 삭제"
+                  removeDisabled={deleteCard.isPending}
+                />
+              )
+            )}
+
+            {fileError && (
+              <p className="text-[12px] text-danger max-sm:text-[11px]">
+                {fileError}
+              </p>
+            )}
+          </div>
+        </Field>
+      )}
 
       <div className="flex justify-end gap-[8px] border-t border-gray-100 py-[12px] sm:py-[16px]">
         <Button

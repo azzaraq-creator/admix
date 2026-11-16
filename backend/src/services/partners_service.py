@@ -840,6 +840,11 @@ REQUEST_MEMO_MAX_LEN = 500
 INQUIRY_FIELD = "inquiry"
 INQUIRY_LABEL = "추가 요청 · 문의"
 INQUIRY_MAX_LEN = 1000
+# 매장 추가 요청(11-16 사용자: "제휴사도 매장을 여러 개 — 내 매장에서 매장 추가 요청, 매장명으로") — 새 매장 이름은 after_text.
+# 요청을 보낸 매장(store_id)에 붙여 그 매장 수정 기록 · 어드민 수정 요청함에 같이 보인다. 반영할 값이 없어 "처리 완료"는
+# 매장을 바꾸지 않는다 — 어드민이 매장을 등록해 이 회원에게 연결한다(한 회원에 매장 여러 곳, 069).
+ADD_STORE_FIELD = "add_store"
+ADD_STORE_LABEL = "매장 추가"
 
 
 def _short_text(v, *, max_len: int) -> str | None:
@@ -937,7 +942,13 @@ def serialize_request(r: PartnersStoreRequest, *, admin: bool = False) -> dict:
         id=str(r.id),
         storeId=str(r.store_id),
         field=r.field,
-        fieldLabel=INQUIRY_LABEL if r.field == INQUIRY_FIELD else REQUEST_FIELDS.get(r.field or "", "기타"),
+        fieldLabel=(
+            INQUIRY_LABEL
+            if r.field == INQUIRY_FIELD
+            else ADD_STORE_LABEL
+            if r.field == ADD_STORE_FIELD
+            else REQUEST_FIELDS.get(r.field or "", "기타")
+        ),
         before=r.before_text,
         after=r.content if free else r.after_text,
         value=r.after_value,
@@ -975,6 +986,30 @@ def create_request(
             raise HTTPException(status_code=400, detail=f"{INQUIRY_MAX_LEN}자까지 적을 수 있어요.")
         r = PartnersStoreRequest(
             store_id=store.id, user_id=user.id, field=INQUIRY_FIELD, content=text, status="pending"
+        )
+        db.add(r)
+        db.commit()
+        db.refresh(r)
+        return serialize_request(r)
+    if field == ADD_STORE_FIELD:
+        name = _short_text(value if isinstance(value, str) else "", max_len=200)
+        if not name:
+            raise HTTPException(status_code=400, detail="추가할 매장명을 적어 주세요.")
+        linked = db.query(PartnersStore.id).filter(
+            PartnersStore.owner_user_id == user.id, func.lower(PartnersStore.name) == name.lower()
+        )
+        if linked.first() is not None:
+            raise HTTPException(status_code=400, detail="이미 연결된 매장이에요.")
+        asked = db.query(PartnersStoreRequest.id).filter(
+            PartnersStoreRequest.user_id == user.id,
+            PartnersStoreRequest.field == ADD_STORE_FIELD,
+            PartnersStoreRequest.status == "pending",
+            func.lower(PartnersStoreRequest.after_text) == name.lower(),
+        )
+        if asked.first() is not None:
+            raise HTTPException(status_code=400, detail="이미 추가를 요청한 매장이에요. 담당자가 확인하고 있어요.")
+        r = PartnersStoreRequest(
+            store_id=store.id, user_id=user.id, field=ADD_STORE_FIELD, after_text=name, status="pending"
         )
         db.add(r)
         db.commit()
@@ -1355,6 +1390,8 @@ def _member_summary(u: User, stores: list[PartnersStore]) -> dict:
         createdAt=u.created_at.isoformat() if u.created_at else None,
         # 마지막 업데이트 — 회원 정보 · 사업자 등록(올림 · 임시 승인 · 인증) 중 늦은 쪽(어드민 회원 목록, 2026-11-10 사용자).
         updatedAt=_latest_iso(u.updated_at, reg.updated_at if reg else None),
+        # 마지막 로그인(091, 2026-11-16 사용자) — 기록이 없으면 None.
+        lastLoginAt=u.last_login_at.isoformat() if u.last_login_at else None,
         agreedAt=u.partner_agreed_at.isoformat() if u.partner_agreed_at else None,
         agreementVersion=u.partner_agreement_version,
         # 기본협약 전자 서명(078) — 어드민 회원 상세에 보인다.

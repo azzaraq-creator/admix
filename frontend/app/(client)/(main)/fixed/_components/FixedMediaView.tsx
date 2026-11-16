@@ -20,7 +20,7 @@ import {
 } from "@/components/common/MediaDetailModal";
 import {
   useCanOpenPartners,
-  useOpenPartners,
+  usePartnersStoreGate,
 } from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import type { MediaItemData } from "@/components/common/MediaItem";
@@ -58,6 +58,7 @@ import { MarkerMediaPopup } from "./MarkerMediaPopup";
 import { MediaFindPanel } from "./MediaFindPanel";
 import { useGuidePopGrid, usePopGridState } from "./PopGridLayer";
 import { replaceQuery } from "./replaceQuery";
+import { StoreDetailModal } from "./StoreDetailModal";
 
 /** 지도 마커 → 매체 찾기 카드 행. 팝업을 목록과 같은 카드로 그리기 위한 변환. */
 function markerToCardRow(m: MapMarker): MediaCardRow {
@@ -317,12 +318,20 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(
     null,
   );
-  const openPartners = useOpenPartners();
-  // 콜라보 매장 카드 — 광고주·제휴사(콜라보)만 눌러서 새 탭으로 열고, 그 외는 보이기만 한다(카드가 눌리지 않음).
+  // 콜라보 매장 — 매체 정보 팝업 대신 매장 정보 팝업(StoreDetailModal, 11-16 사용자: "admix처럼 상세 팝업").
+  // 예전엔 매장 상세를 새 탭으로 열었다.
+  const [selectedStore, setSelectedStore] = useState<MediaCardRow | null>(
+    null,
+  );
+  const storeGate = usePartnersStoreGate();
+  const openStore = (row: MediaCardRow) => {
+    if (storeGate()) setSelectedStore(row);
+  };
+  // 콜라보 매장 카드 — 광고주만 눌러서 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
   const partnersAccess = useCanOpenPartners() ? "open" : "locked";
-  // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 상세를 새 탭으로(광고주·제휴사만, 그 외는 안내 창).
+  // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 정보 팝업(광고주만, 그 외는 막힘).
   const selectPopupRow = (row: MediaCardRow) => {
-    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openPartners(row.id);
+    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openStore(row);
     else setSelectedMedia(cardRowToItem(row));
   };
   const [markers, setMarkers] = useState<MapMarker[]>([]);
@@ -500,6 +509,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
         } else {
           // 장소 재검색: 기존 선택/포커스 해제.
           setSelectedMedia(null);
+          setSelectedStore(null);
           setFocusId(undefined);
         }
         pendingCommitRef.current = "rescope";
@@ -599,6 +609,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   usePageTour("media-find", TOUR_STEPS, {
     onStart: () => {
       setSelectedMedia(null);
+      setSelectedStore(null);
       setAddProposal(null);
       closePopup();
       // 가이드 지도 단계에서 지금 보이는 영역의 실제 실시간 인구 장소를 함께 보여 주려고 영역을 잡아 둔다.
@@ -671,8 +682,9 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
               }
             : null
         }
-        selectedId={selectedMedia?.id}
+        selectedId={selectedMedia?.id ?? selectedStore?.id}
         onSelectMedia={setSelectedMedia}
+        onSelectStore={openStore}
         onFocusMedia={(id) => {
           // 리스트에서 선택 시 열려있던 지도 팝업/그룹리스트는 닫는다(잔존 방지).
           setPopupId(null);
@@ -813,6 +825,14 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
           onAddProposal={(id, planNo, options) =>
             setAddProposal({ mediaId: id, planNo, options })
           }
+        />
+      )}
+
+      {/* 매장 정보 팝업도 닫아도 핀 포커스는 그대로(매체 정보 팝업과 같다). */}
+      {selectedStore && (
+        <StoreDetailModal
+          mediaId={selectedStore.id}
+          onClose={() => setSelectedStore(null)}
         />
       )}
 

@@ -45,6 +45,8 @@ def _summary(u: User, brands: list[AdvertiserBrand]) -> dict:
         snsProvider=u.sns_provider,
         status=u.status,
         createdAt=_iso(u.created_at),
+        # 마지막 로그인(091, 2026-11-16 사용자) — 기록이 없으면 None.
+        lastLoginAt=_iso(u.last_login_at),
         bizStatus=reg.status if reg else "unregistered",
         bizName=reg.business_name if reg else None,
         bizNo=reg.business_registration_no if reg else None,

@@ -12,10 +12,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
-import {
-  useCanOpenPartners,
-  useOpenPartners,
-} from "@/components/common/PartnersAccessNotice";
+import { useCanOpenPartners } from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
@@ -152,6 +149,7 @@ export function MediaFindPanel({
   mapSlot,
   selectedId,
   onSelectMedia,
+  onSelectStore,
   onFocusMedia,
   onAddProposal,
   onMapData,
@@ -166,6 +164,8 @@ export function MediaFindPanel({
   mapSlot: ReactNode;
   selectedId?: string;
   onSelectMedia?: (item: MediaItemData) => void;
+  /** 콜라보 매장 카드 — 매체 정보 팝업 대신 매장 정보 팝업(부모가 연다, 11-16). */
+  onSelectStore?: (row: MediaCardRow) => void;
   onFocusMedia?: (mediaId: string) => void;
   onAddProposal?: (mediaId: string) => void;
   onMapData?: (data: { markers: MapMarker[]; clusters: MapCluster[] }) => void;
@@ -474,8 +474,7 @@ export function MediaFindPanel({
           onHoverArea?.(hovered ? (row.operatingArea ?? null) : null)
       : undefined;
 
-  const openPartners = useOpenPartners();
-  // 콜라보 매장 카드 — 광고주·제휴사(콜라보)만 눌러서 새 탭으로 열고, 그 외는 보이기만 한다(카드가 눌리지 않음).
+  // 콜라보 매장 카드 — 광고주만 눌러서 매장 정보 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
   const partnersAccess = useCanOpenPartners() ? "open" : "locked";
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
@@ -485,8 +484,8 @@ export function MediaFindPanel({
       images: row.images,
       popular: row.badge === "popular",
     };
-    // 콜라보 매장은 매체 정보 창 대신 매장 상세를 새 탭으로(광고주·제휴사만, 그 외는 안내 창).
-    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openPartners(row.id);
+    // 콜라보 매장은 매체 정보 창 대신 매장 정보 팝업(광고주·제휴사만, 그 외는 안내 창 — 부모가 정한다).
+    if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) onSelectStore?.(row);
     else onSelectMedia?.(item);
     onFocusMedia?.(row.id);
     const c = coordsById.get(row.id);
@@ -822,6 +821,9 @@ export function MediaFindPanel({
       ?.scrollIntoView({ block: "nearest" });
   }, [activeSug]);
 
+  // isLoading 도 본다 — 첫 진입엔 목록이 도착한 뒤에도 잠시(entrySettled 전) 스켈레톤이라 감지 줄이 없다.
+  // 그사이 hasNextPage 가 먼저 true 가 되면 감지 줄이 나중에 생겨도 다시 걸지 않아, 처음 20개에서 더 불러오지 않았다
+  // (11-16 사용자: "처음에 매장 찾기 목록 들어가면 목록에 지도에 있는 게 다 안 떠").
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasNextPage) return;
@@ -833,7 +835,7 @@ export function MediaFindPanel({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isLoading]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col gap-[10px]">

@@ -71,6 +71,7 @@ export function MembersListView() {
         marketing: r.marketing as "동의" | "비동의",
         status: r.status as MemberStatus,
         joinedAt: r.joinedAt,
+        lastLoginAt: r.lastLoginAt,
       })),
     [data, page, pageSize],
   );

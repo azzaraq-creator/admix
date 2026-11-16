@@ -123,6 +123,12 @@ const COLUMNS: MemberTableColumn[] = [
     label: "마지막 업데이트",
     render: (m) => stamp(m.updatedAt),
   },
+  {
+    // 로그인 · 로그인 유지로 토큰을 새로 받은 마지막 시각(091, 2026-11-16 사용자).
+    id: "lastLoginAt",
+    label: "마지막 로그인",
+    render: (m) => stamp(m.lastLoginAt),
+  },
 ];
 
 const AGREEMENT_OPTIONS = [
@@ -452,6 +458,11 @@ export function CollabMembersListView() {
                       <span className="text-disabled">
                         가입 {formatDateTime(m.createdAt)}
                       </span>
+                      {m.lastLoginAt && (
+                        <span className="text-disabled">
+                          로그인 {formatDateTime(m.lastLoginAt)}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-[6px]">
                       <Chip

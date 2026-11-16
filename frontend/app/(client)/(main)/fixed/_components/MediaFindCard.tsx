@@ -171,7 +171,7 @@ function MediaFindCardImpl({
   compact?: boolean;
   /**
    * 콜라보 매장 카드를 누를 수 있는지(매체 찾기 목록) — 기획안 담기 자리에 표시를 두고, 카드에 마우스를 올리면 툴팁.
-   * open: 누르면 매장 상세가 새 탭으로, locked: 광고주·제휴사(콜라보) 회원이 아니라 보이기만 하고 눌리지 않는다.
+   * open: 누르면 매장 정보 팝업, locked: 광고주 회원이 아니라(제휴사 포함) 보이기만 하고 눌리지 않는다(자물쇠).
    * 관심 매체 페이지는 눌러도 매체 정보 창이 떠서 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
@@ -179,7 +179,7 @@ function MediaFindCardImpl({
   collabPick?: CollabPick;
   /**
    * 하트에 마우스를 올리면 툴팁 — 켜져 있으면 "관심 해제", 꺼져 있으면 "관심 매장(매체)에 담기".
-   * 광고주 관심 매장 화면(/partners/favorites, 11-11 사용자)만 쓴다. 하트 위에선 카드의 새 탭 툴팁은 숨긴다.
+   * 광고주 관심 매장 화면(/partners/favorites, 11-11 사용자)만 쓴다. 하트 위에선 카드의 자물쇠 툴팁은 숨긴다.
    */
   likeTooltip?: boolean;
   /** 처음 화면에 바로 보이는 카드(목록 맨 위 몇 장) — 첫 사진을 늦게 불러오지 않는다(LCP). */
@@ -189,7 +189,7 @@ function MediaFindCardImpl({
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
-  // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 상세가 새 탭으로.
+  // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 정보 팝업.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   // 콜라보 매장 사진마다 분류(외관 · 내관 …) — 큰 카드 사진 왼쪽 아래 이름표(11-12 사용자). 간략히 보기(88px)엔 없다.
   const photoKinds = partners ? row.partners?.photoKinds : undefined;
@@ -208,7 +208,7 @@ function MediaFindCardImpl({
   const locked = access === "locked";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다(콜라보 카드만 상태를 바꾼다).
   const [hovered, setHovered] = useState(false);
-  // 하트에 마우스를 올렸는지(likeTooltip 일 때만) — 하트 툴팁과 새 탭 툴팁이 같이 뜨지 않게.
+  // 하트에 마우스를 올렸는지(likeTooltip 일 때만) — 하트 툴팁과 자물쇠 툴팁이 같이 뜨지 않게.
   const [likeHovered, setLikeHovered] = useState(false);
   const handleHover = (next: boolean) => {
     if (access) setHovered(next);
@@ -366,7 +366,7 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
-            {/* 콜라보는 담기 자리에 새 탭(못 열면 자물쇠) 표시 — 옆 하트와 같은 밝은 회색 칸. */}
+            {/* 콜라보는 담기 자리에 못 열면 자물쇠 — 옆 하트와 같은 밝은 회색 칸(열 수 있으면 비워 둔다). */}
             {access && (
               <PartnersAccessMark
                 access={access}
@@ -411,7 +411,7 @@ function MediaFindCardImpl({
                 </span>
               </Button>
             )}
-            {/* 콜라보는 기획안 담기 자리(사진 왼쪽 위)에 새 탭(못 열면 자물쇠) 표시 — 오른쪽 하트와 같은 흰 칸.
+            {/* 콜라보는 기획안 담기 자리(사진 왼쪽 위)에 못 열면 자물쇠 — 오른쪽 하트와 같은 흰 칸(열 수 있으면 비워 둔다).
                 툴팁은 오른쪽으로 띄워 사진 위에 얹는다(위로 띄우면 앞 카드를 가린다). */}
             {access && (
               <PartnersAccessMark

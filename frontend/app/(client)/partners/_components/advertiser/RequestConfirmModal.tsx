@@ -38,6 +38,7 @@ export function RequestConfirmModal({
   sending,
   sendIcon,
   tightStart,
+  admixTalk = false,
   onSend,
 }: {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export function RequestConfirmModal({
   sendIcon: string;
   /** 준비 기간이 빠듯할 때 권하는 시작일(예: "01.15 (금)") — 있으면 안내 글과 동의 체크를 더 보인다. */
   tightStart?: string | null;
+  /** admix 제작 대행 + 준비 영업일 14일 이하 — 빠듯함 안내에 협의 문장을 더한다(11-16). */
+  admixTalk?: boolean;
   onSend: () => void;
 }) {
   return (
@@ -69,6 +72,7 @@ export function RequestConfirmModal({
             sending={sending}
             sendIcon={sendIcon}
             tightStart={tightStart}
+            admixTalk={admixTalk}
             onCancel={() => onOpenChange(false)}
             onSend={onSend}
           />
@@ -86,6 +90,7 @@ function ConfirmBody({
   sending,
   sendIcon,
   tightStart,
+  admixTalk,
   onCancel,
   onSend,
 }: {
@@ -96,6 +101,7 @@ function ConfirmBody({
   sending: boolean;
   sendIcon: string;
   tightStart?: string | null;
+  admixTalk: boolean;
   onCancel: () => void;
   onSend: () => void;
 }) {
@@ -173,11 +179,7 @@ function ConfirmBody({
             {estimateText(estimate.total, estimate.negotiable)}
           </strong>
         </p>
-        {tightStart && (
-          <p className="rounded-[12px] bg-warning-bg px-[12px] py-[9px] text-[12px] leading-[1.55] break-keep text-warning">
-            <TightNote start={tightStart} stacked />
-          </p>
-        )}
+        {tightStart && <TightNote start={tightStart} admixTalk={admixTalk} />}
       </Modal.Body>
       <Modal.Footer className="flex flex-col items-stretch gap-[12px]">
         <div className="flex flex-col gap-[10px]">
@@ -206,17 +208,52 @@ function ConfirmBody({
 }
 
 /**
- * 준비 기간이 빠듯할 때 안내 — 예상 일정 칸과 확인 창이 같은 글을 쓴다.
- * 굵게는 권하는 부분만(11-12 사용자). 확인 창(stacked)은 "권해요." 뒤에서 줄을 바꾼다.
+ * 준비 기간이 빠듯할 때 안내 — 준비 기간 칸과 확인 창이 같은 글을 쓴다.
+ * 굵게는 권하는 부분만(11-12 사용자).
  * 책임 문장은 광고주를 가리키지 않고 admix가 책임지지 않는다고 말한다("너무 친절해" → "책임은 너희 거").
+ * admixTalk(admix 제작 대행 + 준비 영업일 14일 이하)면 맨 끝에 협의 문장을 더한다(11-16 사용자 "기간이 타이트하지만 일단 보고 협의해 보자").
+ * 11-16 사용자 "그냥 보면 말이 길어 보여서" — 제목 한 줄 + 문장마다 "-" 줄로 나눴다. 노란 바탕(warning-bg)은 회색 카드와 안 어울리고
+ * 흰 바탕은 "더더욱 안 어울려서" 주황을 아주 옅게 깔았더니(warning 7%) "톤이 너무 어두워, 노랑 또는 주황 톤 유지" —
+ * 노란 톤은 살리되 warning-bg(amber-100)보다 한 단계 연한 amber-50 + amber-200 테두리 → "좀 더 밝게 · 유리 재질로 반투명하게"(11-16 사용자):
+ * 흰빛→연노랑 그라데이션은 "그라데이션 같아서 싫어" — 한 가지 색(연노랑)을 반투명하게 + 뒤 흐림 + 옅은 노랑 테두리만.
  */
-export function TightNote({ start, stacked = false }: { start: string; stacked?: boolean }) {
+export const WARN_BOX = cn(
+  "rounded-[12px] px-[12px] py-[10px] text-[12px] leading-[1.5] break-keep backdrop-blur-md",
+  "bg-amber-50/80 ring-1 ring-amber-200/70 ring-inset",
+  "dark:bg-amber-300/10 dark:ring-amber-300/25",
+);
+
+export function TightNote({
+  start,
+  admixTalk = false,
+  className,
+}: {
+  start: string;
+  admixTalk?: boolean;
+  className?: string;
+}) {
   return (
-    <>
-      준비 기간이 빠듯해요 — <strong className="font-semibold">{start} 이후 시작을 권해요.</strong>
-      {stacked ? <br /> : " "}
-      그대로 진행하면 일정이 밀려도 admix가 책임지지 않아요.
-    </>
+    <div className={cn(WARN_BOX, className)}>
+      <p className="font-semibold text-warning">준비 기간이 빠듯해요</p>
+      <ul className="mt-[4px] flex flex-col gap-[2px] text-gray-700">
+        <NoteLine>
+          <strong className="font-semibold text-gray-900">{start} 이후 시작을 권해요.</strong>
+        </NoteLine>
+        <NoteLine>그대로 진행하면 일정이 밀려도 admix가 책임지지 않아요.</NoteLine>
+        {admixTalk && <NoteLine>admix 제작은 빠듯하지만, 의뢰를 보고 함께 협의해요.</NoteLine>}
+      </ul>
+    </div>
+  );
+}
+
+function NoteLine({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-[6px]">
+      <span aria-hidden className="text-gray-400">
+        -
+      </span>
+      <span className="min-w-0">{children}</span>
+    </li>
   );
 }
 

@@ -40,8 +40,13 @@ def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, 
         settings.jwt_refresh_secret,
         refresh_expires,
     )
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_expires)
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(seconds=refresh_expires)
     db.add(RefreshToken(token=hash_token(refresh), user_id=user.id, expires_at=expires_at))
+    # 마지막 로그인(091) — 회원 정보 수정이 아니라서 updated_at(마지막 업데이트)은 그대로 둔다(onupdate 막기).
+    db.query(User).filter(User.id == user.id).update(
+        {User.last_login_at: now, User.updated_at: User.updated_at}, synchronize_session=False
+    )
     db.commit()
     return access, refresh
 

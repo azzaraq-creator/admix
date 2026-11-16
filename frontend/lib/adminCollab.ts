@@ -56,6 +56,8 @@ export interface AdminAdvertiserMember {
   snsProvider: string | null;
   status: string;
   createdAt: string | null;
+  /** 마지막 로그인(091) — 기록이 없으면 null. */
+  lastLoginAt: string | null;
   bizStatus: BizStatusCode;
   bizName: string | null;
   bizNo: string | null;

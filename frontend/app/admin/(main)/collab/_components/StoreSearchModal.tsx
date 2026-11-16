@@ -3,7 +3,7 @@
 import { Button, Card, Chip, Input, Modal, Spinner, Tabs } from "@heroui/react";
 import { Check, ChevronRight, Store, User, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { HERO_ERROR_CLASS } from "@/app/admin/(main)/media/_components/heroFields";
 import { useStoreTypes } from "@/hooks/adminCollab";
@@ -22,18 +22,29 @@ const ALL_TYPES = "all";
  * 연결 전 · 후 모든 매장을 최근 등록 순으로 보이고, 위 탭으로 매장 유형(카페 · 식당 …)을 나눈다(2026-11-10 사용자).
  * 매장명 · 주소 · 매장 ID · 연결 회원으로 찾는다(서버 /admin/partners/stores keyword · store_type).
  * 다른 회원에게 연결된 매장도 고를 수 있다 — 고르면 부르는 쪽이 옮길지 묻는다. 이 회원 매장은 고를 수 없다.
+ * 수정 요청함의 "매장 추가 요청"(11-16 사용자)도 이 창을 쓴다 — 요청한 매장명을 검색어로 미리 넣고, 아래에 "새 매장으로 등록".
  */
 export function StoreSearchModal({
   isOpen,
   onOpenChange,
   memberId,
   onSelect,
+  title = "매장 검색",
+  description = "이 회원에게 연결할 매장을 골라 주세요.",
+  initialKeyword = "",
+  footer,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   /** 지금 보고 있는 회원 — 이미 이 회원 매장이면 "연결됨"으로 막는다. */
   memberId: string;
   onSelect: (store: AdminPartnersStore) => void;
+  title?: string;
+  description?: ReactNode;
+  /** 창을 열 때 검색어 칸에 미리 넣을 값. */
+  initialKeyword?: string;
+  /** 목록 아래 줄(예: 찾는 매장이 없을 때 새로 등록). */
+  footer?: ReactNode;
 }) {
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -50,16 +61,19 @@ export function StoreSearchModal({
           </Modal.CloseTrigger>
           <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
             <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
-              매장 검색
+              {title}
             </Modal.Heading>
-            <p className="text-sm text-disabled">
-              이 회원에게 연결할 매장을 골라 주세요.
-            </p>
+            <p className="text-sm text-disabled">{description}</p>
           </Modal.Header>
-          {/* 창을 열 때마다 검색어를 비운다(안쪽을 열 때만 그린다). */}
+          {/* 창을 열 때마다 검색어를 처음 값으로(안쪽을 열 때만 그린다). */}
           {isOpen && (
-            <StoreSearchBody memberId={memberId} onSelect={onSelect} />
+            <StoreSearchBody
+              memberId={memberId}
+              onSelect={onSelect}
+              initialKeyword={initialKeyword}
+            />
           )}
+          {isOpen && footer}
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>
@@ -69,13 +83,15 @@ export function StoreSearchModal({
 function StoreSearchBody({
   memberId,
   onSelect,
+  initialKeyword,
 }: {
   memberId: string;
   onSelect: (store: AdminPartnersStore) => void;
+  initialKeyword: string;
 }) {
-  const [keyword, setKeyword] = useState("");
-  // 치는 동안 매번 부르지 않게 잠깐 기다렸다가 찾는다.
-  const [debounced, setDebounced] = useState("");
+  const [keyword, setKeyword] = useState(initialKeyword);
+  // 치는 동안 매번 부르지 않게 잠깐 기다렸다가 찾는다(미리 넣은 검색어는 바로 찾는다).
+  const [debounced, setDebounced] = useState(initialKeyword.trim());
   // 많으면 "더 보기"로 늘린다 — 검색어 · 탭이 바뀌면 처음 개수로.
   const [size, setSize] = useState(STORE_SEARCH_SIZE);
   useEffect(() => {
@@ -169,7 +185,9 @@ function StoreSearchBody({
                   isDisabled={isFetching}
                   onPress={() => setSize((n) => n + STORE_SEARCH_SIZE)}
                 >
-                  {isFetching ? "불러오는 중…" : `더 보기 (${items.length}/${total})`}
+                  {isFetching
+                    ? "불러오는 중…"
+                    : `더 보기 (${items.length}/${total})`}
                 </Button>
               </li>
             )}

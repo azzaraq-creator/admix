@@ -20,6 +20,7 @@ import {
   type AdminAdvCollabRequestDetail,
 } from "@/lib/adminCollab";
 import {
+  ADMIX_MAKE_TALK_DAYS,
   ADMIX_REVIEW_DAYS,
   COURSE,
   MAKE_DAYS,
@@ -118,6 +119,16 @@ function RequestDoc({ doc }: { doc: Doc }) {
     advertiser?.loginId ||
     "탈퇴한 회원";
   const hasAdmixMake = doc.items.some((i) => i.prep === "admix");
+  // 예상 일정 아래 안내 — 제작이 있는데 준비 영업일이 MAKE_DAYS 보다 짧음(광고주 동의 체크가 없을 때만, 동의했으면 체크로 보인다),
+  // admix 제작 대행 + 14영업일 이하면 협의 요청을 같은 안내에 더한다(11-16 사용자 "기간이 타이트하지만 일단 보고 협의해 보자").
+  const prepDays = doc.schedule?.prepBusinessDays;
+  const tightNote =
+    !doc.schedule?.earlyStartAgreed &&
+    !!doc.schedule?.makeItems &&
+    prepDays != null &&
+    prepDays < MAKE_DAYS;
+  const admixTalk =
+    hasAdmixMake && prepDays != null && prepDays <= ADMIX_MAKE_TALK_DAYS;
 
   const openPlanFile = async () => {
     if (!doc.planFile) return;
@@ -537,17 +548,21 @@ function RequestDoc({ doc }: { doc: Doc }) {
                       일정이 밀려도 admix에 책임을 묻지 않을게요.
                     </AgreedCheck>
                   )}
-                  {!doc.schedule.earlyStartAgreed &&
-                    doc.schedule.makeItems &&
-                    doc.schedule.prepBusinessDays != null &&
-                    doc.schedule.prepBusinessDays < MAKE_DAYS && (
-                      <Note>
-                        제작 항목이 있는데 준비 기간이 영업일{" "}
-                        {doc.schedule.prepBusinessDays}일이에요 — 제작은 보통 약{" "}
-                        {MAKE_DAYS}일 걸려 빠듯할 수 있어요. 광고주도 보낼 때
-                        같은 안내를 봤어요.
-                      </Note>
-                    )}
+                  {tightNote && (
+                    <Note>
+                      제작 항목이 있는데 준비 기간이 영업일 {prepDays}일이에요 —
+                      제작은 보통 약 {MAKE_DAYS}일 걸려 빠듯할 수 있어요.
+                      광고주도 보낼 때 같은 안내를 봤어요.
+                      {admixTalk && " admix 제작은 일정을 광고주와 협의해 주세요."}
+                    </Note>
+                  )}
+                  {/* 광고주에겐 "admix 제작은 빠듯하지만, 의뢰를 보고 함께 협의해요"가 보인다(11-16). */}
+                  {!tightNote && admixTalk && (
+                    <Note>
+                      admix 제작 항목이 있는데 준비 기간이 영업일 {prepDays}
+                      일이에요. 빠듯하지만 제작 일정을 광고주와 협의해 주세요.
+                    </Note>
+                  )}
                 </DocSection>
               )}
 

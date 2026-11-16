@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
 } from "react";
 
 import { MediaImage } from "@/components/common/MediaImage";
@@ -48,10 +49,13 @@ function isOnRenderedImage(
 export function ImageLightbox({
   images,
   initialIndex = 0,
+  captions,
   onClose,
 }: {
   images: string[];
   initialIndex?: number;
+  /** 장마다 왼쪽 위에 보일 설명(images 와 같은 순서) — 매장 사진 분류 · 메모(11-16). */
+  captions?: (ReactNode | undefined)[];
   onClose: () => void;
 }) {
   const [index, setIndex] = useState(initialIndex);
@@ -207,6 +211,12 @@ export function ImageLightbox({
                   {index + 1} / {count}
                 </p>
               </>
+            )}
+
+            {captions?.[index] && (
+              <div className="pointer-events-none absolute top-[24px] right-[76px] left-[16px] sm:top-[30px] sm:right-[96px] sm:left-[28px]">
+                {captions[index]}
+              </div>
             )}
 
             <Button

@@ -18,6 +18,7 @@ from src.models.media_master import Media
 from src.models.partners_store import PartnersStore
 from src.models.user import User
 from src.services import collab_service as cs
+from src.services import member_service
 from src.services import partners_service as ps
 
 
@@ -263,9 +264,34 @@ def test_store_inquiry(db: Session, partner: User):
     assert mine[q2["id"]]["adminReply"] == "매달 10일에 정산돼요." and mine[q["id"]]["status"] == "pending"
 
 
+def test_store_add_request(db: Session, partner: User):
+    """매장 추가 요청(11-16) — 매장명으로 보내고, 같은 이름 · 이미 연결된 매장은 막는다. 처리 완료해도 매장은 그대로,
+    어드민이 새 매장을 등록해 같은 회원에게 연결하면 내 매장이 두 곳이 된다."""
+    ps.ensure_partner_code(db, partner)
+    store = _store(db, partner)
+    sid = str(store.id)
+    r = ps.create_request(db, partner, sid, "add_store", "  성수 2호점  ")
+    assert r["field"] == "add_store" and r["fieldLabel"] == "매장 추가" and r["status"] == "pending"
+    assert r["after"] == "성수 2호점" and r["before"] is None and r["memo"] is None
+    with pytest.raises(HTTPException):  # 같은 이름을 확인 중에 또
+        ps.create_request(db, partner, sid, "add_store", "성수 2호점")
+    with pytest.raises(HTTPException):  # 빈 이름
+        ps.create_request(db, partner, sid, "add_store", "   ")
+    with pytest.raises(HTTPException):  # 이미 연결된 매장
+        ps.create_request(db, partner, sid, "add_store", store.name)
+
+    second = _store(db, partner)  # 어드민이 등록하면서 이 회원에게 연결
+    done = ps.admin_update_request(db, r["id"], {"status": "done"})
+    assert done["status"] == "done"
+    mine = {s["id"] for s in ps.list_mine(db, partner)}
+    assert {sid, str(second.id)} <= mine
+    hist = {x["id"]: x for x in ps.list_my_requests(db, partner, sid)}
+    assert hist[r["id"]]["status"] == "done" and hist[r["id"]]["fieldLabel"] == "매장 추가"
+
+
 def test_apply_request_confirm_and_block(db: Session, partner: User):
     ps.ensure_partner_code(db, partner)
-    ps.admin_biz_action(db, str(partner.id), "provisional")
+    ps.admin_biz_action(db, str(partner.id), "verify")
     db.refresh(partner)
     _agree(db, partner)
     store = _store(db, partner)
@@ -306,9 +332,63 @@ def test_apply_request_confirm_and_block(db: Session, partner: User):
     assert items[b["id"]]["standing"] == "none"
 
 
-def test_reserve_and_withdraw(db: Session, partner: User):
+def test_provisional_cannot_apply_or_confirm(db: Session, partner: User):
+    """임시 승인으로 들어온 회원은 목록만 — 어드민이 인증 완료할 때까지 신청 · 확정을 막는다(2026-11-16 사용자)."""
     ps.ensure_partner_code(db, partner)
     ps.admin_biz_action(db, str(partner.id), "provisional")
+    db.refresh(partner)
+    _agree(db, partner)
+    store = _store(db, partner)
+    sid = str(store.id)
+    c = _collab(db)
+    assert any(i["id"] == c["id"] for i in cs.list_for_store(db, partner, sid)["items"])
+    with pytest.raises(HTTPException) as e:
+        cs.apply(db, partner, c["id"], sid)
+    assert e.value.status_code == 403 and "임시 승인" in e.value.detail
+
+    # 등록증을 올려 검토 대기가 돼도 그대로 막힌다.
+    member_service.save_license_file(db, partner.id, f"/uploads/business/{partner.id}/x.pdf", "x.pdf")
+    db.refresh(partner)
+    assert partner.business_registration.status == "reviewing"
+    with pytest.raises(HTTPException) as e:
+        cs.apply(db, partner, c["id"], sid)
+    assert e.value.status_code == 403 and "인증을 마치면" in e.value.detail
+    # 반려돼도 막힌다.
+    ps.admin_biz_action(db, str(partner.id), "reject", "글자가 안 보여요")
+    db.refresh(partner)
+    with pytest.raises(HTTPException) as e:
+        cs.apply(db, partner, c["id"], sid)
+    assert "반려" in e.value.detail
+
+    # 어드민이 인증 완료하면 된다.
+    ps.admin_biz_action(db, str(partner.id), "verify")
+    db.refresh(partner)
+    assert cs.apply(db, partner, c["id"], sid)["standing"] == "candidate"
+
+    # 확정 요청을 받은 뒤 인증이 반려되면 확정도 막힌다(임시 승인 시각이 남아 있다).
+    pid = cs.admin_get(db, c["id"])["participants"][0]["id"]
+    cs.admin_update_participant(db, pid, {"status": "requested"})
+    ps.admin_biz_action(db, str(partner.id), "reject")
+    db.refresh(partner)
+    with pytest.raises(HTTPException) as e:
+        cs.confirm(db, partner, c["id"], sid, "홍길동", 7)
+    assert e.value.status_code == 403
+
+
+def test_reviewing_from_signup_can_apply(db: Session, partner: User):
+    """처음부터 등록증을 올린 회원(임시 승인 없이 검토 대기)은 예전처럼 신청할 수 있다."""
+    ps.ensure_partner_code(db, partner)
+    member_service.save_license_file(db, partner.id, f"/uploads/business/{partner.id}/x.pdf", "x.pdf")
+    db.refresh(partner)
+    _agree(db, partner)
+    store = _store(db, partner)
+    c = _collab(db)
+    assert cs.apply(db, partner, c["id"], str(store.id))["standing"] == "candidate"
+
+
+def test_reserve_and_withdraw(db: Session, partner: User):
+    ps.ensure_partner_code(db, partner)
+    ps.admin_biz_action(db, str(partner.id), "verify")
     db.refresh(partner)
     _agree(db, partner)
     s1, s2 = _store(db, partner), _store(db, partner)
@@ -345,7 +425,7 @@ def test_admin_calendar(db: Session, partner: User):
 def test_admin_progress_and_item_prep(db: Session, partner: User):
     """콜라보 진행 — 진행 항목 준비 주체(prep)는 어드민에만, 끝나지 않은 콜라보만 다음 일정과 함께."""
     ps.ensure_partner_code(db, partner)
-    ps.admin_biz_action(db, str(partner.id), "provisional")
+    ps.admin_biz_action(db, str(partner.id), "verify")
     db.refresh(partner)
     _agree(db, partner)
     store = _store(db, partner)
@@ -410,7 +490,7 @@ def test_store_responses(db: Session, partner: User):
     from datetime import datetime, timezone
 
     ps.ensure_partner_code(db, partner)
-    ps.admin_biz_action(db, str(partner.id), "provisional")
+    ps.admin_biz_action(db, str(partner.id), "verify")
     db.refresh(partner)
     _agree(db, partner)
     store = _store(db, partner)

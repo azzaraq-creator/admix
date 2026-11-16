@@ -54,7 +54,7 @@ export const likeLabelOf = (pick?: CollabPick) =>
 export const collabFeeText = (fee: number | null) =>
   fee ? `${fee.toLocaleString()}원` : "금액 협의";
 
-function GradeBox({ grade }: { grade: CollabGrade | null }) {
+export function GradeBox({ grade }: { grade: CollabGrade | null }) {
   if (!grade) return null;
   return (
     <span

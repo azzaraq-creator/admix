@@ -17,7 +17,8 @@ import { PartnersNoAccess } from "./PartnersNoAccess";
 import { GLASS_CARD } from "./workspace/workspaceUi";
 
 /**
- * 매장 상세(/partners/stores/[id]) — 매체 찾기에서 콜라보 매장을 누르거나 광고주 콜라보 매장 목록에서 새 탭으로 연다.
+ * 매장 상세(/partners/stores/[id]) — 주소로 바로 들어올 때. 매체 찾기 · 매장 찾기 · 관심 매장에서 매장을 누르면
+ * 이 화면 대신 매장 정보 팝업(StoreDetailModal, 11-16)이 뜬다.
  * 광고주 · 제휴사(콜라보)만 본다. key 는 매장 id 또는 매체 찾기 media_id(CF-0001).
  */
 export function PartnersStoreDetail({
@@ -171,7 +172,7 @@ export function PartnersStoreInfo({
                   key={t}
                   className="rounded-full bg-primary-50 px-[10px] py-[3px] text-[13px] font-semibold text-primary"
                 >
-                  #{t}
+                  # {t}
                 </span>
               ))}
             </div>

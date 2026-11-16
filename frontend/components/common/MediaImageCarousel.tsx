@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
  * children은 이미지 위에 겹쳐 그릴 버튼들(담기·찜 등)이다.
  * onSlideClick 을 주면 사진을 눌렀을 때(끌기·겹친 버튼 누르기는 빼고) 지금 보이는 장 번호로 부른다 — 매체 상세의 크게 보기.
  * labels 를 주면 사진마다 왼쪽 아래에 작은 이름표(콜라보 매장 사진 분류 — 외관 · 내관 …, 11-12 사용자)를 얹는다. 사진과 같이 넘어간다.
+ * captions 는 사진마다 겹칠 것을 직접 준다(매장 정보 팝업 — 분류 · 설명 · "N장 보기", 11-16).
  */
 export function MediaImageCarousel({
   slides,
@@ -29,6 +30,8 @@ export function MediaImageCarousel({
   onSlideClick,
   small,
   labels,
+  captions,
+  initialIndex = 0,
   eager,
   children,
 }: {
@@ -43,12 +46,16 @@ export function MediaImageCarousel({
   small?: boolean;
   /** 장마다 왼쪽 아래 이름표(slides 와 같은 순서, 비면 그 장은 없음). 큰 카드용 — 작은 사진에는 주지 않는다. */
   labels?: (string | undefined)[];
+  /** 장마다 사진 위에 겹칠 것(slides 와 같은 순서) — labels 대신 모양을 직접 정할 때. 버튼을 넣어도 끌기 · 크게 보기로 번지지 않는다. */
+  captions?: (ReactNode | undefined)[];
+  /** 처음 보일 장 — 바꾸려면 부모가 key 를 바꿔 새로 그린다(매장 정보 팝업의 분류 펼치기 · 접기). */
+  initialIndex?: number;
   /** 처음 화면에 바로 보이는 카드 — 첫 장만 바로 불러온다(나머지 장은 넘길 때 불러와도 된다). */
   eager?: boolean;
   children?: ReactNode;
 }) {
   // 이미지 도트 — 시안엔 도트만 있지만 눌러서 바꿀 수 있게 한다.
-  const [imageIndex, setImageIndex] = useState(0);
+  const [imageIndex, setImageIndex] = useState(initialIndex);
   const dragRef = useRef<{ startX: number; moved: boolean } | null>(null);
   const draggedRef = useRef(false);
   const [dragDx, setDragDx] = useState(0);
@@ -143,6 +150,7 @@ export function MediaImageCarousel({
                 {labels[index]}
               </span>
             )}
+            {captions?.[index]}
           </MediaThumbnail>
         ))}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Chip, EmptyState, Tabs, TextArea } from "@heroui/react";
-import { ArrowRight, Inbox } from "lucide-react";
+import { ArrowRight, Inbox, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -11,20 +11,25 @@ import { LoadingState } from "@/components/common/RouteStates";
 import {
   useCollabAdminSummary,
   useCollabRequests,
+  useLinkStore,
   useUpdateStoreRequest,
 } from "@/hooks/adminCollab";
+import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { dotDateTime } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import {
   isFieldRequest,
+  STORE_ADD_FIELD,
   STORE_INQUIRY_LABEL,
+  type AdminPartnersStore,
   type AdminStoreRequest,
   type StoreRequestField,
   type StoreRequestStatus,
 } from "@/lib/partners";
 
 import { CollabPageHead, SimplePager } from "../../_components/collabUi";
+import { StoreSearchModal } from "../../_components/StoreSearchModal";
 
 type StatusTab = StoreRequestStatus | "all";
 const PAGE_SIZE = 20;
@@ -33,6 +38,9 @@ const PAGE_SIZE = 20;
  * 매장 수정 요청함 — 제휴사가 "내 매장 → 우리 매장 정보"에서 줄(항목)을 골라 보낸 새 값(074).
  * "반영하기"를 누르면 매장 정보가 그 값으로 바뀌고 처리 완료. 안 되면 "처리 불가"를 눌러 밑에 열린 칸에 사유를 적고 보낸다(제휴사 수정 기록에 사유가 보인다).
  * "추가 요청 · 문의"(11-12, 글로 보낸 요청)는 바꿀 값이 없어 "답변하기"로 답(선택)을 적고 처리 완료 — 답은 제휴사 수정 기록에 보인다.
+ * "매장 추가"(11-16, 제휴사가 매장명으로 보낸 요청)는 "매장 등록하기"로 등록된 매장 검색 창을 요청한 매장명으로 찾아 열고(11-16 사용자),
+ * 고르면 보낸 회원에게 연결하고 이 요청도 처리 완료. 찾는 매장이 없으면 창 아래 "새 매장으로 등록"으로 새 매장 폼을
+ * 매장명 · 연결 회원을 채워 열고, 등록하면 이 요청도 처리 완료된다(?request=).
  * ?store_id= 로 들어오면 그 매장 요청만.
  * 카드 제목은 "무엇을 고쳐 달라는지"(어드민 매장 화면 칸 이름 — 조건 메모 · 매장 어필 …), 그 아래 매장 · 보낸 회원,
  * 본문은 지금 값 → 바꿀 값 두 칸(2026-11-12 사용자: 뭐에 대한 수정 요청인지 명확히).
@@ -56,7 +64,7 @@ export function CollabRequestsView() {
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <CollabPageHead
         title="수정 요청"
-        desc="제휴사가 내 매장에서 보낸 정보 수정 요청과 문의예요. 반영하면 매장 정보가 바로 바뀌고, 처리 불가 사유 · 답변은 제휴사에게 보여요."
+        desc="제휴사가 내 매장에서 보낸 정보 수정 요청 · 매장 추가 요청 · 문의예요. 반영하면 매장 정보가 바로 바뀌고, 처리 불가 사유 · 답변은 제휴사에게 보여요."
       />
 
       <div className="flex flex-wrap items-center gap-[12px]">
@@ -176,8 +184,20 @@ const STATUS_CHIP: Record<
 };
 
 function RequestCard({ request: r }: { request: AdminStoreRequest }) {
+  const router = useRouter();
   const update = useUpdateStoreRequest();
+  const link = useLinkStore();
+  const { confirm, alert, confirmDialog } = useAdminConfirm();
   const { success, error } = useSonner();
+  // 매장 추가 요청(11-16) — 등록된 매장에서 골라 보낸 회원에게 연결한다. 없으면 새 매장 폼을 매장명 · 연결 회원 · 이 요청으로 채워 연다.
+  const addStore = r.field === STORE_ADD_FIELD;
+  const [picking, setPicking] = useState(false);
+  const busy = update.isPending || link.isPending;
+  const addStoreHref = `/admin/collab/stores/new?${new URLSearchParams({
+    name: r.after ?? "",
+    ...(r.partnerCode ? { owner: r.partnerCode } : {}),
+    request: r.id,
+  })}`;
   // 항목 요청은 "반영하기"(매장 값을 바꾼다), 글로 보낸 요청(추가 요청 · 문의, 예전 자유 입력)은 "답변하기"(처리 완료).
   const fieldRequest = isFieldRequest(r);
   // 버튼 밑에 열리는 칸 — "처리 불가"는 사유(꼭, 11-11 사용자), "답변하기"는 답(선택, 11-12). 평소엔 숨긴다.
@@ -222,6 +242,45 @@ function RequestCard({ request: r }: { request: AdminStoreRequest }) {
     }
   };
 
+  /** 매장 검색 창에서 고른 매장 — 보낸 회원에게 연결하고 이 요청을 처리 완료로. 다른 회원 매장이면 옮길지 묻는다. */
+  const linkPicked = async (store: AdminPartnersStore) => {
+    setPicking(false);
+    if (!r.userId || !store.storeCode) return;
+    if (store.ownerUserId && store.ownerUserId !== r.userId) {
+      const owner =
+        `${store.ownerPartnerCode ?? ""} ${store.ownerMemberName || store.ownerCompanyName || store.ownerLoginId || ""}`.trim();
+      const ok = await confirm({
+        title: "이 회원으로 옮길까요?",
+        description: `${store.name}은(는) 지금 ${owner || "다른 회원"}에게 연결돼 있어요. 옮기면 그 회원의 내 매장에서 빠져요.`,
+        confirmText: "옮기기",
+      });
+      if (!ok) return;
+    }
+    try {
+      await link.mutateAsync({ id: r.userId, storeCode: store.storeCode });
+    } catch (err) {
+      await alert({
+        title: "연결하지 못했어요",
+        description: extractApiError(err),
+        confirmText: "확인",
+      });
+      return;
+    }
+    // 연결은 됐으니 요청 처리 완료가 안 돼도 연결은 그대로 둔다.
+    const done = await update
+      .mutateAsync({ id: r.id, payload: { status: "done" } })
+      .then(() => true)
+      .catch(() => false);
+    success(
+      "매장을 연결했어요.",
+      `${store.storeCode} ${store.name}. ${
+        done
+          ? "매장 추가 요청도 처리 완료로 바꿨어요."
+          : "매장 추가 요청은 답변하기로 처리 완료로 바꿔 주세요."
+      }`,
+    );
+  };
+
   const openPanel = (next: "reject" | "answer") => {
     setReply("");
     setReplyError(null);
@@ -237,7 +296,9 @@ function RequestCard({ request: r }: { request: AdminStoreRequest }) {
           <h3 className="text-base font-bold leading-[24px] text-black">
             {fieldRequest
               ? `${ADMIN_FIELD_LABEL[r.field] ?? r.fieldLabel} 수정 요청`
-              : STORE_INQUIRY_LABEL}
+              : addStore
+                ? "매장 추가 요청"
+                : STORE_INQUIRY_LABEL}
           </h3>
           <p className="flex flex-wrap items-center gap-x-[8px] gap-y-[2px] text-sm text-tone-4a5565">
             <Link
@@ -304,6 +365,8 @@ function RequestCard({ request: r }: { request: AdminStoreRequest }) {
             empty="(비우기)"
           />
         </div>
+      ) : addStore ? (
+        <ValueBox label="추가할 매장명" value={r.after} empty="(없음)" />
       ) : (
         <ValueBox label="문의 내용" value={r.after} empty="(내용 없음)" />
       )}
@@ -336,21 +399,34 @@ function RequestCard({ request: r }: { request: AdminStoreRequest }) {
               <Button
                 size="sm"
                 variant="danger-soft"
-                isDisabled={update.isPending}
+                isDisabled={busy}
                 onPress={() => openPanel("reject")}
               >
                 처리 불가
               </Button>
               <Button
                 size="sm"
-                variant="primary"
-                isDisabled={update.isPending}
+                variant={addStore ? "tertiary" : "primary"}
+                isDisabled={busy}
                 onPress={() =>
                   fieldRequest ? save("done") : openPanel("answer")
                 }
               >
                 {fieldRequest ? "반영하기" : "답변하기"}
               </Button>
+              {addStore && (
+                // 등록된 매장에서 고른다(보낸 회원이 없으면 연결할 곳이 없어 새 매장 폼으로).
+                <Button
+                  size="sm"
+                  variant="primary"
+                  isDisabled={busy}
+                  onPress={() =>
+                    r.userId ? setPicking(true) : router.push(addStoreHref)
+                  }
+                >
+                  {link.isPending ? "연결 중…" : "매장 등록하기"}
+                </Button>
+              )}
             </>
           )}
           {r.status === "rejected" && (
@@ -427,6 +503,33 @@ function RequestCard({ request: r }: { request: AdminStoreRequest }) {
           </div>
         </div>
       )}
+
+      {addStore && r.userId && (
+        <StoreSearchModal
+          isOpen={picking}
+          onOpenChange={setPicking}
+          memberId={r.userId}
+          onSelect={(store) => void linkPicked(store)}
+          title="등록된 매장에서 찾기"
+          description={`고르면 ${[r.partnerCode, r.userName || r.userLoginId].filter(Boolean).join(" ")} 회원에게 연결하고 요청을 처리 완료해요.`}
+          initialKeyword={r.after ?? ""}
+          footer={
+            <div className="flex flex-wrap items-center justify-between gap-[8px] border-t border-stroke pt-[14px]">
+              <p className="text-sm text-disabled">
+                찾는 매장이 없으면 새로 등록해요.
+              </p>
+              <Button
+                size="sm"
+                variant="tertiary"
+                onPress={() => router.push(addStoreHref)}
+              >
+                <Plus className="size-[16px]" />새 매장으로 등록
+              </Button>
+            </div>
+          }
+        />
+      )}
+      {confirmDialog}
     </AdminPanel>
   );
 }

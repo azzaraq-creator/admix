@@ -4,8 +4,6 @@ import {
   Button,
   Checkbox,
   CloseButton,
-  DateField,
-  DateRangePicker,
   Description,
   Input,
   Label,
@@ -13,14 +11,12 @@ import {
   ListBox,
   Radio,
   RadioGroup,
-  RangeCalendar,
   Select,
   TextArea,
 } from "@heroui/react";
-import { parseDate } from "@internationalized/date";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { LoadingState } from "@/components/common/RouteStates";
@@ -45,6 +41,7 @@ import {
   PREP_LABEL,
   PREP_OF,
   MIN_PREP_DAYS,
+  earliestRequestStart,
   PREVIEW_TODAY,
   admixMakeItems,
   makeItems,
@@ -66,7 +63,7 @@ import {
   type ItemPrep,
   type StoreRef,
 } from "@/lib/advertiserPreview";
-import { addDays, diffDays, periodDays } from "@/lib/partnersPreview";
+import { addDays, periodDays } from "@/lib/partnersPreview";
 import { formatPhoneInput, isValidPhone, PHONE_INPUT_MAX_LENGTH } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -76,11 +73,10 @@ import { useFavoriteStores } from "./favoriteStores";
 import { useBrandSelect } from "./advBrandSelect";
 import { advActions, useAdvReady, useAdvServerSync, useAdvState, useRememberSentRequest } from "./advStore";
 import { PreferredStorePicker } from "./PreferredStorePicker";
-import { RequestConfirmModal, TightNote } from "./RequestConfirmModal";
+import { RequestConfirmModal, TightNote, WARN_BOX } from "./RequestConfirmModal";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import {
   ADV_BRANDS_NEW_HREF,
-  ADV_FIND_HREF,
   ActionBar,
   BAR_BUTTON,
   GradeMark,
@@ -95,7 +91,7 @@ import {
  *       → 콜라보 기간 및 모집 일정 → 지정 희망 매장(관심 매장 화면에서 고른 매장 · 관심 매장 고르기) → 남길 말.
  * 콜라보 유형(준비형 · 제작형)은 따로 고르지 않고 기본안 준비 상태에서 계산한다(하나라도 제작이면 제작형, 11-11).
  * 매장 운영(할 일 · 수량 · 혜택 · 직원 멘트)은 11-11부터 받지 않는다 — admix와 협의해 정한다.
- * 오른쪽(PC 고정): 예상 일정(시작일에서 역산) · 예상 비용(지정 매장 금액 + 나머지 × 실제 매장 평균) · 진행 방식 · 보내기.
+ * 오른쪽: 준비 기간(11-16 "예상 일정"에서 이름 바꿈 — 진행 기간 · 확정 후 준비 기간 · 빠듯함 안내) · 예상 비용(지정 매장 금액 + 나머지 × 실제 매장 평균) · 진행 방식 · 보내기.
  * 보낸 의뢰는 이 탭(예시 상태)에만 남는다.
  */
 
@@ -145,7 +141,7 @@ const PLAN_FILE_ACCEPT = ".pdf,.ppt,.pptx,.key,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,
 const PLAN_FILE_MAX = 20 * 1024 * 1024;
 const fileSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`);
 
-/** 고치는 의뢰를 폼 값으로 — 옛 "더 하고 싶은 것"은 추가 기획 글로 옮기고, 준비 기간은 최소 3일로 맞춘다. */
+/** 고치는 의뢰를 폼 값으로 — 옛 "더 하고 싶은 것"은 추가 기획 글로 옮기고, 준비 기간은 최소(MIN_PREP_DAYS)로 맞춘다. */
 const toForm = (c: AdvCollab): AdvCollab => ({
   ...c,
   prepDays: Math.max(MIN_PREP_DAYS, c.prepDays),
@@ -212,13 +208,13 @@ type ErrorKey =
   | `note-${BaseItem}`
   | `prep-${BaseItem}`;
 
-/** 보내기 검사에 걸린 칸 이름 — 토스트에 쓴다. 순서 = 화면 위에서 아래(진행 기간은 캠페인명 바로 아래). */
+/** 보내기 검사에 걸린 칸 이름 — 토스트에 쓴다. 순서 = 화면 위에서 아래(진행 기간은 맨 위 예상 일정 달력, 11-16). */
 const ERROR_FIELD = {
-  brand: "브랜드",
-  title: "캠페인명",
-  // 시작 · 종료는 한 칸(진행 기간 DateRangePicker)이라 이름도 하나로 — 토스트에선 한 번만.
+  // 시작 · 종료는 한 칸(달력에서 기간 고르기)이라 이름도 하나로 — 토스트에선 한 번만.
   start: "진행 기간",
   end: "진행 기간",
+  brand: "브랜드",
+  title: "캠페인명",
   contactName: "담당자 이름",
   contactPhone: "전화번호",
   contactRole: "직책 또는 소속팀",
@@ -335,6 +331,24 @@ function Section({
   );
 }
 
+/**
+ * "관심 매장 고르기" — 보라색(secondary) 말고(11-12 사용자) 흰 바탕 회색 테두리 + 관심 매장 메뉴와 같은 하트.
+ * 하트는 연한 빨강(11-16 사용자 "아이콘에 연한 빨강으로 해서 색깔을 넣어줘").
+ */
+function PickFavoritesButton({ onPress, className }: { onPress: () => void; className?: string }) {
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onPress={onPress}
+      className={cn("shrink-0 gap-[6px] border-gray-200 bg-white font-semibold text-gray-800 dark:bg-surface", className)}
+    >
+      <MaskIcon src="/icons/heart.svg" className="size-[14px] text-red-400" />
+      관심 매장 고르기
+    </Button>
+  );
+}
+
 const INPUT = "h-[44px] rounded-[19px]";
 
 /**
@@ -430,80 +444,11 @@ function BrandPicker({
     </Select>
   );
 }
+/** 오른쪽 요약 칸이 붙는 위치 — 스크롤하면 위에 붙는 기간 줄(높이 약 51px) 아래, 화면 아래 여백. */
+const ASIDE_TOP = 68;
+const ASIDE_BOTTOM = 16;
 /** 진행 기간 최소 일수(11-11 사용자) — 이보다 짧은 기간은 고를 수 없다. */
 const MIN_PERIOD_DAYS = 3;
-
-/**
- * 진행 기간 — HeroUI DateRangePicker(11-11 사용자, 날짜 칸 두 개 대신).
- * 오늘 이전 · 오늘은 고를 수 없다(minValue 내일). HeroUI RangeCalendar 는 minValue 를 안 주면 1900-01-01 로 채워
- * 피커가 넘기는 값을 덮어쓰므로 달력에도 직접 준다.
- * 시작일을 누른 뒤엔 최소 3일이 안 되는 끝날(시작 ±1일)을 못 고르게 막는다 — 달력의 isDateUnavailable 이 고르는 중 시작점(anchorDate)을
- * 두 번째 인자로 받는다(그래서 연속 범위 제한은 끈다 — 켜 두면 막힌 날 너머를 통째로 못 고른다).
- * 같은 날을 두 번 누르거나 직접 짧게 적으면 끝날을 시작 + 2일로 맞춘다.
- */
-function PeriodPicker({
-  start,
-  end,
-  invalid,
-  onChange,
-}: {
-  start: string;
-  end: string;
-  invalid: boolean;
-  onChange: (start: string, end: string) => void;
-}) {
-  const value = start && end && end >= start ? { start: parseDate(start), end: parseDate(end) } : null;
-  const minValue = parseDate(addDays(PREVIEW_TODAY, 1));
-  return (
-    <DateRangePicker
-      aria-label="진행 기간"
-      className="w-full"
-      value={value}
-      minValue={minValue}
-      isInvalid={invalid}
-      onChange={(v) => {
-        if (!v) return;
-        const s = v.start.toString();
-        const e = v.end.toString();
-        onChange(s, periodDays(s, e) < MIN_PERIOD_DAYS ? addDays(s, MIN_PERIOD_DAYS - 1) : e);
-      }}
-    >
-      {/* 날짜 글자는 가운데(11-11 사용자) — 달력 단추를 오른쪽 끝에 띄워 글자 묶음이 칸 한가운데 오게 한다. */}
-      <DateField.Group fullWidth className={cn(INPUT, "relative justify-center px-[44px]")}>
-        <DateField.Input slot="start" className="flex-none px-0">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-        <DateRangePicker.RangeSeparator />
-        <DateField.Input slot="end" className="flex-none px-0">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-        <DateField.Suffix className="absolute top-1/2 right-[12px] -translate-y-1/2">
-          <DateRangePicker.Trigger aria-label="달력 열기">
-            <DateRangePicker.TriggerIndicator />
-          </DateRangePicker.Trigger>
-        </DateField.Suffix>
-      </DateField.Group>
-      <DateRangePicker.Popover>
-        <RangeCalendar
-          aria-label="진행 기간"
-          minValue={minValue}
-          allowsNonContiguousRanges
-          isDateUnavailable={(date, anchor) => {
-            if (!anchor) return false;
-            const gap = Math.abs(diffDays(date.toString(), anchor.toString()));
-            return gap > 0 && gap < MIN_PERIOD_DAYS - 1;
-          }}
-        >
-          <RangeCalendar.Header>
-            <RangeCalendar.Heading />
-            <RangeCalendar.NavButton slot="previous" />
-            <RangeCalendar.NavButton slot="next" />
-          </RangeCalendar.Header>
-          <RangeCalendar.Grid>
-            <RangeCalendar.GridHeader>{(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}</RangeCalendar.GridHeader>
-            <RangeCalendar.GridBody>{(date) => <RangeCalendar.Cell date={date} />}</RangeCalendar.GridBody>
-          </RangeCalendar.Grid>
-        </RangeCalendar>
-      </DateRangePicker.Popover>
-    </DateRangePicker>
-  );
-}
 
 const num = (v: string, min = 0) => Math.max(min, Math.round(Number(v.replace(/[^\d]/g, "")) || 0));
 
@@ -521,6 +466,8 @@ function RequestForm({
   // 관심 매장 — "관심 매장 고르기" 팝업 맨 위에 하트와 함께. 다른 탭(매장 찾기)에서 누른 하트도 열 때 다시 받아 온다.
   const favorites = useFavoriteStores();
   const [d, setD] = useState<AdvCollab>(() => toForm(initial));
+  // 맨 위 달력 카드 펼침 — 접으면 제목 · 버튼 한 줄만(11-16 사용자 "접었다, 폈다").
+  const [calOpen, setCalOpen] = useState(true);
   // 작성 중인 내용이 있으면 뒤로가기(화면 버튼 · 브라우저) · 다른 메뉴 · 새로고침 전에 묻는다(11-11 사용자).
   // 처음 값과 달라졌을 때만 — 손대지 않았거나 원래대로 되돌렸으면 묻지 않는다. 보낸 뒤엔 풀린다.
   const [base] = useState(() => JSON.stringify(toForm(initial)));
@@ -563,7 +510,13 @@ function RequestForm({
   // "우린 권했고 그래도 한다고 했으면 책임은 너희 거라는 게 전달돼야 해") — 광고주를 가리키지 않고 admix가 책임지지 않는다고 말한다.
   // 글은 TightNote 하나로(11-12 사용자 "조금 줄여 줘 · 권하는 부분만 굵게") — 여기엔 권하는 날짜만 둔다.
   const tightStart = hasPeriod && plan.tight ? mdw(plan.makeReady) : null;
+  // admix 제작 대행인데 준비 영업일이 14일 이하 — 같은 안내 끝에 "의뢰를 보고 함께 협의해요"(11-16 사용자).
+  const admixTalk = !!tightStart && plan.admixTalk;
   const [pickerOpen, setPickerOpen] = useState(false);
+  const openPicker = () => {
+    void favorites.ids.refetch();
+    setPickerOpen(true);
+  };
 
   // 콜라보 담당자 — 같아요를 켜면 채우고, 모든 칸은 고칠 수 있다. 채워 준 칸을 고치면 같아요가 풀린다(11-11 사용자).
   const { data: me } = useMe();
@@ -591,6 +544,93 @@ function RequestForm({
   // 진행 기간 일수 — 날짜가 없거나 거꾸로면 0(날짜 칸 옆에 "-").
   const len = d.startDate && d.endDate && d.endDate >= d.startDate ? periodDays(d.startDate, d.endDate) : 0;
 
+  const earliestStart = earliestRequestStart();
+  // 맨 위 달력 — 제자리 카드와 스크롤했을 때 위에 붙는 줄(펼치면)이 같은 값을 쓴다.
+  const calendar = (
+    <ScheduleCalendar
+      s={hasPeriod ? s : null}
+      requestDate={PREVIEW_TODAY}
+      prepLabel={plan.make ? "제작 · 준비" : "준비"}
+      months={3}
+      select={{
+        start: d.startDate,
+        end: d.endDate,
+        // 오늘 보내도 admix 검토 · 모집 · 확정 · 준비 · 설치를 최소로 마친 다음 날부터(11-16 사용자) — 그 전 날은 툴팁으로 이유.
+        min: earliestStart,
+        minReason: "admix 검토 · 매장 모집 · 확정 · 준비 · 설치 기간이 필요해요.",
+        minDays: MIN_PERIOD_DAYS,
+        onChange: (startDate, endDate) => {
+          setD((x) => ({ ...x, startDate, endDate }));
+          setErrors((x) => ({ ...x, start: undefined, end: undefined }));
+        },
+      }}
+    />
+  );
+  // 달력 카드가 스크롤로 위로 다 지나갔는지(11-16 사용자 "스크롤 내렸을 때 달력이 어색하게 떠 있는 느낌") — 그동안만 위에 얇은 줄.
+  // 다시 보이면 줄과 줄의 펼친 달력을 닫는다.
+  const calCardRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const [barOpen, setBarOpen] = useState(false);
+  useEffect(() => {
+    const el = calCardRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        const out = !e.isIntersecting && e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0) + 1;
+        setPinned(out);
+        if (!out) setBarOpen(false);
+      },
+      { root: el.closest("main"), threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  // 오른쪽 요약 칸 따라오기(11-16 사용자) — 화면에 다 들어가면 ASIDE_TOP에 그대로 붙고,
+  // 화면보다 길면 스크롤한 만큼 top을 옮겨(ASIDE_TOP ~ 끝이 화면 아래에 닿는 값) 내릴 땐 끝까지, 올릴 땐 처음까지 보이게.
+  // 스크롤마다 리렌더하지 않게 style.top만 바꾼다.
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = asideRef.current;
+    const main = el?.closest("main");
+    if (!el || !main) return;
+    let top = ASIDE_TOP;
+    let last = main.scrollTop;
+    const place = () => {
+      const h = el.offsetHeight;
+      const min = Math.min(ASIDE_TOP, main.clientHeight - ASIDE_BOTTOM - h);
+      const y = main.scrollTop;
+      top = Math.min(ASIDE_TOP, Math.max(min, top - (y - last)));
+      last = y;
+      el.style.top = `${top}px`;
+    };
+    place();
+    main.addEventListener("scroll", place, { passive: true });
+    const ro = new ResizeObserver(place);
+    ro.observe(el);
+    ro.observe(main);
+    return () => {
+      main.removeEventListener("scroll", place);
+      ro.disconnect();
+    };
+  }, []);
+  // 줄의 달력을 펼친 동안 바깥을 누르거나 Esc면 닫는다(아래 칸 위로 겹쳐 있으니).
+  useEffect(() => {
+    if (!barOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!barRef.current?.contains(e.target as Node)) setBarOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setBarOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [barOpen]);
+
   const validate = () => {
     const e: Partial<Record<ErrorKey, string>> = {};
     if (!d.brand.trim()) e.brand = "브랜드를 골라 주세요.";
@@ -615,6 +655,11 @@ function RequestForm({
     if (d.minStores < 1 || d.targetStores < d.minStores) e.stores = "최소 매장 수는 1곳 이상, 목표는 최소보다 같거나 많아야 해요.";
     else if (d.preferred.length > d.targetStores) e.stores = `지정 희망 매장(${d.preferred.length}곳)보다 목표가 적어요.`;
     setErrors(e);
+    // 진행 기간이 걸렸는데 달력을 접어 두었으면 펼친다. 스크롤해 위 줄만 보이는 중이면 줄의 달력도 펼친다.
+    if (e.start ?? e.end) {
+      setCalOpen(true);
+      if (pinned) setBarOpen(true);
+    }
     return e;
   };
 
@@ -753,6 +798,113 @@ function RequestForm({
         </p>
       )}
 
+      {/*
+       * 진행 기간 · 예상 일정 — 맨 위에 크게 석 달(11-16 사용자 "캘린더를 위에 크게 3달치, 위에 고정").
+       * 날짜 칸(DateRangePicker) 대신 이 달력에서 시작일 → 끝날을 눌러 고르고, 고르면 모집 · 검토 · 준비 · 설치 · 철수까지 칠해진다.
+       * 처음엔 이 카드를 통째로 위에 붙였는데, 스크롤하면 큰 카드가 아래 칸 위에 어색하게 떠 있어서(11-16 사용자)
+       * 카드는 제자리에 두고, 지나가면 위 가장자리에 붙는 얇은 줄(아래 pinned)로 바꿨다.
+       * 오른쪽 위 "접기 · 펼치기"(11-16 사용자) — 접으면 제목 · 버튼 한 줄만 남아 아래 칸이 넓어진다(고른 기간 글은 11-16에 뺌). 달력은 그대로 두고
+       * 높이만 줄여(고르던 시작일 · 넘겨 본 달이 남는다), 접힌 동안은 inert 로 날짜 단추에 포커스가 가지 않게.
+       */}
+      <div ref={calCardRef}>
+        <PanelCard
+          className={cn(
+            "gap-0 p-[16px] sm:p-[20px]",
+            !calOpen && "py-[12px] sm:py-[14px]",
+            (errors.start ?? errors.end) && "border-error hover:border-error",
+          )}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-x-[12px] gap-y-[2px]">
+            <h2 className="flex items-center gap-[8px] text-[16px] font-bold text-gray-900">
+              <MaskIcon src="/icons/calendar.svg" className="size-[16px] text-gray-500" />
+              진행 기간 · 예상 일정
+              <span className="-ml-[6px] text-danger">*</span>
+            </h2>
+            {/* 고른 기간 글("12.24 (목) ~ 12.27 (일) · 총 4일" · 고르기 전 "최소 3일")은 뺐다(11-16 사용자 "이거 빼줘") —
+                오른쪽 준비 기간 카드의 "진행 기간" 줄에 같은 값이 있다. 접기 버튼은 ghost 말고 바탕이 늘 보이는 tertiary(11-16 사용자). */}
+            <div className="ml-auto flex items-center gap-[8px]">
+              <Button
+                size="sm"
+                variant="tertiary"
+                aria-expanded={calOpen}
+                aria-controls="request-schedule-calendar"
+                onPress={() => setCalOpen((o) => !o)}
+                className="h-[30px] min-w-0 gap-[2px] rounded-[11px] px-[10px] text-[13px] font-semibold text-gray-700"
+              >
+                {calOpen ? "접기" : "펼치기"}
+                <ChevronDown aria-hidden className={cn("size-[15px] transition-transform", calOpen && "rotate-180")} />
+              </Button>
+            </div>
+          </div>
+          <div
+            id="request-schedule-calendar"
+            inert={!calOpen}
+            className={cn(
+              "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+              calOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="pt-[10px]">
+                {calendar}
+              </div>
+            </div>
+          </div>
+          {(errors.start ?? errors.end) && (
+            <span role="alert" className="mt-[10px] text-[12px] font-semibold text-error">
+              {errors.start ?? errors.end}
+            </span>
+          )}
+        </PanelCard>
+      </div>
+      {/*
+       * 위 달력 카드가 스크롤로 다 지나가면 위 가장자리에 붙는 얇은 줄 — 고른 기간 + "달력 펼치기".
+       * 높이 0인 sticky 자리(-mt로 gap도 지움)라 아래 칸이 밀리지 않고, 펼친 달력은 아래 칸 위로 겹쳐 내려온다.
+       * 위쪽 모서리는 각지게 · 위 테두리 없이 화면 가장자리에 매달린 모양(떠 있는 카드처럼 안 보이게).
+       * 모바일은 예전처럼 붙이지 않는다.
+       */}
+      <div className="sticky top-0 z-20 -mt-[16px] h-0 max-sm:hidden">
+        {pinned && (
+          <div
+            ref={barRef}
+            className="absolute inset-x-0 top-0 animate-in rounded-b-[20px] border border-t-0 border-gray-200 bg-surface/90 px-[20px] py-[10px] shadow-[0_14px_24px_-14px_rgba(0,0,0,0.22)] backdrop-blur-md duration-200 fade-in slide-in-from-top-2 dark:border-gray-100"
+          >
+            <div className="flex items-center gap-[12px]">
+              <span className="flex shrink-0 items-center gap-[8px] text-[14px] font-bold text-gray-900">
+                <MaskIcon src="/icons/calendar.svg" className="size-[15px] text-gray-500" />
+                진행 기간
+              </span>
+              <span className={cn("min-w-0 truncate text-[13px] text-gray-600", (errors.start ?? errors.end) && "font-semibold text-error")}>
+                {errors.start ?? errors.end ?? (len ? `${mdw(d.startDate)} ~ ${mdw(d.endDate)} · ${len}일` : "아직 고르지 않았어요.")}
+              </span>
+              <Button
+                size="sm"
+                variant="tertiary"
+                aria-expanded={barOpen}
+                aria-controls="request-schedule-calendar-pinned"
+                onPress={() => setBarOpen((o) => !o)}
+                className="ml-auto h-[30px] min-w-0 shrink-0 gap-[2px] rounded-[11px] px-[10px] text-[13px] font-semibold text-gray-700"
+              >
+                {barOpen ? "접기" : "달력 펼치기"}
+                <ChevronDown aria-hidden className={cn("size-[15px] transition-transform", barOpen && "rotate-180")} />
+              </Button>
+            </div>
+            <div
+              id="request-schedule-calendar-pinned"
+              inert={!barOpen}
+              className={cn(
+                "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+                barOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="pt-[10px] pb-[6px]">{calendar}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="grid items-start gap-[16px] lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-[16px]">
           <Section step={1} title="콜라보 기본">
@@ -790,52 +942,6 @@ function RequestForm({
                   placeholder={maxText(MAX_LEN.title)}
                   onChange={(e) => set("title", e.target.value, "title")}
                 />
-              </Field>
-              {/* 이름표 옆엔 "최소 3일", 날짜 칸 옆엔 "총 N일"(날짜가 없으면 "-") — 11-11 사용자.
-                  모바일은 옆 칸을 두면 날짜 글자와 달력 단추가 겹쳐서(360px 폭) 이름표 줄 오른쪽 끝에 둔다. */}
-              <Field
-                label="진행 기간"
-                required
-                error={errors.start ?? errors.end}
-                aside={
-                  <>
-                    <span className="text-[12px] font-medium text-gray-400">최소 {MIN_PERIOD_DAYS}일</span>
-                    <span
-                      className={cn(
-                        "ml-auto text-[13px] font-semibold sm:hidden",
-                        len ? "text-gray-900" : "text-gray-400",
-                      )}
-                    >
-                      {len ? `총 ${len}일` : "-"}
-                    </span>
-                  </>
-                }
-                className="sm:col-span-2"
-              >
-                <div className="flex items-center gap-[8px]">
-                  <div className="min-w-0 flex-1">
-                    <PeriodPicker
-                      start={d.startDate}
-                      end={d.endDate}
-                      invalid={!!(errors.start ?? errors.end)}
-                      onChange={(startDate, endDate) => {
-                        setD((x) => ({ ...x, startDate, endDate }));
-                        setErrors((x) => ({ ...x, start: undefined, end: undefined }));
-                      }}
-                    />
-                  </div>
-                  <span
-                    aria-live="polite"
-                    aria-label={len ? `총 ${len}일` : "진행 기간 미선택"}
-                    className={cn(
-                      INPUT,
-                      "flex w-[84px] shrink-0 items-center justify-center bg-gray-50 text-[14px] font-semibold max-sm:hidden",
-                      len ? "text-gray-900" : "text-gray-400",
-                    )}
-                  >
-                    {len ? `총 ${len}일` : "-"}
-                  </span>
-                </div>
               </Field>
               <Field label="한 줄 소개" className="sm:col-span-2">
                 <Input
@@ -985,7 +1091,7 @@ function RequestForm({
                         )}
                         {prep?.byAdmix && (
                           <span className="text-[12px] leading-[1.5] font-medium break-keep text-gray-600">
-                            admix 제작은 <b className="font-bold text-gray-800">약 {MAKE_DAYS}일</b> 걸려요. 제작 비용은 콜라보 비용과 별도로
+                            admix 제작은 <b className="font-bold text-gray-800">영업일 약 {MAKE_DAYS}일</b> 걸려요. 제작 비용은 콜라보 비용과 별도로
                             견적을 안내드립니다.
                           </span>
                         )}
@@ -1088,13 +1194,14 @@ function RequestForm({
                 </RadioGroup>
               </Field>
               <Field label="매장 수" required error={errors.stores} hint="목표를 넘는 신청은 예비 순번이 돼요">
+                {/* 칸 너비는 세 자리(최대 200)에 맞춰 84 → 60px(11-16 사용자 "Input의 너비를 줄여줘"). */}
                 <div className="flex flex-wrap items-center gap-[8px] text-[13px] text-gray-500">
                   최소
                   <Input
                     aria-label="최소 매장 수"
                     aria-invalid={!!errors.stores}
                     inputMode="numeric"
-                    className={cn(INPUT, "w-[84px] text-center")}
+                    className={cn(INPUT, "w-[60px] px-[8px] text-center")}
                     value={String(d.minStores || "")}
                     onChange={(e) => set("minStores", Math.min(200, num(e.target.value)), "stores")}
                     // 1곳 아래로는 못 내린다 — 지우거나 0을 적고 나가면 1로 돌아간다. 목표가 최소보다 적어지면 목표도 같이 올린다(11-11).
@@ -1109,7 +1216,7 @@ function RequestForm({
                     aria-label="목표 매장 수"
                     aria-invalid={!!errors.stores}
                     inputMode="numeric"
-                    className={cn(INPUT, "w-[84px] text-center")}
+                    className={cn(INPUT, "w-[60px] px-[8px] text-center")}
                     value={String(d.targetStores || "")}
                     onChange={(e) => set("targetStores", Math.min(200, num(e.target.value)), "stores")}
                     // 최소보다 낮게 적고 나가면 최소로 돌아간다(11-11).
@@ -1122,7 +1229,8 @@ function RequestForm({
               <Field label="매장 설치 기간">
                 <div
                   aria-live="polite"
-                  className={cn(INPUT, "flex items-center bg-gray-50 px-[16px] text-[14px] font-semibold text-gray-900")}
+                  // 글자는 한 단계 작게(11-16 사용자 "폰트 사이즈를 줄여줘").
+                  className={cn(INPUT, "flex items-center bg-gray-50 px-[16px] text-[13px] font-semibold text-gray-900")}
                 >
                   콜라보 시작 전 {installDays(d.targetStores)}일 · 물품 설치
                 </div>
@@ -1142,63 +1250,45 @@ function RequestForm({
                 </span>
               </>
             }
-            action={
-              // 보라색(secondary) 말고(11-12 사용자) — 흰 바탕 회색 테두리 + 관심 매장 메뉴와 같은 하트.
-              <Button
-                size="sm"
-                variant="outline"
-                onPress={() => {
-                  void favorites.ids.refetch();
-                  setPickerOpen(true);
-                }}
-                className="gap-[6px] border-gray-200 bg-white font-semibold text-gray-800 dark:bg-surface"
-              >
-                <MaskIcon src="/icons/heart.svg" className="size-[14px] text-gray-700" />
-                관심 매장 고르기
-              </Button>
-            }
           >
+            {/* 11-16 사용자 "배치를 바꿔줘" — "관심 매장 고르기"를 제목 줄 오른쪽(설명이 밀려 두 줄로 꺾였다)에서
+                아래 칸으로: 빈 상태면 안내 상자 오른쪽, 고른 매장이 있으면 목록 아래 오른쪽. */}
             {d.preferred.length ? (
-              <ul className="grid gap-[8px] sm:grid-cols-2">
-                {d.preferred.map((p) => (
-                  <li key={p.id} className="flex items-center gap-[10px] rounded-[16px] bg-gray-50 px-[10px] py-[8px] ring-1 ring-gray-100">
-                    <StoreThumb store={p} className="size-[36px]" />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="flex items-center gap-[6px]">
-                        <GradeMark grade={p.grade} />
-                        <b className="truncate text-[14px] font-semibold text-gray-900">{p.name}</b>
-                      </span>
-                      <span className="truncate text-[12px] text-gray-500">
-                        {p.area} · {p.fee ? wonText(p.fee) : "금액 협의"}
-                      </span>
-                    </div>
-                    <CloseButton
-                      aria-label={`${p.name} 빼기`}
-                      onPress={() => {
-                        set("preferred", d.preferred.filter((x) => x.id !== p.id));
-                        if (!editing) advActions.removeFromCart(p.id);
-                      }}
-                    />
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-[10px]">
+                <ul className="grid gap-[8px] sm:grid-cols-2">
+                  {d.preferred.map((p) => (
+                    <li key={p.id} className="flex items-center gap-[10px] rounded-[16px] bg-gray-50 px-[10px] py-[8px] ring-1 ring-gray-100">
+                      <StoreThumb store={p} className="size-[36px]" />
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="flex items-center gap-[6px]">
+                          <GradeMark grade={p.grade} />
+                          <b className="truncate text-[14px] font-semibold text-gray-900">{p.name}</b>
+                        </span>
+                        <span className="truncate text-[12px] text-gray-500">
+                          {p.area} · {p.fee ? wonText(p.fee) : "금액 협의"}
+                        </span>
+                      </div>
+                      <CloseButton
+                        aria-label={`${p.name} 빼기`}
+                        onPress={() => {
+                          set("preferred", d.preferred.filter((x) => x.id !== p.id));
+                          if (!editing) advActions.removeFromCart(p.id);
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <PickFavoritesButton onPress={openPicker} className="self-end" />
+              </div>
             ) : (
-              <p className="rounded-[16px] bg-gray-50 px-[14px] py-[12px] text-[13px] break-keep text-gray-500">
-                {/* "지정 희망 매장 없이도 의뢰할 수 있어요." 는 뺐다(11-12 사용자). */}
-                원하는 매장이 있다면 관심 매장 고르기로 골라 주세요. 매장 정보는{" "}
-                {/* 의뢰서를 두고 둘러보도록 새 탭으로(11-11 사용자). 새 탭에서 하트를 누른 매장은 관심 매장(서버)이라 "관심 매장 고르기" 맨 위에 보인다. */}
-                <Link
-                  href={ADV_FIND_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-[2px] text-[13px] font-semibold"
-                >
-                  매장 찾기
-                  <ExternalLink aria-hidden className="size-[12px]" />
-                  <span className="sr-only">(새 탭)</span>
-                </Link>
-                에서 자세히 볼 수 있어요.
-              </p>
+              <div className="flex items-center gap-[12px] rounded-[16px] bg-gray-50 px-[14px] py-[12px] max-sm:flex-col max-sm:items-start">
+                <p className="min-w-0 flex-1 text-[13px] break-keep text-gray-500">
+                  {/* "지정 희망 매장 없이도 의뢰할 수 있어요." 는 뺐다(11-12 사용자).
+                      뒤의 "매장 정보는 매장 찾기(새 탭)에서 자세히 볼 수 있어요."도 뺐다(11-16 사용자 "매장 정보는 이후부터는 지워줘"). */}
+                  원하는 매장이 있다면 관심 매장 고르기로 골라 주세요.
+                </p>
+                <PickFavoritesButton onPress={openPicker} />
+              </div>
             )}
             <PreferredStorePicker
               isOpen={pickerOpen}
@@ -1206,7 +1296,6 @@ function RequestForm({
               stores={real}
               loading={stores.isLoading || favorites.isLoading}
               picked={d.preferred}
-              target={d.targetStores}
               favoriteIds={favorites.storeIds}
               onApply={(next: StoreRef[]) => {
                 set("preferred", next, "stores");
@@ -1229,15 +1318,27 @@ function RequestForm({
         </div>
 
         {/* 오른쪽 요약 카드 — 왼쪽 입력 카드(흰 유리)와 구분되게 밝은 회색 바탕(11-12 사용자, 옅은 보라 → 회색 → "좀 더 밝게" gray-100 반투명 + 연한 회색 테두리), 안의 작은 상자 · 달력은 흰 바탕. */}
-        <aside className="flex flex-col gap-[16px] lg:sticky lg:top-[16px]">
+        {/* 스크롤하면 따라 내려온다(11-16 사용자 "이것도 고정되게 해줘") — 위 기간 줄 아래(ASIDE_TOP)에 붙고,
+            화면보다 길면 내릴 땐 끝(의뢰 보내기)까지, 올릴 땐 처음(준비 기간)까지 먼저 보인 뒤 붙는다(asideRef 효과). PC 두 칸일 때만. */}
+        <aside ref={asideRef} className="flex flex-col gap-[16px] lg:sticky" style={{ top: ASIDE_TOP }}>
           <PanelCard className="gap-[10px] p-[18px] sm:p-[20px] border-gray-200 bg-gray-100/50 backdrop-blur-none hover:border-gray-200 dark:border-gray-100 dark:bg-gray-100 dark:hover:border-gray-100">
             <h2 className="flex items-center gap-[8px] text-[15px] font-bold text-gray-900">
               <MaskIcon src="/icons/calendar.svg" className="size-[16px] text-gray-500" />
-              예상 일정
+              {/* "예상 일정"에서 이름 바꿈(11-16 사용자 "준비 기간? 뭐 이런 걸로") — 일정은 맨 위 달력이 보여 주고, 여기는 기간 · 준비 기간 · 빠듯함 안내. */}
+              준비 기간
             </h2>
             {!hasPeriod && (
               <p className="rounded-[14px] bg-surface px-[12px] py-[14px] text-center text-[13px] break-keep text-gray-600">
-                진행 기간을 고르면 예상 일정이 보여요.
+                위 달력에서 진행 기간을 골라 주세요.
+              </p>
+            )}
+            {/* 고른 진행 기간 — 달력은 맨 위로 옮겼다(11-16 사용자, 석 달 보기 · 달력에서 바로 고르기 · 위에 고정). */}
+            {hasPeriod && (
+              <p className="flex items-baseline justify-between gap-[8px] rounded-[14px] bg-surface px-[12px] py-[10px]">
+                <span className="text-[13px] font-semibold text-gray-700">진행 기간</span>
+                <span className="text-right text-[13px] font-bold text-gray-900">
+                  {mdw(d.startDate)} ~ {mdw(d.endDate)} <span className="font-semibold text-gray-500">· {len}일</span>
+                </span>
               </p>
             )}
             {/* 매장 확정 뒤 준비 기간만(확정 다음 날 ~ 설치 전날) — 단계별 일수 · 안내 문구는 뺐다(11-11 사용자). */}
@@ -1249,27 +1350,15 @@ function RequestForm({
               <strong className="text-[18px] leading-none font-extrabold text-gray-900">{Math.max(0, plan.prep)}일</strong>
             </p>
             )}
+            {/* 노란 바탕은 회색 카드와 안 어울려(11-16 사용자) 빠듯함 안내와 같은 옅은 주황 바탕 · 테두리(WARN_BOX). */}
             {tooSoon && (
-              <p className="rounded-[12px] bg-warning-bg px-[10px] py-[8px] text-[12px] font-semibold break-keep text-warning">
+              <p className={cn(WARN_BOX, "font-semibold text-warning")}>
                 시작일이 너무 가까워요 — {mdw(plan.earliest)} 이후로 {laterHint}.
               </p>
             )}
-            {/* 제작(직접 · admix 대행)은 막지 않고 알려만 — 30영업일보다 짧으면 늦추기를 권하고, 그대로 진행하면
-                책임은 광고주에게 있다는 걸 부드럽고 짧게(11-11 사용자). */}
-            {tightStart && (
-              <p className="rounded-[12px] bg-warning-bg px-[10px] py-[8px] text-[12px] break-keep text-warning">
-                <TightNote start={tightStart} />
-              </p>
-            )}
-            {hasPeriod && (
-              <div className="rounded-[14px] bg-surface p-[10px]">
-                <ScheduleCalendar
-                  s={s}
-                  requestDate={PREVIEW_TODAY}
-                  prepLabel={plan.make ? "제작 · 준비" : "준비"}
-                />
-              </div>
-            )}
+            {/* 제작(직접 · admix 대행)은 막지 않고 알려만 — 20영업일(MAKE_DAYS, 11-16)보다 짧으면 늦추기를 권하고, 그대로 진행하면
+                책임은 광고주에게 있다는 걸 부드럽고 짧게(11-11 사용자). admix 대행 + 14영업일 이하면 협의 문장을 더한다(11-16). */}
+            {tightStart && <TightNote start={tightStart} admixTalk={admixTalk} />}
           </PanelCard>
           <PanelCard className="gap-[10px] p-[18px] sm:p-[20px] border-gray-200 bg-gray-100/50 backdrop-blur-none hover:border-gray-200 dark:border-gray-100 dark:bg-gray-100 dark:hover:border-gray-100">
             <h2 className="flex items-center gap-[8px] text-[15px] font-bold text-gray-900">
@@ -1343,6 +1432,7 @@ function RequestForm({
         sending={sending}
         sendIcon={SEND_ICON}
         tightStart={tightStart}
+        admixTalk={admixTalk}
         onSend={send}
       />
     </div>

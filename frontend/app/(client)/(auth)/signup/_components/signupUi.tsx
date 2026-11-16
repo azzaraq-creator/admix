@@ -225,8 +225,16 @@ export function CategoryBadge({ children }: { children: ReactNode }) {
  * 콜라보 마케팅 동의 안내 — 제휴사 가입 약관 단계 · 콜라보 내 정보가 같이 쓴다.
  * 11-12 사용자: 옅은 회색(gray-400)은 안 읽힌다 → 연보라 띠 · 종 아이콘은 "너무 화려" → 장식 없이,
  * "새로운 콜라보"만 짙은 회색 + 밑줄(굵게는 뺌).
+ * 광고주(advertiser)는 받는 소식이 다르다(11-16 사용자 "광고주일 땐 이 내용이 아니지!") — 매체 광고 맞춤 기획안 · 콜라보 일정.
  */
-export function CollabMarketingNote({ className }: { className?: string }) {
+export function CollabMarketingNote({
+  className,
+  advertiser = false,
+}: {
+  className?: string;
+  advertiser?: boolean;
+}) {
+  const em = "text-gray-900 underline decoration-gray-400 underline-offset-[3px]";
   return (
     <p
       className={cn(
@@ -234,11 +242,17 @@ export function CollabMarketingNote({ className }: { className?: string }) {
         className,
       )}
     >
-      동의하면{" "}
-      <span className="text-gray-900 underline decoration-gray-400 underline-offset-[3px]">
-        새로운 콜라보
-      </span>
-      가 열렸을 때 SMS나 이메일로 알려 드려요.
+      {advertiser ? (
+        <>
+          동의하면 <span className={em}>매체 광고 맞춤 기획안</span>과{" "}
+          <span className={em}>콜라보 일정</span>을 SMS나 이메일로 알려 드려요.
+        </>
+      ) : (
+        <>
+          동의하면 <span className={em}>새로운 콜라보</span>가 열렸을 때 SMS나
+          이메일로 알려 드려요.
+        </>
+      )}
     </p>
   );
 }

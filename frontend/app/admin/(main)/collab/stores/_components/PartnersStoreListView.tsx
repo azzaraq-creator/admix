@@ -281,10 +281,7 @@ export function PartnersStoreListView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="매장 관리"
-        desc={`매장은 여기서만 등록해요. 회원과 연결하면 그 회원의 "내 매장"에 보여요.`}
-      >
+      <CollabPageHead title="매장 관리">
         <Button
           variant="primary"
           size="sm"

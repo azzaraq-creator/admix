@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { MediaFindCard } from "@/app/(client)/(main)/fixed/_components/MediaFindCard";
+import { StoreDetailModal } from "@/app/(client)/(main)/fixed/_components/StoreDetailModal";
+import type { CollabPick } from "@/app/(client)/(main)/fixed/_components/collabPick";
 import { MaskIcon } from "@/components/common/MaskIcon";
-import {
-  useCanOpenPartners,
-  useOpenPartners,
-} from "@/components/common/PartnersAccessNotice";
+import { useCanOpenPartners } from "@/components/common/PartnersAccessNotice";
 import { LoadingState } from "@/components/common/RouteStates";
 import { LoveIcon } from "@/components/icons";
 import {
@@ -31,7 +30,7 @@ import { ADV_FIND_HREF } from "./advUi";
  * /partners/favorites (광고주) — 관심 매장(11-11 사용자: "관심 매장 메뉴, 매장 찾기의 하트를 누르면 관심 매장에 담기게").
  * 매장 찾기와 같은 카드(MediaFindCard — 사진 · 운영 시간 · 매장 특징 · 등급 · 1건 금액 · 하트)를 격자로 놓고,
  * 카드 아래에 매장마다 메모(최대 500자, 서버 080 — Enter 나 칸을 벗어나면 저장, 줄 바꿈은 Shift+Enter)를 둔다.
- * 하트를 끄면 관심 매장에서 빠진다(메모도 같이 지워진다). 카드를 누르면 매장 상세가 새 탭으로(매장 찾기와 같다).
+ * 하트를 끄면 관심 매장에서 빠진다(메모도 같이 지워진다). 카드를 누르면 매장 정보 팝업(매장 찾기와 같다, 11-16 — 예전엔 새 탭).
  * 처음엔 admix 관심 매체처럼 "선택" + 아래 고정 줄(빼기 · 이 매장들로 의뢰하기)이 있었는데 11-11 사용자가 없앴다 —
  * 의뢰할 매장은 의뢰서의 "관심 매장 고르기"에서 고른다. 저장 방식은 favoriteStores.ts 참고.
  */
@@ -140,9 +139,17 @@ function StoreMemo({
 
 export function AdvFavorites() {
   const router = useRouter();
-  const openPartners = useOpenPartners();
+  // 매장 정보 팝업 — 고른 매장의 매체 ID.
+  const [openId, setOpenId] = useState<string | null>(null);
   const partnersAccess = useCanOpenPartners() ? "open" : "locked";
   const { byMedia, ids, isLoading } = useFavoriteStores();
+  // 카드의 등급 · 1건 금액.
+  const pickOf = (mediaId: string): CollabPick | undefined => {
+    const store = byMedia.get(mediaId);
+    return store
+      ? { grade: store.collabGrade ?? null, fee: store.collabFee ?? null }
+      : undefined;
+  };
   const list = useFavoriteList(FILTERS);
   const memos = useFavoriteMemos();
 
@@ -192,35 +199,30 @@ export function AdvFavorites() {
             {rows.length}곳
           </span>
           <ul className="grid gap-x-[12px] gap-y-[20px] sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((row) => {
-              const store = byMedia.get(row.id);
-              return (
-                <li key={row.id} className="flex flex-col gap-[8px]">
-                  <MediaFindCard
-                    row={row}
-                    onClick={() => openPartners(row.id)}
-                    partnersAccess={partnersAccess}
-                    // 하트에 마우스를 올리면 "관심 해제"(11-11 사용자).
-                    likeTooltip
-                    collabPick={
-                      store
-                        ? {
-                            grade: store.collabGrade ?? null,
-                            fee: store.collabFee ?? null,
-                          }
-                        : undefined
-                    }
-                  />
-                  <StoreMemo
-                    mediaId={row.id}
-                    storeName={row.name}
-                    saved={memos.data?.[row.id] ?? ""}
-                  />
-                </li>
-              );
-            })}
+            {rows.map((row) => (
+              <li key={row.id} className="flex flex-col gap-[8px]">
+                <MediaFindCard
+                  row={row}
+                  onClick={() => setOpenId(row.id)}
+                  partnersAccess={partnersAccess}
+                  // 하트에 마우스를 올리면 "관심 해제"(11-11 사용자).
+                  likeTooltip
+                  collabPick={pickOf(row.id)}
+                />
+                <StoreMemo
+                  mediaId={row.id}
+                  storeName={row.name}
+                  saved={memos.data?.[row.id] ?? ""}
+                />
+              </li>
+            ))}
           </ul>
         </div>
+      )}
+
+      {/* 팝업에서 하트를 꺼 목록에서 빠져도 팝업은 닫을 때까지 그대로. */}
+      {openId && (
+        <StoreDetailModal mediaId={openId} onClose={() => setOpenId(null)} />
       )}
     </div>
   );

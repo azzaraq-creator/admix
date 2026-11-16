@@ -12,6 +12,7 @@ import { PartnerResumeModal } from "./_components/PartnerResumeModal";
 import { PartnersContent } from "./_components/partnersPending";
 import { PartnersSessionWatch } from "./_components/PartnersSessionWatch";
 import { PartnersSidebar } from "./_components/PartnersSidebar";
+import { ProvisionalGate } from "./_components/workspace/ProvisionalGate";
 
 export const metadata: Metadata = {
   title: "콜라보 | admix",
@@ -56,6 +57,8 @@ export default async function PartnersLayout({
             콜라보 가입 화면의 "로그인"은 /partners?login=1 로 이 창을 연다. */}
         <LoginModal variant="partners" />
         <PartnerResumeModal />
+        {/* 임시 승인 제휴사 — 콜라보 상세 링크를 막고 "사업자등록증을 올려 주세요" 창(11-16). */}
+        <ProvisionalGate />
         {/* 다른 탭에서 로그아웃하면(로그인 쿠키가 사라지면) 비회원용 콜라보 소개로. */}
         <PartnersSessionWatch />
       </div>

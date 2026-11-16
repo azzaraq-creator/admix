@@ -1,7 +1,6 @@
 "use client";
 
 import { Button, Checkbox, Input, Label, Link, Modal } from "@heroui/react";
-import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
@@ -17,6 +16,7 @@ import { ADV_FIND_HREF, GradeMark, StoreThumb } from "./advUi";
  * 관심 매장(매장 찾기에서 하트를 누른 매장, favoriteStores.ts)만 보인다(11-11 사용자: "관심 누른 매장만 뜨게").
  * 이미 고른 지정 희망 매장은 체크된 채로 열린다. 관심 매장이 아닌데 이미 지정된 매장은 목록엔 없고 그대로 남는다(의뢰서에서 X로 뺀다).
  * "고르기 완료"를 눌러야 반영되고, 닫거나 취소하면 그대로.
+ * 11-16 사용자: 머리 설명("매장 찾기에서 하트를 누른 매장이에요. …")과 아래 "n곳 골랐어요 · 목표 n곳"은 뺐다(목표 넘김은 의뢰 보낼 때 검사).
  */
 
 export function PreferredStorePicker({
@@ -25,7 +25,6 @@ export function PreferredStorePicker({
   stores,
   loading,
   picked,
-  target,
   favoriteIds,
   onApply,
 }: {
@@ -38,8 +37,6 @@ export function PreferredStorePicker({
   favoriteIds: Set<string>;
   /** 지금 지정 희망 매장. */
   picked: StoreRef[];
-  /** 목표 매장 수 — 넘기면 알려만 준다(막지는 않음, 의뢰 보낼 때 검사). */
-  target: number;
   onApply: (next: StoreRef[]) => void;
 }) {
   return (
@@ -52,7 +49,6 @@ export function PreferredStorePicker({
             stores={stores}
             loading={loading}
             picked={picked}
-            target={target}
             favoriteIds={favoriteIds}
             onCancel={() => onOpenChange(false)}
             onApply={(next) => {
@@ -70,7 +66,6 @@ function PickerBody({
   stores,
   loading,
   picked,
-  target,
   favoriteIds,
   onCancel,
   onApply,
@@ -78,7 +73,6 @@ function PickerBody({
   stores: StoreRef[];
   loading: boolean;
   picked: StoreRef[];
-  target: number;
   favoriteIds: Set<string>;
   onCancel: () => void;
   onApply: (next: StoreRef[]) => void;
@@ -102,9 +96,6 @@ function PickerBody({
     <>
       <Modal.Header className="flex flex-col items-start gap-[4px] pr-[40px]">
         <Modal.Heading className="text-[18px] font-bold text-gray-900">관심 매장 고르기</Modal.Heading>
-        <p className="text-[13px] break-keep text-gray-500">
-          매장 찾기에서 하트를 누른 매장이에요. 고른 매장은 지정 희망 매장으로 들어가고, 매장 사정에 따라 함께하지 못할 수도 있어요.
-        </p>
       </Modal.Header>
       <Modal.Body className="flex flex-col gap-[10px]">
         <div className="relative">
@@ -174,7 +165,8 @@ function PickerBody({
                   className="inline-flex items-center gap-[2px] text-[13px] font-semibold"
                 >
                   매장 찾기
-                  <ExternalLink aria-hidden className="size-[12px]" />
+                  {/* 새 탭 표시는 export.svg(11-16 사용자) — 콜라보 소개 · 안내 창과 같은 아이콘. */}
+                  <MaskIcon src="/icons/export.svg" className="mr-[2px] size-[12px]" />
                   <span className="sr-only">(새 탭)</span>
                 </Link>
                 에서 하트를 눌러 담아 주세요.
@@ -183,10 +175,7 @@ function PickerBody({
           </p>
         )}
       </Modal.Body>
-      <Modal.Footer className="flex items-center gap-[8px]">
-        <span className={cn("mr-auto text-[12px] font-semibold", sel.length > target ? "text-error" : "text-gray-500")}>
-          {sel.length}곳 골랐어요 · 목표 {target}곳
-        </span>
+      <Modal.Footer className="flex items-center justify-end gap-[8px]">
         <Button variant="tertiary" onPress={onCancel} className="font-semibold">
           취소
         </Button>

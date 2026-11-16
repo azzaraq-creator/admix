@@ -21,6 +21,8 @@ export interface MemberRow {
   marketing: string;
   status: string;
   joinedAt: string;
+  /** 마지막 로그인(091) — ISO 시각, 기록이 없으면 null. */
+  lastLoginAt: string | null;
 }
 
 export interface MemberListResponse {

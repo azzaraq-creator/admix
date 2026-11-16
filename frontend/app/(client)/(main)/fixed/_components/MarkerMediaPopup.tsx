@@ -144,7 +144,7 @@ export function MediaPopupCard({
   roadview?: boolean;
   /**
    * 콜라보 매장 카드를 누를 수 있는지(지도 팝업) — 기획안 담기 자리에 표시를 두고, 카드에 마우스를 올리면 툴팁.
-   * open: 누르면 매장 상세가 새 탭으로, locked: 광고주·제휴사(콜라보) 회원이 아니라 보이기만 하고 눌리지 않는다.
+   * open: 누르면 매장 정보 팝업, locked: 광고주 회원이 아니라(제휴사 포함) 보이기만 하고 눌리지 않는다(자물쇠).
    * 믹시 추천 목록은 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
@@ -153,7 +153,7 @@ export function MediaPopupCard({
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
-  // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 상세가 새 탭으로.
+  // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 정보 팝업.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   const pick = partners ? collabPick : undefined;
   const access = partners ? partnersAccess : undefined;
@@ -210,8 +210,9 @@ export function MediaPopupCard({
     </Chip>
   );
   // 카드를 누르면 상세가 열리므로, 로드뷰 링크 클릭은 카드로 번지지 않게 막는다.
+  // 콜라보 매장은 로드뷰를 달지 않는다(11-16 사용자: "지도에서 매장 눌렀을 때 로드뷰 없애줘") — 매체만.
   const roadviewAt =
-    roadview && row.lat != null && row.lng != null
+    roadview && !partners && row.lat != null && row.lng != null
       ? { lat: row.lat, lng: row.lng }
       : null;
   const rankBadge = rank != null && (
@@ -284,7 +285,7 @@ export function MediaPopupCard({
                 <FolderAddIcon className="size-[16px] text-primary" />
               </Button>
             )}
-            {/* 콜라보는 기획안 담기 자리에 새 탭(못 열면 자물쇠) 표시. */}
+            {/* 콜라보는 기획안 담기 자리에 못 열면 자물쇠. */}
             {accessMark}
           </div>
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
@@ -375,13 +376,13 @@ export function MediaPopupCard({
           </div>
 
           {pick ? (
-            // 광고주 매장 찾기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리에 새 탭 표시.
+            // 광고주 매장 찾기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리는 비워 둔다(못 열면 자물쇠).
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
               <CollabFeeCell pick={pick} align="start" />
               {accessMark}
             </div>
           ) : partners ? (
-            // 콜라보는 기획안 담기 자리(아래 칸 오른쪽)에 새 탭(못 열면 자물쇠) 표시.
+            // 콜라보는 기획안 담기 자리(아래 칸 오른쪽)에 못 열면 자물쇠.
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
               <PartnersCardDetails
                 businessHours={row.partners?.businessHours}

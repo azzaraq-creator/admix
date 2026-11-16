@@ -12,7 +12,13 @@ import {
 } from "@heroui/react";
 import { MousePointerClick } from "lucide-react";
 import dynamic from "next/dynamic";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { formatAdFee } from "@/lib/media";
 import {
@@ -120,6 +126,65 @@ export function MediaDetailModal({
   });
 
   return (
+    <DetailModalShell
+      ariaLabel="매체 상세"
+      title="매체 정보"
+      hint="매체 상세 정보를 확인하고 기획안에 담을 수 있습니다."
+      onClose={onClose}
+      footer={
+        vm && (
+          <DetailActions
+            liked={liked}
+            onLikedChange={setLiked}
+            onClose={onClose}
+            onAddProposal={() => {
+              const totals = mediaOptionTotals(vm, options);
+              onAddProposal?.(vm.id, totals.plan?.planNo, {
+                months: totals.months,
+                productionCount: totals.productionCount,
+              });
+            }}
+          />
+        )
+      }
+    >
+      {vm ? (
+        <MediaDetailBody
+          vm={vm}
+          options={{ value: options, onChange: setOptions }}
+          locationHint
+        />
+      ) : (
+        <MediaDetailSkeleton />
+      )}
+    </DetailModalShell>
+  );
+}
+
+/**
+ * 상세 팝업 틀 — 매체 정보 팝업과 콜라보 매장 정보 팝업(StoreDetailModal, 11-16 사용자: "admix처럼 상세 팝업")이 같이 쓴다.
+ * 닫기 · 머리 줄(제목 + 짧은 설명) · 본문 · 아래 고정 버튼 줄.
+ */
+export function DetailModalShell({
+  ariaLabel,
+  title,
+  hint,
+  onClose,
+  footer,
+  narrow = false,
+  children,
+}: {
+  ariaLabel: string;
+  title: string;
+  hint: string;
+  onClose: () => void;
+  /** 버튼 줄 — 불러오는 동안은 비워 둔다. */
+  footer?: ReactNode;
+  /** 좁은 팝업(780px) — 매장 정보 팝업: 정사각형 사진(360px) 옆 칸도 360px(11-16 사용자: "너비를 좁혀도 될 듯"). */
+  narrow?: boolean;
+  children: ReactNode;
+}) {
+  return (
     <Modal.Backdrop
       isOpen
       onOpenChange={(next) => {
@@ -127,13 +192,16 @@ export function MediaDetailModal({
       }}
       variant="opaque"
     >
-      {/* 시안 팝업 폭 940px. HeroUI 기본 사이즈(max-w-lg)는 좁아서 덮어쓴다. */}
+      {/* 시안 팝업 폭 940px(좁은 팝업 780px). HeroUI 기본 사이즈(max-w-lg)는 좁아서 덮어쓴다. */}
       <Modal.Container
         placement="center"
-        className="sm:w-full sm:max-w-[980px] sm:p-[20px]"
+        className={cn(
+          "sm:w-full sm:p-[20px]",
+          narrow ? "sm:max-w-[820px]" : "sm:max-w-[980px]",
+        )}
       >
         <Modal.Dialog
-          aria-label="매체 상세"
+          aria-label={ariaLabel}
           className="w-full max-w-full gap-[10px] rounded-[20px] bg-surface p-[20px] shadow-[0px_4px_60px_0px_rgba(0,0,0,0.25)] max-sm:gap-[12px] max-sm:p-[16px]"
         >
           <Modal.CloseTrigger className="top-[20px] right-[20px] z-10 size-[28px] rounded-[11px] border border-tone-ececef bg-tone-eaeaeb p-0 text-tone-70707a max-sm:top-[16px] max-sm:right-[16px]">
@@ -144,41 +212,20 @@ export function MediaDetailModal({
               같은 높이의 헤더 줄로 둔다. */}
           <div className="flex h-[39px] shrink-0 items-center gap-[8px] pr-[40px] pb-[10px] max-sm:h-[28px] max-sm:pb-0">
             <p className="shrink-0 text-[16px] font-semibold whitespace-nowrap text-black">
-              매체 정보
+              {title}
             </p>
             <p className="truncate text-[12px] text-tone-888888 max-sm:hidden">
-              매체 상세 정보를 확인하고 기획안에 담을 수 있습니다.
+              {hint}
             </p>
           </div>
 
           <Modal.Body className="m-0 flex flex-col gap-[10px] p-0">
-            {vm ? (
-              <MediaDetailBody
-                vm={vm}
-                options={{ value: options, onChange: setOptions }}
-                locationHint
-              />
-            ) : (
-              <MediaDetailSkeleton />
-            )}
+            {children}
           </Modal.Body>
 
           {/* 버튼 줄은 본문 스크롤 밖에 두어 헤더처럼 아래에 고정한다. */}
-          {vm && (
-            <Modal.Footer className="mt-0 gap-[8px]">
-              <DetailActions
-                liked={liked}
-                onLikedChange={setLiked}
-                onClose={onClose}
-                onAddProposal={() => {
-                  const totals = mediaOptionTotals(vm, options);
-                  onAddProposal?.(vm.id, totals.plan?.planNo, {
-                    months: totals.months,
-                    productionCount: totals.productionCount,
-                  });
-                }}
-              />
-            </Modal.Footer>
+          {footer && (
+            <Modal.Footer className="mt-0 gap-[8px]">{footer}</Modal.Footer>
           )}
         </Modal.Dialog>
       </Modal.Container>
@@ -250,8 +297,8 @@ export function MediaDetailInfo({ mediaId }: { mediaId: string }) {
 }
 
 /** 상세를 불러오는 동안 본문 자리를 채우는 뼈대 — 이미지·이름·주소·칩·가격 칸 배치를 따른다.
- *  흐리게 깔고 그 위에 빙글빙글 도는 심볼을 띄운다. */
-function MediaDetailSkeleton() {
+ *  흐리게 깔고 그 위에 빙글빙글 도는 심볼을 띄운다. 매장 정보 팝업도 같은 뼈대. */
+export function MediaDetailSkeleton() {
   return (
     <SkeletonLoading>
       <div className="flex flex-col gap-[20px]">
@@ -704,17 +751,23 @@ function MobileDetailTabs({
   );
 }
 
-/** 닫기·관심 매체·기획안 담기. 모바일은 세 버튼이 폭을 나눠 채운다. */
-function DetailActions({
+/**
+ * 닫기·관심 매체·기획안 담기. 모바일은 세 버튼이 폭을 나눠 채운다.
+ * 매장 정보 팝업은 기획안 담기 없이 닫기 · 하트(관심 매장)만.
+ */
+export function DetailActions({
   liked,
   onLikedChange: setLiked,
   onClose,
   onAddProposal,
+  likeLabel = "관심 매체",
 }: {
   liked: boolean;
   onLikedChange: (liked: boolean) => void;
   onClose: () => void;
-  onAddProposal: () => void;
+  /** 없으면 기획안 담기 버튼을 뺀다. */
+  onAddProposal?: () => void;
+  likeLabel?: string;
 }) {
   return (
     <>
@@ -732,7 +785,7 @@ function DetailActions({
             켜는 순간 하트가 살짝 튀어 눌렸다는 걸 알려 준다. 폭은 고정이라 상태가 바뀌어도 버튼이 흔들리지 않는다. */}
       <ToggleButton
         variant="ghost"
-        aria-label="관심 매체"
+        aria-label={likeLabel}
         isSelected={liked}
         onChange={setLiked}
         className={cn(
@@ -752,19 +805,21 @@ function DetailActions({
               : "text-placeholder",
           )}
         />
-        관심 매체
+        {likeLabel}
       </ToggleButton>
-      <Button
-        variant="primary"
-        onPress={onAddProposal}
-        className={cn(
-          "h-auto gap-[6px] rounded-[17px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white max-sm:text-[12px]",
-          "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
-        )}
-      >
-        <FolderAddIcon className="shrink-0 text-zinc-50 dark:text-white" />
-        기획안 담기
-      </Button>
+      {onAddProposal && (
+        <Button
+          variant="primary"
+          onPress={onAddProposal}
+          className={cn(
+            "h-auto gap-[6px] rounded-[17px] bg-primary-500 px-[14px] py-[10px] text-[13px] font-medium text-white max-sm:text-[12px]",
+            "w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-[1.3] max-sm:px-[8px]",
+          )}
+        >
+          <FolderAddIcon className="shrink-0 text-zinc-50 dark:text-white" />
+          기획안 담기
+        </Button>
+      )}
     </>
   );
 }
@@ -773,9 +828,35 @@ function DetailActions({
 const THUMBS_PER_VIEW = 4;
 const THUMB_W = 104;
 const THUMB_GAP = 8;
+// 정사각형(매장 정보 팝업) — 칸 360px, 썸네일도 정사각형으로 4장이 꼭 맞게((360 − 8 × 3) / 4).
+const SQUARE_W = 360;
+const SQUARE_THUMB_W = 84;
 
-function ImageGallery({ images }: { images: string[] }) {
-  const [index, setIndex] = useState(0);
+export function ImageGallery({
+  images,
+  square = false,
+  captions,
+  thumbLabels,
+  onOpen,
+  initialIndex = 0,
+}: {
+  images: string[];
+  /** 큰 사진 · 썸네일을 정사각형으로(11-16 사용자: "매장 사진을 정사각형으로 보여줘"). 매체 정보 팝업은 그대로. */
+  square?: boolean;
+  /** 큰 사진 위에 겹칠 것(images 와 같은 순서) — 매장 정보 팝업의 사진 분류 · 설명 · 펼쳐보기 버튼(누를 것만 pointer-events-auto). */
+  captions?: (ReactNode | undefined)[];
+  /** 썸네일 왼쪽 아래 작은 이름표(images 와 같은 순서) — 매장 사진 분류(외관 · 내관 …). */
+  thumbLabels?: (string | undefined)[];
+  /** 큰 사진을 누르면 — 주면 안의 크게 보기 대신 이걸 부른다(매장: 설명이 붙은 크게 보기). */
+  onOpen?: (index: number) => void;
+  /**
+   * 처음 고를 장 — 썸네일 줄도 그 장이 왼쪽 끝에 오게 옮겨 둔다(뒤로 이어지는 장이 보이게).
+   * 매장 정보 팝업은 분류를 펼치거나 접을 때 key 를 바꿔 새로 그리며 대표 사진 자리를 준다.
+   */
+  initialIndex?: number;
+}) {
+  const thumbW = square ? SQUARE_THUMB_W : THUMB_W;
+  const [index, setIndex] = useState(initialIndex);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const current = images[index];
   const slidable = images.length > THUMBS_PER_VIEW;
@@ -811,48 +892,78 @@ function ImageGallery({ images }: { images: string[] }) {
     };
   }, [slidable]);
 
+  // 처음 고른 장을 줄 왼쪽 끝으로(끝을 넘으면 브라우저가 맨 끝에 멈춘다) — 아래 "보이게 옮기기"보다 먼저.
+  // 처음 한 번만이라 의존성을 비워 둔다(새로 그릴 땐 부모가 key 를 바꾼다).
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (strip && initialIndex > 0)
+      strip.scrollLeft = initialIndex * (thumbW + THUMB_GAP);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 고른 장이 줄 밖에 있으면 보이도록 옮긴다(크게 보기에서 넘기고 돌아온 경우 등).
   useEffect(() => {
     const strip = stripRef.current;
     if (!slidable || !strip) return;
-    const left = index * (THUMB_W + THUMB_GAP);
+    const left = index * (thumbW + THUMB_GAP);
     if (left < strip.scrollLeft) {
       strip.scrollTo({ left, behavior: "smooth" });
-    } else if (left + THUMB_W > strip.scrollLeft + strip.clientWidth) {
+    } else if (left + thumbW > strip.scrollLeft + strip.clientWidth) {
       strip.scrollTo({
-        left: left + THUMB_W - strip.clientWidth,
+        left: left + thumbW - strip.clientWidth,
         behavior: "smooth",
       });
     }
-  }, [index, slidable]);
+  }, [index, slidable, thumbW]);
 
   // 화살표 — 한 화면(4장)씩 넘긴다.
   const slide = (dir: -1 | 1) =>
     stripRef.current?.scrollBy({
-      left: dir * THUMBS_PER_VIEW * (THUMB_W + THUMB_GAP),
+      left: dir * THUMBS_PER_VIEW * (thumbW + THUMB_GAP),
       behavior: "smooth",
     });
 
   return (
-    <div className="flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden md:w-[440px]">
-      {/* 큰 이미지는 최소 240px, PC에선 남는 높이만큼 늘어난다(썸네일 줄은 그대로). */}
+    <div
+      className={cn(
+        "flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden",
+        square ? "max-w-[360px]" : "md:w-[440px]",
+      )}
+    >
+      {/* 큰 이미지는 최소 240px, PC에선 남는 높이만큼 늘어난다(썸네일 줄은 그대로). 정사각형이면 칸 폭(360px)만큼. */}
       {/* 누르면 크게 보기(지금 보고 있는 장부터). 이미지가 없으면 누를 게 없다. */}
+      {/* 겹칠 것(captions)에 버튼이 있을 수 있어 크게 보기 버튼과 나란히 둔다(버튼 안에 버튼은 안 된다). */}
       {current ? (
-        <button
-          type="button"
-          aria-label="이미지 크게 보기"
-          onClick={() => setLightboxOpen(true)}
-          className="group relative h-[240px] w-full shrink-0 cursor-zoom-in overflow-hidden rounded-[10px] md:h-auto md:min-h-[240px] md:flex-1"
+        <div
+          className={cn(
+            "relative w-full shrink-0 overflow-hidden rounded-[10px]",
+            square
+              ? "aspect-square"
+              : "h-[240px] md:h-auto md:min-h-[240px] md:flex-1",
+          )}
         >
-          <MediaThumbnail
-            src={current}
-            sizes="440px"
-            className="size-full transition-transform duration-300 group-hover:scale-[1.02]"
-          />
-        </button>
+          <button
+            type="button"
+            aria-label="이미지 크게 보기"
+            onClick={() => (onOpen ? onOpen(index) : setLightboxOpen(true))}
+            className="group absolute inset-0 cursor-zoom-in"
+          >
+            <MediaThumbnail
+              src={current}
+              sizes={square ? `${SQUARE_W}px` : "440px"}
+              className="size-full transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          </button>
+          {captions?.[index]}
+        </div>
       ) : (
         <MediaThumbnail
-          className="h-[240px] w-full shrink-0 rounded-[10px] md:h-auto md:min-h-[240px] md:flex-1"
+          className={cn(
+            "w-full shrink-0 rounded-[10px]",
+            square
+              ? "aspect-square"
+              : "h-[240px] md:h-auto md:min-h-[240px] md:flex-1",
+          )}
           fallback={<Logo className="size-[40px] opacity-30" />}
         />
       )}
@@ -860,7 +971,10 @@ function ImageGallery({ images }: { images: string[] }) {
         <div className="relative">
           <div
             ref={stripRef}
-            className="flex h-[60px] snap-x snap-mandatory items-center gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className={cn(
+              "flex snap-x snap-mandatory items-center gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              square ? "h-[84px]" : "h-[60px]",
+            )}
           >
             {images.map((src, i) => {
               const selected = i === index;
@@ -873,15 +987,21 @@ function ImageGallery({ images }: { images: string[] }) {
                   onClick={() => setIndex(i)}
                   // 선택 표시는 색 없이 — 고른 장은 그대로, 나머지만 흐리게 둔다(화면에 보라가 많아서).
                   className={cn(
-                    "relative h-[60px] w-[104px] shrink-0 snap-start overflow-hidden rounded-[10px] transition-opacity",
+                    "relative shrink-0 snap-start overflow-hidden rounded-[10px] transition-opacity",
+                    square ? "size-[84px]" : "h-[60px] w-[104px]",
                     selected ? "opacity-100" : "opacity-40 hover:opacity-70",
                   )}
                 >
                   <MediaThumbnail
                     src={src}
-                    sizes="104px"
+                    sizes={`${thumbW}px`}
                     className="size-full"
                   />
+                  {thumbLabels?.[i] && (
+                    <span className="pointer-events-none absolute bottom-[4px] left-[4px] max-w-[calc(100%-8px)] truncate rounded-[5px] bg-black/55 px-[4px] text-[10px] leading-[15px] font-semibold text-white">
+                      {thumbLabels[i]}
+                    </span>
+                  )}
                 </button>
               );
             })}

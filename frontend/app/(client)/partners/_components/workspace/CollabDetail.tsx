@@ -67,6 +67,13 @@ import { rowTone } from "../agreementShared";
 import { COLLAB_FROM, collabListHref, type CollabFrom } from "./CollabBoard";
 import { ConfirmDocModal } from "./ConfirmDocModal";
 import { useCollabCommands, usePartnerWorkspace } from "./partnerState";
+import {
+  BIZ_LOCK_COPY,
+  PROFILE_BIZ_HREF,
+  useBizLock,
+  useOpenProvisionalGateOnMount,
+  type BizLock,
+} from "./ProvisionalGate";
 import { PanelCard, PartnerOnly, SectionHead } from "./workspaceUi";
 
 /*
@@ -1505,9 +1512,28 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   );
 }
 
+/** 임시 승인으로 들어와 인증 전 — 주소로 바로 들어와도 상세는 그리지 않고, 안내 창을 띄운다(링크로 올 땐 ProvisionalGate 가 미리 막는다). */
+function ProvisionalLocked({ lock }: { lock: BizLock }) {
+  useOpenProvisionalGateOnMount();
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-[12px] text-center">
+      <p className="text-[15px] font-semibold break-keep text-gray-900">
+        {BIZ_LOCK_COPY[lock].inline}
+      </p>
+      <Link href={PROFILE_BIZ_HREF} className="text-[14px] font-semibold">
+        {BIZ_LOCK_COPY[lock].link}
+      </Link>
+    </div>
+  );
+}
+
 function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
   const { state, agreed, stores, store, isLoading } = usePartnerWorkspace();
+  const bizLock = useBizLock();
   if (isLoading) return <LoadingState />;
+  // 협약 · 매장 연결이 먼저 — 그다음 임시 승인(11-16 사용자: 목록만 보고 상세 · 신청 · 확정은 어드민 인증 완료 뒤).
+  if (bizLock && agreed && stores.length > 0)
+    return <ProvisionalLocked lock={bizLock} />;
   const c = state.collabs.find((x) => x.id === id);
   if (!c) {
     // 협약 전 · 매장 연결 전이면 콜라보를 볼 수 없다 — 대시보드(StartGate)와 같은 안내.

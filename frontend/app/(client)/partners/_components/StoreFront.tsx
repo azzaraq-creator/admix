@@ -30,7 +30,11 @@ import {
   hoursIncomplete,
   hoursPayload,
 } from "@/components/common/StoreHoursEditor";
-import { ChevronRightBoldIcon, LocationFilledIcon } from "@/components/icons";
+import {
+  ChevronRightBoldIcon,
+  LocationFilledIcon,
+  PlusIcon,
+} from "@/components/icons";
 import { useCreateStoreRequest, useStoreRequests } from "@/hooks/partners";
 import { useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
@@ -39,6 +43,7 @@ import { coordsOfAddress } from "@/lib/kakaoMap";
 import { mediaSrc } from "@/lib/media";
 import {
   coverImageUrls,
+  NOTE_TONE_CHIP,
   noteTone,
   PARTNERS_MEDIA_CATEGORY,
   PARTNERS_MEDIA_SMALL,
@@ -48,6 +53,9 @@ import {
   PHOTO_KINDS,
   photoKindLabel,
   isFieldRequest,
+  STORE_ADD_FIELD,
+  STORE_ADD_LABEL,
+  STORE_ADD_NAME_MAX_LEN,
   STORE_INQUIRY_FIELD,
   STORE_INQUIRY_LABEL,
   STORE_INQUIRY_MAX_LEN,
@@ -74,7 +82,7 @@ import { PanelCard, SHADOW_FLOAT, StatusChip } from "./workspace/workspaceUi";
 /**
  * 내 매장(/partners/stores) — 사장님이 우리 매장을 보는 화면(2026-11-09: 읽기 전용).
  * 매장 등록 · 수정은 admix 담당자가 어드민에서 한다(069). 바꾸고 싶은 줄을 누르면 그 항목의 새 값을 적어 보낸다(074).
- *   ① 제목: 매장 이름(모바일은 "광고주 화면" 버튼도).
+ *   ① 제목: 매장 이름 + 오른쪽 "매장 추가 요청"(11-16 — 매장 여러 곳, 매장명으로 보낸다. 모바일은 "광고주 화면" 버튼도).
  *   ② 왼쪽: 광고주에게 보이는 화면 미리보기(매체 찾기 목록 카드 모양) + 매장 위치.
  *   ③ 오른쪽: 우리 매장 정보(줄마다 수정 요청 + 맨 아래 추가 요청 · 문의) + 사진첩(분류 탭 · 스크롤).
  *   ④ 아래: 수정 기록 — 무엇을 무엇에서 무엇으로, 처리 상태, 처리 불가 사유 · 담당자 답변, 마지막 업데이트.
@@ -98,6 +106,8 @@ export function StoreFront({
   } | null>(null);
   // 추가 요청 · 문의 창 — 열 때마다 입력을 새로(key).
   const [inquiry, setInquiry] = useState({ open: false, key: 0 });
+  // 매장 추가 요청 창 — 열 때마다 입력을 새로(key).
+  const [addStore, setAddStore] = useState({ open: false, key: 0 });
   const { data: requests, isPending: requestsPending } = useStoreRequests(
     store.id,
   );
@@ -113,10 +123,16 @@ export function StoreFront({
     setRequest((prev) => ({ field, open: true, key: (prev?.key ?? 0) + 1 }));
   const openInquiry = () =>
     setInquiry((prev) => ({ open: true, key: prev.key + 1 }));
+  const openAddStore = () =>
+    setAddStore((prev) => ({ open: true, key: prev.key + 1 }));
 
   return (
     <div className="flex flex-col gap-[16px] sm:gap-[20px]">
-      <TitleBar store={store} onPreview={() => setPreviewOpen(true)} />
+      <TitleBar
+        store={store}
+        onPreview={() => setPreviewOpen(true)}
+        onAddStore={openAddStore}
+      />
 
       {/*
        * PC는 2×2 — 열부터 채워(미리보기 · 위치 | 정보 · 사진첩) 줄마다 두 카드 높이를 맞춘다. sm~lg 는 이 순서로 한 줄씩.
@@ -170,6 +186,12 @@ export function StoreFront({
         isOpen={inquiry.open}
         onOpenChange={(open) => setInquiry((prev) => ({ ...prev, open }))}
       />
+      <AddStoreModal
+        key={`add-${addStore.key}`}
+        storeId={store.id}
+        isOpen={addStore.open}
+        onOpenChange={(open) => setAddStore((prev) => ({ ...prev, open }))}
+      />
       <StoreGalleryModal
         images={store.imageUrls}
         captions={store.imageUrls.map(
@@ -185,14 +207,20 @@ export function StoreFront({
 
 /**
  * ① 제목 — 매장 이름만. 고칠 곳은 우리 매장 정보의 줄을 눌러 요청한다(11-10 사용자: 제목의 "수정 요청" 버튼 없앰).
- * 모바일은 "광고주 화면" 버튼 — 미리보기 카드를 창으로 연다(버튼 32px → 곡률 13px).
+ * 오른쪽 "매장 추가 요청" — 매장이 더 있으면 매장명으로 요청한다(11-16 사용자). 담당자가 등록해 연결하면 위 매장 고르기에 생긴다.
+ * 모바일은 "광고주 화면" 버튼도 — 미리보기 카드를 창으로 연다. 두 버튼 모두 32px → 곡률 13px, 흰 바탕 + 그림자(field 토큰).
  */
+const TITLE_BUTTON =
+  "h-[32px] shrink-0 gap-[5px] rounded-[13px] bg-field px-[10px] text-[13px] font-semibold text-gray-800 shadow-field data-[hovered=true]:bg-field-hover data-[pressed=true]:bg-field-hover";
+
 function TitleBar({
   store,
   onPreview,
+  onAddStore,
 }: {
   store: PartnersStore;
   onPreview: () => void;
+  onAddStore: () => void;
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-[12px]">
@@ -200,19 +228,30 @@ function TitleBar({
       <h1 className="min-w-0 text-[22px] leading-[1.35] font-bold break-keep text-gray-900 sm:text-[26px]">
         {store.name}
       </h1>
-      <Button
-        variant="ghost"
-        size="sm"
-        onPress={onPreview}
-        // 보라 대신 HeroUI 입력 칸과 같은 흰 바탕 + 그림자(field 토큰) — 화면에 보라가 많아 눈이 흩어진다(11-08 사용자).
-        className="h-[32px] shrink-0 gap-[5px] rounded-[13px] bg-field px-[10px] text-[13px] font-semibold text-gray-800 shadow-field data-[hovered=true]:bg-field-hover data-[pressed=true]:bg-field-hover sm:hidden"
-      >
-        <MaskIcon
-          src="/icons/fill-eye.svg"
-          className="h-[15px] w-[17px] shrink-0"
-        />
-        광고주 화면
-      </Button>
+      <div className="flex shrink-0 items-center gap-[6px]">
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={onPreview}
+          // 보라 대신 HeroUI 입력 칸과 같은 흰 바탕 + 그림자(field 토큰) — 화면에 보라가 많아 눈이 흩어진다(11-08 사용자).
+          className={cn(TITLE_BUTTON, "sm:hidden")}
+        >
+          <MaskIcon
+            src="/icons/fill-eye.svg"
+            className="h-[15px] w-[17px] shrink-0"
+          />
+          광고주 화면
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={onAddStore}
+          className={TITLE_BUTTON}
+        >
+          <PlusIcon aria-hidden className="size-[15px] shrink-0" />
+          매장 추가 요청
+        </Button>
+      </div>
     </header>
   );
 }
@@ -439,12 +478,8 @@ const BIZ: Record<string, { label: string; tone: "green" | "amber" | "red" }> =
     rejected: { label: "사업자 인증 반려", tone: "red" },
   };
 
-/** 조건 메모 칩 색 — 안 되는 것 빨강 · 되는 것 초록 · 그 밖 회색(lib/partners noteTone). */
-const NOTE_CHIP = {
-  no: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
-  ok: "bg-emerald-50 text-emerald-700 dark:bg-success-bg dark:text-success",
-  info: "bg-gray-100 text-gray-600",
-} as const;
+/** 조건 메모 칩 색 — lib/partners NOTE_TONE_CHIP(매장 정보 팝업과 같다). */
+const NOTE_CHIP = NOTE_TONE_CHIP;
 
 /** 항목의 지금 값 — 우리 매장 정보 · 수정 요청 창 "현재 내용" 칸에 보이는 글. 비었으면 null. */
 function storeFieldText(
@@ -846,6 +881,14 @@ function HistoryRow({ r }: { r: StoreRequest }) {
             {r.after ?? "비우기"}
           </dd>
         </dl>
+      ) : r.field === STORE_ADD_FIELD ? (
+        // 매장 추가 요청 — 요청한 매장명(11-16).
+        <p className="text-[14px] leading-[1.6] break-keep text-gray-800">
+          <span className="mr-[8px] text-[13px] text-gray-400">
+            추가할 매장
+          </span>
+          <b className="font-semibold text-gray-900">{r.after}</b>
+        </p>
       ) : (
         <p className="text-[14px] leading-[1.6] break-keep whitespace-pre-line text-gray-800">
           {r.after}
@@ -1346,6 +1389,97 @@ function InquiryModal({
                 className="h-[44px] flex-1 rounded-[19px] font-bold"
               >
                 보내기
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
+  );
+}
+
+/**
+ * 매장 추가 요청 창(11-16 사용자: "제휴사도 매장을 여러 개 — 추가 요청은 매장명으로").
+ * 매장명 하나만 보낸다. 담당자가 매장을 등록해 이 계정에 연결하면 위 매장 고르기에 생기고, 수정 기록에 처리 상태가 남는다.
+ */
+function AddStoreModal({
+  storeId,
+  isOpen,
+  onOpenChange,
+}: {
+  storeId: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [name, setName] = useState("");
+  const create = useCreateStoreRequest(storeId);
+  const { success, error: toastError } = useSonner();
+  const value = name.trim();
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!value) return;
+    create.mutate(
+      { field: STORE_ADD_FIELD, value },
+      {
+        onSuccess: () => {
+          success(
+            "매장 추가를 요청했어요.",
+            "담당자가 매장을 등록해 연결해 드려요. 진행 상황은 수정 기록에서 볼 수 있어요.",
+          );
+          onOpenChange(false);
+        },
+        onError: (err) =>
+          toastError(extractApiError(err, "요청을 보내지 못했어요.")),
+      },
+    );
+  };
+
+  return (
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container placement="center" size="sm">
+        <Modal.Dialog aria-label={`${STORE_ADD_LABEL} 요청`}>
+          <Modal.CloseTrigger />
+          <Form onSubmit={submit} className="flex flex-col">
+            <Modal.Header className="flex flex-col items-start gap-[4px] pr-[36px]">
+              <Modal.Heading className="text-[17px] font-bold text-gray-900">
+                {STORE_ADD_LABEL} 요청
+              </Modal.Heading>
+              <p className="text-[13px] leading-[1.6] break-keep text-gray-500">
+                담당자가 매장을 등록해 이 계정에 연결해 드려요.
+              </p>
+            </Modal.Header>
+            <Modal.Body>
+              <TextField
+                value={name}
+                onChange={setName}
+                maxLength={STORE_ADD_NAME_MAX_LEN}
+                className="flex flex-col gap-[6px]"
+              >
+                <Label className={FIELD_LABEL}>매장명</Label>
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  autoFocus
+                  placeholder="예) 참커피 성수 2호점"
+                />
+              </TextField>
+            </Modal.Body>
+            <Modal.Footer className="flex gap-[8px]">
+              <Button
+                variant="tertiary"
+                onPress={() => onOpenChange(false)}
+                className="h-[44px] shrink-0 rounded-[19px] px-[18px] font-semibold"
+              >
+                닫기
+              </Button>
+              <Button
+                type="submit"
+                isDisabled={!value}
+                isPending={create.isPending}
+                className="h-[44px] flex-1 rounded-[19px] font-bold"
+              >
+                요청 보내기
               </Button>
             </Modal.Footer>
           </Form>

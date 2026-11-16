@@ -128,6 +128,13 @@ export function noteTone(note: string): "no" | "ok" | "info" {
   return "info";
 }
 
+/** 조건 메모 칩 색 — 안 되는 것 빨강 · 되는 것 초록 · 그 밖 회색(내 매장 · 매장 정보 팝업이 같이 쓴다). */
+export const NOTE_TONE_CHIP = {
+  no: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
+  ok: "bg-emerald-50 text-emerald-700 dark:bg-success-bg dark:text-success",
+  info: "bg-gray-100 text-gray-600",
+} as const;
+
 /**
  * 매장 유형(카페 · 식당 …, 070) — 유형마다 "매장 어필" 칩 값과 자주 쓰는 "조건 메모" 값이 다르다.
  * 어드민 "콜라보 → 매장 유형 관리"(/admin/collab/store-options)에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
@@ -354,6 +361,15 @@ export const STORE_INQUIRY_FIELD = "inquiry";
 export const STORE_INQUIRY_LABEL = "추가 요청 · 문의";
 export const STORE_INQUIRY_MAX_LEN = 1000;
 
+/**
+ * 매장 추가 요청(11-16 사용자: "제휴사도 매장을 여러 개 — 내 매장에서 매장 추가 요청, 매장명으로").
+ * 백엔드 partners_service.ADD_STORE_FIELD · ADD_STORE_LABEL 과 같다. value 는 새 매장명, 화면엔 after 로 온다.
+ * 보낸 매장의 수정 기록에 같이 쌓이고, 어드민이 매장을 등록해 이 회원에게 연결한 뒤 처리 완료한다.
+ */
+export const STORE_ADD_FIELD = "add_store";
+export const STORE_ADD_LABEL = "매장 추가";
+export const STORE_ADD_NAME_MAX_LEN = 200;
+
 /** 항목(매장명 · 주소 …)을 바꿔 달라는 요청인지 — 아니면 글로 보낸 요청(추가 요청 · 문의, 예전 자유 입력)이다. */
 export function isFieldRequest<T extends Pick<StoreRequest, "field">>(
   r: T,
@@ -381,8 +397,12 @@ export type StoreRequestStatus = "pending" | "done" | "rejected";
 export interface StoreRequest {
   id: string;
   storeId: string;
-  /** 추가 요청 · 문의면 "inquiry", 예전 자유 입력 요청이면 null — 둘 다 after 가 요청 글(isFieldRequest). */
-  field: StoreRequestField | typeof STORE_INQUIRY_FIELD | null;
+  /** 추가 요청 · 문의면 "inquiry", 예전 자유 입력 요청이면 null — 둘 다 after 가 요청 글(isFieldRequest). 매장 추가 요청은 "add_store"(after 가 새 매장명). */
+  field:
+    | StoreRequestField
+    | typeof STORE_INQUIRY_FIELD
+    | typeof STORE_ADD_FIELD
+    | null;
   fieldLabel: string;
   before: string | null;
   after: string | null;
@@ -400,7 +420,8 @@ export interface StoreRequest {
 
 /** 수정 요청 보내기 — 백엔드 StoreRequestIn. 추가 요청 · 문의는 value 가 글. */
 export interface StoreRequestPayload {
-  field: StoreRequestField | typeof STORE_INQUIRY_FIELD;
+  field:
+    StoreRequestField | typeof STORE_INQUIRY_FIELD | typeof STORE_ADD_FIELD;
   value: unknown;
   memo?: string | null;
 }
@@ -419,6 +440,12 @@ export interface AdminStoreRequest extends StoreRequest {
 export type BizStatusCode =
   "unregistered" | "reviewing" | "verified" | "rejected" | "provisional";
 
+/**
+ * 내 정보 사업자등록증 칸 id — 주소 끝 #이 값으로 열면 그 칸으로 스크롤(ProfileView).
+ * 임시 승인 안내 창(partners ProvisionalGate)의 "내 정보로 이동"이 쓴다(11-16).
+ */
+export const BIZ_LICENSE_ANCHOR = "biz-license";
+
 /** 어드민 제휴사 회원(069). */
 export interface AdminPartnerMember {
   id: string;
@@ -432,6 +459,8 @@ export interface AdminPartnerMember {
   createdAt: string | null;
   /** 마지막 업데이트 — 회원 정보 · 사업자 등록 중 늦은 쪽. */
   updatedAt: string | null;
+  /** 마지막 로그인(091) — 기록이 없으면 null. */
+  lastLoginAt: string | null;
   agreedAt: string | null;
   agreementVersion: string | null;
   /** 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 손 서명 그림 · 동의 때 IP. 서명 도입 전 동의면 비어 있다. */

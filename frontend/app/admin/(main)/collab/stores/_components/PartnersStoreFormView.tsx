@@ -36,7 +36,7 @@ import {
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
 import { LoadingState } from "@/components/common/RouteStates";
-import { useStoreTypes } from "@/hooks/adminCollab";
+import { useStoreTypes, useUpdateStoreRequest } from "@/hooks/adminCollab";
 import {
   adminPartnersApi,
   useAdminPartnersStore,
@@ -391,6 +391,15 @@ export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
   const tabParam = searchParams.get("tab");
   // 매장 상세의 "수정"으로 들어왔는지 — 그러면 저장 · 취소 때 뒤로 가서 상세로 돌아간다(기록을 쌓지 않게).
   const fromDetail = searchParams.get("from") === "detail";
+  // 새 매장 — 제휴사 "매장 추가 요청"(수정 요청함의 "매장 등록하기", 11-16)이면 매장명 · 연결 회원을 채워 열고,
+  // 등록하면 그 요청(?request=)도 처리 완료로 바꾼다.
+  const prefill = isEdit
+    ? null
+    : {
+        name: searchParams.get("name") ?? "",
+        ownerCode: searchParams.get("owner") ?? "",
+        requestId: searchParams.get("request"),
+      };
   const { data: detail, isLoading, isError } = useAdminPartnersStore(id);
   // 보던 탭 — 저장에 실패해 폼을 다시 그려도 그대로 둔다. 처음엔 매장 정보(예전 ?tab=notes 도 조건 메모가 있는 매장 정보로).
   const [tab, setTab] = useState<FormTab>(
@@ -419,6 +428,7 @@ export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
       tab={tab}
       onTabChange={setTab}
       fromDetail={fromDetail}
+      prefill={prefill}
     />
   );
 }
@@ -429,6 +439,7 @@ function PartnersStoreForm({
   tab,
   onTabChange,
   fromDetail,
+  prefill,
 }: {
   id: string | null;
   detail: AdminPartnersStore | undefined;
@@ -436,15 +447,22 @@ function PartnersStoreForm({
   onTabChange: (tab: FormTab) => void;
   /** 매장 상세에서 들어옴 — 저장 · 취소하면 뒤로 가서 상세로. */
   fromDetail: boolean;
+  /** 새 매장 — 매장 추가 요청에서 채울 매장명 · 연결 회원(P-0001), 등록하면 처리 완료할 요청. */
+  prefill: { name: string; ownerCode: string; requestId: string | null } | null;
 }) {
   const isEdit = !!id;
   const save = useSaveAdminPartnersStore();
+  const updateRequest = useUpdateStoreRequest();
   const remove = useDeleteAdminPartnersStore();
   const { confirm, alert, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
 
   const [form, setForm] = useState<FormState>(() =>
-    detail ? toForm(detail) : EMPTY,
+    detail
+      ? toForm(detail)
+      : prefill
+        ? { ...EMPTY, name: prefill.name, ownerCode: prefill.ownerCode }
+        : EMPTY,
   );
   // 처음(또는 마지막으로 저장한) 값 — 이것과 다르면 입력 중으로 보고, 떠날 때 묻는다(2026-11-10 사용자).
   const [baseline, setBaseline] = useState<FormState>(form);
@@ -617,11 +635,30 @@ function PartnersStoreForm({
     };
     try {
       const saved = await save.mutateAsync({ id: id ?? undefined, payload });
+      // 매장 추가 요청에서 연 새 매장이면 그 요청도 처리 완료(제휴사 수정 기록에 보인다). 못 바꿔도 매장 등록은 그대로.
+      let requestDone = false;
+      if (!isEdit && prefill?.requestId) {
+        requestDone = await updateRequest
+          .mutateAsync({
+            id: prefill.requestId,
+            payload: { status: "done" },
+          })
+          .then(() => true)
+          .catch(() => false);
+      }
       success(
         isEdit ? "매장을 저장했어요." : "매장을 등록했어요.",
-        saved.mediaId
-          ? `매체 찾기 ${saved.mediaId}로 보여요.`
-          : "비공개이거나 위치를 찾지 못해 매체 찾기에는 보이지 않아요.",
+        [
+          saved.mediaId
+            ? `매체 찾기 ${saved.mediaId}로 보여요.`
+            : "비공개이거나 위치를 찾지 못해 매체 찾기에는 보이지 않아요.",
+          prefill?.requestId &&
+            (requestDone
+              ? "매장 추가 요청도 처리 완료로 바꿨어요."
+              : "매장 추가 요청은 수정 요청에서 처리 완료로 바꿔 주세요."),
+        ]
+          .filter(Boolean)
+          .join(" "),
       );
       // 저장한 값이 새 기준 — 이제 떠나도 묻지 않는다. 저장하면 상세로 가서 바뀐 값을 확인한다
       // (수정 화면은 기록에서 바꿔 끼워, 상세에서 뒤로 가기가 다시 수정 화면으로 오지 않게).

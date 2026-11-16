@@ -195,6 +195,25 @@ def _ensure_agreed(user: User) -> None:
         raise HTTPException(status_code=403, detail="기본협약에 동의하면 콜라보에 참여할 수 있어요.")
 
 
+def _ensure_not_provisional(user: User, action: str) -> None:
+    """임시 승인(069 — 담당자가 현장에서 등록증 없이 넘겨 줌)으로 들어온 회원은 콜라보 목록만 본다 — 어드민이 인증 완료할
+    때까지 신청 · 확정을 막는다(2026-11-16 사용자). 등록증을 올려 검토 대기가 돼도, 반려 · 올린 것 취소여도 그대로다
+    (올려도 provisional_at 은 남는다 — 어드민 "미등록으로"만 지운다). 처음부터 등록증을 올린 회원은 예전 그대로.
+    화면은 상세부터 막는다(ProvisionalGate)."""
+    reg = user.business_registration
+    if reg is None or reg.status == "verified":
+        return
+    if reg.status != "provisional" and reg.provisional_at is None:
+        return
+    if reg.status == "reviewing":
+        detail = f"담당자가 사업자등록증 인증을 마치면 {action}할 수 있어요."
+    elif reg.status == "rejected":
+        detail = f"사업자등록증이 반려돼 {action}할 수 없어요. 내 정보에서 다시 올려 주세요."
+    else:
+        detail = f"사업자등록증이 임시 승인 상태라 {action}할 수 없어요. 내 정보에서 올려 주세요."
+    raise HTTPException(status_code=403, detail=detail)
+
+
 def list_for_store(db: Session, user: User, store_id: str) -> dict:
     """이 매장이 보는 콜라보 — 지금 모집 중인 공고 + 이 매장이 참여한(했던) 콜라보."""
     store = ps.own_store(db, user, store_id)
@@ -272,6 +291,7 @@ def _store_view(db: Session, user: User, store: PartnersStore, collab: Collab) -
 def apply(db: Session, user: User, collab_id: str, store_id: str) -> dict:
     """선착순 신청 — 목표 매장 안이면 선정 후보, 넘으면 예비(대기 신청)."""
     _ensure_agreed(user)
+    _ensure_not_provisional(user, "신청")
     store = ps.own_store(db, user, store_id)
     collab = _get_collab(db, collab_id)
     today = today_kst()
@@ -369,6 +389,7 @@ def confirm(
     db: Session, user: User, collab_id: str, store_id: str, confirmer: str | None, checked: int | None
 ) -> dict:
     """최종 확정 — 확정 요청을 받은 매장이 진행 항목을 모두 확인하고 확정한다(확정서 번호가 생긴다)."""
+    _ensure_not_provisional(user, "확정")
     store = ps.own_store(db, user, store_id)
     collab = _get_collab(db, collab_id)
     p = _participant(db, collab, store)
