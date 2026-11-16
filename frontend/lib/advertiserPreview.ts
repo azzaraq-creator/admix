@@ -568,14 +568,19 @@ export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
 
 /**
  * 의뢰서 달력에서 고를 수 있는 가장 빠른 시작일(11-16 사용자) — 오늘 보내면 admix 검토(영업일 7일) → 매장 모집(가장 짧은
- * 7일 코스의 5일) → 신청 매장 검토 · 확정(영업일 2일) → 준비(영업일 MIN_PREP_DAYS) → 설치(최소 1일)를 마친 다음 날.
- * 이보다 앞 날짜는 달력에서 고를 수 없다. 14일 코스이거나 목표 매장이 많아 설치가 길면 더 늦어지는데, 그건 보낼 때 검사한다(tooSoon).
+ * 7일 코스의 5일) → 신청 매장 검토 · 확정(영업일 2일) → 준비(영업일 MIN_PREP_DAYS) → 설치(목표 매장 수로, 최소 1일)를 마친 다음 날.
+ * 이보다 앞 날짜는 달력에서 고를 수 없다. 14일 코스로는 모자라는 날을 고르면 의뢰서가 7일 코스로 바꾼다(courseFits).
  */
-export function earliestRequestStart(today = PREVIEW_TODAY) {
+export function earliestRequestStart(today = PREVIEW_TODAY, targetStores = 1) {
   return requestPlanPreviewOf(
-    { type: "ready", course: "rush", startDate: today, endDate: today, prepDays: MIN_PREP_DAYS, targetStores: 1, items: [] },
+    { type: "ready", course: "rush", startDate: today, endDate: today, prepDays: MIN_PREP_DAYS, targetStores, items: [] },
     today,
   ).earliest;
+}
+
+/** 이 의뢰를 그 모집 코스로 했을 때 준비 기간(MIN_PREP_DAYS)이 남는지 — 의뢰서 14일 코스 막기 · 기본값 되돌리기(11-16 사용자). */
+export function courseFits(d: SchedulePlan, course: Course, today = PREVIEW_TODAY) {
+  return !requestPlanPreviewOf({ ...d, course }, today).tooSoon;
 }
 
 export type Phase =

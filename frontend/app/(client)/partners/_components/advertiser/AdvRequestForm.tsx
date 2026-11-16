@@ -41,6 +41,7 @@ import {
   PREP_LABEL,
   PREP_OF,
   MIN_PREP_DAYS,
+  courseFits,
   earliestRequestStart,
   PREVIEW_TODAY,
   admixMakeItems,
@@ -544,7 +545,10 @@ function RequestForm({
   // 진행 기간 일수 — 날짜가 없거나 거꾸로면 0(날짜 칸 옆에 "-").
   const len = d.startDate && d.endDate && d.endDate >= d.startDate ? periodDays(d.startDate, d.endDate) : 0;
 
-  const earliestStart = earliestRequestStart();
+  // 고를 수 있는 첫날 — 7일 코스 · 지금 목표 매장 수의 설치 일수로(목표를 늘리면 하루씩 늦어질 수 있다).
+  const earliestStart = earliestRequestStart(PREVIEW_TODAY, d.targetStores);
+  // 14일 코스로는 준비 기간이 모자라는 시작일이면 7일 코스만(11-16 사용자 "최소로 했을 땐 모집 코스를 7일만 선택할 수 있게").
+  const standardOk = !hasPeriod || courseFits(d, "standard");
   // 맨 위 달력 — 제자리 카드와 스크롤했을 때 위에 붙는 줄(펼치면)이 같은 값을 쓴다.
   const calendar = (
     <ScheduleCalendar
@@ -559,8 +563,12 @@ function RequestForm({
         min: earliestStart,
         minReason: "admix 검토 · 매장 모집 · 확정 · 준비 · 설치 기간이 필요해요.",
         minDays: MIN_PERIOD_DAYS,
+        // 기간을 고르면 모집 코스를 맞춘다 — 14일로 모자라면 7일, 여유가 있으면 다시 기본값 14일(11-16 사용자).
         onChange: (startDate, endDate) => {
-          setD((x) => ({ ...x, startDate, endDate }));
+          setD((x) => {
+            const next = { ...x, startDate, endDate };
+            return { ...next, course: courseFits(next, "standard") ? "standard" : "rush" };
+          });
           setErrors((x) => ({ ...x, start: undefined, end: undefined }));
         },
       }}
@@ -1175,11 +1183,16 @@ function RequestForm({
 
           <Section step={3} title="콜라보 기간 및 모집 일정">
             <div className="grid gap-[14px] sm:grid-cols-2">
-              <Field label="모집 코스" className="sm:col-span-2">
+              {/* 고른 시작일이 14일 코스로는 모자라면 14일을 막고 7일만(11-16 사용자). */}
+              <Field
+                label="모집 코스"
+                className="sm:col-span-2"
+                hint={standardOk ? undefined : "시작일이 가까워 7일 코스로만 모집할 수 있어요"}
+              >
                 <RadioGroup aria-label="모집 코스" value={d.course} onChange={(v) => set("course", v as Course, "start")} className="grid gap-[8px] sm:grid-cols-2">
                   {(["standard", "rush"] as const).map((k) => (
-                    <Radio key={k} value={k} className="group mt-0 w-full">
-                      <Radio.Content className="flex w-full cursor-pointer items-center gap-[10px] rounded-[16px] border border-gray-200 bg-surface px-[14px] py-[11px] transition-colors data-[hovered=true]:border-gray-300 group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50 group-data-[selected=true]:data-[hovered=true]:border-primary-200">
+                    <Radio key={k} value={k} isDisabled={k === "standard" && !standardOk} className="group mt-0 w-full data-[disabled=true]:opacity-50">
+                      <Radio.Content className="flex w-full cursor-pointer items-center gap-[10px] rounded-[16px] border border-gray-200 bg-surface px-[14px] py-[11px] transition-colors data-[hovered=true]:border-gray-300 group-data-[disabled=true]:cursor-not-allowed group-data-[selected=true]:border-primary-200 group-data-[selected=true]:bg-primary-50 group-data-[selected=true]:data-[hovered=true]:border-primary-200">
                         <Radio.Control>
                           <Radio.Indicator />
                         </Radio.Control>
@@ -1218,7 +1231,15 @@ function RequestForm({
                     inputMode="numeric"
                     className={cn(INPUT, "w-[60px] px-[8px] text-center")}
                     value={String(d.targetStores || "")}
-                    onChange={(e) => set("targetStores", Math.min(200, num(e.target.value)), "stores")}
+                    // 목표가 늘어 설치가 길어져 14일 코스로 모자라면 7일로 바꾼다(11-16).
+                    onChange={(e) => {
+                      const targetStores = Math.min(200, num(e.target.value));
+                      setD((x) => {
+                        const next = { ...x, targetStores };
+                        return next.startDate && next.endDate && next.course === "standard" && !courseFits(next, "standard") ? { ...next, course: "rush" } : next;
+                      });
+                      setErrors((x) => ({ ...x, stores: undefined }));
+                    }}
                     // 최소보다 낮게 적고 나가면 최소로 돌아간다(11-11).
                     onBlur={() => d.targetStores < Math.max(1, d.minStores) && set("targetStores", Math.max(1, d.minStores), "stores")}
                   />

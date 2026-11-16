@@ -215,11 +215,12 @@ function ConfirmBody({
  * 11-16 사용자 "그냥 보면 말이 길어 보여서" — 제목 한 줄 + 문장마다 "-" 줄로 나눴다. 노란 바탕(warning-bg)은 회색 카드와 안 어울리고
  * 흰 바탕은 "더더욱 안 어울려서" 주황을 아주 옅게 깔았더니(warning 7%) "톤이 너무 어두워, 노랑 또는 주황 톤 유지" —
  * 노란 톤은 살리되 warning-bg(amber-100)보다 한 단계 연한 amber-50 + amber-200 테두리 → "좀 더 밝게 · 유리 재질로 반투명하게"(11-16 사용자):
- * 흰빛→연노랑 그라데이션은 "그라데이션 같아서 싫어" — 한 가지 색(연노랑)을 반투명하게 + 뒤 흐림 + 옅은 노랑 테두리만.
+ * 흰빛→연노랑 그라데이션은 "그라데이션 같아서 싫어" → 연노랑 반투명 + 뒤 흐림은 "유리재질의 불투명 없애줘" —
+ * 유리 느낌 없이 꽉 찬 연노랑(amber-50) + 옅은 노랑 테두리만.
  */
 export const WARN_BOX = cn(
-  "rounded-[12px] px-[12px] py-[10px] text-[12px] leading-[1.5] break-keep backdrop-blur-md",
-  "bg-amber-50/80 ring-1 ring-amber-200/70 ring-inset",
+  "rounded-[12px] px-[12px] py-[10px] text-[12px] leading-[1.5] break-keep",
+  "bg-amber-50 ring-1 ring-amber-200/70 ring-inset",
   "dark:bg-amber-300/10 dark:ring-amber-300/25",
 );
 
