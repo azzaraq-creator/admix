@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
  * - 먼저 시작한 콜라보가 위 줄, 날짜가 겹치지 않으면 한 줄에 같이 둔다. 개수 제한 없이 모두 보인다.
  * - 비공개(초안)는 옅게, 취소는 서버가 뺀다. 막대를 누르면 콜라보 상세로.
  * - 일요일 · 한국 공휴일은 빨간 날짜, 공휴일은 이름도 작게. 화면 읽기 도구는 막대(링크)의 단계별 날짜 글을 읽는다.
+ * - 2026-11-16 사용자 "달력 예쁘게": 요일 줄 회색 띠 · 다른 달 회색 칸을 없애고(날짜 글자만 옅게) 선은 더 옅게,
+ *   요일 글자는 날짜 숫자 위에 맞춤, 막대는 조금 두껍게 · 단계 사이 2px 틈 · 단계마다 둥근 모서리, 색 안내는 둥근 알약.
  */
 
 type Seg = "recruit" | "review" | "prep" | "install" | "run" | "removal";
@@ -224,37 +226,38 @@ export function CollabCalendar({ today }: { today: string }) {
       {/* 단계 색 안내 */}
       <ul
         aria-hidden
-        className="flex flex-wrap items-center gap-x-[14px] gap-y-[6px]"
+        className="flex flex-wrap items-center gap-x-[16px] gap-y-[6px]"
       >
         {SEG_ORDER.map((seg) => (
           <li
             key={seg}
-            className="flex items-center gap-[6px] text-xs text-tone-4a5565"
+            className="flex items-center gap-[6px] text-xs font-medium text-tone-4a5565"
           >
             <span
-              className={cn("h-[10px] w-[18px] rounded-[3px]", SEG_TONE[seg])}
+              className={cn("h-[8px] w-[16px] rounded-full", SEG_TONE[seg])}
             />
             {SEG_LABEL[seg]}
           </li>
         ))}
-        <li className="flex items-center gap-[6px] text-xs text-tone-4a5565">
-          <span className="h-[10px] w-[18px] rounded-[3px] bg-primary-500 opacity-40" />
+        <li className="flex items-center gap-[6px] text-xs font-medium text-tone-4a5565">
+          <span className="h-[8px] w-[16px] rounded-full bg-primary-500 opacity-40" />
           비공개(초안)
         </li>
       </ul>
 
-      {/* 바깥 테두리 없이 — 요일 줄은 옅은 회색 바탕, 주 · 날짜 사이 가는 선만 남긴다. */}
-      <div className="overflow-hidden rounded-[12px]">
-        <div aria-hidden className="grid grid-cols-7 rounded-[12px] bg-gray-50">
+      {/* 바깥 테두리 없이 — 요일 글자는 날짜 숫자 위에 맞추고, 주 · 날짜 사이엔 옅은 선만. */}
+      <div>
+        <div aria-hidden className="grid grid-cols-7 border-b border-stroke">
           {WEEK.split("").map((w, i) => (
-            <span
-              key={w}
-              className={cn(
-                "py-[8px] text-center text-xs font-semibold text-tone-4a5565",
-                i === 0 && "text-error",
-              )}
-            >
-              {w}
+            <span key={w} className="px-[6px] pb-[8px]">
+              <span
+                className={cn(
+                  "block w-[26px] text-center text-xs font-semibold text-disabled",
+                  i === 0 && "text-error",
+                )}
+              >
+                {w}
+              </span>
             </span>
           ))}
         </div>
@@ -293,21 +296,20 @@ function Week({
 }) {
   const lanes = lanesOf(days, items);
   return (
-    <div className={cn("relative", !first && "border-t border-stroke")}>
-      {/* 날짜 칸 바탕 — 세로 경계선, 다른 달은 회색, 오늘은 옅은 보라. */}
+    <div className={cn("relative", !first && "border-t border-gray-100")}>
+      {/* 날짜 칸 바탕 — 옅은 세로 선, 오늘만 옅은 보라(다른 달은 날짜 글자만 옅게). */}
       <div aria-hidden className="absolute inset-0 grid grid-cols-7">
         {days.map((day, i) => (
           <div
             key={day}
             className={cn(
-              i > 0 && "border-l border-stroke",
-              monthOf(day) !== month && "bg-gray-50",
-              day === today && "bg-primary-50/60",
+              i > 0 && "border-l border-gray-100",
+              day === today && "bg-primary-50/50",
             )}
           />
         ))}
       </div>
-      <div className="relative flex min-h-[112px] flex-col gap-[3px] pb-[8px]">
+      <div className="relative flex min-h-[116px] flex-col gap-[4px] pb-[10px]">
         <div aria-hidden className="grid grid-cols-7">
           {days.map((day) => {
             const holiday = holidayName(day);
@@ -315,20 +317,21 @@ function Week({
             return (
               <div
                 key={day}
-                className="flex min-w-0 items-center gap-[4px] px-[6px] pt-[6px] pb-[2px]"
+                className="flex min-w-0 items-center gap-[4px] px-[6px] pt-[8px] pb-[2px]"
               >
                 <span
                   className={cn(
-                    "flex size-[22px] shrink-0 items-center justify-center rounded-full text-xs",
-                    outside ? "text-gray-300" : "text-gray-700",
+                    "flex size-[26px] shrink-0 items-center justify-center rounded-full text-[13px] font-medium",
+                    outside ? "text-gray-300" : "text-gray-800",
                     !outside && (holiday || dow(day) === 0) && "text-error",
                     day === today && "bg-primary font-bold text-white",
                   )}
                 >
                   {Number(day.slice(8, 10))}
                 </span>
+                {/* 공휴일 이름 — 폰 폭에선 칸이 좁아 첫 글자 조각만 남으므로 숨기고 빨간 날짜만. */}
                 {holiday && !outside && (
-                  <span className="min-w-0 truncate text-[10px] text-error">
+                  <span className="hidden min-w-0 truncate text-[10px] text-error sm:inline">
                     {holiday}
                   </span>
                 )}
@@ -337,7 +340,7 @@ function Week({
           })}
         </div>
         {lanes.map((lane, i) => (
-          <div key={i} className="grid h-[22px] grid-cols-7">
+          <div key={i} className="grid h-[24px] grid-cols-7">
             {lane.map((bar) => (
               <CalendarBar key={bar.c.id} bar={bar} />
             ))}
@@ -359,19 +362,21 @@ function CalendarBar({ bar }: { bar: Bar }) {
       aria-label={tooltipOf(c).replaceAll("\n", ", ")}
       style={{ gridColumn: `${first + 1} / span ${last - first + 1}` }}
       className={cn(
-        "flex min-w-0 overflow-hidden text-[11px] leading-none font-semibold transition-[filter] hover:brightness-95",
-        fromPrev ? "ml-0" : "ml-[3px] rounded-l-[6px]",
-        toNext ? "mr-0" : "mr-[3px] rounded-r-[6px]",
+        "flex min-w-0 gap-[2px] text-[11px] leading-none font-semibold transition-[filter] hover:brightness-95",
+        fromPrev ? "ml-0" : "ml-[4px]",
+        toNext ? "mr-0" : "mr-[4px]",
         c.status === "draft" && "opacity-40",
       )}
     >
-      {pieces.map((p) => (
+      {pieces.map((p, i) => (
         <span
           key={p.col}
           style={{ flexGrow: p.len, flexBasis: 0 }}
           className={cn(
-            "flex min-w-0 items-center px-[6px]",
+            "flex min-w-0 items-center rounded-[6px] px-[8px]",
             p.seg ? SEG_TONE[p.seg] : "bg-transparent",
+            i === 0 && fromPrev && "rounded-l-none",
+            i === pieces.length - 1 && toNext && "rounded-r-none",
           )}
         >
           {p.seg && (

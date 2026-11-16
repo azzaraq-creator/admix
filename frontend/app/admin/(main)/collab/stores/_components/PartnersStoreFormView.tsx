@@ -15,7 +15,7 @@ import {
   useFilter,
 } from "@heroui/react";
 import { parseTime, type Time } from "@internationalized/date";
-import { Plus, Search, Star, Trash2 } from "lucide-react";
+import { GripHorizontal, Plus, Search, Star, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -1160,6 +1160,9 @@ function orderPhotos(list: StorePhoto[]): StorePhoto[] {
  * 올리기 전에 브라우저에서 긴 변 2000px 로 줄이고(서버도 한 번 더), 분류마다 별(★)로 대표 사진을 정한다.
  * 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다. 사진마다 짧은 메모(광고주 매장 상세에서 사진 설명으로 보인다).
  * 영업 기록 상세 "매장 사진" 탭(088)도 같은 칸으로 올린다 — 그쪽은 꼭 넣을 칸이 아니라 required={false}, 제목 아래 안내는 note.
+ * 2026-11-16 사용자: 사진 순서를 끌어서 바꾼다. 사진(그림 부분)을 누른 채 끌면 시작하고(별 · 휴지통 · 분류 · 메모 칸은 그대로 쓰게),
+ * 같은 분류 사진 위에 놓으면 그 자리로, 다른 분류 줄에 놓으면 그 분류로 옮긴다. 맨 앞으로 끌면 대표 사진이 된다.
+ * 파일 끌어 놓기(올리기)와는 끄는 중인 사진(dragUrl)이 있는지로 나눈다.
  */
 export function PartnersPhotoSection({
   photos,
@@ -1250,8 +1253,52 @@ export function PartnersPhotoSection({
   const changeMemo = (url: string, memo: string) =>
     onChange(photos.map((p) => (p.url === url ? { ...p, memo } : p)));
 
+  /** 사진을 kind 분류의 beforeUrl 앞으로(null 이면 그 분류 맨 뒤로) — 분류가 다르면 분류도 바뀐다. */
+  const movePhoto = (
+    url: string,
+    kind: PhotoKind,
+    beforeUrl: string | null,
+  ) => {
+    const target = photos.find((p) => p.url === url);
+    if (!target) return;
+    const rest = photos.filter((p) => p.url !== url);
+    const moved = { ...target, kind };
+    const at = beforeUrl ? rest.findIndex((p) => p.url === beforeUrl) : -1;
+    onChange(
+      orderPhotos(
+        at < 0
+          ? [...rest, moved]
+          : [...rest.slice(0, at), moved, ...rest.slice(at)],
+      ),
+    );
+  };
+
+  // 사진 끌기 — 그림 부분을 누른 사진(armed)만 끌 수 있고, 끄는 중인 사진(dragUrl)과 놓일 자리(dropAt)로 표시를 그린다.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [dragUrl, setDragUrl] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<{
+    url: string;
+    side: "before" | "after";
+  } | null>(null);
+  const endDrag = () => {
+    setArmed(null);
+    setDragUrl(null);
+    setDropAt(null);
+    setDragKind(null);
+  };
+  const showDropAt = (next: typeof dropAt) => {
+    if (next?.url !== dropAt?.url || next?.side !== dropAt?.side)
+      setDropAt(next);
+  };
+
   const onDrop = (e: DragEvent<HTMLDivElement>, kind: PhotoKind) => {
     e.preventDefault();
+    if (dragUrl) {
+      // 줄의 빈 곳에 놓으면 그 분류 맨 뒤로.
+      movePhoto(dragUrl, kind, null);
+      endDrag();
+      return;
+    }
     setDragKind(null);
     void addFiles(e.dataTransfer.files, kind);
   };
@@ -1270,6 +1317,11 @@ export function PartnersPhotoSection({
           </h2>
           <Chip size="sm">{photos.length}장</Chip>
         </div>
+        {photos.length > 1 && (
+          <p className="break-keep text-sm text-disabled">
+            사진을 끌어서 순서를 바꿀 수 있어요. 맨 앞 사진이 대표예요.
+          </p>
+        )}
         {note && <p className="break-keep text-sm text-tone-4a5565">{note}</p>}
         {fieldError && <p className={HERO_ERROR_CLASS}>{fieldError}</p>}
       </div>
@@ -1283,9 +1335,28 @@ export function PartnersPhotoSection({
               key={kind}
               onDragOver={(e) => {
                 e.preventDefault();
+                if (dragUrl) {
+                  // 사진 위가 아닌 빈 곳 — 그 분류 맨 뒤에 놓인다(이미 맨 뒤면 표시 없음). 빈 분류는 줄 전체를 칠한다.
+                  e.dataTransfer.dropEffect = "move";
+                  const last = list[list.length - 1];
+                  if (last) {
+                    if (dragKind) setDragKind(null);
+                    showDropAt(
+                      last.url === dragUrl
+                        ? null
+                        : { url: last.url, side: "after" },
+                    );
+                  } else {
+                    showDropAt(null);
+                    if (dragKind !== kind) setDragKind(kind);
+                  }
+                  return;
+                }
                 if (!uploading) setDragKind(kind);
               }}
-              onDragLeave={() => setDragKind(null)}
+              onDragLeave={() => {
+                if (!dragUrl) setDragKind(null);
+              }}
               onDrop={(e) => onDrop(e, kind)}
               className={cn(
                 "-mx-[12px] flex flex-col gap-[10px] rounded-[12px] px-[12px] py-[14px] transition-colors sm:flex-row sm:items-start",
@@ -1310,19 +1381,92 @@ export function PartnersPhotoSection({
                   </span>
                 )}
               </div>
-              <div className="flex min-w-0 flex-1 items-stretch gap-[10px] overflow-x-auto pb-[2px]">
-                {list.map((photo, i) => (
-                  <PhotoTile
-                    key={photo.url}
-                    photo={photo}
-                    isCover={i === 0}
-                    disabled={uploading}
-                    onCover={() => makeCover(photo.url)}
-                    onRemove={() => remove(photo.url)}
-                    onKind={(k) => changeKind(photo.url, k)}
-                    onMemo={(memo) => changeMemo(photo.url, memo)}
-                  />
-                ))}
+              {/* 좌우 8px 여백(-mx로 자리는 그대로) — 맨 앞 · 맨 뒤에 놓일 자리 선이 가로 스크롤 칸에 잘리지 않게. */}
+              <div className="-mx-[8px] flex min-w-0 flex-1 items-stretch gap-[10px] overflow-x-auto px-[8px] pb-[2px]">
+                {list.map((photo, i) => {
+                  // 같은 분류에서 오른쪽으로 옮기면 놓은 사진 뒤, 왼쪽으로 · 다른 분류에서 오면 앞.
+                  const from = dragUrl
+                    ? list.findIndex((p) => p.url === dragUrl)
+                    : -1;
+                  const side = from >= 0 && from < i ? "after" : "before";
+                  return (
+                    <div
+                      key={photo.url}
+                      draggable={!uploading && armed === photo.url}
+                      onDragStart={(e) => {
+                        if (uploading || armed !== photo.url) {
+                          e.preventDefault();
+                          return;
+                        }
+                        e.dataTransfer.effectAllowed = "move";
+                        // text/plain 이 아닌 이름 — 메모 칸 같은 입력칸에 놓여도 주소 글자가 들어가지 않게.
+                        e.dataTransfer.setData(
+                          "application/x-admix-photo",
+                          photo.url,
+                        );
+                        setDragUrl(photo.url);
+                      }}
+                      onDragOver={(e) => {
+                        if (!dragUrl) return; // 파일은 줄이 받는다.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragKind) setDragKind(null);
+                        showDropAt(
+                          photo.url === dragUrl
+                            ? null
+                            : { url: photo.url, side },
+                        );
+                      }}
+                      onDrop={(e) => {
+                        if (!dragUrl) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (photo.url !== dragUrl) {
+                          movePhoto(
+                            dragUrl,
+                            kind,
+                            side === "after"
+                              ? (list[i + 1]?.url ?? null)
+                              : photo.url,
+                          );
+                        }
+                        endDrag();
+                      }}
+                      onDragEnd={endDrag}
+                      className={cn(
+                        "relative flex shrink-0 transition-opacity",
+                        dragUrl === photo.url && "opacity-40",
+                      )}
+                    >
+                      {/* 놓일 자리 — 사진 사이 틈(10px) 가운데 보라 세로 선. */}
+                      {dropAt?.url === photo.url && (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "pointer-events-none absolute top-0 bottom-0 z-30 w-[3px] rounded-full bg-primary-500",
+                            dropAt.side === "before"
+                              ? "-left-[6.5px]"
+                              : "-right-[6.5px]",
+                          )}
+                        />
+                      )}
+                      <PhotoTile
+                        photo={photo}
+                        isCover={i === 0}
+                        disabled={uploading}
+                        onArm={() => setArmed(photo.url)}
+                        onDisarm={() => {
+                          if (!dragUrl) setArmed(null);
+                        }}
+                        onCover={() => makeCover(photo.url)}
+                        onRemove={() => remove(photo.url)}
+                        onKind={(k) => changeKind(photo.url, k)}
+                        onMemo={(memo) => changeMemo(photo.url, memo)}
+                      />
+                    </div>
+                  );
+                })}
                 <Button
                   variant="ghost"
                   isDisabled={uploading}
@@ -1371,6 +1515,8 @@ function PhotoTile({
   photo,
   isCover,
   disabled,
+  onArm,
+  onDisarm,
   onCover,
   onRemove,
   onKind,
@@ -1380,6 +1526,9 @@ function PhotoTile({
   /** 이 분류의 대표 사진(분류마다 첫 장). */
   isCover: boolean;
   disabled: boolean;
+  /** 그림 부분을 눌렀을 때 — 이 사진을 끌 수 있게 한다(별 · 휴지통 버튼은 빼고). */
+  onArm: () => void;
+  onDisarm: () => void;
   onCover: () => void;
   onRemove: () => void;
   onKind: (kind: PhotoKind) => void;
@@ -1388,8 +1537,29 @@ function PhotoTile({
   const src = mediaSrc(photo.url);
   const kindLabel = PHOTO_KIND_LABEL[photo.kind];
   return (
-    <Card className="relative w-[160px] shrink-0 gap-0 overflow-hidden p-0">
-      <div className="relative aspect-[4/3] w-full bg-zinc-100">
+    <Card className="group relative w-[160px] shrink-0 gap-0 overflow-hidden p-0">
+      <div
+        title={disabled ? undefined : "끌어서 순서 바꾸기"}
+        onPointerDown={(e) => {
+          if (disabled || (e.target as HTMLElement).closest("button")) return;
+          onArm();
+        }}
+        onPointerUp={onDisarm}
+        onPointerCancel={onDisarm}
+        className={cn(
+          "relative aspect-[4/3] w-full bg-zinc-100",
+          !disabled && "cursor-grab active:cursor-grabbing",
+        )}
+      >
+        {/* 끌기 손잡이 표시 — 마우스를 올렸을 때만 그림 아래 가운데에 은은하게. */}
+        {!disabled && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-[6px] left-1/2 z-10 flex -translate-x-1/2 items-center rounded-full bg-black/45 px-[8px] py-[2px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+          >
+            <GripHorizontal className="size-[14px]" />
+          </span>
+        )}
         <Image
           src={src}
           alt=""

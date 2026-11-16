@@ -1,11 +1,10 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { LoadingState } from "@/components/common/RouteStates";
 import { useCollabAdminSummary } from "@/hooks/adminCollab";
-import { dotDate } from "@/lib/adminCollab";
+import { dotDateTime } from "@/lib/adminCollab";
 import type { CollabAdminSummary } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
@@ -61,46 +60,47 @@ const todosOf = (s: CollabAdminSummary): Todo[] => [
 /**
  * 콜라보 어드민 첫 화면 — 지금 처리할 일 숫자, 그 밑에 콜라보 일정 달력(2026-11-12 사용자, 예전 회원 · 매장 · 콜라보 현황 숫자를 바꿈).
  * 숫자를 누르면 그 목록으로, 일정 막대를 누르면 콜라보 상세로.
+ * 2026-11-16 사용자: 달력이 잘 보이게 처리할 일은 작게(한 줄 칸, 설명은 마우스를 올리면) · 머리에 최근 업데이트 일시
+ * (숫자를 마지막으로 불러온 시각 — 창으로 돌아오면 다시 불러와 바뀐다).
  */
 export function CollabDashboardView() {
-  const { data: s, isLoading } = useCollabAdminSummary();
+  const { data: s, isLoading, dataUpdatedAt } = useCollabAdminSummary();
   if (isLoading || !s) return <LoadingState />;
 
   return (
     <div className="flex flex-col gap-[24px] md:gap-[32px]">
       <CollabPageHead
         title="콜라보 대시보드"
-        desc={`${dotDate(s.today)} 기준이에요. 숫자를 누르면 해당 목록으로, 일정을 누르면 콜라보 상세로 가요.`}
-      />
+        desc="숫자를 누르면 해당 목록으로, 일정을 누르면 콜라보 상세로 가요."
+      >
+        <span className="text-sm font-medium text-disabled">
+          최근 업데이트 {dotDateTime(new Date(dataUpdatedAt).toISOString())}
+        </span>
+      </CollabPageHead>
 
-      <section className="flex flex-col gap-[12px]">
-        <h2 className="text-lg font-bold leading-[28px] text-black">
+      <section className="flex flex-col gap-[8px]">
+        <h2 className="text-base font-bold leading-[24px] text-black">
           처리할 일
         </h2>
-        <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 md:gap-[16px] xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-[8px] md:grid-cols-3 xl:grid-cols-6">
           {todosOf(s).map((t) => (
             <Link
               key={t.label}
               href={t.href}
-              // 테두리 없는 흰 카드(회색 바탕 위) — 할 일이 있으면 숫자만 보라로(은은하게).
-              className="flex items-center justify-between gap-[12px] rounded-[20px] bg-surface p-[18px] shadow-surface transition-colors hover:bg-primary-50/40 md:p-[20px]"
+              title={t.hint}
+              // 테두리 없는 흰 칸(회색 바탕 위) — 할 일이 있으면 숫자만 보라로(은은하게).
+              className="flex items-center justify-between gap-[8px] rounded-[14px] bg-surface px-[14px] py-[10px] shadow-surface transition-colors hover:bg-primary-50/40"
             >
-              <span className="flex min-w-0 flex-col gap-[2px]">
-                <span className="text-sm font-semibold text-black">
-                  {t.label}
-                </span>
-                <span className="text-xs text-disabled">{t.hint}</span>
+              <span className="min-w-0 truncate text-sm font-semibold text-black">
+                {t.label}
               </span>
-              <span className="flex shrink-0 items-center gap-[4px]">
-                <span
-                  className={cn(
-                    "text-2xl font-bold",
-                    t.value > 0 ? "text-primary-800" : "text-disabled",
-                  )}
-                >
-                  {t.value.toLocaleString()}
-                </span>
-                <ChevronRight className="size-[16px] text-disabled" />
+              <span
+                className={cn(
+                  "shrink-0 text-lg font-bold",
+                  t.value > 0 ? "text-primary-800" : "text-disabled",
+                )}
+              >
+                {t.value.toLocaleString()}
               </span>
             </Link>
           ))}
