@@ -33,14 +33,15 @@ import {
 import { MovingChip } from "@/components/common/MovingChip";
 import {
   PartnersAccessMark,
+  isCardLocked,
   type PartnersCardAccess,
 } from "@/components/common/PartnersAccessMark";
 import { SalesTypeChip } from "@/components/common/SalesTypeChip";
 import { StopNoChip } from "@/components/common/StopNoChip";
 
 import {
-  CollabFeeCell,
   CollabFeeLine,
+  CollabFeeRow,
   likeLabelOf,
   samePick,
   type CollabPick,
@@ -205,7 +206,9 @@ function MediaFindCardImpl({
     notifyName: row.name,
     label: likeLabel,
   });
-  const locked = access === "locked";
+  const locked = isCardLocked(access);
+  // 승인 전 광고주 — 금액 · 가능 범위를 흐리게 가리고 관심(하트)도 못 누른다(11-17 사용자).
+  const concealed = access === "unverified";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다(콜라보 카드만 상태를 바꾼다).
   const [hovered, setHovered] = useState(false);
   // 하트에 마우스를 올렸는지(likeTooltip 일 때만) — 하트 툴팁과 자물쇠 툴팁이 같이 뜨지 않게.
@@ -232,6 +235,7 @@ function MediaFindCardImpl({
       aria-label={likeLabel}
       isSelected={liked}
       onChange={setLiked}
+      isDisabled={concealed}
       onHoverChange={likeTooltip ? setLikeHovered : undefined}
       className={cn(
         compact
@@ -336,7 +340,7 @@ function MediaFindCardImpl({
           <div className="mt-auto flex items-end justify-between gap-[8px]">
             {/* 광고비 아래 제작비 — 제작비가 없으면(DOOH 등) 줄째 뺀다(큰 카드와 같다). */}
             {pick ? (
-              <CollabFeeLine pick={pick} />
+              <CollabFeeLine pick={pick} concealed={concealed} />
             ) : partners ? (
               <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
@@ -493,15 +497,22 @@ function MediaFindCardImpl({
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
       {pick ? (
-        // 광고주 매장 찾기 — 운영 시간 옆에 1건 금액(광고비 칸 자리).
-        <div className="flex items-end justify-between gap-[12px] p-[10px]">
+        // 광고주 매장 찾기 · 관심 매장 — 운영 시간 · 가능 범위가 한 줄을 다 쓰고, 1건 금액은 아래 줄(11-17 사용자:
+        // 예전엔 운영 시간 옆에 금액 칸이 붙어 "(월요일 / 휴무)"로 잘렸다). 금액 줄은 카드 맨 아래에 붙는다(mt-auto).
+        <div className="flex flex-1 flex-col gap-[10px] p-[10px]">
           <PartnersCardDetails
             businessHours={row.partners?.businessHours}
-            className="min-w-0 flex-1"
+            scope={row.partners?.scope}
+            concealed={concealed}
           />
-          <CollabFeeCell pick={pick} />
+          <CollabFeeRow
+            pick={pick}
+            concealed={concealed}
+            className="mt-auto border-t border-dashed border-gray-200 pt-[8px]"
+          />
         </div>
       ) : partners ? (
+        // admix 매체 찾기 · 관심 매체의 콜라보 카드 — 운영 시간만(가능 범위는 광고주 매장 찾기 · 관심 매장 카드에만).
         <PartnersCardDetails
           businessHours={row.partners?.businessHours}
           className="p-[10px]"

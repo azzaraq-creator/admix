@@ -196,10 +196,13 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
       className="flex flex-col gap-[96px] pb-[24px] sm:gap-[160px] sm:pb-[40px]"
     >
       <Hero collabMember={collabMember} otherMember={otherMember} />
-      <Formats />
-      <Flow />
-      <AdmixPart />
-      <Audiences join={!collabMember && !otherMember} />
+      {/* 히어로 아래 섹션끼리는 더 띄운다(11-17 사용자: "아래 내용들은 서로 붙어 있는데 간격을 떨어트려줘") — 96 · 160 → 144 · 240. */}
+      <div className="flex flex-col gap-[144px] sm:gap-[240px]">
+        <Formats />
+        <Flow />
+        <AdmixPart />
+        <Audiences join={!collabMember && !otherMember} />
+      </div>
       <BackToTop target={top} />
     </div>
   );

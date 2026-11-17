@@ -12,6 +12,8 @@ import { type StoreRef } from "@/lib/advertiserPreview";
 import { mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
+import { openBizGate, useAdvBizLock } from "../workspace/ProvisionalGate";
+
 /*
  * 광고주 콜라보 화면 공용 — 주소 · 매장 사진 · 아래 고정 줄 · 확인 창(브랜드는 내 브랜드, useMyBrands).
  * 제휴사 화면(workspace/*)과 같은 유리 카드 · HeroUI 컴포넌트로 그린다.
@@ -250,7 +252,13 @@ export function useNewRequestStart() {
   const router = useRouter();
   const brands = useMyBrands();
   const [needBrand, setNeedBrand] = useState(false);
+  // 사업자등록증 승인 전 광고주는 의뢰서 대신 승인 안내 창(11-17 사용자).
+  const advLock = useAdvBizLock();
   const start = async () => {
+    if (advLock) {
+      openBizGate();
+      return;
+    }
     const list = brands.data ?? (await brands.refetch()).data ?? [];
     if (list.length) router.push(ADV_NEW_HREF);
     else setNeedBrand(true);

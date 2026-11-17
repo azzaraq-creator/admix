@@ -6,7 +6,12 @@ import { useEffect, useSyncExternalStore } from "react";
 
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { useMe } from "@/hooks/auth";
-import { BIZ_LICENSE_ANCHOR } from "@/lib/partners";
+import {
+  BIZ_LICENSE_ANCHOR,
+  PARTNERS_DASHBOARD_HREF,
+  advBizLockOf,
+  type AdvBizLock,
+} from "@/lib/partners";
 
 /*
  * 임시 승인으로 들어온 제휴사(담당자가 현장에서 등록증 없이 넘겨 준 회원, 069) — 콜라보 목록은 보지만 상세 · 신청 · 확정은
@@ -21,6 +26,13 @@ export const PROFILE_BIZ_HREF = `/partners/profile#${BIZ_LICENSE_ANCHOR}`;
 
 /** 콜라보 상세 주소 — /partners/collabs/{id}(광고주 새 의뢰 /new 는 뺀다). */
 const COLLAB_DETAIL_PATH = /^\/partners\/collabs\/(?!new\/?$)[^/]+\/?$/;
+
+/**
+ * 승인 전 광고주가 못 여는 콜라보 화면 — 대시보드 · 매장 찾기 · 내 정보 · 도움말 말고 모두
+ * (내 콜라보 · 새 의뢰 · 콜라보 상세 · 관심 매장 · 내 브랜드 · 매장 화면 · 옛 대화 · 문서함, 11-17 사용자).
+ */
+const ADV_LOCKED_PATH =
+  /^\/partners\/(collabs|favorites|brands|stores|messages|documents|history)(\/|$)/;
 
 // 창 열림 — 레이아웃의 창 하나를 상세 링크 · 알림 · 상세 화면이 같이 연다.
 let gateOpen = false;
@@ -69,6 +81,78 @@ export const BIZ_LOCK_COPY: Record<
 };
 
 /**
+ * 승인 전 광고주 — 창 · 막힌 화면 글(11-17 사용자: "사업자등록증 승인 받을 경우에만 콜라보를 진행할 수 있다고 안내").
+ * 제목은 지금 상태, 본문은 승인을 받으면 무엇을 할 수 있는지, 버튼은 할 일(올리기 · 다시 올리기, 확인 중엔 내 정보로 이동).
+ */
+export const ADV_LOCK_COPY: Record<
+  AdvBizLock,
+  { title: string; body: string; action: string }
+> = {
+  unregistered: {
+    title: "사업자등록증 승인이 필요해요",
+    body: "사업자등록증을 올리고 승인을 받으면 콜라보를 진행할 수 있어요. 그 전에는 대시보드와 매장 찾기만 볼 수 있어요.",
+    action: "사업자등록증 올리기",
+  },
+  reviewing: {
+    title: "사업자등록증을 확인하고 있어요",
+    body: "담당자가 승인하면 콜라보를 진행할 수 있어요. 그 전에는 대시보드와 매장 찾기만 볼 수 있어요.",
+    action: "내 정보로 이동",
+  },
+  rejected: {
+    title: "사업자등록증이 반려됐어요",
+    body: "내 정보에서 반려 사유를 보고 다시 올려 주세요. 승인을 받으면 콜라보를 진행할 수 있어요.",
+    action: "다시 올리기",
+  },
+};
+
+/** 승인 전 광고주면 그 까닭(미등록 · 확인 중 · 반려), 아니면 null(lib/partners advBizLockOf). */
+export function useAdvBizLock(): AdvBizLock | null {
+  const { data: me } = useMe();
+  return advBizLockOf(me);
+}
+
+/** 승인 전 광고주의 안내 창을 연다(대시보드 안내 줄 등). */
+export const openBizGate = () => setGateOpen(true);
+
+/**
+ * 승인 전 광고주가 막힌 화면(내 콜라보 · 관심 매장 · 내 브랜드 …)에 주소로 바로 들어왔을 때 본문 대신(AdvertiserOnly).
+ */
+export function AdvLockedState({ lock }: { lock: AdvBizLock }) {
+  const router = useRouter();
+  const copy = ADV_LOCK_COPY[lock];
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-[14px] px-[16px] py-[48px] text-center">
+      <span className="flex size-[48px] items-center justify-center rounded-[17px] bg-primary-50 text-primary-500">
+        <MaskIcon src="/icons/file-text.svg" className="size-[22px]" />
+      </span>
+      <div className="flex flex-col gap-[6px]">
+        <p className="text-[17px] font-bold break-keep text-gray-900">
+          {copy.title}
+        </p>
+        <p className="max-w-[400px] text-[14px] leading-[1.6] break-keep text-gray-600">
+          {copy.body}
+        </p>
+      </div>
+      <div className="mt-[4px] flex flex-wrap items-center justify-center gap-[8px]">
+        <Button
+          variant="tertiary"
+          onPress={() => router.push(PARTNERS_DASHBOARD_HREF)}
+          className="h-[44px] rounded-[19px] px-[18px] font-semibold"
+        >
+          대시보드로
+        </Button>
+        <Button
+          onPress={() => router.push(PROFILE_BIZ_HREF)}
+          className="h-[44px] rounded-[19px] px-[18px] font-bold"
+        >
+          {copy.action}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * 콜라보 상세 · 신청 · 확정이 막혔으면 그 까닭, 아니면 null.
  * 임시 승인 시각(provisional_at)은 등록증을 올려도 남아 있어(어드민 "미등록으로"만 지운다) 인증 완료 전까지 막는다.
  * 처음부터 등록증을 올린 회원(임시 승인 없이 검토 대기)은 예전처럼 막지 않는다 — 서버 collab_service 와 같은 규칙.
@@ -105,12 +189,19 @@ export function useOpenProvisionalGateOnMount() {
   useEffect(() => setGateOpen(true), []);
 }
 
-/** 콜라보 레이아웃에 하나 — 막혔으면 상세 링크를 막고 안내 창을 띄운다. */
+/**
+ * 콜라보 레이아웃에 하나 — 막혔으면 링크를 막고 안내 창을 띄운다.
+ * 임시 승인 제휴사는 콜라보 상세 링크, 승인 전 광고주는 대시보드 · 매장 찾기 · 내 정보 밖 콜라보 화면 링크(11-17).
+ */
 export function ProvisionalGate() {
   const router = useRouter();
-  const lock = useBizLock();
-  const locked = lock !== null;
-  const copy = BIZ_LOCK_COPY[lock ?? "provisional"];
+  const partnerLock = useBizLock();
+  const advLock = useAdvBizLock();
+  const locked = partnerLock !== null || advLock !== null;
+  const copy = advLock
+    ? ADV_LOCK_COPY[advLock]
+    : BIZ_LOCK_COPY[partnerLock ?? "provisional"];
+  const blockedPath = advLock ? ADV_LOCKED_PATH : COLLAB_DETAIL_PATH;
   const isOpen = useSyncExternalStore(
     subscribe,
     () => gateOpen,
@@ -126,14 +217,14 @@ export function ProvisionalGate() {
         e.target instanceof Element ? e.target.closest("a[href]") : null;
       if (!(a instanceof HTMLAnchorElement)) return;
       if (a.origin !== window.location.origin) return;
-      if (!COLLAB_DETAIL_PATH.test(a.pathname)) return;
+      if (!blockedPath.test(a.pathname)) return;
       e.preventDefault();
       e.stopPropagation();
       setGateOpen(true);
     };
     window.addEventListener("click", onClick, true);
     return () => window.removeEventListener("click", onClick, true);
-  }, [locked]);
+  }, [locked, blockedPath]);
 
   // 어드민이 인증 완료해 풀리면 열려 있던 창도 닫는다.
   useEffect(() => {

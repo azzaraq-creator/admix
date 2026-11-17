@@ -4,6 +4,7 @@ import { Button, Checkbox, Input, Label, Link, Modal } from "@heroui/react";
 import { useState } from "react";
 
 import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
+import { CollabScopeLines } from "@/components/common/CollabScope";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { wonText, type StoreRef } from "@/lib/advertiserPreview";
@@ -17,6 +18,7 @@ import { ADV_FIND_HREF, GradeMark, StoreThumb } from "./advUi";
  * 이미 고른 지정 희망 매장은 체크된 채로 열린다. 관심 매장이 아닌데 이미 지정된 매장은 목록엔 없고 그대로 남는다(의뢰서에서 X로 뺀다).
  * "고르기 완료"를 눌러야 반영되고, 닫거나 취소하면 그대로.
  * 11-16 사용자: 머리 설명("매장 찾기에서 하트를 누른 매장이에요. …")과 아래 "n곳 골랐어요 · 목표 n곳"은 뺐다(목표 넘김은 의뢰 보낼 때 검사).
+ * 11-17 사용자: "각 매장마다 가능 범위를 보여줘" — 지역 · 금액 아래에 "가능 … / 불가능 …"(관심 매장 · 매장 찾기 카드와 같은 글).
  */
 
 export function PreferredStorePicker({
@@ -128,11 +130,11 @@ function PickerBody({
                   >
                     <Checkbox.Content
                       className={cn(
-                        "w-full cursor-pointer items-center gap-[10px] rounded-[16px] px-[10px] py-[8px] transition-colors",
+                        "w-full cursor-pointer items-start gap-[10px] rounded-[16px] px-[10px] py-[10px] transition-colors",
                         on ? "bg-primary-50/60" : "bg-gray-50 data-[hovered=true]:bg-gray-100",
                       )}
                     >
-                      <Checkbox.Control className="border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+                      <Checkbox.Control className="mt-[9px] border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
                         <Checkbox.Indicator />
                       </Checkbox.Control>
                       <StoreThumb store={s} className="size-[36px]" />
@@ -144,6 +146,11 @@ function PickerBody({
                         <span className="truncate text-[12px] text-gray-500">
                           {s.area} · {s.fee ? wonText(s.fee) : "금액 협의"}
                         </span>
+                        <CollabScopeLines
+                          scope={s.scope}
+                          empty="가능 범위 -"
+                          className="mt-[6px] text-[12px] leading-[18px]"
+                        />
                       </span>
                     </Checkbox.Content>
                   </Checkbox>

@@ -42,6 +42,18 @@ def test_pricing_only_for_advertiser_and_admin():
     assert "collabFee" not in ps.serialize(s)
     assert ps.serialize(s, pricing=True)["collabFee"] == 1_000_000
     assert ps.serialize(s, pricing=True)["collabGrade"] == "B"
-    assert ps._pricing(SimpleNamespace(member_category="advertiser")) is True
-    assert ps._pricing(SimpleNamespace(member_category="partner")) is False
+    assert ps._pricing(_member("advertiser", "verified")) is True
+    assert ps._pricing(_member("partner", "verified")) is False
     assert ps._pricing(None) is False
+
+
+def _member(category: str, reg_status: str | None) -> SimpleNamespace:
+    reg = SimpleNamespace(status=reg_status) if reg_status else None
+    return SimpleNamespace(member_category=category, business_registration=reg)
+
+
+@pytest.mark.parametrize("reg_status", [None, "unregistered", "reviewing", "rejected", "provisional"])
+def test_pricing_hidden_until_advertiser_verified(reg_status):
+    """사업자등록증 인증 전 광고주에겐 등급·금액을 내려 주지 않는다(11-17) — 임시 승인(provisional)도 인증 아님."""
+    assert ps._pricing(_member("advertiser", reg_status)) is False
+    assert ps.is_verified_advertiser(_member("advertiser", reg_status)) is False

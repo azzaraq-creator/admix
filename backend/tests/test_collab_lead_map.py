@@ -24,7 +24,10 @@ from src.services import partners_service as ps
 
 NAME = "테스트영업-지도-"
 LOC = {"latitude": 37.5432, "longitude": 127.0559, "city": "서울", "district": "성동구"}
-ADVERTISER = SimpleNamespace(id=uuid.uuid4(), member_category="advertiser")
+# 사업자등록증 인증을 마친 광고주 — 등급·금액은 인증 광고주에게만 내려간다(11-17)
+ADVERTISER = SimpleNamespace(
+    id=uuid.uuid4(), member_category="advertiser", business_registration=SimpleNamespace(status="verified")
+)
 
 
 @pytest.fixture

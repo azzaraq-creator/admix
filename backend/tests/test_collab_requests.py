@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
 from src.models.advertiser_collab_request import AdvertiserCollabRequest
+from src.models.member_profile import BusinessRegistration
 from src.models.user import User
 from src.services import advertiser_brand_service as bs
 from src.services import collab_request_service as rs
@@ -25,7 +26,8 @@ def db() -> Session:
         s.close()
 
 
-def _user(db: Session, category: str = "advertiser") -> User:
+def _user(db: Session, category: str = "advertiser", reg_status: str | None = "verified") -> User:
+    """임시 회원 — 광고주는 기본으로 사업자등록증 인증을 마친 상태(새 의뢰는 인증 광고주만, 11-17). reg_status=None 이면 등록 정보 없음."""
     u = User(
         login_id=f"req-test-{uuid.uuid4().hex[:12]}@test.local",
         email="x@test.local",
@@ -34,6 +36,8 @@ def _user(db: Session, category: str = "advertiser") -> User:
         company_name="테스트상사",
         member_category=category,
     )
+    if category == "advertiser" and reg_status:
+        u.business_registration = BusinessRegistration(status=reg_status)
     db.add(u)
     db.commit()
     return u
@@ -135,6 +139,22 @@ def test_validation(db: Session, advertiser: User, over: dict, status: int):
     with pytest.raises(HTTPException) as e:
         rs.create(db, advertiser, _payload(brand["id"], **over))
     assert e.value.status_code == status
+
+
+@pytest.mark.parametrize("reg_status", [None, "unregistered", "reviewing", "rejected", "provisional"])
+def test_unverified_advertiser_cannot_create(db: Session, reg_status: str | None):
+    """사업자등록증 인증 전 광고주는 의뢰를 보낼 수 없다(11-17) — 임시 승인(provisional)도 마찬가지."""
+    u = _user(db, reg_status=reg_status)
+    try:
+        brand = bs.create(db, u, {"name": f"미인증-{uuid.uuid4().hex[:6]}"})
+        before = db.query(AdvertiserCollabRequest).filter(AdvertiserCollabRequest.user_id == u.id).count()
+        with pytest.raises(HTTPException) as e:
+            rs.create(db, u, _payload(brand["id"]))
+        assert e.value.status_code == 403
+        assert db.query(AdvertiserCollabRequest).filter(AdvertiserCollabRequest.user_id == u.id).count() == before == 0
+    finally:
+        db.delete(u)
+        db.commit()
 
 
 def test_short_period_and_brand_owner(db: Session, advertiser: User):

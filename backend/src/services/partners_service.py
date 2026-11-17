@@ -866,9 +866,18 @@ def _keyword_filter(q, keyword: str | None):
     )
 
 
+def is_verified_advertiser(user: User | None) -> bool:
+    """사업자등록증 인증을 마친 광고주 — 2026-11-17 사용자: 승인 전 광고주는 대시보드 · 매장 찾기만 보고,
+    매장 찾기에선 금액 · 가능 범위를 가린다(화면). 서버는 금액을 내려 주지 않고 의뢰를 막는다(collab_request_service)."""
+    if user is None or user.member_category != "advertiser":
+        return False
+    reg = user.business_registration
+    return reg is not None and reg.status == "verified"
+
+
 def _pricing(user: User | None) -> bool:
-    """콜라보 등급·금액을 볼 수 있는 회원 — 광고주만(매장끼리는 서로의 금액을 보지 않는다)."""
-    return user is not None and user.member_category == "advertiser"
+    """콜라보 등급·금액을 볼 수 있는 회원 — 사업자등록증 인증을 마친 광고주만(매장끼리는 서로의 금액을 보지 않는다, 11-17 인증 조건 추가)."""
+    return is_verified_advertiser(user)
 
 
 def list_public(

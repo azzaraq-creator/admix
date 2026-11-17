@@ -9,11 +9,12 @@ import { StaticKakaoMap } from "@/components/common/StaticKakaoMap";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { usePartnersStore } from "@/hooks/partners";
 import { mediaSrc } from "@/lib/media";
-import { detailImageUrls, type PartnersStore } from "@/lib/partners";
+import { advBizLockOf, detailImageUrls, type PartnersStore } from "@/lib/partners";
 import { canUsePartners } from "@/lib/memberCategory";
 import { cn } from "@/lib/utils";
 
 import { PartnersNoAccess } from "./PartnersNoAccess";
+import { AdvLockedState } from "./workspace/ProvisionalGate";
 import { GLASS_CARD } from "./workspace/workspaceUi";
 
 /**
@@ -35,6 +36,9 @@ export function PartnersStoreDetail({
   if (hasToken && !me && !meError) return <LoadingState />;
   if (!me) return <PartnersNoAccess guest />;
   if (!canUsePartners(me.member_category)) return <PartnersNoAccess />;
+  // 사업자등록증 승인 전 광고주는 매장 상세를 못 본다(11-17 사용자).
+  const advLock = advBizLockOf(me);
+  if (advLock) return <AdvLockedState lock={advLock} />;
   if (isLoading) return <LoadingState />;
   if (isError || !store) {
     return (

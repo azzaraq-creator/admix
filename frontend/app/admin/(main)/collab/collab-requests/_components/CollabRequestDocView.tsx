@@ -2,11 +2,12 @@
 
 import { Alert, Button, Checkbox, Chip, Label, Tabs } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, FileText, UserRound } from "lucide-react";
+import { ChevronLeft, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { FilePreviewModal } from "@/components/collabPlan/FilePreview";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
@@ -36,7 +37,6 @@ import { addDays, periodDays } from "@/lib/partnersPreview";
 import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import { openFileInNewTab } from "../../_components/collabUi";
 import { AdvertiserInfoModal } from "../../advertisers/_components/AdvertiserInfoModal";
 import { BrandThumb } from "../../advertisers/_components/CollabAdvertisersListView";
 import { CollabPlanView } from "./CollabPlanView";
@@ -98,16 +98,10 @@ export function CollabRequestDocView({ id }: { id: string }) {
 
 function RequestDoc({ doc }: { doc: Doc }) {
   const { error } = useSonner();
-  const [opening, setOpening] = useState(false);
+  // 추가 기획 첨부 미리보기 창(11-17 사용자: "열기 말고 미리보기").
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
   const course = COURSE[doc.course];
-  // 고쳐 다시 보냄 — 기획안이 오가기 전 의뢰서를 고친 때만(광고주가 기획안을 고쳐 보내도 updated_at 이 바뀐다).
-  const firstRoundAt = doc.rounds[0]
-    ? Date.parse(doc.rounds[0].createdAt)
-    : Infinity;
-  const resent =
-    Date.parse(doc.updatedAt) - Date.parse(doc.createdAt) > 60_000 &&
-    Date.parse(doc.updatedAt) < firstRoundAt;
   // 기획안 탭(085) — 차수가 있거나 광고주가 고쳐 보냈으면 기획안부터, 처음 접수면 의뢰서부터 읽는다.
   const [tab, setTab] = useState<"plan" | "doc">(
     doc.rounds.length ? "plan" : "doc",
@@ -129,21 +123,6 @@ function RequestDoc({ doc }: { doc: Doc }) {
     prepDays < MAKE_DAYS;
   const admixTalk =
     hasAdmixMake && prepDays != null && prepDays <= ADMIX_MAKE_TALK_DAYS;
-
-  const openPlanFile = async () => {
-    if (!doc.planFile) return;
-    setOpening(true);
-    try {
-      await openFileInNewTab(
-        () => adminCollabApi.advRequestFile(doc.id),
-        doc.planFile.name,
-      );
-    } catch (err) {
-      error("첨부 파일을 열지 못했어요", extractApiError(err));
-    } finally {
-      setOpening(false);
-    }
-  };
 
   // 칸 번호 — 비어서 빠지는 칸(추가 기획 · 남길 말 …)이 있어도 1부터 이어지게.
   const sections = [
@@ -258,14 +237,9 @@ function RequestDoc({ doc }: { doc: Doc }) {
                     </dd>
                     <dt>접수</dt>
                     <dd className="text-right">{dotDateTime(doc.createdAt)}</dd>
-                    {resent && (
-                      <>
-                        <dt>고쳐 다시 보냄</dt>
-                        <dd className="text-right">
-                          {dotDateTime(doc.updatedAt)}
-                        </dd>
-                      </>
-                    )}
+                    {/* 최근 업데이트 일시 — 의뢰서 · 기획안이 마지막으로 바뀐 때(11-17 사용자, 예전 "고쳐 다시 보냄"). */}
+                    <dt>최종 수정</dt>
+                    <dd className="text-right">{dotDateTime(doc.updatedAt)}</dd>
                     {/* 고쳐 다시 보내면 다시 '새 의뢰'가 되어, 그 뒤 처음 연 때다. */}
                     <dt>admix 확인</dt>
                     <dd className="text-right">{dotDateTime(doc.viewedAt)}</dd>
@@ -362,11 +336,7 @@ function RequestDoc({ doc }: { doc: Doc }) {
                 </KvTable>
               </DocSection>
 
-              <DocSection
-                no={no("items")}
-                title="콜라보 기본안"
-                desc={`${doc.items.length}가지 · 매장에서 함께할 항목과 조건`}
-              >
+              <DocSection no={no("items")} title="콜라보 기본안">
                 <GridTable
                   cols="grid-cols-[36px_minmax(140px,180px)_120px_1fr]"
                   minWidth="min-w-[600px]"
@@ -412,43 +382,48 @@ function RequestDoc({ doc }: { doc: Doc }) {
                     </p>
                   )}
                   {doc.planFile && (
-                    <div className="flex flex-wrap items-center justify-between gap-[8px] rounded-[4px] border border-gray-200 px-[14px] py-[10px]">
+                    <div className="flex items-center justify-between gap-[8px] rounded-[4px] border border-gray-200 px-[14px] py-[10px]">
+                      {/* 크기는 파일 이름 오른쪽(11-17 사용자). */}
                       <span className="flex min-w-0 items-center gap-[8px]">
-                        <FileText className="size-[18px] shrink-0 text-tone-4a5565" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">
-                            {doc.planFile.name}
-                          </span>
-                          {doc.planFile.size != null && (
-                            <span className="text-xs text-disabled">
-                              {fileSize(doc.planFile.size)}
-                            </span>
-                          )}
+                        <MaskIcon
+                          src="/icons/file-text.svg"
+                          className="size-[18px] shrink-0 text-tone-4a5565"
+                        />
+                        <span className="min-w-0 truncate text-sm font-semibold">
+                          {doc.planFile.name}
                         </span>
+                        {doc.planFile.size != null && (
+                          <span className="shrink-0 text-xs text-disabled">
+                            {fileSize(doc.planFile.size)}
+                          </span>
+                        )}
                       </span>
                       <Button
                         size="sm"
                         variant="tertiary"
-                        isPending={opening}
-                        onPress={openPlanFile}
-                        className="font-semibold"
+                        onPress={() => setPreviewOpen(true)}
+                        className="shrink-0 font-semibold"
                       >
-                        열기
+                        미리보기
                       </Button>
+                      <FilePreviewModal
+                        file={doc.planFile}
+                        load={() => adminCollabApi.advRequestFile(doc.id)}
+                        isOpen={previewOpen}
+                        onOpenChange={setPreviewOpen}
+                        onError={(err) =>
+                          error(
+                            "첨부 파일을 받지 못했어요",
+                            extractApiError(err),
+                          )
+                        }
+                      />
                     </div>
                   )}
                 </DocSection>
               )}
 
-              <DocSection
-                no={no("stores")}
-                title="지정 희망 매장"
-                desc={
-                  doc.preferred.length
-                    ? `${doc.preferred.length}곳 · 의뢰할 때의 매장 정보`
-                    : undefined
-                }
-              >
+              <DocSection no={no("stores")} title="지정 희망 매장">
                 {doc.preferred.length ? (
                   <GridTable
                     cols="grid-cols-[36px_1fr_minmax(120px,160px)_56px_120px]"
@@ -459,7 +434,15 @@ function RequestDoc({ doc }: { doc: Doc }) {
                         {i + 1}
                       </span>,
                       <span key="name" className="flex flex-col">
-                        <span className="font-semibold">{p.name}</span>
+                        {/* 누르면 새 창으로 매장 관리의 매장 상세(11-17 사용자) — 밑줄로 누를 수 있음을 알린다. */}
+                        <a
+                          href={`/admin/collab/stores/${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="self-start font-semibold text-black underline underline-offset-2"
+                        >
+                          {p.name}
+                        </a>
                         {p.code && (
                           <span className="text-xs text-disabled">
                             {p.code}
@@ -486,11 +469,7 @@ function RequestDoc({ doc }: { doc: Doc }) {
               </DocSection>
 
               {doc.estimate && (
-                <DocSection
-                  no={no("cost")}
-                  title="예상 비용"
-                  desc="광고주가 보낼 때 화면에 보인 금액"
-                >
+                <DocSection no={no("cost")} title="예상 비용">
                   <div className="flex flex-col border-t-2 border-black text-sm">
                     <CostRow
                       label={`지정 희망 매장 ${doc.preferred.length}곳`}
@@ -530,11 +509,7 @@ function RequestDoc({ doc }: { doc: Doc }) {
               )}
 
               {doc.schedule?.noticeDate && (
-                <DocSection
-                  no={no("schedule")}
-                  title="예상 일정"
-                  desc="의뢰할 때 계산한 일정 · 주말과 공휴일은 영업일에서 빼요"
-                >
+                <DocSection no={no("schedule")} title="예상 일정">
                   <ScheduleTable doc={doc} />
                   {/* 광고주가 확인 창에서 체크한 동의 — 서류 맨 아래 확인처럼 체크 표시로(11-12 사용자). 글은 광고주가 체크한 문장 그대로. */}
                   {doc.schedule.earlyStartAgreed && (
@@ -554,13 +529,6 @@ function RequestDoc({ doc }: { doc: Doc }) {
                       제작은 보통 약 {MAKE_DAYS}일 걸려 빠듯할 수 있어요.
                       광고주도 보낼 때 같은 안내를 봤어요.
                       {admixTalk && " admix 제작은 일정을 광고주와 협의해 주세요."}
-                    </Note>
-                  )}
-                  {/* 광고주에겐 "admix 제작은 빠듯하지만, 의뢰를 보고 함께 협의해요"가 보인다(11-16). */}
-                  {!tightNote && admixTalk && (
-                    <Note>
-                      admix 제작 항목이 있는데 준비 기간이 영업일 {prepDays}
-                      일이에요. 빠듯하지만 제작 일정을 광고주와 협의해 주세요.
                     </Note>
                   )}
                 </DocSection>
@@ -620,7 +588,12 @@ function RequestDoc({ doc }: { doc: Doc }) {
 function AgreedCheck({ note, children }: { note?: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-[4px]">
-      <Checkbox isSelected isReadOnly className={CHECKBOX_ACCENT}>
+      {/* 읽기 전용 — 마우스를 올려도 손가락 모양이 되지 않게(11-17 사용자). */}
+      <Checkbox
+        isSelected
+        isReadOnly
+        className={cn(CHECKBOX_ACCENT, "cursor-default [&_*]:cursor-default")}
+      >
         <Checkbox.Content className="items-center gap-[8px]">
           <Checkbox.Control>
             <Checkbox.Indicator />

@@ -19,7 +19,7 @@ import {
   MediaDetailPreview,
 } from "@/components/common/MediaDetailModal";
 import {
-  useCanOpenPartners,
+  usePartnersCardAccess,
   usePartnersStoreGate,
 } from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
@@ -328,7 +328,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
     if (storeGate()) setSelectedStore(row);
   };
   // 콜라보 매장 카드 — 광고주만 눌러서 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
-  const partnersAccess = useCanOpenPartners() ? "open" : "locked";
+  const partnersAccess = usePartnersCardAccess();
   // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 정보 팝업(광고주만, 그 외는 막힘).
   const selectPopupRow = (row: MediaCardRow) => {
     if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openStore(row);

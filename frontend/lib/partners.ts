@@ -535,6 +535,29 @@ export type BizStatusCode =
  */
 export const BIZ_LICENSE_ANCHOR = "biz-license";
 
+/**
+ * 광고주 사업자 인증 잠금(2026-11-17 사용자) — 사업자등록증 인증(verified)을 마치기 전 광고주는 대시보드 · 매장 찾기만 본다.
+ * 매장 찾기 카드는 눌리지 않고 금액 · 가능 범위가 흐려지며 관심(하트)도 못 누른다. 나머지 메뉴(내 콜라보 · 관심 매장 · 내 브랜드)는 메뉴에서 빠지고,
+ * 주소로 들어오면 안내만 보인다. 서버도 금액을 내려 주지 않고 새 의뢰를 막는다(partners_service.is_verified_advertiser).
+ * 임시 승인(provisional)은 광고주에겐 승인이 아니다 — 미등록과 같이 본다. 광고주가 아니거나 인증을 마쳤으면 null.
+ */
+export type AdvBizLock = "unregistered" | "reviewing" | "rejected";
+export function advBizLockOf(
+  me:
+    | {
+        member_category?: string | null;
+        business_registration?: { status: string } | null;
+      }
+    | null
+    | undefined,
+): AdvBizLock | null {
+  if (me?.member_category !== "advertiser") return null;
+  const status = me.business_registration?.status;
+  if (status === "verified") return null;
+  if (status === "reviewing" || status === "rejected") return status;
+  return "unregistered";
+}
+
 /** 어드민 제휴사 회원(069). */
 export interface AdminPartnerMember {
   id: string;

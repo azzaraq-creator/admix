@@ -9,7 +9,7 @@ import { MediaFindCard } from "@/app/(client)/(main)/fixed/_components/MediaFind
 import { StoreDetailModal } from "@/app/(client)/(main)/fixed/_components/StoreDetailModal";
 import type { CollabPick } from "@/app/(client)/(main)/fixed/_components/collabPick";
 import { MaskIcon } from "@/components/common/MaskIcon";
-import { useCanOpenPartners } from "@/components/common/PartnersAccessNotice";
+import { usePartnersCardAccess } from "@/components/common/PartnersAccessNotice";
 import { LoadingState } from "@/components/common/RouteStates";
 import { LoveIcon } from "@/components/icons";
 import {
@@ -28,7 +28,7 @@ import { ADV_FIND_HREF } from "./advUi";
 
 /*
  * /partners/favorites (광고주) — 관심 매장(11-11 사용자: "관심 매장 메뉴, 매장 찾기의 하트를 누르면 관심 매장에 담기게").
- * 매장 찾기와 같은 카드(MediaFindCard — 사진 · 운영 시간 · 매장 특징 · 등급 · 1건 금액 · 하트)를 격자로 놓고,
+ * 매장 찾기와 같은 카드(MediaFindCard — 사진 · 운영 시간 · 가능 범위 · 등급 · 1건 금액 · 하트)를 격자로 놓고,
  * 카드 아래에 매장마다 메모(최대 500자, 서버 080 — Enter 나 칸을 벗어나면 저장, 줄 바꿈은 Shift+Enter)를 둔다.
  * 하트를 끄면 관심 매장에서 빠진다(메모도 같이 지워진다). 카드를 누르면 매장 정보 팝업(매장 찾기와 같다, 11-16 — 예전엔 새 탭).
  * 처음엔 admix 관심 매체처럼 "선택" + 아래 고정 줄(빼기 · 이 매장들로 의뢰하기)이 있었는데 11-11 사용자가 없앴다 —
@@ -141,7 +141,7 @@ export function AdvFavorites() {
   const router = useRouter();
   // 매장 정보 팝업 — 고른 매장의 매체 ID.
   const [openId, setOpenId] = useState<string | null>(null);
-  const partnersAccess = useCanOpenPartners() ? "open" : "locked";
+  const partnersAccess = usePartnersCardAccess();
   const { byMedia, ids, isLoading } = useFavoriteStores();
   // 카드의 등급 · 1건 금액.
   const pickOf = (mediaId: string): CollabPick | undefined => {
@@ -200,7 +200,8 @@ export function AdvFavorites() {
           </span>
           <ul className="grid gap-x-[12px] gap-y-[20px] sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((row, index) => (
-              <li key={row.id} className="flex flex-col gap-[8px]">
+              // 카드가 줄 높이까지 늘어나 금액 줄 · 메모 칸이 옆 카드와 같은 높이에 온다(가능 범위 줄 수가 매장마다 달라서, 11-17).
+              <li key={row.id} className="flex flex-col gap-[8px] [&>.card]:flex-1">
                 <MediaFindCard
                   row={row}
                   // 첫 줄(PC 3칸)은 처음 화면에 바로 보여 사진을 늦게 불러오지 않는다(LCP 경고, 11-17).

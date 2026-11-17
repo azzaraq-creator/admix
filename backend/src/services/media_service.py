@@ -352,9 +352,10 @@ def _media_card(m: Media) -> dict:
 
 def attach_partners(db: Session, items: list[dict]) -> list[dict]:
     """콜라보 매장 카드에 매장 값을 붙인다 — 매체 찾기 목록 · 지도 팝업 · 관심 매체 카드가
-    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 사진마다 분류(11-12)."""
+    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 사진마다 분류(11-12),
+    가능 범위(093 — 11-17 사용자: 관심 매장 · 매장 찾기 카드에도 보여 줘)."""
     # partners_service 가 이 모듈을 가져다 쓰므로(사진 줄이기 등) 여기서는 함수 안에서 가져온다.
-    from src.services.partners_service import photo_kind_map
+    from src.services.partners_service import clean_scope, photo_kind_map
 
     ids = [it["id"] for it in items if it.get("categoryLarge") == PARTNERS_MEDIA_CATEGORY]
     if not ids:
@@ -368,9 +369,10 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             PartnersStore.business_hours,
             PartnersStore.image_urls,
             PartnersStore.image_kinds,
+            PartnersStore.scope,
         ).filter(PartnersStore.media_id.in_(ids))
     }
-    # 지도에 뜬 영업 기록(협업 확정 전 매장, 090) — 운영 시간은 아직 없고, 사진 분류만.
+    # 지도에 뜬 영업 기록(협업 확정 전 매장, 090) — 운영 시간은 아직 없고, 사진 분류 · 매장 정보의 가능 범위(092)만.
     lead_ids = [i for i in ids if i not in stores]
     leads = (
         {r.media_id: r for r in db.query(CollabLead).filter(CollabLead.media_id.in_(lead_ids))} if lead_ids else {}
@@ -382,6 +384,7 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             it["partners"] = dict(
                 businessHours=s.business_hours,
                 photoKinds=photo_kind_map(s.image_urls, s.image_kinds),
+                scope=clean_scope(s.scope),
             )
             continue
         lead = leads.get(it["id"])
@@ -390,6 +393,7 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             it["partners"] = dict(
                 businessHours=None,
                 photoKinds=photo_kind_map([p.get("url") for p in photos], {p.get("url"): p.get("kind") for p in photos}),
+                scope=clean_scope((lead.store_info or {}).get("scope")),
                 unconfirmed=True,
             )
     return items

@@ -14,5 +14,12 @@ export const metadata: Metadata = {
  * admix 화면에서 제휴사 · 광고주로 콜라보에 들어오면 여기로 온다.
  */
 export default function PartnersDashboardPage() {
-  return <ByMember partner={<PartnerDashboard />} advertiser={<AdvDashboard />} />;
+  // 승인 전 광고주도 대시보드는 본다(맨 위 승인 안내, 11-17 사용자).
+  return (
+    <ByMember
+      partner={<PartnerDashboard />}
+      advertiser={<AdvDashboard />}
+      advertiserAllowUnverified
+    />
+  );
 }

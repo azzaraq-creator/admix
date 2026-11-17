@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { Concealed } from "@/components/common/PartnersAccessMark";
 import type { MediaCardRow } from "@/hooks/media";
 import type { CollabGrade } from "@/lib/partners";
 import { cn } from "@/lib/utils";
@@ -66,14 +67,86 @@ export function GradeBox({ grade }: { grade: CollabGrade | null }) {
   );
 }
 
+/**
+ * 큰 카드 금액 줄 — 왼쪽 "콜라보 금액 / 1건", 오른쪽 등급 · 금액(11-17 사용자: 운영 시간이 금액 칸 옆에서 잘려 → 금액을 아래 한 줄로).
+ * 관심 매장 · 매장 찾기 카드(MediaFindCard)가 쓴다. 글씨는 CollabFeeCell 과 같다.
+ */
+export function CollabFeeRow({
+  pick,
+  concealed = false,
+  className,
+}: {
+  pick: CollabPick;
+  /** 승인 전 광고주 — 금액 대신 흐린 자리(11-17). */
+  concealed?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center justify-between gap-[8px]", className)}>
+      <span className="text-[11px] font-medium text-gray-400 max-sm:text-[10px]">
+        콜라보 금액 / 1건
+      </span>
+      <FeeValue
+        pick={pick}
+        concealed={concealed}
+        textClassName="truncate text-[16px] font-bold whitespace-nowrap max-sm:text-[14px]"
+      />
+    </div>
+  );
+}
+
+/**
+ * 승인 전 광고주 카드의 흐린 자리 — 진짜 금액 대신 늘 같은 예시를 흐리게(서버도 금액을 내려 주지 않는다, 11-17).
+ */
+const CONCEALED_PICK: CollabPick = { grade: null, fee: 1_500_000 };
+
+/**
+ * 등급 · 금액 — concealed 면 예시 금액 글자만 흐리게(Concealed).
+ * 등급 칸(검은 네모)까지 흐리면 검은 얼룩처럼 보여(11-17 사용자: "금액 부분이 이상하게 보이는데") 흐릴 땐 등급 칸을 뺀다.
+ */
+function FeeValue({
+  pick,
+  concealed,
+  textClassName,
+}: {
+  pick: CollabPick;
+  concealed: boolean;
+  textClassName: string;
+}) {
+  if (concealed)
+    return (
+      <Concealed strong>
+        <span className={cn(textClassName, "text-tone-2d264b")}>
+          {collabFeeText(CONCEALED_PICK.fee)}
+        </span>
+      </Concealed>
+    );
+  return (
+    <span className="flex min-w-0 items-center gap-[5px]">
+      <GradeBox grade={pick.grade} />
+      <span
+        className={cn(
+          textClassName,
+          pick.fee ? "text-tone-2d264b" : "text-gray-500",
+        )}
+      >
+        {collabFeeText(pick.fee)}
+      </span>
+    </span>
+  );
+}
+
 /** 큰 카드 금액 칸 — "콜라보 금액 / 1건" + 등급 · 금액(광고비 칸 PriceCell 과 같은 글씨). */
 export function CollabFeeCell({
   pick,
   align = "end",
+  concealed = false,
   className,
 }: {
   pick: CollabPick;
   align?: "start" | "end";
+  /** 승인 전 광고주 — 금액 대신 흐린 자리(11-17). */
+  concealed?: boolean;
   className?: string;
 }) {
   return (
@@ -87,37 +160,34 @@ export function CollabFeeCell({
       <span className="text-[11px] font-medium text-gray-400 max-sm:text-[10px]">
         콜라보 금액 / 1건
       </span>
-      <span className="flex items-center gap-[5px]">
-        <GradeBox grade={pick.grade} />
-        <span
-          className={cn(
-            "text-[16px] font-bold whitespace-nowrap max-sm:text-[14px]",
-            pick.fee ? "text-tone-2d264b" : "text-gray-500",
-          )}
-        >
-          {collabFeeText(pick.fee)}
-        </span>
-      </span>
+      <FeeValue
+        pick={pick}
+        concealed={concealed}
+        textClassName="text-[16px] font-bold whitespace-nowrap max-sm:text-[14px]"
+      />
     </div>
   );
 }
 
 /** 좁은 카드(간략히 보기 · 지도 간단 팝업) 금액 한 줄 — "1건 [S] 150,000원". */
-export function CollabFeeLine({ pick }: { pick: CollabPick }) {
+export function CollabFeeLine({
+  pick,
+  concealed = false,
+}: {
+  pick: CollabPick;
+  /** 승인 전 광고주 — 금액 대신 흐린 자리(11-17). */
+  concealed?: boolean;
+}) {
   return (
     <p className="flex min-w-0 items-center gap-[6px] whitespace-nowrap">
       <span className="shrink-0 text-[11px] font-medium text-gray-400 max-sm:text-[10px]">
         1건
       </span>
-      <GradeBox grade={pick.grade} />
-      <span
-        className={cn(
-          "truncate text-[14px] font-bold max-sm:text-[13px]",
-          pick.fee ? "text-tone-2d264b" : "text-gray-500",
-        )}
-      >
-        {collabFeeText(pick.fee)}
-      </span>
+      <FeeValue
+        pick={pick}
+        concealed={concealed}
+        textClassName="truncate text-[14px] font-bold max-sm:text-[13px]"
+      />
     </p>
   );
 }

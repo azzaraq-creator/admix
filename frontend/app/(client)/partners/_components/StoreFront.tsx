@@ -340,9 +340,10 @@ function PreviewFrame({
           </div>
         </div>
         <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
-        {/* 운영 시간 — 홈 카드와 같은 컴포넌트. */}
+        {/* 운영 시간 · 가능 범위 — 광고주 관심 매장 · 매장 찾기 카드와 같은 컴포넌트(11-17 가능 범위 줄 추가). */}
         <PartnersCardDetails
           businessHours={store.businessHours}
+          scope={store.scope}
           className="p-[10px]"
         />
       </div>

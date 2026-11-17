@@ -1,6 +1,7 @@
 "use client";
 
-import { Label, Radio, RadioGroup } from "@heroui/react";
+import { Chip, Label, Radio, RadioGroup } from "@heroui/react";
+import type { ReactNode } from "react";
 
 import { HEROUI_ACCENT_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
 import {
@@ -90,6 +91,36 @@ export function CollabScopeRadios({
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * 가능 범위 — 가능한 항목만 회색 칩으로(11-17 사용자: 관심 매장 · 매장 찾기 카드 · 관심 매장 고르기 창에 "가능 범위도 보여줘").
+ * 같은 날 다듬음: "가능 … / 불가능 …" 두 줄 → "가능한 것만" → "가능 글자는 빼고 값들은 Chip으로, 초록 말고 회색".
+ * 가능이 하나도 없으면 empty(기본 "-").
+ */
+export function CollabScopeLines({
+  scope,
+  empty = "-",
+  className,
+}: {
+  scope: CollabScope | null | undefined;
+  empty?: ReactNode;
+  className?: string;
+}) {
+  const items = scopeEntries(scope).filter((e) => e.value === "ok");
+  if (!items.length) return <span className={cn("text-gray-300", className)}>{empty}</span>;
+  return (
+    <span className={cn("flex flex-wrap gap-[4px]", className)}>
+      {items.map((e) => (
+        <Chip
+          key={e.key}
+          className="rounded-[7px] bg-gray-100 px-[6px] py-[1px] text-[11px] leading-[16px] font-medium text-gray-700 max-sm:text-[10px]"
+        >
+          {e.label}
+        </Chip>
+      ))}
+    </span>
   );
 }
 

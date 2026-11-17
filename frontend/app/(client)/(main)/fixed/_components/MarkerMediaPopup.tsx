@@ -20,6 +20,7 @@ import {
 } from "@/components/common/PartnersCardDetails";
 import {
   PartnersAccessMark,
+  isCardLocked,
   type PartnersCardAccess,
 } from "@/components/common/PartnersAccessMark";
 import { kakaoRoadviewUrl } from "@/components/common/RoadviewView";
@@ -81,11 +82,14 @@ function LikeButton({
   liked,
   onToggle,
   label,
+  isDisabled = false,
 }: {
   liked: boolean;
   onToggle: () => void;
   /** "관심 매체" · 광고주 매장 찾기는 "관심 매장". */
   label: string;
+  /** 승인 전 광고주 — 관심(하트)을 못 누른다(11-17). */
+  isDisabled?: boolean;
 }) {
   return (
     // onChange(press)는 카드 클릭(상세 열기)으로 번지지 않는다.
@@ -96,6 +100,7 @@ function LikeButton({
       aria-label={label}
       isSelected={liked}
       onChange={onToggle}
+      isDisabled={isDisabled}
       className={cn(
         "size-[28px] min-w-0 shrink-0 rounded-[11px] p-0",
         // 꺼짐도 밝은 회색 바탕을 깔아 하트만 떠 보이지 않게 한다.
@@ -157,7 +162,9 @@ export function MediaPopupCard({
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   const pick = partners ? collabPick : undefined;
   const access = partners ? partnersAccess : undefined;
-  const locked = access === "locked";
+  const locked = isCardLocked(access);
+  // 승인 전 광고주 — 금액을 흐리게 가리고 관심(하트)도 못 누른다(11-17 사용자).
+  const concealed = access === "unverified";
   // 카드에 마우스를 올렸는지 — 콜라보 표시의 툴팁을 띄운다.
   const [hovered, setHovered] = useState(false);
   const hoverProps = access
@@ -258,6 +265,7 @@ export function MediaPopupCard({
               liked={liked}
               onToggle={toggleLiked}
               label={likeLabel}
+              isDisabled={concealed}
             />
             {roadviewAt && (
               // 간략히 보기는 아이콘만 — 옆 버튼들과 같은 밝은 회색 바탕.
@@ -291,7 +299,7 @@ export function MediaPopupCard({
           {/* 그래도 좁으면 제작비가 다음 줄로 내려간다(잘리지 않게). */}
           <div className="flex flex-wrap items-baseline gap-x-[10px] max-sm:col-span-2">
             {pick ? (
-              <CollabFeeLine pick={pick} />
+              <CollabFeeLine pick={pick} concealed={concealed} />
             ) : partners ? (
               <PartnersHoursLine businessHours={row.partners?.businessHours} />
             ) : (
@@ -349,6 +357,7 @@ export function MediaPopupCard({
                   liked={liked}
                   onToggle={toggleLiked}
                   label={likeLabel}
+                  isDisabled={concealed}
                 />
               </div>
               {row.address && (
@@ -378,7 +387,7 @@ export function MediaPopupCard({
           {pick ? (
             // 광고주 매장 찾기 — 광고비 칸 자리에 1건 금액, 기획안 담기 자리는 비워 둔다(못 열면 자물쇠).
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
-              <CollabFeeCell pick={pick} align="start" />
+              <CollabFeeCell pick={pick} align="start" concealed={concealed} />
               {accessMark}
             </div>
           ) : partners ? (

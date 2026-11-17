@@ -21,6 +21,8 @@ import type { RecruitKind, Tone } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 import { HEROUI_ACCENT_SCOPE } from "@/app/(client)/(auth)/signup/_components/signupUi";
 
+import { AdvLockedState, useAdvBizLock } from "./ProvisionalGate";
+
 /*
  * 매장 화면 공용 — 모든 화면이 HeroUI 컴포넌트(Card · Chip · Link · EmptyState …)로 그린다.
  * HeroUI Link·ListBox 의 href 가 새로고침 없이 넘어가게 RouterProvider(Next 라우터)로 감싼다.
@@ -414,13 +416,27 @@ export function PartnerOnly({ children }: { children: ReactNode }) {
   );
 }
 
-/** 광고주 회원만. */
-export function AdvertiserOnly({ children }: { children: ReactNode }) {
+/**
+ * 광고주 회원만. 사업자등록증 승인 전 광고주는 대시보드 · 매장 찾기(allowUnverified)만 — 그 밖은 본문 대신 승인 안내(11-17 사용자).
+ */
+export function AdvertiserOnly({
+  children,
+  allowUnverified = false,
+}: {
+  children: ReactNode;
+  /** 승인 전 광고주도 보는 화면 — 대시보드 · 매장 찾기. */
+  allowUnverified?: boolean;
+}) {
   return (
     <MemberOnly category="advertiser" label="광고주">
-      {children}
+      {allowUnverified ? children : <AdvVerifiedOnly>{children}</AdvVerifiedOnly>}
     </MemberOnly>
   );
+}
+
+function AdvVerifiedOnly({ children }: { children: ReactNode }) {
+  const lock = useAdvBizLock();
+  return lock ? <AdvLockedState lock={lock} /> : <>{children}</>;
 }
 
 /**
@@ -430,15 +446,20 @@ export function AdvertiserOnly({ children }: { children: ReactNode }) {
 export function ByMember({
   partner,
   advertiser,
+  advertiserAllowUnverified = false,
 }: {
   partner: ReactNode;
   advertiser: ReactNode;
+  /** 승인 전 광고주도 광고주 화면을 본다(대시보드, 11-17) — 아니면 승인 안내(AdvertiserOnly). */
+  advertiserAllowUnverified?: boolean;
 }) {
   const hasToken = useHasUserToken(true);
   const { data: me, isError } = useMe();
   if (hasToken && !me && !isError) return <LoadingState />;
   return me?.member_category === "advertiser" ? (
-    <AdvertiserOnly>{advertiser}</AdvertiserOnly>
+    <AdvertiserOnly allowUnverified={advertiserAllowUnverified}>
+      {advertiser}
+    </AdvertiserOnly>
   ) : (
     <>{partner}</>
   );

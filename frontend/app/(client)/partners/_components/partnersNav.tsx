@@ -10,7 +10,7 @@ import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { useMyPartnersStores } from "@/hooks/partners";
-import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
+import { PARTNERS_DASHBOARD_HREF, advBizLockOf } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 import { markPartnersPending, usePartnersPending } from "./partnersPending";
@@ -157,6 +157,11 @@ const ADVERTISER_MENU: PartnersMenuItem[] = [
   },
 ];
 
+/** 사업자등록증 승인 전 광고주 — 대시보드 · 매장 찾기만(11-17 사용자, 제휴사 PARTNER_MENU_START 와 같은 방식). */
+const ADVERTISER_MENU_START = ADVERTISER_MENU.filter((m) =>
+  ["dashboard", "find"].includes(m.key),
+);
+
 /** 모바일 아래 탭 바에 탭으로 두는 메뉴 수 — 나머지는 "더보기". 메뉴가 하나만 넘치면 더보기 대신 탭으로 다 둔다(광고주 5칸). */
 export const PARTNER_TAB_COUNT = 4;
 export const tabCountOf = (menuLength: number) =>
@@ -191,7 +196,9 @@ export function usePartnersNav(member: boolean) {
           )
         : PARTNER_MENU_START
       : advertiser
-        ? ADVERTISER_MENU
+        ? advBizLockOf(me)
+          ? ADVERTISER_MENU_START
+          : ADVERTISER_MENU
         : MENU;
   // 가장 길게 맞는 경로 하나만 활성 — /partners/dashboard 에서 "소개"(/partners)까지 켜지지 않게.
   // 내 정보(/partners/profile)는 메뉴에 없으니 아무것도 켜지 않는다.

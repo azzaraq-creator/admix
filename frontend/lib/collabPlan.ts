@@ -21,6 +21,7 @@ import {
   type AdvCollab,
   type BaseItem,
   type PrepKey,
+  type Schedule,
   type StoreRef,
 } from "@/lib/advertiserPreview";
 import type { CollabGrade, PartnersStore } from "@/lib/partners";
@@ -359,17 +360,62 @@ export function estimateLine(c: PlanContent) {
   return estimateText(e.total, e.negotiable ?? 0);
 }
 
-/** 예상 일정 한 줄 — 모집 공지 · 설치 · 진행 · 철수(차수에 적힌 값). */
-export function scheduleLine(c: PlanContent) {
-  const s = c.schedule ?? {};
-  const d = (k: string) => (typeof s[k] === "string" ? mdw(s[k] as string) : null);
-  return [
-    d("noticeDate") && `모집 공지 ${d("noticeDate")}`,
-    d("installStart") && `설치 ${d("installStart")}`,
-    d("removalDate") && `철수 ${d("removalDate")}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+export interface SchedulePart {
+  label: string;
+  value: string;
+}
+
+/** 예상 일정 — 모집 공지 · 설치 · 철수 날짜(차수에 적힌 값, 없는 날은 뺀다). 줄마다 나눠 보인다(11-17 사용자 "구분해서"). */
+export function scheduleParts(s: PlanContent["schedule"] | undefined): SchedulePart[] {
+  const keys = [
+    ["noticeDate", "모집 공지"],
+    ["installStart", "설치"],
+    ["removalDate", "철수"],
+  ] as const;
+  return keys.flatMap(([k, label]) => {
+    const v = s?.[k];
+    return typeof v === "string" && v ? [{ label, value: mdw(v) }] : [];
+  });
+}
+
+const CALENDAR_KEYS = ["noticeDate", "recruitEnd", "confirmDue", "installStart", "startDate", "endDate", "removalDate"] as const;
+
+/**
+ * 예상 일정 달력(ScheduleCalendar)에 넣을 일정 — 차수에 적힌 날짜 그대로(11-17 사용자: 어드민 기획안에도 "광고주의 예상 일정처럼 캘린더로").
+ * 달력이 쓰지 않는 칸(중간 공유 · 점검)은 비슷한 날로 채운다. 날짜가 모자라면(예전 차수) null.
+ * schedule 을 주면 그 일정으로(고치는 중 다시 계산한 일정).
+ */
+export function planCalendarOf(
+  c: PlanContent,
+  schedule: Record<string, unknown> | null | undefined = c.schedule,
+): { s: Schedule; prepLabel: string } | null {
+  const sc = schedule ?? {};
+  const d = (k: string) => (typeof sc[k] === "string" ? (sc[k] as string) : "");
+  if (CALENDAR_KEYS.some((k) => !d(k))) return null;
+  const s: Schedule = {
+    noticeDate: d("noticeDate"),
+    midShareDate: d("noticeDate"),
+    recruitEnd: d("recruitEnd"),
+    reviewEnd: d("confirmDue"),
+    confirmStart: d("confirmDue"),
+    confirmDue: d("confirmDue"),
+    installStart: d("installStart"),
+    installDays: Math.max(1, periodDays(d("installStart"), addDays(d("startDate"), -1))),
+    startDate: d("startDate"),
+    endDate: d("endDate"),
+    removalDate: d("removalDate"),
+    checks: [],
+  };
+  const make = c.items.some((x) => (PREP_OF[x.prep] ?? PREP_OF.ready).make);
+  return { s, prepLabel: make ? "제작 · 준비" : "준비" };
+}
+
+/** 달력에 걸치는 달 수 — 첫날(의뢰일 · 모집 공지 중 앞)부터 철수까지. */
+export function calendarMonthsOf(s: Schedule, requestDate?: string) {
+  const first = requestDate && requestDate < s.noticeDate ? requestDate : s.noticeDate;
+  const [y1, m1] = first.split("-").map(Number);
+  const [y2, m2] = s.removalDate.split("-").map(Number);
+  return (y2 - y1) * 12 + (m2 - m1) + 1;
 }
 
 /** 보낼 값 — 지정 희망 매장은 id 만, 예상 비용 · 일정은 다시 계산한 값. */

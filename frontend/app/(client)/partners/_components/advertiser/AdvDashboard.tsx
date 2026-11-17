@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
+import { SquareCheck } from "@/components/common/SquareCheck";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   PREVIEW_TODAY,
@@ -34,6 +35,11 @@ import {
 import { cn } from "@/lib/utils";
 
 import { LifeSteps, PeriodTicket } from "../workspace/CollabDetail";
+import {
+  ADV_LOCK_COPY,
+  PROFILE_BIZ_HREF,
+  useAdvBizLock,
+} from "../workspace/ProvisionalGate";
 import {
   EmptyBox,
   LinkCard,
@@ -408,7 +414,44 @@ export function AdvDashboard() {
       {/* 머리 오른쪽 "매장 찾기 · 새 콜라보 의뢰" 버튼은 11-11 사용자가 없앴다(PC) — 매장 찾기는 왼쪽 메뉴,
           새 콜라보 의뢰는 "진행 중인 콜라보"가 비었을 때 그 칸 아래에. */}
       <PageHead title="대시보드" className="max-sm:sr-only" />
+      <BizNotice />
       <Overview />
     </div>
+  );
+}
+
+/**
+ * 사업자등록증 승인 전 광고주 — 대시보드 맨 위 안내(11-17 사용자: "사업자등록증 승인 받을 경우에만 콜라보를 진행할 수 있다고 안내").
+ * 흰 카드 한 장 — 아이콘 · 지금 상태 · 승인을 받으면 할 수 있는 것, 오른쪽에 할 일 버튼(내 정보의 사업자등록증 칸).
+ */
+function BizNotice() {
+  const router = useRouter();
+  const lock = useAdvBizLock();
+  if (!lock) return null;
+  const copy = ADV_LOCK_COPY[lock];
+  return (
+    <PanelCard
+      className={cn(
+        "flex-row items-center gap-[14px] p-[16px] max-sm:flex-col max-sm:items-stretch sm:p-[20px]",
+        SHADOW_FLOAT,
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-start gap-[12px]">
+        {/* 점선으로 비어 있는 체크(SquareCheck 아직 칸 — 아직 승인 전, 11-17 사용자). */}
+        <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[14px] bg-primary-50">
+          <SquareCheck on={false} label="승인 전" className="size-[18px] text-primary-400" />
+        </span>
+        <div className="flex min-w-0 flex-col gap-[3px]">
+          <p className="text-[15px] font-bold break-keep text-gray-900">{copy.title}</p>
+          <p className="text-[13px] leading-[1.6] break-keep text-gray-600">{copy.body}</p>
+        </div>
+      </div>
+      <Button
+        onPress={() => router.push(PROFILE_BIZ_HREF)}
+        className="h-[42px] shrink-0 rounded-[18px] px-[18px] font-bold max-sm:w-full"
+      >
+        {copy.action}
+      </Button>
+    </PanelCard>
   );
 }

@@ -20,6 +20,7 @@ import {
   wonLabel,
   type CollabGrade,
   type CollabRequestMine,
+  type CollabScope,
   type PartnersStore,
 } from "@/lib/partners";
 import {
@@ -174,6 +175,8 @@ export interface StoreRef {
   grade: CollabGrade | null;
   fee: number | null;
   image?: string | null;
+  /** 가능 범위(093) — 실제 매장만, 관심 매장 고르기 창에 보인다(11-17). 서버로는 매장 id 만 보낸다. */
+  scope?: CollabScope;
   /** 예시 매장만 — 공간 · 분위기 칩. */
   spaces?: string[];
   /** 예시 매장만 — 하루 영수증 수(예상 소진율 계산용, 광고주에게 숫자는 보이지 않는다). */
@@ -191,6 +194,7 @@ export function refOfStore(s: PartnersStore): StoreRef {
     grade: s.collabGrade ?? null,
     fee: s.collabFee ?? null,
     image: s.imageUrls[0] ?? null,
+    scope: s.scope ?? {},
   };
 }
 

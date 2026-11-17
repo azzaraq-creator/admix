@@ -1,5 +1,6 @@
 import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+import type { CollabScope } from "@/lib/partners";
 
 export type MediaListSort = "created" | "updated" | "id";
 
@@ -46,6 +47,8 @@ export interface PartnersCardInfo {
   businessHours: string | null;
   /** 사진 주소 → 분류(exterior · interior …) — 카드 사진 왼쪽 아래 이름표(11-12). 예전 서버면 없다. */
   photoKinds?: Record<string, string>;
+  /** 가능 범위(093) — 관심 매장 · 매장 찾기 카드 아래 칸(11-17). 예전 서버면 없다(줄째 안 그린다). */
+  scope?: CollabScope;
 }
 
 export interface MediaCardRow {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import {
   CommonTable,
   type SearchOption,
@@ -31,7 +32,10 @@ import { CollabPageHead, SimplePager } from "../../_components/collabUi";
 type Row = AdminAdvertiserMember & { no: string };
 type Brand = AdminAdvertiserMember["brands"][number];
 
-/** 브랜드 사진 — 없으면 이름 첫 글자. 목록(작게) · 상세(크게)에서 같이 쓴다. */
+/**
+ * 브랜드 사진 — 목록(작게) · 상세(크게) · 광고주 회원 팝업 · 의뢰서에서 같이 쓴다.
+ * 없으면 광고주 화면(BrandAvatar)과 같은 기본 이미지 — 회색 바탕에 옅은 회색 "C"(11-17 사용자, 예전엔 보라 바탕 이름 첫 글자).
+ */
 export function BrandThumb({
   brand,
   size = 28,
@@ -45,11 +49,16 @@ export function BrandThumb({
   return (
     <span
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-primary-50 font-bold text-primary-800",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-gray-100",
+        // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(BrandAvatar 와 같다).
+        !src &&
+          cn(collabScript.className, "leading-none font-bold text-gray-400"),
         className,
       )}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.55) }}
       title={brand.name}
+      role={src ? undefined : "img"}
+      aria-label={src ? undefined : `${brand.name} 기본 브랜드 이미지`}
     >
       {src ? (
         <Image
@@ -61,7 +70,7 @@ export function BrandThumb({
           className="object-cover"
         />
       ) : (
-        brand.name.slice(0, 1)
+        "C"
       )}
     </span>
   );

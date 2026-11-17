@@ -96,8 +96,9 @@ import { PanelCard, SectionHead, StatusChip } from "../workspace/workspaceUi";
 import { advActions, useAdvServerSync, useAdvState, useRememberSentRequest } from "./advStore";
 import { advListHref } from "./AdvCollabList";
 import { AdvPlanReview } from "./AdvPlanReview";
+import { PlanFilePreview } from "./PlanFilePreview";
 import { InvoiceModal, ReportModal } from "./advDocs";
-import { ScheduleCalendar } from "./ScheduleCalendar";
+import { ScheduleCalendar, scheduleMonthCount } from "./ScheduleCalendar";
 import {
   ADV_FROM,
   ADV_NEW_HREF,
@@ -190,6 +191,7 @@ const ADV_PANEL_TONE: Record<ReturnType<typeof stageOf>["tone"], { icon: string;
   red: { icon: "bg-red-50 text-red-600 dark:bg-red-400/15 dark:text-red-300", title: "text-error" },
 };
 
+// 의뢰 검토 중 색은 11-17 사용자가 노랑 → 청록 → 노랑으로 바꿔 보다가 "처음 색깔이 가장 나은 것 같기도" — 원래 보라 그대로.
 function StatusPanel({ c, showSub }: { c: AdvCollab; showSub: boolean }) {
   const stage = stageOf(c);
   const tone = ADV_PANEL_TONE[stage.tone];
@@ -263,18 +265,31 @@ const PREP_SHORT: Record<PrepKey, string> = {
 };
 
 /**
- * 의뢰 내용 한 묶음 — 제목(+ 오른쪽 짧은 설명) 아래 가는 줄, 그 아래 내용. 묶음 사이는 넉넉한 여백으로 띄운다
- * (11-12 사용자 "좀 더 구분을 해줬으면" — 흰 상자를 늘리지 않고 제목 줄 · 여백 · 두 칸 배치로 나눴다).
+ * 의뢰 내용 표 — 의뢰서처럼 왼쪽 이름 칸(옅은 회색) | 오른쪽 내용, 위 굵은 선 · 줄마다 가는 선(어드민 의뢰서 KvTable과 같은 모양).
+ * 지나온 모양: 제목 밑줄 + 여백(11-12) → 묶음마다 회색 판(11-17 "잘 구분되어 보일 수 있게") → 테두리 상자 + 회색 제목 띠
+ * ("위 숫자 칸이랑 같은 UI라 구분이 안 돼") → 두 칸에 상자 여섯 개가 "시선이 흩어진다 · 의뢰서처럼 보였으면"(11-17 사용자)
+ * → 한 줄기 표 하나로. 위로 아래로만 읽으면 된다.
  */
-function Block({ title, aside, children }: { title: ReactNode; aside?: ReactNode; children: ReactNode }) {
+function SheetTable({ children }: { children: ReactNode }) {
+  // 휴대폰(sm 미만)은 이름 칸이 좁아 글자가 꺾여서 이름 띠 위 · 내용 아래로 쌓는다.
   return (
-    <section className="flex min-w-0 flex-col gap-[12px]">
-      <h3 className="flex flex-wrap items-baseline justify-between gap-x-[8px] gap-y-[2px] border-b border-gray-200 pb-[10px] text-[15px] font-bold text-gray-900">
-        {title}
-        {aside && <span className="text-[12px] font-medium break-keep text-gray-500">{aside}</span>}
-      </h3>
+    <dl className="grid border-t-2 border-gray-900 text-[14px] sm:grid-cols-[140px_minmax(0,1fr)]">
       {children}
-    </section>
+    </dl>
+  );
+}
+
+function SheetRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <>
+      <dt className="flex flex-wrap items-baseline gap-x-[6px] gap-y-[2px] bg-gray-50 px-[12px] py-[8px] text-[13px] leading-[1.5] font-semibold break-keep text-gray-700 sm:flex-col sm:flex-nowrap sm:items-start sm:border-b sm:border-gray-200 sm:px-[16px] sm:py-[13px]">
+        {label}
+        {hint && <span className="text-[12px] font-medium text-gray-400">{hint}</span>}
+      </dt>
+      <dd className="flex min-w-0 flex-col gap-[8px] border-b border-gray-200 px-[4px] py-[12px] leading-[1.6] break-keep text-gray-900 sm:px-[16px] sm:py-[13px]">
+        {children}
+      </dd>
+    </>
   );
 }
 
@@ -290,8 +305,8 @@ function Fact({ label, value, sub, className }: { label: string; value: ReactNod
 }
 
 /**
- * "의뢰 내용" 탭 — 숫자 칸(매장 수 · 모집 · 비용) 아래로, 넓은 화면에선 두 칸:
- * 왼쪽 무엇을(기본안 · 추가 기획 · 매장 운영) | 오른쪽 어디서 · 누구와(지정 희망 매장 · 남긴 말 · 담당자).
+ * "의뢰 내용" 탭 — 숫자 칸(매장 수 · 모집 · 비용) 아래로 의뢰서 같은 표 하나(SheetTable):
+ * 기본안(+ 추가 기획) → 매장 운영(옛 의뢰) → 지정 희망 매장 → 남긴 말 → 담당자. 11-17까진 넓은 화면에서 두 칸 묶음이었다.
  * 일정은 따로 "일정" 탭(11-12 사용자 "의뢰 내용 따로, 일정 따로").
  */
 function Overview({ c }: { c: AdvCollab }) {
@@ -315,107 +330,21 @@ function Overview({ c }: { c: AdvCollab }) {
     ...c.extras.map((x): [string, ReactNode] => [EXTRA_LABEL[x.kind], x.body]),
   ];
 
-  const what: ReactNode[] = [
-    <Block key="items" title="콜라보 기본안" aside={c.items.length ? `${c.items.length}가지` : undefined}>
-      {c.items.length === 0 ? (
-        <p className="text-[14px] text-gray-500">고른 기본안이 없어요.</p>
-      ) : (
-        <ul className="flex flex-col gap-[6px]">
-          {c.items.map((i) => {
-            const key = prepKeyOf(c.itemPrep?.[i]);
-            return (
-              <li key={i} className="flex flex-col gap-[3px] rounded-[14px] px-[14px] py-[10px] ring-1 ring-gray-100 ring-inset">
-                <span className="flex items-center justify-between gap-[8px]">
-                  <b className="text-[14px] font-semibold break-keep text-gray-900">{ITEM_LABEL[i]}</b>
-                  {key && (
-                    <Chip size="sm" variant="soft" color={key === "admix" ? "accent" : "default"} className="shrink-0">
-                      {PREP_SHORT[key]}
-                    </Chip>
-                  )}
-                </span>
-                {c.itemNotes[i] && (
-                  <span className="text-[13px] leading-[1.55] break-keep whitespace-pre-wrap text-gray-600">{c.itemNotes[i]}</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {admixMakeItems(c).length > 0 && (
-        <p className="text-[12px] leading-[1.5] break-keep text-gray-500">
-          admix 제작은 콜라보 비용과 따로예요 — 품목 · 수량 · 사양을 확인한 뒤 견적을 드려요.
-        </p>
-      )}
-    </Block>,
-  ];
-  if (c.extraPlan || c.extraPlanFile)
-    what.push(
-      <Block key="extra" title="추가 기획" aside="협의 후 결정해요">
-        {c.extraPlan && <p className="text-[14px] leading-[1.65] break-keep whitespace-pre-wrap text-gray-900">{c.extraPlan}</p>}
-        {c.extraPlanFile && (
-          <span className="flex min-w-0 items-center gap-[8px] self-start rounded-[12px] bg-gray-50 px-[12px] py-[8px] text-[13px] font-semibold text-gray-700">
-            <MaskIcon src="/icons/file-text.svg" className="size-[16px] shrink-0 text-gray-500" />
-            <span className="truncate">{c.extraPlanFile.name}</span>
-          </span>
-        )}
-      </Block>,
-    );
-  if (ops.length > 0)
-    what.push(
-      <Block key="ops" title="매장 운영">
-        <InfoRows rows={ops} />
-      </Block>,
-    );
-
-  const who: ReactNode[] = [];
-  if (c.preferred.length > 0)
-    who.push(
-      <Block key="preferred" title="지정 희망 매장" aside={`${c.preferred.length}곳 · admix가 먼저 연락해 신청을 권해요`}>
-        <ul className="flex flex-wrap gap-[8px]">
-          {c.preferred.map((p) => (
-            <li
-              key={p.id}
-              className={cn(
-                "flex items-center gap-[6px] rounded-[12px] px-[10px] py-[5px] text-[13px] ring-1",
-                applied.has(p.id) ? "bg-primary-50 text-primary-700 ring-primary-100" : "bg-gray-50 text-gray-700 ring-gray-100",
-              )}
-            >
-              <GradeMark grade={p.grade} />
-              <b className="font-semibold">{p.name}</b>
-              <span className="text-[12px] opacity-70">{p.fee ? wonText(p.fee) : "금액 협의"}</span>
-              {applied.has(p.id) && <span className="text-[11px] font-bold">신청함</span>}
-            </li>
-          ))}
-        </ul>
-      </Block>,
-    );
-  if (c.memo)
-    who.push(
-      <Block key="memo" title="admix에 남긴 말">
-        <p className="rounded-[14px] bg-gray-50 px-[14px] py-[12px] text-[14px] leading-[1.65] break-keep whitespace-pre-wrap text-gray-900">
-          {c.memo}
-        </p>
-      </Block>,
-    );
-  if (c.contact?.name) {
-    const contact = c.contact;
-    who.push(
-      <Block key="contact" title="콜라보 담당자">
-        <p className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px] text-[14px] text-gray-900">
-          <b className="font-semibold">{contact.name}</b>
-          {contact.role && <span className="text-gray-500">{contact.role}</span>}
-          {contact.phone && <span className="text-gray-700">{formatPhone(contact.phone)}</span>}
-        </p>
-      </Block>,
-    );
-  }
-
+  const contact = c.contact?.name ? c.contact : null;
   return (
     <PanelCard className="gap-[24px] p-[18px] sm:p-[24px]">
+      {/* 의뢰 일시는 11-17 사용자 "오른쪽에 배치해 줘" — 제목 아래에서 오른쪽 문서 번호 옆으로. */}
       <PanelHead
         title="의뢰 내용"
-        hint={c.requestedAt ? `${kstStamp(c.requestedAt)} 의뢰` : undefined}
-        right={c.requestCode && <span className="text-[12px] font-medium text-gray-400">{c.requestCode}</span>}
+        right={
+          (c.requestedAt || c.requestCode) && (
+            <span className="flex flex-wrap items-center justify-end gap-x-[8px] text-[12px] font-medium">
+              {c.requestedAt && <span className="text-gray-500">{kstStamp(c.requestedAt)} 의뢰</span>}
+              {c.requestedAt && c.requestCode && <span aria-hidden className="h-[10px] w-px bg-gray-200" />}
+              {c.requestCode && <span className="text-gray-400">{c.requestCode}</span>}
+            </span>
+          )
+        }
       />
       {c.reviewNote && (
         <div className="flex flex-col gap-[4px] rounded-[16px] bg-error-bg px-[14px] py-[12px]">
@@ -442,10 +371,88 @@ function Overview({ c }: { c: AdvCollab }) {
           </p>
         )}
       </div>
-      <div className={cn("grid items-start gap-x-[40px] gap-y-[28px]", who.length > 0 && "lg:grid-cols-2")}>
-        <div className="flex min-w-0 flex-col gap-[28px]">{what}</div>
-        {who.length > 0 && <div className="flex min-w-0 flex-col gap-[28px]">{who}</div>}
-      </div>
+      <SheetTable>
+        <SheetRow label="콜라보 기본안" hint={c.items.length ? `${c.items.length}가지` : undefined}>
+          {c.items.length === 0 ? (
+            <p className="text-gray-500">고른 기본안이 없어요.</p>
+          ) : (
+            // 준비 상태 칩은 이름 바로 옆(오른쪽 끝으로 보내면 눈이 오가서).
+            <ul className="flex flex-col divide-y divide-dashed divide-gray-200">
+              {c.items.map((i) => {
+                const key = prepKeyOf(c.itemPrep?.[i]);
+                return (
+                  <li key={i} className="flex flex-col gap-[2px] py-[10px] first:pt-0 last:pb-0">
+                    <span className="flex flex-wrap items-center gap-x-[8px] gap-y-[4px]">
+                      <b className="font-semibold">{ITEM_LABEL[i]}</b>
+                      {key && (
+                        <Chip size="sm" variant="soft" color={key === "admix" ? "accent" : "default"} className="shrink-0">
+                          {PREP_SHORT[key]}
+                        </Chip>
+                      )}
+                    </span>
+                    {c.itemNotes[i] && (
+                      <span className="text-[13px] leading-[1.55] whitespace-pre-wrap text-gray-600">{c.itemNotes[i]}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {admixMakeItems(c).length > 0 && (
+            <p className="text-[12px] leading-[1.5] text-gray-500">
+              admix 제작은 콜라보 비용과 따로예요 — 품목 · 수량 · 사양을 확인한 뒤 견적을 드려요.
+            </p>
+          )}
+        </SheetRow>
+        {(c.extraPlan || c.extraPlanFile) && (
+          <SheetRow label="추가 기획" hint="협의 후 결정해요">
+            {c.extraPlan && <p className="whitespace-pre-wrap">{c.extraPlan}</p>}
+            {/* 첨부는 눌러서 미리보기(11-17 사용자) — 사진 썸네일 · 창에서 크게 · PDF는 바로, 그 밖은 내려받기. */}
+            {c.extraPlanFile && <PlanFilePreview requestId={c.requestId} file={c.extraPlanFile} />}
+          </SheetRow>
+        )}
+        {/* 매장 운영 값(할 일 · 공간 · 수량 · 혜택 · 멘트)은 11-11부터 의뢰서에서 받지 않는다 — 옛 의뢰에 적힌 것만. */}
+        {ops.map(([k, v]) => (
+          <SheetRow key={k} label={k}>
+            <p className="whitespace-pre-wrap">{v}</p>
+          </SheetRow>
+        ))}
+        {/* 오른쪽 "n곳 · admix가 먼저 연락해 신청을 권해요"는 11-17 사용자가 문구 → 개수까지 차례로 뺐다. */}
+        {c.preferred.length > 0 && (
+          <SheetRow label="지정 희망 매장">
+            <ul className="flex flex-wrap gap-[6px]">
+              {c.preferred.map((p) => (
+                <li
+                  key={p.id}
+                  className={cn(
+                    "flex items-center gap-[6px] rounded-[12px] px-[10px] py-[4px] text-[13px] ring-1",
+                    applied.has(p.id) ? "bg-primary-50 text-primary-700 ring-primary-100" : "bg-gray-50 text-gray-700 ring-gray-100",
+                  )}
+                >
+                  <GradeMark grade={p.grade} />
+                  <b className="font-semibold">{p.name}</b>
+                  <span className="text-[12px] opacity-70">{p.fee ? wonText(p.fee) : "금액 협의"}</span>
+                  {applied.has(p.id) && <span className="text-[11px] font-bold">신청함</span>}
+                </li>
+              ))}
+            </ul>
+          </SheetRow>
+        )}
+        {c.memo && (
+          <SheetRow label="admix에 남긴 말">
+            <p className="whitespace-pre-wrap">{c.memo}</p>
+          </SheetRow>
+        )}
+        {contact && (
+          <SheetRow label="콜라보 담당자">
+            <p className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
+              <b className="font-semibold">{contact.name}</b>
+              {contact.role && <span className="text-gray-500">{contact.role}</span>}
+              {contact.phone && <span className="text-gray-700">{formatPhone(contact.phone)}</span>}
+            </p>
+          </SheetRow>
+        )}
+      </SheetTable>
     </PanelCard>
   );
 }
@@ -458,7 +465,7 @@ type PlanRow = [string, string, string?];
  * 처음엔 영수증 모양(톱니 가장자리 · 가운데 머리 · 합계 줄)이었는데 11-12 사용자 "진짜 영수증 말고, 점선으로 분리한 건 좋아"
  * → 달력과 같은 보통 카드로 두고 점선 묶음만 남겼다. 지난 날은 흐리게, 오늘은 보라 "오늘".
  */
-function ScheduleDetail({ c, s }: { c: AdvCollab; s: Schedule }) {
+function ScheduleDetail({ c, s, wide }: { c: AdvCollab; s: Schedule; wide?: boolean }) {
   const req = c.requestedAt ? kstDate(c.requestedAt) : undefined;
   const reviewTo = addDays(s.noticeDate, -1);
   const groups: { title: string; rows: PlanRow[] }[] = [];
@@ -507,9 +514,18 @@ function ScheduleDetail({ c, s }: { c: AdvCollab; s: Schedule }) {
         title="상세 일정"
         hint={`콜라보 ${periodDays(c.startDate, c.endDate)}일 · ${mdw(c.startDate)} ~ ${mdw(c.endDate)}`}
       />
-      <div className="flex flex-col">
+      {/* wide — 달력 아래 전체 폭(석 달 이상)일 땐 넓은 화면에서 묶음 넷을 가로로, 묶음 사이 점선도 세로로. */}
+      <div className={cn("flex flex-col", wide && "lg:grid lg:grid-cols-4")}>
         {groups.map((g, gi) => (
-          <div key={g.title} className={cn("py-[12px]", gi > 0 && "border-t border-dashed border-gray-300")}>
+          <div
+            key={g.title}
+            className={cn(
+              "py-[12px]",
+              gi > 0 && "border-t border-dashed border-gray-300",
+              wide && "lg:pr-[20px] lg:last:pr-0",
+              wide && gi > 0 && "lg:border-t-0 lg:border-l lg:pl-[20px]",
+            )}
+          >
             <p className="mb-[4px] text-[12px] font-semibold text-gray-500">{g.title}</p>
             <ol className="flex flex-col">
               {g.rows.map(([d, t, text]) => {
@@ -545,18 +561,23 @@ function ScheduleDetail({ c, s }: { c: AdvCollab; s: Schedule }) {
  */
 function ScheduleTab({ c }: { c: AdvCollab }) {
   const s = scheduleOf(c);
+  const requestDate = c.requestedAt ? kstDate(c.requestedAt) : undefined;
+  // 달력은 일정이 걸친 달을 다 펼친다(11-17 사용자 "2달이면 2개, 3개이면 3개의 달로"). 두 달까진 오른쪽 상세 일정 옆에 나란히,
+  // 석 달 이상이면 달력을 전체 폭(넓으면 석 달 나란히)으로 두고 상세 일정은 그 아래 가로로.
+  const wide = scheduleMonthCount(s, requestDate) >= 3;
   // admix가 승인하기 전(검토 중 · 보완 요청 · 승인 전 취소)은 "예상 일정", 승인되면 "콜라보 일정"(11-12 사용자).
   // 제목 아래 설명 한 줄("admix가 승인하면 이 일정으로 진행해요" 등)은 뺐다(11-12 사용자 "이거 없애줘").
   const confirmed = isLive(c) || !!c.approvedAt;
   return (
-    <div className="grid gap-[16px] lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className={cn("grid gap-[16px]", !wide && "lg:grid-cols-[minmax(0,1fr)_340px]")}>
       <PanelCard className="gap-[14px] bg-surface p-[18px] backdrop-blur-none sm:p-[24px]">
         <PanelHead title={confirmed ? "콜라보 일정" : "예상 일정"} />
         <ScheduleCalendar
           size="lg"
-          className="flex-1"
+          months="all"
+          className={wide ? undefined : "flex-1"}
           s={s}
-          requestDate={c.requestedAt ? kstDate(c.requestedAt) : undefined}
+          requestDate={requestDate}
           prepLabel={makeItems(c).length ? "제작 · 준비" : "준비"}
         />
         {c.delay?.status === "applied" && (
@@ -565,7 +586,7 @@ function ScheduleTab({ c }: { c: AdvCollab }) {
           </p>
         )}
       </PanelCard>
-      <ScheduleDetail c={c} s={s} />
+      <ScheduleDetail c={c} s={s} wide={wide} />
     </div>
   );
 }

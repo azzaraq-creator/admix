@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 /*
  * 의뢰서 "예상 일정" 달력(11-11 사용자). 콜라보 상세 "일정" 탭에도 크게(size="lg", 11-12 사용자).
  * - 한 달씩 넘겨 본다(처음엔 의뢰하는 달). 의뢰서는 석 달을 한 번에(months=3 — PC 나란히, 모바일 세로로, 11-16 사용자).
+ * - 콜라보 상세 일정 탭은 일정이 걸친 달을 전부 펼친다(months="all", 11-17 사용자 "2달이면 2개의 달, 3개이면 3개의 달로").
+ *   다 보이면 넘기기 버튼은 없다. 크게(lg) 여러 달은 놓인 칸 너비를 보고(컨테이너 쿼리) 나란히 · 줄바꿈.
  * - 의뢰서는 이 달력에서 진행 기간을 바로 고른다(select — 시작일 → 끝날 차례로 누르기, 11-16 사용자
  *   "집행 기간을 따로 고르는 게 아니라 예상 일정에서 기간을 선택").
  * - 무슨 단계인지는 막대 안에 글자로 적는다(범례 없음). 단계마다 옅은 파스텔 색으로 조금씩만 다르게,
@@ -62,6 +64,15 @@ const nextMonth = (m: string) => {
   const [y, mo] = m.split("-").map(Number);
   return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
 };
+/** 일정 달력의 첫날 — 의뢰일이 모집 공지보다 앞이면 의뢰일부터. */
+const firstDayOf = (s: Schedule, requestDate?: string) => (requestDate && requestDate < s.noticeDate ? requestDate : s.noticeDate);
+
+/** 일정이 걸친 달 수(의뢰 ~ 철수) — 상세 일정 탭이 달력 · 상세 일정 배치를 고를 때 쓴다. */
+export function scheduleMonthCount(s: Schedule, requestDate?: string) {
+  const [y1, m1] = monthOf(firstDayOf(s, requestDate)).split("-").map(Number);
+  const [y2, m2] = monthOf(s.removalDate).split("-").map(Number);
+  return (y2 - y1) * 12 + (m2 - m1) + 1;
+}
 
 /** 달력에서 진행 기간 고르기(의뢰서) — 시작일을 누르고 끝날을 누른다. 짧으면 끝날을 최소 일수까지 늘린다. */
 export interface PeriodSelect {
@@ -85,7 +96,7 @@ export function ScheduleCalendar({
   requestDate,
   prepLabel = PHASE_LABEL.prep,
   size = "md",
-  months: count = 1,
+  months = 1,
   select,
   className,
 }: {
@@ -97,8 +108,8 @@ export function ScheduleCalendar({
   prepLabel?: string;
   /** lg — 콜라보 상세 일정 탭처럼 넓은 칸에서 날짜 · 막대를 크게. */
   size?: "md" | "lg";
-  /** 한 번에 보이는 달 수 — 의뢰서는 3(PC 나란히, 모바일은 세로로 쌓는다). */
-  months?: number;
+  /** 한 번에 보이는 달 수 — 의뢰서는 3(PC 나란히, 모바일은 세로로 쌓는다). "all"이면 일정이 걸친 달 전부(콜라보 상세). */
+  months?: number | "all";
   /** 주면 날짜를 눌러 진행 기간을 고른다. */
   select?: PeriodSelect;
   /** lg 에서 flex-1 을 주면 남는 높이만큼 주 칸이 똑같이 늘어난다(옆 카드와 높이 맞춤, 11-12 사용자). */
@@ -125,7 +136,7 @@ export function ScheduleCalendar({
 
   // 단계별 기간 — 화면 읽기 도구용 목록과 막대 툴팁에 쓴다.
   const ranges = new Map<Phase, { from: string; to: string }>();
-  const first = s ? (requestDate && requestDate < s.noticeDate ? requestDate : s.noticeDate) : PREVIEW_TODAY;
+  const first = s ? firstDayOf(s, requestDate) : PREVIEW_TODAY;
   if (s) {
     for (let d = first; d <= s.removalDate; d = addDays(d, 1)) {
       const p = phaseOf(d);
@@ -147,6 +158,9 @@ export function ScheduleCalendar({
   const selectEnd = monthOf(addDays(PREVIEW_TODAY, SELECT_MONTHS_AHEAD * 31));
   const lastMonth = select && selectEnd > scheduleEnd ? selectEnd : scheduleEnd;
   for (let m = monthOf(select ? PREVIEW_TODAY : first); m <= lastMonth; m = nextMonth(m)) allMonths.push(m);
+  const count = months === "all" ? allMonths.length : months;
+  // 다 보이면(상세 일정 탭) 넘기기 버튼을 그리지 않는다.
+  const browse = allMonths.length > count;
   const maxAt = Math.max(0, allMonths.length - count);
   // 처음 보이는 달 — 오늘이 든 달(콜라보 상세), 없으면 첫 달(의뢰서는 의뢰하는 달 = 오늘).
   // 고른 기간이 처음 석 달 밖이면(고치기로 다시 열 때) 시작일이 보이게 당긴다.
@@ -250,13 +264,13 @@ export function ScheduleCalendar({
     for (let w = gridStart; w <= lastDay; w = addDays(w, 7)) weeks.push(Array.from({ length: 7 }, (_, k) => addDays(w, k)));
     return (
       <div key={month} className={cn("flex min-w-0 flex-col", lg ? "gap-[12px]" : "gap-[8px]")}>
-        {/* 달 머리 — 맨 앞 달에만 이전, 맨 뒤 달에만 다음(한 달이면 한 줄에 둘 다). */}
-        <div className="flex items-center justify-between">
-          {i === 0 ? navButton("prev") : <span aria-hidden className={lg ? "size-[32px]" : "size-[28px]"} />}
-          <span aria-live="polite" className={cn("font-bold text-gray-900", lg ? "text-[16px]" : "text-[13px]")}>
+        {/* 달 머리 — 맨 앞 달에만 이전, 맨 뒤 달에만 다음(한 달이면 한 줄에 둘 다). 다 펼쳐 보이면 달 이름만. */}
+        <div className={cn("flex items-center", browse ? "justify-between" : "justify-center")}>
+          {browse && (i === 0 ? navButton("prev") : <span aria-hidden className={lg ? "size-[32px]" : "size-[28px]"} />)}
+          <span aria-live={browse ? "polite" : undefined} className={cn("font-bold text-gray-900", lg ? "text-[16px]" : "text-[13px]")}>
             {y}년 {mo}월
           </span>
-          {i === shown.length - 1 ? navButton("next") : <span aria-hidden className={lg ? "size-[32px]" : "size-[28px]"} />}
+          {browse && (i === shown.length - 1 ? navButton("next") : <span aria-hidden className={lg ? "size-[32px]" : "size-[28px]"} />)}
         </div>
 
         <div aria-hidden={select ? undefined : true} className={cn("flex flex-col", lg ? "flex-1 gap-[6px]" : "gap-[6px]")}>
@@ -371,9 +385,10 @@ export function ScheduleCalendar({
                         style={{ gridColumn: `${b.col + 1} / span ${b.len}` }}
                         className={cn(
                           "flex min-w-0 items-center justify-center font-semibold",
-                          lg ? "mx-[2px] rounded-[8px] px-[6px] text-[12px]" : "mx-[1px] rounded-[6px] text-[10.5px]",
+                          lg ? "mx-[2px] rounded-[8px] text-[12px]" : "mx-[1px] rounded-[6px] text-[10.5px]",
                           // 석 달을 나란히 두면 칸이 좁아(27px 안팎) 하루짜리 "설치" · "철수"가 잘린다 — 안쪽 여백을 줄인다.
-                          !lg && (count > 1 ? "px-[1px]" : "px-[4px]"),
+                          // 크게(lg)도 여러 달을 나란히 두면 하루 칸이 45px 안팎이라 "admix"가 잘리지 않게 줄인다.
+                          lg ? (count > 1 ? "px-[2px]" : "px-[6px]") : count > 1 ? "px-[1px]" : "px-[4px]",
                           PHASE_TONE[b.phase],
                         )}
                       >
@@ -399,7 +414,7 @@ export function ScheduleCalendar({
 
   return (
     <div
-      className={cn("flex flex-col", lg ? "gap-[12px]" : "gap-[10px]", className)}
+      className={cn("flex flex-col", lg ? "@container gap-[12px]" : "gap-[10px]", className)}
       // 고르는 중에 Esc — 시작일 고른 것을 취소.
       onKeyDown={(e) => {
         if (e.key === "Escape" && anchor) {
@@ -423,8 +438,10 @@ export function ScheduleCalendar({
       <div
         className={cn(
           "grid gap-x-[24px] gap-y-[18px]",
-          count === 2 && "sm:grid-cols-2",
-          count >= 3 && "sm:grid-cols-3",
+          // 작게(의뢰서)는 화면 너비로, 크게(상세)는 놓인 칸 너비로 — 한 달이 260px 아래로 줄지 않게 나란히 놓는다.
+          lg
+            ? [count === 2 && "@[540px]:grid-cols-2", count >= 3 && "@[540px]:grid-cols-2 @[820px]:grid-cols-3"]
+            : [count === 2 && "sm:grid-cols-2", count >= 3 && "sm:grid-cols-3"],
           lg && "flex-1",
         )}
         onMouseLeave={() => anchor && setHover(anchor)}

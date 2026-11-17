@@ -6,7 +6,8 @@ import { useSyncExternalStore } from "react";
 
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { useMe } from "@/hooks/auth";
-import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
+import type { PartnersCardAccess } from "@/components/common/PartnersAccessMark";
+import { PARTNERS_DASHBOARD_HREF, advBizLockOf } from "@/lib/partners";
 import { getUserToken } from "@/lib/userToken";
 import { canUsePartners } from "@/lib/memberCategory";
 
@@ -37,22 +38,26 @@ export const openPartnersNotice = (next: NoticeKind = "member") => setKind(next)
 export const PARTNERS_INTRO_HREF = "/partners?intro=1";
 
 /**
- * 콜라보 매장 정보 팝업을 열 수 있는 회원 — 광고주만. 제휴사(콜라보)도 콜라보 메뉴는 쓰지만 매체 찾기에서
+ * 콜라보 매장 정보 팝업을 열 수 있는 회원 — 사업자등록증 승인을 마친 광고주만. 제휴사(콜라보)도 콜라보 메뉴는 쓰지만 매체 찾기에서
  * 다른 매장 팝업은 못 연다(11-16 사용자: "제휴사도 다른 회원 유형들과 동일하게 막아줘").
+ * 승인 전 광고주도 못 연다(11-17 사용자: "사업자등록증 승인 받았을 때만 상세 페이지를 볼 수 있게").
  * 제휴사가 자기 매장을 "광고주에게 보이는 화면"(/partners/stores/[id])으로 보는 건 그대로라 서버(ensure_viewer)는 막지 않는다.
  */
-const canOpenPartnersStore = (category: string | null | undefined) =>
-  category === "advertiser";
+const canOpenPartnersStore = (
+  me: Parameters<typeof advBizLockOf>[0],
+) => me?.member_category === "advertiser" && advBizLockOf(me) === null;
 
 /**
- * 콜라보 매장 정보 팝업을 열 수 있는 회원인지(광고주) — 매체 찾기 목록·지도 말풍선의 콜라보 카드는
- * 그 외(비회원·일반·대행사·매체사·제휴사)에겐 보이기만 하고 눌리지 않는다(자물쇠).
+ * 콜라보 카드를 어떻게 보일지 — 매체 찾기 목록·지도 말풍선 · 콜라보 매장 찾기 · 관심 매장.
+ * open: 승인을 마친 광고주(누르면 매장 정보 팝업). unverified: 승인 전 광고주(눌리지 않고 금액 · 가능 범위를 흐리게, 하트 막음).
+ * locked: 그 밖(비회원·일반·대행사·매체사·제휴사) — 보이기만 하고 눌리지 않는다(자물쇠).
  * 로그인했는데 회원 정보를 아직 받는 중이면 열 수 있는 쪽으로 본다(useOpenPartners 와 같다).
  */
-export function useCanOpenPartners() {
+export function usePartnersCardAccess(): PartnersCardAccess {
   const { data: me } = useMe();
-  const loading = !me && !!getUserToken();
-  return loading || canOpenPartnersStore(me?.member_category);
+  if (!me && getUserToken()) return "open";
+  if (canOpenPartnersStore(me)) return "open";
+  return me?.member_category === "advertiser" ? "unverified" : "locked";
 }
 
 /**
@@ -92,7 +97,7 @@ export function usePartnersStoreGate() {
       openPartnersNotice("guest");
       return false;
     }
-    if (!canOpenPartnersStore(me.member_category)) {
+    if (!canOpenPartnersStore(me)) {
       if (!canUsePartners(me.member_category)) openPartnersNotice("member");
       return false;
     }

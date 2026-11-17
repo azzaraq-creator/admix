@@ -52,6 +52,8 @@ class PartnersCardInfo(BaseModel):
     businessHours: str | None = None
     # 사진 주소 → 분류(exterior · interior …) — 카드 사진 위에 분류를 적는다(11-12). 어드민 전용 분류는 없다.
     photoKinds: dict[str, str] = {}
+    # 가능 범위(093) — 항목 키(print · goods …) → ok · no, 고르지 않은 항목은 없다(11-17 카드에 보인다).
+    scope: dict[str, str] = {}
 
 
 class MediaCardRow(BaseModel):

@@ -74,6 +74,16 @@ def ensure_advertiser(user: User) -> User:
     return user
 
 
+def ensure_verified_advertiser(user: User) -> User:
+    """새 의뢰는 사업자등록증 인증을 마친 광고주만(2026-11-17 사용자: 승인을 받아야 콜라보를 진행할 수 있다)."""
+    from src.services.partners_service import is_verified_advertiser  # partners_service 가 이 모듈을 가져다 쓴다
+
+    ensure_advertiser(user)
+    if not is_verified_advertiser(user):
+        raise HTTPException(status_code=403, detail="사업자등록증 승인을 받은 뒤에 의뢰할 수 있어요.")
+    return user
+
+
 # ── 받은 값 정리 ─────────────────────────────────────────────────────────
 
 
@@ -318,7 +328,7 @@ def list_mine(db: Session, user: User) -> list[dict]:
 
 
 def create(db: Session, user: User, data: dict) -> dict:
-    ensure_advertiser(user)
+    ensure_verified_advertiser(user)
     req = AdvertiserCollabRequest(user_id=user.id, status="submitted")
     _apply(db, user, req, data)
     req.code = _next_code(db)

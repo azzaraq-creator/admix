@@ -12,7 +12,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
-import { useCanOpenPartners } from "@/components/common/PartnersAccessNotice";
+import { usePartnersCardAccess } from "@/components/common/PartnersAccessNotice";
 import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 import { SimpleViewToggle } from "@/components/common/SimpleViewToggle";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
@@ -112,7 +112,9 @@ const ALL_CATEGORY_TAB = "__all__";
 /**
  * 광고주 매장 찾기 목록 — 카드 폭을 최소 ~ 최대로 두고 목록 폭에 맞춰 한 줄에 여러 개(11-11 사용자).
  * 최대(지금 목록 카드 폭쯤)를 넘지 않게 칸 수를 늘리되, 최소보다 좁아지면(사진이 찌그러져 보인다) 한 칸 줄인다.
- * 둘 다 맞출 수 없는 폭이면 최소가 먼저 — 카드는 최대에서 멈추고 남는 자리는 오른쪽 여백.
+ * 둘 다 맞출 수 없는 폭(목록 칸 420 ~ 512px, 한 칸)이면 최소가 먼저 — 카드가 최대를 넘어 목록 칸을 채운다.
+ * 예전엔 카드가 최대에서 멈춰 오른쪽에 최대 90px 빈자리가 남았다(11-17 사용자: "브라우저 크기가 애매할 때 카드와 지도 사이 간격이 넓어").
+ * 칸 수가 최대 기준으로 정해지면 1fr 이 최대보다 넓어질 일은 없어서, 칸은 늘 1fr 로 나눈다.
  */
 const LIST_GRID_GAP = 12;
 const LIST_CARD_MIN_W = 250;
@@ -129,8 +131,7 @@ function listColsFor(width: number): number {
     cols -= 1;
   return cols;
 }
-const listGridColumns = (cols: number) =>
-  `repeat(${cols}, minmax(0, ${LIST_CARD_MAX_W}px))`;
+const listGridColumns = (cols: number) => `repeat(${cols}, minmax(0, 1fr))`;
 // 목록을 이만큼(px) 넘게 내리면 "맨 위로" 버튼을 띄운다.
 const SCROLL_TOP_SHOW_PX = 400;
 // 카테고리가 여러 개 걸린 링크 — 어느 탭과도 맞지 않는 값이라 아무 탭도 골라 보이지 않는다.
@@ -475,7 +476,7 @@ export function MediaFindPanel({
       : undefined;
 
   // 콜라보 매장 카드 — 광고주만 눌러서 매장 정보 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
-  const partnersAccess = useCanOpenPartners() ? "open" : "locked";
+  const partnersAccess = usePartnersCardAccess();
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
       id: row.id,

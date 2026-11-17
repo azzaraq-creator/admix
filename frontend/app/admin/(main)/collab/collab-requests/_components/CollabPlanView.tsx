@@ -3,6 +3,7 @@
 import { Button, Chip } from "@heroui/react";
 import { useMemo, useState } from "react";
 
+import { ScheduleCalendar } from "@/app/(client)/partners/_components/advertiser/ScheduleCalendar";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import {
@@ -22,16 +23,19 @@ import {
   dotDateTime,
   type AdminAdvCollabRequestDetail,
 } from "@/lib/adminCollab";
-import { averageFee } from "@/lib/advertiserPreview";
+import { averageFee, kstDate } from "@/lib/advertiserPreview";
 import { extractApiError } from "@/lib/apiError";
 import {
+  calendarMonthsOf,
   changedKeys,
   compareOf,
+  derivedOf,
   fieldLabel,
   fieldText,
   filesOf,
   latestRound,
   planAvgOf,
+  planCalendarOf,
   planErrorsOf,
   planStoreOf,
   roundLabel,
@@ -147,6 +151,12 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
     {},
   );
   const editing = draft !== null;
+  // 예상 일정 달력(11-17 사용자: "광고주의 예상 일정처럼 아래에 캘린더로") — 고치는 중이면 고친 내용으로 다시 계산한 일정,
+  // 아니면 마지막 차수에 적힌 일정. "의뢰"는 광고주가 처음 의뢰한 날.
+  const requestDate = kstDate(doc.createdAt);
+  const calendar = draft
+    ? planCalendarOf(draft, derivedOf(draft, avg).schedule)
+    : planCalendarOf(latest.content);
   const changed = draft ? changedKeys(latest.content, draft) : [];
   const dirty =
     editing &&
@@ -233,7 +243,7 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
           ? `${roundLabel(latest)} 기획안을 보냈어요 · ${lastAt} — 광고주 확인을 기다리고 있어요.`
           : doc.status === "revised"
             ? `광고주가 기획안을 고쳐 보냈어요(${roundLabel(latest)}) · ${lastAt} — 확인하고 다시 보내 주세요.`
-            : "광고주 의뢰서를 항목별로 고쳐 기획안으로 보내 주세요. 바꿀 게 없으면 그대로 보내도 돼요.";
+            : "광고주 의뢰서를 항목별로 고쳐 기획안으로 보내 주세요.";
   const startText =
     doc.status === "proposed"
       ? "다시 고쳐 보내기"
@@ -319,6 +329,18 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
               beforeLabel={cmp.before ? roundLabel(cmp.before) : undefined}
               afterLabel={roundLabel(latest)}
               fileActions={fileActions}
+              storeHref={(s) => `/admin/collab/stores/${s.id}`}
+            />
+          </AdminPanel>
+        )}
+
+        {calendar && (
+          <AdminPanel title="예상 일정">
+            <ScheduleCalendar
+              s={calendar.s}
+              requestDate={requestDate}
+              prepLabel={calendar.prepLabel}
+              months={calendarMonthsOf(calendar.s, requestDate)}
             />
           </AdminPanel>
         )}

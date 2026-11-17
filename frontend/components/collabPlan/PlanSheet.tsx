@@ -22,9 +22,11 @@ import {
   TextArea,
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
-import { ArrowRight, FileText, Paperclip, RotateCcw, X } from "lucide-react";
+import { ArrowRight, Paperclip, RotateCcw, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
+import { FilePreviewModal, fileSizeText } from "@/components/collabPlan/FilePreview";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import {
   COURSE,
   ITEM_EXAMPLE,
@@ -48,7 +50,7 @@ import {
   PLAN_FILE_MAX,
   PLAN_FILE_MAX_COUNT,
   roundLabel,
-  scheduleLine,
+  scheduleParts,
   shownFields,
   storeText,
   type PlanContent,
@@ -56,32 +58,27 @@ import {
   type PlanFile,
   type PlanStore,
   type PlanVersion,
+  type SchedulePart,
 } from "@/lib/collabPlan";
 import { extractApiError } from "@/lib/apiError";
-import { openFileInNewTab } from "@/lib/openFileInNewTab";
 import { PREVIEW_TODAY, addDays, periodDays } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
 const NOTE_MAX = 300;
 
 /**
- * 추가 기획 첨부 받기 — 쓰는 쪽(어드민 · 광고주)이 자기 API 로 파일을 받아 준다. 누르면 새 탭(사진 · PDF) 또는 내려받기.
- * (2026-11-12 사용자: "첨부한 파일이 안 떠" · "어드민도 파일을 첨부할 수 있게")
+ * 추가 기획 첨부 받기 — 쓰는 쪽(어드민 · 광고주)이 자기 API 로 파일을 받아 준다. 누르면 미리보기 창(사진 · PDF), 그 밖은 내려받기.
+ * (2026-11-12 사용자: "첨부한 파일이 안 떠" · "어드민도 파일을 첨부할 수 있게", 11-17 "열기 말고 미리보기")
  */
 export interface PlanFileActions {
   load: (f: PlanFile) => Promise<Blob>;
   onError?: (err: unknown) => void;
 }
 
-function fileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-}
-
 /**
- * 첨부 파일 — 광고주 첨부 · admix 첨부 두 묶음(작은 회색 제목, 없는 묶음은 안 보임, 2026-11-12 사용자: "구분해 줘").
- * 줄은 아이콘 · 이름 · 크기 · 열기, 고치는 중이면 admix 파일에 빼기.
+ * 첨부 파일 — 광고주 첨부 · admix 첨부 두 묶음(2026-11-12 사용자: "구분해 줘").
+ * 묶음 이름(작은 회색 글)은 두 쪽 파일이 같이 있을 때만 — 한쪽뿐이면 뺀다(11-17 사용자: "광고주 첨부" 없애줘).
+ * 줄은 아이콘 · 이름 · 크기 · 미리보기, 고치는 중이면 admix 파일에 빼기.
  */
 function FileList({
   files,
@@ -92,19 +89,9 @@ function FileList({
   actions?: PlanFileActions;
   onRemove?: (f: PlanFile) => void;
 }) {
-  const [opening, setOpening] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PlanFile | null>(null);
+  const [open, setOpen] = useState(false);
   if (!files.length) return null;
-  const open = async (f: PlanFile) => {
-    if (!actions) return;
-    setOpening(f.id);
-    try {
-      await openFileInNewTab(() => actions.load(f), f.name);
-    } catch (err) {
-      actions.onError?.(err);
-    } finally {
-      setOpening(null);
-    }
-  };
   const groups = (["advertiser", "admix"] as const)
     .map((by) => ({ by, files: files.filter((f) => f.by === by) }))
     .filter((g) => g.files.length);
@@ -112,46 +99,60 @@ function FileList({
     <div className="flex flex-col gap-[10px]">
       {groups.map((g) => (
         <div key={g.by} className="flex flex-col gap-[6px]">
-          <span className="text-xs font-medium text-disabled">{AUTHOR_LABEL[g.by]} 첨부</span>
+          {groups.length > 1 && <span className="text-xs font-medium text-disabled">{AUTHOR_LABEL[g.by]} 첨부</span>}
           <ul className="flex flex-col gap-[6px]">
             {g.files.map((f) => (
               <FileRow
                 key={f.id}
                 file={f}
-                opening={opening === f.id}
-                onOpen={actions && (() => open(f))}
+                onPreview={
+                  actions &&
+                  (() => {
+                    setPreview(f);
+                    setOpen(true);
+                  })
+                }
                 onRemove={onRemove}
               />
             ))}
           </ul>
         </div>
       ))}
+      {actions && preview && (
+        <FilePreviewModal
+          key={preview.id}
+          file={preview}
+          load={() => actions.load(preview)}
+          isOpen={open}
+          onOpenChange={setOpen}
+          onError={actions.onError}
+        />
+      )}
     </div>
   );
 }
 
+/** 파일 한 줄 — 아이콘 · 이름 옆 크기(11-17 사용자: "파일명 오른쪽에") · 미리보기. */
 function FileRow({
   file: f,
-  opening,
-  onOpen,
+  onPreview,
   onRemove,
 }: {
   file: PlanFile;
-  opening: boolean;
-  onOpen?: () => void;
+  onPreview?: () => void;
   onRemove?: (f: PlanFile) => void;
 }) {
   return (
     <li className="flex min-w-0 items-center gap-[8px] rounded-[10px] border border-gray-200 bg-surface py-[6px] pr-[6px] pl-[12px]">
-      <FileText aria-hidden className="size-[16px] shrink-0 text-gray-500" />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="line-clamp-2 text-sm font-semibold break-all text-gray-800">{f.name}</span>
-        {f.size != null && <span className="text-xs text-disabled">{fileSize(f.size)}</span>}
+      <MaskIcon src="/icons/file-text.svg" className="size-[16px] shrink-0 text-gray-500" />
+      <span className="flex min-w-0 flex-1 items-baseline gap-[6px]">
+        <span className="min-w-0 truncate text-sm font-semibold text-gray-800">{f.name}</span>
+        {f.size != null && <span className="shrink-0 text-xs text-disabled">{fileSizeText(f.size)}</span>}
       </span>
       <span className="flex shrink-0 items-center gap-[4px]">
-        {onOpen && (
-          <Button size="sm" variant="tertiary" isPending={opening} onPress={onOpen} className="h-[30px] font-semibold">
-            열기
+        {onPreview && (
+          <Button size="sm" variant="tertiary" onPress={onPreview} className="h-[30px] font-semibold">
+            미리보기
           </Button>
         )}
         {onRemove && f.by === "admix" && (
@@ -259,18 +260,8 @@ function SameRow({ label, value, extra }: { label: string; value: ReactNode; ext
   );
 }
 
-/** 바뀐 항목 — 진한 이름표 + "수정", 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
-function ChangedRow({
-  label,
-  before,
-  after,
-  note,
-  beforeLabel,
-  afterLabel,
-  beforeExtra,
-  afterExtra,
-}: {
-  label: string;
+/** 수정 전 · 후 칸 값 — 바뀐 항목 줄과 기본안 묶음 안 바뀐 기본안이 같이 쓴다. */
+interface ChangeProps {
   before: ReactNode;
   after: ReactNode;
   note?: string;
@@ -279,38 +270,91 @@ function ChangedRow({
   /** 글 아래 덧붙임(추가 기획 첨부) — 수정 전 · 후 칸 안에. */
   beforeExtra?: ReactNode;
   afterExtra?: ReactNode;
-}) {
+}
+
+/** 진한 이름표 + "수정". */
+function ChangedLabel({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-[8px] sm:flex-col sm:items-start sm:gap-[6px]">
+      <span className="text-sm font-bold text-black">{label}</span>
+      <Chip size="sm" variant="soft" color="accent">
+        수정
+      </Chip>
+    </div>
+  );
+}
+
+/** 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
+function ChangeBody({ before, after, note, beforeLabel, afterLabel, beforeExtra, afterExtra }: ChangeProps) {
+  return (
+    <div className="flex min-w-0 flex-col gap-[10px]">
+      <div className="grid gap-[8px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
+        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+          <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
+          {before && <div className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</div>}
+          {beforeExtra}
+        </div>
+        <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 md:block" />
+        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+          <span className="text-xs font-medium text-disabled">{afterLabel}</span>
+          {after && (
+            <div className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</div>
+          )}
+          {afterExtra}
+        </div>
+      </div>
+      {note && (
+        <p className="whitespace-pre-wrap break-keep text-sm leading-[21px] text-gray-700">
+          <span className="mr-[6px] font-semibold text-black">수정 이유</span>
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** 바뀐 항목 — 진한 이름표 + "수정", 수정 전 → 수정 후, 아래에 수정 이유. */
+function ChangedRow({ label, ...change }: { label: string } & ChangeProps) {
   return (
     <li className={cn(ROW_GRID, "py-[16px]")}>
-      <div className="flex items-center gap-[8px] sm:flex-col sm:items-start sm:gap-[6px]">
-        <span className="text-sm font-bold text-black">{label}</span>
-        <Chip size="sm" variant="soft" color="accent">
-          수정
-        </Chip>
-      </div>
-      <div className="flex min-w-0 flex-col gap-[10px]">
-        <div className="grid gap-[8px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
-          <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
-            <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
-            {before && <div className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</div>}
-            {beforeExtra}
-          </div>
-          <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 md:block" />
-          <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
-            <span className="text-xs font-medium text-disabled">{afterLabel}</span>
-            {after && (
-              <div className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</div>
+      <ChangedLabel label={label} />
+      <ChangeBody {...change} />
+    </li>
+  );
+}
+
+/**
+ * 기본안 묶음 — 기본안 여러 줄을 이름표 "기본안" 하나 아래에 모은다(2026-11-17 사용자: "기본안과 추가 기획끼리 묶어서").
+ * 안쪽은 기본안 이름 | 값, 바뀐 기본안만 진한 이름 + "수정" · 수정 전 → 후 · 수정 이유.
+ */
+function ItemGroup({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: { key: string; label: string; value: ReactNode; change: ChangeProps | null }[];
+}) {
+  const changed = rows.some((r) => r.change);
+  return (
+    <li className={cn(ROW_GRID, changed ? "py-[16px]" : "py-[12px]")}>
+      <span className={cn("text-sm", changed ? "font-bold text-black" : "text-disabled")}>{label}</span>
+      <ul className="flex min-w-0 flex-col gap-[10px]">
+        {rows.map((r) => (
+          <li key={r.key} className="grid gap-[4px] sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-[12px]">
+            {r.change ? (
+              <>
+                <ChangedLabel label={r.label} />
+                <ChangeBody {...r.change} />
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-gray-500">{r.label}</span>
+                <div className="whitespace-pre-wrap break-keep text-sm text-gray-700">{r.value}</div>
+              </>
             )}
-            {afterExtra}
-          </div>
-        </div>
-        {note && (
-          <p className="whitespace-pre-wrap break-keep text-sm leading-[21px] text-gray-700">
-            <span className="mr-[6px] font-semibold text-black">수정 이유</span>
-            {note}
-          </p>
-        )}
-      </div>
+          </li>
+        ))}
+      </ul>
     </li>
   );
 }
@@ -336,32 +380,78 @@ function StoreNames({ stores, onStore }: { stores: PlanStore[]; onStore: (s: Pla
   );
 }
 
-/** 예상 비용 · 일정 — 차수에 적힌 값(참고용). 바뀌었으면 앞 → 뒤. */
-function DerivedRows({ before, after }: { before: PlanContent | null; after: PlanContent }) {
-  const rows = [
-    { label: "예상 비용", b: before && estimateLine(before), a: estimateLine(after) },
-    { label: "예상 일정", b: before && scheduleLine(before), a: scheduleLine(after) },
-  ].filter((r) => r.a && r.a !== "-");
-  if (!rows.length) return null;
+/** 지정 희망 매장 이름 — 누르면 새 탭으로 그 매장 상세(어드민 매장 관리, 2026-11-17 사용자). 밑줄 · 검정. */
+function StoreLinks({ stores, hrefOf }: { stores: PlanStore[]; hrefOf: (s: PlanStore) => string }) {
   return (
-    <dl className="flex flex-col gap-[8px] rounded-[12px] bg-gray-50 px-[14px] py-[12px]">
-      {rows.map((r) => (
-        <div key={r.label} className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px] text-sm">
-          <dt className="w-[64px] shrink-0 text-disabled">{r.label}</dt>
-          <dd className="min-w-0 flex-1 break-keep text-gray-700">
-            {r.b && r.b !== r.a ? (
-              <>
-                <span className="text-gray-400">{r.b}</span>
-                <ArrowRight aria-hidden className="mx-[6px] inline size-[13px] text-gray-400" />
-                <span className="font-semibold text-black">{r.a}</span>
-              </>
-            ) : (
-              r.a
-            )}
+    <span className="flex flex-wrap items-baseline gap-x-[6px] gap-y-[2px]">
+      {stores.map((s, i) => (
+        <span key={s.id} className="inline-flex items-baseline">
+          <a
+            href={hrefOf(s)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-black underline underline-offset-2"
+          >
+            {s.name}
+          </a>
+          {i < stores.length - 1 && <span aria-hidden>,</span>}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** 앞 값과 다르면 앞(흐리게) → 뒤(진하게). */
+function BeforeAfter({ b, a }: { b?: string | null; a: string }) {
+  if (!b || b === a) return <>{a}</>;
+  return (
+    <>
+      <span className="text-gray-400">{b}</span>
+      <ArrowRight aria-hidden className="mx-[6px] inline size-[13px] text-gray-400" />
+      <span className="font-semibold text-black">{a}</span>
+    </>
+  );
+}
+
+/** 예상 일정 칸 — 모집 공지 · 설치 · 철수를 줄마다 나눠 이름 | 날짜(2026-11-17 사용자: "구분해서 보여줘"). */
+function ScheduleParts({ parts, prev = [] }: { parts: SchedulePart[]; prev?: SchedulePart[] }) {
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-[12px] gap-y-[4px]">
+      {parts.map((p) => (
+        <div key={p.label} className="contents">
+          <dt className="text-gray-500">{p.label}</dt>
+          <dd className="min-w-0 break-keep text-gray-700">
+            <BeforeAfter b={prev.find((x) => x.label === p.label)?.value} a={p.value} />
           </dd>
         </div>
       ))}
-      <p className="text-xs text-disabled">예상 값이에요. 확정 뒤 실제 매장 · 일정에 따라 바뀔 수 있어요.</p>
+    </dl>
+  );
+}
+
+/** 예상 비용 · 일정 — 차수에 적힌 값(참고용). 바뀌었으면 앞 → 뒤. 아래 안내 글은 뺐다(11-17 사용자). */
+function DerivedRows({ before, after }: { before: PlanContent | null; after: PlanContent }) {
+  const cost = estimateLine(after);
+  const parts = scheduleParts(after.schedule);
+  if (cost === "-" && !parts.length) return null;
+  return (
+    <dl className="flex flex-col gap-[8px] rounded-[12px] bg-gray-50 px-[14px] py-[12px] text-sm">
+      {cost !== "-" && (
+        <div className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
+          <dt className="w-[64px] shrink-0 text-disabled">예상 비용</dt>
+          <dd className="min-w-0 flex-1 break-keep text-gray-700">
+            <BeforeAfter b={before && estimateLine(before)} a={cost} />
+          </dd>
+        </div>
+      )}
+      {parts.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
+          <dt className="w-[64px] shrink-0 text-disabled">예상 일정</dt>
+          <dd className="min-w-0 flex-1">
+            <ScheduleParts parts={parts} prev={before ? scheduleParts(before.schedule) : []} />
+          </dd>
+        </div>
+      )}
     </dl>
   );
 }
@@ -369,6 +459,7 @@ function DerivedRows({ before, after }: { before: PlanContent | null; after: Pla
 /**
  * 수정 전 · 후 비교 — 모든 항목을 의뢰서 순서대로 보이고, 바뀐 항목만 모양을 달리한다(이름표 진하게 + "수정" · 수정 전 → 후 · 수정 이유).
  * (2026-11-13 사용자: "그대로인 항목을 밑에 따로 분리하지 말고 다 보여주되 수정된 것만 다르게") before 가 없으면(1차 의뢰서뿐) 모두 그대로인 줄.
+ * 기본안은 한 묶음으로(ItemGroup, 11-17 사용자).
  */
 export function PlanCompare({
   before,
@@ -378,6 +469,7 @@ export function PlanCompare({
   afterLabel = "수정 후",
   fileActions,
   onStore,
+  storeHref,
 }: {
   before: PlanVersion | null;
   after: PlanVersion;
@@ -388,17 +480,61 @@ export function PlanCompare({
   fileActions?: PlanFileActions;
   /** 지정 희망 매장 이름을 누르면 — 없으면 이름 글자만. */
   onStore?: (s: PlanStore) => void;
+  /** 지정 희망 매장 이름을 새 탭 링크로(어드민 매장 상세) — 주면 onStore 대신. */
+  storeHref?: (s: PlanStore) => string;
 }) {
   const fields = shownFields(before?.content, after.content);
   const changed = new Set(before ? changedKeys(before.content, after.content) : []);
   const extraOf = (k: PlanFieldKey, c: PlanContent | undefined) =>
     k === "extraPlan" && filesOf(c).length ? <FileList files={filesOf(c)} actions={fileActions} /> : undefined;
-  const valueOf = (c: PlanContent, k: PlanFieldKey): ReactNode =>
-    k === "preferred" && onStore && c.preferred.length ? (
-      <StoreNames stores={c.preferred} onStore={onStore} />
+  const valueOf = (c: PlanContent, k: PlanFieldKey): ReactNode => {
+    if (k === "preferred" && c.preferred.length) {
+      if (storeHref) return <StoreLinks stores={c.preferred} hrefOf={storeHref} />;
+      if (onStore) return <StoreNames stores={c.preferred} onStore={onStore} />;
+    }
+    return fieldText(c, k);
+  };
+  const changeOf = (k: PlanFieldKey): ChangeProps | null =>
+    before && changed.has(k)
+      ? {
+          before: valueOf(before.content, k),
+          after: valueOf(after.content, k),
+          note: notes[k],
+          beforeLabel,
+          afterLabel,
+          beforeExtra: extraOf(k, before.content),
+          afterExtra: extraOf(k, after.content),
+        }
+      : null;
+  const itemFields = fields.filter((f) => f.key.startsWith("item:"));
+  const rows = fields.map((f) => {
+    if (f.key.startsWith("item:")) {
+      if (f !== itemFields[0]) return null;
+      return (
+        <ItemGroup
+          key="items"
+          label="기본안"
+          rows={itemFields.map((x) => ({
+            key: x.key,
+            label: ITEM_LABEL[x.key.slice(5) as BaseItem],
+            value: valueOf(after.content, x.key),
+            change: changeOf(x.key),
+          }))}
+        />
+      );
+    }
+    const change = changeOf(f.key);
+    return change ? (
+      <ChangedRow key={f.key} label={f.label} {...change} />
     ) : (
-      fieldText(c, k)
+      <SameRow
+        key={f.key}
+        label={f.label}
+        value={valueOf(after.content, f.key)}
+        extra={extraOf(f.key, after.content)}
+      />
     );
+  });
   return (
     <div className="flex flex-col">
       {before && !changed.size && (
@@ -406,30 +542,7 @@ export function PlanCompare({
           바꾼 항목이 없어요 — {roundLabel(before)} 내용 그대로예요.
         </p>
       )}
-      <ul className="flex flex-col divide-y divide-gray-100">
-        {fields.map((f) =>
-          changed.has(f.key) && before ? (
-            <ChangedRow
-              key={f.key}
-              label={f.label}
-              before={valueOf(before.content, f.key)}
-              after={valueOf(after.content, f.key)}
-              note={notes[f.key]}
-              beforeLabel={beforeLabel}
-              afterLabel={afterLabel}
-              beforeExtra={extraOf(f.key, before.content)}
-              afterExtra={extraOf(f.key, after.content)}
-            />
-          ) : (
-            <SameRow
-              key={f.key}
-              label={f.label}
-              value={valueOf(after.content, f.key)}
-              extra={extraOf(f.key, after.content)}
-            />
-          ),
-        )}
-      </ul>
+      <ul className="flex flex-col divide-y divide-gray-100">{rows}</ul>
       <div className="pt-[16px]">
         <DerivedRows before={before?.content ?? null} after={after.content} />
       </div>
@@ -957,8 +1070,8 @@ export function PlanEditor({
           </div>
           <div className="flex flex-wrap items-baseline gap-x-[10px]">
             <dt className="w-[64px] shrink-0 text-disabled">예상 일정</dt>
-            <dd className="min-w-0 flex-1 break-keep text-gray-700">
-              모집 공지 {mdw(d.schedule.noticeDate)} · 설치 {mdw(d.schedule.installStart)} · 철수 {mdw(d.schedule.removalDate)}
+            <dd className="min-w-0 flex-1">
+              <ScheduleParts parts={scheduleParts(d.schedule)} />
             </dd>
           </div>
           <p className="text-xs text-disabled">지금 보내면 기준으로 다시 계산한 예상 값이에요.</p>
