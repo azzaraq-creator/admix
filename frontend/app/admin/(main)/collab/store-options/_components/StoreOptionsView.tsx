@@ -16,26 +16,15 @@ import {
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { extractApiError } from "@/lib/apiError";
-import {
-  noteTone,
-  PARTNERS_NOTE_MAX_LEN,
-  PARTNERS_TAG_MAX_LEN,
-  type StoreType,
-} from "@/lib/partners";
+import { type StoreType } from "@/lib/partners";
 
-import { ChipInput } from "../../_components/ChipInput";
 import { CollabPageHead } from "../../_components/collabUi";
 
 const NAME_MAX = 20;
-const NOTE_CHIP_COLOR = {
-  no: "danger",
-  ok: "success",
-  info: "default",
-} as const;
 
 /**
- * 매장 유형 관리(/admin/collab/store-options) — 매장 유형(카페 · 식당 …)마다 "매장 어필" 칩 값과
- * 자주 쓰는 "조건 메모" 값을 정한다(2026-11-09 사용자, 070). 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
+ * 매장 유형 관리(/admin/collab/store-options) — 매장 유형(카페 · 식당 …)을 추가 · 이름 수정 · 삭제만 한다(070).
+ * 유형별 매장 어필 칩 · 자주 쓰는 조건 메모는 2026-11-17 사용자 요청으로 없앴다("매장 유형만 추가하고 수정하고 삭제").
  * 값은 쉼표(,)로 칩을 만들며 적는다.
  */
 export function StoreOptionsView() {
@@ -48,10 +37,7 @@ export function StoreOptionsView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="매장 유형 관리"
-        desc="매장 유형마다 매장 어필 칩과 자주 쓰는 조건 메모를 정해요. 매장 화면에서 유형을 고르면 여기 값이 칩으로 보여요."
-      >
+      <CollabPageHead title="매장 유형 관리">
         <Button variant="primary" onPress={() => setAdding(true)}>
           <Plus className="size-[16px]" />
           유형 추가
@@ -93,7 +79,7 @@ export function StoreOptionsView() {
           </Tabs>
           {/* 유형을 바꾸면 편집 칸을 새로 — 저장 안 한 글이 다른 유형으로 넘어가지 않게. */}
           <TypeEditor
-            key={`${current.id}-${current.name}-${current.tags.join()}-${current.notes.join()}`}
+            key={`${current.id}-${current.name}`}
             type={current}
             onDeleted={() => setPicked(null)}
           />
@@ -124,12 +110,7 @@ function TypeEditor({
   const { confirm, alert, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
   const [name, setName] = useState(type.name);
-  const [tags, setTags] = useState(type.tags);
-  const [notes, setNotes] = useState(type.notes);
-  const dirty =
-    name.trim() !== type.name ||
-    tags.join("\n") !== type.tags.join("\n") ||
-    notes.join("\n") !== type.notes.join("\n");
+  const dirty = name.trim() !== type.name;
 
   const save = async () => {
     if (!name.trim()) {
@@ -142,7 +123,7 @@ function TypeEditor({
     try {
       await update.mutateAsync({
         id: type.id,
-        payload: { name: name.trim(), tags, notes },
+        payload: { name: name.trim() },
       });
       success("매장 유형을 저장했어요.");
     } catch (err) {
@@ -158,8 +139,8 @@ function TypeEditor({
     const ok = await confirm({
       title: `'${type.name}' 유형을 지울까요?`,
       description: type.storeCount
-        ? `이 유형인 매장 ${type.storeCount}곳은 "미지정"이 돼요. 매장에 들어간 칩 · 조건 메모는 그대로 남아요.`
-        : "이 유형의 칩 · 조건 값이 함께 지워져요.",
+        ? `이 유형인 매장 ${type.storeCount}곳은 "미지정"이 돼요.`
+        : undefined,
       confirmText: "삭제",
     });
     if (!ok) return;
@@ -195,36 +176,6 @@ function TypeEditor({
         />
       </OptionRow>
       <Separator />
-      <OptionRow
-        label="매장 어필 칩"
-        count={tags.length}
-        help="매장 화면에서 눌러 고르는 해시태그예요. 광고주 카드에는 3개까지 보여요."
-      >
-        <ChipInput
-          ariaLabel="매장 어필 칩 값"
-          placeholder="직접 입력 — 쉼표(,)로 구분해요. 예: 뷰맛집, 포토존"
-          values={tags}
-          onChange={setTags}
-          maxLength={PARTNERS_TAG_MAX_LEN}
-          prefix="#"
-        />
-      </OptionRow>
-      <Separator />
-      <OptionRow
-        label="자주 쓰는 조건 메모"
-        count={notes.length}
-        help="매장 화면 조건 메모에서 눌러 넣어요. “불가 · 없음”은 빨강, “가능”은 초록으로 보여요."
-      >
-        <ChipInput
-          ariaLabel="자주 쓰는 조건 메모 값"
-          placeholder="직접 입력 — 쉼표(,)로 구분해요. 예: 포스터 부착 불가, 신규 메뉴 가능"
-          values={notes}
-          onChange={setNotes}
-          maxLength={PARTNERS_NOTE_MAX_LEN}
-          colorOf={(n) => NOTE_CHIP_COLOR[noteTone(n)]}
-        />
-      </OptionRow>
-      <Separator />
 
       <div className="flex items-center justify-between gap-[8px]">
         <Button
@@ -242,8 +193,6 @@ function TypeEditor({
               variant="tertiary"
               onPress={() => {
                 setName(type.name);
-                setTags(type.tags);
-                setNotes(type.notes);
               }}
             >
               되돌리기
@@ -298,7 +247,7 @@ function OptionRow({
   );
 }
 
-/** 유형 추가 — 이름만 받고 만든 뒤 그 유형 탭으로 간다(값은 탭에서 채운다). */
+/** 유형 추가 — 이름만 받고 만든 뒤 그 유형 탭으로 간다. */
 function AddTypeModal({
   isOpen,
   onOpenChange,
@@ -325,9 +274,6 @@ function AddTypeModal({
             <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
               유형 추가
             </Modal.Heading>
-            <p className="text-sm text-disabled">
-              예: 베이커리, 주점. 만든 뒤 칩 · 조건 값을 채워 주세요.
-            </p>
           </Modal.Header>
           {isOpen && (
             <AddTypeBody

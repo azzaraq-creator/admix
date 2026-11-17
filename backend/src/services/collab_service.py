@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from src.config import get_settings
 from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto, CollabReportFile
 from src.models.member_profile import BusinessRegistration
-from src.models.partners_store import PartnersStore, PartnersStoreRequest
+from src.models.partners_store import PartnersStore, PartnersStoreMember, PartnersStoreRequest
 from src.models.user import User
 from src.services import collab_request_service
 from src.services import partners_service as ps
@@ -633,7 +633,7 @@ def admin_progress(db: Session) -> list[dict]:
     ):
         confirmed.setdefault(p.collab_id, []).append(p)
     # 매장 응답(참여 · 미참여 · 아직) — 답할 수 있는 매장 전부 기준(11-12 사용자).
-    stores = db.query(PartnersStore).options(joinedload(PartnersStore.owner)).all()
+    stores = db.query(PartnersStore).options(selectinload(PartnersStore.members).joinedload(PartnersStoreMember.user)).all()
     tally: dict = {}
     for store_rows in _store_responses(db, stores).values():
         for rc, kind, _ in store_rows:
@@ -674,12 +674,14 @@ RESPONSE_KINDS = ("joined", "passed", "silent", "waiting")
 
 
 def _answerable_since(store: PartnersStore) -> date | None:
-    """이 매장이 콜라보 참여 여부를 답할 수 있게 된 날(KST). 연결 회원이 없거나 협약 전이면 None.
-    매장을 회원에 연결한 때는 따로 남지 않아 매장 등록일 · 협약일 중 늦은 날로 본다."""
-    owner = store.owner
-    if owner is None or owner.partner_agreed_at is None:
-        return None
-    return max(owner.partner_agreed_at, store.created_at).astimezone(KST).date()
+    """이 매장이 콜라보 참여 여부를 답할 수 있게 된 날(KST). 협약한 연결 회원이 없으면 None.
+    예전 연결은 연결한 때가 남지 않아 매장 등록일 · 협약일 중 늦은 날로 보고, 연결 회원이 여럿이면(094) 가장 이른 날."""
+    days = [
+        max(u.partner_agreed_at, store.created_at).astimezone(KST).date()
+        for u in store.member_users
+        if u.partner_agreed_at is not None
+    ]
+    return min(days) if days else None
 
 
 def _store_responses(db: Session, stores: list[PartnersStore]) -> dict:
@@ -733,7 +735,7 @@ def attach_store_responses(db: Session, items: list[dict]) -> None:
         except (KeyError, ValueError):
             pass
     stores = (
-        db.query(PartnersStore).options(joinedload(PartnersStore.owner)).filter(PartnersStore.id.in_(ids)).all()
+        db.query(PartnersStore).options(selectinload(PartnersStore.members).joinedload(PartnersStoreMember.user)).filter(PartnersStore.id.in_(ids)).all()
         if ids
         else []
     )
@@ -751,7 +753,7 @@ def admin_store_collabs(db: Session, store_id: str) -> dict:
     try:
         store = (
             db.query(PartnersStore)
-            .options(joinedload(PartnersStore.owner))
+            .options(selectinload(PartnersStore.members).joinedload(PartnersStoreMember.user))
             .filter(PartnersStore.id == uuid.UUID(str(store_id)))
             .first()
         )
@@ -890,7 +892,9 @@ def _detail(db: Session, c: Collab) -> dict:
     parts = (
         db.query(CollabParticipant)
         .options(
-            joinedload(CollabParticipant.store).joinedload(PartnersStore.owner),
+            joinedload(CollabParticipant.store)
+            .selectinload(PartnersStore.members)
+            .joinedload(PartnersStoreMember.user),
             selectinload(CollabParticipant.photos),
         )
         .filter(CollabParticipant.collab_id == c.id)
@@ -907,7 +911,11 @@ def _detail(db: Session, c: Collab) -> dict:
 
 
 def _admin_participant(c: Collab, p: CollabParticipant, rank: int | None) -> dict:
-    s, owner = p.store, (p.store.owner if p.store else None)
+    # 연락할 회원 — 신청한 회원, 없으면(어드민이 넣음) 먼저 연결한 회원(094 매장 연결 회원 여럿).
+    s = p.store
+    owner = next((u for u in s.member_users if u.id == p.user_id), None) if s else None
+    if owner is None and s and s.member_users:
+        owner = s.member_users[0]
     standing, slot = _standing(c, p, rank, False)
     return dict(
         id=str(p.id),
@@ -990,7 +998,7 @@ def _get_participant(db: Session, participant_id: str) -> CollabParticipant:
 
 
 def admin_add_participant(db: Session, collab_id: str, store_code: str) -> dict:
-    """전화 등으로 받은 신청을 어드민이 대신 넣는다 — 매장 ID(S-0001)."""
+    """전화 등으로 받은 신청을 어드민이 대신 넣는다 — 매장 ID(S-XXXX-XXXX, 소문자 · 하이픈 없이도)."""
     c = _get_collab(db, collab_id)
     raw = ps.normalize_store_code(store_code)
     store = db.query(PartnersStore).filter(PartnersStore.store_code == raw).first()
@@ -1006,7 +1014,12 @@ def admin_add_participant(db: Session, collab_id: str, store_code: str) -> dict:
         existing.closed_at = None
     else:
         db.add(
-            CollabParticipant(collab_id=c.id, store_id=store.id, user_id=store.owner_user_id, status="applied")
+            CollabParticipant(
+                collab_id=c.id,
+                store_id=store.id,
+                user_id=store.members[0].user_id if store.members else None,
+                status="applied",
+            )
         )
     db.commit()
     return _detail(db, c)
@@ -1193,7 +1206,7 @@ def admin_summary(db: Session) -> dict:
         )
         .scalar()
     )
-    has_store =db.query(PartnersStore.id).filter(PartnersStore.owner_user_id == User.id).exists()
+    has_store = db.query(PartnersStoreMember.id).filter(PartnersStoreMember.user_id == User.id).exists()
     collabs = db.query(Collab).all()
     phases: dict[str, int] = {}
     for c in collabs:
@@ -1224,7 +1237,7 @@ def admin_summary(db: Session) -> dict:
         advertisers=dict(bizReviewing=advertiser_biz_reviewing),
         stores=dict(
             total=db.query(func.count(PartnersStore.id)).scalar(),
-            unlinked=db.query(func.count(PartnersStore.id)).filter(PartnersStore.owner_user_id.is_(None)).scalar(),
+            unlinked=db.query(func.count(PartnersStore.id)).filter(~PartnersStore.members.any()).scalar(),
             hidden=db.query(func.count(PartnersStore.id)).filter(PartnersStore.status == "hidden").scalar(),
         ),
         requestsPending=db.query(func.count(PartnersStoreRequest.id))

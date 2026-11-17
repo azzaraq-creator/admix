@@ -341,6 +341,40 @@
   }
 }
 
+/*
+ * 콜라보 소개(/partners, PartnersLanding [data-partners-landing]) 배경 그라데이션 — 11-17 사용자 "배경이 너무 밋밋한데 그라데이션 넣어봐".
+ * 본문 상자(최대 1120px)가 아니라 본문 스크롤 영역(main) 전체에 깐다 — 상자 가장자리에서 빛이 잘려 보이지 않게.
+ * background-attachment: local 이라 내용과 같이 스크롤되고, 위치(%)는 스크롤 영역 전체 기준 · 크기는 px(%면 휴대폰에서 세로로 긴 띠가 된다).
+ * admix 심볼 색(보라 · 하늘 · 분홍 · 파랑)을 아주 옅게. 다크 모드는 더 옅게.
+ */
+main:has([data-partners-landing]) {
+  --landing-a: 0.42;
+  --landing-b: 0.14;
+  background-image:
+    radial-gradient(760px 560px at 80% 380px, rgb(183 163 242 / var(--landing-a)), transparent 70%),
+    radial-gradient(560px 420px at 0% 0%, rgb(56 189 248 / var(--landing-b)), transparent 70%),
+    radial-gradient(620px 520px at 100% 42%, rgb(255 95 162 / calc(var(--landing-b) * 0.8)), transparent 70%),
+    radial-gradient(660px 560px at 0% 64%, rgb(109 139 255 / var(--landing-b)), transparent 70%),
+    radial-gradient(820px 480px at 70% 97%, rgb(183 163 242 / calc(var(--landing-a) * 0.65)), transparent 70%);
+  background-attachment: local;
+  background-repeat: no-repeat;
+}
+html.dark main:has([data-partners-landing]) {
+  --landing-a: 0.16;
+  --landing-b: 0.07;
+}
+
+/* 콜라보 소개(/partners) 첫 화면 맨 아래 아래 화살표 — 천천히 살짝 내려갔다 올라온다(PartnersLanding ScrollCue). */
+@keyframes partners-landing-cue {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
 @keyframes admix-like-pop {
   0% {
     transform: scale(1);

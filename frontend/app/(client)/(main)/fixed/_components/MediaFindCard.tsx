@@ -189,7 +189,7 @@ function MediaFindCardImpl({
     row.images?.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
   // 이동매체는 정해진 위치가 없어 주소 대신 운행 지역을 보여 준다.
   const area = row.mediaSource === "MOVING" ? row.operatingArea : null;
-  // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간·매장 특징(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 정보 팝업.
+  // 콜라보 매장 — 광고비·기획안 담기 대신 운영 시간(제휴사 "내 매장" 미리보기와 같은 모양). 누르면 매장 정보 팝업.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   // 콜라보 매장 사진마다 분류(외관 · 내관 …) — 큰 카드 사진 왼쪽 아래 이름표(11-12 사용자). 간략히 보기(88px)엔 없다.
   const photoKinds = partners ? row.partners?.photoKinds : undefined;
@@ -319,7 +319,8 @@ function MediaFindCardImpl({
                   검색한 매체
                 </Chip>
               )}
-              {row.badge && <MediaBadgeChip badge={row.badge} />}
+              {/* 인기 · 신규는 광고 매체만 — 콜라보 매장엔 붙이지 않는다(11-17 사용자). */}
+              {row.badge && !partners && <MediaBadgeChip badge={row.badge} />}
               {/* 쉘터 정류장 번호 — 매체명 바로 앞(매체 정보 팝업과 같은 자리). */}
               {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
               <p className="truncate text-[14px] leading-[18px] font-bold text-black max-sm:text-[13px]">
@@ -434,7 +435,8 @@ function MediaFindCardImpl({
               검색한 매체
             </Chip>
           )}
-          {row.badge && <MediaBadgeChip badge={row.badge} />}
+          {/* 인기 · 신규는 광고 매체만 — 콜라보 매장엔 붙이지 않는다(11-17 사용자: "매장 찾기에서 매장은 인기, 신규 칩을 빼줘"). */}
+          {row.badge && !partners && <MediaBadgeChip badge={row.badge} />}
           {/* 쉘터 정류장 번호 — 매체명 바로 앞(매체 정보 팝업과 같은 자리). */}
           {row.stopNo && <StopNoChip stopNo={row.stopNo} />}
           <p className="truncate pl-[2px] text-[16px] max-sm:text-[14px] leading-[19px] font-bold text-black">
@@ -491,11 +493,10 @@ function MediaFindCardImpl({
       <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
 
       {pick ? (
-        // 광고주 매장 찾기 — 운영 시간 · 매장 특징 옆에 1건 금액(광고비 칸 자리).
+        // 광고주 매장 찾기 — 운영 시간 옆에 1건 금액(광고비 칸 자리).
         <div className="flex items-end justify-between gap-[12px] p-[10px]">
           <PartnersCardDetails
             businessHours={row.partners?.businessHours}
-            tags={row.partners?.tags}
             className="min-w-0 flex-1"
           />
           <CollabFeeCell pick={pick} />
@@ -503,7 +504,6 @@ function MediaFindCardImpl({
       ) : partners ? (
         <PartnersCardDetails
           businessHours={row.partners?.businessHours}
-          tags={row.partners?.tags}
           className="p-[10px]"
         />
       ) : (

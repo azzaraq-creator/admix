@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -25,7 +25,7 @@ def _utcnow() -> datetime:
 
 
 class PartnersStoreType(Base):
-    """매장 유형(카페 · 식당 …) — 유형마다 "매장 어필" 칩 값과 자주 쓰는 "조건 메모" 값을 둔다(070).
+    """매장 유형(카페 · 식당 …, 070) — 이름만 쓴다(11-17 사용자: 유형별 매장 어필 칩 · 조건 메모 없앰, 칸만 남음).
     어드민 "콜라보 → 매장 유형 관리"에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다(직접 입력도 된다)."""
 
     __tablename__ = "cafe_store_type"
@@ -33,8 +33,8 @@ class PartnersStoreType(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(20), nullable=False, unique=True)
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
-    tags = Column(JSONB, nullable=False, default=list, server_default="[]")  # 매장 어필 칩 값
-    notes = Column(JSONB, nullable=False, default=list, server_default="[]")  # 자주 쓰는 조건 메모
+    tags = Column(JSONB, nullable=False, default=list, server_default="[]")  # 예전 매장 어필 칩 값 — 11-17 없앰, 읽고 쓰지 않음
+    notes = Column(JSONB, nullable=False, default=list, server_default="[]")  # 예전 자주 쓰는 조건 메모 — 11-17 없앰, 읽고 쓰지 않음
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -43,12 +43,11 @@ class PartnersStore(Base):
     __tablename__ = "cafe_store"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # 매장 ID(S-0001) — 담당자가 미리 등록해 두고, 제휴사 회원 고유번호와 이 번호로 잇는다(069).
+    # 매장 ID — 담당자가 미리 등록해 두고, 제휴사 회원과 이 번호로 잇는다(069). 094부터 무작위 S-XXXX-XXXX
+    # (헷갈리는 0 · O · 1 · I · L 은 빼고, 11-17 사용자: "매장ID를 좀 어렵게") — partners_service.new_store_code.
     store_code = Column(String(12), nullable=True, unique=True)
-    # 연결된 제휴사 회원 — 한 회원이 매장 여러 곳을 가질 수 있다. 아직 연결 전이면 비어 있다.
-    owner_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
-    )
+    # 예전 연결 회원 칸(cafe_store.owner_user_id)은 094부터 쓰지 않는다 — 연결 회원은 members(cafe_store_member, 여러 명).
+    # 배포 때 옛 코드가 잠깐 읽을 수 있어 DB 칸은 남겨 두었다(다음 마이그레이션에서 지운다).
     # 매체 찾기에 보이는 media 줄(CF-0001). 숨김이거나 좌표가 없으면 비어 있다.
     media_id = Column(
         String(20), ForeignKey("media.media_id", ondelete="SET NULL"), nullable=True, unique=True
@@ -74,9 +73,15 @@ class PartnersStore(Base):
     image_dates = Column(JSONB, nullable=False, default=dict, server_default="{}")
     phone = Column(String(30), nullable=True)  # 매장 전화 또는 사장님 휴대폰
     owner_name = Column(String(100), nullable=True)
-    tags = Column(JSONB, nullable=False, default=list, server_default="[]")  # 매장 어필(개수 제한 없음, 카드에서는 3개 + "+N")
-    # 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능"처럼 콜라보 때 참고할 매장 조건(어드민이 적는다, 개수 제한 없음, 069).
+    tags = Column(JSONB, nullable=False, default=list, server_default="[]")  # 예전 매장 어필 — 11-17 사용자 요청으로 없앰, 읽고 쓰지 않음
+    # 예전 조건 메모(069) — 11-17 가능 범위(scope)로 바뀌어 읽고 쓰지 않는다(칸만 남음).
     notes = Column(JSONB, nullable=False, default=list, server_default="[]")
+    # 가능 범위(093) — {"print": "ok", "goods": "no", …} 항목마다 가능 · 불가능(partners_service.SCOPE_ITEMS), 고르지 않은 항목은 없다.
+    scope = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    # 주요 고객층 · 소개(2~3줄) · 규모(좌석 수) — 093, 어드민 매장 정보 탭 · 영업 기록 매장 정보에서 적는다(11-17 사용자).
+    main_customers = Column(String(100), nullable=True)
+    intro = Column(String(300), nullable=True)
+    seats = Column(Integer, nullable=True)
     # 운영 시간 글(화면에 보이는 것) — 어드민 입력값(hours)이 있으면 서버가 그 값으로 만든다.
     business_hours = Column(String(300), nullable=True)
     # 운영 시간 입력값 — {"slots": [{"days": daily|weekday|weekend, "open": "10:00", "close": "22:00"}] (2개까지),
@@ -92,8 +97,39 @@ class PartnersStore(Base):
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
-    owner = relationship("User")
     store_type = relationship("PartnersStoreType")
+    # 연결 회원 — 먼저 연결한 순(094).
+    members = relationship(
+        "PartnersStoreMember",
+        back_populates="store",
+        order_by="PartnersStoreMember.created_at",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def member_users(self) -> list:
+        """연결 회원(User) — 먼저 연결한 순."""
+        return [m.user for m in self.members if m.user is not None]
+
+
+class PartnersStoreMember(Base):
+    """매장 연결 회원(094) — 매장 하나에 제휴사 회원 여럿, 회원 하나에 매장 여럿(11-17 사용자: "n:1도 되게").
+    대표 · 매니저를 나누지 않고 권한은 모두 같다(사용자: "구분 안 하고 권한 똑같이").
+    via — admin 담당자가 연결 · request 회원이 매장 ID로 연결 요청 → 어드민 승인 · lead 영업 기록 회원 연결."""
+
+    __tablename__ = "cafe_store_member"
+    __table_args__ = (UniqueConstraint("store_id", "user_id", name="uq_cafe_store_member"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id = Column(
+        UUID(as_uuid=True), ForeignKey("cafe_store.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    via = Column(String(20), nullable=False, default="admin", server_default="admin")
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    store = relationship("PartnersStore", back_populates="members")
+    user = relationship("User")
 
 
 class PartnersStoreRequest(Base):
@@ -107,8 +143,9 @@ class PartnersStoreRequest(Base):
         UUID(as_uuid=True), ForeignKey("cafe_store.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    # 바꿀 항목 — name · address · hours · phone · owner_name · tags · notes(partners_service.REQUEST_FIELDS).
+    # 바꿀 항목 — name · address · hours · phone · owner_name · scope(partners_service.REQUEST_FIELDS). 예전 tags · notes는 기록만.
     # "inquiry" 는 추가 요청 · 문의(글은 content, 11-12). 예전 자유 입력은 비어 있다.
+    # "link_store" 는 매장 연결 요청(094) — 아직 연결되지 않은 회원(user_id)이 매장 ID로 이 매장(store_id)에 연결을 요청한다.
     field = Column(String(20), nullable=True)
     # "무엇에서 → 무엇으로" 글(서버가 만든다). before_text 는 반영할 때 그때 매장 값으로 다시 맞춘다.
     before_text = Column(Text, nullable=True)

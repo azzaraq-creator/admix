@@ -153,7 +153,7 @@ export function MediaPopupCard({
 }) {
   const slides =
     row.images.length > 0 ? row.images : [row.thumbnailUrl ?? undefined];
-  // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간 · 매장 특징(목록 카드와 같다). 누르면 매장 정보 팝업.
+  // 콜라보 매장은 금액 · 기획안 담기 대신 운영 시간(목록 카드와 같다). 누르면 매장 정보 팝업.
   const partners = row.categoryLarge === PARTNERS_MEDIA_CATEGORY;
   const pick = partners ? collabPick : undefined;
   const access = partners ? partnersAccess : undefined;
@@ -386,7 +386,6 @@ export function MediaPopupCard({
             <div className="mt-[10px] flex items-end justify-between gap-[8px] border-t border-gray-200 pt-[8px]">
               <PartnersCardDetails
                 businessHours={row.partners?.businessHours}
-                tags={row.partners?.tags}
                 className="min-w-0 flex-1"
               />
               {accessMark}

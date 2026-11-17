@@ -71,7 +71,7 @@ interface StoreTableColumn {
 
 /**
  * 칸 순서 — No · 매장 ID · 등급 · 대표 사진 · 매장명 · 유형 · 주소 · 콜라보 금액 · 연결 회원 · 콜라보 응답 · 생성 · 업데이트 일시(2026-11-12 사용자).
- * 매장 어필 · 매체 찾기 ID · 상태는 목록에서 뺐다(매장 상세에서 본다). 비공개 매장만 매장명 옆에 흐리게 "비공개".
+ * 매체 찾기 ID · 상태는 목록에서 뺐다(매장 상세에서 본다). 비공개 매장만 매장명 옆에 흐리게 "비공개".
  */
 const COLUMNS: StoreTableColumn[] = [
   {
@@ -152,14 +152,23 @@ const COLUMNS: StoreTableColumn[] = [
   {
     id: "owner",
     label: "연결 회원",
+    // 연결 회원이 여럿이면(094) 먼저 연결한 회원과 "외 N명" — 사업자 상태는 첫 회원.
     render: (s) =>
-      s.ownerUserId ? (
+      s.members.length ? (
         <span className="flex flex-col gap-[4px]">
           <span>
-            <span className="font-semibold">{s.ownerPartnerCode ?? "-"}</span>{" "}
-            {s.ownerMemberName || s.ownerLoginId}
+            <span className="font-semibold">
+              {s.members[0].partnerCode ?? "-"}
+            </span>{" "}
+            {s.members[0].name || s.members[0].loginId}
+            {s.members.length > 1 && (
+              <span className="text-disabled">
+                {" "}
+                외 {s.members.length - 1}명
+              </span>
+            )}
           </span>
-          <BizStatusBadge status={bizStatusLabel(s.ownerBizStatus)} />
+          <BizStatusBadge status={bizStatusLabel(s.members[0].bizStatus)} />
         </span>
       ) : (
         muted("연결 전")
@@ -171,7 +180,7 @@ const COLUMNS: StoreTableColumn[] = [
     label: "콜라보 응답",
     render: (s) => {
       const r = s.collabResponses;
-      if (!s.ownerUserId || !r) return muted("-");
+      if (!s.members.length || !r) return muted("-");
       return (
         <span className="whitespace-nowrap">
           참여 <b>{r.joined}</b> · 미참여 {r.passed} · 무응답 {r.silent}

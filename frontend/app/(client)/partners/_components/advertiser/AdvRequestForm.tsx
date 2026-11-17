@@ -796,10 +796,8 @@ function RequestForm({
         <ArrowLeft className="size-[16px]" />
         뒤로가기
       </Button>
-      <PageHead
-        title={editing ? "의뢰 고치기" : "새 콜라보 의뢰"}
-        description="콜라보 기본안과 기간을 적어 보내면 admix가 검토한 뒤 매장 모집을 시작해요."
-      />
+      {/* 제목 아래 설명("콜라보 기본안과 기간을 적어 보내면 admix가 검토한 뒤 매장 모집을 시작해요.")은 뺐다(11-17 사용자 "없애줘"). */}
+      <PageHead title={editing ? "의뢰 고치기" : "새 콜라보 의뢰"} />
       {d.reviewNote && (
         <p className="rounded-[18px] bg-error-bg/70 px-[16px] py-[12px] text-[14px] break-keep text-error ring-1 ring-red-200 ring-inset dark:ring-red-900/60">
           <b>admix 보완 요청</b> · {d.reviewNote}

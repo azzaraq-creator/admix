@@ -42,17 +42,24 @@ import {
   adminCollabApi,
   useBizAction,
   useCollabMember,
+  useCollabRequests,
   useLinkStore,
   useUnlinkStore,
   useUpdateCollabMember,
+  useUpdateStoreRequest,
 } from "@/hooks/adminCollab";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
+import { copyText } from "@/lib/clipboard";
 import { dotDateTime, type BizAction } from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import { bizStatusLabel } from "@/lib/bizStatus";
 import { isOptimizable, mediaSrc } from "@/lib/media";
-import type { AdminPartnerMember, AdminPartnersStore } from "@/lib/partners";
+import {
+  STORE_LINK_FIELD,
+  type AdminPartnerMember,
+  type AdminPartnersStore,
+} from "@/lib/partners";
 import {
   formatPhone,
   formatPhoneInput,
@@ -186,7 +193,7 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
   const copyCode = async () => {
     if (!member.partnerCode) return;
     try {
-      await navigator.clipboard.writeText(member.partnerCode);
+      await copyText(member.partnerCode);
       success("고유번호를 복사했어요.", member.partnerCode);
     } catch {
       error("복사하지 못했어요.");
@@ -710,6 +717,76 @@ function AgreementPdfRow({
   );
 }
 
+/**
+ * 이 회원이 보낸 매장 연결 요청(094) — 확인 중인 것만, 연결 매장 위에. "연결 승인"하면 바로 연결 회원이 된다.
+ * 처리 불가(사유 필수)는 수정 요청 화면에서 한다.
+ */
+function LinkRequests({ memberId }: { memberId: string }) {
+  const { data } = useCollabRequests({
+    user_id: memberId,
+    field: STORE_LINK_FIELD,
+    status: "pending",
+    page: 1,
+    page_size: 10,
+  });
+  const router = useRouter();
+  const update = useUpdateStoreRequest();
+  const { success, error } = useSonner();
+  const items = data?.items ?? [];
+  if (items.length === 0) return null;
+  const approve = async (id: string, name: string) => {
+    try {
+      await update.mutateAsync({ id, payload: { status: "done" } });
+      success("매장에 연결했어요.", name);
+    } catch (err) {
+      error("연결하지 못했어요.", extractApiError(err));
+    }
+  };
+  return (
+    <ul className="flex flex-col gap-[8px]">
+      {items.map((r) => {
+        const name = [r.storeCode, r.storeName].filter(Boolean).join(" ");
+        return (
+          <li
+            key={r.id}
+            className="flex flex-wrap items-center justify-between gap-[8px] rounded-[14px] bg-amber-50 px-[16px] py-[12px] text-sm"
+          >
+            <span className="flex min-w-0 flex-wrap items-center gap-x-[8px] gap-y-[2px]">
+              <b className="font-semibold text-black">매장 연결 요청</b>
+              <Link
+                href={`/admin/collab/stores/${r.storeId}`}
+                className="min-w-0 truncate text-black underline-offset-2 hover:underline"
+              >
+                {name || "(지운 매장)"}
+              </Link>
+              <span className="text-xs text-disabled">
+                {dotDateTime(r.createdAt)}
+              </span>
+            </span>
+            <span className="flex shrink-0 gap-[8px]">
+              <Button
+                size="sm"
+                variant="tertiary"
+                onPress={() => router.push("/admin/collab/requests")}
+              >
+                요청 보기
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                isDisabled={update.isPending}
+                onPress={() => approve(r.id, name)}
+              >
+                연결 승인
+              </Button>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function StoresSection({ member }: { member: AdminPartnerMember }) {
   const link = useLinkStore();
   const unlink = useUnlinkStore();
@@ -717,20 +794,10 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
   const { success } = useSonner();
   const [searching, setSearching] = useState(false);
 
-  /** 매장 검색 창에서 고른 매장 — 다른 회원 매장이면 옮길지 묻는다. */
+  /** 매장 검색 창에서 고른 매장 — 다른 회원이 연결돼 있어도 같이 연결된다(094, 매장 하나에 회원 여럿). */
   const doLink = async (store: AdminPartnersStore) => {
     setSearching(false);
     if (!store.storeCode) return;
-    if (store.ownerUserId && store.ownerUserId !== member.id) {
-      const owner =
-        `${store.ownerPartnerCode ?? ""} ${store.ownerMemberName || store.ownerCompanyName || store.ownerLoginId || ""}`.trim();
-      const ok = await confirm({
-        title: "이 회원으로 옮길까요?",
-        description: `${store.name}은(는) 지금 ${owner || "다른 회원"}에게 연결돼 있어요. 옮기면 그 회원의 내 매장에서 빠져요.`,
-        confirmText: "옮기기",
-      });
-      if (!ok) return;
-    }
     try {
       await link.mutateAsync({ id: member.id, storeCode: store.storeCode });
       success("매장을 연결했어요.", `${store.storeCode} ${store.name}`);
@@ -776,6 +843,7 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
         </Link>
       }
     >
+      <LinkRequests memberId={member.id} />
       {member.stores.length === 0 && (
         <p className="rounded-[14px] bg-gray-50 px-[16px] py-[18px] text-center text-sm text-disabled">
           아직 연결한 매장이 없어요.
@@ -832,7 +900,7 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
           {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
         </Button>
         <p className="text-xs leading-[18px] text-disabled">
-          어드민에 등록한 매장을 골라 연결해요. 다른 회원에게 연결돼 있던 매장이면 이 회원으로 옮겨요.
+          어드민에 등록한 매장을 골라 연결해요. 다른 회원이 연결된 매장이면 함께 연결돼요.
         </p>
       </div>
       <StoreSearchModal

@@ -13,6 +13,8 @@ import {
   type CollabRequestMine,
   type CollabRequestPayload,
   type PartnersStore,
+  type StoreLinkLookup,
+  type StoreLinkRequest,
   type StoreRequest,
   type StoreRequestPayload,
 } from "@/lib/partners";
@@ -39,6 +41,24 @@ export const partnersApi = {
     api
       .get<{ items: StoreRequest[] }>(`/partners/me/stores/${storeId}/requests`)
       .then((r) => r.data.items),
+  /** 매장 연결 요청(094) — 내가 보낸 요청(최근 순 10건). */
+  storeLinks: () =>
+    api
+      .get<{ items: StoreLinkRequest[] }>("/partners/me/store-links")
+      .then((r) => r.data.items),
+  /** 매장 ID로 매장 이름 · 주소 미리 보기. */
+  lookupStoreLink: (code: string) =>
+    api
+      .get<StoreLinkLookup>("/partners/me/store-links/lookup", {
+        params: { code },
+      })
+      .then((r) => r.data),
+  createStoreLink: (code: string) =>
+    api
+      .post<StoreLinkRequest>("/partners/me/store-links", { code })
+      .then((r) => r.data),
+  cancelStoreLink: (id: string) =>
+    api.delete(`/partners/me/store-links/${id}`).then(() => undefined),
   /** 항목 하나의 새 값을 보낸다 — 같은 항목에 확인 중인 요청이 있으면 그 요청이 바뀐다. */
   createStoreRequest: (storeId: string, payload: StoreRequestPayload) =>
     api
@@ -253,6 +273,9 @@ export const partnersKeys = {
     [...partnersKeys.collabs(), "store", storeId] as const,
   recruiting: () => [...partnersKeys.collabs(), "recruiting"] as const,
   storeTypeNames: () => [...partnersKeys.all, "storeTypeNames"] as const,
+  storeLinks: () => [...partnersKeys.all, "storeLinks"] as const,
+  storeLinkLookup: (code: string) =>
+    [...partnersKeys.all, "storeLinkLookup", code] as const,
 };
 
 /** 매장 유형 이름 — 광고주 매장 찾기 탭(전체 · 카페 · 식당 …). 자주 바뀌지 않아 5분 동안 다시 받지 않는다. */
@@ -317,6 +340,57 @@ export const useMyPartnersStores = () => {
     queryKey: partnersKeys.mine(),
     queryFn: partnersApi.myStores,
     enabled: me?.member_category === "partner",
+  });
+};
+
+/** 내 매장 연결 요청(094) — 담당자가 처리하면 바뀌므로 창으로 돌아올 때마다 다시 받는다. */
+export const useStoreLinks = () => {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: partnersKeys.storeLinks(),
+    queryFn: partnersApi.storeLinks,
+    enabled: me?.member_category === "partner",
+    refetchOnWindowFocus: true,
+  });
+};
+
+/** 매장 ID 미리 보기 — 다 친 매장 ID(S-XXXX-XXXX)만. 못 찾으면 오류(다시 시도하지 않는다). */
+export const useStoreLinkLookup = (code: string | null) =>
+  useQuery({
+    queryKey: partnersKeys.storeLinkLookup(code ?? ""),
+    queryFn: () => partnersApi.lookupStoreLink(code!),
+    enabled: Boolean(code),
+    retry: false,
+    staleTime: 0,
+  });
+
+export const useCreateStoreLink = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => partnersApi.createStoreLink(code),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: partnersKeys.storeLinks(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [...partnersKeys.all, "storeLinkLookup"],
+      });
+    },
+  });
+};
+
+export const useCancelStoreLink = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partnersApi.cancelStoreLink(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: partnersKeys.storeLinks(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [...partnersKeys.all, "storeLinkLookup"],
+      });
+    },
   });
 };
 

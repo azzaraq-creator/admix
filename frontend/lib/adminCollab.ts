@@ -78,7 +78,15 @@ export interface AdminAdvertiserMember {
 export interface CollabRequestListParams extends PageParams {
   status?: string;
   store_id?: string;
+  /** 회원 상세 — 그 회원이 보낸 요청만(094). */
+  user_id?: string;
+  /** 요청 항목 — 매장 연결 요청은 "link_store"(094). */
+  field?: string;
+  /** 유형 묶음 — link 매장 연결 · add 매장 추가 · field 정보 수정 · inquiry 추가 요청 · 문의(11-17). */
+  kind?: StoreRequestKind;
 }
+
+export type StoreRequestKind = "link" | "add" | "field" | "inquiry";
 
 /**
  * 광고주 콜라보 의뢰(081) 목록 조건 — status: new(아직 안 연 것) · viewed(연 것) · cancelled(광고주가 취소, 084) ·
@@ -327,10 +335,19 @@ export function toLocalInput(iso: string | null | undefined) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** 고유번호 입력 정리 — p1 · 0001 · P0001 → P-0001(서버도 같은 규칙으로 찾는다). */
+/**
+ * 고유번호 입력 정리 — p1 · 0001 · P0001 → P-0001(서버도 같은 규칙으로 찾는다).
+ * 매장 ID(S)는 094부터 무작위 8자 — s7kq2m9xd · 7KQ2-M9XD → S-7KQ2-M9XD.
+ */
 export function normalizeCode(raw: string, prefix: "P" | "S") {
   const t = raw.trim().toUpperCase().replaceAll(" ", "");
   if (!t) return "";
+  if (prefix === "S") {
+    const clean = t.replace(/[^0-9A-Z]/g, "");
+    const body =
+      clean.length === 9 && clean.startsWith("S") ? clean.slice(1) : clean;
+    return body.length === 8 ? `S-${body.slice(0, 4)}-${body.slice(4)}` : t;
+  }
   const digits = t.replace(new RegExp(`^${prefix}-?`), "");
   return /^\d+$/.test(digits) ? `${prefix}-${digits.padStart(4, "0")}` : t;
 }

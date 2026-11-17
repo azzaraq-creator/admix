@@ -156,7 +156,7 @@ def test_link_lead_to_partner(db: Session):
         )
         assert made["partnerCode"] == code and made["storeCode"].startswith("S-")
         store = db.get(PartnersStore, uuid.UUID(made["storeId"]))
-        assert store.owner_user_id == partner.id and store.status == "hidden"
+        assert [m.user_id for m in store.members] == [partner.id] and store.status == "hidden"
 
         # 숫자만 적어도 같은 회원
         got = ls.update_lead(db, made["id"], {"partnerCode": code.removeprefix("P-")})
@@ -178,13 +178,13 @@ def test_link_lead_to_partner(db: Session):
         assert ls.update_lead(db, made["id"], {"note": "메모"})["partnerCode"] == code
         assert ls.update_lead(db, made["id"], {"partnerCode": ""})["partnerCode"] == ""
         db.refresh(store)
-        assert store.owner_user_id is None  # 매장 연결 회원도 끊긴다(확정은 그대로)
+        assert store.members == []  # 매장 연결 회원도 끊긴다(확정은 그대로)
         assert ls.get_lead(db, made["id"])["storeId"] == str(store.id)
 
         # 목록에도 같은 값
         ls.update_lead(db, made["id"], {"partnerCode": code})
         db.refresh(store)
-        assert store.owner_user_id == partner.id
+        assert [m.user_id for m in store.members] == [partner.id]
         _, items = ls.list_leads(db, keyword=made["name"])
         assert [i["partnerCode"] for i in items] == [code]
 
@@ -237,7 +237,7 @@ def test_link_partner_needs_address_and_cancel_unlinks(db: Session):
         )
         store_id = got["storeId"]
         st = db.get(PartnersStore, uuid.UUID(store_id))
-        assert st.owner_user_id == partner.id and float(st.latitude) == 37.5
+        assert [m.user_id for m in st.members] == [partner.id] and float(st.latitude) == 37.5
 
         res = ls.cancel_lead(db, made["id"])
         store_id = None

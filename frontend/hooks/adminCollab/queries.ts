@@ -26,7 +26,7 @@ export const useCollabAdminSummary = (enabled = true, pollMs?: number) =>
     refetchInterval: pollMs,
   });
 
-/** 매장 유형(카페 · 식당 …)과 유형별 매장 어필 · 조건 메모 값 — 매장 폼 · 매장 유형 관리 화면. */
+/** 매장 유형(카페 · 식당 …) — 매장 폼 · 매장 유형 관리 화면. */
 export const useStoreTypes = () =>
   useQuery({
     queryKey: adminCollabKeys.storeTypes(),

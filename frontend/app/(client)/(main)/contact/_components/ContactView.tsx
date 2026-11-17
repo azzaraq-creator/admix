@@ -16,6 +16,7 @@ import { WriteIcon } from "@/components/icons";
 import { Footer } from "@/components/layout/Footer";
 import { useMe } from "@/hooks/auth";
 import { useSonner } from "@/hooks/useSonner";
+import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 import { setLoginModalOpen } from "../../_components/useLoginModal";
@@ -182,7 +183,7 @@ export function ContactView({ member = false }: { member?: boolean }) {
 
   const copy = async (text: string, what: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
     } catch (error) {
       void error;
     }

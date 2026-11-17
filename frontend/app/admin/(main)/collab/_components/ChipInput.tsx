@@ -16,7 +16,7 @@ const cleanChip = (raw: string) =>
 /**
  * 칩 입력칸 — 적다가 쉼표(,)를 누르면 앞의 글이 칩으로 완성된다(2026-11-09 사용자). Enter · 칸을 벗어날 때도 칩이 된다.
  * 쉼표로 여러 개를 한 번에 붙여 넣어도 나눠 넣는다. 빈 칸에서 Backspace 는 마지막 칩을 지운다.
- * 매장 폼(매장 어필 · 조건 메모)과 매장 유형 관리(유형별 값)가 같이 쓴다.
+ * 영업 기록 폼 등이 쓴다.
  */
 export function ChipInput({
   values,
@@ -34,7 +34,7 @@ export function ChipInput({
   placeholder?: string;
   /** 칩 한 개 글자 수 상한. */
   maxLength: number;
-  /** 칩 앞에 붙여 보이는 글자 — 매장 어필은 "#". */
+  /** 칩 앞에 붙여 보이는 글자(예: "#"). */
   prefix?: string;
   colorOf?: (value: string) => ChipColor;
   className?: string;

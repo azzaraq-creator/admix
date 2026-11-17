@@ -764,8 +764,7 @@ function AgreementBody({
                 setSubmitted(true);
                 goStage("document");
                 toast("동의를 접수했어요", {
-                  description:
-                    "담당자가 매장을 연결하면 콜라보에 참여할 수 있어요.",
+                  description: "매장을 연결하면 콜라보에 참여할 수 있어요.",
                   timeout: TOAST_TIMEOUT,
                 });
               }}
@@ -780,7 +779,8 @@ function AgreementBody({
               onNext={
                 fromMenu || storeRegistered
                   ? undefined
-                  : () => router.push("/partners/dashboard")
+                  : // 가입 03 매장 연결 — 매장 ID로 연결 요청하거나 담당자에게 맡긴다(094, 11-17).
+                    () => router.push("/partners/join/store")
               }
             />
           )}

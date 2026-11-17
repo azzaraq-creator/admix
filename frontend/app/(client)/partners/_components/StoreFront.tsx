@@ -16,8 +16,11 @@ import { ChevronRight, Search, Star } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 
-import { ChipInput } from "@/app/admin/(main)/collab/_components/ChipInput";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
+import {
+  CollabScopeChips,
+  CollabScopeRadios,
+} from "@/components/common/CollabScope";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { MediaImage } from "@/components/common/MediaImage";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
@@ -37,18 +40,15 @@ import {
 } from "@/components/icons";
 import { useCreateStoreRequest, useStoreRequests } from "@/hooks/partners";
 import { useSonner } from "@/hooks/useSonner";
+import { copyText } from "@/lib/clipboard";
 import { extractApiError } from "@/lib/apiError";
 import type { DaumPostcodeResult } from "@/lib/daumPostcode";
 import { coordsOfAddress } from "@/lib/kakaoMap";
 import { mediaSrc } from "@/lib/media";
 import {
   coverImageUrls,
-  NOTE_TONE_CHIP,
-  noteTone,
   PARTNERS_MEDIA_CATEGORY,
   PARTNERS_MEDIA_SMALL,
-  PARTNERS_NOTE_MAX_LEN,
-  PARTNERS_TAG_MAX_LEN,
   PHOTO_KIND_LABEL,
   PHOTO_KINDS,
   photoKindLabel,
@@ -60,6 +60,9 @@ import {
   STORE_INQUIRY_LABEL,
   STORE_INQUIRY_MAX_LEN,
   STORE_REQUEST_FIELDS,
+  scopeEntries,
+  scopeText,
+  type CollabScope,
   type PartnersStore,
   type PhotoKind,
   type StoreAddressValue,
@@ -224,7 +227,6 @@ function TitleBar({
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-[12px]">
-      {/* 매장 ID(S-0001)는 담당자용이라 제휴사 화면엔 보이지 않는다(2026-11-09 사용자). */}
       <h1 className="min-w-0 text-[22px] leading-[1.35] font-bold break-keep text-gray-900 sm:text-[26px]">
         {store.name}
       </h1>
@@ -258,8 +260,7 @@ function TitleBar({
 
 /**
  * ② 광고주에게 보이는 화면 미리보기 — 매체 찾기 목록 카드(MediaFindCard)와 같은 모양:
- * 점으로 넘기는 사진(누르면 크게 보기) · 매장명 · 주소 · 분류 칩, 아래에 운영 시간 · 매장 특징(칩).
- * 매장 특징이 없으면 실제로는 줄째 안 보이지만, 미리보기에선 어디에 보이는지 점선 안내를 둔다.
+ * 점으로 넘기는 사진(누르면 크게 보기) · 매장명 · 주소 · 분류 칩, 아래에 운영 시간.
  */
 function PreviewCard({
   store,
@@ -339,16 +340,10 @@ function PreviewFrame({
           </div>
         </div>
         <div className="mx-[10px] mt-[10px] border-t border-gray-200" />
-        {/* 운영 시간 + 매장 특징 칩 — 홈 카드와 같은 컴포넌트. 특징이 없으면 홈에선 줄째 빠지고, 미리보기에만 안내. */}
+        {/* 운영 시간 — 홈 카드와 같은 컴포넌트. */}
         <PartnersCardDetails
           businessHours={store.businessHours}
-          tags={store.tags}
           className="p-[10px]"
-          emptyTags={
-            <span className="rounded-[8px] border border-dashed border-gray-300 px-[8px] py-[2px] text-[11px] leading-[16.5px] break-keep text-gray-400">
-              매장 특징을 설정하시면 여기에 보입니다.
-            </span>
-          }
         />
       </div>
     </div>
@@ -478,9 +473,6 @@ const BIZ: Record<string, { label: string; tone: "green" | "amber" | "red" }> =
     rejected: { label: "사업자 인증 반려", tone: "red" },
   };
 
-/** 조건 메모 칩 색 — lib/partners NOTE_TONE_CHIP(매장 정보 팝업과 같다). */
-const NOTE_CHIP = NOTE_TONE_CHIP;
-
 /** 항목의 지금 값 — 우리 매장 정보 · 수정 요청 창 "현재 내용" 칸에 보이는 글. 비었으면 null. */
 function storeFieldText(
   store: PartnersStore,
@@ -499,16 +491,14 @@ function storeFieldText(
       return store.phone || null;
     case "owner_name":
       return store.ownerName || null;
-    case "tags":
-      return store.tags.join(", ") || null;
-    case "notes":
-      return store.notes.join(", ") || null;
+    case "scope":
+      return scopeText(store.scope);
   }
 }
 
 /**
  * ③ 우리 매장 정보 — 한 줄씩 읽기만. 줄을 누르면 그 항목의 수정 요청 창(11-10 사용자: "원하는 부분을 선택해서").
- * 확인 중인 요청이 있는 줄은 "확인 중". 조건(포스터 부착 불가 · 신규 메뉴 가능 …)은 담당자가 적은 메모를 칩으로.
+ * 확인 중인 요청이 있는 줄은 "확인 중". 가능 범위는 고른 항목을 칩으로(가능 초록 · 불가능 빨강).
  * 설명 줄은 임시 승인일 때만 — 사업자등록증을 꼭 올려 달라는 부탁(11-10 사용자).
  * 맨 아래 "추가 요청 · 문의" — 위 줄에 없는 것(사진 · 콜라보 …)도 글로 보낸다(11-12 사용자).
  */
@@ -536,24 +526,10 @@ function ProfileCard({
     { field: "hours", value: store.businessHours },
     { field: "phone", value: store.phone },
     { field: "owner_name", value: store.ownerName },
-    { field: "tags", value: store.tags.join(", ") },
     {
-      field: "notes",
-      value: store.notes.length ? (
-        <span className="flex flex-wrap gap-[6px]">
-          {store.notes.map((n) => (
-            <Chip
-              key={n}
-              size="sm"
-              className={cn(
-                "h-[24px] rounded-[9px] px-[8px] text-[12px] font-semibold",
-                NOTE_CHIP[noteTone(n)],
-              )}
-            >
-              {n}
-            </Chip>
-          ))}
-        </span>
+      field: "scope",
+      value: scopeEntries(store.scope).length ? (
+        <CollabScopeChips scope={store.scope} />
       ) : null,
     },
   ];
@@ -646,6 +622,7 @@ function ProfileCard({
           );
         })}
       </ul>
+      <StoreIdBlock store={store} />
       {/* 추가 요청 · 문의 — 옆 카드가 더 길면 카드 맨 아래에 붙는다(mt-auto). */}
       <div className="mt-auto flex items-center justify-between gap-[12px] rounded-[14px] bg-gray-50 py-[10px] pr-[10px] pl-[14px]">
         <p className="min-w-0 text-[13px] leading-[19px] break-keep text-gray-500 max-sm:text-[12px] max-sm:leading-[18px]">
@@ -661,6 +638,68 @@ function ProfileCard({
         </Button>
       </div>
     </PanelCard>
+  );
+}
+
+/**
+ * 매장 ID · 연결 회원(094, 11-17 사용자: "n:1도 되게") — 함께 운영하는 분이 이 매장 ID로 연결을 요청하면 담당자가 승인해 잇는다.
+ * 예전엔 매장 ID를 담당자용으로 숨겼다(11-09) — 연결 요청에 쓰게 되어 복사 버튼과 함께 보인다.
+ * 연결된 회원끼리 대표 · 매니저를 나누지 않는다(권한 같음). 줄 모양은 위 정보 줄과 이름 칸을 맞춘다.
+ */
+function StoreIdBlock({ store }: { store: PartnersStore }) {
+  const { success, error } = useSonner();
+  if (!store.storeCode) return null;
+  const code = store.storeCode;
+  const members = store.linkedMembers ?? [];
+  const copy = async () => {
+    try {
+      await copyText(code);
+      success("매장 ID를 복사했어요.", code);
+    } catch {
+      error("복사하지 못했어요.", code);
+    }
+  };
+  return (
+    // 왼쪽 여백 없이 카드 안쪽 끝에 붙인다(11-17 사용자: "왼쪽 여백 없애줘" — 예전엔 위 줄 체크 칸만큼 26 · 28px 들였다).
+    <div className="flex flex-col gap-[6px] border-t border-gray-100 pt-[14px] text-[14px] leading-[20px] max-sm:text-[13px]">
+      <dl className="contents">
+        <div className="flex items-center gap-[10px] max-sm:flex-col max-sm:items-start max-sm:gap-[2px]">
+          <dt className="w-[64px] shrink-0 text-gray-500 max-sm:w-auto max-sm:text-[12px] max-sm:leading-[18px]">
+            매장 ID
+          </dt>
+          <dd className="flex min-w-0 flex-1 items-center gap-[8px]">
+            <span className="font-semibold tracking-[0.02em] text-gray-900">
+              {code}
+            </span>
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={copy}
+              className="h-[26px] min-w-0 rounded-[10px] px-[8px] text-[12px] font-semibold"
+            >
+              복사
+            </Button>
+          </dd>
+        </div>
+        {members.length > 0 && (
+          <div className="flex items-start gap-[10px] max-sm:flex-col max-sm:gap-[2px]">
+            <dt className="w-[64px] shrink-0 text-gray-500 max-sm:w-auto max-sm:text-[12px] max-sm:leading-[18px]">
+              연결 회원
+            </dt>
+            <dd className="min-w-0 flex-1 break-keep text-gray-900">
+              {members.map((m, i) => (
+                <span key={i}>
+                  {m.name}
+                  {m.isMe && <span className="text-gray-400"> (나)</span>}
+                  {i < members.length - 1 && ", "}
+                </span>
+              ))}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {/* "함께 운영하는 분은 이 매장 ID로 연결을 요청할 수 있어요." 안내는 뺐다(11-17 사용자). */}
+    </div>
   );
 }
 
@@ -929,6 +968,7 @@ function valueKey(field: StoreRequestField, v: unknown): string {
     const a = v as StoreAddressValue;
     return `${a.address.trim()}|${(a.address_detail ?? "").trim()}`;
   }
+  if (field === "scope") return scopeText(v as CollabScope) ?? "";
   if (v == null) return "";
   if (typeof v === "string") return v.split(/\s+/).join(" ").trim();
   return JSON.stringify(v);
@@ -954,22 +994,13 @@ function currentValue(store: PartnersStore, field: StoreRequestField): unknown {
       return store.phone ?? "";
     case "owner_name":
       return store.ownerName ?? "";
-    case "tags":
-      return store.tags;
-    case "notes":
-      return store.notes;
+    case "scope":
+      return store.scope;
   }
 }
 
 /** 창 안 칸 이름 글자. 입력칸은 HeroUI secondary(칩 입력칸과 같은 바탕). */
 const FIELD_LABEL = "text-[13px] font-semibold text-gray-700";
-
-/** 조건 메모 칩 색(입력칸) — 안 되는 것 빨강 · 되는 것 초록. */
-const NOTE_INPUT_COLOR = {
-  no: "danger",
-  ok: "success",
-  info: "default",
-} as const;
 
 /**
  * 수정 요청 창 — 고른 항목의 새 값을 넣어 보낸다. 주소는 카카오 우편번호 검색, 운영 시간은 요일 · 시간 · 휴무일 입력.
@@ -1007,8 +1038,10 @@ function RequestModal({
   );
   // 예전에 글로만 적어 입력칸으로 못 옮긴 운영 시간 — 새로 넣으면 바뀐다고 알려 준다.
   const legacyHours = field === "hours" ? hoursFromStore(store).legacy : "";
-  const [list, setList] = useState<string[]>(
-    Array.isArray(initial) ? (initial as string[]) : [],
+  const [scope, setScope] = useState<CollabScope>(() =>
+    field === "scope" && initial && typeof initial === "object"
+      ? (initial as CollabScope)
+      : store.scope,
   );
   const [memo, setMemo] = useState(pending?.memo ?? "");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1021,8 +1054,8 @@ function RequestModal({
       ? address
       : field === "hours"
         ? hoursPayload(hours)
-        : field === "tags" || field === "notes"
-          ? list
+        : field === "scope"
+          ? scope
           : field === "name"
             ? text.trim()
             : text.trim() || null;
@@ -1191,27 +1224,8 @@ function RequestModal({
                         </p>
                       )}
                     </div>
-                  ) : field === "tags" || field === "notes" ? (
-                    <ChipInput
-                      ariaLabel={label}
-                      placeholder={
-                        field === "tags"
-                          ? "예) 뷰맛집, 주차가능 — 쉼표(,)로 구분해요."
-                          : "예) 포스터 부착 불가 — 쉼표(,)로 구분해요."
-                      }
-                      values={list}
-                      onChange={setList}
-                      maxLength={
-                        field === "tags"
-                          ? PARTNERS_TAG_MAX_LEN
-                          : PARTNERS_NOTE_MAX_LEN
-                      }
-                      colorOf={
-                        field === "notes"
-                          ? (n) => NOTE_INPUT_COLOR[noteTone(n)]
-                          : undefined
-                      }
-                    />
+                  ) : field === "scope" ? (
+                    <CollabScopeRadios value={scope} onChange={setScope} />
                   ) : (
                     <Input
                       variant="secondary"

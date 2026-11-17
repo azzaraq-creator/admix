@@ -12,7 +12,6 @@ import {
   TextField,
 } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 
 import {
@@ -20,6 +19,7 @@ import {
   ChevronRightIcon,
   FileTextIcon,
 } from "@/components/icons";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { SignaturePad } from "@/components/common/SignaturePad";
 import { authKeys, useMe, useUploadBusinessRegistration } from "@/hooks/auth";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -808,7 +808,7 @@ function DocTable({
   );
 }
 
-/** onNext 가 없으면(메뉴 "기본 협약"으로 들어옴) 아래 "완료하기"(대시보드로)를 그리지 않는다. */
+/** onNext 가 없으면(메뉴 "기본 협약"으로 들어옴) 아래 "완료하기"(가입 03 매장 연결로)를 그리지 않는다. */
 export function DocumentStage({
   onNext,
   signature,
@@ -836,20 +836,15 @@ export function DocumentStage({
           />
         </div>
         {/* 모바일은 머리에서 빼고 아래 계약서 카드 안 버튼으로(11-08 사용자: "깔끔하게 정리").
-            흰 버튼 + PDF 아이콘(public/icons/pdf.svg, 11-10 사용자). 아이콘 그림은 그림자 여백이 커서 음수 여백으로 버튼 높이를 지킨다. */}
+            흰 버튼 + 내려받기 아이콘(public/icons/download.svg, 11-17 사용자) — 마스크라 글자색을 따른다(다크 모드 포함).
+            (PDF 아이콘 pdf.svg(11-10) → DownloadIcon → 아이콘 없음을 거쳤다.) */}
         <Button
           variant="outline"
           isPending={pdf.pending}
           onPress={pdf.download}
-          className="h-[40px] gap-[2px] rounded-[17px] border-gray-200 bg-white pr-[14px] pl-[6px] text-[13px] font-semibold text-gray-800 max-sm:hidden dark:bg-surface"
+          className="h-[40px] gap-[6px] rounded-[17px] border-gray-200 bg-white pr-[15px] pl-[14px] text-[13px] font-semibold text-gray-800 max-sm:hidden dark:bg-surface"
         >
-          <Image
-            src="/icons/pdf.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="-my-[8px] shrink-0"
-          />
+          <MaskIcon src="/icons/download.svg" className="size-[13px]" />
           PDF 다운로드
         </Button>
       </div>
@@ -922,11 +917,11 @@ export function DocumentStage({
         />
       )}
 
-      {/* 다음 — 대시보드로(매장은 담당자가 연결해 준다, 2026-11-09). 버튼 글은 "완료하기"(11-10 사용자: 완료하기 · 시작하기 · 마치기 중에서). */}
+      {/* 다음 — 가입 03 매장 연결(/partners/join/store, 094 · 11-17). 버튼 글은 "완료하기"(11-10 사용자: 완료하기 · 시작하기 · 마치기 중에서). */}
       {onNext && (
         <div className="mt-[20px] flex flex-wrap items-center justify-between gap-[12px] border-t border-gray-100 pt-[18px]">
           <p className="text-[13px] break-keep text-gray-500">
-            담당자가 매장을 연결하면 콜라보에 참여할 수 있어요.
+            다음 단계에서 매장을 연결해요.
           </p>
           <Button
             variant="primary"

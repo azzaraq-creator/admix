@@ -176,7 +176,6 @@ export interface StoreRef {
   image?: string | null;
   /** 예시 매장만 — 공간 · 분위기 칩. */
   spaces?: string[];
-  tags?: string[];
   /** 예시 매장만 — 하루 영수증 수(예상 소진율 계산용, 광고주에게 숫자는 보이지 않는다). */
   dailyReceipts?: number;
   /** 예시 매장만 — 다른 브랜드 콜라보로 잡힌 기간(설치 ~ 철수). 1매장 1진행 · 일정 조정 확인용. */
@@ -192,7 +191,6 @@ export function refOfStore(s: PartnersStore): StoreRef {
     grade: s.collabGrade ?? null,
     fee: s.collabFee ?? null,
     image: s.imageUrls[0] ?? null,
-    tags: s.tags,
   };
 }
 
@@ -206,13 +204,6 @@ const SPACES = [
   ["카운터 옆 진열대", "입구 쪽 벽면"],
   ["쇼케이스 하단", "테이블 사이 선반"],
   ["창가 선반", "포스터 벽면"],
-];
-const TAGS = [
-  ["좌석 넓음", "작업하기 좋은"],
-  ["감성 인테리어", "사진 명소"],
-  ["디저트 강점", "주말 웨이팅"],
-  ["조용한", "단골 많음"],
-  ["루프탑", "반려동물 동반"],
 ];
 const RECEIPTS = [140, 95, 210, 130, 160, 110, 175, 125, 190, 100, 145, 165, 115, 200, 135, 155, 105, 185, 120, 170];
 const gradeOf = (i: number): CollabGrade =>
@@ -236,7 +227,6 @@ export const EXAMPLE_STORES: StoreRef[] = (() => {
         grade,
         fee: i === 0 ? 1_600_000 : COLLAB_GRADE_FEE[grade],
         spaces: SPACES[i % SPACES.length],
-        tags: TAGS[i % TAGS.length],
         dailyReceipts: RECEIPTS[i % RECEIPTS.length],
         // 예시 카페 Q — 브랜드 A 철수(기준일 +18일) 8일 뒤부터 다른 브랜드 콜라보. A 일정을 8일 넘게 미루면 조정할 수 없다.
         busy: i === 16 ? [{ from: addDays(PREVIEW_TODAY, 26), to: addDays(PREVIEW_TODAY, 40) }] : undefined,

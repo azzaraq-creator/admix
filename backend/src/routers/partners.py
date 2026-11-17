@@ -1,6 +1,7 @@
 """콜라보 — /partners 대시보드 API(/api/v1/partners/...).
 
-- 제휴사(콜라보) 회원: 내 매장 보기(등록 · 수정은 어드민만, 069) · 수정 요청, 콜라보 신청 · 확정 · 사진 · 재입고 요청.
+- 제휴사(콜라보) 회원: 내 매장 보기(등록 · 수정은 어드민만, 069) · 수정 요청, 콜라보 신청 · 확정 · 사진 · 재입고 요청,
+  매장 ID로 매장 연결 요청(094 — 매장 하나에 회원 여럿).
 - 광고주·제휴사(콜라보) 회원: 공개 매장 목록·상세(매체 찾기에서 콜라보 매장을 누르면 새 탭으로 여는 화면).
 - 광고주 회원: 내 브랜드(여러 개, 이름 · 사진 — 068) 등록·수정·삭제, 브랜드 사진 올리기.
 - 광고주 회원: 콜라보 의뢰 보내기 · 고쳐 다시 보내기 · 추가 기획 첨부(081, 어드민 "콜라보 의뢰"에서 읽는다).
@@ -37,7 +38,6 @@ class PartnersStoreIn(BaseModel):
     image_urls: list[str] | None = None
     phone: str | None = Field(default=None, max_length=30)
     owner_name: str | None = Field(default=None, max_length=100)
-    tags: list[str] | None = None
     business_hours: str | None = Field(default=None, max_length=300)
 
 
@@ -74,15 +74,18 @@ class AdminPartnersStoreIn(PartnersStoreIn):
     store_type_id: int | None = None
     status: str | None = None
     admin_memo: str | None = None
-    owner_login_id: str | None = None
-    # 제휴사 회원 고유번호(P-0001) — 비우면(null · "") 연결을 끊는다(069).
-    owner_code: str | None = None
+    # 연결 회원 고유번호(P-0001) 목록(094 — 매장 하나에 회원 여럿). 보내면 이 목록대로, 빈 목록이면 모두 끊는다.
+    member_codes: list[str] | None = Field(default=None, max_length=50)
     # 사진과 분류(외관 · 내관 · …) · 분류별 대표 · 메모 — 보내면 image_urls 대신 이것으로 정한다(장수 제한 없음, 069 · 073).
     images: list[StorePhotoIn] | None = None
     # 운영 시간 입력값 — 보내면 business_hours 글도 이것으로 다시 만든다. null 이면 둘 다 지운다(073).
     hours: StoreHoursIn | None = None
-    # 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" …(개수 제한 없음, 069).
-    notes: list[str] | None = None
+    # 가능 범위(093) — {"print": "ok", "goods": "no", …}, 보내면 통째로 바꾼다(partners_service.SCOPE_ITEMS).
+    scope: dict[str, str] | None = None
+    # 주요 고객층 · 소개(2~3줄) · 규모(좌석 수) — 093(partners_service.MAIN_CUSTOMERS_MAX · INTRO_MAX · SEATS_MAX).
+    main_customers: str | None = Field(default=None, max_length=100)
+    intro: str | None = Field(default=None, max_length=300)
+    seats: int | None = None
     # 콜라보 등급(S·A·B·C, 기준은 아직 정하지 않음)·매장별 금액(1건, 원) — 광고주 매장 찾기 · 예상 비용에 쓴다(067).
     collab_grade: str | None = Field(default=None, max_length=1)
     collab_fee: int | None = None
@@ -96,11 +99,10 @@ def _data(body: BaseModel) -> dict:
 
 @router.get("/tag-options")
 def tag_options(db: Session = Depends(get_db)) -> dict:
-    """매장 어필 선택지 — 매장 유형(어드민 "매장 유형 관리")마다 다르다. tags 는 모든 유형의 값을 합친 것."""
+    """매장 유형 · 사진 분류 선택지. 매장 어필(tags) 선택지는 11-17 없앴다(사용자 요청)."""
     types = partners_service.list_store_types(db)
     return {
-        "tags": list(dict.fromkeys(t for st in types for t in st["tags"])),
-        "storeTypes": [{"id": st["id"], "name": st["name"], "tags": st["tags"]} for st in types],
+        "storeTypes": [{"id": st["id"], "name": st["name"]} for st in types],
         "photoKinds": list(partners_service.PHOTO_KINDS),
     }
 
@@ -163,8 +165,45 @@ def my_stores(user: User = Depends(get_current_user), db: Session = Depends(get_
     return {"items": partners_service.list_mine(db, user)}
 
 
+# 매장 연결 요청(094) — 기본협약을 마친 회원이 매장 ID로 이미 등록된 매장에 연결을 요청하고, 어드민이 승인하면 연결된다.
+
+
+class StoreLinkIn(BaseModel):
+    code: str = Field(min_length=1, max_length=20)
+
+
+@router.get("/me/store-links/lookup")
+def lookup_store_link(
+    code: str = Query(..., min_length=1, max_length=20),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """매장 ID로 매장 이름 · 주소 미리 보기(요청 전에 맞는 매장인지 확인)."""
+    return partners_service.lookup_link_store(db, user, code)
+
+
+@router.get("/me/store-links")
+def list_store_links(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    return {"items": partners_service.list_link_requests(db, user)}
+
+
+@router.post("/me/store-links", status_code=status.HTTP_201_CREATED)
+def create_store_link(
+    body: StoreLinkIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    return partners_service.create_link_request(db, user, body.code)
+
+
+@router.delete("/me/store-links/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_store_link(
+    request_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> Response:
+    partners_service.cancel_link_request(db, user, request_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 class StoreRequestIn(BaseModel):
-    # 바꿀 항목(name · address · hours · phone · owner_name · tags · notes)과 새 값 — 값 모양은 항목마다 다르다.
+    # 바꿀 항목(name · address · hours · phone · owner_name · scope)과 새 값 — 값 모양은 항목마다 다르다.
     # 추가 요청 · 문의는 field "inquiry" + value 글(partners_service.INQUIRY_FIELD).
     field: str = Field(min_length=1, max_length=20)
     value: Any = None

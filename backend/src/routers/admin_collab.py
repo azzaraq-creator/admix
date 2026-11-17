@@ -42,13 +42,11 @@ def upload_image(file: UploadFile = File(...), _: Admin = Perm) -> dict:
     return {"url": partners_service.upload_image(file, folder="brand", max_side=1200)}
 
 
-# ── 매장 유형 관리(매장 유형별 매장 어필 · 조건 메모 값) ───────────────────────
+# ── 매장 유형 관리(이름만 추가 · 수정 · 삭제, 11-17) ────────────────────────────
 
 
 class StoreTypeIn(BaseModel):
     name: str | None = Field(default=None, max_length=40)
-    tags: list[str] | None = None
-    notes: list[str] | None = None
     sort_order: int | None = None
 
 
@@ -270,13 +268,23 @@ def send_collab_request_round(
 def list_requests(
     status_: str | None = Query(default=None, alias="status"),
     store_id: str | None = Query(default=None),
+    user_id: str | None = Query(default=None),
+    field: str | None = Query(default=None, max_length=40),
+    kind: str | None = Query(default=None, pattern="^(link|add|field|inquiry)$"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     _: Admin = Perm,
     db: Session = Depends(get_db),
 ) -> dict:
     total, items = partners_service.admin_list_requests(
-        db, status=status_, store_id=store_id, page=page, page_size=page_size
+        db,
+        status=status_,
+        store_id=store_id,
+        user_id=user_id,
+        field=field,
+        kind=kind,
+        page=page,
+        page_size=page_size,
     )
     return {"total": total, "items": items}
 

@@ -113,6 +113,91 @@ export function PartnerMemberField({
   );
 }
 
+/**
+ * 연결 회원 여럿(094, 11-17 사용자: "n:1도 되게") — 매장 관리 폼. 회원마다 한 줄(누르면 회원 상세, 줄 안 X 로 빼기),
+ * 아래 "회원 추가"로 회원 검색 창. 저장하면 이 목록대로 연결된다. 대표 · 매니저는 나누지 않는다(권한 같음).
+ */
+export function PartnerMembersField({
+  value,
+  onChange,
+  label = "연결 회원",
+  wide,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  label?: string;
+  wide?: boolean;
+}) {
+  const [searching, setSearching] = useState(false);
+  return (
+    <HeroField label={label} wide={wide}>
+      <div className="flex flex-col gap-[8px]">
+        {value.length === 0 && (
+          <div className="flex min-h-[36px] items-center rounded-[12px] bg-[var(--default)] px-[12px] text-sm text-disabled">
+            연결된 회원이 없어요
+          </div>
+        )}
+        {value.map((code) => (
+          <MemberRow
+            key={code}
+            code={code}
+            onRemove={() => onChange(value.filter((c) => c !== code))}
+          />
+        ))}
+        <Button
+          variant="secondary"
+          className="self-start"
+          onPress={() => setSearching(true)}
+        >
+          회원 추가
+        </Button>
+      </div>
+      <MemberSearchModal
+        isOpen={searching}
+        onOpenChange={setSearching}
+        selectedCode=""
+        onSelect={(m) => {
+          if (m.partnerCode && !value.includes(m.partnerCode))
+            onChange([...value, m.partnerCode]);
+          setSearching(false);
+        }}
+      />
+    </HeroField>
+  );
+}
+
+/** 연결 회원 한 줄 — 고유번호로 회원을 불러와 보인다. 오른쪽 X 로 뺀다(저장하면 연결이 끊긴다). */
+function MemberRow({ code, onRemove }: { code: string; onRemove: () => void }) {
+  const {
+    data: member,
+    isFetching,
+    isError,
+    error,
+  } = useCollabMemberLookup(code);
+  return (
+    <div className="flex min-h-[36px] items-center gap-[8px] rounded-[12px] bg-[var(--default)] py-[6px] pr-[6px] pl-[12px] text-sm">
+      <div className="min-w-0 flex-1">
+        {isFetching && !member ? (
+          <span className="text-disabled">회원 정보를 불러오는 중…</span>
+        ) : isError ? (
+          <span className={HERO_ERROR_CLASS}>
+            {extractApiError(error, "회원을 찾지 못했어요.")}
+          </span>
+        ) : member ? (
+          <MemberLine member={member} link />
+        ) : null}
+      </div>
+      <CloseButton
+        aria-label="연결 끊기"
+        onPress={onRemove}
+        className="size-[24px] shrink-0 rounded-[9px] bg-transparent text-disabled data-[hovered=true]:bg-black/10 data-[hovered=true]:text-black"
+      >
+        <X className="size-[14px]" />
+      </CloseButton>
+    </div>
+  );
+}
+
 /** 회원 한 줄 — 고유번호 · 이름(상호) · 아이디 · 사업자 상태 · 협약 여부. */
 export function MemberLine({
   member,

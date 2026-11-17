@@ -33,10 +33,12 @@ import {
   ADMIN_ONLY_PHOTO_KINDS,
   CLOSED_DAYS,
   GRADE_CRITERIA,
+  COLLAB_SCOPE_VALUE_LABEL,
+  COLLAB_SCOPE_VALUES,
   HOURS_DAYS,
-  noteTone,
   PHOTO_KIND_LABEL,
   PHOTO_KINDS,
+  scopeEntries,
   wonLabel,
   type AdminPartnersStore,
   type StorePhoto,
@@ -49,19 +51,13 @@ const STORES_HREF = "/admin/collab/stores";
 
 /**
  * 수정 화면 탭 — 구역마다 "수정"을 누르면 그 탭이 열린 채로 간다(PartnersStoreFormView FORM_TABS 와 같은 id).
- * 조건 메모는 수정 화면에선 매장 정보 탭 맨 끝이라 "info"로 연다.
+ * 가능 범위는 수정 화면에선 매장 정보 탭 맨 끝이라 "info"로 연다.
  */
 type EditTab = "info" | "photos" | "location" | "grade" | "manage";
 
 /** from=detail — 수정 화면이 저장 · 취소 때 뒤로 가서 이 상세로 돌아온다(기록을 쌓지 않게). */
 export const storeEditHref = (id: string, tab?: EditTab) =>
   `${STORES_HREF}/${encodeURIComponent(id)}/edit?from=detail${tab ? `&tab=${tab}` : ""}`;
-
-const NOTE_CHIP_COLOR = {
-  no: "danger",
-  ok: "success",
-  info: "default",
-} as const;
 
 const DAYS_LABEL = Object.fromEntries(
   HOURS_DAYS.map((d) => [d.value, d.label]),
@@ -80,7 +76,8 @@ const EMPTY = <span className="text-disabled">-</span>;
  * 11-12 사용자 "UI가 전체적으로 맘에 안 들어. 눈에 잘 읽히게, 예뻤으면" — 다시 짰다.
  * - 머리: 대표 사진(분류 순 첫 장) + 매장 이름 + 칩(매장 ID · 공개), 아래 요약 네 칸(테두리만, 덜 화려하게 — 이전 결정 그대로).
  *   이름 아래 유형 · 주소는 넣지 않는다(사용자가 없애 달라고 함, 유형은 매장 정보 칸에).
- * - 이름표 | 값 줄 목록("-"가 세로로 늘어섰다) 대신 이름표 위 · 값 아래 칸 묶음. 매장 어필 · 조건 메모는 칩 줄.
+ * - 이름표 | 값 줄 목록("-"가 세로로 늘어섰다) 대신 이름표 위 · 값 아래 칸 묶음.
+ *   가능 범위는 가능 · 불가능 두 줄로 나눠 고른 항목 칩(11-17 사용자: "가능과 불가능을 분리해서 보여줘").
  * - 관리자 메모 포스트잇은 늘이지 않고 내용만큼(빈 노란 판이 크게 보였다).
  * - 위치는 주소를 크게, 지역 · 좌표는 작게. 매장 등급은 등급 글자 · 1건 금액을 크게, 항목 점수는 HeroUI Meter 막대.
  * - 강조는 은은하게(색 띠 · 큰 아이콘 없이).
@@ -168,14 +165,21 @@ function StoreDetail({ id, store }: { id: string; store: AdminPartnersStore }) {
         {/* 요약 — 작은 글씨 한 줄(2026-11-12 사용자: 더 작게 한 줄로), 좁으면 다음 줄로. */}
         <dl className="flex flex-wrap items-center gap-x-[16px] gap-y-[4px] text-xs">
           <MetaItem label="연결 회원">
-            {store.ownerUserId ? (
-              <Link
-                href={`/admin/collab/members/${store.ownerUserId}`}
-                className="text-xs font-medium text-primary-800 no-underline hover:underline"
-              >
-                {store.ownerMemberName || store.ownerLoginId}
-                {store.ownerPartnerCode && ` · ${store.ownerPartnerCode}`}
-              </Link>
+            {store.members.length ? (
+              // 연결 회원 여럿(094) — 먼저 연결한 순으로 쉼표.
+              <span className="flex flex-wrap gap-x-[4px]">
+                {store.members.map((m, i) => (
+                  <Link
+                    key={m.userId}
+                    href={`/admin/collab/members/${m.userId}`}
+                    className="text-xs font-medium text-primary-800 no-underline hover:underline"
+                  >
+                    {m.name || m.loginId}
+                    {m.partnerCode && ` · ${m.partnerCode}`}
+                    {i < store.members.length - 1 && ","}
+                  </Link>
+                ))}
+              </span>
             ) : (
               <span className="text-disabled">연결 안 됨</span>
             )}
@@ -215,6 +219,10 @@ function StoreDetail({ id, store }: { id: string; store: AdminPartnersStore }) {
             <Field label="매장 유형">{store.storeType ?? EMPTY}</Field>
             <Field label="전화번호">{store.phone || EMPTY}</Field>
             <Field label="사장 이름">{store.ownerName || EMPTY}</Field>
+            <Field label="주요 고객층">{store.mainCustomers || EMPTY}</Field>
+            <Field label="규모">
+              {store.seats != null ? `${store.seats}석` : EMPTY}
+            </Field>
             <Field label="운영 시간">
               <HoursText store={store} />
             </Field>
@@ -225,28 +233,17 @@ function StoreDetail({ id, store }: { id: string; store: AdminPartnersStore }) {
                     .join(" · ")
                 : EMPTY}
             </Field>
+            <Field label="소개" wide>
+              {store.intro ? (
+                <span className="whitespace-pre-line">{store.intro}</span>
+              ) : (
+                EMPTY
+              )}
+            </Field>
           </Fields>
           <Separator />
           <div className="flex flex-col gap-[16px]">
-            <ChipField label="매장 어필" empty="적은 어필이 없어요">
-              {store.tags.map((t) => (
-                <Chip key={t} size="sm" variant="soft">
-                  {t}
-                </Chip>
-              ))}
-            </ChipField>
-            <ChipField label="조건 메모" empty="적은 조건이 없어요">
-              {store.notes.map((n) => (
-                <Chip
-                  key={n}
-                  size="sm"
-                  variant="soft"
-                  color={NOTE_CHIP_COLOR[noteTone(n)]}
-                >
-                  {n}
-                </Chip>
-              ))}
-            </ChipField>
+            <ScopeField scope={store.scope} />
           </div>
         </Section>
         <MemoNote store={store} />
@@ -497,9 +494,20 @@ function Fields({ children }: { children: ReactNode }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  wide = false,
+  children,
+}: {
+  label: string;
+  /** 한 줄을 다 쓰는 칸(소개처럼 긴 글). */
+  wide?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex min-w-0 flex-col gap-[4px]">
+    <div
+      className={cn("flex min-w-0 flex-col gap-[4px]", wide && "col-span-full")}
+    >
       <dt className="text-xs font-medium text-disabled">{label}</dt>
       <dd className="min-w-0 break-words text-[15px] font-medium leading-[22px] text-black">
         {children}
@@ -509,22 +517,40 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** 칩 줄 — 이름표 아래 칩들, 없으면 흐린 한 줄. */
-function ChipField({
-  label,
-  empty,
-  children,
-}: {
-  label: string;
-  empty: string;
-  children: ReactNode[];
-}) {
+function ScopeField({ scope }: { scope: AdminPartnersStore["scope"] }) {
+  const entries = scopeEntries(scope);
   return (
     <div className="flex flex-col gap-[8px]">
-      <span className="text-xs font-medium text-disabled">{label}</span>
-      {children.length ? (
-        <div className="flex flex-wrap gap-[6px]">{children}</div>
+      <span className="text-xs font-medium text-disabled">가능 범위</span>
+      {entries.length ? (
+        <div className="flex flex-col gap-[10px]">
+          {COLLAB_SCOPE_VALUES.map((v) => {
+            const items = entries.filter((e) => e.value === v);
+            if (!items.length) return null;
+            const color = v === "ok" ? "success" : "danger";
+            return (
+              <div key={v} className="flex items-baseline gap-[12px]">
+                <span
+                  className={cn(
+                    "w-[44px] shrink-0 text-[13px] font-medium",
+                    v === "ok" ? "text-success" : "text-danger",
+                  )}
+                >
+                  {COLLAB_SCOPE_VALUE_LABEL[v]}
+                </span>
+                <div className="flex min-w-0 flex-wrap gap-[6px]">
+                  {items.map((e) => (
+                    <Chip key={e.key} size="sm" variant="soft" color={color}>
+                      {e.label}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <span className="text-sm text-disabled">{empty}</span>
+        <span className="text-sm text-disabled">고른 범위가 없어요</span>
       )}
     </div>
   );

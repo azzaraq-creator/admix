@@ -32,8 +32,6 @@ const enc = encodeURIComponent;
 /** 매장 유형 저장 — 보낸 것만 바꾼다. */
 export interface StoreTypePayload {
   name?: string;
-  tags?: string[];
-  notes?: string[];
   sort_order?: number;
 }
 
@@ -50,7 +48,7 @@ export const adminCollabApi = {
       .then((r) => r.data.url);
   },
 
-  // ── 매장 유형 관리(매장 유형별 매장 어필 · 조건 메모 값, 070) ──
+  // ── 매장 유형 관리(이름만, 070) ──
   storeTypes: () =>
     api.get<StoreType[]>("/admin/collab/store-types").then((r) => r.data),
   createStoreType: (payload: StoreTypePayload) =>

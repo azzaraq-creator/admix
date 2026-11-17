@@ -2,9 +2,10 @@
 실제 postgres — 임시 회원 · 매장 · 콜라보만 만들고 끝나면 지운다."""
 from __future__ import annotations
 
+import re
 import shutil
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ from src.config import get_settings
 from src.database import SessionLocal
 from src.models.collab import Collab
 from src.models.media_master import Media
-from src.models.partners_store import PartnersStore
+from src.models.partners_store import PartnersStore, PartnersStoreRequest
 from src.models.user import User
 from src.services import collab_service as cs
 from src.services import member_service
@@ -63,8 +64,8 @@ def _store(db: Session, owner: User | None = None) -> PartnersStore:
             "latitude": 37.54,
             "longitude": 127.05,
             "images": [{"url": "/uploads/cafe/a.jpg", "kind": "exterior"}, {"url": "/uploads/cafe/b.jpg", "kind": "x"}],
-            "notes": ["포스터 부착 불가", " 신규 메뉴   가능 ", "포스터 부착 불가"],
-            **({"owner_code": owner.partner_code} if owner else {}),
+            # 연결 회원은 고유번호 목록(094 — 매장 하나에 회원 여럿)
+            **({"member_codes": [owner.partner_code]} if owner else {}),
         },
     )
     return db.get(PartnersStore, uuid.UUID(out["id"]))
@@ -94,11 +95,13 @@ def test_partner_code_and_store_link(db: Session, partner: User):
     assert code and code.startswith("P-")
     assert ps.partner_by_code(db, code.lower().replace("-", "")).id == partner.id
     store = _store(db, partner)
-    assert store.store_code.startswith("S-")
-    assert store.owner_user_id == partner.id
+    # 매장 ID(094) — S-XXXX-XXXX, 0 · O · 1 · I · L 없는 무작위 8자, 첫 글자는 S 가 아니다.
+    assert re.fullmatch(r"S-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}", store.store_code)
+    assert store.store_code[2] != "S"
+    assert ps.normalize_store_code(store.store_code.lower().replace("-", "")) == store.store_code
+    assert [m.user_id for m in store.members] == [partner.id]
     out = ps.serialize(store)
     assert [i["kind"] for i in out["images"]] == ["exterior", "etc"]
-    assert out["notes"] == ["포스터 부착 불가", "신규 메뉴 가능"]
     # 한 회원이 매장 여러 곳
     _store(db, partner)
     assert len(ps.list_mine(db, partner)) == 2
@@ -120,7 +123,7 @@ def test_menu_photos_admin_only(db: Session, partner: User):
                 {"url": "/uploads/cafe/dp.jpg", "kind": "dp_space"},
                 {"url": "/uploads/cafe/menu2.jpg", "kind": "menu"},
             ],
-            "owner_code": partner.partner_code,
+            "member_codes": [partner.partner_code],
         },
     )
     store = db.get(PartnersStore, uuid.UUID(out["id"]))
@@ -211,16 +214,19 @@ def test_store_request(db: Session, partner: User):
     with pytest.raises(HTTPException):  # 반영한 요청은 되돌리지 않는다
         ps.admin_update_request(db, r["id"], {"status": "pending"})
 
+    with pytest.raises(HTTPException):  # 없앤 항목(매장 어필, 11-17)은 새로 보낼 수 없다
+        ps.create_request(db, partner, sid, "tags", ["뷰맛집"])
+
     # 처리 불가는 사유가 있어야 하고, 제휴사 기록에 사유가 보인다.
-    t = ps.create_request(db, partner, sid, "tags", ["뷰맛집", "#주차가능", "뷰맛집"])
-    assert t["after"] == "뷰맛집, 주차가능"
+    t = ps.create_request(db, partner, sid, "owner_name", "  김사장 ")
+    assert t["after"] == "김사장"
     with pytest.raises(HTTPException):
         ps.admin_update_request(db, t["id"], {"status": "rejected"})
     ps.admin_update_request(db, t["id"], {"status": "rejected", "admin_reply": "사진으로 확인이 안 돼요"})
     mine = {x["id"]: x for x in ps.list_my_requests(db, partner, sid)}
     assert mine[t["id"]]["status"] == "rejected" and mine[t["id"]]["adminReply"] == "사진으로 확인이 안 돼요"
     db.refresh(store)
-    assert store.tags == []  # 처리 불가는 반영하지 않는다
+    assert store.owner_name is None  # 처리 불가는 반영하지 않는다
 
     other = _store(db)  # 남의 매장
     with pytest.raises(HTTPException):
@@ -287,6 +293,70 @@ def test_store_add_request(db: Session, partner: User):
     assert {sid, str(second.id)} <= mine
     hist = {x["id"]: x for x in ps.list_my_requests(db, partner, sid)}
     assert hist[r["id"]]["status"] == "done" and hist[r["id"]]["fieldLabel"] == "매장 추가"
+
+
+def test_store_link_request(db: Session, partner: User):
+    """매장 하나에 회원 여럿(094, 11-17) — 매장 ID로 매장을 미리 보고 연결을 요청, 어드민이 승인하면 같은 매장의 연결 회원.
+    매장 ID는 소문자 · 하이픈 없이 쳐도 같은 매장. 협약 전 · 이미 연결 · 겹친 요청은 막는다. 권한은 모두 같다."""
+    ps.ensure_partner_code(db, partner)
+    store = _store(db, partner)
+    code = store.store_code
+    manager = User(
+        login_id=f"collab-test-{uuid.uuid4().hex[:12]}@test.local",
+        email="x@test.local",
+        password="x",
+        name="콜라보매니저",
+        member_category="partner",
+    )
+    db.add(manager)
+    db.commit()
+    try:
+        ps.ensure_partner_code(db, manager)
+        with pytest.raises(HTTPException):  # 기본협약 전
+            ps.lookup_link_store(db, manager, code)
+        manager.partner_agreed_at = datetime.now(timezone.utc)
+        db.commit()
+
+        raw = code.lower().replace("-", "")
+        seen = ps.lookup_link_store(db, manager, raw)
+        assert seen["storeCode"] == code and seen["name"] == store.name
+        assert not seen["linked"] and not seen["pending"]
+        with pytest.raises(HTTPException) as e:  # 없는 매장 ID
+            ps.lookup_link_store(db, manager, "S-ZZZZ-ZZZY" if code != "S-ZZZZ-ZZZY" else "S-ZZZZ-ZZZX")
+        assert e.value.status_code == 404
+
+        r = ps.create_link_request(db, manager, raw)
+        assert r["status"] == "pending" and r["storeName"] == store.name and r["storeCode"] == code
+        assert ps.lookup_link_store(db, manager, code)["pending"]
+        with pytest.raises(HTTPException):  # 확인 중인 요청이 있으면 또 못 보낸다
+            ps.create_link_request(db, manager, code)
+        with pytest.raises(HTTPException):  # 이미 연결된 회원
+            ps.create_link_request(db, partner, code)
+        # 연결 요청은 매장 수정 기록에 안 보이고, 어드민 요청함 "매장 연결" 묶음에 있다.
+        assert all(x["id"] != r["id"] for x in ps.list_my_requests(db, partner, str(store.id)))
+        total, items = ps.admin_list_requests(db, kind="link", user_id=str(manager.id))
+        assert total == 1 and items[0]["id"] == r["id"]
+        assert ps.admin_list_requests(db, kind="field", user_id=str(manager.id))[0] == 0
+
+        ps.admin_update_request(db, r["id"], {"status": "done"})  # 연결 승인
+        db.refresh(store)
+        assert [m.user_id for m in store.members] == [partner.id, manager.id]
+        mine = ps.list_mine(db, manager)
+        assert [s["id"] for s in mine] == [str(store.id)]
+        assert [(m["name"], m["isMe"]) for m in mine[0]["linkedMembers"]] == [
+            ("콜라보테스트", False),
+            ("콜라보매니저", True),
+        ]
+        assert ps.get_public(db, str(store.id), manager)["isMine"]
+        assert ps.list_link_requests(db, manager)[0]["status"] == "done"
+        assert ps.lookup_link_store(db, manager, code)["linked"]
+    finally:
+        db.rollback()
+        db.query(PartnersStoreRequest).filter(PartnersStoreRequest.user_id == manager.id).delete(
+            synchronize_session=False
+        )
+        db.delete(db.get(User, manager.id))
+        db.commit()
 
 
 def test_apply_request_confirm_and_block(db: Session, partner: User):
@@ -568,25 +638,21 @@ def test_not_agreed_cannot_apply(db: Session, partner: User):
 def test_store_types(db: Session, partner: User):
     """매장 항목(070) — 유형 만들기 · 값 정리 · 이름 겹침 · 매장에 유형 붙이기 · 유형 지우면 미지정."""
     name = f"테스트유형-{uuid.uuid4().hex[:6]}"
-    t = ps.create_store_type(db, {"name": f"  {name} ", "tags": ["#포장가능", "포장가능", " 단체석 "], "notes": ["", "POP  가능"]})
+    # 매장 유형은 이름만(11-17 — 유형별 칩 · 조건은 매장 어필과 함께 없앴다).
+    t = ps.create_store_type(db, {"name": f"  {name} "})
     try:
         assert t["name"] == name
-        assert t["tags"] == ["포장가능", "단체석"]
-        assert t["notes"] == ["POP 가능"]
         with pytest.raises(HTTPException):
             ps.create_store_type(db, {"name": name})
         with pytest.raises(HTTPException):
-            ps.update_store_type(db, t["id"], {"tags": ["가" * (ps.TAG_MAX_LEN + 1)]})
+            ps.update_store_type(db, t["id"], {"name": "가" * (ps.STORE_TYPE_NAME_MAX + 1)})
         db.rollback()
 
         store = ps.admin_create(
             db, {"name": f"테스트매장-{uuid.uuid4().hex[:6]}", "address": "서울 성동구 성수동1가 1",
-                 "latitude": 37.54, "longitude": 127.05, "store_type_id": t["id"],
-                 "tags": ["직접입력칩", "포장가능", "단체석", "룸있음", "주차가능"]}
+                 "latitude": 37.54, "longitude": 127.05, "store_type_id": t["id"]}
         )
         assert store["storeTypeId"] == t["id"] and store["storeType"] == name
-        # 유형 값에 없어도 직접 넣은 칩은 그대로, 매장 어필은 개수 제한 없음(카드에서만 3개 + "+N").
-        assert store["tags"] == ["직접입력칩", "포장가능", "단체석", "룸있음", "주차가능"]
         with pytest.raises(HTTPException):
             ps.admin_update(db, store["id"], {"store_type_id": 999_999})
         db.rollback()

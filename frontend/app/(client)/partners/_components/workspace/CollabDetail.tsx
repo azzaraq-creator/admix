@@ -1544,7 +1544,7 @@ function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
           {!agreed
             ? "기본협약을 해야 볼 수 있어요."
             : stores.length === 0
-              ? "담당자가 매장을 연결하면 볼 수 있어요."
+              ? "매장을 연결하면 볼 수 있어요."
               : `${store?.name ?? "이 매장"}에서 볼 수 있는 콜라보가 아니에요.`}
         </p>
         <Link
@@ -1552,7 +1552,7 @@ function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
             !agreed
               ? "/partners/join/agreement"
               : locked
-                ? "/partners/dashboard"
+                ? "/partners/join/store"
                 : "/partners/collabs"
           }
           className="text-[14px] font-semibold"
@@ -1560,7 +1560,7 @@ function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
           {!agreed
             ? "기본협약 하러 가기"
             : locked
-              ? "대시보드로"
+              ? "매장 연결하러 가기"
               : "콜라보 참여로"}
         </Link>
       </div>

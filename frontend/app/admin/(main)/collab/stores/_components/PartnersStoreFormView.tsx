@@ -35,6 +35,7 @@ import {
 } from "@/app/admin/(main)/media/_components/heroFields";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
+import { CollabScopeRadios } from "@/components/common/CollabScope";
 import { LoadingState } from "@/components/common/RouteStates";
 import { useStoreTypes, useUpdateStoreRequest } from "@/hooks/adminCollab";
 import {
@@ -57,23 +58,20 @@ import {
   GRADE_MEMO_MAX_LEN,
   HOURS_DAYS,
   MAX_HOURS_SLOTS,
-  noteTone,
   PARTNERS_IMAGE_MAX_SIDE,
-  PARTNERS_NOTE_MAX_LEN,
   PARTNERS_PHOTO_MEMO_MAX_LEN,
-  PARTNERS_TAG_MAX_LEN,
   PHOTO_KIND_LABEL,
   PHOTO_KINDS,
   type AdminPartnersStore,
   type AdminPartnersStorePayload,
   type CollabGrade,
+  type CollabScope,
   type GradeCriterionKey,
   type GradeScores,
   type HoursDays,
   type PhotoKind,
   type StoreHours,
   type StorePhoto,
-  type StoreType,
 } from "@/lib/partners";
 import type { DaumPostcodeResult } from "@/lib/daumPostcode";
 import { formatDate } from "@/lib/date";
@@ -86,13 +84,12 @@ import {
 import { shrinkImage } from "@/lib/shrinkImage";
 import { cn } from "@/lib/utils";
 
-import { ChipInput, ChipPresets } from "../../_components/ChipInput";
-import { PartnerMemberField } from "../../_components/PartnerMemberField";
+import { PartnerMembersField } from "../../_components/PartnerMemberField";
 
 type FormState = {
   name: string;
   /**
-   * 매장 유형(카페 · 식당 …) — 매장 어필 · 조건 메모 칩 값이 유형에 따라 바뀐다(어드민 "매장 유형 관리", 070).
+   * 매장 유형(카페 · 식당 …, 어드민 "매장 유형 관리", 070).
    * undefined = 새 매장에서 아직 안 고름(첫 유형으로 저장), null = 미지정.
    */
   storeTypeId: number | null | undefined;
@@ -106,16 +103,19 @@ type FormState = {
   images: StorePhoto[];
   phone: string;
   ownerName: string;
-  tags: string[];
+  /** 주요 고객층 · 소개(2~3줄) · 규모(좌석 수, 숫자 글자) — 093. */
+  mainCustomers: string;
+  intro: string;
+  seats: string;
   /** 운영 시간 — 요일 구분(매일 · 평일 · 주말)별 여는 · 닫는 시간(2개까지)과 휴무일. */
   hours: StoreHours;
   /** 예전에 글로만 적은 운영 시간(입력값 없음) — 운영 시간을 새로 넣기 전까지는 그대로 둔다. */
   legacyHours: string;
-  /** 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" …(개수 제한 없음). */
-  notes: string[];
+  /** 가능 범위(093) — 항목마다 가능 · 불가능(11-17, 예전 조건 메모 자리). */
+  scope: CollabScope;
   status: "active" | "hidden";
-  /** 연결할 제휴사 회원 고유번호(P-0001) — "회원 검색"에서 고른다. 비우면 연결을 끊는다. */
-  ownerCode: string;
+  /** 연결 회원 고유번호(P-0001) 목록(094 — 매장 하나에 회원 여럿) — "회원 추가"에서 고른다. 빼고 저장하면 그 연결이 끊긴다. */
+  memberCodes: string[];
   adminMemo: string;
   /** 콜라보 등급 · 매장 금액(만 원 단위로 입력, 저장할 때 원으로). */
   collabGrade: CollabGrade | "";
@@ -163,7 +163,8 @@ const EMPTY_SCORES = Object.fromEntries(
   GRADE_CRITERIA.map((c) => [c.key, { score: "", memo: "" }]),
 ) as ScoreForm;
 
-const EMPTY_HOURS: StoreHours = {
+/** 운영 시간 빈 칸 — 영업 기록 매장 정보(092)도 같이 쓴다. */
+export const EMPTY_HOURS: StoreHours = {
   slots: [{ days: "daily", open: "", close: "" }],
   closed: [],
 };
@@ -180,12 +181,14 @@ const EMPTY: FormState = {
   images: [],
   phone: "",
   ownerName: "",
-  tags: [],
+  mainCustomers: "",
+  intro: "",
+  seats: "",
   hours: EMPTY_HOURS,
   legacyHours: "",
-  notes: [],
+  scope: {},
   status: "active",
-  ownerCode: "",
+  memberCodes: [],
   adminMemo: "",
   collabGrade: "",
   collabFeeMan: "",
@@ -234,6 +237,31 @@ const feeOf = (man: string): number | null => {
   const n = Number(t);
   return Number.isFinite(n) ? Math.round(n * 10_000) : NaN;
 };
+
+/** 규모(좌석 수) 칸 — 숫자만(4자리까지) + "석". 매장 폼 · 영업 기록 매장 정보가 같이 쓴다. */
+export function SeatsInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-[8px]">
+      <Input
+        variant="secondary"
+        fullWidth
+        inputMode="numeric"
+        aria-label="좌석 수"
+        placeholder="좌석 수"
+        maxLength={4}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+      />
+      <span className="shrink-0 text-sm text-disabled">석</span>
+    </div>
+  );
+}
 
 const STATUS_OPTIONS = [
   { value: "active", label: "공개" },
@@ -330,11 +358,15 @@ const toForm = (s: AdminPartnersStore): FormState => ({
     ? formatStorePhoneInput(s.phone ?? "")
     : (s.phone ?? ""),
   ownerName: s.ownerName ?? "",
-  tags: s.tags,
+  mainCustomers: s.mainCustomers ?? "",
+  intro: s.intro ?? "",
+  seats: s.seats != null ? String(s.seats) : "",
   ...hoursOf(s),
-  notes: s.notes ?? [],
+  scope: s.scope ?? {},
   status: s.status,
-  ownerCode: s.ownerPartnerCode ?? "",
+  memberCodes: s.members
+    .map((m) => m.partnerCode)
+    .filter((c): c is string => !!c),
   adminMemo: s.adminMemo ?? "",
   collabGrade: s.collabGrade ?? "",
   collabFeeMan: s.collabFee != null ? String(s.collabFee / 10_000) : "",
@@ -342,7 +374,7 @@ const toForm = (s: AdminPartnersStore): FormState => ({
 });
 
 /** 저장할 운영 시간 — 시간을 다 넣은 줄만. 아무것도 없으면 null(지움). */
-function hoursPayload(hours: StoreHours): StoreHours | null {
+export function hoursPayload(hours: StoreHours): StoreHours | null {
   const slots = hours.slots.filter((s) => s.open && s.close);
   return slots.length || hours.closed.length
     ? { slots, closed: hours.closed }
@@ -401,7 +433,7 @@ export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
         requestId: searchParams.get("request"),
       };
   const { data: detail, isLoading, isError } = useAdminPartnersStore(id);
-  // 보던 탭 — 저장에 실패해 폼을 다시 그려도 그대로 둔다. 처음엔 매장 정보(예전 ?tab=notes 도 조건 메모가 있는 매장 정보로).
+  // 보던 탭 — 저장에 실패해 폼을 다시 그려도 그대로 둔다. 처음엔 매장 정보(예전 ?tab=notes 도 가능 범위가 있는 매장 정보로).
   const [tab, setTab] = useState<FormTab>(
     isFormTab(tabParam) ? tabParam : "info",
   );
@@ -461,7 +493,11 @@ function PartnersStoreForm({
     detail
       ? toForm(detail)
       : prefill
-        ? { ...EMPTY, name: prefill.name, ownerCode: prefill.ownerCode }
+        ? {
+            ...EMPTY,
+            name: prefill.name,
+            memberCodes: prefill.ownerCode ? [prefill.ownerCode] : [],
+          }
         : EMPTY,
   );
   // 처음(또는 마지막으로 저장한) 값 — 이것과 다르면 입력 중으로 보고, 떠날 때 묻는다(2026-11-10 사용자).
@@ -499,9 +535,6 @@ function PartnersStoreForm({
     form.storeTypeId === undefined
       ? (storeTypes[0]?.id ?? null)
       : form.storeTypeId;
-  const storeType: StoreType | undefined = storeTypes.find(
-    (t) => t.id === typeId,
-  );
 
   const confirmDiscard = () =>
     confirm({
@@ -620,14 +653,18 @@ function PartnersStoreForm({
       latitude: coords?.lat ?? null,
       longitude: coords?.lng ?? null,
       images: withCovers(form.images),
-      notes: form.notes,
+      scope: form.scope,
       phone: orNull(form.phone),
       owner_name: orNull(form.ownerName),
-      tags: form.tags,
+      main_customers: orNull(form.mainCustomers),
+      intro: orNull(form.intro),
+      seats: form.seats ? Number(form.seats) : null,
       // 예전에 글로만 적은 운영 시간은 새로 넣기 전까지 보내지 않는다(서버 글을 그대로 둔다).
       ...(form.legacyHours ? {} : { hours: hoursPayload(form.hours) }),
       status: form.status,
-      owner_code: normalizeCode(form.ownerCode, "P") || null,
+      member_codes: form.memberCodes
+        .map((c) => normalizeCode(c, "P"))
+        .filter(Boolean),
       admin_memo: orNull(form.adminMemo),
       collab_grade: form.collabGrade || null,
       collab_fee: feeOf(form.collabFeeMan),
@@ -713,14 +750,13 @@ function PartnersStoreForm({
         </div>
       </div>
 
-      {/* 연결 회원 — 맨 위(2026-11-10 사용자), 흰 카드 한 장. */}
+      {/* 연결 회원 — 맨 위(2026-11-10 사용자), 흰 카드 한 장. 094부터 여러 명(대표 · 매니저 구분 없이 같은 권한). */}
       <AdminPanel>
         <div className="grid grid-cols-2 gap-x-[24px]">
-          <PartnerMemberField
+          <PartnerMembersField
             wide
-            value={form.ownerCode}
-            onChange={(v) => set("ownerCode", v)}
-            savedCode={detail?.ownerPartnerCode ?? null}
+            value={form.memberCodes}
+            onChange={(v) => set("memberCodes", v)}
           />
         </div>
       </AdminPanel>
@@ -777,21 +813,7 @@ function PartnersStoreForm({
                   onChange={(e) => set("name", e.target.value)}
                 />
               </HeroField>
-              <HeroField
-                label="매장 유형"
-                required
-                error={errors.storeType}
-                help={
-                  <Link
-                    href="/admin/collab/store-options"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-primary-800 underline"
-                  >
-                    매장 유형 관리에서 바꾸기
-                  </Link>
-                }
-              >
+              <HeroField label="매장 유형" required error={errors.storeType}>
                 <HeroSelect
                   ariaLabel="매장 유형"
                   allowEmpty={false}
@@ -828,6 +850,36 @@ function PartnersStoreForm({
                   aria-label="사장 이름"
                   value={form.ownerName}
                   onChange={(e) => set("ownerName", e.target.value)}
+                />
+              </HeroField>
+              {/* 주요 고객층 · 규모(좌석 수) · 소개(2~3줄) — 093(2026-11-17 사용자). */}
+              <HeroField label="주요 고객층">
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="주요 고객층"
+                  maxLength={100}
+                  placeholder="예) 20~30대 여성, 근처 직장인"
+                  value={form.mainCustomers}
+                  onChange={(e) => set("mainCustomers", e.target.value)}
+                />
+              </HeroField>
+              <HeroField label="규모">
+                <SeatsInput
+                  value={form.seats}
+                  onChange={(seats) => set("seats", seats)}
+                />
+              </HeroField>
+              <HeroField wide label="소개">
+                <TextArea
+                  variant="secondary"
+                  fullWidth
+                  aria-label="소개"
+                  rows={3}
+                  maxLength={300}
+                  placeholder="2~3줄로 적어 주세요."
+                  value={form.intro}
+                  onChange={(e) => set("intro", e.target.value)}
                 />
               </HeroField>
               <HeroField
@@ -871,39 +923,13 @@ function PartnersStoreForm({
                   }
                 />
               </HeroField>
-              {/* 매장 어필 — 유형별 칩을 누르거나, 직접 적고 쉼표(,)로 칩을 만든다(개수 제한 없음 — 카드에서는 3개 + "+N"). */}
-              <HeroField
-                wide
-                label="매장 어필"
-                extra={form.tags.length ? `(${form.tags.length}개)` : undefined}
-              >
-                <div className="flex flex-col gap-[8px]">
-                  <ChipInput
-                    ariaLabel="매장 어필 직접 입력"
-                    placeholder="직접 입력 — 쉼표(,)로 구분해요."
-                    values={form.tags}
-                    onChange={(tags) => set("tags", tags)}
-                    maxLength={PARTNERS_TAG_MAX_LEN}
-                  />
-                  <ChipPresets
-                    label={storeType ? `${storeType.name} 칩` : "칩"}
-                    options={storeType?.tags ?? []}
-                    values={form.tags}
-                    onChange={(tags) => set("tags", tags)}
-                    empty={
-                      storeType
-                        ? `${storeType.name} 유형에 정해 둔 칩이 없어요. 매장 유형 관리에서 더할 수 있어요.`
-                        : "매장 유형을 고르면 유형별 칩이 보여요."
-                    }
-                  />
-                </div>
+              {/* 가능 범위 — 매장 정보 맨 끝, 항목마다 가능 · 불가능(2026-11-17 사용자, 예전 조건 메모 자리). */}
+              <HeroField wide label="가능 범위">
+                <CollabScopeRadios
+                  value={form.scope}
+                  onChange={(scope) => set("scope", scope)}
+                />
               </HeroField>
-              {/* 조건 메모 — 따로 탭 없이 매장 정보 맨 끝(2026-11-12 사용자). */}
-              <NotesField
-                notes={form.notes}
-                onChange={(notes) => set("notes", notes)}
-                storeType={storeType}
-              />
             </div>
           </AdminPanel>
         </Tabs.Panel>
@@ -1710,7 +1736,7 @@ function HourInput({
  * 운영 시간 — 요일 구분(매일 · 평일 · 주말(공휴일)) Select + 여는 · 닫는 시간 TimeField. 평일 · 주말이 다를 수 있어
  * 2줄까지. 두 줄이면 "매일"은 고를 수 없다(매일이던 줄은 평일로 바꾸고 주말 줄을 더한다).
  */
-function BusinessHoursEditor({
+export function BusinessHoursEditor({
   value,
   onChange,
 }: {
@@ -1811,7 +1837,7 @@ function BusinessHoursEditor({
 }
 
 /** 휴무일 — 요일 · 공휴일을 여러 개 고른다(HeroUI Autocomplete, 검색해서 고르기). */
-function ClosedDaysPicker({
+export function ClosedDaysPicker({
   value,
   onChange,
 }: {
@@ -1864,12 +1890,6 @@ function ClosedDaysPicker({
   );
 }
 
-const NOTE_CHIP_COLOR = {
-  no: "danger",
-  ok: "success",
-  info: "default",
-} as const;
-
 /**
  * 위치 탭 지도 — 주소를 고르면 그 자리에 콜라보 핀(매장명 말풍선)을 꽂아 보여 준다. 위치를 찾는 중 · 주소가 없을 때 ·
  * 위치를 못 찾았을 때는 같은 크기 자리에 안내 글만. active 가 아니면(숨은 탭) 지도를 그리지 않는다 — 크기 0 에서 만들지 않게.
@@ -1918,52 +1938,5 @@ function LocationPreview({
         "주소를 검색하면 여기에 지도가 보여요."
       )}
     </div>
-  );
-}
-
-/**
- * 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" 같은 매장 조건을 개수 제한 없이 적는다(매장 정보 탭 맨 끝, 매장 어필과 같은 모양).
- * 직접 적고 쉼표(,)로 칩을 만들거나, 매장 유형에 정해 둔 자주 쓰는 조건을 눌러 넣는다(매장 유형 관리).
- */
-function NotesField({
-  notes,
-  onChange,
-  storeType,
-}: {
-  notes: string[];
-  onChange: (next: string[]) => void;
-  storeType: StoreType | undefined;
-}) {
-  return (
-    <HeroField
-      wide
-      label="조건 메모"
-      extra={notes.length ? `(${notes.length}개)` : undefined}
-      help="“불가 · 없음”은 빨강, “가능”은 초록으로 보여요."
-    >
-      <div className="flex flex-col gap-[8px]">
-        <ChipInput
-          ariaLabel="조건 메모 직접 입력"
-          placeholder="직접 입력 — 쉼표(,)로 구분해요."
-          values={notes}
-          onChange={onChange}
-          maxLength={PARTNERS_NOTE_MAX_LEN}
-          colorOf={(n) => NOTE_CHIP_COLOR[noteTone(n)]}
-        />
-        <ChipPresets
-          label={
-            storeType ? `${storeType.name} 자주 쓰는 조건` : "자주 쓰는 조건"
-          }
-          options={storeType?.notes ?? []}
-          values={notes}
-          onChange={onChange}
-          empty={
-            storeType
-              ? `${storeType.name} 유형에 정해 둔 조건이 없어요. 매장 유형 관리에서 더할 수 있어요.`
-              : "매장 유형을 고르면 자주 쓰는 조건이 보여요."
-          }
-        />
-      </div>
-    </HeroField>
   );
 }

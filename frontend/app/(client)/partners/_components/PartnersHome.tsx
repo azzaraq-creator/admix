@@ -8,7 +8,6 @@ import { useHasUserToken, useMe } from "@/hooks/auth";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 
 import { PartnersLanding } from "./PartnersLanding";
-import { PartnersNoAccess } from "./PartnersNoAccess";
 
 /**
  * /partners 첫 화면 — 회원 유형에 따라 갈린다.
@@ -16,7 +15,8 @@ import { PartnersNoAccess } from "./PartnersNoAccess";
  * - 제휴사(콜라보): 대시보드(/partners/dashboard)로 보낸다 — admix 홈 Collaboration 메뉴도 대시보드로(11-08 사용자).
  *   협약 전 · 매장 연결 전이면 대시보드가 모집 중 콜라보와 다음 할 일을 안내한다(StartGate). 내 매장은 사이드바 "내 매장"(/partners/stores).
  * - 광고주: 대시보드(/partners/dashboard)로 — 의뢰한 콜라보 · 할 일(2026-11-09). 매장 찾기는 /partners/find.
- * - 그 외(일반·대행사·매체사): 이용 안내
+ * - 그 외(일반·대행사·매체사): 소개 + 예시 화면 — 가입 버튼 대신 회원 유형 바꾸기(PartnersLanding).
+ *   예전엔 "전용 메뉴예요" 이용 안내(PartnersNoAccess)를 띄웠다(11-17 사용자: "이건 없애고 소개 페이지가 뜨게").
  * - intro(?intro=1, 콜라보 안내 창의 "대시보드 보기"): 누구든 소개 + 예시 화면
  */
 export function PartnersHome({
@@ -44,6 +44,5 @@ export function PartnersHome({
   if ((hasToken && !me && !isError) || partner) {
     return <LoadingState />;
   }
-  if (!me) return <PartnersLanding />;
-  return <PartnersNoAccess />;
+  return <PartnersLanding member={!!me} />;
 }

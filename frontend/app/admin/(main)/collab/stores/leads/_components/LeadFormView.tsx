@@ -16,15 +16,18 @@ import { useState, type ReactNode } from "react";
 import {
   HeroCombo,
   HeroField,
+  HeroSelect,
 } from "@/app/admin/(main)/media/_components/heroFields";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AddressSearchModal } from "@/components/common/AddressSearchModal";
+import { CollabScopeRadios } from "@/components/common/CollabScope";
 import { ErrorState, LoadingState } from "@/components/common/RouteStates";
 import {
   useCollabLead,
   useCollabLeadMeta,
   useCreateCollabLead,
   useDeleteCollabLead,
+  useStoreTypes,
   useUpdateCollabLead,
 } from "@/hooks/adminCollab";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
@@ -42,26 +45,79 @@ import {
   type LeadCustomField,
   type LeadCustomValue,
   type LeadFacetKey,
+  type LeadStoreInfo,
 } from "@/lib/collabLeads";
 import type { DaumPostcodeResult } from "@/lib/daumPostcode";
-import type { StorePhoto } from "@/lib/partners";
+import { type StoreHours, type StorePhoto } from "@/lib/partners";
+import {
+  formatStorePhoneInput,
+  STORE_PHONE_INPUT_MAX_LENGTH,
+} from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 import { ChipInput } from "../../../_components/ChipInput";
 import { CollabPageHead, CollabSection } from "../../../_components/collabUi";
 import { PartnerMemberField } from "../../../_components/PartnerMemberField";
-import { PartnersPhotoSection } from "../../_components/PartnersStoreFormView";
+import {
+  BusinessHoursEditor,
+  ClosedDaysPicker,
+  EMPTY_HOURS,
+  hoursPayload,
+  PartnersPhotoSection,
+  SeatsInput,
+} from "../../_components/PartnersStoreFormView";
 import { labelOf, UrlLink } from "./leadCells";
 import { findLeadLocation, useLeadConfirm } from "./useLeadConfirm";
 import { LEADS_HREF, STORES_HREF } from "../../_components/StoresTabs";
 
+/** 매장 정보(092) 고치는 값 — 운영 시간은 빈 줄도 들고 있다가 저장할 때 시간을 다 넣은 줄만 보낸다. */
+type StoreInfoForm = Omit<LeadStoreInfo, "hours" | "seats"> & {
+  hours: StoreHours;
+  /** 좌석 수 — 입력칸 글자(숫자만), 보낼 때 숫자로. */
+  seats: string;
+};
+
 /** 화면에서 고치는 값 — 추가 항목은 입력칸 글자로 들고 있다가 저장할 때 숫자 칸만 숫자로 돌린다. */
 type FormState = Required<
-  Omit<CollabLeadPayload, "custom" | "location" | "photos">
+  Omit<CollabLeadPayload, "custom" | "location" | "photos" | "storeInfo">
 > & {
   custom: Record<string, string>;
   photos: StorePhoto[];
+  storeInfo: StoreInfoForm;
 };
+
+const EMPTY_STORE_INFO: StoreInfoForm = {
+  storeTypeId: null,
+  phone: "",
+  ownerName: "",
+  mainCustomers: "",
+  intro: "",
+  seats: "",
+  hours: EMPTY_HOURS,
+  scope: {},
+};
+
+const toStoreInfoForm = (info: LeadStoreInfo | undefined): StoreInfoForm =>
+  info
+    ? {
+        ...info,
+        // 숫자 · '-'로만 된 값은 협업 확정 매장 폼과 같은 모양으로 맞춰 보인다.
+        phone: /^[\d\s-]+$/.test(info.phone)
+          ? formatStorePhoneInput(info.phone)
+          : info.phone,
+        mainCustomers: info.mainCustomers ?? "",
+        intro: info.intro ?? "",
+        seats: info.seats != null ? String(info.seats) : "",
+        hours: info.hours
+          ? {
+              slots: info.hours.slots.length
+                ? info.hours.slots
+                : EMPTY_HOURS.slots,
+              closed: info.hours.closed,
+            }
+          : EMPTY_HOURS,
+      }
+    : EMPTY_STORE_INFO;
 
 /**
  * 주제별 탭(2026-11-12 사용자: 보기 편하게 Tabs로, 둘째 탭은 매장 사진) — 협업 확정 매장 폼과 같은 모양.
@@ -105,6 +161,7 @@ const EMPTY: FormState = {
   partnerCode: "",
   custom: {},
   photos: [],
+  storeInfo: EMPTY_STORE_INFO,
 };
 
 const toForm = (lead: CollabLead): FormState => ({
@@ -132,6 +189,7 @@ const toForm = (lead: CollabLead): FormState => ({
   followupMemo: lead.followupMemo,
   partnerCode: lead.partnerCode,
   photos: lead.photos,
+  storeInfo: toStoreInfoForm(lead.storeInfo),
   custom: Object.fromEntries(
     Object.entries(lead.custom).map(([k, v]) => [k, String(v)]),
   ),
@@ -153,7 +211,15 @@ function toPayload(
     custom[key] =
       typeOf.get(key) === "number" && NUMERIC.test(text) ? Number(text) : text;
   }
-  return { ...form, custom };
+  return {
+    ...form,
+    custom,
+    storeInfo: {
+      ...form.storeInfo,
+      hours: hoursPayload(form.storeInfo.hours),
+      seats: form.storeInfo.seats ? Number(form.storeInfo.seats) : null,
+    },
+  };
 }
 
 /**
@@ -212,6 +278,16 @@ function LeadForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   const setCustom = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, custom: { ...prev.custom, [key]: value } }));
+  const setInfo = <K extends keyof StoreInfoForm>(
+    key: K,
+    value: StoreInfoForm[K],
+  ) =>
+    setForm((prev) => ({
+      ...prev,
+      storeInfo: { ...prev.storeInfo, [key]: value },
+    }));
+  // 매장 유형 — 고르지 않으면 서버가 업체 유형으로 맞춘다(_lead_store_type).
+  const { data: storeTypes = [] } = useStoreTypes();
   const dirty =
     JSON.stringify(toPayload(form, fields)) !==
     JSON.stringify(toPayload(initial, fields));
@@ -231,6 +307,15 @@ function LeadForm({
     if (!form.name.trim()) {
       onTabChange("info");
       await alert({ title: "업체명을 적어 주세요", confirmText: "확인" });
+      return;
+    }
+    if (form.storeInfo.hours.slots.some((s) => !s.open !== !s.close)) {
+      onTabChange("info");
+      await alert({
+        title: "운영 시간을 확인해 주세요",
+        description: "여는 시간과 닫는 시간을 둘 다 넣어 주세요.",
+        confirmText: "확인",
+      });
       return;
     }
     const payload = toPayload(form, fields);
@@ -512,6 +597,128 @@ function LeadForm({
                   onDetail={(v) => setCustom(LEAD_LOT_DETAIL_KEY, v)}
                 />
               )}
+            </Grid>
+          </CollabSection>
+
+          {/* 협업 확정 매장 정보(092, 2026-11-17 사용자) — 협업 확정 매장 폼의 매장 정보 칸과 같다. 확정하면 이 값으로 매장을 만든다. */}
+          <CollabSection
+            title="매장 정보"
+            desc={
+              lead?.storeId ? (
+                <>
+                  협업 확정한 뒤로는 협업 확정 매장({lead.storeCode})에서
+                  고쳐요. 여기서 고쳐도 매장은 바뀌지 않아요.{" "}
+                  <Link
+                    href={`${STORES_HREF}/${lead.storeId}/edit`}
+                    className="font-semibold text-black underline"
+                  >
+                    매장 정보 고치기
+                  </Link>
+                </>
+              ) : undefined
+            }
+          >
+            <Grid>
+              <HeroField label="매장 유형">
+                <HeroSelect
+                  ariaLabel="매장 유형"
+                  emptyLabel="업체 유형에 맞추기"
+                  value={
+                    form.storeInfo.storeTypeId != null
+                      ? String(form.storeInfo.storeTypeId)
+                      : ""
+                  }
+                  onChange={(v) => setInfo("storeTypeId", v ? Number(v) : null)}
+                  options={storeTypes.map((t) => ({
+                    value: String(t.id),
+                    label: t.name,
+                  }))}
+                />
+              </HeroField>
+              <HeroField label="전화번호">
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="전화번호"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  maxLength={STORE_PHONE_INPUT_MAX_LENGTH}
+                  value={form.storeInfo.phone}
+                  onChange={(e) =>
+                    setInfo("phone", formatStorePhoneInput(e.target.value))
+                  }
+                />
+              </HeroField>
+              <HeroField label="사장 이름">
+                <Input
+                  variant="secondary"
+                  fullWidth
+                  aria-label="사장 이름"
+                  maxLength={100}
+                  value={form.storeInfo.ownerName}
+                  onChange={(e) => setInfo("ownerName", e.target.value)}
+                />
+              </HeroField>
+              <HeroField label="규모">
+                <SeatsInput
+                  value={form.storeInfo.seats}
+                  onChange={(seats) => setInfo("seats", seats)}
+                />
+              </HeroField>
+              <Wide>
+                <HeroField label="주요 고객층">
+                  <Input
+                    variant="secondary"
+                    fullWidth
+                    aria-label="주요 고객층"
+                    maxLength={100}
+                    placeholder="예) 20~30대 여성, 근처 직장인"
+                    value={form.storeInfo.mainCustomers}
+                    onChange={(e) => setInfo("mainCustomers", e.target.value)}
+                  />
+                </HeroField>
+              </Wide>
+              <Wide>
+                <HeroField label="소개">
+                  <TextArea
+                    variant="secondary"
+                    fullWidth
+                    aria-label="소개"
+                    rows={3}
+                    maxLength={300}
+                    placeholder="2~3줄로 적어 주세요."
+                    value={form.storeInfo.intro}
+                    onChange={(e) => setInfo("intro", e.target.value)}
+                  />
+                </HeroField>
+              </Wide>
+              <Wide>
+                <HeroField label="운영 시간">
+                  <BusinessHoursEditor
+                    value={form.storeInfo.hours}
+                    onChange={(hours) => setInfo("hours", hours)}
+                  />
+                </HeroField>
+              </Wide>
+              <Wide>
+                <HeroField label="휴무일">
+                  <ClosedDaysPicker
+                    value={form.storeInfo.hours.closed}
+                    onChange={(closed) =>
+                      setInfo("hours", { ...form.storeInfo.hours, closed })
+                    }
+                  />
+                </HeroField>
+              </Wide>
+              <Wide>
+                <HeroField label="가능 범위">
+                  <CollabScopeRadios
+                    value={form.storeInfo.scope}
+                    onChange={(scope) => setInfo("scope", scope)}
+                  />
+                </HeroField>
+              </Wide>
             </Grid>
           </CollabSection>
         </Tabs.Panel>

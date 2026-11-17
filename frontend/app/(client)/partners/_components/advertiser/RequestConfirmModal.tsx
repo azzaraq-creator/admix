@@ -115,7 +115,6 @@ function ConfirmBody({
         <Modal.Heading className="text-[18px] font-bold text-gray-900">
           {editing ? "고친 의뢰를 다시 보낼까요?" : "이대로 의뢰할까요?"}
         </Modal.Heading>
-        <p className="text-[13px] break-keep text-gray-500">적은 내용을 한 번 더 확인해 주세요. 보내면 admix가 이 내용으로 검토해요.</p>
       </Modal.Header>
       <Modal.Body className="flex flex-col gap-[14px]">
         <Group title="콜라보 기본">

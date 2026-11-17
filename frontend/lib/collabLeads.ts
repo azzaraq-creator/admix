@@ -3,7 +3,7 @@
  * 칸 이름(key)은 원본 앱과 같고, 칸 이름표 · 순서 · 보이기는 서버의 칸 설정(meta.columns · customFields)을 따른다.
  */
 import type { PageParams } from "@/lib/adminCollab";
-import type { StorePhoto } from "@/lib/partners";
+import type { CollabScope, StoreHours, StorePhoto } from "@/lib/partners";
 
 /** 기본 칸 설정 — 원본 sales_settings.columns 한 줄. */
 export interface LeadColumn {
@@ -77,6 +77,8 @@ export interface CollabLead {
   photoIds: string[];
   /** 매장 사진(088) — 협업 확정 매장 사진과 같은 분류 · 모양. 협업 확정하면 매장 사진으로 옮겨진다. */
   photos: StorePhoto[];
+  /** 협업 확정 매장 정보(092) — 업체 정보 탭 "매장 정보". 협업 확정하면 이 값으로 매장을 만든다(그 뒤로는 매장에서 고친다). */
+  storeInfo: LeadStoreInfo;
   custom: Record<string, LeadCustomValue>;
   createdAt: string;
   updatedAt: string;
@@ -93,6 +95,23 @@ export interface CollabLead {
   longitude: number | null;
   /** 지도에 영업 기록으로 떠 있는 매체 ID(CF-0001) — 협업 확정 매장이 지도에 뜨면 매장이 이어받아 "". */
   mediaId: string;
+}
+
+/**
+ * 협업 확정 매장 정보(092, 2026-11-17 사용자) — 협업 확정 매장 폼의 매장 정보 칸과 같다.
+ * 매장 유형을 고르지 않으면 업체 유형으로 맞추고, 전화번호 · 사장 이름이 비면 확정할 때 매장 담당자 칸에서 채운다.
+ */
+export interface LeadStoreInfo {
+  storeTypeId: number | null;
+  phone: string;
+  ownerName: string;
+  /** 주요 고객층 · 소개(2~3줄) · 규모(좌석 수) — 확정하면 매장으로 옮긴다. */
+  mainCustomers: string;
+  intro: string;
+  seats: number | null;
+  hours: StoreHours | null;
+  /** 가능 범위(093과 같은 모양) — 확정하면 매장으로 옮긴다. */
+  scope: CollabScope;
 }
 
 /** 협업 확정 때 같이 보내는 매장 위치 — 화면이 카카오 지도로 찾는다(서버 주소 검색은 키가 없거나 층 · 호수가 붙으면 못 찾음, 11-12). */

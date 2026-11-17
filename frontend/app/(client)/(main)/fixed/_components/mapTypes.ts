@@ -15,7 +15,7 @@ export interface MapMarker {
   images?: string[];
   badge?: "popular" | "new" | null;
   stopNo?: string | null;
-  /** 콜라보 매장만 — 지도 팝업 카드의 운영 시간 · 매장 특징. */
+  /** 콜라보 매장만 — 지도 팝업 카드의 운영 시간. */
   partners?: PartnersCardInfo | null;
 }
 

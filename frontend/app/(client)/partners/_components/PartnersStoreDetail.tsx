@@ -165,18 +165,6 @@ export function PartnersStoreInfo({
           <h1 className="text-[24px] leading-[1.3] font-bold break-keep text-gray-900 sm:text-[30px]">
             {store.name}
           </h1>
-          {store.tags.length > 0 && (
-            <div className="flex flex-wrap gap-[6px]">
-              {store.tags.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full bg-primary-50 px-[10px] py-[3px] text-[13px] font-semibold text-primary"
-                >
-                  # {t}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         <dl
           className={cn(

@@ -199,10 +199,12 @@ export function AdvFavorites() {
             {rows.length}곳
           </span>
           <ul className="grid gap-x-[12px] gap-y-[20px] sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((row) => (
+            {rows.map((row, index) => (
               <li key={row.id} className="flex flex-col gap-[8px]">
                 <MediaFindCard
                   row={row}
+                  // 첫 줄(PC 3칸)은 처음 화면에 바로 보여 사진을 늦게 불러오지 않는다(LCP 경고, 11-17).
+                  eager={index < 3}
                   onClick={() => setOpenId(row.id)}
                   partnersAccess={partnersAccess}
                   // 하트에 마우스를 올리면 "관심 해제"(11-11 사용자).

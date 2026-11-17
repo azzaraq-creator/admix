@@ -25,6 +25,7 @@ import { formatPhone } from "@/lib/phone";
 import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
+import { BizReviewQueue } from "../../_components/BizReviewQueue";
 import { CollabPageHead, SimplePager } from "../../_components/collabUi";
 
 type Row = AdminAdvertiserMember & { no: string };
@@ -185,6 +186,8 @@ const searchOptionList: SearchOption[] = [
 /**
  * 광고주 회원(11-10 사용자: "제휴사 회원뿐 아니라 광고주 회원도") — 최근 가입 순, 읽기 전용.
  * 담당자 · 브랜드 · 사업자 상태와 콜라보 수(취소 뺀 의뢰 수)를 보여 준다. PC 는 표, 휴대폰은 카드.
+ * 맨 위 "검토 대기" 칸(BizReviewQueue) — 제휴사 회원과 같다(11-17 사용자: "광고주 회원도 제휴사 회원처럼 검토 대기를 동일하게").
+ * 머리 설명 글도 제휴사 회원처럼 뺐다.
  */
 export function CollabAdvertisersListView() {
   const router = useRouter();
@@ -201,6 +204,13 @@ export function CollabAdvertisersListView() {
     biz: search.biz || undefined,
   });
 
+  // 검토 대기 — 아래 표 조건과 따로 늘 불러온다(메뉴 숫자가 바뀌면 같이 새로 불러온다 — advertisers 키).
+  const { data: waiting } = useCollabAdvertisers({
+    biz: "reviewing",
+    page: 1,
+    page_size: 50,
+  });
+
   const rows = useMemo<Row[]>(
     () =>
       (data?.items ?? []).map((m, i) => ({
@@ -214,9 +224,18 @@ export function CollabAdvertisersListView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="광고주 회원"
-        desc="최근 가입 순이에요. 회원을 눌러 담당자 정보 · 브랜드 · 사업자등록증 현황을 봐요."
+      <CollabPageHead title="광고주 회원" />
+
+      <BizReviewQueue
+        items={(waiting?.items ?? []).map((m) => ({
+          id: m.id,
+          caption: m.companyName,
+          name: m.name || m.loginId,
+          loginId: m.loginId,
+          uploadedAt: m.bizUploadedAt,
+        }))}
+        total={waiting?.total ?? 0}
+        hrefOf={(id) => `/admin/collab/advertisers/${id}`}
       />
 
       <div className="hidden md:block">

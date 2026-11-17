@@ -352,7 +352,7 @@ def _media_card(m: Media) -> dict:
 
 def attach_partners(db: Session, items: list[dict]) -> list[dict]:
     """콜라보 매장 카드에 매장 값을 붙인다 — 매체 찾기 목록 · 지도 팝업 · 관심 매체 카드가
-    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 매장 특징, 사진마다 분류(11-12)."""
+    제휴사 '내 매장'의 광고주 미리보기와 같게: 주소 + 상세 주소, 운영 시간, 사진마다 분류(11-12)."""
     # partners_service 가 이 모듈을 가져다 쓰므로(사진 줄이기 등) 여기서는 함수 안에서 가져온다.
     from src.services.partners_service import photo_kind_map
 
@@ -366,12 +366,11 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             PartnersStore.address,
             PartnersStore.address_detail,
             PartnersStore.business_hours,
-            PartnersStore.tags,
             PartnersStore.image_urls,
             PartnersStore.image_kinds,
         ).filter(PartnersStore.media_id.in_(ids))
     }
-    # 지도에 뜬 영업 기록(협업 확정 전 매장, 090) — 운영 시간 · 매장 특징은 아직 없고, 사진 분류만.
+    # 지도에 뜬 영업 기록(협업 확정 전 매장, 090) — 운영 시간은 아직 없고, 사진 분류만.
     lead_ids = [i for i in ids if i not in stores]
     leads = (
         {r.media_id: r for r in db.query(CollabLead).filter(CollabLead.media_id.in_(lead_ids))} if lead_ids else {}
@@ -382,7 +381,6 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             it["address"] = " ".join(p for p in [s.address, s.address_detail] if p) or it.get("address")
             it["partners"] = dict(
                 businessHours=s.business_hours,
-                tags=list(s.tags or []),
                 photoKinds=photo_kind_map(s.image_urls, s.image_kinds),
             )
             continue
@@ -391,7 +389,6 @@ def attach_partners(db: Session, items: list[dict]) -> list[dict]:
             photos = lead.photos or []
             it["partners"] = dict(
                 businessHours=None,
-                tags=[],
                 photoKinds=photo_kind_map([p.get("url") for p in photos], {p.get("url"): p.get("kind") for p in photos}),
                 unconfirmed=True,
             )
@@ -2693,11 +2690,9 @@ def _store_type_counts(base) -> dict[str, int]:
 
 
 def _linked_partners_or_other():
-    """콜라보 매장 줄은 제휴사 회원에 연결된 매장(cafe_store.owner_user_id)만 남기고, 다른 매체는 그대로 둔다.
-    연결을 끊거나 회원을 지우면(SET NULL) 바로 빠진다 — media 줄을 따로 고치지 않아도 된다."""
-    linked = select(PartnersStore.media_id).where(
-        PartnersStore.owner_user_id.isnot(None), PartnersStore.media_id.isnot(None)
-    )
+    """콜라보 매장 줄은 제휴사 회원이 한 명이라도 연결된 매장(cafe_store_member, 094)만 남기고, 다른 매체는 그대로 둔다.
+    연결을 모두 끊거나 회원을 지우면(CASCADE) 바로 빠진다 — media 줄을 따로 고치지 않아도 된다."""
+    linked = select(PartnersStore.media_id).where(PartnersStore.members.any(), PartnersStore.media_id.isnot(None))
     return or_(_not_partners(), Media.media_id.in_(linked))
 
 

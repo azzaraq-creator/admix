@@ -74,11 +74,28 @@ def serialize(lead: CollabLead) -> dict:
     out["storeId"] = str(lead.store_id) if lead.store_id else ""
     out["storeCode"] = (lead.store.store_code or "") if lead.store else ""
     out["photos"] = photos_of(lead)
+    # 협업 확정 매장 정보(092) — 업체 정보 탭 "매장 정보". 확정하면 이 값으로 매장을 만든다.
+    out["storeInfo"] = store_info_of(lead)
     # 광고주 지도(090) — 위치가 없으면 지도에 안 뜬다. mediaId 는 지도에 영업 기록으로 떠 있을 때만(확정 매장이 이어받으면 "").
     out["latitude"] = float(lead.latitude) if lead.latitude is not None else None
     out["longitude"] = float(lead.longitude) if lead.longitude is not None else None
     out["mediaId"] = lead.media_id or ""
     return out
+
+
+def store_info_of(lead: CollabLead) -> dict:
+    """협업 확정 매장 정보(092) — 화면 모양으로, 빈 값도 칸은 채워 준다."""
+    info = lead.store_info or {}
+    return {
+        "storeTypeId": info.get("storeTypeId"),
+        "phone": info.get("phone") or "",
+        "ownerName": info.get("ownerName") or "",
+        "mainCustomers": info.get("mainCustomers") or "",
+        "intro": info.get("intro") or "",
+        "seats": info.get("seats"),
+        "hours": info.get("hours"),
+        "scope": dict(info.get("scope") or {}),
+    }
 
 
 def photos_of(lead: CollabLead) -> list[dict]:
@@ -109,6 +126,7 @@ def to_source(lead: CollabLead) -> dict:
     out.pop("storeId")  # 원본 앱에 없는 칸(076)
     out.pop("storeCode")
     out.pop("photos")  # 원본 앱에 없는 칸(088) — 원본 사진은 photoIds
+    out.pop("storeInfo")  # 원본 앱에 없는 칸(092)
     for key in ("latitude", "longitude", "mediaId"):  # 원본 앱에 없는 칸(090)
         out.pop(key)
     out["id"] = lead.source_id or ""
@@ -216,6 +234,55 @@ def _apply(lead: CollabLead, data: dict, *, raw: bool = False) -> None:
         raise HTTPException(status_code=400, detail="업체명을 적어 주세요.")
 
 
+STORE_PHONE_MAX = 30  # partners_store.phone
+STORE_OWNER_NAME_MAX = 100  # partners_store.owner_name
+
+
+def _apply_store_info(db: Session, lead: CollabLead, data: dict) -> None:
+    """협업 확정 매장 정보(092) — storeInfo 를 보낸 때만, 통째로 바꾼다. 정리 규칙은 협업 확정 매장 저장과 같다."""
+    if "storeInfo" not in data:
+        return
+    raw = data.get("storeInfo") or {}
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=400, detail="매장 정보를 다시 확인해 주세요.")
+    info: dict = {}
+    type_id = raw.get("storeTypeId")
+    if type_id is not None:
+        if not isinstance(type_id, int) or db.get(PartnersStoreType, type_id) is None:
+            raise HTTPException(status_code=400, detail="매장 유형을 다시 골라 주세요.")
+        info["storeTypeId"] = type_id
+    phone = _text("전화번호", raw.get("phone"), STORE_PHONE_MAX, raw=False)
+    if phone:
+        info["phone"] = phone
+    owner_name = _text("사장 이름", raw.get("ownerName"), STORE_OWNER_NAME_MAX, raw=False)
+    if owner_name:
+        info["ownerName"] = owner_name
+    main_customers = _text("주요 고객층", raw.get("mainCustomers"), partners_service.MAIN_CUSTOMERS_MAX, raw=False)
+    if main_customers:
+        info["mainCustomers"] = main_customers
+    intro = partners_service.clean_intro(raw.get("intro"))
+    if intro:
+        info["intro"] = intro
+    seats = partners_service.clean_seats(raw.get("seats"))
+    if seats is not None:
+        info["seats"] = seats
+    hours = partners_service._clean_hours(raw.get("hours"))
+    if hours:
+        info["hours"] = hours
+    scope = partners_service.clean_scope(raw.get("scope"))
+    if scope:
+        info["scope"] = scope
+    lead.store_info = info
+
+
+def _lead_store_type(db: Session, lead: CollabLead) -> int | None:
+    """매장 유형 — 매장 정보(092)에서 고른 유형이 있으면 그것, 없으면 업체 유형으로 맞춘다."""
+    chosen = (lead.store_info or {}).get("storeTypeId")
+    if chosen is not None and db.get(PartnersStoreType, chosen) is not None:
+        return chosen
+    return _store_type_for(db, lead.biz_type)
+
+
 def _apply_partner(db: Session, lead: CollabLead, data: dict) -> None:
     """연결할 제휴사 회원 — partnerCode(고유번호 P-0001). 보낸 때만 바꾸고, 비우면 연결을 끊는다."""
     if "partnerCode" not in data:
@@ -319,6 +386,7 @@ def create_lead(db: Session, data: dict) -> dict:
     """새 영업 기록. 제휴사 회원을 연결해 만들면 바로 협업 확정(_sync_partner_store)."""
     lead = CollabLead(id=uuid.uuid4())
     _apply(lead, data)
+    _apply_store_info(db, lead, data)
     _apply_location(lead, data, None)
     _apply_partner(db, lead, data)
     lead.sort_order = (db.query(func.max(CollabLead.sort_order)).scalar() or 0) + 1
@@ -342,6 +410,7 @@ def update_lead(db: Session, lead_id: str, data: dict) -> dict:
     prev_address = _store_address_of(lead)[0]
     try:
         _apply(lead, data)
+        _apply_store_info(db, lead, data)
         _apply_location(lead, data, prev_address)
         _apply_partner(db, lead, data)
         lead.updated_at = datetime.now(timezone.utc)
@@ -358,9 +427,9 @@ def update_lead(db: Session, lead_id: str, data: dict) -> dict:
 def _sync_partner_store(db: Session, lead: CollabLead, prev_partner: uuid.UUID | None, data: dict) -> None:
     """제휴사 회원 연결 = 협업 확정(2026-11-12 사용자: "회원을 연결하면 자동으로 협업 확정, 회원에게도 뜨게").
 
-    회원 화면의 "연결 매장"은 매장의 연결 회원(owner)이라, 영업 기록에만 회원을 이어 두면 회원 쪽엔 매장이 없다.
+    회원 화면의 "연결 매장"은 매장의 연결 회원(cafe_store_member, 094)이라, 영업 기록에만 회원을 이어 두면 회원 쪽엔 매장이 없다.
     - 확정 전 기록에 회원이 연결돼 있으면(이번에 보낸 partnerCode 기준) 그 회원을 연결 회원으로 매장을 만든다 — 주소가 없으면 막는다.
-    - 확정한 기록은 회원이 바뀔 때 매장 연결 회원도 같이 바꾼다. 끊으면, 매장이 그 회원과 이어져 있을 때만 매장 쪽도 끊는다.
+    - 확정한 기록은 회원이 바뀔 때 예전 회원 연결을 끊고 새 회원을 잇는다(다른 연결 회원은 그대로). 끊으면 그 회원 연결만 끊는다.
     커밋은 부르는 쪽에서.
     """
     if "partnerCode" not in data:
@@ -377,10 +446,12 @@ def _sync_partner_store(db: Session, lead: CollabLead, prev_partner: uuid.UUID |
         return
     if lead.partner_user_id == prev_partner:
         return
-    if lead.partner_user_id:
-        store.owner_user_id = lead.partner_user_id
-    elif store.owner_user_id == prev_partner:
-        store.owner_user_id = None
+    # 연결 회원이 여럿일 수 있다(094) — 예전 회원 연결만 끊고 새 회원을 더한다(다른 연결 회원은 그대로).
+    if prev_partner:
+        partners_service.remove_member(store, prev_partner)
+    if lead.partner:
+        partners_service.add_member(store, lead.partner, via="lead")
+    partners_service.sync_media(db, store)
 
 
 # ── 협업 확정(영업 기록 → 협업 확정 매장) ─────────────────────────────
@@ -443,8 +514,9 @@ def _location_of(location: dict | None) -> dict:
 def confirm_lead(db: Session, lead_id: str, location: dict | None = None) -> dict:
     """협업 확정 — 영업 기록 칸으로 협업 확정 매장(S-0001 …)을 만들고 기록과 잇는다.
 
-    매장은 비공개로 만든다(사진 · 금액을 채우고 어드민이 공개로 바꾼다). 옮기는 칸: 업체명 · 주소(없으면 지번주소 + 상세) · 업체 유형(매장 유형) ·
-    매장 담당자 연락처(전화번호) · 대표/사장이면 그 이름(사장 이름) · 연결한 제휴사 회원 · 매장 사진(088). 영업 기록은 지우지 않고 목록에도 남는다.
+    매장은 비공개로 만든다(사진 · 금액을 채우고 어드민이 공개로 바꾼다). 옮기는 칸: 업체명 · 주소(없으면 지번주소 + 상세) · 연결한 제휴사 회원 ·
+    매장 사진(088) · 매장 정보(092 — 매장 유형 · 전화번호 · 사장 이름 · 주요 고객층 · 소개 · 규모 · 운영 시간 · 가능 범위). 매장 정보가 비어 있으면
+    매장 유형은 업체 유형으로, 전화번호는 매장 담당자 연락처로, 사장 이름은 담당자가 대표/사장일 때 그 이름으로. 영업 기록은 지우지 않고 목록에도 남는다.
     확정한 뒤로 매장 사진은 협업 확정 매장에서 고친다(영업 기록 사진을 고쳐도 매장엔 반영되지 않는다).
     location — 화면이 찾은 위치(없으면 서버가 주소로 찾는다).
     """
@@ -469,21 +541,30 @@ def _make_store(db: Session, lead: CollabLead, location: dict | None):
     address, address_detail = _store_address_of(lead)
     if not address:
         raise HTTPException(status_code=400, detail="주소가 없어 확정할 수 없어요. 영업 기록에 주소나 지번주소를 먼저 적어 주세요.")
-    phone = (lead.contact_phone or "").strip()
+    info = lead.store_info or {}
+    phone = (info.get("phone") or lead.contact_phone or "").strip()
     title = lead.contact_title or ""
     data: dict = {
         "name": lead.name,
         "address": address,
         "address_detail": address_detail,
-        "store_type_id": _store_type_for(db, lead.biz_type),
+        "store_type_id": _lead_store_type(db, lead),
         "status": "hidden",
-        "phone": phone if len(phone) <= 30 else None,
-        "owner_name": lead.contact_name if any(t in title for t in OWNER_TITLES) else None,
+        "phone": phone if len(phone) <= STORE_PHONE_MAX else None,
+        "owner_name": info.get("ownerName")
+        or (lead.contact_name if any(t in title for t in OWNER_TITLES) else None),
+        # 매장 정보(092)에서 적은 주요 고객층 · 소개 · 규모 · 운영 시간 · 가능 범위 — 없으면 빈 채로(매장 어필은 없앰, 11-17 사용자).
+        "main_customers": info.get("mainCustomers"),
+        "intro": info.get("intro"),
+        "seats": info.get("seats"),
+        "hours": info.get("hours"),
+        "scope": info.get("scope") or {},
     }
     # 위치 — 화면이 찾아 보낸 값, 없으면 영업 기록에 있는 위치(090).
     data.update(_location_of(location) or _lead_location(lead))
     if lead.partner and lead.partner.partner_code:
-        data["owner_code"] = lead.partner.partner_code
+        data["member_codes"] = [lead.partner.partner_code]
+        data["member_via"] = "lead"
     # 영업 기록 매장 사진(088)은 매장 사진으로 — 분류 · 대표 · 메모 그대로, 올린 때도 영업 기록에 올린 때로.
     photos = lead.photos or []
     if photos:
@@ -610,7 +691,7 @@ def sync_lead_media(db: Session, lead: CollabLead) -> None:
 
     확정 매장이 지도에 뜨면(공개 + 위치) 매장이 이 줄(매체 ID)을 이어받는다 — partners_service.sync_media.
     """
-    lead.store_type_id = _store_type_for(db, lead.biz_type)
+    lead.store_type_id = _lead_store_type(db, lead)
     store = lead.store
     if store is not None and partners_service.on_map(store):
         if store.media_id is None:
@@ -664,8 +745,10 @@ def serialize_public(lead: CollabLead, *, pricing: bool = False) -> dict:
         images=images,
         phone=None,
         ownerName=None,
-        tags=[],
-        notes=[],
+        mainCustomers=None,
+        intro=None,
+        seats=None,
+        scope={},
         businessHours=None,
         hours=None,
         status="active",

@@ -15,6 +15,8 @@ import binascii
 import json
 import logging
 import os
+import re
+import secrets
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -28,6 +30,7 @@ from src.config import get_settings
 from src.models.partners_store import (
     PARTNERS_MEDIA_CATEGORY,
     PartnersStore,
+    PartnersStoreMember,
     PartnersStoreRequest,
     PartnersStoreType,
 )
@@ -66,9 +69,23 @@ CLOSED_DAYS = {
     "holiday": "공휴일",
 }
 MAX_HOURS_SLOTS = 2
-# 매장 어필 — 개수 제한 없음(2026-11-09 사용자). 카드에서는 3개까지 보이고 나머지는 "+N"(화면 쪽).
-# 조건 메모 — 개수 제한은 없고, 한 줄 길이만 막는다(잘못 붙여 넣은 긴 글).
-NOTE_MAX_LEN = 60
+# 매장 어필(tags)은 2026-11-17 사용자 요청으로 없앴다 — DB 칸(cafe_store.tags · cafe_store_type.tags)만 남고 읽고 쓰지 않는다.
+# 가능 범위(093, 2026-11-17 사용자: 조건 메모 대신) — 항목마다 가능(ok) · 불가능(no), 고르지 않은 항목은 넣지 않는다.
+# 화면 frontend/lib/partners.ts COLLAB_SCOPE_ITEMS 와 같은 순서 · 키. 예전 조건 메모(cafe_store.notes · cafe_store_type.notes)는
+# DB 칸만 남고 읽고 쓰지 않는다.
+SCOPE_ITEMS = {
+    "print": "브랜딩 제작물",
+    "goods": "브랜드 굿즈",
+    "supplies": "브랜딩 소모품",
+    "dp": "DP 및 체험",
+    "menu": "협업 메뉴",
+    "space": "공간 활용",
+}
+SCOPE_VALUES = {"ok": "가능", "no": "불가능"}
+# 주요 고객층 · 소개(2~3줄) · 규모(좌석 수) 한도(093) — 화면 입력칸 maxLength 와 같다.
+MAIN_CUSTOMERS_MAX = 100
+INTRO_MAX = 300
+SEATS_MAX = 9999
 PARTNERS_MEDIA_SMALL = "매장"
 # 기본협약에 동의할 수 있는 사업자 등록 상태 — 올리기만 해도(검토 대기) 되고, 어드민 임시 승인도 된다.
 AGREEABLE_BIZ_STATUS = {"reviewing", "verified", "provisional"}
@@ -87,11 +104,8 @@ MAX_COLLAB_FEE = 100_000_000
 GRADE_CRITERIA = {"sales": 50, "seats": 20, "collab": 30}
 GRADE_MEMO_MAX_LEN = 300
 
-# 매장 어필 한 개 길이(인스타그램 해시태그처럼 짧게). 선택지는 매장 유형마다 어드민 "매장 유형 관리"에서 정한다(070).
-TAG_MAX_LEN = 20
-# 매장 유형 — 이름 길이, 유형 하나에 둘 수 있는 칩 · 조건 값 개수(잘못 붙여 넣은 긴 목록을 막는 정도).
+# 매장 유형 — 이름 길이(유형은 이름만 둔다, 11-17).
 STORE_TYPE_NAME_MAX = 20
-STORE_TYPE_VALUES_MAX = 100
 
 _FIELDS = (
     "name",
@@ -136,11 +150,73 @@ def _next_code(db: Session, column, prefix: str) -> str:
     return f"{prefix}-{(last or 0) + 1:04d}"
 
 
+# 매장 ID(094) — S-XXXX-XXXX, 숫자 · 대문자 중 헷갈리는 0 · O · 1 · I · L 을 뺀 8자(11-17 사용자: "매장ID를 좀 어렵게").
+# 순번이 아니라 남의 매장 ID를 짐작해 연결을 요청하기 어렵다. 화면 lib/partners formatStoreCodeInput 과 같은 규칙.
+# 첫 글자는 S 가 아니다 — 입력 칸이 맨 앞 S 를 머리(S-)로 보고 떼어 내므로(s7kq2… 를 치는 중에도 헷갈리지 않게).
+STORE_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+STORE_CODE_FIRST = STORE_CODE_ALPHABET.replace("S", "")
+STORE_CODE_BODY_LEN = 8
+
+
+def new_store_code(db: Session) -> str:
+    """겹치지 않는 새 매장 ID."""
+    while True:
+        body = secrets.choice(STORE_CODE_FIRST) + "".join(
+            secrets.choice(STORE_CODE_ALPHABET) for _ in range(STORE_CODE_BODY_LEN - 1)
+        )
+        code = f"{STORE_CODE_PREFIX}-{body[:4]}-{body[4:]}"
+        if db.query(PartnersStore.id).filter(PartnersStore.store_code == code).first() is None:
+            return code
+
+
 def normalize_store_code(raw: str | None) -> str:
-    """매장 ID 입력 다듬기 — s1 · 0001 · S0001 → S-0001(화면 lib/adminCollab normalizeCode 와 같은 규칙)."""
-    code = (raw or "").strip().upper().replace(" ", "")
-    digits = code.removeprefix(f"{STORE_CODE_PREFIX}-").removeprefix(STORE_CODE_PREFIX)
-    return f"{STORE_CODE_PREFIX}-{int(digits):04d}" if digits.isdigit() else code
+    """매장 ID 입력 다듬기 — 소문자 · 띄어쓰기 · 하이픈은 상관없다(s-7kq2-m9xd · 7KQ2M9XD → S-7KQ2-M9XD).
+    8자(머리 S 빼고)가 아니면 다듬은 글 그대로 — 찾지 못한다."""
+    code = re.sub(r"[^0-9A-Z]", "", (raw or "").upper())
+    if len(code) == STORE_CODE_BODY_LEN + 1 and code.startswith(STORE_CODE_PREFIX):
+        code = code[1:]
+    if len(code) == STORE_CODE_BODY_LEN:
+        return f"{STORE_CODE_PREFIX}-{code[:4]}-{code[4:]}"
+    return code
+
+
+# ── 연결 회원(094) ──────────────────────────────────────────────────────
+# 매장 하나에 제휴사 회원 여럿 — 권한은 모두 같다(11-17 사용자). 예전엔 매장마다 한 명(owner_user_id).
+
+
+def is_member(store: PartnersStore, user: User | None) -> bool:
+    return user is not None and any(m.user_id == user.id for m in store.members)
+
+
+def add_member(store: PartnersStore, user: User, via: str = "admin") -> bool:
+    """연결 — 이미 연결돼 있으면 그대로(False). 커밋은 부르는 쪽에서."""
+    if is_member(store, user):
+        return False
+    store.members.append(PartnersStoreMember(user_id=user.id, via=via, created_at=datetime.now(timezone.utc)))
+    return True
+
+
+def remove_member(store: PartnersStore, user_id: uuid.UUID | None) -> bool:
+    for m in list(store.members):
+        if m.user_id == user_id:
+            store.members.remove(m)
+            return True
+    return False
+
+
+def set_members(store: PartnersStore, users: list[User], via: str = "admin") -> None:
+    """연결 회원을 이 목록대로 — 빠진 회원은 끊고, 새 회원은 잇는다(이미 있던 연결은 연결한 때 · 방식 그대로)."""
+    wanted = {u.id for u in users}
+    for m in list(store.members):
+        if m.user_id not in wanted:
+            store.members.remove(m)
+    for u in users:
+        add_member(store, u, via)
+
+
+def _members_of_user(user_id):
+    """이 회원이 연결된 매장 — PartnersStore 조건."""
+    return PartnersStore.members.any(PartnersStoreMember.user_id == user_id)
 
 
 def ensure_partner_code(db: Session, user: User) -> str | None:
@@ -327,8 +403,10 @@ def serialize(store: PartnersStore, *, admin: bool = False, pricing: bool = Fals
         images=images,
         phone=store.phone,
         ownerName=store.owner_name,
-        tags=list(store.tags or []),
-        notes=list(store.notes or []),
+        mainCustomers=store.main_customers,
+        intro=store.intro,
+        seats=store.seats,
+        scope=clean_scope(store.scope),
         businessHours=store.business_hours,
         hours=store.hours,
         status=store.status,
@@ -338,38 +416,42 @@ def serialize(store: PartnersStore, *, admin: bool = False, pricing: bool = Fals
     if admin or pricing:
         out.update(collabGrade=store.collab_grade, collabFee=store.collab_fee)
     if admin:
-        owner = store.owner
         out.update(
             adminMemo=store.admin_memo,
             gradeScores=dict(store.grade_scores or {}),
-            ownerUserId=str(store.owner_user_id) if store.owner_user_id else None,
-            ownerLoginId=owner.login_id if owner else None,
-            ownerPartnerCode=owner.partner_code if owner else None,
-            ownerMemberName=owner.name if owner else None,
-            ownerCompanyName=owner.company_name if owner else None,
-            ownerBizStatus=(
-                owner.business_registration.status
-                if owner and owner.business_registration
-                else "unregistered"
-            )
-            if owner
-            else None,
+            # 연결 회원(094) — 먼저 연결한 순. via 는 admin 담당자 연결 · request 연결 요청 승인 · lead 영업 기록.
+            members=[
+                dict(
+                    userId=str(m.user_id),
+                    loginId=m.user.login_id,
+                    partnerCode=m.user.partner_code,
+                    name=m.user.name,
+                    companyName=m.user.company_name,
+                    bizStatus=(
+                        m.user.business_registration.status if m.user.business_registration else "unregistered"
+                    ),
+                    via=m.via,
+                    linkedAt=m.created_at.isoformat() if m.created_at else None,
+                )
+                for m in store.members
+                if m.user is not None
+            ],
         )
     return out
 
 
-# ── 값 정리 ─────────────────────────────────────────────────────────────
-
-
-def _clean_tags(tags) -> list[str]:
-    if tags is None:
-        return []
-    out: list[str] = []
-    for t in tags:
-        t = str(t).strip().lstrip("#").strip()
-        if t and t not in out:
-            out.append(t[:TAG_MAX_LEN])
+def serialize_mine(store: PartnersStore, user: User) -> dict:
+    """내 매장 — 매장 ID(다른 회원에게 알려 줘 연결 요청을 받게)와 함께 연결된 회원 이름(나 표시, 11-17)."""
+    out = serialize(store)
+    out["linkedMembers"] = [
+        dict(name=m.user.name or m.user.company_name or "이름 없음", isMe=m.user_id == user.id)
+        for m in store.members
+        if m.user is not None
+    ]
     return out
+
+
+# ── 값 정리 ─────────────────────────────────────────────────────────────
 
 
 def _clean_images(urls) -> list[str]:
@@ -468,16 +550,39 @@ def hours_text(hours: dict | None) -> str | None:
     return text or None
 
 
-def _clean_notes(notes) -> list[str]:
-    out: list[str] = []
-    for n in notes or []:
-        n = " ".join(str(n).split())
-        if not n or n in out:
-            continue
-        if len(n) > NOTE_MAX_LEN:
-            raise HTTPException(status_code=400, detail=f"조건 메모는 한 줄에 {NOTE_MAX_LEN}자까지 쓸 수 있어요.")
-        out.append(n)
-    return out
+def clean_scope(raw) -> dict[str, str]:
+    """가능 범위 — 아는 항목 · 값(ok · no)만 항목 순서대로. 모르는 값은 버린다(고르지 않은 것으로)."""
+    if not isinstance(raw, dict):
+        return {}
+    return {k: raw[k] for k in SCOPE_ITEMS if raw.get(k) in SCOPE_VALUES}
+
+
+def clean_intro(v) -> str | None:
+    """소개(2~3줄) — 줄마다 앞뒤 공백을 다듬고 빈 줄은 뺀다(줄바꿈은 그대로)."""
+    lines = [" ".join(line.split()) for line in str(v or "").splitlines()]
+    text = "\n".join(line for line in lines if line)
+    if len(text) > INTRO_MAX:
+        raise HTTPException(status_code=400, detail=f"소개는 {INTRO_MAX}자까지 쓸 수 있어요.")
+    return text or None
+
+
+def clean_seats(v) -> int | None:
+    """규모(좌석 수) — 비우면 None, 0 ~ SEATS_MAX 숫자만."""
+    if v is None or v == "":
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="좌석 수는 숫자로 적어 주세요.") from None
+    if not 0 <= n <= SEATS_MAX:
+        raise HTTPException(status_code=400, detail=f"좌석 수는 {SEATS_MAX:,}석까지 적을 수 있어요.")
+    return n
+
+
+def scope_text(scope) -> str | None:
+    """화면 글 — "브랜딩 제작물 가능, 브랜드 굿즈 불가능"(수정 요청 이전 · 이후 칸). 고른 게 없으면 None."""
+    scope = clean_scope(scope)
+    return ", ".join(f"{SCOPE_ITEMS[k]} {SCOPE_VALUES[v]}" for k, v in scope.items()) or None
 
 
 def _apply(store: PartnersStore, data: dict, *, admin: bool) -> None:
@@ -488,8 +593,6 @@ def _apply(store: PartnersStore, data: dict, *, admin: bool) -> None:
             v = data[key]
             v = v.strip() if isinstance(v, str) else v
             setattr(store, key, v or None)
-    if "tags" in data:
-        store.tags = _clean_tags(data["tags"])
     if "images" in data:
         store.image_urls, store.image_kinds, store.image_memos = _clean_photo_set(data["images"])
     elif "image_urls" in data:
@@ -505,8 +608,14 @@ def _apply(store: PartnersStore, data: dict, *, admin: bool) -> None:
         if "hours" in data:
             store.hours = _clean_hours(data["hours"])
             store.business_hours = hours_text(store.hours)
-        if "notes" in data:
-            store.notes = _clean_notes(data["notes"])
+        if "scope" in data:
+            store.scope = clean_scope(data["scope"])
+        if "main_customers" in data:
+            store.main_customers = _short_text(data["main_customers"], max_len=MAIN_CUSTOMERS_MAX)
+        if "intro" in data:
+            store.intro = clean_intro(data["intro"])
+        if "seats" in data:
+            store.seats = clean_seats(data["seats"])
         if "status" in data and data["status"] in ("active", "hidden"):
             store.status = data["status"]
         if "admin_memo" in data:
@@ -667,7 +776,7 @@ def sync_media(db: Session, store: PartnersStore) -> None:
         district=store.district,
         latitude=store.latitude,
         longitude=store.longitude,
-        description=" ".join(f"#{t}" for t in (store.tags or [])) or None,
+        description=None,  # 예전엔 매장 어필(#칩)을 넣었다 — 11-17 없앰
         image_urls=cover_urls(store),
     )
 
@@ -753,7 +862,6 @@ def _keyword_filter(q, keyword: str | None):
             PartnersStore.name.ilike(like),
             PartnersStore.address.ilike(like),
             PartnersStore.district.ilike(like),
-            PartnersStore.tags.cast(String).ilike(like),
         )
     )
 
@@ -791,11 +899,12 @@ def get_public(db: Session, key: str, user: User) -> dict:
             raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
         out["isMine"] = False
         return out
-    # 숨긴 매장은 주인만 본다.
-    if store.status != "active" and store.owner_user_id != user.id:
+    # 숨긴 매장은 연결 회원만 본다.
+    mine = is_member(store, user)
+    if store.status != "active" and not mine:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
     out = serialize(store, pricing=_pricing(user))
-    out["isMine"] = store.owner_user_id == user.id
+    out["isMine"] = mine
     return out
 
 
@@ -803,22 +912,24 @@ def get_public(db: Session, key: str, user: User) -> dict:
 
 
 def list_mine(db: Session, user: User) -> list[dict]:
-    """내 매장 — 담당자가 연결해 준 매장(먼저 연결한 것이 앞). 숨긴 매장도 주인에게는 보인다."""
+    """내 매장 — 연결된 매장(먼저 연결한 것이 앞). 숨긴 매장도 연결 회원에게는 보인다."""
     ensure_partner(user)
     rows = (
         db.query(PartnersStore)
-        .filter(PartnersStore.owner_user_id == user.id)
-        .order_by(PartnersStore.created_at)
+        .join(PartnersStoreMember, PartnersStoreMember.store_id == PartnersStore.id)
+        .filter(PartnersStoreMember.user_id == user.id)
+        .options(selectinload(PartnersStore.members).joinedload(PartnersStoreMember.user))
+        .order_by(PartnersStoreMember.created_at)
         .all()
     )
-    return [serialize(s) for s in rows]
+    return [serialize_mine(s, user) for s in rows]
 
 
 def own_store(db: Session, user: User, store_id: str) -> PartnersStore:
-    """이 제휴사 회원에게 연결된 매장 — 아니면 404."""
+    """이 제휴사 회원에게 연결된 매장 — 아니면 404. 연결 회원은 누구나 같은 권한(094)."""
     ensure_partner(user)
     store = _get_or_404(db, store_id)
-    if store.owner_user_id != user.id:
+    if not is_member(store, user):
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
     return store
 
@@ -830,9 +941,11 @@ REQUEST_FIELDS = {
     "hours": "운영 시간",
     "phone": "매장 번호",
     "owner_name": "사장님",
-    "tags": "매장 특징",
-    "notes": "조건",
+    "scope": "가능 범위",
 }
+# 예전 요청 이름 — 없앤 항목도 수정 기록에는 이름으로 보인다(매장 특징 = 매장 어필 · 조건 = 조건 메모, 11-17 없앰).
+# 새로 보내거나 반영하지는 않는다.
+PAST_REQUEST_FIELDS = {"tags": "매장 특징", "notes": "조건"}
 REQUEST_STATUSES = ("pending", "done", "rejected")
 REQUEST_MEMO_MAX_LEN = 500
 # 추가 요청 · 문의(11-12) — 위 항목 말고 사진 · 매장 유형 · 콜라보 같은 것도 글로 보낸다. 글은 content 에 두고,
@@ -845,6 +958,11 @@ INQUIRY_MAX_LEN = 1000
 # 매장을 바꾸지 않는다 — 어드민이 매장을 등록해 이 회원에게 연결한다(한 회원에 매장 여러 곳, 069).
 ADD_STORE_FIELD = "add_store"
 ADD_STORE_LABEL = "매장 추가"
+# 매장 연결 요청(094, 11-17 사용자) — 기본협약을 마친 회원이 매장 ID로 이미 등록된 매장에 연결을 요청한다(매니저 · 공동 운영자).
+# store_id 는 연결할 매장, user_id 는 요청한 회원. 어드민이 "처리 완료"하면 연결 회원이 되고, 처리 불가면 사유를 남긴다.
+# 그 매장 수정 기록(제휴사 내 매장)에는 보이지 않는다 — 요청한 회원은 가입 03 단계 · 대시보드에서 상태를 본다.
+LINK_STORE_FIELD = "link_store"
+LINK_STORE_LABEL = "매장 연결"
 
 
 def _short_text(v, *, max_len: int) -> str | None:
@@ -890,10 +1008,8 @@ def _clean_request_value(field: str, raw):
         return _short_text(raw, max_len=30)
     if field == "owner_name":
         return _short_text(raw, max_len=100)
-    if field == "tags":
-        return _clean_tags(raw if isinstance(raw, list) else [])
-    if field == "notes":
-        return _clean_notes(raw if isinstance(raw, list) else [])
+    if field == "scope":
+        return clean_scope(raw)
     raise HTTPException(status_code=400, detail="바꿀 항목을 골라 주세요.")
 
 
@@ -905,8 +1021,8 @@ def _value_text(field: str, value) -> str | None:
         return " ".join(x for x in (value.get("address"), value.get("address_detail")) if x) or None
     if field == "hours":
         return hours_text(value)
-    if field in ("tags", "notes"):
-        return ", ".join(value) or None
+    if field == "scope":
+        return scope_text(value)
     return str(value)
 
 
@@ -922,8 +1038,8 @@ def _store_text(store: PartnersStore, field: str) -> str | None:
         return store.phone or None
     if field == "owner_name":
         return store.owner_name or None
-    if field in ("tags", "notes"):
-        return _value_text(field, list(getattr(store, field) or []))
+    if field == "scope":
+        return scope_text(store.scope)
     return None
 
 
@@ -947,7 +1063,9 @@ def serialize_request(r: PartnersStoreRequest, *, admin: bool = False) -> dict:
             if r.field == INQUIRY_FIELD
             else ADD_STORE_LABEL
             if r.field == ADD_STORE_FIELD
-            else REQUEST_FIELDS.get(r.field or "", "기타")
+            else LINK_STORE_LABEL
+            if r.field == LINK_STORE_FIELD
+            else REQUEST_FIELDS.get(r.field or "") or PAST_REQUEST_FIELDS.get(r.field or "", "기타")
         ),
         before=r.before_text,
         after=r.content if free else r.after_text,
@@ -996,7 +1114,7 @@ def create_request(
         if not name:
             raise HTTPException(status_code=400, detail="추가할 매장명을 적어 주세요.")
         linked = db.query(PartnersStore.id).filter(
-            PartnersStore.owner_user_id == user.id, func.lower(PartnersStore.name) == name.lower()
+            _members_of_user(user.id), func.lower(PartnersStore.name) == name.lower()
         )
         if linked.first() is not None:
             raise HTTPException(status_code=400, detail="이미 연결된 매장이에요.")
@@ -1051,12 +1169,122 @@ def list_my_requests(db: Session, user: User, store_id: str) -> list[dict]:
     store = own_store(db, user, store_id)
     rows = (
         db.query(PartnersStoreRequest)
-        .filter(PartnersStoreRequest.store_id == store.id)
+        .filter(
+            PartnersStoreRequest.store_id == store.id,
+            or_(PartnersStoreRequest.field.is_(None), PartnersStoreRequest.field != LINK_STORE_FIELD),
+        )
         .order_by(PartnersStoreRequest.updated_at.desc(), PartnersStoreRequest.created_at.desc())
         .limit(50)
         .all()
     )
     return [serialize_request(r) for r in rows]
+
+
+# ── 매장 연결 요청(094) ──────────────────────────────────────────────────
+# 기본협약을 마친 제휴사 회원이 매장 ID로 이미 등록된 매장에 연결을 요청한다 → 어드민 "수정 요청"에서 처리 완료하면 연결.
+
+
+def _ensure_can_link(user: User) -> None:
+    ensure_partner(user)
+    if user.partner_agreed_at is None:
+        raise HTTPException(status_code=400, detail="기본협약을 마친 뒤 매장 연결을 요청할 수 있어요.")
+
+
+def _store_by_code_or_404(db: Session, code: str) -> PartnersStore:
+    raw = normalize_store_code(code)
+    store = db.query(PartnersStore).filter(PartnersStore.store_code == raw).first() if raw else None
+    if store is None:
+        raise HTTPException(status_code=404, detail="매장을 찾지 못했어요. 매장 ID를 다시 확인해 주세요.")
+    return store
+
+
+def _pending_link(db: Session, store: PartnersStore, user: User) -> PartnersStoreRequest | None:
+    return (
+        db.query(PartnersStoreRequest)
+        .filter(
+            PartnersStoreRequest.store_id == store.id,
+            PartnersStoreRequest.user_id == user.id,
+            PartnersStoreRequest.field == LINK_STORE_FIELD,
+            PartnersStoreRequest.status == "pending",
+        )
+        .first()
+    )
+
+
+def lookup_link_store(db: Session, user: User, code: str) -> dict:
+    """매장 ID로 매장 확인 — 요청 전에 이름 · 주소를 보여 준다(11-17 사용자: "응. 보여줘")."""
+    _ensure_can_link(user)
+    store = _store_by_code_or_404(db, code)
+    return dict(
+        storeCode=store.store_code,
+        name=store.name,
+        address=" ".join(x for x in (store.address, store.address_detail) if x),
+        linked=is_member(store, user),
+        pending=_pending_link(db, store, user) is not None,
+    )
+
+
+def serialize_link_request(r: PartnersStoreRequest) -> dict:
+    store = r.store
+    return dict(
+        id=str(r.id),
+        storeCode=store.store_code if store else None,
+        storeName=store.name if store else None,
+        address=" ".join(x for x in (store.address, store.address_detail) if x) if store else None,
+        status=r.status,
+        adminReply=r.admin_reply,
+        createdAt=r.created_at.isoformat() if r.created_at else None,
+        handledAt=r.handled_at.isoformat() if r.handled_at else None,
+    )
+
+
+def create_link_request(db: Session, user: User, code: str) -> dict:
+    _ensure_can_link(user)
+    store = _store_by_code_or_404(db, code)
+    if is_member(store, user):
+        raise HTTPException(status_code=400, detail="이미 연결된 매장이에요.")
+    if _pending_link(db, store, user) is not None:
+        raise HTTPException(status_code=400, detail="이미 연결을 요청한 매장이에요. 담당자 확인을 기다려 주세요.")
+    r = PartnersStoreRequest(
+        store_id=store.id,
+        user_id=user.id,
+        field=LINK_STORE_FIELD,
+        after_text=f"{store.store_code} {store.name}",
+        status="pending",
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return serialize_link_request(r)
+
+
+def list_link_requests(db: Session, user: User) -> list[dict]:
+    """내 매장 연결 요청 — 최근 순 10건(기다림 · 연결됨 · 처리 불가)."""
+    ensure_partner(user)
+    rows = (
+        db.query(PartnersStoreRequest)
+        .options(joinedload(PartnersStoreRequest.store))
+        .filter(PartnersStoreRequest.user_id == user.id, PartnersStoreRequest.field == LINK_STORE_FIELD)
+        .order_by(PartnersStoreRequest.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    return [serialize_link_request(r) for r in rows]
+
+
+def cancel_link_request(db: Session, user: User, request_id: str) -> None:
+    """기다리는 연결 요청 취소 — 지운다(처리한 요청은 그대로)."""
+    ensure_partner(user)
+    try:
+        r = db.get(PartnersStoreRequest, uuid.UUID(request_id))
+    except ValueError:
+        r = None
+    if r is None or r.user_id != user.id or r.field != LINK_STORE_FIELD:
+        raise HTTPException(status_code=404, detail="요청을 찾을 수 없어요.")
+    if r.status != "pending":
+        raise HTTPException(status_code=400, detail="이미 처리된 요청이에요.")
+    db.delete(r)
+    db.commit()
 
 
 # ── 어드민 · 매장 ──────────────────────────────────────────────────────
@@ -1075,28 +1303,33 @@ def admin_list(
 ) -> tuple[int, list[dict]]:
     """linked — yes(제휴사와 연결됨) · no(아직 연결 전), 비우면 전체. store_type — 매장 유형 id(비우면 전체).
     grade — 콜라보 등급(S · A · B · C), none 이면 등급 미정, 비우면 전체."""
-    q = db.query(PartnersStore).options(joinedload(PartnersStore.owner), joinedload(PartnersStore.store_type))
+    q = db.query(PartnersStore).options(
+        selectinload(PartnersStore.members).joinedload(PartnersStoreMember.user), joinedload(PartnersStore.store_type)
+    )
     kw = (keyword or "").strip()
     if kw:
         like = f"%{kw}%"
-        q = q.outerjoin(User, User.id == PartnersStore.owner_user_id).filter(
+        q = q.filter(
             or_(
                 PartnersStore.name.ilike(like),
                 PartnersStore.address.ilike(like),
                 PartnersStore.district.ilike(like),
                 PartnersStore.store_code.ilike(like),
-                PartnersStore.tags.cast(String).ilike(like),
-                User.partner_code.ilike(like),
-                User.login_id.ilike(like),
-                User.name.ilike(like),
+                # 매장 ID 는 소문자 · 하이픈 없이 쳐도 찾는다.
+                PartnersStore.store_code == normalize_store_code(kw),
+                PartnersStore.members.any(
+                    PartnersStoreMember.user.has(
+                        or_(User.partner_code.ilike(like), User.login_id.ilike(like), User.name.ilike(like))
+                    )
+                ),
             )
         )
     if status in ("active", "hidden"):
         q = q.filter(PartnersStore.status == status)
     if linked == "yes":
-        q = q.filter(PartnersStore.owner_user_id.isnot(None))
+        q = q.filter(PartnersStore.members.any())
     elif linked == "no":
-        q = q.filter(PartnersStore.owner_user_id.is_(None))
+        q = q.filter(~PartnersStore.members.any())
     if store_type is not None:
         q = q.filter(PartnersStore.store_type_id == store_type)
     if grade == "none":
@@ -1138,22 +1371,16 @@ def partner_by_code(db: Session, code: str | None) -> User | None:
     return user
 
 
-def _owner_from(db: Session, data: dict) -> tuple[bool, uuid.UUID | None]:
-    """연결할 제휴사 — owner_code(고유번호)나 owner_login_id(로그인 아이디). 둘 다 없으면 바꾸지 않는다."""
-    if "owner_code" in data:
-        user = partner_by_code(db, data.get("owner_code"))
-        return True, user.id if user else None
-    if "owner_login_id" in data:
-        login_id = (data.get("owner_login_id") or "").strip()
-        if not login_id:
-            return True, None
-        user = db.query(User).filter(User.login_id == login_id).first()
-        if user is None:
-            raise HTTPException(status_code=400, detail=f"회원을 찾지 못했어요: {login_id}")
-        if user.member_category != "partner":
-            raise HTTPException(status_code=400, detail="제휴사(콜라보) 회원만 매장과 연결할 수 있어요.")
-        return True, user.id
-    return False, None
+def _members_from(db: Session, data: dict) -> list[User] | None:
+    """연결 회원 — member_codes(고유번호 목록, 094). 보내지 않으면 None(바꾸지 않는다), 빈 목록이면 모두 끊는다."""
+    if "member_codes" not in data or data["member_codes"] is None:
+        return None
+    users: list[User] = []
+    for code in data["member_codes"]:
+        user = partner_by_code(db, code)
+        if user is not None and all(u.id != user.id for u in users):
+            users.append(user)
+    return users
 
 
 def _apply_store_type(db: Session, store: PartnersStore, data: dict) -> None:
@@ -1167,12 +1394,13 @@ def _apply_store_type(db: Session, store: PartnersStore, data: dict) -> None:
 
 
 def create_store(db: Session, data: dict) -> PartnersStore:
-    """새 매장(S-0001 …) — 커밋은 부르는 쪽에서(영업 기록 협업 확정도 같은 묶음으로 저장한다)."""
-    store = PartnersStore(status="active", image_urls=[], image_kinds={}, image_memos={}, image_dates={}, tags=[], notes=[])
-    store.store_code = _next_code(db, PartnersStore.store_code, STORE_CODE_PREFIX)
-    changed, owner_id = _owner_from(db, data)
-    if changed:
-        store.owner_user_id = owner_id
+    """새 매장(매장 ID S-XXXX-XXXX) — 커밋은 부르는 쪽에서(영업 기록 협업 확정도 같은 묶음으로 저장한다).
+    member_codes 로 연결 회원을, member_via 로 연결 방식(기본 admin, 영업 기록은 lead)을 정한다."""
+    store = PartnersStore(status="active", image_urls=[], image_kinds={}, image_memos={}, image_dates={}, scope={})
+    store.store_code = new_store_code(db)
+    users = _members_from(db, data)
+    if users:
+        set_members(store, users, via=data.get("member_via") or "admin")
     _apply_store_type(db, store, data)
     _apply(store, data, admin=True)
     db.add(store)
@@ -1190,9 +1418,9 @@ def admin_create(db: Session, data: dict) -> dict:
 
 def admin_update(db: Session, store_id: str, data: dict) -> dict:
     store = _get_or_404(db, store_id)
-    changed, owner_id = _owner_from(db, data)
-    if changed:
-        store.owner_user_id = owner_id
+    users = _members_from(db, data)
+    if users is not None:
+        set_members(store, users)
     _apply_store_type(db, store, data)
     _apply(store, data, admin=True)
     sync_media(db, store)
@@ -1209,28 +1437,11 @@ def admin_delete(db: Session, store_id: str) -> None:
 # ── 어드민 · 매장 유형(매장 유형 관리) ───────────────────────────────────────
 
 
-def _clean_values(values, *, max_len: int, label: str) -> list[str]:
-    """칩 · 조건 값 목록 — 앞뒤 공백 · 겹친 값 · 빈 값을 빼고 순서는 그대로."""
-    out: list[str] = []
-    for v in values or []:
-        v = " ".join(str(v).split()).lstrip("#").strip()
-        if not v or v in out:
-            continue
-        if len(v) > max_len:
-            raise HTTPException(status_code=400, detail=f"{label}은(는) 한 개에 {max_len}자까지 쓸 수 있어요.")
-        out.append(v)
-    if len(out) > STORE_TYPE_VALUES_MAX:
-        raise HTTPException(status_code=400, detail=f"{label}은(는) {STORE_TYPE_VALUES_MAX}개까지 둘 수 있어요.")
-    return out
-
-
 def serialize_store_type(t: PartnersStoreType, store_count: int = 0) -> dict:
     return dict(
         id=t.id,
         name=t.name,
         sortOrder=t.sort_order,
-        tags=list(t.tags or []),
-        notes=list(t.notes or []),
         storeCount=store_count,
     )
 
@@ -1265,17 +1476,13 @@ def _apply_type_values(db: Session, t: PartnersStoreType, data: dict) -> None:
         if same is not None and same.id != t.id:
             raise HTTPException(status_code=400, detail=f"'{name}' 유형이 이미 있어요.")
         t.name = name
-    if "tags" in data:
-        t.tags = _clean_values(data["tags"], max_len=TAG_MAX_LEN, label="매장 어필")
-    if "notes" in data:
-        t.notes = _clean_values(data["notes"], max_len=NOTE_MAX_LEN, label="조건 메모")
     if "sort_order" in data and data["sort_order"] is not None:
         t.sort_order = int(data["sort_order"])
 
 
 def create_store_type(db: Session, data: dict) -> dict:
     last = db.query(func.max(PartnersStoreType.sort_order)).scalar() or 0
-    t = PartnersStoreType(name="", sort_order=last + 1, tags=[], notes=[])
+    t = PartnersStoreType(name="", sort_order=last + 1)
     _apply_type_values(db, t, {"name": data.get("name"), **data})
     db.add(t)
     db.commit()
@@ -1306,8 +1513,19 @@ def delete_store_type(db: Session, type_id: int) -> None:
 
 
 def admin_list_requests(
-    db: Session, *, status: str | None = None, store_id: str | None = None, page: int = 1, page_size: int = 20
+    db: Session,
+    *,
+    status: str | None = None,
+    store_id: str | None = None,
+    user_id: str | None = None,
+    field: str | None = None,
+    kind: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
 ) -> tuple[int, list[dict]]:
+    """user_id · field — 회원 상세가 그 회원의 매장 연결 요청(link_store)만 받을 때(094).
+    kind — 요청함의 유형별 묶음(11-17 사용자: "유형별로 아코디언"): link 매장 연결 · add 매장 추가 ·
+    field 정보 수정(항목 요청) · inquiry 추가 요청 · 문의(예전 자유 입력 포함)."""
     q = db.query(PartnersStoreRequest).options(
         joinedload(PartnersStoreRequest.store), joinedload(PartnersStoreRequest.user)
     )
@@ -1315,6 +1533,23 @@ def admin_list_requests(
         q = q.filter(PartnersStoreRequest.status == status)
     if store_id:
         q = q.filter(PartnersStoreRequest.store_id == _get_or_404(db, store_id).id)
+    if user_id:
+        try:
+            q = q.filter(PartnersStoreRequest.user_id == uuid.UUID(user_id))
+        except ValueError:
+            return 0, []
+    if field:
+        q = q.filter(PartnersStoreRequest.field == field)
+    col = PartnersStoreRequest.field
+    if kind == "link":
+        q = q.filter(col == LINK_STORE_FIELD)
+    elif kind == "add":
+        q = q.filter(col == ADD_STORE_FIELD)
+    elif kind == "inquiry":
+        q = q.filter(or_(col == INQUIRY_FIELD, col.is_(None)))
+    elif kind == "field":
+        # 지금 항목 + 없앤 항목(매장 특징 · 조건)으로 예전에 보낸 요청
+        q = q.filter(col.isnot(None), col.notin_([LINK_STORE_FIELD, ADD_STORE_FIELD, INQUIRY_FIELD]))
     total = q.count()
     rows = (
         q.order_by(
@@ -1348,6 +1583,14 @@ def admin_update_request(db: Session, request_id: str, data: dict) -> dict:
             raise HTTPException(status_code=400, detail="이미 반영한 요청이에요. 바꿀 곳은 매장 화면에서 고쳐 주세요.")
         if status == "rejected" and not r.admin_reply:
             raise HTTPException(status_code=400, detail="처리 불가 사유를 적어 주세요.")
+        if status == "done" and r.field == LINK_STORE_FIELD:
+            store, member = r.store, r.user
+            if store is None:
+                raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
+            if member is None or member.member_category != "partner":
+                raise HTTPException(status_code=400, detail="요청한 회원을 찾을 수 없어요.")
+            add_member(store, member, via="request")
+            sync_media(db, store)
         if status == "done" and r.field in REQUEST_FIELDS:
             store = r.store
             if store is None:
@@ -1428,15 +1671,17 @@ def _partner_or_404(db: Session, member_id: str) -> User:
 
 
 def _stores_by_owner(db: Session, owner_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[PartnersStore]]:
+    """회원마다 연결된 매장(먼저 연결한 순, 094)."""
     out: dict[uuid.UUID, list[PartnersStore]] = {}
     if not owner_ids:
         return out
-    for s in (
-        db.query(PartnersStore)
-        .filter(PartnersStore.owner_user_id.in_(owner_ids))
-        .order_by(PartnersStore.created_at)
+    for m in (
+        db.query(PartnersStoreMember)
+        .options(joinedload(PartnersStoreMember.store))
+        .filter(PartnersStoreMember.user_id.in_(owner_ids))
+        .order_by(PartnersStoreMember.created_at)
     ):
-        out.setdefault(s.owner_user_id, []).append(s)
+        out.setdefault(m.user_id, []).append(m.store)
     return out
 
 
@@ -1484,7 +1729,7 @@ def admin_list_members(
         else:
             q = q.filter(BusinessRegistration.status == biz)
     if store in ("yes", "no"):
-        has = db.query(PartnersStore.id).filter(PartnersStore.owner_user_id == User.id).exists()
+        has = db.query(PartnersStoreMember.id).filter(PartnersStoreMember.user_id == User.id).exists()
         q = q.filter(has if store == "yes" else ~has)
     total = q.count()
     rows = (
@@ -1562,13 +1807,14 @@ def admin_biz_action(db: Session, member_id: str, action: str, reason: str | Non
 
 
 def admin_link_store(db: Session, member_id: str, store_code: str) -> dict:
-    """회원 화면에서 매장 ID(S-0001)로 매장을 잇는다 — 다른 회원에게 연결돼 있던 매장이면 옮겨 온다."""
+    """회원 화면에서 매장 ID로 매장을 잇는다 — 이미 다른 회원이 연결돼 있어도 같이 연결된다(094, 옮기지 않는다)."""
     user = _partner_or_404(db, member_id)
     raw = normalize_store_code(store_code)
     store = db.query(PartnersStore).filter(PartnersStore.store_code == raw).first()
     if store is None:
         raise HTTPException(status_code=400, detail=f"매장을 찾지 못했어요: {store_code}")
-    store.owner_user_id = user.id
+    if add_member(store, user):
+        sync_media(db, store)
     db.commit()
     return admin_get_member(db, member_id)
 
@@ -1576,7 +1822,7 @@ def admin_link_store(db: Session, member_id: str, store_code: str) -> dict:
 def admin_unlink_store(db: Session, member_id: str, store_id: str) -> dict:
     user = _partner_or_404(db, member_id)
     store = _get_or_404(db, store_id)
-    if store.owner_user_id == user.id:
-        store.owner_user_id = None
+    if remove_member(store, user.id):
+        sync_media(db, store)
         db.commit()
     return admin_get_member(db, member_id)

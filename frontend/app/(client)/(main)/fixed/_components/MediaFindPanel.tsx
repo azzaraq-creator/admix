@@ -1167,12 +1167,14 @@ export function MediaFindPanel({
               )
             ) : (
               <>
-                {/* 맨 위 두 장은 처음 화면에 바로 보이므로 사진을 늦게 불러오지 않는다(LCP). */}
+                {/* 처음 화면에 바로 보이는 카드는 사진을 늦게 불러오지 않는다(LCP) — 매체 찾기는 맨 위 두 장,
+                    광고주 매장 찾기(격자)는 위 세 줄(칸 수 listCols × 3). 사진 없는 매장이 앞에 몰리면 첫 사진이
+                    둘째 · 셋째 줄에 와서 "LCP인데 lazy" 경고가 났다(11-17, 목록 크게 보기). 사진 없는 카드는 받을 게 없다. */}
                 {listRows.map((row, index) => (
                   <MediaFindCard
                     key={row.id}
                     row={row}
-                    eager={index < 2}
+                    eager={index < (only ? listCols * 3 : 2)}
                     selected={row.id === selectedId}
                     onClick={() => handleItemClick(row)}
                     onAddProposal={() => onAddProposal?.(row.id)}

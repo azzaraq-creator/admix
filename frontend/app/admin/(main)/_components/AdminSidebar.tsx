@@ -199,7 +199,7 @@ const COLLAB_NAV: (NavLink | NavGroup)[] = [
         badge: "partnerBizReviewing",
       },
       { label: "매장 관리", href: "/admin/collab/stores", permKey: "collab" },
-      // 매장 유형별 매장 어필 칩 · 조건 메모 값(070). 11-12 사용자 "매장 항목"에서 이름 바꿈.
+      // 매장 유형(070) — 이름만 추가 · 수정 · 삭제(11-17). 11-12 사용자 "매장 항목"에서 이름 바꿈.
       {
         label: "매장 유형 관리",
         href: "/admin/collab/store-options",
@@ -207,7 +207,8 @@ const COLLAB_NAV: (NavLink | NavGroup)[] = [
       },
       // 제휴사가 내 매장에서 보낸 수정 요청(074) — 대기 수.
       {
-        label: "수정 요청",
+        // 화면 제목과 같게(11-17 사용자: "메뉴 이름도 맞추고").
+        label: "매장·수정 요청",
         href: "/admin/collab/requests",
         permKey: "collab",
         badge: "requestsPending",
@@ -255,15 +256,17 @@ const BADGE_LABEL: Record<NavBadge, (count: number) => string> = {
 const NAV_ROW =
   "flex h-[38px] w-full items-center gap-[9px] overflow-hidden rounded-[16px] pr-[12px] pl-[20px] text-sm no-underline transition-colors data-[hovered=true]:no-underline data-[pressed=true]:no-underline";
 // 묶음 안 메뉴 — 아이콘 없이 글자를 위 메뉴 글자 자리(20 + 18 + 9 = 47px)에 맞추고 한 단계 작게(34px, 13px).
+// 글자 · 숫자 사이 최소 4px — "매장·수정 요청"(74px, 가운데 점은 작은 · — 11-17 사용자)이 숫자 옆에서 잘리지 않게(11-17).
 const SUB_ROW =
-  "flex h-[34px] w-full items-center gap-[8px] overflow-hidden rounded-[14px] pr-[12px] pl-[47px] text-[13px] no-underline transition-colors data-[hovered=true]:no-underline data-[pressed=true]:no-underline";
+  "flex h-[34px] w-full items-center gap-[4px] overflow-hidden rounded-[14px] pr-[12px] pl-[47px] text-[13px] no-underline transition-colors data-[hovered=true]:no-underline data-[pressed=true]:no-underline";
 const ROW_ACTIVE = "bg-primary-500 font-bold text-white";
 const ROW_HOVER = "data-[hovered=true]:bg-white/[0.07] data-[hovered=true]:text-white";
 const ROW_IDLE = `font-medium text-white/75 ${ROW_HOVER}`;
 const SUB_IDLE = `font-medium text-white/60 ${ROW_HOVER}`;
 // admix | 콜라보 전환 탭 — HeroUI 기본(밝은 바탕용) 대신 남색 바탕에 맞춘 글자 · 고른 탭 표시.
+// 줄바꿈 없이 — 숫자가 붙으면 "콜라 / 보"로 꺾였다(11-17).
 const MODE_TAB =
-  "h-[30px] text-[13px] font-semibold text-white/55 data-[selected=true]:text-white";
+  "h-[30px] whitespace-nowrap text-[13px] font-semibold text-white/55 data-[selected=true]:text-white";
 const MODE_INDICATOR = "bg-white/[0.14] shadow-none";
 // 관리자 프로필 아이콘 — 사용자 화면(이메일 가입 연보라)과 다르게 admix 로고 심볼의 하늘색(#38bdf8, 11-12 사용자).
 // 남색 바탕 위라 다크 모드에서도 같은 색.

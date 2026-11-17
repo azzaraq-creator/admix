@@ -17,6 +17,7 @@ import type { AdminPartnerMember } from "@/lib/partners";
 import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
+import { BizReviewQueue } from "../../_components/BizReviewQueue";
 import { CollabPageHead, PageNav } from "../../_components/collabUi";
 
 const MEMBERS_HREF = "/admin/collab/members";
@@ -145,6 +146,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
  * 제휴사(콜라보) 회원 — 최근 가입 순. 담당자가 매장에서 같이 가입한 회원을 맨 위에서 바로 찾게 한다.
  * PC 는 매장 관리와 같은 HeroUI 조건 상자 · Table · Pagination(2026-11-10 사용자), 휴대폰은 큰 카드(현장에서 누르기 쉽게).
  * ?agreement · ?biz · ?store 로 들어오면 그 조건으로 연다(대시보드 숫자에서).
+ * 맨 위 "검토 대기" 칸(BizReviewQueue, 11-17) — 사업자등록증을 올려 검토를 기다리는 회원만 따로 모아 "검토하기"로 바로 간다.
  */
 export function CollabMembersListView() {
   const router = useRouter();
@@ -165,6 +167,13 @@ export function CollabMembersListView() {
     agreement: agreement || undefined,
     biz: biz || undefined,
     store: store || undefined,
+  });
+
+  // 검토 대기 — 아래 표 조건과 따로 늘 불러온다(메뉴 숫자가 바뀌면 같이 새로 불러온다 — members 키).
+  const { data: waiting } = useCollabMembers({
+    biz: "reviewing",
+    page: 1,
+    page_size: 50,
   });
 
   const rows = useMemo<Row[]>(
@@ -223,9 +232,19 @@ export function CollabMembersListView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="제휴사 회원"
-        desc="최근 가입 순이에요. 회원을 눌러 사업자 임시 승인 · 매장 연결을 해요."
+      {/* 설명 글은 뺐다(11-17 사용자: "이 문구 빼줘"). */}
+      <CollabPageHead title="제휴사 회원" />
+
+      <BizReviewQueue
+        items={(waiting?.items ?? []).map((m) => ({
+          id: m.id,
+          caption: [m.partnerCode, m.companyName].filter(Boolean).join(" · "),
+          name: m.name || m.loginId,
+          loginId: m.loginId,
+          uploadedAt: m.bizUploadedAt,
+        }))}
+        total={waiting?.total ?? 0}
+        hrefOf={(id) => `${MEMBERS_HREF}/${id}`}
       />
 
       {isError ? (

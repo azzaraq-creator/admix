@@ -44,7 +44,6 @@ export interface OperatingArea {
 /** 콜라보 매장 카드 아래 칸 — 제휴사 '내 매장'의 광고주 미리보기와 같은 값. */
 export interface PartnersCardInfo {
   businessHours: string | null;
-  tags: string[];
   /** 사진 주소 → 분류(exterior · interior …) — 카드 사진 왼쪽 아래 이름표(11-12). 예전 서버면 없다. */
   photoKinds?: Record<string, string>;
 }
@@ -70,7 +69,7 @@ export interface MediaCardRow {
   operatingArea?: OperatingArea | null;
   /** 쉘터 정류장 번호 — 목록·지도 카드에 작은 알약으로 보인다. */
   stopNo?: string | null;
-  /** 콜라보 매장만 — 광고비 대신 운영 시간 · 매장 특징을 보여 준다. */
+  /** 콜라보 매장만 — 광고비 대신 운영 시간을 보여 준다. */
   partners?: PartnersCardInfo | null;
 }
 
@@ -261,7 +260,7 @@ export interface MediaMarkerDto {
   images: string[];
   badge: "popular" | "new" | null;
   stopNo?: string | null;
-  /** 콜라보 매장만 — 지도 팝업 카드의 운영 시간 · 매장 특징. */
+  /** 콜라보 매장만 — 지도 팝업 카드의 운영 시간. */
   partners?: PartnersCardInfo | null;
 }
 

@@ -10,7 +10,11 @@ import { useStoreTypes } from "@/hooks/adminCollab";
 import { useAdminPartnersStores } from "@/hooks/adminPartners";
 import { extractApiError } from "@/lib/apiError";
 import { isOptimizable, mediaSrc } from "@/lib/media";
-import { coverImageUrls, type AdminPartnersStore } from "@/lib/partners";
+import {
+  coverImageUrls,
+  storeMembersSummary,
+  type AdminPartnersStore,
+} from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 const STORE_SEARCH_SIZE = 20;
@@ -172,7 +176,7 @@ function StoreSearchBody({
               <li key={s.id}>
                 <StoreCard
                   store={s}
-                  current={s.ownerUserId === memberId}
+                  current={s.members.some((m) => m.userId === memberId)}
                   onSelect={() => onSelect(s)}
                 />
               </li>
@@ -284,11 +288,11 @@ function StoreCard({
       </Card.Content>
       <Card.Footer className="flex-wrap items-center gap-[6px] border-t border-stroke pt-[12px] text-xs">
         <User aria-hidden className="size-[14px] text-disabled" />
-        {s.ownerUserId ? (
-          <span className={current ? "text-primary-800" : "text-[#c99a2e]"}>
-            {current ? "이 회원 매장" : "다른 회원에게 연결됨"} ·{" "}
-            {s.ownerPartnerCode ?? "-"}{" "}
-            {s.ownerMemberName || s.ownerCompanyName || s.ownerLoginId}
+        {/* 매장 하나에 회원 여럿(094) — 다른 회원이 연결돼 있어도 같이 연결된다(옮기지 않는다). */}
+        {s.members.length ? (
+          <span className={current ? "text-primary-800" : "text-tone-4a5565"}>
+            {current ? "이 회원 매장" : "연결 회원"} ·{" "}
+            {storeMembersSummary(s.members)}
           </span>
         ) : (
           <span className="text-disabled">연결 전</span>

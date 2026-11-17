@@ -12,24 +12,6 @@ export const PARTNERS_PHOTO_MEMO_MAX_LEN = 50;
 /** 올리기 전에 브라우저에서 줄이는 긴 변(px) — 서버도 같은 크기로 한 번 더 줄인다(IMAGE_MAX_SIDE). */
 export const PARTNERS_IMAGE_MAX_SIDE = 2000;
 /**
- * 매장 어필은 개수 제한 없이 넣고(2026-11-09 사용자), 카드(매체 찾기 · 매장 목록)에서는 앞에서부터 이만큼만 보이고
- * 나머지는 "+N" 으로 줄인다. 매장 상세 · 어드민 폼은 모두 보인다.
- */
-export const PARTNERS_CARD_TAGS = 3;
-
-/** 카드에 보일 매장 어필과 숨긴 개수. */
-export function cardTags(tags: string[] | null | undefined): {
-  shown: string[];
-  more: number;
-} {
-  const all = tags ?? [];
-  return {
-    shown: all.slice(0, PARTNERS_CARD_TAGS),
-    more: Math.max(0, all.length - PARTNERS_CARD_TAGS),
-  };
-}
-
-/**
  * 매장 사진 분류 — 백엔드 partners_service.PHOTO_KINDS 와 같은 순서 · 값(2026-11-10, 예전 좌석 · 화장실은 내관으로).
  * DP 가능 공간 · 프로모션 공간은 2026-11-12 사용자 추가.
  * 분류마다 대표 사진이 하나씩 있고, 대표 사진은 매체 찾기 · 광고주 매장 카드에, 나머지는 매장 상세에서 보인다.
@@ -119,40 +101,60 @@ export interface StoreHours {
 }
 
 /**
- * 조건 메모 톤 — "불가 · 안 됨 · 금지"가 들어가면 안 되는 것(빨강), "가능"이면 되는 것(초록), 그 밖은 회색.
- * 어드민이 자유롭게 적는 글이라 글자로만 가른다.
+ * 가능 범위(093, 2026-11-17 사용자: 조건 메모 대신 "유형마다 radio로 가능, 불가능") — 정해진 항목마다 가능 · 불가능.
+ * 고르지 않은 항목은 비워 둔다. 백엔드 partners_service.SCOPE_ITEMS 와 같은 순서 · 키. 예전 조건 메모(notes)는 DB 칸만 남았다.
  */
-export function noteTone(note: string): "no" | "ok" | "info" {
-  if (/불가|안 ?됨|안돼|금지|없음/.test(note)) return "no";
-  if (/가능|됨|OK|ok/.test(note)) return "ok";
-  return "info";
+export const COLLAB_SCOPE_ITEMS = [
+  { key: "print", label: "브랜딩 제작물", desc: "포스터, 소형 출력물" },
+  { key: "goods", label: "브랜드 굿즈", desc: "사은품, 샘플" },
+  { key: "supplies", label: "브랜딩 소모품", desc: "컵홀더, 스티커" },
+  { key: "dp", label: "DP 및 체험", desc: "진열 및 제품 체험" },
+  { key: "menu", label: "협업 메뉴", desc: "한정 메뉴, 패키지" },
+  { key: "space", label: "공간 활용", desc: "소규모 팝업, 브랜드존 구성" },
+] as const;
+export type CollabScopeKey = (typeof COLLAB_SCOPE_ITEMS)[number]["key"];
+export const COLLAB_SCOPE_VALUES = ["ok", "no"] as const;
+export type CollabScopeValue = (typeof COLLAB_SCOPE_VALUES)[number];
+export const COLLAB_SCOPE_VALUE_LABEL: Record<CollabScopeValue, string> = {
+  ok: "가능",
+  no: "불가능",
+};
+export type CollabScope = Partial<Record<CollabScopeKey, CollabScopeValue>>;
+
+/** 가능 범위 칩 색 — 가능 초록 · 불가능 빨강(내 매장 · 매장 정보 팝업이 같이 쓴다). */
+export const SCOPE_TONE_CHIP: Record<CollabScopeValue, string> = {
+  ok: "bg-emerald-50 text-emerald-700 dark:bg-success-bg dark:text-success",
+  no: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
+};
+
+/** 고른 항목만 순서대로. */
+export function scopeEntries(scope: CollabScope | null | undefined) {
+  return COLLAB_SCOPE_ITEMS.flatMap((it) => {
+    const value = scope?.[it.key];
+    return value === "ok" || value === "no" ? [{ ...it, value }] : [];
+  });
 }
 
-/** 조건 메모 칩 색 — 안 되는 것 빨강 · 되는 것 초록 · 그 밖 회색(내 매장 · 매장 정보 팝업이 같이 쓴다). */
-export const NOTE_TONE_CHIP = {
-  no: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
-  ok: "bg-emerald-50 text-emerald-700 dark:bg-success-bg dark:text-success",
-  info: "bg-gray-100 text-gray-600",
-} as const;
+/** 화면 글 — "브랜딩 제작물 가능, 브랜드 굿즈 불가능"(서버 scope_text 와 같다). 고른 게 없으면 null. */
+export function scopeText(scope: CollabScope | null | undefined): string | null {
+  return (
+    scopeEntries(scope)
+      .map((e) => `${e.label} ${COLLAB_SCOPE_VALUE_LABEL[e.value]}`)
+      .join(", ") || null
+  );
+}
 
 /**
- * 매장 유형(카페 · 식당 …, 070) — 유형마다 "매장 어필" 칩 값과 자주 쓰는 "조건 메모" 값이 다르다.
- * 어드민 "콜라보 → 매장 유형 관리"(/admin/collab/store-options)에서 관리하고, 매장 폼은 고른 유형의 값을 칩으로 보여 준다.
+ * 매장 유형(카페 · 식당 …, 070) — 어드민 "콜라보 → 매장 유형 관리"(/admin/collab/store-options)에서 이름만 추가 · 수정 · 삭제한다.
+ * 유형별 매장 어필 칩 · 자주 쓰는 조건 메모는 2026-11-17 사용자 요청으로 없앴다(DB 칸만 남음).
  */
 export interface StoreType {
   id: number;
   name: string;
   sortOrder: number;
-  /** 매장 어필 칩 값(해시태그처럼 짧게, 매장마다 개수 제한 없이 고른다). */
-  tags: string[];
-  /** 자주 쓰는 조건 메모 — 매장 폼에서 눌러 넣는다. */
-  notes: string[];
   /** 이 유형인 매장 수(지울 때 안내). */
   storeCount: number;
 }
-/** 매장 어필 한 개 · 조건 메모 한 줄 길이(서버 TAG_MAX_LEN · NOTE_MAX_LEN 과 같다). */
-export const PARTNERS_TAG_MAX_LEN = 20;
-export const PARTNERS_NOTE_MAX_LEN = 60;
 
 /**
  * 콜라보 등급 — S · A · B · C. 어드민 "콜라보 → 매장"에서 정한다(067). 등급 기준(크기 · 기준 금액)은 아직 정하지 않았다(2026-11-09 사용자).
@@ -219,9 +221,77 @@ export function wonLabel(n: number): string {
 export const partnersStoreHref = (key: string) =>
   `/partners/stores/${encodeURIComponent(key)}`;
 
+/**
+ * 매장 ID(094) — S-XXXX-XXXX, 헷갈리는 0 · O · 1 · I · L 을 뺀 숫자 · 대문자 8자(11-17 사용자: "매장ID를 좀 어렵게").
+ * 서버 partners_service.normalize_store_code 와 같은 규칙.
+ */
+export const STORE_CODE_PREFIX = "S-";
+const STORE_CODE_BODY_LEN = 8;
+
+/**
+ * 매장 ID 입력 다듬기 — 칸 안 글(머리 "S-"는 칸 앞에 따로 보인다). 소문자는 대문자로, 4자 뒤 하이픈은 저절로
+ * (11-17 사용자: "소문자로 입력해도 자동으로 대문자로, -도 자동으로"). 머리까지 치거나 붙여 넣은 "s7kq2…" · "S-7KQ2-M9XD"도 머리를 뗀다
+ * — 매장 ID 본문은 S 로 시작하지 않는다(서버 STORE_CODE_FIRST).
+ */
+export function formatStoreCodeInput(raw: string): string {
+  let t = raw.toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (t.startsWith("S")) t = t.slice(1);
+  t = t.slice(0, STORE_CODE_BODY_LEN);
+  return t.length > 4 ? `${t.slice(0, 4)}-${t.slice(4)}` : t;
+}
+
+/** 다 친 매장 ID(S-7KQ2-M9XD) — 칸 안 글이 8자가 아니면 null. */
+export function storeCodeFromInput(body: string): string | null {
+  const t = body.replace(/-/g, "");
+  return t.length === STORE_CODE_BODY_LEN
+    ? `${STORE_CODE_PREFIX}${t.slice(0, 4)}-${t.slice(4)}`
+    : null;
+}
+
+/** 매장 연결 요청(094) — 매장 ID로 이미 등록된 매장에 연결을 요청하고, 어드민이 승인하면 연결된다. */
+export interface StoreLinkLookup {
+  storeCode: string;
+  name: string;
+  address: string;
+  /** 이미 연결된 매장 */
+  linked: boolean;
+  /** 이미 요청해 두고 기다리는 중 */
+  pending: boolean;
+}
+
+export interface StoreLinkRequest {
+  id: string;
+  storeCode: string | null;
+  storeName: string | null;
+  address: string | null;
+  status: StoreRequestStatus;
+  adminReply: string | null;
+  createdAt: string | null;
+  handledAt: string | null;
+}
+
+/** 어드민 매장 연결 회원(094) — 먼저 연결한 순. */
+export interface AdminStoreMember {
+  userId: string;
+  loginId: string;
+  partnerCode: string | null;
+  name: string | null;
+  companyName: string | null;
+  bizStatus: string | null;
+  /** admin 담당자 연결 · request 연결 요청 승인 · lead 영업 기록 */
+  via: "admin" | "request" | "lead";
+  linkedAt: string | null;
+}
+
+export const STORE_MEMBER_VIA_LABEL: Record<AdminStoreMember["via"], string> = {
+  admin: "담당자 연결",
+  request: "연결 요청",
+  lead: "영업 기록",
+};
+
 export interface PartnersStore {
   id: string;
-  /** 매장 ID(S-0001) — 담당자가 제휴사 회원 고유번호(P-0001)와 이 번호로 잇는다(069). */
+  /** 매장 ID(S-XXXX-XXXX) — 담당자가 회원과 잇고, 다른 회원이 이 번호로 연결을 요청한다(069 · 094). */
   storeCode: string | null;
   mediaId: string | null;
   name: string;
@@ -239,9 +309,12 @@ export interface PartnersStore {
   images: StorePhoto[];
   phone: string | null;
   ownerName: string | null;
-  tags: string[];
-  /** 조건 메모 — "포스터 부착 불가", "신규 메뉴 가능" …(어드민이 적는다). */
-  notes: string[];
+  /** 주요 고객층 · 소개(2~3줄) · 규모(좌석 수) — 093, 어드민이 매장 정보 탭에서 적는다. */
+  mainCustomers?: string | null;
+  intro?: string | null;
+  seats?: number | null;
+  /** 가능 범위(093) — 항목마다 가능 · 불가능, 고르지 않은 항목은 없다. */
+  scope: CollabScope;
   businessHours: string | null;
   /** 운영 시간 입력값(073) — 예전에 글로만 적은 매장은 null. */
   hours?: StoreHours | null;
@@ -255,17 +328,15 @@ export interface PartnersStore {
   /** 콜라보 등급 · 매장별 금액(1건, 원) — 광고주 · 어드민에게만 온다(매장 화면에는 없다). */
   collabGrade?: CollabGrade | null;
   collabFee?: number | null;
+  /** 내 매장(제휴사)만 — 이 매장에 연결된 회원 이름(나 표시, 094). */
+  linkedMembers?: { name: string; isMe: boolean }[];
 }
 
-/** 어드민 조회 — 주인 회원·메모가 더 붙는다. */
+/** 어드민 조회 — 연결 회원 · 메모가 더 붙는다. */
 export interface AdminPartnersStore extends PartnersStore {
   adminMemo: string | null;
-  ownerUserId: string | null;
-  ownerLoginId: string | null;
-  ownerPartnerCode: string | null;
-  ownerMemberName: string | null;
-  ownerCompanyName: string | null;
-  ownerBizStatus: string | null;
+  /** 연결 회원(094) — 매장 하나에 여럿, 먼저 연결한 순. */
+  members: AdminStoreMember[];
   /** 등급 점수(077) — 항목별 점수 · 이유 메모. */
   gradeScores?: GradeScores;
   /** 상세 조회 때만 — 처리 전 수정 요청 수. */
@@ -316,7 +387,6 @@ export interface PartnersStorePayload {
   image_urls?: string[];
   phone?: string | null;
   owner_name?: string | null;
-  tags?: string[];
   business_hours?: string | null;
 }
 
@@ -325,14 +395,17 @@ export interface AdminPartnersStorePayload extends PartnersStorePayload {
   store_type_id?: number | null;
   status?: "active" | "hidden";
   admin_memo?: string | null;
-  owner_login_id?: string | null;
-  /** 제휴사 회원 고유번호(P-0001) — null · "" 이면 연결을 끊는다. */
-  owner_code?: string | null;
+  /** 연결 회원 고유번호(P-0001) 목록(094) — 보내면 이 목록대로, 빈 목록이면 모두 끊는다. */
+  member_codes?: string[];
   /** 사진과 분류 · 대표 · 메모 — 보내면 image_urls 대신 이것으로 정한다. */
   images?: StorePhoto[];
   /** 운영 시간 입력값 — 보내면 운영 시간 글도 서버가 다시 만든다. null 이면 둘 다 지운다. */
   hours?: StoreHours | null;
-  notes?: string[];
+  /** 가능 범위 — 보내면 통째로 바꾼다. */
+  scope?: CollabScope;
+  main_customers?: string | null;
+  intro?: string | null;
+  seats?: number | null;
   collab_grade?: CollabGrade | null;
   collab_fee?: number | null;
   grade_scores?: GradeScores;
@@ -348,8 +421,7 @@ export const STORE_REQUEST_FIELDS = {
   hours: "운영 시간",
   phone: "매장 번호",
   owner_name: "사장님",
-  tags: "매장 특징",
-  notes: "조건",
+  scope: "가능 범위",
 } as const;
 export type StoreRequestField = keyof typeof STORE_REQUEST_FIELDS;
 
@@ -369,6 +441,22 @@ export const STORE_INQUIRY_MAX_LEN = 1000;
 export const STORE_ADD_FIELD = "add_store";
 export const STORE_ADD_LABEL = "매장 추가";
 export const STORE_ADD_NAME_MAX_LEN = 200;
+
+/**
+ * 매장 연결 요청(094, 11-17 사용자) — 기본협약을 마친 회원이 매장 ID로 이미 등록된 매장에 연결을 요청한다.
+ * 백엔드 partners_service.LINK_STORE_FIELD 와 같다. 어드민 "수정 요청"에서 연결 승인(처리 완료)하면 연결 회원이 된다.
+ */
+export const STORE_LINK_FIELD = "link_store";
+
+/** 연결 회원 한 줄 — "P-0001 이름"(이름이 없으면 상호 · 아이디). */
+export const storeMemberLabel = (m: AdminStoreMember) =>
+  `${m.partnerCode ?? "-"} ${m.name || m.companyName || m.loginId}`;
+
+/** 연결 회원 요약 — 첫 회원과 "외 N명". 없으면 null. */
+export const storeMembersSummary = (members: AdminStoreMember[]) =>
+  members.length
+    ? `${storeMemberLabel(members[0])}${members.length > 1 ? ` 외 ${members.length - 1}명` : ""}`
+    : null;
 
 /** 항목(매장명 · 주소 …)을 바꿔 달라는 요청인지 — 아니면 글로 보낸 요청(추가 요청 · 문의, 예전 자유 입력)이다. */
 export function isFieldRequest<T extends Pick<StoreRequest, "field">>(
@@ -402,11 +490,12 @@ export interface StoreRequest {
     | StoreRequestField
     | typeof STORE_INQUIRY_FIELD
     | typeof STORE_ADD_FIELD
+    | typeof STORE_LINK_FIELD
     | null;
   fieldLabel: string;
   before: string | null;
   after: string | null;
-  /** 반영할 값 그대로(주소는 StoreAddressValue, 운영 시간은 StoreHours, 특징 · 조건은 글 목록). */
+  /** 반영할 값 그대로(주소는 StoreAddressValue, 운영 시간은 StoreHours, 가능 범위는 CollabScope). */
   value: unknown;
   /** 담당자에게 남긴 메모(선택). */
   memo: string | null;

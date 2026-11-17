@@ -52,7 +52,7 @@ def setup(db: Session):
                 "longitude": 127.05,
                 "images": [{"url": "/uploads/cafe/a.jpg", "kind": "exterior"}],
                 "store_type_id": type_.id,
-                **({"owner_code": owner.partner_code} if owner else {}),
+                **({"member_codes": [owner.partner_code]} if owner else {}),
             },
         )
         return db.get(PartnersStore, uuid.UUID(out["id"]))
