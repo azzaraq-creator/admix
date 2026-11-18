@@ -38,6 +38,7 @@ const signatureKey = (s: SignatureRecord | null) =>
         s.name,
         s.role,
         s.signedAt,
+        s.docNo ?? null,
       ]
     : null;
 
@@ -307,7 +308,8 @@ export function AgreementPdfViewer({
         }}
         className="bg-gray-100 p-[24px] outline-none max-sm:p-[12px] focus-visible:ring-2 focus-visible:ring-primary-300 dark:bg-gray-50"
       >
-        <div className="mx-auto w-full max-w-[720px] overflow-hidden rounded-[4px] bg-white shadow-[0_8px_24px_rgba(20,20,40,0.12)]">
+        {/* 종이 가장자리 — 옅은 회색 책상과 구분되게 가는 테두리 + 가까운 그림자(11-18 사용자: "경계선이 잘 안 보여"). */}
+        <div className="mx-auto w-full max-w-[720px] overflow-hidden rounded-[4px] bg-white shadow-[0_1px_3px_rgba(20,20,40,0.16),0_10px_28px_rgba(20,20,40,0.14)] ring-1 ring-gray-300 dark:ring-0">
           {page ? (
             <PdfPageSvg
               page={page}

@@ -36,9 +36,26 @@ export function dismissPartnerResume(userId: string) {
 
 /** 남은 일 문구 · 이어서 갈 곳. */
 const AGREEMENT_COPY = {
-  title: "진행 중인 기본협약 동의가 있어요",
-  body: "계정으로 가입은 끝났어요. 사업자등록증을 올리고 기본협약에 동의하면 담당자가 매장을 연결해 드려요.",
+  title: "작성 중인 협약서가 있어요",
+  body: "계정으로 가입은 끝났어요. 협약서를 작성하면 담당자가 매장을 연결해 드려요.",
   href: "/partners/join/agreement",
+  action: "이어서 하기",
+};
+
+/** 해지해 끝난 협약(096, 2026-11-18 사용자) — 다시 협약해야 콜라보에 참여할 수 있다. 이미 확정된 콜라보는 그대로. */
+const RENEW_COPY = {
+  title: "기본협약이 끝났어요",
+  body: "다시 협약하면 콜라보에 참여할 수 있어요. 이미 확정된 콜라보는 그대로 진행돼요.",
+  href: "/partners/join/agreement",
+  action: "다시 협약하기",
+};
+
+/** 예전 판 협약서에 동의(2026-11-18 사용자: "협약서 내용이 바뀌었으면 다시 동의받기") — 새 판에 다시 동의해야 메뉴가 열린다. */
+const OUTDATED_COPY = {
+  title: "협약서가 바뀌었어요",
+  body: "계정은 예전 협약서에 동의했어요. 바뀐 협약서를 다시 작성하면 콜라보 메뉴를 다시 쓸 수 있어요. 이미 확정된 콜라보는 그대로 진행돼요.",
+  href: "/partners/join/agreement",
+  action: "새 협약서 작성하기",
 };
 
 function readDismissed(id: string): boolean {
@@ -61,10 +78,17 @@ export function PartnerResumeModal() {
   const partner = me?.member_category === "partner";
   // 남은 일 — 협약 동의 전.
   const left = !!me && partner && me.partner_agreed_at == null;
+  // 협약서 화면(/partners/agreement)엔 "협약서 작성하기" 링크가 따로 있어 창을 겹쳐 띄우지 않는다.
   const onJoinPage =
-    pathname.startsWith("/partners/join") || pathname.startsWith("/signup");
+    pathname.startsWith("/partners/join") ||
+    pathname.startsWith("/partners/agreement") ||
+    pathname.startsWith("/signup");
   const isOpen = !!me && left && !onJoinPage && !dismissed;
-  const copy = AGREEMENT_COPY;
+  const copy = me?.partner_agreement_ended
+    ? RENEW_COPY
+    : me?.partner_agreement_outdated
+      ? OUTDATED_COPY
+      : AGREEMENT_COPY;
 
   // 저장 못 해도 이 화면에서는 닫힌다(closedFor).
   const dismiss = () => {
@@ -118,7 +142,7 @@ export function PartnerResumeModal() {
               }}
               className="h-[44px] flex-1 rounded-[19px] text-[14px] font-bold"
             >
-              이어서 하기
+              {copy.action}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

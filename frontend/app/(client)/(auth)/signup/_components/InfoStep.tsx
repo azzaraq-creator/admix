@@ -23,6 +23,7 @@ import {
   type PartnerStoreInfoPayload,
   type ProfileUpdatePayload,
 } from "@/hooks/auth";
+import { BIZ_NO_DIGITS, formatBizNoInput, isAdmixBizNo } from "@/lib/bizNo";
 import {
   PHONE_INPUT_MAX_LENGTH,
   formatPhoneInput,
@@ -81,17 +82,6 @@ export const EMPTY_SIGNUP_INFO: SignupInfo = {
   address: "",
   addressDetail: "",
 };
-
-/** 사업자 번호 숫자 자릿수 — 000-00-00000. */
-const BIZ_NO_DIGITS = 10;
-
-/** 사업자 번호 입력 — 숫자만 10자리까지 받아 000-00-00000 으로 나눠 보여 준다. */
-function formatBizNoInput(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, BIZ_NO_DIGITS);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
-}
 
 /** 제휴사 가입 요청에 실을 매장 정보(089). */
 export function storeInfoOf(info: SignupInfo): PartnerStoreInfoPayload {
@@ -205,10 +195,14 @@ export function InfoStep({
     // 제휴사(콜라보) 매장 정보 — 상세 주소만 선택이고 나머지는 필수(11-13 사용자: "상세 주소는 선택 입력").
     storeName:
       partner && !values.storeName.trim() ? "상호를 입력해 주세요." : "",
-    bizNo:
-      partner && values.bizNo.length !== BIZ_NO_DIGITS
+    bizNo: !partner
+      ? ""
+      : values.bizNo.length !== BIZ_NO_DIGITS
         ? "사업자 번호 10자리를 입력해 주세요."
-        : "",
+        : // admix 번호로는 가입하지 못한다(11-18 사용자) — 서버도 같은 검사를 한다.
+          isAdmixBizNo(values.bizNo)
+          ? "admix 사업자 번호예요. 매장의 사업자 번호를 입력해 주세요."
+          : "",
     ceoName:
       partner && !values.ceoName.trim() ? "대표자명을 입력해 주세요." : "",
     address: partner && !values.address ? "주소를 검색해 주세요." : "",

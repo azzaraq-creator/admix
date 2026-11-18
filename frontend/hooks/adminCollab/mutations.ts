@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { AdminAdvCollabRequestDetail, BizAction } from "@/lib/adminCollab";
+import type {
+  AdminAdvCollabRequestDetail,
+  AdvertiserBizAction,
+  BizAction,
+} from "@/lib/adminCollab";
 import type { PlanRoundPayload } from "@/lib/collabPlan";
 import type {
   AdminCollabDetail,
   AdminCollabPayload,
   AdminPartnerMember,
+  AgreementAction,
   CollabPhotoStep,
   ParticipantStatus,
   StoreRequestStatus,
@@ -63,6 +68,26 @@ export const useUpdateAdvertiserBiz = () => {
   });
 };
 
+/** 광고주 사업자 인증(11-18) — 받은 값으로 상세를 바꾸고 목록 · 메뉴 숫자는 다시 불러온다. */
+export const useAdvertiserBizAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      reason,
+    }: {
+      id: string;
+      action: AdvertiserBizAction;
+      reason?: string | null;
+    }) => adminCollabApi.advertiserBizAction(id, action, reason),
+    onSuccess: (member) => {
+      queryClient.setQueryData(adminCollabKeys.advertiser(member.id), member);
+      void queryClient.invalidateQueries({ queryKey: adminCollabKeys.all });
+    },
+  });
+};
+
 export const useBizAction = () => {
   const onSaved = useMemberSaved();
   return useMutation({
@@ -75,6 +100,16 @@ export const useBizAction = () => {
       action: BizAction;
       reason?: string | null;
     }) => adminCollabApi.bizAction(id, action, reason),
+    onSuccess: onSaved,
+  });
+};
+
+/** 기본협약 해지(갱신 거절) · 해지 취소(096, 11-18). */
+export const useAgreementAction = () => {
+  const onSaved = useMemberSaved();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: AgreementAction }) =>
+      adminCollabApi.agreementAction(id, action),
     onSuccess: onSaved,
   });
 };

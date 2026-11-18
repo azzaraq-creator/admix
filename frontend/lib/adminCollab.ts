@@ -1,7 +1,11 @@
 /**
  * 콜라보 어드민 전용 — 목록 조건 · 라벨 · 날짜 표시. 공용 타입은 lib/partners.ts.
  */
-import type { CollabRequestStatus, PlanAuthor, PlanBlock } from "@/lib/collabPlan";
+import type {
+  CollabRequestStatus,
+  PlanAuthor,
+  PlanBlock,
+} from "@/lib/collabPlan";
 import type {
   AdminCollab,
   BizStatusCode,
@@ -65,6 +69,8 @@ export interface AdminAdvertiserMember {
   bizUploadedAt: string | null;
   bizVerifiedAt: string | null;
   bizRejectReason: string | null;
+  /** 반려한 일시(095, 11-18). */
+  bizRejectedAt: string | null;
   brands: {
     id: string;
     name: string;
@@ -73,6 +79,20 @@ export interface AdminAdvertiserMember {
   }[];
   /** 콜라보 수 — 보낸 의뢰 중 취소만 뺀 수(목록 응답에만, 11-12). */
   collabCount?: number;
+  /** 반려 기록(095) — 최근 것부터, 상세 응답에만. 지금 반려 상태면 맨 앞이 지금 반려다. */
+  bizRejections?: AdvertiserBizRejection[];
+}
+
+/** 사업자 인증 반려 기록 한 줄(095) — 어드민에서만 보인다. */
+export interface AdvertiserBizRejection {
+  id: string;
+  reason: string | null;
+  fileName: string | null;
+  /** 그때 올린 파일이 남아 있는지 — 있으면 열어 볼 수 있다. */
+  hasFile: boolean;
+  rejectedAt: string | null;
+  /** 반려한 관리자 이름(없으면 이메일, 모르면 null). */
+  rejectedBy: string | null;
 }
 
 export interface CollabRequestListParams extends PageParams {
@@ -94,13 +114,23 @@ export type StoreRequestKind = "link" | "add" | "field" | "inquiry";
  */
 export interface AdvCollabRequestListParams extends PageParams {
   keyword?: string;
-  status?: "new" | "viewed" | "cancelled" | "submitted" | "proposed" | "revised" | "confirmed";
+  status?:
+    | "new"
+    | "viewed"
+    | "cancelled"
+    | "submitted"
+    | "proposed"
+    | "revised"
+    | "confirmed";
 }
 
 /** 의뢰 상태 이름 · 색(085) — 목록 칩 · 상세 머리. admix 차례(접수 · 광고주 수정)는 보라, 광고주 차례는 회색. */
 export const ADV_REQUEST_STATUS: Record<
   CollabRequestStatus,
-  { label: string; color: "accent" | "default" | "success" | "warning" | "danger" }
+  {
+    label: string;
+    color: "accent" | "default" | "success" | "warning" | "danger";
+  }
 > = {
   submitted: { label: "접수", color: "accent" },
   proposed: { label: "광고주 확인 중", color: "default" },
@@ -110,7 +140,8 @@ export const ADV_REQUEST_STATUS: Record<
 };
 
 export const advRequestStatusOf = (status: string) =>
-  ADV_REQUEST_STATUS[status as CollabRequestStatus] ?? ADV_REQUEST_STATUS.submitted;
+  ADV_REQUEST_STATUS[status as CollabRequestStatus] ??
+  ADV_REQUEST_STATUS.submitted;
 
 /** 광고주 콜라보 의뢰 — 어드민 목록 한 줄(백엔드 collab_request_service._admin_row). */
 export interface AdminAdvCollabRequest {
@@ -156,7 +187,8 @@ export interface AdminAdvCollabRequest {
 }
 
 /** 의뢰서 한 장 — 보낸 내용 전부 + 그때 계산한 예상 비용 · 일정(참고용) + 기획안 차수(085). */
-export interface AdminAdvCollabRequestDetail extends AdminAdvCollabRequest, PlanBlock {
+export interface AdminAdvCollabRequestDetail
+  extends AdminAdvCollabRequest, PlanBlock {
   summary: string | null;
   contact: { name: string; phone: string; role: string };
   items: { key: string; prep: "ready" | "made" | "admix"; note: string }[];
@@ -224,7 +256,10 @@ export interface CollabCalendarItem {
   removalDate: string;
 }
 
-export type BizAction = "provisional" | "verify" | "reject" | "reset";
+/** 사업자 인증 처리 — 임시 승인(provisional)은 없앴다(11-18 사용자). 상태 "provisional"은 예전 회원 표시용으로 남는다. */
+export type BizAction = "verify" | "reject" | "reset";
+/** 광고주 사업자 인증 처리(11-18) — 제휴사와 같다. */
+export type AdvertiserBizAction = BizAction;
 
 export const BIZ_STATUS_OPTIONS: { value: BizStatusCode; label: string }[] = [
   { value: "unregistered", label: "미등록" },

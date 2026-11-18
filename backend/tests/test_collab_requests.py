@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from fastapi import HTTPException, UploadFile
@@ -414,6 +414,70 @@ def test_plan_round_validation(db: Session, advertiser: User):
     with pytest.raises(HTTPException) as e:
         rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(req), "baseRound": 0})
     assert e.value.status_code == 409
+
+
+def test_plan_round_mid_report(db: Session, advertiser: User):
+    """중간 보고 날(2026-11-18) — admix 만 진행 기간 안에서 고른다. 광고주는 못 바꾸고, 기간을 바꿔 밖이 되면 비워진다."""
+    brand = bs.create(db, advertiser, {"name": "중간보고", "image_url": None})
+    req = rs.create(db, advertiser, _payload(brand["id"]))
+    rid = req["id"]
+    start = date.fromisoformat(req["original"]["startDate"])
+    end = date.fromisoformat(req["original"]["endDate"])
+    assert req["original"].get("midReport") is None  # 처음 의뢰서엔 없다(화면이 50% 날로)
+
+    for bad in ((start - timedelta(days=1)).isoformat(), (end + timedelta(days=1)).isoformat(), "x"):
+        with pytest.raises(HTTPException) as e:
+            rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(req, midReport=bad), "baseRound": 0})
+        assert e.value.status_code == 400, bad
+
+    mid = (start + timedelta(days=3)).isoformat()
+    one = rs.admin_send_round(
+        db, _Admin(), rid, {"content": _round_content(req, midReport=mid, schedule={"midReport": mid}), "baseRound": 0}
+    )
+    r1 = one["rounds"][-1]
+    assert r1["content"]["midReport"] == mid and r1["changed"] == ["midReport"]
+    assert r1["content"]["schedule"] == {"midReport": mid}
+
+    # 광고주는 중간 보고 날을 바꿀 수 없다 — 보낸 값은 버리고 앞 차수 값 그대로.
+    mine = rs.list_mine(db, advertiser)[0]
+    two = rs.send_round(
+        db, advertiser, rid, {"content": _round_content(mine, midReport=start.isoformat(), title="고친 제목"), "baseRound": 1}
+    )
+    assert two["rounds"][-1]["content"]["midReport"] == mid and two["rounds"][-1]["changed"] == ["title"]
+
+    # admix 가 비우면 다시 50% 날(None).
+    doc = rs.admin_get(db, rid)
+    three = rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(doc, midReport=""), "baseRound": 2})
+    assert three["rounds"][-1]["content"]["midReport"] is None and "midReport" in three["rounds"][-1]["changed"]
+
+    # 광고주가 기간을 바꿔 중간 보고 날이 밖이 되면 비운다.
+    four = rs.admin_send_round(db, _Admin(), rid, {"content": _round_content(rs.admin_get(db, rid), midReport=mid), "baseRound": 3})
+    assert four["rounds"][-1]["content"]["midReport"] == mid
+    mine = rs.list_mine(db, advertiser)[0]
+    later = end + timedelta(days=10)
+    five = rs.send_round(
+        db,
+        advertiser,
+        rid,
+        {
+            "content": _round_content(mine, startDate=later.isoformat(), endDate=(later + timedelta(days=5)).isoformat()),
+            "baseRound": 4,
+        },
+    )
+    assert five["rounds"][-1]["content"]["midReport"] is None
+    assert set(five["rounds"][-1]["changed"]) == {"period", "midReport"}
+
+    # 둘 다 비어 있어도 기간이 바뀌어 50% 날이 옮겨지면 '수정'(실제 날로 비교). 3일 → 2일차(.5 올림, 화면과 같다).
+    doc = rs.admin_get(db, rid)
+    s2 = later + timedelta(days=5)  # 앞 차수(6일)의 50% 날은 later+2 — 새 기간(3일)은 s2+1
+    six = rs.admin_send_round(
+        db,
+        _Admin(),
+        rid,
+        {"content": _round_content(doc, startDate=s2.isoformat(), endDate=(s2 + timedelta(days=2)).isoformat()), "baseRound": 5},
+    )
+    assert set(six["rounds"][-1]["changed"]) == {"period", "midReport"}
+    assert rs._effective_mid_report(six["rounds"][-1]["content"]) == (s2 + timedelta(days=1)).isoformat()
 
 
 def test_plan_round_files(db: Session, advertiser: User):

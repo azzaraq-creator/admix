@@ -54,6 +54,8 @@ class BusinessRegistrationOut(BaseModel):
     verified_at: datetime | None = None
     # 어드민 임시 승인 시각(status=provisional, 069) — 콜라보 현장 가입 때 등록증 없이 협약까지 넘어가게.
     provisional_at: datetime | None = None
+    # 반려한 시각(095) — 내 정보 반려 안내 · 어드민 회원 상세에 보인다.
+    rejected_at: datetime | None = None
 
 
 class SanctionOut(BaseModel):

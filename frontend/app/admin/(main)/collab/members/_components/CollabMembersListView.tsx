@@ -91,7 +91,10 @@ const COLUMNS: MemberTableColumn[] = [
     id: "agreedAt",
     label: "협약",
     render: (m) =>
-      m.agreedAt ? (
+      // 예전 판 협약서에 동의 — 새 판에 다시 동의하기 전(11-18).
+      m.agreementOutdated ? (
+        <span className="text-[#c99a2e]">다시 동의 전</span>
+      ) : m.agreedAt ? (
         <span>{dotDate(m.agreedAt)}</span>
       ) : (
         <span className="text-[#c99a2e]">협약 전</span>
@@ -487,9 +490,17 @@ export function CollabMembersListView() {
                       <Chip
                         size="sm"
                         variant="soft"
-                        color={m.agreedAt ? "success" : "warning"}
+                        color={
+                          m.agreedAt && !m.agreementOutdated
+                            ? "success"
+                            : "warning"
+                        }
                       >
-                        {m.agreedAt ? "협약 완료" : "협약 전"}
+                        {m.agreementOutdated
+                          ? "다시 동의 전"
+                          : m.agreedAt
+                            ? "협약 완료"
+                            : "협약 전"}
                       </Chip>
                       <Chip size="sm" variant="soft">
                         {m.stores.length

@@ -12,7 +12,7 @@ from src.models.media_favorite import MediaFavorite
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
 from src.models.inquiry import Inquiry
-from src.models.member_profile import BusinessRegistration, MemberSanction
+from src.models.member_profile import BusinessRegistration, BusinessRegistrationRejection, MemberSanction
 from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
@@ -57,6 +57,7 @@ __all__ = [
     "PasswordReset",
     "BusinessRegistration",
     "MemberSanction",
+    "BusinessRegistrationRejection",
     "Proposal",
     "ProposalCounterFile",
     "ProposalItem",

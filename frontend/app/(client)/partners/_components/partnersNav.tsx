@@ -65,9 +65,9 @@ const MENU: PartnersMenuItem[] = [
 ];
 
 /**
- * 제휴사(콜라보) 회원에게만 — 대시보드 · 내 매장 · 콜라보 참여 · 참여 이력 · 기본 협약(2026-11-09 사용자 순서).
- * 대화는 없앴고, 문서함(확정서 · 결과 보고서)은 참여 이력의 콜라보마다 붙였다(협약서는 기본 협약에서).
- * 협약 전이거나 담당자가 아직 매장을 연결하지 않았으면 대시보드 · 기본 협약만(대시보드가 모집 중 콜라보와 다음 할 일을 안내).
+ * 제휴사(콜라보) 회원에게만 — 대시보드 · 내 매장 · 콜라보 참여 · 참여 이력 · 협약서(2026-11-09 사용자 순서, 11-18 "기본 협약"에서 이름 바꿈).
+ * 대화는 없앴고, 문서함(확정서 · 결과 보고서)은 참여 이력의 콜라보마다 붙였다(협약서는 협약서 메뉴에서).
+ * 협약 전이거나 담당자가 아직 매장을 연결하지 않았으면 대시보드 · 협약서만(대시보드가 모집 중 콜라보와 다음 할 일을 안내).
  * 모바일 아래 탭 바는 다섯 칸 모두 탭.
  */
 const PARTNER_MENU: PartnersMenuItem[] = [
@@ -101,14 +101,14 @@ const PARTNER_MENU: PartnersMenuItem[] = [
   },
   {
     key: "agreement",
-    label: "기본 협약",
+    label: "협약서",
     Icon: SquareCheckIcon,
-    // from=menu — 메뉴로 들어오면 가입 진행의 다음 단계 버튼 없이 협약 내용만(PartnerAgreement).
-    href: "/partners/join/agreement?from=menu",
-    activePrefix: "/partners/join/agreement",
+    // 작성을 마친 협약서를 보고 내려받는 화면(11-18 사용자) — 작성(/partners/join/agreement)은 메뉴와 따로인 화면.
+    href: "/partners/agreement",
+    activePrefix: "/partners/agreement",
   },
 ];
-/** 협약 전 · 매장 연결 전 — 대시보드 · 기본 협약만. */
+/** 협약 전 · 매장 연결 전 — 대시보드 · 협약서만. */
 const PARTNER_MENU_START = PARTNER_MENU.filter((m) =>
   ["dashboard", "agreement"].includes(m.key),
 );

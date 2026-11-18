@@ -347,8 +347,9 @@ function Overview() {
                       name={c.brand}
                       className="size-[36px] rounded-[12px] border border-gray-200 bg-surface text-[20px]"
                     />
+                    {/* 브랜드 · 캠페인 줄은 뺐다(11-18 사용자 "이거 없애줘") — 화면 읽기 도구에만 남긴다. */}
                     <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                      <span className="truncate text-[12px] font-semibold text-gray-500">
+                      <span className="sr-only">
                         {c.brand} · {c.title}
                       </span>
                       <b className="text-[14px] leading-[1.45] font-semibold break-keep text-gray-900">

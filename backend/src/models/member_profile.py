@@ -52,10 +52,36 @@ class BusinessRegistration(Base):
     license_uploaded_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     provisional_at = Column(DateTime(timezone=True), nullable=True)
+    # 반려한 시각(095) — 인증 완료 · 되돌리기 · 다시 올리면 지운다.
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
     user = relationship("User", back_populates="business_registration")
+
+
+class BusinessRegistrationRejection(Base):
+    """사업자 인증 반려 기록 (users 1:N, 095) — 다시 올리거나 인증해도 남는다. 어드민에서만 보인다(2026-11-18 사용자).
+
+    반려할 때의 사유 · 올린 파일(이름 · 주소)을 그대로 적어 둔다. 다시 올려도 예전 파일은 지우지 않아서 나중에 열어 볼 수 있다.
+    """
+
+    __tablename__ = "business_registration_rejection"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reason = Column(Text, nullable=True)
+    file_name = Column(String(500), nullable=True)
+    file_url = Column(String(1000), nullable=True)
+    rejected_by = Column(
+        UUID(as_uuid=True), ForeignKey("admin.id", ondelete="SET NULL"), nullable=True
+    )
+    rejected_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
 
 class MemberSanction(Base):

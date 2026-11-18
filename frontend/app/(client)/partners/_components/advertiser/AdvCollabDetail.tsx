@@ -36,10 +36,8 @@ import {
   EXTRA_LABEL,
   ITEM_LABEL,
   OUTCOME_OPTIONS,
-  PAYMENT_DAYS,
   PREVIEW_TODAY,
   STORES_PER_INSTALL_DAY,
-  addBusinessDays,
   admixMakeItems,
   applicantRows,
   canConfirmProceed,
@@ -127,8 +125,9 @@ function StatusIcon({ c }: { c: AdvCollab }) {
   const cls = "size-[22px]";
   if (c.status === "cancelled") return <CircleX className={cls} />;
   if (c.status === "requested") return <MaskIcon src="/icons/review.svg" className={cls} />;
-  // admix 기획안이 왔으면(085) 서류 아이콘, 옛 보완 요청(예시)은 되돌림 아이콘.
-  if (c.status === "returned") return c.plan ? <FileText className={cls} /> : <RotateCcw className={cls} />;
+  // admix 기획안이 왔으면(085) 종이비행기(11-18 사용자 "send.svg로"), 옛 보완 요청(예시)은 되돌림 아이콘.
+  if (c.status === "returned")
+    return c.plan ? <MaskIcon src="/icons/proposal-detail/send.svg" className={cls} /> : <RotateCcw className={cls} />;
   const phase = phaseOf(scheduleOf(c));
   const pay = paymentOf(c);
   if (canConfirmProceed(c)) return <MaskIcon src="/icons/ringing.svg" className={cls} />;
@@ -223,7 +222,8 @@ function StatusPanel({ c, showSub }: { c: AdvCollab; showSub: boolean }) {
           <h2 className={cn("text-[20px] leading-[1.35] font-bold break-keep sm:text-[22px]", tone.title)}>
             {stage.label}
           </h2>
-          {(showSub || c.status === "returned" || c.status === "cancelled") && todo && (
+          {/* 기획안이 온 때(returned + 기획안)는 설명 줄을 뺀다 — 아래 띠 · 기획안 탭이 같은 말을 한다(11-18 사용자 "없애줘"). */}
+          {(showSub || (c.status === "returned" && !c.plan) || c.status === "cancelled") && todo && (
             <p className="mt-[2px] text-[14px] leading-[1.5] break-keep text-gray-700">{todo.text}</p>
           )}
         </div>
@@ -495,7 +495,10 @@ function ScheduleDetail({ c, s, wide }: { c: AdvCollab; s: Schedule; wide?: bool
       rows: [
         [s.reviewEnd, "신청 매장 검토 마감"],
         [s.confirmDue, "매장 확정 → 진행 확정 · 계산서"],
-        [addBusinessDays(s.confirmDue, PAYMENT_DAYS), `입금 기한(영업일 ${PAYMENT_DAYS}일)`],
+        // 입금 기한은 기획안 확정 직전에 admix와 정한다(2026-11-18 사용자: "입금 기한은 아직 안 정해") — 정해지기 전엔 날짜 대신 글.
+        c.billing
+          ? [kstDate(c.billing.dueAt), "입금 기한"]
+          : [s.confirmDue, "입금 기한", "확정 전에 정해요"],
       ],
     },
     {
@@ -503,7 +506,11 @@ function ScheduleDetail({ c, s, wide }: { c: AdvCollab; s: Schedule; wide?: bool
       rows: [
         [s.installStart, `설치 ${s.installDays}일(${STORES_PER_INSTALL_DAY}곳당 1일)`],
         [c.startDate, "콜라보 시작"],
-        ...s.checks.map((k, i): PlanRow => [k.date, `중간 보고 ${i + 1}(${Math.round(k.pct * 100)}%)`]),
+        // 중간 보고는 한 번(11-18 사용자: "50%에만") — 어드민이 기획안에서 고른 날이 있으면 그날.
+        ...s.checks.map((k, i): PlanRow => [
+          k.date,
+          `${s.checks.length > 1 ? `중간 보고 ${i + 1}` : "중간 보고"}(진행 ${k.day}일차)`,
+        ]),
         [s.removalDate, "철수 · 결과 보고서"],
       ],
     },
@@ -829,10 +836,11 @@ function Confirmed({
                 <b>
                   확정 매장 {confirmed.length}곳 · {wonText(cost.confirmed)}
                 </b>
-                으로 진행을 확정하면 계산서가 바로 발행되고, <b>영업일 {PAYMENT_DAYS}일 안에 입금</b>해야 준비가 시작돼요.
+                으로 진행을 확정하면 계산서가 바로 발행돼요. <b>입금 기한은 확정 직전에 admix와 정해요.</b>
+                {/* 11-18 사용자: "입금 기한은 아직 안 정해. 확정하기 직전에 입금 기한을 정해" — "영업일 5일 안"을 뺐다. */}
               </p>
               <ul className="flex list-disc flex-col gap-[3px] pl-[18px] text-[12px] leading-[1.7] break-keep text-gray-500">
-                <li>입금 기한(영업일 {PAYMENT_DAYS}일)을 넘기면 위약금이 생겨요.</li>
+                <li>정한 입금 기한을 넘기면 위약금이 생겨요.</li>
                 <li>진행 확정은 매장들과의 약속이에요. 확정 뒤 진행하지 않으면 브랜드 신뢰도에 남아요.</li>
                 <li>확정 뒤 취소: {CANCEL_HALF_REFUND_DAYS}일 이내 50% 공제 후 환불 · 그 뒤는 admix와 협의해요.</li>
                 <li>일정은 설치 전까지 조정을 요청할 수 있어요 — 확정 매장 모두 확인해야 하고, 바뀐 기간에 다른 콜라보가 있는 매장이 있으면 조정하지 않아요.</li>
@@ -1217,7 +1225,8 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   let bar: ReactNode = null;
   if (c.status === "returned" && planBlock)
     bar = (
-      <ActionBar title="admix 기획안이 왔어요" sub="수정 전 · 후를 보고 확정하거나 다시 고쳐 보내 주세요">
+      // 설명 줄은 뺐다(11-18 사용자) — 기획안 탭이 수정 전 · 후와 확정 · 다시 고치기 버튼을 바로 보여 준다.
+      <ActionBar title="admix 기획안이 왔어요">
         <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
           의뢰 취소
         </Button>
@@ -1267,7 +1276,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
     );
   else if (canProceed)
     bar = (
-      <ActionBar title={`확정 매장 ${confirmedCount}곳 · ${wonText(cost.confirmed)}`} sub={`진행을 확정하면 계산서가 발행되고 영업일 ${PAYMENT_DAYS}일 안에 입금해요`}>
+      <ActionBar title={`확정 매장 ${confirmedCount}곳 · ${wonText(cost.confirmed)}`} sub="진행을 확정하면 계산서가 발행돼요. 입금 기한은 확정 직전에 admix와 정해요.">
         <Button onPress={() => setDialog("proceed")} className={BAR_BUTTON}>
           <CheckCircle2 className="size-[16px]" />
           진행 확정
@@ -1407,7 +1416,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           advActions.proceed(c.id);
           setDialog(null);
           setTab("confirmed");
-          say(`진행을 확정했어요. 계산서가 발행됐고 영업일 ${PAYMENT_DAYS}일 안에 입금하면 준비가 시작돼요.`);
+          say("진행을 확정했어요. 계산서가 발행됐고, 정한 기한까지 입금하면 준비가 시작돼요.");
         }}
       >
         <p className="text-[15px] text-gray-900">
@@ -1417,7 +1426,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           </b>
         </p>
         <p>
-          확정과 함께 계산서가 발행되고 영업일 {PAYMENT_DAYS}일 안에 입금해야 준비가 시작돼요. 기한을 넘기면 위약금이 생겨요. 진행 확정은 매장들과의 약속이에요 — 확정 뒤
+          확정과 함께 계산서가 발행되고, admix와 정한 기한까지 입금하면 준비가 시작돼요. 기한을 넘기면 위약금이 생겨요. 진행 확정은 매장들과의 약속이에요 — 확정 뒤
           취소는 {CANCEL_HALF_REFUND_DAYS}일 이내 50% 공제 후 환불이고, 그 뒤는 admix와 협의해요.
         </p>
       </ConfirmModal>

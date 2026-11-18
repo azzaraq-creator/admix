@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
 from src.utils.listing import in_date_range, paginate, parse_date
-from src.models.member_profile import BusinessRegistration, MemberSanction
+from src.models.member_profile import BusinessRegistration, BusinessRegistrationRejection, MemberSanction
 from src.models.user import User
 from src.schemas.member import (
     BusinessRegistrationUpdate,
@@ -346,8 +346,22 @@ def delete_sanction(
     return get_member(db, user_id)
 
 
+def log_biz_rejection(db: Session, reg: BusinessRegistration, admin_id: uuid.UUID | None = None) -> None:
+    """반려 기록 한 줄(095) — 그때의 사유 · 올린 파일을 그대로 적는다. 커밋은 부르는 쪽이."""
+    db.add(
+        BusinessRegistrationRejection(
+            user_id=reg.user_id,
+            reason=reg.reject_reason,
+            file_name=reg.license_file_name if reg.license_file_url else None,
+            file_url=reg.license_file_url,
+            rejected_by=admin_id,
+            rejected_at=reg.rejected_at or datetime.now(timezone.utc),
+        )
+    )
+
+
 def update_business_registration(
-    db: Session, user_id: uuid.UUID, data: BusinessRegistrationUpdate
+    db: Session, user_id: uuid.UUID, data: BusinessRegistrationUpdate, admin_id: uuid.UUID | None = None
 ) -> dict:
     user = _get_user(db, user_id)
     biz = user.business_registration
@@ -355,10 +369,16 @@ def update_business_registration(
         biz = BusinessRegistration(user_id=user.id, status="unregistered")
         db.add(biz)
     fields = data.model_dump(exclude_unset=True)
+    prev_status = biz.status
     for field, value in fields.items():
         setattr(biz, field, value)
     if fields.get("status") == "verified" and biz.verified_at is None:
         biz.verified_at = datetime.now(timezone.utc)
+    if fields.get("status") and fields["status"] != prev_status:
+        # 반려 시각(095) — admix 회원 관리에서 반려로 바꿔도 콜라보 어드민에 같이 보인다. 상태가 바뀔 때만 적는다.
+        biz.rejected_at = datetime.now(timezone.utc) if fields["status"] == "rejected" else None
+        if fields["status"] == "rejected":
+            log_biz_rejection(db, biz, admin_id)
     db.commit()
     return get_member(db, user_id)
 
@@ -377,6 +397,7 @@ def save_license_file(
     biz.license_uploaded_at = datetime.now(timezone.utc)
     biz.status = "reviewing"
     biz.reject_reason = None
+    biz.rejected_at = None
     biz.verified_at = None
     db.commit()
     db.refresh(biz)

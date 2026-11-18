@@ -121,8 +121,7 @@ class PartnerAgreementIn(BaseModel):
 @router.get("/me/agreement/progress")
 def agreement_progress(user: User = Depends(get_current_user)) -> dict:
     """기본협약 진행 상태 — 동의 전에 저장해 둔 곳(없으면 null)."""
-    partners_service.ensure_partner(user)
-    return {"progress": user.partner_agreement_progress}
+    return {"progress": partners_service.agreement_progress(user)}
 
 
 @router.put("/me/agreement/progress")

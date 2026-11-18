@@ -96,9 +96,9 @@ def update_business_registration(
     member_id: uuid.UUID,
     body: BusinessRegistrationUpdate,
     db: Session = Depends(get_db),
-    _: Admin = Depends(require_permission("member")),
+    admin: Admin = Depends(require_permission("member")),
 ) -> MemberDetail:
-    return member_service.update_business_registration(db, member_id, body)
+    return member_service.update_business_registration(db, member_id, body, admin.id)
 
 
 @router.post("/{member_id}/sanctions", response_model=MemberDetail)

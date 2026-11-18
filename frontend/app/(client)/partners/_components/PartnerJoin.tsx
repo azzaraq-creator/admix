@@ -12,6 +12,8 @@ import {
   PARTNER_SIGNUP_HREF,
 } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 
+import { ARTICLES } from "./agreementShared";
+
 /*
  * /partners/join — 제휴사(콜라보) 가입·협약 소개 화면.
  * 콜라보 소개(/partners)에서 가입을 권할 때 온다. 회원가입에서 제휴사(콜라보)를 고르면 이 화면 없이 가입 → 기본협약 동의로 바로 간다.
@@ -35,14 +37,8 @@ const STEPS: { title: string; body?: string }[] = [
 /** 매장에 부담이 없는 점 — 기본협약 내용에서 뽑았다. */
 const PERKS = ["등록비 · 이용료 없음", "콜라보마다 참여 선택", "비독점 협약"];
 
-/** 기본협약 핵심 주제 5가지 — 오른쪽 카드에서 미리 보여 준다. */
-const AGREEMENT_TOPICS = [
-  "협력 방식과 참여",
-  "계약 기간과 종료",
-  "업무 · 비용 · 매장 운영",
-  "사진 · 정보 · 비밀유지",
-  "책임 · 서명 · 문서 보관",
-];
+/** 기본협약 조항 제목(v2.0, 7개 조) — 오른쪽 카드에서 미리 보여 준다(11-18 사용자가 준 협약서로 바뀜, 전엔 핵심 주제 5가지). */
+const AGREEMENT_TOPICS = ARTICLES.map((a) => a.title);
 
 /*
  * 한 가지 언어로 — 옅은 보라 배경 빛 위에 흰 유리(반투명 흰 바탕 · 흰 테두리 · 보라 기운 그림자) 요소를 얹는다.
@@ -158,7 +154,7 @@ export function PartnerJoin() {
           </h2>
           {/* 설명 — 한 줄로 줄였다(11-08 사용자: "문구를 줄이거나 없애줘"). 모바일은 높이를 아끼려 뺀다. */}
           <p className="mt-[8px] hidden text-[14px] leading-[1.7] break-keep text-gray-600 sm:block">
-            아래 5개 주제에 동의하면 가입이 끝나요.
+            아래 {AGREEMENT_TOPICS.length}개 조항에 동의하면 가입이 끝나요.
           </p>
 
           {/* 주제 — PC와 모바일은 한 줄에 하나씩(PC 줄 높이 48px → 곡률 21px, 모바일 40px → 17px),

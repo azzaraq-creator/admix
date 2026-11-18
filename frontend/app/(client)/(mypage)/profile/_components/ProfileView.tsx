@@ -48,7 +48,7 @@ import { useSonner } from "@/hooks/useSonner";
 import { API_BASE_URL } from "@/lib/api";
 import { avatarColorClass } from "@/lib/avatarColor";
 import { extractApiError } from "@/lib/apiError";
-import { formatDate } from "@/lib/date";
+import { formatDate, formatDateTime } from "@/lib/date";
 import { MEMBER_CATEGORIES, type MemberCategory } from "@/lib/memberCategory";
 import { BIZ_LICENSE_ANCHOR } from "@/lib/partners";
 import {
@@ -891,10 +891,25 @@ export function ProfileView() {
                     {fileError}
                   </p>
                 )}
-                {bizStatus === "rejected" && bizReg?.reject_reason && (
-                  <p className="text-[12px] text-danger max-sm:text-[11px]">
-                    반려 사유: {bizReg.reject_reason}
-                  </p>
+                {/* 반려 안내 — 옅은 빨간 상자에 "반려됐어요" · 반려 일시, 아래에 사유(11-18 사용자: "다른 UI로 깔끔하게"). */}
+                {bizStatus === "rejected" && (
+                  <div className="flex flex-col gap-[4px] rounded-[14px] bg-red-50 px-[14px] py-[10px] dark:bg-error-bg">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-[8px] gap-y-[2px]">
+                      <span className="text-[12px] font-semibold text-red-700 sm:text-[13px] dark:text-error">
+                        사업자등록증이 반려됐어요
+                      </span>
+                      {bizReg?.rejected_at && (
+                        <span className="text-[11px] text-gray-500 sm:text-[12px]">
+                          {formatDateTime(bizReg.rejected_at)}
+                        </span>
+                      )}
+                    </div>
+                    {bizReg?.reject_reason && (
+                      <p className="text-[12px] leading-[1.5] break-keep text-gray-800 sm:text-[13px]">
+                        {bizReg.reject_reason}
+                      </p>
+                    )}
+                  </div>
                 )}
                 <p className="text-[11px] text-gray-400 sm:text-[12px]">
                   저장하면 검토 후 3영업일 이내에 반영돼요.

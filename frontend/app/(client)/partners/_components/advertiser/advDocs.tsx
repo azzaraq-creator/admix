@@ -271,7 +271,7 @@ function Shot({ label }: { label: string }) {
   );
 }
 
-/** 보고서 — 게첨 · 중간 보고 1~3 · 결과. */
+/** 보고서 — 게첨 · 중간 보고(한 번, 11-18) · 결과. */
 export function ReportModal({
   c,
   kind,

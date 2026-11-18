@@ -136,7 +136,9 @@ export function scopeEntries(scope: CollabScope | null | undefined) {
 }
 
 /** 화면 글 — "브랜딩 제작물 가능, 브랜드 굿즈 불가능"(서버 scope_text 와 같다). 고른 게 없으면 null. */
-export function scopeText(scope: CollabScope | null | undefined): string | null {
+export function scopeText(
+  scope: CollabScope | null | undefined,
+): string | null {
   return (
     scopeEntries(scope)
       .map((e) => `${e.label} ${COLLAB_SCOPE_VALUE_LABEL[e.value]}`)
@@ -558,6 +560,9 @@ export function advBizLockOf(
   return "unregistered";
 }
 
+/** 기본협약 해지(갱신 거절 — 다음 자동 갱신일까지 유효) · 해지 취소(096). */
+export type AgreementAction = "terminate" | "cancel";
+
 /** 어드민 제휴사 회원(069). */
 export interface AdminPartnerMember {
   id: string;
@@ -575,11 +580,24 @@ export interface AdminPartnerMember {
   lastLoginAt: string | null;
   agreedAt: string | null;
   agreementVersion: string | null;
+  /** 협약서 문서번호(097, "20261118-00001") — 협약서 PDF 에 들어간다. 예전 서버 · 번호 전 동의면 없다. */
+  agreementNo?: string | null;
+  /** 예전 판 협약서에 동의 — 새 판에 다시 동의하기 전(11-18). 예전 서버면 없다. */
+  agreementOutdated?: boolean;
   /** 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 손 서명 그림 · 동의 때 IP. 서명 도입 전 동의면 비어 있다. */
   signerName: string | null;
   signerRole: string | null;
   signatureUrl: string | null;
   signedIp: string | null;
+  /**
+   * 기본협약 기간(096, 11-18) — 서명일부터 1년, 갱신 거절이 없으면 1년씩 자동 갱신. 날짜는 KST YYYY-MM-DD.
+   * 지금 기간 시작일 · 다음 자동 갱신일(끝났으면 null) · 해지 누른 시각 · 끝나는 날(그날부터 효력 없음) · 끝났는지.
+   */
+  agreementTermStart?: string | null;
+  agreementRenewsOn?: string | null;
+  terminationRequestedAt?: string | null;
+  terminationEffectiveOn?: string | null;
+  agreementEnded?: boolean;
   bizStatus: BizStatusCode;
   bizFileName: string | null;
   bizUploadedAt: string | null;
@@ -815,7 +833,13 @@ export interface CollabRequestPayload {
   preferred_store_ids: string[];
   memo: string | null;
   /** 화면이 보여 준 예상 비용 · 일정(참고용). */
-  estimate: { total: number; preferred: number; rest: number; avg: number; negotiable: number };
+  estimate: {
+    total: number;
+    preferred: number;
+    rest: number;
+    avg: number;
+    negotiable: number;
+  };
   schedule: Record<string, string | number | boolean>;
   /** 고쳐 다시 보낼 때 — false 면 올려 둔 첨부를 지운다. */
   keep_plan_file?: boolean;
@@ -850,7 +874,13 @@ export interface CollabRequestMine extends CollabRequestSaved, PlanBlock {
     fee: number | null;
   }[];
   memo: string | null;
-  estimate: { total?: number; preferred?: number; rest?: number; avg?: number; negotiable?: number } | null;
+  estimate: {
+    total?: number;
+    preferred?: number;
+    rest?: number;
+    avg?: number;
+    negotiable?: number;
+  } | null;
 }
 
 /** 보낸 의뢰 — 문서 번호(CR-YYMMDD-NN). */

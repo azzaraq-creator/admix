@@ -11,15 +11,7 @@ import {
   Separator,
   TextArea,
 } from "@heroui/react";
-import {
-  ChevronLeft,
-  Copy,
-  Download,
-  FileText,
-  Phone,
-  Search,
-  X,
-} from "lucide-react";
+import { ChevronLeft, Copy, Download, Search, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -40,6 +32,7 @@ import { MaskIcon } from "@/components/common/MaskIcon";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminCollabApi,
+  useAgreementAction,
   useBizAction,
   useCollabMember,
   useCollabRequests,
@@ -80,10 +73,11 @@ type BizCode = AdminPartnerMember["bizStatus"];
 /** 사업자 상태마다 한 줄 안내 — 담당자가 지금 무엇을 하면 되는지. */
 const BIZ_GUIDE: Record<BizCode, string> = {
   unregistered:
-    "아직 사업자등록증을 올리지 않았어요. 현장에 함께 있다면 임시 승인으로 협약 단계로 넘겨 주세요.",
+    "아직 사업자등록증을 올리지 않았어요. 협약은 할 수 있고, 등록증을 받아 인증해야 콜라보 기능이 열려요.",
   reviewing: "등록증을 올렸어요. 파일을 확인하고 인증 완료 또는 반려해 주세요.",
+  // 임시 승인은 없앴다(11-18 사용자) — 예전에 임시 승인한 회원만 이 상태로 남아 있다.
   provisional:
-    "임시 승인 상태예요. 협약은 진행할 수 있고, 나중에 등록증을 받아 인증 완료로 바꿔 주세요.",
+    "예전에 임시 승인한 회원이에요. 등록증을 받아 인증 완료로 바꿔 주세요.",
   verified: "사업자 인증을 마쳤어요.",
   rejected: "반려한 상태예요. 다시 올리면 검토 대기로 바뀌어요.",
 };
@@ -115,9 +109,17 @@ function BizChip({ status }: { status: BizCode }) {
 }
 
 /** 계정 카드 한 칸 — 작은 이름표 위 · 값 아래. */
-function MetaItem({ label, children }: { label: string; children: ReactNode }) {
+function MetaItem({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex min-w-0 flex-col gap-[4px]">
+    <div className={cn("flex min-w-0 flex-col gap-[4px]", className)}>
       <dt className="text-xs font-medium text-disabled">{label}</dt>
       <dd className="min-w-0 text-sm font-medium text-black">{children}</dd>
     </div>
@@ -162,8 +164,8 @@ function Section({
 }
 
 /**
- * 제휴사 회원 상세 — 위쪽에 사업자 인증(임시 승인 · 인증 완료 · 반려 · 되돌리기)을 크게 둔다.
- * 담당자가 매장에서 휴대폰으로 같이 가입하고 그 자리에서 임시 승인 → 협약으로 넘기는 흐름.
+ * 제휴사 회원 상세 — 위쪽에 사업자 인증(인증 완료 · 반려 · 되돌리기)을 크게 둔다.
+ * 임시 승인은 없앴다(11-18 사용자: 사업자등록증은 협약에 선택) — 예전 임시 승인 회원은 기록 줄 · 되돌리기만 남는다.
  * 모두 HeroUI 컴포넌트(2026-11-10 사용자) — 링크는 RouterProvider 로 새로고침 없이 넘어간다.
  */
 export function CollabMemberDetailView({ id }: { id: string }) {
@@ -200,12 +202,11 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
     }
   };
 
-  // 깔끔하게(2026-11-12 사용자) — 머리(이름 · 고유번호 · 회사명) 아래 두 칸:
-  // 왼쪽 할 일 순서(사업자 인증 → 기본협약 → 매장) | 오른쪽 계정(아이디 · 연락처 · 가입 · 업데이트).
-  // 위에 따로 있던 계정 네 칸과 아래 "계정 정보"(연락처 입력)를 오른쪽 카드 하나로 합쳤다. 휴대폰은 왼쪽 → 오른쪽 순서로 쌓인다.
-  // 상태(사업자 · 협약)는 각 카드 머리 칩에만 — 머리에 같은 칩을 또 두지 않는다.
+  // 한 줄로 쌓기(2026-11-18 사용자: 창을 줄이면 "화면이 깨져. 이 구조 안 좋은 듯") — 예전엔 왼쪽 할 일 | 오른쪽 계정(320px) 두 칸이라
+  // 창이 좁아지면 왼쪽 칸이 눌려 서명 기록 · 버튼이 찌그러졌다. 이제 머리 아래 계정 · 매장 정보(넓으면 나란히, 놓인 폭으로 판단)
+  // → 사업자 인증 → 기본협약 → 연결 매장을 화면 폭 그대로 쌓는다. 상태(사업자 · 협약)는 각 카드 머리 칩에만.
   return (
-    <div className="flex flex-col gap-[20px] md:gap-[24px]">
+    <div className="@container flex flex-col gap-[20px] md:gap-[24px]">
       <Link
         href={MEMBERS_HREF}
         className="flex w-fit items-center gap-[2px] text-sm font-medium text-tone-4a5565 no-underline hover:text-black"
@@ -237,17 +238,13 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
         )}
       </header>
 
-      <div className="grid items-start gap-[20px] lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-[24px]">
-        <div className="flex min-w-0 flex-col gap-[20px] md:gap-[24px]">
-          <BizSection member={member} />
-          <AgreementSection member={member} />
-          <StoresSection member={member} />
-        </div>
-        <div className="flex min-w-0 flex-col gap-[20px] md:gap-[24px]">
-          <AccountSection member={member} />
-          <StoreInfoSection member={member} />
-        </div>
+      <div className="grid items-stretch gap-[20px] @[880px]:grid-cols-2 @[880px]:gap-[24px]">
+        <AccountSection member={member} />
+        <StoreInfoSection member={member} />
       </div>
+      <BizSection member={member} />
+      <AgreementSection member={member} />
+      <StoresSection member={member} />
     </div>
   );
 }
@@ -264,11 +261,11 @@ function StoreInfoSection({ member }: { member: AdminPartnerMember }) {
     value || <span className="text-disabled">없음</span>;
   return (
     <Section title="매장 정보" desc="가입할 때 적은 내용이에요.">
-      <dl className="flex flex-col gap-[16px]">
+      <dl className="grid gap-x-[20px] gap-y-[16px] sm:grid-cols-2">
         <MetaItem label="상호">{empty(member.bizName)}</MetaItem>
         <MetaItem label="사업자 번호">{empty(member.bizNo)}</MetaItem>
         <MetaItem label="대표자명">{empty(member.bizRepresentative)}</MetaItem>
-        <MetaItem label="주소">
+        <MetaItem label="주소" className="sm:col-span-2">
           <span className="break-keep">{empty(address)}</span>
         </MetaItem>
       </dl>
@@ -306,20 +303,6 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
     }
   };
 
-  const provisional = async () => {
-    const ok = await confirm({
-      title: "임시 승인할까요?",
-      description:
-        "등록증 없이 기본협약으로 넘어갈 수 있어요. 나중에 등록증을 받아 인증 완료로 바꿔 주세요.",
-      confirmText: "임시 승인",
-    });
-    if (ok)
-      await run(
-        "provisional",
-        "임시 승인했어요.",
-        "제휴사 화면에서 협약을 이어서 할 수 있어요.",
-      );
-  };
   const verify = async () => {
     const ok = await confirm({
       title: "사업자 인증을 마칠까요?",
@@ -359,9 +342,6 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
     }
   };
 
-  const canProvisional = ["unregistered", "reviewing", "rejected"].includes(
-    status,
-  );
   const canVerify =
     status !== "verified" && (hasFile || status === "provisional");
   const canReject =
@@ -377,7 +357,9 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
       right={<BizChip status={status} />}
       className={highlight ? "bg-primary-50" : undefined}
     >
-      <p className="text-sm leading-[22px] text-tone-4a5565">{BIZ_GUIDE[status]}</p>
+      <p className="text-sm leading-[22px] text-tone-4a5565">
+        {BIZ_GUIDE[status]}
+      </p>
 
       {/* 기록은 한 상자에 이름표 | 값 줄로(파일 · 임시 승인 · 인증 완료 · 반려 사유). 처리할 차례(옅은 보라 카드)면 상자는 흰 바탕. */}
       <dl
@@ -390,7 +372,10 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
           {hasFile ? (
             <span className="flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[6px]">
               <span className="flex min-w-0 items-center gap-[6px]">
-                <FileText className="size-[16px] shrink-0 text-tone-4a5565" />
+                <MaskIcon
+                  src="/icons/file-text.svg"
+                  className="size-[16px] shrink-0 text-tone-4a5565"
+                />
                 <span className="min-w-0 break-all font-semibold">
                   {member.bizFileName}
                 </span>
@@ -417,7 +402,9 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
           </FactRow>
         )}
         {member.bizVerifiedAt && status === "verified" && (
-          <FactRow label="인증 완료">{dotDateTime(member.bizVerifiedAt)}</FactRow>
+          <FactRow label="인증 완료">
+            {dotDateTime(member.bizVerifiedAt)}
+          </FactRow>
         )}
         {status === "rejected" && member.bizRejectReason && (
           <FactRow label="반려 사유">
@@ -427,19 +414,9 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
       </dl>
 
       <div className="grid grid-cols-1 gap-[8px] sm:flex sm:flex-wrap">
-        {canProvisional && (
-          <Button
-            variant="primary"
-            className={BIG_BLOCK}
-            onPress={provisional}
-            isDisabled={busy}
-          >
-            임시 승인
-          </Button>
-        )}
         {canVerify && (
           <Button
-            variant={canProvisional ? "secondary" : "primary"}
+            variant="primary"
             className={BIG_BLOCK}
             onPress={verify}
             isDisabled={busy}
@@ -519,26 +496,181 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
  * 서명 도입 전에 동의한 회원은 서명 기록이 비어 있다.
  * 협약을 마쳤으면 계약서 PDF 를 이 자리에서 보고 받는다(2026-11-11 사용자) — 제휴사 4단계와 같은 PDF(agreementPdf, 서명란에 이 회원 서명).
  */
+/** 초까지 — "언제 협약했는지 정확하게"(2026-11-18 사용자). 브라우저 시간대(어드민은 한국). */
+function dotDateTimeSec(iso: string | null | undefined) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${dotDateTime(iso)}:${p(d.getSeconds())}`;
+}
+
+/** KST 날짜(YYYY-MM-DD) → 2027.11.11 (목). */
+function dotDay(ymd: string | null | undefined) {
+  if (!ymd) return "-";
+  const [y, m, d] = ymd.split("-").map(Number);
+  const w = "일월화수목금토"[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${ymd.replaceAll("-", ".")} (${w})`;
+}
+
+/** 하루 앞 날짜(YYYY-MM-DD) — 끝나는 날 전날 = 마지막으로 유효한 날. */
+function dayBefore(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+}
+
+/**
+ * 기본협약 — 협약 일시(초까지) · 지금 기간 · 다음 자동 갱신일, 해지(갱신 거절) · 해지 취소(096, 2026-11-18 사용자).
+ * 해지하면 다음 자동 갱신일 전날까지 유효하고 그날부터 끝난다("10월 1일 갱신인데 9월 1일에 해제하면 … 그 이후부턴 알아서 해지").
+ * 끝나기 전엔 해지를 취소해 다시 1년씩 자동 갱신으로 돌릴 수 있다.
+ */
 function AgreementSection({ member }: { member: AdminPartnerMember }) {
   const agreed = !!member.agreedAt;
   const signature = member.signatureUrl ? mediaSrc(member.signatureUrl) : null;
+  const action = useAgreementAction();
+  const { confirm, alert, confirmDialog } = useAdminConfirm();
+  const { success } = useSonner();
+  const ends = member.terminationEffectiveOn ?? null;
+  const ended = !!member.agreementEnded;
+  // 예전 판 협약서에 동의(11-18) — 새 판에 다시 동의할 때까지 제휴사 화면은 협약 전과 같다.
+  const state = !agreed
+    ? "none"
+    : ended
+      ? "ended"
+      : ends
+        ? "ending"
+        : member.agreementOutdated
+          ? "outdated"
+          : "active";
+  const chip = {
+    none: { label: "협약 전", color: "warning" },
+    outdated: { label: "다시 동의 전", color: "warning" },
+    active: { label: "협약 완료", color: "success" },
+    ending: { label: "해지 예정", color: "warning" },
+    ended: { label: "협약 종료", color: "default" },
+  } as const;
+
+  const run = async (kind: "terminate" | "cancel") => {
+    const renews = member.agreementRenewsOn;
+    const ok = await confirm(
+      kind === "terminate"
+        ? {
+            title: "기본협약을 해지할까요?",
+            description: renews
+              ? `${dotDay(dayBefore(renews))}까지는 협약이 유효하고, ${dotDay(renews)}부터 끝나요. 자동 갱신은 하지 않아요. 이미 확정된 콜라보는 그대로 진행돼요. 끝나기 전까지는 해지를 취소할 수 있어요.`
+              : "다음 자동 갱신일부터 협약이 끝나요.",
+            confirmText: "해지하기",
+          }
+        : {
+            title: "해지를 취소할까요?",
+            description: "다시 1년씩 자동 갱신돼요.",
+            confirmText: "해지 취소",
+          },
+    );
+    if (!ok) return;
+    try {
+      const next = await action.mutateAsync({ id: member.id, action: kind });
+      success(
+        kind === "terminate" ? "협약을 해지했어요." : "해지를 취소했어요.",
+        kind === "terminate" && next.terminationEffectiveOn
+          ? `${dotDay(dayBefore(next.terminationEffectiveOn))}까지 유효해요.`
+          : next.agreementRenewsOn
+            ? `다음 자동 갱신 ${dotDay(next.agreementRenewsOn)}`
+            : undefined,
+      );
+    } catch (err) {
+      await alert({
+        title:
+          kind === "terminate"
+            ? "해지하지 못했어요"
+            : "해지를 취소하지 못했어요",
+        description: extractApiError(err),
+        confirmText: "확인",
+      });
+    }
+  };
+
   return (
     <Section
       title="기본협약"
       right={
-        <Chip size="sm" variant="soft" color={agreed ? "success" : "warning"}>
-          {agreed ? "협약 완료" : "협약 전"}
+        <Chip size="sm" variant="soft" color={chip[state].color}>
+          {chip[state].label}
         </Chip>
       }
     >
-      <p className="text-sm leading-[22px] text-tone-4a5565">
-        {agreed
-          ? `${dotDateTime(member.agreedAt)}에 기본협약(${member.agreementVersion ?? "-"})에 동의했어요.`
-          : member.bizStatus === "unregistered" ||
-              member.bizStatus === "rejected"
-            ? "사업자등록증을 올리거나 임시 승인을 받아야 협약할 수 있어요."
-            : "제휴사 화면에서 협약을 이어서 하면 돼요."}
-      </p>
+      {!agreed ? (
+        <p className="text-sm leading-[22px] text-tone-4a5565">
+          {/* 사업자등록증 없이도 협약할 수 있다(11-18 사용자). */}
+          제휴사 화면에서 협약을 이어서 하면 돼요.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-[12px] rounded-[14px] bg-gray-50 p-[12px] sm:flex-row sm:items-end sm:justify-between">
+          <dl className="flex min-w-0 flex-col gap-[8px]">
+            <FactRow label="협약 일시">
+              {dotDateTimeSec(member.agreedAt)}
+              <span className="ml-[6px] text-tone-4a5565">
+                v{member.agreementVersion ?? "-"}
+              </span>
+            </FactRow>
+            {state === "outdated" && (
+              <FactRow label="새 협약서">
+                <span className="font-medium">
+                  v{AGREEMENT.version}에 아직 다시 동의하지 않았어요
+                </span>
+              </FactRow>
+            )}
+            <FactRow label={ended ? "마지막 기간" : "지금 기간"}>
+              {member.agreementTermStart
+                ? `${dotDay(member.agreementTermStart)} ~ ${dotDay(dayBefore(ends ?? member.agreementRenewsOn ?? member.agreementTermStart))}`
+                : "-"}
+            </FactRow>
+            {state === "active" && (
+              <FactRow label="자동 갱신">
+                <span className="font-medium">
+                  {dotDay(member.agreementRenewsOn)}
+                </span>
+                <span className="ml-[6px] text-tone-4a5565">1년 연장</span>
+              </FactRow>
+            )}
+            {(state === "ending" || state === "ended") && ends && (
+              <>
+                <FactRow label="해지 일시">
+                  {dotDateTime(member.terminationRequestedAt)}
+                </FactRow>
+                {/* 지금 기간 끝(위 줄)까지 유효 — 그다음 날부터 끝난다. */}
+                <FactRow label="끝나는 날">
+                  <span className="font-medium">
+                    {dotDay(ends)}부터 협약이 {ended ? "끝났어요" : "끝나요"}
+                  </span>
+                </FactRow>
+              </>
+            )}
+          </dl>
+          {state === "active" && (
+            <Button
+              variant="danger-soft"
+              size="sm"
+              isPending={action.isPending}
+              onPress={() => void run("terminate")}
+              className="shrink-0 self-start sm:self-end"
+            >
+              협약 해지
+            </Button>
+          )}
+          {state === "ending" && (
+            <Button
+              variant="tertiary"
+              size="sm"
+              isPending={action.isPending}
+              onPress={() => void run("cancel")}
+              className="shrink-0 self-start sm:self-end"
+            >
+              해지 취소
+            </Button>
+          )}
+        </div>
+      )}
       {agreed &&
         (signature ? (
           <div className="flex flex-col gap-[12px] rounded-[14px] bg-gray-50 p-[12px] sm:flex-row sm:items-center sm:gap-[20px]">
@@ -562,7 +694,6 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
                   </span>
                 )}
               </FactRow>
-              <FactRow label="서명 시각">{dotDateTime(member.agreedAt)}</FactRow>
               <FactRow label="IP">{member.signedIp ?? "-"}</FactRow>
             </dl>
           </div>
@@ -572,6 +703,7 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
           </p>
         ))}
       {agreed && <AgreementPdfRow member={member} signatureSrc={signature} />}
+      {confirmDialog}
     </Section>
   );
 }
@@ -600,24 +732,31 @@ function AgreementPdfRow({
         role: (member.signerRole as Role | null) ?? "representative",
         src: signatureSrc,
         signedAt: member.agreedAt,
+        docNo: member.agreementNo ?? null,
       }
     : null;
   const tag = memberFileTag(member);
   const fileName = tag
     ? agreementPdfFileName().replace(/\.pdf$/, `_${tag}.pdf`)
     : agreementPdfFileName();
-  // 가입 때 적은 매장 정보(089) — 회원이 받는 계약서와 같게 매장 측 빈칸을 채운다.
-  const party = partyOf({
-    business_name: member.bizName,
-    business_registration_no: member.bizNo,
-    representative_name: member.bizRepresentative,
-    address: member.bizAddress,
-    address_detail: member.bizAddressDetail,
-  });
+  // 가입 때 적은 매장 정보(089) + 연결 매장 이름 · 휴대폰 — 회원이 받는 협약서와 같게 제휴사 빈칸을 채운다.
+  const party = partyOf(
+    {
+      business_name: member.bizName,
+      business_registration_no: member.bizNo,
+      representative_name: member.bizRepresentative,
+      address: member.bizAddress,
+      address_detail: member.bizAddressDetail,
+    },
+    {
+      storeName: member.stores.map((s) => s.name).join(", ") || null,
+      contact: member.phone,
+    },
+  );
   const pdf = useDownloadAgreementPdf(pdfSignature, fileName, party);
   const versionDiffers =
     !!member.agreementVersion && member.agreementVersion !== AGREEMENT.version;
-  const title = `${AGREEMENT.document.title} v${AGREEMENT.version}`;
+  const title = `${AGREEMENT.title} v${AGREEMENT.version}`;
 
   return (
     <div className="flex flex-col gap-[4px] text-sm">
@@ -626,7 +765,10 @@ function AgreementPdfRow({
         className="flex-row flex-wrap items-center justify-between gap-[8px] rounded-[14px] bg-gray-50 px-[16px] py-[12px] shadow-none"
       >
         <span className="flex min-w-0 items-center gap-[8px]">
-          <FileText className="size-[18px] shrink-0 text-tone-4a5565" />
+          <MaskIcon
+            src="/icons/file-text.svg"
+            className="size-[18px] shrink-0 text-tone-4a5565"
+          />
           <span className="min-w-0">
             <span className="block truncate font-semibold text-black">
               계약서 PDF
@@ -661,8 +803,9 @@ function AgreementPdfRow({
       </Card>
       {versionDiffers && (
         <p className="text-xs text-warning">
-          이 회원은 v{member.agreementVersion}에 동의했어요. PDF는 지금 판(v
-          {AGREEMENT.version}) 문구로 만들어져요.
+          이 회원은 v{member.agreementVersion}에 서명했어요. PDF는 지금 판(v
+          {AGREEMENT.version}) 문구라 서명한 내용과 달라요. 새 판에 다시
+          동의하면 맞게 나와요.
         </p>
       )}
 
@@ -900,7 +1043,8 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
           {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
         </Button>
         <p className="text-xs leading-[18px] text-disabled">
-          어드민에 등록한 매장을 골라 연결해요. 다른 회원이 연결된 매장이면 함께 연결돼요.
+          어드민에 등록한 매장을 골라 연결해요. 다른 회원이 연결된 매장이면 함께
+          연결돼요.
         </p>
       </div>
       <StoreSearchModal
@@ -964,7 +1108,7 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
 
   return (
     <Section title="계정">
-      <dl className="flex flex-col gap-[16px]">
+      <dl className="grid gap-x-[20px] gap-y-[16px] sm:grid-cols-2">
         <MetaItem
           label={
             member.snsProvider ? `아이디 · ${member.snsProvider}` : "아이디"
@@ -972,7 +1116,11 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         >
           <span className="break-all">{member.loginId}</span>
         </MetaItem>
-        <MetaItem label="연락처">
+        {/* 고치는 동안엔 입력 칸 · 저장 · 취소가 들어가게 두 칸을 다 쓴다. */}
+        <MetaItem
+          label="연락처"
+          className={editing ? "sm:col-span-2" : undefined}
+        >
           {editing ? (
             <div className="flex flex-col gap-[6px]">
               <form
@@ -1023,10 +1171,9 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
               {member.phone ? (
                 <Link
                   href={`tel:${member.phone}`}
-                  className="inline-flex items-center gap-[4px] text-sm font-medium text-primary-800 no-underline"
+                  className="text-sm font-medium text-primary-800 no-underline"
                 >
-                  <Phone className="size-[13px]" />
-                  <span>{formatPhone(member.phone)}</span>
+                  {formatPhone(member.phone)}
                 </Link>
               ) : (
                 <span className="text-disabled">없음</span>

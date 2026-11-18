@@ -193,7 +193,7 @@ def _estimate(raw) -> dict | None:
 
 SCHEDULE_DATE_KEYS = (
     "requestDate", "reviewEnd", "noticeDate", "recruitEnd", "confirmDue",
-    "installStart", "startDate", "endDate", "removalDate",
+    "installStart", "startDate", "endDate", "removalDate", "midReport",
 )
 
 
@@ -624,8 +624,9 @@ def new_count(db: Session) -> int:
 Round = AdvertiserCollabRequestRound
 
 # 항목 키 — 비교 · 수정 이유의 단위. 기본안은 6가지가 각각 한 항목.
+# 중간 보고(midReport, 2026-11-18 사용자) — 진행 기간 안의 하루. 비우면 화면이 기간의 50% 날로 잡는다. 어드민만 고른다.
 FIELD_KEYS: tuple[str, ...] = (
-    "title", "summary", "period", "course", "stores",
+    "title", "summary", "period", "midReport", "course", "stores",
     *(f"item:{k}" for k in ITEM_KEYS),
     "extraPlan", "preferred",
 )
@@ -673,10 +674,28 @@ def _latest_content(req: AdvertiserCollabRequest) -> dict:
     return contents[-1] if contents else _original_content(req)
 
 
+def _effective_mid_report(content: dict) -> str | None:
+    """실제 중간 보고 날 — 고른 날(기간 안)이 있으면 그날, 없으면 진행 기간의 50% 날(화면 checkpoints 와 같은 계산,
+    반올림은 JS Math.round 처럼 .5 올림)."""
+    s, e, m = content.get("startDate"), content.get("endDate"), content.get("midReport")
+    try:
+        start, end = date.fromisoformat(str(s)), date.fromisoformat(str(e))
+    except ValueError:
+        return m or None
+    if m and str(s) <= str(m) <= str(e):
+        return str(m)
+    n = (end - start).days + 1
+    day = min(n, max(1, int(n * 0.5 + 0.5)))
+    return (start + timedelta(days=day - 1)).isoformat()
+
+
 def _field_value(content: dict, key: str):
     """항목 하나의 비교 값 — 빈 글자와 없음은 같게 본다."""
     if key == "period":
         return (content.get("startDate"), content.get("endDate"))
+    if key == "midReport":
+        # 실제 날로 비교 — 둘 다 비어 있어도 진행 기간이 바뀌어 50% 날이 옮겨졌으면 '수정'(2026-11-18).
+        return _effective_mid_report(content)
     if key == "stores":
         return (content.get("minStores"), content.get("targetStores"))
     if key.startswith("item:"):
@@ -729,6 +748,24 @@ def _clean_files(req: AdvertiserCollabRequest, raw, base: dict, *, author: str) 
     return out
 
 
+def _mid_report(raw: dict, base: dict, start: date, end: date, *, author: str) -> str | None:
+    """중간 보고 날 — 어드민만 고른다(2026-11-18 사용자: "중간 보고를 언제 할지도 어드민에서 같이 선택").
+    광고주 차수는 앞 차수 값을 그대로 두고, 진행 기간을 바꿔 그날이 기간 밖이 되면 비운다(화면이 50% 날로 다시 잡는다)."""
+    value = raw.get("midReport") if author == "admix" else base.get("midReport")
+    if value in (None, ""):
+        return None
+    if author != "admix":
+        try:
+            d = date.fromisoformat(str(value))
+        except ValueError:
+            return None
+        return d.isoformat() if start <= d <= end else None
+    d = _date(value, "중간 보고 날")
+    if not start <= d <= end:
+        raise _bad("중간 보고 날은 진행 기간 안에서 골라 주세요.")
+    return d.isoformat()
+
+
 def _clean_content(db: Session, req: AdvertiserCollabRequest, raw, base: dict, *, author: str) -> dict:
     """차수 하나의 내용 — 의뢰서와 같은 규칙으로 검사한다. 지정 희망 매장은 앞 차수에 있던 매장은 그때 값 그대로,
     새로 넣은 매장만 매장 표에서 찾아 적는다(금액이 바뀌었다고 '수정'으로 보이지 않게)."""
@@ -746,6 +783,7 @@ def _clean_content(db: Session, req: AdvertiserCollabRequest, raw, base: dict, *
     if (end - start).days + 1 < MIN_PERIOD_DAYS:
         raise _bad(f"진행 기간은 최소 {MIN_PERIOD_DAYS}일이에요.")
     out["startDate"], out["endDate"] = start.isoformat(), end.isoformat()
+    out["midReport"] = _mid_report(raw, base, start, end, author=author)
 
     course = raw.get("course")
     if course not in COURSES:

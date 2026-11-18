@@ -92,6 +92,11 @@ def register(
     return user
 
 
+# admix 자기 사업자 번호(11-18) — 제휴사 가입 매장 정보에 쓰면 막는다(사용자: "admix 번호만 막아줘").
+# 다른 회원과 같은 번호는 막지 않는다 — 같은 매장을 함께 운영하는 분(094)이 같은 번호로 가입한다.
+ADMIX_BUSINESS_REGISTRATION_NO = "533-81-03199"
+
+
 def clean_partner_store_info(info: dict | None) -> dict:
     """제휴사 가입 "매장 정보"(089, 2026-11-13 사용자) — 상호 · 사업자 번호 · 대표자명 · 주소는 필수, 상세 주소는 선택.
     사업자 번호는 숫자 10자리를 000-00-00000 으로 맞춰 저장한다(광고주 사업자 번호와 같은 모양). 빠지거나 틀리면 400."""
@@ -116,6 +121,10 @@ def clean_partner_store_info(info: dict | None) -> dict:
     if len(digits) != 10:
         raise HTTPException(status_code=400, detail="사업자 번호는 숫자 10자리로 입력해 주세요.")
     out["business_registration_no"] = f"{digits[:3]}-{digits[3:5]}-{digits[5:]}"
+    if out["business_registration_no"] == ADMIX_BUSINESS_REGISTRATION_NO:
+        raise HTTPException(
+            status_code=400, detail="admix 사업자 번호로는 가입할 수 없어요. 매장의 사업자 번호를 입력해 주세요."
+        )
     out["address_detail"] = out["address_detail"] or None
     return out
 

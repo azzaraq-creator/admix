@@ -15,9 +15,10 @@ from sqlalchemy.orm import Session
 from src.config import get_settings
 from src.database import SessionLocal
 from src.models.collab import Collab
+from src.models.member_profile import BusinessRegistration
 from src.models.media_master import Media
 from src.models.partners_store import PartnersStore, PartnersStoreRequest
-from src.models.user import User
+from src.models.user import PARTNER_AGREEMENT_VERSION, User
 from src.services import collab_service as cs
 from src.services import member_service
 from src.services import partners_service as ps
@@ -150,16 +151,39 @@ _SIGNATURE = (
 
 
 def _agree(db: Session, partner: User) -> dict:
-    return ps.agree(db, partner, "1.3", "홍길동", "representative", _SIGNATURE, ip="10.0.0.1")
+    return ps.agree(db, partner, PARTNER_AGREEMENT_VERSION, "홍길동", "representative", _SIGNATURE, ip="10.0.0.1")
 
 
-def test_agreement_needs_biz_or_provisional(db: Session, partner: User):
-    ps.ensure_partner_code(db, partner)
-    with pytest.raises(HTTPException):
-        _agree(db, partner)
-    member = ps.admin_biz_action(db, str(partner.id), "provisional")
-    assert member["bizStatus"] == "provisional"
+def _legacy_provisional(db: Session, partner: User) -> None:
+    """예전 어드민 "임시 승인"(11-18에 없앰)으로 남은 회원 — 상태만 그대로 만든다."""
+    reg = partner.business_registration or BusinessRegistration(user_id=partner.id, status="unregistered")
+    reg.status = "provisional"
+    reg.provisional_at = datetime.now(timezone.utc)
+    partner.business_registration = reg
+    db.add(reg)
+    db.commit()
     db.refresh(partner)
+
+
+def test_agreement_no_counts_per_day(db: Session, partner: User):
+    """문서번호는 날마다 00001부터 — 그날 가장 큰 번호 다음(097). 먼 날짜로 실제 기록과 겹치지 않게."""
+    signed = datetime(2099, 1, 1, 3, 0, tzinfo=timezone.utc)  # KST 2099-01-01 12:00
+    assert ps._next_agreement_no(db, signed) == "20990101-00001"
+    partner.partner_agreement_no = "20990101-00041"
+    db.flush()
+    assert ps._next_agreement_no(db, signed) == "20990101-00042"
+    # 다음 날(KST)은 다시 1번부터 — UTC 로는 같은 날이어도 KST 날짜를 따른다.
+    assert ps._next_agreement_no(db, datetime(2099, 1, 1, 15, 0, tzinfo=timezone.utc)) == "20990102-00001"
+    partner.partner_agreement_no = None
+    db.commit()
+
+
+def test_agreement_without_biz_license(db: Session, partner: User):
+    """사업자등록증은 선택(11-18) — 올리지 않아도 협약할 수 있고, 어드민 임시 승인은 없앴다."""
+    ps.ensure_partner_code(db, partner)
+    with pytest.raises(HTTPException) as e:
+        ps.admin_biz_action(db, str(partner.id), "provisional")
+    assert e.value.status_code == 400
     sig_dir = Path(get_settings().upload_dir) / "partner-signature" / str(partner.id)
     try:
         # 서명 — 이름 · 구분 · PNG 그림이 있어야 한다(078).
@@ -170,11 +194,14 @@ def test_agreement_needs_biz_or_provisional(db: Session, partner: User):
             ("홍길동", "representative", "data:image/jpeg;base64,AAAA"),
         ]:
             with pytest.raises(HTTPException):
-                ps.agree(db, partner, "1.3", name, role, sig)
+                ps.agree(db, partner, PARTNER_AGREEMENT_VERSION, name, role, sig)
         assert partner.partner_agreed_at is None
         out = _agree(db, partner)
-        assert out["version"] == "1.3"
+        assert out["version"] == PARTNER_AGREEMENT_VERSION
         assert out["signerName"] == "홍길동" and out["signerRole"] == "representative"
+        # 문서번호 — 서명 날짜(KST) + 그날 순번 5자리(097).
+        kst_day = partner.partner_agreed_at.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d")
+        assert re.fullmatch(rf"{kst_day}-\d{{5}}", out["agreementNo"])
         assert out["signatureUrl"].startswith(f"/uploads/partner-signature/{partner.id}/")
         assert (sig_dir / out["signatureUrl"].rsplit("/", 1)[1]).is_file()
         assert partner.partner_signed_ip == "10.0.0.1"
@@ -315,6 +342,7 @@ def test_store_link_request(db: Session, partner: User):
         with pytest.raises(HTTPException):  # 기본협약 전
             ps.lookup_link_store(db, manager, code)
         manager.partner_agreed_at = datetime.now(timezone.utc)
+        manager.partner_agreement_version = PARTNER_AGREEMENT_VERSION
         db.commit()
 
         raw = code.lower().replace("-", "")
@@ -405,8 +433,7 @@ def test_apply_request_confirm_and_block(db: Session, partner: User):
 def test_provisional_cannot_apply_or_confirm(db: Session, partner: User):
     """임시 승인으로 들어온 회원은 목록만 — 어드민이 인증 완료할 때까지 신청 · 확정을 막는다(2026-11-16 사용자)."""
     ps.ensure_partner_code(db, partner)
-    ps.admin_biz_action(db, str(partner.id), "provisional")
-    db.refresh(partner)
+    _legacy_provisional(db, partner)
     _agree(db, partner)
     store = _store(db, partner)
     sid = str(store.id)
@@ -445,14 +472,19 @@ def test_provisional_cannot_apply_or_confirm(db: Session, partner: User):
     assert e.value.status_code == 403
 
 
-def test_reviewing_from_signup_can_apply(db: Session, partner: User):
-    """처음부터 등록증을 올린 회원(임시 승인 없이 검토 대기)은 예전처럼 신청할 수 있다."""
+def test_reviewing_from_signup_waits_for_verify(db: Session, partner: User):
+    """처음부터 등록증을 올린 회원(검토 대기)도 인증 전엔 신청할 수 없다(11-18 사용자: "검토 중인 제휴사도 승인 전까지 막아줘")."""
     ps.ensure_partner_code(db, partner)
     member_service.save_license_file(db, partner.id, f"/uploads/business/{partner.id}/x.pdf", "x.pdf")
     db.refresh(partner)
     _agree(db, partner)
     store = _store(db, partner)
     c = _collab(db)
+    with pytest.raises(HTTPException) as e:
+        cs.apply(db, partner, c["id"], str(store.id))
+    assert e.value.status_code == 403
+    ps.admin_biz_action(db, str(partner.id), "verify")
+    db.refresh(partner)
     assert cs.apply(db, partner, c["id"], str(store.id))["standing"] == "candidate"
 
 

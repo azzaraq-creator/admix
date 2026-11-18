@@ -12,6 +12,7 @@ import {
   MIN_PREP_DAYS,
   PREP_LABEL,
   PREP_OF,
+  checkpoints,
   estimateOf,
   estimateText,
   makeItems,
@@ -75,6 +76,11 @@ export interface PlanContent {
   summary: string | null;
   startDate: string;
   endDate: string;
+  /**
+   * 중간 보고 날(11-18 사용자: "중간 보고를 언제 할지도 어드민에서 같이 선택") — 진행 기간 안의 하루, 어드민만 고른다.
+   * 비어 있으면 진행 기간의 50% 날(midReportOf). 처음 의뢰서 · 예전 차수엔 없다.
+   */
+  midReport?: string | null;
   course: string;
   minStores: number;
   targetStores: number;
@@ -125,6 +131,7 @@ export type PlanFieldKey =
   | "title"
   | "summary"
   | "period"
+  | "midReport"
   | "course"
   | "stores"
   | `item:${BaseItem}`
@@ -138,6 +145,7 @@ export const PLAN_FIELDS: { key: PlanFieldKey; label: string }[] = [
   { key: "title", label: "캠페인명" },
   { key: "summary", label: "한 줄 소개" },
   { key: "period", label: "진행 기간" },
+  { key: "midReport", label: "중간 보고" },
   { key: "course", label: "모집 코스" },
   { key: "stores", label: "매장 수" },
   ...BASE_ITEMS.map((k) => ({ key: itemKey(k), label: `기본안 · ${ITEM_LABEL[k]}` })),
@@ -166,6 +174,9 @@ export function fieldValue(c: PlanContent, k: PlanFieldKey): string {
       return c.course;
     case "period":
       return `${c.startDate}~${c.endDate}`;
+    case "midReport":
+      // 실제 날로 비교 — 둘 다 비어 있어도 진행 기간이 바뀌어 50% 날이 옮겨졌으면 '수정'(서버 _effective_mid_report 와 같다).
+      return midReportOf(c)?.date ?? "";
     case "stores":
       return `${c.minStores}/${c.targetStores}`;
     case "preferred":
@@ -272,6 +283,11 @@ export function fieldText(c: PlanContent, k: PlanFieldKey): string {
       return c.startDate && c.endDate
         ? `${dot(c.startDate)} ~ ${dot(c.endDate)} · 총 ${periodDays(c.startDate, c.endDate)}일`
         : "-";
+    case "midReport": {
+      const m = midReportOf(c);
+      if (!m) return "-";
+      return `${mdw(m.date)} · 진행 ${m.day}일차${c.midReport ? "" : "(기간의 50%)"}`;
+    }
     case "stores":
       return `최소 ${c.minStores}곳 · 목표 ${c.targetStores}곳`;
     case "preferred":
@@ -281,6 +297,12 @@ export function fieldText(c: PlanContent, k: PlanFieldKey): string {
       return row ? `${PREP_LABEL[row.prep] ?? row.prep} · ${blank(row.note) || "-"}` : "넣지 않음";
     }
   }
+}
+
+/** 중간 보고 날 · 진행 n일차 — 고른 날(기간 안)이 있으면 그날, 없으면 진행 기간의 50% 날. 기간이 없으면 null. */
+export function midReportOf(c: Pick<PlanContent, "startDate" | "endDate" | "midReport">) {
+  if (!c.startDate || !c.endDate || c.endDate < c.startDate) return null;
+  return checkpoints(c.startDate, c.endDate, c.midReport)[0] ?? null;
 }
 
 // ── 예상 비용 · 일정 ─────────────────────────────────────────────────
@@ -319,6 +341,7 @@ function scheduleInputOf(c: PlanContent): Parameters<typeof requestPlanPreviewOf
     targetStores: c.targetStores,
     items,
     itemPrep,
+    midReport: c.midReport ?? undefined,
   };
 }
 
@@ -342,6 +365,7 @@ export function derivedOf(c: PlanContent, avg: number, today = PREVIEW_TODAY) {
       installDays: s.installDays,
       startDate: s.startDate,
       endDate: s.endDate,
+      midReport: s.checks[0]?.date,
       removalDate: s.removalDate,
       prepBusinessDays: Math.max(0, plan.prep),
       makeItems: plan.make,
@@ -365,11 +389,15 @@ export interface SchedulePart {
   value: string;
 }
 
-/** 예상 일정 — 모집 공지 · 설치 · 철수 날짜(차수에 적힌 값, 없는 날은 뺀다). 줄마다 나눠 보인다(11-17 사용자 "구분해서"). */
+/**
+ * 예상 일정 — 모집 공지 · 설치 · 중간 보고 · 철수 날짜(차수에 적힌 값, 없는 날은 뺀다). 줄마다 나눠 보인다(11-17 사용자 "구분해서").
+ * 중간 보고는 11-18부터 적는다 — 그 전 차수엔 없다.
+ */
 export function scheduleParts(s: PlanContent["schedule"] | undefined): SchedulePart[] {
   const keys = [
     ["noticeDate", "모집 공지"],
     ["installStart", "설치"],
+    ["midReport", "중간 보고"],
     ["removalDate", "철수"],
   ] as const;
   return keys.flatMap(([k, label]) => {
@@ -382,7 +410,7 @@ const CALENDAR_KEYS = ["noticeDate", "recruitEnd", "confirmDue", "installStart",
 
 /**
  * 예상 일정 달력(ScheduleCalendar)에 넣을 일정 — 차수에 적힌 날짜 그대로(11-17 사용자: 어드민 기획안에도 "광고주의 예상 일정처럼 캘린더로").
- * 달력이 쓰지 않는 칸(중간 공유 · 점검)은 비슷한 날로 채운다. 날짜가 모자라면(예전 차수) null.
+ * 달력이 쓰지 않는 칸(중간 공유)은 비슷한 날로 채운다. 날짜가 모자라면(예전 차수) null.
  * schedule 을 주면 그 일정으로(고치는 중 다시 계산한 일정).
  */
 export function planCalendarOf(
@@ -404,7 +432,8 @@ export function planCalendarOf(
     startDate: d("startDate"),
     endDate: d("endDate"),
     removalDate: d("removalDate"),
-    checks: [],
+    // 중간 보고(11-18) — 차수에 적힌 날, 없으면(예전 차수) 고른 날 · 50% 날로 셈한다. 달력에 "보고" 칸으로.
+    checks: checkpoints(d("startDate"), d("endDate"), d("midReport") || c.midReport),
   };
   const make = c.items.some((x) => (PREP_OF[x.prep] ?? PREP_OF.ready).make);
   return { s, prepLabel: make ? "제작 · 준비" : "준비" };
@@ -437,6 +466,7 @@ export function roundPayloadOf(
       ...rest,
       title: draft.title.trim(),
       summary: blank(draft.summary) || null,
+      midReport: draft.midReport || null,
       extraPlan: blank(draft.extraPlan) || null,
       items: draft.items.map((x) => ({ ...x, note: x.note.trim() })),
       preferredIds: preferred.map((p) => p.id),
@@ -463,6 +493,8 @@ export function planErrorsOf(c: PlanContent, before: PlanContent): Partial<Recor
   else if (fieldValue(c, "period") !== fieldValue(before, "period") && c.startDate <= PREVIEW_TODAY)
     e.period = "시작일은 내일부터 고를 수 있어요.";
   else if (c.endDate < c.startDate || periodDays(c.startDate, c.endDate) < 3) e.period = "진행 기간은 최소 3일이에요.";
+  else if (c.midReport && (c.midReport < c.startDate || c.midReport > c.endDate))
+    e.midReport = "중간 보고 날은 진행 기간 안에서 골라 주세요.";
   if (c.minStores < 1 || c.targetStores < c.minStores)
     e.stores = "최소 매장 수는 1곳 이상, 목표는 최소보다 같거나 많아야 해요.";
   else if (c.preferred.length > c.targetStores) e.preferred = `지정 희망 매장(${c.preferred.length}곳)보다 목표가 적어요.`;

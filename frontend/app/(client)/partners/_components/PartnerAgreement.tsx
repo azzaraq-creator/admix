@@ -1,15 +1,10 @@
 "use client";
 
 import { Button, Checkbox, Label, ScrollShadow, toast } from "@heroui/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  ArrowLeftIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -33,58 +28,50 @@ import { HEROUI_CHECKBOX_SCOPE } from "@/app/(client)/(auth)/signup/_components/
 
 import {
   AGREEMENT,
+  ArticleClauses,
   CheckMark,
   GLASS,
-  GROUPS,
-  type Group,
+  PAGES,
+  articlesOf,
+  filledContract,
+  pageRange,
   rowTone,
   type Role,
-  SECTIONS,
   type SignatureRecord,
-  SectionClauses,
   StageHeading,
-  TextModal,
-  annexesFor,
   partyOf,
 } from "./agreementShared";
 import { JoinAccount, JoinFlow, JoinFlowWithStore } from "./JoinFlow";
-import {
-  AGREEABLE_BIZ,
-  AnnexStage,
-  BIZ_LICENSE_ANCHOR,
-  SIGNATURE_ANCHOR,
-  ConsentStage,
-  DocumentStage,
-} from "./agreementStages";
+import { AnnexStage } from "./agreementStages";
+import { PartnerRedirect } from "./workspace/workspaceUi";
 
 /*
- * /partners/join/agreement — 제휴사(콜라보) 기본협약 동의 화면.
- * 가입·협약 소개(/partners/join)의 "가입·협약 시작하기"를 누르면 여기로 온다.
- * 흐름은 기본협약 미리보기(카페 파트너 미리보기)의 "기본협약 동의" 4단계를 따른다:
- *   1 핵심 내용 5가지(주제마다 읽고 체크 → 0.5초 뒤 다음 주제) → 2 협약서(별지·서명자) → 3 최종 동의 → 4 계약서·다운로드.
- * 단계는 언제든 오갈 수 있고, 최종 동의 버튼만 앞 단계를 다 마쳐야 켜진다.
- * 문구는 미리보기의 기본협약(v1.3) 데이터(agreement.json)를 그대로 옮겼다 — 조항을 새로 짓지 않는다.
- * 서명은 협약서 단계에서 서명자 이름 + 손 서명(SignaturePad)으로 받고, 최종 동의 때 서버에 함께 남긴다(078 — 휴대폰 명의 본인확인 대신, 11-10 사용자).
+ * /partners/join/agreement — 제휴사(콜라보) 협약서 작성 화면. 가입을 마치면 여기로 온다.
+ * 사이드바 메뉴와 따로인 화면(11-18 사용자) — 메뉴 "협약서"(/partners/agreement)는 작성을 마친 협약서를 보고 내려받는 곳이라,
+ * 이미 작성한 제휴사가 이 주소로 오면 거기로 보낸다. 가입·협약 소개(/partners/join)는 숨겼고 돌아가는 링크도 뺐다.
+ * 흐름은 2단계(11-18 사용자: 최종 확인 · 협약서·다운로드 단계를 뺐다):
+ *   1 협약 내용(머리말은 쪽 버튼 위에 늘 · 조항 원문을 두 쪽으로 — 쪽마다 읽고 체크 → 0.5초 뒤 다음 쪽) → 2 전자 서명(당사자 · 서명자 · 서명 · 사업자등록증) → "완료".
+ * 단계는 언제든 오갈 수 있고, "완료"는 쪽을 다 읽고 서명해야 켜진다.
+ * 문구는 agreement.json(사용자가 준 협약서 최종본) 그대로 — 조항을 새로 짓지 않는다.
+ * 서명은 서명자 이름 + 손 서명(SignaturePad)으로 받고, "완료" 때 서버에 함께 남긴다(078 — 휴대폰 명의 본인확인 대신, 11-10 사용자).
  * 완료한 손 서명 그림(PNG data URL)도 진행 상태에 남긴다 — 새로고침하거나 다시 들어와도 서명이 그대로다(11-13 사용자).
- * 사업자등록증은 꼭 올려야 최종 동의할 수 있다(담당자 임시 승인이면 등록증 없이도, 069).
- * 동의를 접수하면 4단계(계약서)로 넘어가고, 계약서 아래 "대시보드로" — 매장은 담당자가 어드민에서 등록 · 연결한다.
- * 사이드바 메뉴 "기본 협약"으로 들어오면(fromMenu) 가입 진행의 03 매장 연결이 연결 여부 체크로 보이고, "대시보드로" 버튼은 없다.
- * 메뉴가 아닌 길로 와도 매장이 이미 연결됐으면 버튼은 없고 03은 연결 체크로 보인다.
+ * 사업자등록증은 선택(11-18 사용자) — 임시 승인(069)은 없앴다. 콜라보 기능은 관리자가 등록증을 인증해야 열린다.
+ * 접수하면 가입 03 매장 연결로 넘어간다. 이미 매장이 있으면 협약서 화면(/partners/agreement)으로 간다.
+ * 매장이 이미 연결됐으면 가입 진행의 03은 연결 체크로 보인다.
  * 디자인은 소개 화면과 같은 언어 — 옅은 보라 배경 빛 위에 흰 유리 카드, 진한 보라는 버튼 · 진행 표시에만.
  */
 
-type Stage = "topics" | "annex" | "consent" | "document";
+type Stage = "topics" | "annex";
 
 /** 기본협약 진행 상태 — 서버(users.partner_agreement_progress)에 그대로 저장한다. 순서를 바꾸면 저장 비교가 어긋난다. */
 type Progress = {
+  /** 예전 저장값엔 "consent" · "document"(뺀 3 · 4단계)도 있다 — 읽을 때 전자 서명으로 본다. */
   stage: Stage;
   topic: number;
   read: string[];
   role: Role;
-  viewed: string[];
   /** 직접 적은 서명자 이름(가입 정보로 이름을 알 수 없을 때만). */
   signerName: string;
-  consents: boolean[];
   /** 완료한 손 서명(PNG data URL) — "다시 그리기"면 null. 동의를 마치면 서버가 진행 상태째 지운다. */
   signature: string | null;
 };
@@ -97,36 +84,9 @@ const DEFAULT_PROGRESS: Progress = {
   topic: 0,
   read: [],
   role: "representative",
-  viewed: [],
   signerName: "",
-  consents: [false, false, false],
   signature: null,
 };
-
-/** 적용 조항 원문 창 — 지금 보는 주제의 조항만. 버튼은 "닫기" 하나. */
-function OriginalModal({
-  group,
-  isOpen,
-  onClose,
-}: {
-  group: Group;
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  return (
-    <TextModal
-      isOpen={isOpen}
-      title={`제${group.sections.join("·")}조 원문 · ${group.title}`}
-      onClose={onClose}
-    >
-      <div className="flex flex-col gap-[20px]">
-        {SECTIONS.filter((s) => group.sections.includes(s.number)).map((s) => (
-          <SectionClauses key={s.number} section={s} />
-        ))}
-      </div>
-    </TextModal>
-  );
-}
 
 /**
  * 계정 정보 · 서버에 저장해 둔 진행 상태가 오면 화면을 그린다(key = 회원 id — 계정이 바뀌면 새로 시작).
@@ -134,14 +94,7 @@ function OriginalModal({
  * 이미 동의했으면 계약서 단계부터, 모든 확인 · 동의 체크를 켠 채로(동의 후에는 풀 수 없다). 로그인 전(미리보기)은 저장 없이 처음부터.
  * 동의를 접수해도 key 가 그대로라 화면을 새로 그리지 않는다 — 체크한 상태 그대로 남는다.
  */
-export function PartnerAgreement({
-  member = false,
-  fromMenu = false,
-}: {
-  member?: boolean;
-  /** 사이드바 메뉴 "기본협약"으로 들어옴 — 가입 흐름이 아니라 협약을 다시 보러 온 것. */
-  fromMenu?: boolean;
-}) {
+export function PartnerAgreement({ member = false }: { member?: boolean }) {
   const { data: me, isError } = useMe();
   const hasToken = useHasUserToken(member);
   const partner = me?.member_category === "partner";
@@ -162,29 +115,18 @@ export function PartnerAgreement({
   const initial: { progress: Partial<Progress>; agreed: boolean } = agreed
     ? { progress: agreedProgress(saved), agreed: true }
     : { progress: saved, agreed: false };
-  return (
-    <AgreementBody
-      key={me?.id ?? "guest"}
-      me={me}
-      initial={initial}
-      fromMenu={fromMenu}
-    />
-  );
+  return <AgreementBody key={me?.id ?? "guest"} me={me} initial={initial} />;
 }
 
-/** 이미 동의한 계정 — 저장된 서명자 구분은 살리고, 나머지 확인 · 동의는 모두 켠 상태로 계약서 단계부터. */
+/** 이미 동의한 계정 — 저장된 서명자 구분은 살리고, 쪽 확인은 모두 켠 상태로 전자 서명 단계부터. */
 function agreedProgress(saved: Partial<Progress>): Progress {
   const role = saved.role ?? DEFAULT_PROGRESS.role;
   return {
-    stage: "document",
+    stage: "annex",
     topic: 0,
-    read: GROUPS.map((g) => g.id),
+    read: PAGES.map((g) => g.id),
     role,
-    viewed: annexesFor(role)
-      .filter((a) => a.required)
-      .map((a) => a.id),
     signerName: saved.signerName ?? "",
-    consents: [true, true, true],
     signature: null,
   };
 }
@@ -192,30 +134,29 @@ function agreedProgress(saved: Partial<Progress>): Progress {
 function AgreementBody({
   me,
   initial,
-  fromMenu,
 }: {
   me: MeResponse | undefined;
   initial: { progress: Partial<Progress>; agreed: boolean };
-  fromMenu: boolean;
 }) {
   const router = useRouter();
   const saved = initial.progress;
-  // 계약서 단계는 동의를 마쳐야 열린다 — 저장된 곳이 계약서인데 아직 동의 전이면 최종 동의로.
+  // 예전 저장값의 "consent" · "document"(뺀 단계)는 전자 서명으로.
   const [stage, setStage] = useState<Stage>(
-    saved.stage === "document" && !initial.agreed
-      ? "consent"
-      : (saved.stage ?? "topics"),
+    !saved.stage || saved.stage === "topics" ? "topics" : "annex",
   );
-  const [topic, setTopic] = useState(saved.topic ?? 0);
+  // 앞 판(v1.3)은 주제가 5개였다 — 저장된 자리가 쪽 수를 넘으면 마지막 쪽으로.
+  const [topic, setTopic] = useState(
+    Math.min(Math.max(saved.topic ?? 0, 0), PAGES.length - 1),
+  );
   const [read, setRead] = useState<string[]>(saved.read ?? []);
   const [role, setRole] = useState<Role>(saved.role ?? "representative");
-  const [viewed, setViewed] = useState<string[]>(saved.viewed ?? []);
   /** 직접 적은 서명자 이름 — 가입 정보로 이름을 알 수 없을 때만 받는다. */
   const [typedSignerName, setTypedSignerName] = useState(
     saved.signerName ?? "",
   );
   // 서명자 이름은 따로 묻지 않는다(11-13 사용자) — 대표자는 가입 때 적은 대표자명(089), 위임 담당자는 회원 이름.
   // 둘 다 없는 제휴사(매장 정보 없이 가입한 예전 회원)만 협약서 단계에 이름 칸이 뜬다 — 서버가 이름 없는 서명은 받지 않는다.
+  // 위임받은 담당자는 회원가입 때 적은 이름이 그대로 서명자가 된다(11-18 사용자: "회원가입 때 받은 이름으로 자동으로").
   const knownSignerName =
     (role === "representative"
       ? me?.business_registration?.representative_name?.trim()
@@ -227,40 +168,37 @@ function AgreementBody({
   const [signature, setSignature] = useState<string | null>(
     saved.signature ?? null,
   );
-  const [consents, setConsents] = useState(
-    saved.consents ?? [false, false, false],
-  );
   /** 동의 접수 — 제휴사로 로그인했으면 서버에 동의 시각을 남긴다(로그인 전 미리보기는 화면 안에서만). */
   const [submitted, setSubmitted] = useState(initial.agreed);
+  /** 들어올 때 이미 작성을 마쳤는지 — 그러면 협약서 화면으로 보낸다. 여기서 "완료"를 눌러 바뀐 건 따지지 않는다(매장 연결로 가는 길과 겹치지 않게). */
+  const [openedAgreed] = useState(initial.agreed);
   const [submitting, setSubmitting] = useState(false);
   const member = me?.member_category === "partner";
   const queryClient = useQueryClient();
-  // 매장이 이미 연결된 제휴사 — 메뉴가 아닌 길(가입·협약 소개 → "가입·협약 시작하기")로 다시 와도
-  // "대시보드로"를 띄우지 않고, 가입 진행 03은 연결 체크로 보인다(11-08 사용자).
+  // 매장이 이미 연결된 제휴사 — 가입 진행 03은 연결 체크로 보이고, "완료" 뒤엔 매장 연결 대신 협약서 화면으로 간다(11-08 · 11-18 사용자).
   // 매장 목록을 받는 동안도 연결된 것으로 본다(버튼이 떴다가 사라지지 않게). 못 받으면 버튼을 둔다.
   const stores = useMyPartnersStores();
   const storeRegistered =
     member && (stores.isPending || (stores.data?.length ?? 0) > 0);
-  /** 적용 조항 원문 창 — 지금 보는 주제의 조항만 띄운다. */
-  const [originalOpen, setOriginalOpen] = useState(false);
   const readerTop = useRef<HTMLDivElement>(null);
   const stageNav = useRef<HTMLElement>(null);
   const isDesktop = useIsDesktop();
 
-  const annexes = annexesFor(role);
-  const requiredAnnex = annexes.filter((a) => a.required);
-  const annexViewed = requiredAnnex.filter((a) => viewed.includes(a.id)).length;
-  const topicsDone = read.length === GROUPS.length;
-  const annexDone = annexViewed === requiredAnnex.length;
+  // 협약서 제휴사 칸 — 가입 때 적은 매장 정보(089) + 연결된 매장 이름 · 회원 휴대폰(당사자 정보의 매장명 · 담당자 연락처).
+  const party = partyOf(member ? me?.business_registration : null, {
+    storeName: (stores.data ?? []).map((st) => st.name).join(", ") || null,
+    contact: member ? me?.phone : null,
+  });
+  // 앞 판(v1.3) 주제 id 는 세지 않는다.
+  const readCount = PAGES.filter((pg) => read.includes(pg.id)).length;
+  const topicsDone = readCount === PAGES.length;
   // 서명 — 이름 + 손 서명. 이미 동의했으면 끝(서버에 남은 서명을 보여 준다).
   // 로그인 전 미리보기는 서버에 남기지 않으니 이름 없이 서명만으로 마친다.
   const askSignerName = member && !knownSignerName;
   const signed =
     submitted || (!!signature && (!!signerName.trim() || !askSignerName));
-  const signerDone = annexDone && signed;
-  // 사업자등록증 — 올렸거나(검토 중 · 인증) 담당자가 임시 승인했으면 끝. 로그인 전 미리보기는 막지 않는다.
-  const bizDone =
-    !member || AGREEABLE_BIZ.has(me?.business_registration?.status ?? "");
+  // 확인 자료(당사자 정보 · 위임 권한)는 뺐다(11-18 사용자: "확인 자료가 꼭 필요한 거야?") — 서명만 하면 된다.
+  const signerDone = signed;
 
   /** 서버에 남은 서명(동의 뒤) — 협약서 단계 · 계약서 서명란에 보인다. 서명 도입 전에 동의했으면 없다. */
   const savedSignature: SignatureRecord | null = me?.partner_signature_url
@@ -269,6 +207,7 @@ function AgreementBody({
         role: (me.partner_signer_role as Role | null) ?? role,
         src: `${API_BASE_URL}${me.partner_signature_url}`,
         signedAt: me.partner_agreed_at ?? null,
+        docNo: me.partner_agreement_no ?? null,
       }
     : null;
   // 계약서 — 서버 기록이 오기 전(동의 직후)이면 방금 한 서명으로.
@@ -283,20 +222,15 @@ function AgreementBody({
         }
       : null);
 
-  /** 최종 동의 전 남은 일 — 다 없어야 "최종 확인하기"가 켜진다. */
+  /** "완료" 전 남은 일 — 다 없어야 켜진다(사업자등록증은 선택, 11-18). */
   const blockers = [
-    !topicsDone && "핵심 내용 5가지를 모두 읽고 확인해 주세요.",
-    !annexDone && "필수 별지를 모두 열어 확인해 주세요.",
-    role === "delegate" &&
-      !viewed.includes("delegation") &&
-      "위임 권한 확인 자료를 확인해 주세요.",
+    !topicsDone && "협약 내용을 쪽마다 읽고 확인해 주세요.",
     !signed &&
       (!askSignerName
-        ? "협약서 단계에서 서명해 주세요."
-        : "협약서 단계에서 서명자 이름을 적고 서명해 주세요."),
-    !bizDone &&
-      "사업자등록증을 올려 주세요. 담당자가 함께 있다면 임시 승인을 요청해 주세요.",
-    !consents.every(Boolean) && "최종 동의 항목을 모두 체크해 주세요.",
+        ? "서명하고 완료를 눌러 주세요."
+        : role === "delegate"
+          ? "담당자 이름을 적고 서명해 주세요."
+          : "서명자 이름을 적고 서명해 주세요."),
   ].filter((v): v is string => !!v);
 
   /* 진행 상태 저장 — 바뀌면 0.6초 모았다가 서버에 남긴다(동의를 마치면 서버가 지운다). 실패해도 진행은 막지 않는다. */
@@ -306,9 +240,7 @@ function AgreementBody({
     topic,
     read,
     role,
-    viewed,
     signerName: typedSignerName,
-    consents,
     signature,
   } satisfies Progress);
   const lastSaved = useRef(JSON.stringify({ ...DEFAULT_PROGRESS, ...saved }));
@@ -361,21 +293,6 @@ function AgreementBody({
     setStage(next);
     scrollTop();
   };
-  /** 단계를 옮긴 뒤 그 단계 안 칸(id)으로 내려간다 — 새 단계가 그려진 다음(아래 effect) 민다. */
-  const pendingAnchor = useRef<string | null>(null);
-  const goStageAt = (next: Stage, anchor: string) => {
-    cancelAdvance();
-    pendingAnchor.current = anchor;
-    setStage(next);
-  };
-  useEffect(() => {
-    const id = pendingAnchor.current;
-    if (!id) return;
-    pendingAnchor.current = null;
-    document
-      .getElementById(id)
-      ?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [stage]);
   const goTopic = (index: number) => {
     cancelAdvance();
     setStage("topics");
@@ -383,22 +300,20 @@ function AgreementBody({
     scrollTop();
   };
 
-  /** 주제 확인 체크 — 켜면 0.5초 뒤(체크된 모습을 보여 준 다음) 아직 안 읽은 다음 주제로, 다 읽었으면 협약서(2단계)로. */
+  /** 쪽 확인 체크 — 켜면 0.5초 뒤(체크된 모습을 보여 준 다음) 아직 안 읽은 다음 쪽으로, 다 읽었으면 전자 서명(2단계)으로. */
   const toggleRead = (index: number) => {
-    const id = GROUPS[index].id;
+    const id = PAGES[index].id;
     cancelAdvance();
     if (read.includes(id)) {
       setRead(read.filter((v) => v !== id));
-      // 읽음을 풀면 최종 동의도 다시 받는다.
-      setConsents([false, false, false]);
       return;
     }
     const nextRead = [...read, id];
     setRead(nextRead);
-    const after = GROUPS.findIndex(
+    const after = PAGES.findIndex(
       (g, i) => i > index && !nextRead.includes(g.id),
     );
-    const before = GROUPS.findIndex((g) => !nextRead.includes(g.id));
+    const before = PAGES.findIndex((g) => !nextRead.includes(g.id));
     advanceTimer.current = setTimeout(() => {
       advanceTimer.current = null;
       if (after >= 0) goTopic(after);
@@ -407,51 +322,74 @@ function AgreementBody({
     }, 500);
   };
 
-  /** 서명자 구분을 바꾸면 확인할 별지 · 서명하는 사람이 달라지므로 별지 확인 · 서명 · 최종 동의를 다시 받는다. */
+  /** 서명자 구분을 바꾸면 서명하는 사람이 달라지므로 서명을 다시 받는다. */
   const changeRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
-    setViewed([]);
     setTypedSignerName("");
     setSignature(null);
-    setConsents([false, false, false]);
+  };
+
+  /** "완료" — 협약 접수(제휴사로 로그인했으면 서버에 서명 · 동의 시각을 남긴다, 로그인 전 미리보기는 화면 안에서만). */
+  const complete = async () => {
+    if (submitting || blockers.length) return;
+    if (member) {
+      setSubmitting(true);
+      try {
+        await partnersApi.agree({
+          version: AGREEMENT.version,
+          signerName: signerName.trim(),
+          signerRole: role,
+          signature: signature ?? "",
+        });
+      } catch (e) {
+        setSubmitting(false);
+        toast.danger(extractApiError(e, "협약서를 접수하지 못했어요."), {
+          timeout: TOAST_TIMEOUT,
+        });
+        return;
+      }
+      setSubmitting(false);
+      void queryClient.invalidateQueries({ queryKey: authKeys.me });
+    }
+    setSubmitted(true);
+    toast("협약서 작성을 마쳤어요", {
+      description: storeRegistered
+        ? "작성한 협약서는 협약서 메뉴에서 볼 수 있어요."
+        : "매장을 연결하면 콜라보에 참여할 수 있어요.",
+      timeout: TOAST_TIMEOUT,
+    });
+    // 가입 03 매장 연결 — 매장 ID로 연결 요청하거나 담당자에게 맡긴다(094). 매장이 이미 있으면 작성한 협약서 화면으로.
+    router.push(
+      storeRegistered ? "/partners/agreement" : "/partners/join/store",
+    );
   };
 
   const STAGES: { id: Stage; title: string; detail: string; done: boolean }[] =
     [
       {
         id: "topics",
-        title: "핵심 내용 5가지",
-        detail: `${read.length} / ${GROUPS.length} 확인`,
+        title: "협약 내용",
+        detail: `${readCount} / ${PAGES.length} 확인`,
         done: topicsDone,
       },
       {
         id: "annex",
         title: "전자 서명",
-        // 별지 · 서명에 사업자등록증까지 끝나야 체크(11-10 사용자: 등록증 안 올렸는데 체크되면 안 된다).
-        detail: !signerDone
-          ? "별지와 권한 확인"
-          : bizDone
-            ? "확인 완료"
-            : "사업자등록증 필요",
-        done: signerDone && bizDone,
-      },
-      {
-        id: "consent",
-        title: "최종 확인",
-        detail: submitted ? "접수 완료" : "확인 내용 모아보기",
+        // "완료"로 접수해야 체크 — 사업자등록증은 선택이라 따지지 않는다(11-18).
+        detail: submitted
+          ? "작성 완료"
+          : signerDone
+            ? "완료를 눌러 마쳐요"
+            : "당사자 정보와 서명",
         done: submitted,
-      },
-      {
-        id: "document",
-        // 단계 이름 — 2 전자 서명 · 3 최종 확인 · 4 협약서·다운로드(11-13 사용자: "계약서가 아니라 협약서").
-        title: "협약서·다운로드",
-        detail: submitted ? "전체 협약서 보기" : "최종 확인 후 열려요",
-        done: false,
       },
     ];
 
-  const group = GROUPS[topic];
+  const page = PAGES[topic];
+  const contract = filledContract(party);
+
+  if (openedAgreed) return <PartnerRedirect href="/partners/agreement" />;
 
   return (
     <div className="isolate flex flex-1 flex-col">
@@ -460,16 +398,9 @@ function AgreementBody({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_75%_at_75%_50%,rgba(183,163,242,0.35),transparent_70%),radial-gradient(45%_55%_at_15%_20%,rgba(216,205,249,0.35),transparent_70%)] dark:opacity-35"
       />
-      {/* ── 위 — 소개로 돌아가기 · 가입 진행 ── */}
-      <div className="flex flex-wrap items-center justify-between gap-[12px]">
-        <Link
-          href="/partners/join"
-          className="flex items-center gap-[6px] text-[13px] font-semibold text-gray-500 hover:text-gray-800"
-        >
-          <ArrowLeftIcon className="size-[16px]" />
-          가입·협약 소개
-        </Link>
-        {fromMenu || storeRegistered ? (
+      {/* ── 위 — 가입 진행(소개로 돌아가는 링크는 뺐다 — 11-18 사용자: 소개 페이지를 숨김) ── */}
+      <div className="flex flex-wrap items-center justify-end gap-[12px] max-sm:justify-start">
+        {storeRegistered ? (
           <JoinFlowWithStore current={1} />
         ) : (
           <JoinFlow current={1} />
@@ -478,21 +409,14 @@ function AgreementBody({
 
       <div className="mt-[20px] sm:mt-[28px]">
         <h1 className="text-[24px] leading-[1.3] font-bold tracking-[-0.03em] break-keep text-gray-900 sm:text-[32px]">
-          기본협약 동의
+          협약서 작성
           <span
             aria-hidden
             className="ml-[5px] inline-block size-[7px] rounded-full bg-primary align-baseline sm:ml-[6px] sm:size-[9px]"
           />
         </h1>
-        {/* 메뉴 "기본협약"으로 들어오면(이미 가입한 제휴사) 가입 안내 문구 · 등록 중 계정 알약은 뺀다(11-08 사용자). */}
-        {!fromMenu && (
-          <>
-            <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:mt-[8px] sm:text-[15px]">
-              핵심 내용과 별지를 확인하고 동의해 주세요.
-            </p>
-            <JoinAccount className="mt-[10px]" />
-          </>
-        )}
+        {/* 제목은 "협약서 작성", 부제 문구는 뺐다(11-18 사용자). */}
+        <JoinAccount className="mt-[10px] sm:mt-[12px]" />
       </div>
 
       <div
@@ -514,13 +438,13 @@ function AgreementBody({
               {STAGES.map((st, i) => {
                 const current = stage === st.id;
                 return (
-                  <div key={st.id} className="flex shrink-0 flex-col lg:flex-1">
+                  // 남는 폭이 있으면 네 칸이 고르게 꽉 찬다 — 예전엔 lg(1024px) 이상만이라 창이 좁으면 왼쪽에 몰렸다(11-18 사용자).
+                  // 휴대폰은 그대로 글자 폭 + 가로로 넘기기(모자라면 늘지 않는다).
+                  <div key={st.id} className="flex shrink-0 flex-col sm:flex-1">
                     {/* 줄 높이 52px → 곡률 23px. 모바일은 44px → 19px · 글자 한 단계 작게(11-08 사용자). */}
                     <button
                       type="button"
                       aria-current={current ? "step" : undefined}
-                      // 계약서·다운로드는 최종 동의를 마쳐야 열린다.
-                      disabled={st.id === "document" && !submitted}
                       onClick={() => goStage(st.id)}
                       className={cn(
                         "flex h-[52px] w-full items-center gap-[10px] rounded-[23px] border px-[12px] text-left whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50 max-sm:h-[44px] max-sm:gap-[8px] max-sm:rounded-[19px] max-sm:px-[10px]",
@@ -568,82 +492,62 @@ function AgreementBody({
         >
           {stage === "topics" && (
             <>
-              {/* 주제 줄 — 번호 대신 확인 체크(HeroUI 체크박스 모양, 안 봤으면 회색). 모바일은 체크만(지름 32px), PC는 체크 + 주제 이름 알약. */}
-              <div className="mb-[14px] flex gap-[6px] lg:mb-[20px] lg:flex-wrap">
-                {GROUPS.map((g, gi) => (
+              {/* 머리말 — 쪽 버튼 위에 늘(두 쪽 다, 11-18 사용자: "버튼 위에 고정"). 매장 이름은 가입 때 적은 매장 정보로 채운다.
+                  글자는 조항보다 한 단계 작게(11-18 사용자: "얘네만 폰트 사이즈 줄여줘") — 모바일 13px · PC 14px. */}
+              <p className="mb-[16px] rounded-[19px] bg-gray-50/80 px-[16px] py-[12px] text-[13px] leading-[1.75] break-keep whitespace-pre-line text-gray-700 sm:mb-[20px] sm:text-[14px]">
+                {contract.preamble}
+              </p>
+
+              {/* 쪽 줄 — 확인 체크 + 쪽 이름(제1조~제2조). 두 쪽이라 모바일도 이름까지 보인다. */}
+              <div className="mb-[14px] flex flex-wrap gap-[6px] lg:mb-[20px]">
+                {PAGES.map((pg, pi) => (
                   <button
-                    key={g.id}
+                    key={pg.id}
                     type="button"
-                    aria-label={`${gi + 1}. ${g.title}${read.includes(g.id) ? " (확인함)" : ""}`}
-                    onClick={() => goTopic(gi)}
+                    aria-label={`${pageRange(pg)} ${pg.title}${read.includes(pg.id) ? " (확인함)" : ""}`}
+                    onClick={() => goTopic(pi)}
                     className={cn(
-                      "flex size-[32px] items-center justify-center gap-[6px] rounded-[13px] text-[12px] font-bold transition-colors lg:w-auto lg:px-[14px] lg:text-[13px]",
-                      topic === gi
+                      "flex h-[32px] items-center gap-[6px] rounded-[13px] px-[12px] text-[12px] font-semibold transition-colors lg:px-[14px] lg:text-[13px]",
+                      topic === pi
                         ? "bg-surface text-gray-900 shadow-[0_4px_14px_rgba(42,20,89,0.12)]"
-                        : read.includes(g.id)
+                        : read.includes(pg.id)
                           ? "bg-gray-100 text-gray-800"
                           : "bg-gray-100 text-gray-500",
                     )}
                   >
-                    <CheckMark on={read.includes(g.id)} />
-                    <span className="hidden font-semibold lg:inline">
-                      {g.title}
-                    </span>
+                    <CheckMark on={read.includes(pg.id)} />
+                    {pageRange(pg)}
                   </button>
                 ))}
               </div>
 
-              <StageHeading title={group.title} />
+              {/* 쪽 제목 — 위 "1 / 2 · 제1조~제2조" 머리말은 뺐다(11-18 사용자: "없애줘", 쪽 버튼이 같은 걸 보여 준다). */}
+              <StageHeading title={page.title} />
 
-              {/* 요점 3개 — 꼭 볼 내용은 요점 글자 아래에 노란 형광펜(글자 대신 색으로 포인트, 11-10 보라에서 바꿈). 줄 사이 얇은 구분선. */}
-              <ul className="mt-[14px] flex flex-col divide-y divide-gray-100 sm:mt-[18px]">
-                {group.points.map((p) => (
-                  <li key={p.lead} className="py-[14px] first:pt-0">
-                    <p className="text-[15px] leading-[1.55] font-semibold break-keep text-gray-900 sm:text-[16px]">
-                      <span
-                        className={cn(
-                          p.important &&
-                            "box-decoration-clone bg-[linear-gradient(transparent_55%,var(--color-yellow-200)_55%)] dark:bg-[linear-gradient(transparent_58%,rgba(250,204,21,0.28)_58%)]",
-                        )}
-                      >
-                        {p.important && <span className="sr-only">중요: </span>}
-                        {p.lead}
-                      </span>
-                    </p>
-                    <p className="mt-[4px] text-[14px] leading-[1.65] break-keep text-gray-600">
-                      {p.detail}
-                    </p>
-                  </li>
+              {/* 조항 원문 — 조마다 얇은 줄로 나눈다. */}
+              <div className="mt-[6px] flex flex-col divide-y divide-gray-100 sm:mt-[10px]">
+                {articlesOf(page).map((ar) => (
+                  <div
+                    key={ar.number}
+                    className="py-[16px] last:pb-0 sm:py-[18px]"
+                  >
+                    <ArticleClauses article={ar} size="md" />
+                  </div>
                 ))}
-              </ul>
+              </div>
 
-              {/* 적용 조항 원문 — 누르면 창(Modal)으로 띄운다. 줄 높이 44px → 곡률 19px. */}
-              <button
-                type="button"
-                onClick={() => setOriginalOpen(true)}
-                className="mt-[4px] flex h-[44px] items-center justify-between rounded-[19px] bg-gray-50/80 px-[16px] text-left text-[13px] font-normal text-gray-700 transition-colors hover:bg-gray-100"
-              >
-                적용 조항 원문 보기 · 제{group.sections.join("·")}조
-                <ChevronRightIcon className="size-[16px] text-gray-400" />
-              </button>
-              <OriginalModal
-                group={group}
-                isOpen={originalOpen}
-                onClose={() => setOriginalOpen(false)}
-              />
-
-              {/* 확인 체크(HeroUI Checkbox) — 그림자 없이 테두리, 체크 전 흰 바탕 · 체크 후 회색 바탕(2단계 별지 줄과 같다).
-                  체크하고 0.5초 뒤 다음 주제로. 줄 높이 약 56px → 곡률 24px.
+              {/* 확인 체크(HeroUI Checkbox) — 그림자 없이 테두리, 체크 전 흰 바탕 · 체크 후 회색 바탕(2단계 확인 자료 줄과 같다).
+                  체크하고 0.5초 뒤 다음 쪽으로. 줄 높이 약 56px → 곡률 24px.
                   안쪽 여백은 Checkbox.Content(누르는 label)에 줘서 카드 어디를 눌러도 체크된다. */}
               <Checkbox
-                isSelected={read.includes(group.id)}
+                isSelected={read.includes(page.id)}
                 // 최종 동의를 마쳤으면 읽음을 풀 수 없다.
                 isDisabled={submitted}
                 onChange={() => toggleRead(topic)}
                 className={cn(
                   HEROUI_CHECKBOX_SCOPE,
                   "mt-[18px] flex w-full rounded-[24px] transition-colors sm:mt-[24px]",
-                  rowTone(read.includes(group.id)),
+                  rowTone(read.includes(page.id)),
                 )}
               >
                 <Checkbox.Content className="w-full cursor-pointer items-center gap-[12px] rounded-[24px] p-[16px]">
@@ -651,13 +555,13 @@ function AgreementBody({
                     <Checkbox.Indicator />
                   </Checkbox.Control>
                   <Label className="text-[15px] font-bold break-keep text-gray-900">
-                    ‘{group.title}’ 내용을 읽고 확인했어요
+                    {pageRange(page)} 내용을 읽고 확인했어요
                   </Label>
                 </Checkbox.Content>
               </Checkbox>
 
               <div className="mt-[14px] flex items-center justify-between">
-                {/* 첫 주제면 "이전"은 두지 않는다(빈 자리로 "다음"을 오른쪽에 둔다). */}
+                {/* 첫 쪽이면 "이전"은 두지 않는다(빈 자리로 "다음"을 오른쪽에 둔다). */}
                 {topic > 0 ? (
                   <Button
                     variant="ghost"
@@ -676,7 +580,7 @@ function AgreementBody({
                   size="sm"
                   className="text-[13px] font-semibold text-gray-600"
                   onPress={() =>
-                    topic < GROUPS.length - 1
+                    topic < PAGES.length - 1
                       ? goTopic(topic + 1)
                       : goStage("annex")
                   }
@@ -691,11 +595,6 @@ function AgreementBody({
           {stage === "annex" && (
             <AnnexStage
               locked={submitted}
-              annexes={annexes}
-              viewed={viewed}
-              onViewed={(id) =>
-                setViewed((v) => (v.includes(id) ? v : [...v, id]))
-              }
               role={role}
               onRole={changeRole}
               signerName={signerName}
@@ -705,83 +604,11 @@ function AgreementBody({
               signature={signature}
               onSignature={setSignature}
               saved={docSignature}
-              onPrev={() => goTopic(GROUPS.length - 1)}
-              onNext={() => goStage("consent")}
-            />
-          )}
-
-          {stage === "consent" && (
-            <ConsentStage
-              agreed={submitted}
-              onGoDocument={() => goStage("document")}
-              readCount={read.length}
-              topicTotal={GROUPS.length}
-              annexViewed={annexViewed}
-              annexTotal={requiredAnnex.length}
-              annexCount={annexes.length}
-              signed={signed}
-              signerName={signerName}
-              signature={signature}
-              bizDone={bizDone}
-              role={role}
-              consents={consents}
-              onConsent={(i, on) =>
-                setConsents((v) => v.map((c, j) => (j === i ? on : c)))
-              }
+              onPrev={() => goTopic(PAGES.length - 1)}
+              onComplete={() => void complete()}
+              completing={submitting}
               blockers={blockers}
-              onGoTopics={() => {
-                const firstUnread = GROUPS.findIndex(
-                  (g) => !read.includes(g.id),
-                );
-                goTopic(firstUnread >= 0 ? firstUnread : 0);
-              }}
-              onGoAnnex={() => goStage("annex")}
-              // 서명 · 사업자등록증은 협약서 단계의 그 칸까지 내려간다(11-13 사용자, 모바일 · PC).
-              onGoSign={() => goStageAt("annex", SIGNATURE_ANCHOR)}
-              onGoBiz={() => goStageAt("annex", BIZ_LICENSE_ANCHOR)}
-              onSubmit={async () => {
-                if (submitting) return;
-                if (member) {
-                  setSubmitting(true);
-                  try {
-                    await partnersApi.agree({
-                      version: AGREEMENT.version,
-                      signerName: signerName.trim(),
-                      signerRole: role,
-                      signature: signature ?? "",
-                    });
-                  } catch (e) {
-                    setSubmitting(false);
-                    toast.danger(
-                      extractApiError(e, "동의를 접수하지 못했어요."),
-                      { timeout: TOAST_TIMEOUT },
-                    );
-                    return;
-                  }
-                  setSubmitting(false);
-                  void queryClient.invalidateQueries({ queryKey: authKeys.me });
-                }
-                setSubmitted(true);
-                goStage("document");
-                toast("동의를 접수했어요", {
-                  description: "매장을 연결하면 콜라보에 참여할 수 있어요.",
-                  timeout: TOAST_TIMEOUT,
-                });
-              }}
-            />
-          )}
-
-          {stage === "document" && (
-            <DocumentStage
-              signature={docSignature}
-              // 가입 때 적은 매장 정보(089) — 계약서 서명란 · 별지의 매장 측 빈칸을 채운다(11-13 사용자).
-              party={partyOf(me?.business_registration)}
-              onNext={
-                fromMenu || storeRegistered
-                  ? undefined
-                  : // 가입 03 매장 연결 — 매장 ID로 연결 요청하거나 담당자에게 맡긴다(094, 11-17).
-                    () => router.push("/partners/join/store")
-              }
+              party={party}
             />
           )}
         </section>

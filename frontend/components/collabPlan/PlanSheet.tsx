@@ -18,12 +18,13 @@ import {
   Radio,
   RadioGroup,
   RangeCalendar,
+  Select,
   Separator,
   TextArea,
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
 import { ArrowRight, Paperclip, RotateCcw, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { FilePreviewModal, fileSizeText } from "@/components/collabPlan/FilePreview";
 import { MaskIcon } from "@/components/common/MaskIcon";
@@ -33,6 +34,7 @@ import {
   ITEM_LABEL,
   PREP_KEYS,
   PREP_LABEL,
+  checkpoints,
   estimateText,
   mdw,
   type BaseItem,
@@ -46,6 +48,7 @@ import {
   estimateLine,
   fieldText,
   filesOf,
+  midReportOf,
   PLAN_FILE_ACCEPT,
   PLAN_FILE_MAX,
   PLAN_FILE_MAX_COUNT,
@@ -65,6 +68,16 @@ import { PREVIEW_TODAY, addDays, periodDays } from "@/lib/partnersPreview";
 import { cn } from "@/lib/utils";
 
 const NOTE_MAX = 300;
+
+/**
+ * 의뢰서 모양(PlanCompare look="doc") — 어드민 기획안 탭(2026-11-18 사용자: "의뢰서는 의뢰서처럼 깔끔하게").
+ * 의뢰서 탭 표와 같은 모양: 위 굵은 검정 선 · 줄마다 옅은 선 · 회색 이름 칸 | 값 칸, 둥근 상자 없이 각지게.
+ * 광고주 화면(기본 모양)은 그대로.
+ */
+const DocLook = createContext(false);
+const DOC_ROW = "grid grid-cols-1 sm:grid-cols-[132px_minmax(0,1fr)]";
+const DOC_LABEL = "flex bg-gray-50 px-[12px] py-[11px] text-sm font-semibold text-tone-4a5565";
+const DOC_VALUE = "min-w-0 px-[12px] py-[11px]";
 
 /**
  * 추가 기획 첨부 받기 — 쓰는 쪽(어드민 · 광고주)이 자기 API 로 파일을 받아 준다. 누르면 미리보기 창(사진 · PDF), 그 밖은 내려받기.
@@ -142,8 +155,14 @@ function FileRow({
   onPreview?: () => void;
   onRemove?: (f: PlanFile) => void;
 }) {
+  const doc = useContext(DocLook);
   return (
-    <li className="flex min-w-0 items-center gap-[8px] rounded-[10px] border border-gray-200 bg-surface py-[6px] pr-[6px] pl-[12px]">
+    <li
+      className={cn(
+        "flex min-w-0 items-center gap-[8px] border border-gray-200 bg-surface py-[6px] pr-[6px] pl-[12px]",
+        doc ? "rounded-[4px]" : "rounded-[10px]",
+      )}
+    >
       <MaskIcon src="/icons/file-text.svg" className="size-[16px] shrink-0 text-gray-500" />
       <span className="flex min-w-0 flex-1 items-baseline gap-[6px]">
         <span className="min-w-0 truncate text-sm font-semibold text-gray-800">{f.name}</span>
@@ -155,7 +174,8 @@ function FileRow({
             미리보기
           </Button>
         )}
-        {onRemove && f.by === "admix" && (
+        {/* 빼기 — 어드민 고치기에서만(onRemove). 광고주 의뢰서 첨부도 뺄 수 있다(11-18 사용자, 서버도 admix 차수는 허용). */}
+        {onRemove && (
           <Button
             size="sm"
             variant="ghost"
@@ -249,6 +269,17 @@ const ROW_GRID = "grid gap-[6px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-[12px
 
 /** 그대로인 항목 — 옅은 이름표 | 값 한 줄. */
 function SameRow({ label, value, extra }: { label: string; value: ReactNode; extra?: ReactNode }) {
+  const doc = useContext(DocLook);
+  if (doc)
+    return (
+      <li className={DOC_ROW}>
+        <span className={DOC_LABEL}>{label}</span>
+        <div className={cn(DOC_VALUE, "flex flex-col gap-[8px]")}>
+          {value && <div className="whitespace-pre-wrap break-keep text-sm text-black">{value}</div>}
+          {extra}
+        </div>
+      </li>
+    );
   return (
     <li className={cn(ROW_GRID, "py-[12px]")}>
       <span className="text-sm text-disabled">{label}</span>
@@ -273,9 +304,9 @@ interface ChangeProps {
 }
 
 /** 진한 이름표 + "수정". */
-function ChangedLabel({ label }: { label: string }) {
+function ChangedLabel({ label, inline = false }: { label: string; inline?: boolean }) {
   return (
-    <div className="flex items-center gap-[8px] sm:flex-col sm:items-start sm:gap-[6px]">
+    <div className={cn("flex items-center gap-[8px]", !inline && "sm:flex-col sm:items-start sm:gap-[6px]")}>
       <span className="text-sm font-bold text-black">{label}</span>
       <Chip size="sm" variant="soft" color="accent">
         수정
@@ -286,16 +317,20 @@ function ChangedLabel({ label }: { label: string }) {
 
 /** 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
 function ChangeBody({ before, after, note, beforeLabel, afterLabel, beforeExtra, afterExtra }: ChangeProps) {
+  const doc = useContext(DocLook);
+  const box = doc
+    ? "flex flex-col gap-[4px] rounded-[4px] border border-gray-200 px-[12px] py-[9px]"
+    : "flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]";
   return (
     <div className="flex min-w-0 flex-col gap-[10px]">
       <div className="grid gap-[8px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
-        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+        <div className={cn(box, doc && "bg-gray-50")}>
           <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
           {before && <div className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</div>}
           {beforeExtra}
         </div>
         <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 md:block" />
-        <div className="flex flex-col gap-[4px] rounded-[12px] bg-gray-50 px-[14px] py-[10px]">
+        <div className={cn(box, doc && "border-gray-400 bg-white")}>
           <span className="text-xs font-medium text-disabled">{afterLabel}</span>
           {after && (
             <div className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</div>
@@ -315,6 +350,21 @@ function ChangeBody({ before, after, note, beforeLabel, afterLabel, beforeExtra,
 
 /** 바뀐 항목 — 진한 이름표 + "수정", 수정 전 → 수정 후, 아래에 수정 이유. */
 function ChangedRow({ label, ...change }: { label: string } & ChangeProps) {
+  const doc = useContext(DocLook);
+  if (doc)
+    return (
+      <li className={DOC_ROW}>
+        <div className={cn(DOC_LABEL, "flex-wrap items-center gap-[6px] text-black sm:flex-col sm:items-start")}>
+          {label}
+          <Chip size="sm" variant="soft" color="accent">
+            수정
+          </Chip>
+        </div>
+        <div className={cn(DOC_VALUE, "py-[12px]")}>
+          <ChangeBody {...change} />
+        </div>
+      </li>
+    );
   return (
     <li className={cn(ROW_GRID, "py-[16px]")}>
       <ChangedLabel label={label} />
@@ -335,21 +385,25 @@ function ItemGroup({
   rows: { key: string; label: string; value: ReactNode; change: ChangeProps | null }[];
 }) {
   const changed = rows.some((r) => r.change);
+  const doc = useContext(DocLook);
   return (
-    <li className={cn(ROW_GRID, changed ? "py-[16px]" : "py-[12px]")}>
-      <span className={cn("text-sm", changed ? "font-bold text-black" : "text-disabled")}>{label}</span>
-      <ul className="flex min-w-0 flex-col gap-[10px]">
+    <li className={doc ? DOC_ROW : cn(ROW_GRID, changed ? "py-[16px]" : "py-[12px]")}>
+      <span className={doc ? cn(DOC_LABEL, changed && "text-black") : cn("text-sm", changed ? "font-bold text-black" : "text-disabled")}>
+        {label}
+      </span>
+      <ul className={cn("flex min-w-0 flex-col gap-[10px]", doc && DOC_VALUE)}>
         {rows.map((r) => (
-          <li key={r.key} className="grid gap-[4px] sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-[12px]">
+          // 이름 위 · 값 아래(2026-11-18 사용자: "옆으로 말고, 위 아래로 배치해 줘") — 예전엔 이름 100px | 값
+          <li key={r.key} className="flex min-w-0 flex-col gap-[4px]">
             {r.change ? (
               <>
-                <ChangedLabel label={r.label} />
+                <ChangedLabel label={r.label} inline />
                 <ChangeBody {...r.change} />
               </>
             ) : (
               <>
                 <span className="text-sm text-gray-500">{r.label}</span>
-                <div className="whitespace-pre-wrap break-keep text-sm text-gray-700">{r.value}</div>
+                <div className={cn("whitespace-pre-wrap break-keep text-sm", doc ? "text-black" : "text-gray-700")}>{r.value}</div>
               </>
             )}
           </li>
@@ -414,26 +468,55 @@ function BeforeAfter({ b, a }: { b?: string | null; a: string }) {
 }
 
 /** 예상 일정 칸 — 모집 공지 · 설치 · 철수를 줄마다 나눠 이름 | 날짜(2026-11-17 사용자: "구분해서 보여줘"). */
-function ScheduleParts({ parts, prev = [] }: { parts: SchedulePart[]; prev?: SchedulePart[] }) {
+function ScheduleParts({
+  parts,
+  prev = [],
+  mark = false,
+}: {
+  parts: SchedulePart[];
+  prev?: SchedulePart[];
+  /** 비교표 뒤 칸 — 앞 값은 옆 칸에 있으니 화살표 없이 바뀐 날짜만 진하게. */
+  mark?: boolean;
+}) {
   return (
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-[12px] gap-y-[4px]">
-      {parts.map((p) => (
-        <div key={p.label} className="contents">
-          <dt className="text-gray-500">{p.label}</dt>
-          <dd className="min-w-0 break-keep text-gray-700">
-            <BeforeAfter b={prev.find((x) => x.label === p.label)?.value} a={p.value} />
-          </dd>
-        </div>
-      ))}
+      {parts.map((p) => {
+        const b = prev.find((x) => x.label === p.label)?.value;
+        return (
+          <div key={p.label} className="contents">
+            <dt className="font-normal text-gray-500">{p.label}</dt>
+            <dd className="min-w-0 break-keep font-normal text-gray-700">
+              {mark ? (
+                <span className={cn(b && b !== p.value && "font-semibold text-black")}>{p.value}</span>
+              ) : (
+                <BeforeAfter b={b} a={p.value} />
+              )}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
 
 /** 예상 비용 · 일정 — 차수에 적힌 값(참고용). 바뀌었으면 앞 → 뒤. 아래 안내 글은 뺐다(11-17 사용자). */
 function DerivedRows({ before, after }: { before: PlanContent | null; after: PlanContent }) {
+  const doc = useContext(DocLook);
   const cost = estimateLine(after);
   const parts = scheduleParts(after.schedule);
   if (cost === "-" && !parts.length) return null;
+  if (doc)
+    return (
+      <>
+        {cost !== "-" && <SameRow label="예상 비용" value={<BeforeAfter b={before && estimateLine(before)} a={cost} />} />}
+        {parts.length > 0 && (
+          <SameRow
+            label="예상 일정"
+            value={<ScheduleParts parts={parts} prev={before ? scheduleParts(before.schedule) : []} />}
+          />
+        )}
+      </>
+    );
   return (
     <dl className="flex flex-col gap-[8px] rounded-[12px] bg-gray-50 px-[14px] py-[12px] text-sm">
       {cost !== "-" && (
@@ -457,6 +540,122 @@ function DerivedRows({ before, after }: { before: PlanContent | null; after: Pla
 }
 
 /**
+ * 수정 전 · 후 비교표(어드민 기획안 탭, 2026-11-18 사용자: "UI가 안 예쁘고") — 항목 | 앞 차수 | 이번 차수 세 칸 의뢰서 표.
+ * 머리줄에 차수 이름을 한 번만 적고, 그대로인 항목은 값 하나를 두 칸에 걸쳐, 바뀐 항목만 앞(흐리게) | 뒤(진하게) + 수정 이유.
+ * 기본안은 이름 칸 "기본안" 하나 아래 기본안마다 작은 이름. 휴대폰은 한 줄씩 쌓고 칸마다 차수 이름을 작게 붙인다.
+ */
+const CMP_ROW = "grid grid-cols-1 sm:grid-cols-[132px_minmax(0,1fr)_minmax(0,1fr)]";
+const CMP_CELL = "min-w-0 px-[12px] py-[11px]";
+
+interface CmpLine {
+  key: string;
+  /** 기본안 안쪽 작은 이름(기본안만). */
+  sub?: string;
+  before: ReactNode;
+  after: ReactNode;
+  beforeExtra?: ReactNode;
+  afterExtra?: ReactNode;
+  changed: boolean;
+  note?: string;
+}
+
+function CmpValue({ line, side, label }: { line: CmpLine; side: "before" | "after" | "same"; label?: string }) {
+  const value = side === "before" ? line.before : line.after;
+  const extra = side === "before" ? line.beforeExtra : line.afterExtra;
+  return (
+    <div className={cn(CMP_CELL, "flex flex-col gap-[6px]", side === "same" && "sm:col-span-2")}>
+      {label && <span className="text-xs font-medium text-disabled sm:hidden">{label}</span>}
+      {line.sub && (
+        <span className="flex items-center gap-[6px] text-xs text-gray-500">
+          {line.sub}
+          {line.changed && side === "after" && (
+            <Chip size="sm" variant="soft" color="accent">
+              수정
+            </Chip>
+          )}
+        </span>
+      )}
+      {value != null && value !== "" && (
+        <div
+          className={cn(
+            "whitespace-pre-wrap break-keep text-sm",
+            side === "before" ? "text-gray-500" : side === "after" ? "font-semibold text-black" : "text-black",
+          )}
+        >
+          {value}
+        </div>
+      )}
+      {extra}
+      {side === "after" && line.note && (
+        <p className="whitespace-pre-wrap break-keep text-xs leading-[18px] text-gray-600">
+          <span className="mr-[6px] font-semibold text-gray-800">수정 이유</span>
+          {line.note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CmpLineCells({ line, beforeLabel, afterLabel }: { line: CmpLine; beforeLabel: string; afterLabel: string }) {
+  if (!line.changed) return <CmpValue line={line} side="same" />;
+  return (
+    <>
+      <CmpValue line={line} side="before" label={beforeLabel} />
+      <CmpValue line={line} side="after" label={afterLabel} />
+    </>
+  );
+}
+
+function CompareTable({
+  rows,
+  beforeLabel,
+  afterLabel,
+}: {
+  rows: { key: string; label: string; lines: CmpLine[] }[];
+  beforeLabel: string;
+  afterLabel: string;
+}) {
+  return (
+    <div className="flex flex-col text-sm">
+      <div className={cn(CMP_ROW, "border-y border-gray-300 border-t-2 border-t-black bg-gray-50 text-xs font-semibold text-tone-4a5565 max-sm:hidden")}>
+        <span className="px-[12px] py-[9px]">항목</span>
+        <span className="px-[12px] py-[9px]">{beforeLabel}</span>
+        <span className="px-[12px] py-[9px] text-black">{afterLabel}</span>
+      </div>
+      <ul className="flex flex-col divide-y divide-gray-200 border-b border-gray-200 max-sm:border-t-2 max-sm:border-t-black">
+        {rows.map((r) => {
+          const changed = r.lines.some((l) => l.changed);
+          const grouped = r.lines.length > 1 || !!r.lines[0]?.sub;
+          return (
+            <li key={r.key} className={CMP_ROW}>
+              <div className={cn(DOC_LABEL, "flex-wrap items-center gap-[6px] sm:flex-col sm:items-start", changed && "text-black")}>
+                {r.label}
+                {changed && !grouped && (
+                  <Chip size="sm" variant="soft" color="accent">
+                    수정
+                  </Chip>
+                )}
+              </div>
+              {grouped ? (
+                <div className="flex min-w-0 flex-col divide-y divide-dashed divide-gray-200 sm:col-span-2">
+                  {r.lines.map((l) => (
+                    <div key={l.key} className="grid grid-cols-1 sm:grid-cols-2">
+                      <CmpLineCells line={l} beforeLabel={beforeLabel} afterLabel={afterLabel} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                r.lines[0] && <CmpLineCells line={r.lines[0]} beforeLabel={beforeLabel} afterLabel={afterLabel} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * 수정 전 · 후 비교 — 모든 항목을 의뢰서 순서대로 보이고, 바뀐 항목만 모양을 달리한다(이름표 진하게 + "수정" · 수정 전 → 후 · 수정 이유).
  * (2026-11-13 사용자: "그대로인 항목을 밑에 따로 분리하지 말고 다 보여주되 수정된 것만 다르게") before 가 없으면(1차 의뢰서뿐) 모두 그대로인 줄.
  * 기본안은 한 묶음으로(ItemGroup, 11-17 사용자).
@@ -470,10 +669,13 @@ export function PlanCompare({
   fileActions,
   onStore,
   storeHref,
+  look = "card",
 }: {
   before: PlanVersion | null;
   after: PlanVersion;
   notes: Record<string, string>;
+  /** "doc" — 의뢰서 표 모양(어드민 기획안 탭, 11-18). 기본은 광고주 화면 모양. */
+  look?: "card" | "doc";
   beforeLabel?: string;
   afterLabel?: string;
   /** 추가 기획 첨부 받기 — 없으면 파일 이름만. */
@@ -535,18 +737,92 @@ export function PlanCompare({
       />
     );
   });
+  const doc = look === "doc";
+  // 어드민 비교(앞 차수가 있을 때)는 세 칸 비교표로.
+  if (doc && before) {
+    const lineOf = (k: PlanFieldKey, sub?: string): CmpLine => ({
+      key: k,
+      sub,
+      before: valueOf(before.content, k),
+      after: valueOf(after.content, k),
+      beforeExtra: extraOf(k, before.content),
+      afterExtra: extraOf(k, after.content),
+      changed: changed.has(k),
+      note: notes[k],
+    });
+    const tableRows: { key: string; label: string; lines: CmpLine[] }[] = [];
+    for (const f of fields) {
+      if (f.key.startsWith("item:")) {
+        if (f !== itemFields[0]) continue;
+        tableRows.push({
+          key: "items",
+          label: "기본안",
+          lines: itemFields.map((x) => lineOf(x.key, ITEM_LABEL[x.key.slice(5) as BaseItem])),
+        });
+        continue;
+      }
+      tableRows.push({ key: f.key, label: f.label, lines: [lineOf(f.key)] });
+    }
+    // 예상 비용 · 일정 — 차수에 적힌 값. 다르면 앞 | 뒤.
+    const costB = estimateLine(before.content);
+    const costA = estimateLine(after.content);
+    if (costA !== "-")
+      tableRows.push({
+        key: "cost",
+        label: "예상 비용",
+        lines: [{ key: "cost", before: costB, after: costA, changed: costB !== costA }],
+      });
+    const partsB = scheduleParts(before.content.schedule);
+    const partsA = scheduleParts(after.content.schedule);
+    if (partsA.length) {
+      const same = JSON.stringify(partsB) === JSON.stringify(partsA);
+      tableRows.push({
+        key: "schedule",
+        label: "예상 일정",
+        lines: [
+          {
+            key: "schedule",
+            before: <ScheduleParts parts={partsB} />,
+            after: <ScheduleParts parts={partsA} prev={partsB} mark />,
+            changed: !same,
+          },
+        ],
+      });
+    }
+    return (
+      <DocLook.Provider value>
+        <div className="flex flex-col gap-[12px]">
+          {!changed.size && (
+            <p className="text-sm font-medium text-gray-700">바꾼 항목이 없어요 — {roundLabel(before)} 내용 그대로예요.</p>
+          )}
+          <CompareTable rows={tableRows} beforeLabel={beforeLabel} afterLabel={afterLabel} />
+        </div>
+      </DocLook.Provider>
+    );
+  }
   return (
-    <div className="flex flex-col">
-      {before && !changed.size && (
-        <p className="py-[12px] text-sm font-medium text-gray-700">
-          바꾼 항목이 없어요 — {roundLabel(before)} 내용 그대로예요.
-        </p>
-      )}
-      <ul className="flex flex-col divide-y divide-gray-100">{rows}</ul>
-      <div className="pt-[16px]">
-        <DerivedRows before={before?.content ?? null} after={after.content} />
+    <DocLook.Provider value={doc}>
+      <div className="flex flex-col">
+        {before && !changed.size && (
+          <p className="py-[12px] text-sm font-medium text-gray-700">
+            바꾼 항목이 없어요 — {roundLabel(before)} 내용 그대로예요.
+          </p>
+        )}
+        {doc ? (
+          <ul className="flex flex-col divide-y divide-gray-200 border-y border-gray-200 border-t-2 border-t-black">
+            {rows}
+            <DerivedRows before={before?.content ?? null} after={after.content} />
+          </ul>
+        ) : (
+          <>
+            <ul className="flex flex-col divide-y divide-gray-100">{rows}</ul>
+            <div className="pt-[16px]">
+              <DerivedRows before={before?.content ?? null} after={after.content} />
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    </DocLook.Provider>
   );
 }
 
@@ -589,15 +865,20 @@ export function PlanHistory({ versions, formatAt }: { versions: PlanVersion[]; f
 /** 고치는 줄 — 이름표 · 바뀌면 "수정" + 되돌리기, 지금 값, 입력 칸, 바뀐 줄엔 수정 이유 칸. */
 function EditRow({
   label,
+  extra,
   changed,
   baseText,
   error,
   note,
   onNote,
   onReset,
+  notePlaceholder = "수정 이유(선택) — 상대 화면에서 이 항목 아래에 보여요",
   children,
 }: {
   label: string;
+  notePlaceholder?: string;
+  /** 이름표 바로 오른쪽에 붙는 것(진행 기간 달력의 고른 기간, 11-18). */
+  extra?: ReactNode;
   changed: boolean;
   baseText: string;
   error?: string;
@@ -610,6 +891,7 @@ function EditRow({
     <div className="flex flex-col gap-[10px] py-[16px]">
       <div className="flex min-h-[28px] flex-wrap items-center gap-[8px]">
         <span className="text-sm font-bold text-black">{label}</span>
+        {extra}
         {changed && (
           <>
             <Chip size="sm" variant="soft" color="accent">
@@ -640,13 +922,21 @@ function EditRow({
           aria-label={`${label} 수정 이유`}
           value={note}
           maxLength={NOTE_MAX}
-          placeholder="수정 이유(선택) — 상대 화면에서 이 항목 아래에 보여요"
+          placeholder={notePlaceholder}
           onChange={(e) => onNote(e.target.value)}
           className="w-full"
         />
       )}
     </div>
   );
+}
+
+/** 진행 기간 칸을 쓰는 쪽이 그릴 때 받는 값(PlanEditor renderPeriod). */
+export interface PeriodEditorProps {
+  start: string;
+  end: string;
+  invalid: boolean;
+  onChange: (start: string, end: string) => void;
 }
 
 function PeriodInput({
@@ -704,6 +994,62 @@ function PeriodInput({
 }
 
 /** 칩 모양 고르기 — 동그라미 없이 고른 칩만 진하게(의뢰서 준비 상태와 같은 모양). */
+/**
+ * 중간 보고 날 고르기(어드민, 2026-11-18 사용자: "콜라보 기간에 따라 달라질 수 있어서 언제 할지도 어드민에서 같이 선택").
+ * 맨 위 "기간의 50%"(비움 = 기본) 다음에 진행 기간의 날마다 "12.26 (토) · 진행 3일차".
+ */
+function MidReportSelect({
+  start,
+  end,
+  value,
+  invalid,
+  onChange,
+}: {
+  start: string;
+  end: string;
+  value: string | null;
+  invalid: boolean;
+  onChange: (v: string | null) => void;
+}) {
+  const ok = !!start && !!end && end >= start;
+  const days = ok ? Array.from({ length: periodDays(start, end) }, (_, i) => addDays(start, i)) : [];
+  const half = ok ? checkpoints(start, end)[0] : null;
+  const DEFAULT = "half";
+  return (
+    <Select
+      aria-label="중간 보고 날"
+      variant="secondary"
+      className="w-full max-w-[320px]"
+      isDisabled={!ok}
+      isInvalid={invalid}
+      selectedKey={value && days.includes(value) ? value : DEFAULT}
+      onSelectionChange={(key) => {
+        if (key == null) return;
+        onChange(key === DEFAULT ? null : String(key));
+      }}
+    >
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className="max-h-[320px]">
+        <ListBox>
+          <ListBox.Item id={DEFAULT} textValue="기간의 50%">
+            {half ? `기간의 50% · ${mdw(half.date)} · 진행 ${half.day}일차` : "기간의 50%"}
+            <ListBox.ItemIndicator />
+          </ListBox.Item>
+          {days.map((d, i) => (
+            <ListBox.Item key={d} id={d} textValue={mdw(d)}>
+              {mdw(d)} · 진행 {i + 1}일차
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
+
 function ChipRadio<T extends string>({
   label,
   value,
@@ -831,6 +1177,7 @@ export function PlanEditor({
   avg,
   fileActions,
   onUploadFile,
+  renderPeriod,
 }: {
   base: PlanContent;
   draft: PlanContent;
@@ -844,8 +1191,15 @@ export function PlanEditor({
   fileActions?: PlanFileActions;
   /** 있으면 파일 첨부 · admix 파일 빼기(어드민만, 11-12). 광고주는 기획안에서 첨부를 바꾸지 않는다. */
   onUploadFile?: (file: File) => Promise<PlanFile>;
+  /**
+   * 진행 기간 칸을 쓰는 쪽이 그린다 — 어드민은 의뢰서처럼 일정 달력에서 시작일 → 끝날을 눌러 고른다(2026-11-18 사용자).
+   * 없으면 날짜 칸(DateRangePicker, 광고주 화면).
+   */
+  renderPeriod?: (p: PeriodEditorProps) => ReactNode;
 }) {
   const changed = useMemo(() => new Set(changedKeys(base, draft)), [base, draft]);
+  // 어드민(첨부를 고칠 수 있는 쪽)은 안내 글을 줄인다(11-18 사용자: placeholder "(선택) 이후 문구는 다 지워줘"), 광고주 화면은 그대로.
+  const admin = !!onUploadFile;
   const set = (patch: Partial<PlanContent>) => onDraft({ ...draft, ...patch });
   const note = (k: PlanFieldKey) => notes[k] ?? "";
   const setNote = (k: PlanFieldKey) => (v: string) => onNotes({ ...notes, [k]: v });
@@ -857,6 +1211,11 @@ export function PlanEditor({
     if (k === "period") return set({ startDate: base.startDate, endDate: base.endDate });
     if (k === "stores") return set({ minStores: base.minStores, targetStores: base.targetStores });
     if (k === "extraPlan") return set({ extraPlan: base.extraPlan, files: base.files });
+    // 중간 보고는 실제 날로 비교한다 — 지금 날이 고친 기간 안이면 그날로, 밖이면 비운다(50% 날).
+    if (k === "midReport") {
+      const was = midReportOf(base)?.date ?? null;
+      return set({ midReport: was && was >= draft.startDate && was <= draft.endDate ? was : null });
+    }
     if (k.startsWith("item:")) {
       const key = k.slice(5);
       const was = base.items.find((x) => x.key === key);
@@ -866,16 +1225,18 @@ export function PlanEditor({
     }
     set({ [k]: base[k as keyof PlanContent] } as Partial<PlanContent>);
   };
-  const row = (k: PlanFieldKey, label: string, editor: ReactNode) => (
+  const row = (k: PlanFieldKey, label: string, editor: ReactNode, extra?: ReactNode) => (
     <EditRow
       key={k}
       label={label}
+      extra={extra}
       changed={changed.has(k)}
       baseText={fieldText(base, k)}
       error={errors[k]}
       note={note(k)}
       onNote={setNote(k)}
       onReset={reset(k)}
+      notePlaceholder={admin ? "수정 이유(선택)" : undefined}
     >
       {editor}
     </EditRow>
@@ -893,6 +1254,13 @@ export function PlanEditor({
 
   const d = derivedOf(draft, avg);
   const b = derivedOf(base, avg);
+  // 진행 기간을 바꿔 고른 중간 보고 날이 기간 밖이 되면 비운다(다시 50% 날, 서버와 같은 규칙).
+  const setPeriod = (startDate: string, endDate: string) =>
+    set({
+      startDate,
+      endDate,
+      ...(draft.midReport && (draft.midReport < startDate || draft.midReport > endDate) ? { midReport: null } : {}),
+    });
 
   const rows: ReactNode[] = [
     row(
@@ -923,18 +1291,51 @@ export function PlanEditor({
     row(
       "period",
       "진행 기간",
+      renderPeriod ? (
+        renderPeriod({
+          start: draft.startDate,
+          end: draft.endDate,
+          invalid: !!errors.period,
+          onChange: setPeriod,
+        })
+      ) : (
       <div className="flex flex-wrap items-center gap-[10px]">
         <PeriodInput
           start={draft.startDate}
           end={draft.endDate}
           invalid={!!errors.period}
-          onChange={(startDate, endDate) => set({ startDate, endDate })}
+          onChange={setPeriod}
         />
         {draft.startDate && draft.endDate && (
           <span className="text-sm text-gray-600">총 {periodDays(draft.startDate, draft.endDate)}일</span>
         )}
-      </div>,
+      </div>
+      ),
+      // 달력으로 고를 땐 고른 기간을 이름표 오른쪽에(11-18 사용자: "진행 기간 타이틀 오른쪽에 배치").
+      renderPeriod && (
+        <span className={cn("text-sm font-medium", errors.period ? "text-danger" : "text-gray-700")}>
+          {draft.startDate && draft.endDate
+            ? `${mdw(draft.startDate)} ~ ${mdw(draft.endDate)} · 총 ${periodDays(draft.startDate, draft.endDate)}일`
+            : "아직 고르지 않았어요."}
+        </span>
+      ),
     ),
+    // 중간 보고 날 — 어드민만 고른다(2026-11-18 사용자). 광고주 고치기엔 줄이 없고, 비교 화면에서 보기만 한다.
+    ...(admin
+      ? [
+          row(
+            "midReport",
+            "중간 보고",
+            <MidReportSelect
+              start={draft.startDate}
+              end={draft.endDate}
+              value={draft.midReport ?? null}
+              invalid={!!errors.midReport}
+              onChange={(midReport) => set({ midReport })}
+            />,
+          ),
+        ]
+      : []),
     row(
       "course",
       "모집 코스",
@@ -1021,7 +1422,8 @@ export function PlanEditor({
           rows={4}
           value={draft.extraPlan ?? ""}
           maxLength={1000}
-          placeholder="비워 둘 수 있어요"
+          // 어드민은 안내 글 없이(11-18 사용자: "Placeholder 없애줘"), 광고주 화면은 그대로.
+          placeholder={admin ? undefined : "비워 둘 수 있어요"}
           onChange={(e) => set({ extraPlan: e.target.value })}
           className="w-full"
         />

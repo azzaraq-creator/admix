@@ -4,42 +4,40 @@ import { Button, Modal } from "@heroui/react";
 import type { ReactNode } from "react";
 
 import { SmallCheckIcon } from "@/components/icons";
+import { ADMIX_BIZ_NO } from "@/lib/bizNo";
+import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 import agreement from "./agreement.json";
 
 /*
- * 기본협약 동의 화면(PartnerAgreement)과 단계 화면(agreementStages)이 함께 쓰는 데이터 · 작은 조각.
- * 문구는 미리보기의 기본협약(v1.3) 데이터(agreement.json)를 그대로 옮겼다 — 조항을 새로 짓지 않는다.
+ * 기본협약 동의 화면(PartnerAgreement)과 단계 화면(agreementStages) · PDF(agreementPdf)가 함께 쓰는 데이터 · 작은 조각.
+ * 문구는 agreement.json — v2.0(2026-11-18 사용자: "admix_브랜드콜라보_제휴사_협약서_최종.docx 이걸로 바꿔줘")을 그대로 옮겼다.
+ * 조항을 새로 짓지 않는다. 화면 글자 규칙대로 "ADMIX"만 소문자 "admix"로 적었다.
  */
 
-export type Point = { lead: string; detail: string; important: boolean };
-export type Group = {
-  id: string;
-  title: string;
-  sections: number[];
-  points: Point[];
-};
-export type Clause = { id: string; lead: string; detail: string; tone: string };
-export type Section = { number: number; title: string; items: Clause[] };
-export type Annex = {
-  id: string;
-  title: string;
-  required: boolean;
-  content: string;
-};
+/** 조 — 제n조(제목) 아래 ①②③ 항. */
+export type Article = { number: number; title: string; clauses: string[] };
+/** 1단계(협약 내용)에서 한 번에 읽는 쪽 — 7개 조를 두 쪽으로 나눴다(11-18 사용자: "한 페이지 또는 두 페이지로"). */
+export type AgreementPage = { id: string; title: string; articles: number[] };
 export type Role = "representative" | "delegate";
 
 export const AGREEMENT = agreement;
-export const GROUPS = agreement.groups as Group[];
-export const SECTIONS = agreement.sections as Section[];
+export const ARTICLES = agreement.articles as Article[];
+export const PAGES = agreement.pages as AgreementPage[];
 
-/** 서명자 구분에 따라 확인할 별지 — 위임 담당자는 위임 권한 자료가 더해진다. */
-export function annexesFor(role: Role): Annex[] {
-  return role === "delegate"
-    ? [...agreement.annexes, agreement.delegationAnnex]
-    : agreement.annexes;
-}
+/** 항 번호 ①②③… */
+export const clauseMark = (i: number) => String.fromCharCode(0x2460 + i);
+
+export const articlesOf = (page: AgreementPage) =>
+  ARTICLES.filter((a) => page.articles.includes(a.number));
+
+/** "제1조~제4조" */
+export const pageRange = (page: AgreementPage) => {
+  const first = page.articles[0];
+  const last = page.articles[page.articles.length - 1];
+  return first === last ? `제${first}조` : `제${first}조~제${last}조`;
+};
 
 /** 기본협약 전자 서명 기록 — 서명자 이름 · 구분 · 손 서명 그림 주소(또는 방금 그린 data URL) · 서명 시각(= 동의 시각, 078). */
 export type SignatureRecord = {
@@ -47,6 +45,8 @@ export type SignatureRecord = {
   role: Role;
   src: string;
   signedAt: string | null;
+  /** 협약서 문서번호(097, "20261118-00001") — 동의할 때 서버가 매긴다. 방금 서명했거나 번호 전 동의면 없다. */
+  docNo?: string | null;
 };
 
 /** 서명일 — "2026년 11월 10일"(한국 시간). 협약서 단계 · 계약서 서명란 · PDF 가 같이 쓴다. */
@@ -58,23 +58,72 @@ export const formatSignDate = (iso: string) =>
     day: "numeric",
   }).format(new Date(iso));
 
+/** 협약 체결일시 — "2026년 11월 18일 09:09"(한국 시간, 24시간). PDF 첨부 줄 · 표지 · 모바일 전체 보기가 같이 쓴다(11-18 사용자). */
+export const formatSignDateTime = (iso: string) => {
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (t: Intl.DateTimeFormatPartTypes) =>
+    parts.find((x) => x.type === t)?.value ?? "";
+  return `${get("year")}년 ${get("month")} ${get("day")}일 ${get("hour")}:${get("minute")}`;
+};
+
+/** 협약서 꼬리 · 표지 줄 — 협약 체결일시 · 문서번호 및 버전. 서명 전이면 agreement.json 의 자리 글자 그대로. */
+export function footerRows(signature: SignatureRecord | null | undefined) {
+  return AGREEMENT.footer.map(([k, v]) => {
+    if (k === "협약 체결일시" && signature?.signedAt)
+      return [k, formatSignDateTime(signature.signedAt)] as const;
+    if (v === "[자동 부여]")
+      return [
+        k,
+        `${signature?.docNo ?? "자동 부여"} · v${AGREEMENT.version}`,
+      ] as const;
+    return [k, v] as const;
+  });
+}
+
+/** admix 도장(public/service/sign.png, 11-18 사용자: "admix 서명에 sign.png를 넣어줘") — 서명란 admix 서명 칸. */
+export const ADMIX_SEAL_SRC = "/service/sign.png";
+
 export const ROLE_LABEL: Record<Role, string> = {
   representative: "대표자",
   delegate: "위임받은 담당자",
 };
 
+/** admix 쪽 상호 — 사업자등록상 상호 그대로 "(ADMIX)"까지(11-18 사용자). 계약서라 소문자 admix 원칙의 예외. */
+export const ADMIX_NAME = "주식회사 애드믹스 (ADMIX)";
+
 /**
- * 계약서에 채울 매장 측 사업자 정보 — 제휴사 가입 "매장 정보"(089, 2026-11-13 사용자: "협약 마지막 계약서에 자동으로").
- * 주소는 도로명 주소 + 상세 주소(층 · 호). 그 전에 가입해 비어 있으면 null — 계약서 빈칸 그대로.
+ * admix 쪽 정보(11-18 사용자가 준 값) — 협약서 서명란 표 · PDF에 들어간다.
+ * 서명자 칸은 최종 협약서 docx 값(조진호 / 대표), 서명 칸은 admix 도장 그림(ADMIX_SEAL_SRC, 11-18 사용자).
+ */
+export const ADMIX_PARTY = {
+  businessNo: ADMIX_BIZ_NO,
+  address: "서울특별시 강남구 역삼로 10길 6, 1층(역삼동)",
+  representative: "조진호",
+} as const;
+
+/**
+ * 협약서에 채울 제휴사 측 정보 — 제휴사 가입 "매장 정보"(089, 2026-11-13 사용자: "협약 마지막 계약서에 자동으로").
+ * 주소는 도로명 주소 + 상세 주소(층 · 호). 매장명은 연결된 매장 이름(없으면 상호), 연락처는 회원 휴대폰.
+ * 그 전에 가입해 비어 있으면 null — 협약서 빈칸 그대로.
  */
 export type AgreementParty = {
   businessName: string | null;
   businessNo: string | null;
   representative: string | null;
   address: string | null;
+  storeName?: string | null;
+  contact?: string | null;
 };
 
-/** 사업자 등록 줄(내 정보 business_registration · 어드민 회원 상세) → 계약서 매장 정보. 채울 값이 하나도 없으면 null. */
+/** 사업자 등록 줄(내 정보 business_registration · 어드민 회원 상세) → 협약서 제휴사 정보. 채울 값이 하나도 없으면 null. */
 export function partyOf(
   reg:
     | {
@@ -86,63 +135,82 @@ export function partyOf(
       }
     | null
     | undefined,
+  extra: { storeName?: string | null; contact?: string | null } = {},
 ): AgreementParty | null {
-  if (!reg) return null;
   const party: AgreementParty = {
-    businessName: reg.business_name?.trim() || null,
-    businessNo: reg.business_registration_no?.trim() || null,
-    representative: reg.representative_name?.trim() || null,
+    businessName: reg?.business_name?.trim() || null,
+    businessNo: reg?.business_registration_no?.trim() || null,
+    representative: reg?.representative_name?.trim() || null,
     address:
-      [reg.address, reg.address_detail]
+      [reg?.address, reg?.address_detail]
         .map((v) => v?.trim())
         .filter(Boolean)
         .join(" ") || null,
+    storeName: extra.storeName?.trim() || null,
+    contact: extra.contact?.trim() ? formatPhone(extra.contact) : null,
   };
   return Object.values(party).some(Boolean) ? party : null;
 }
 
 /** 계약서 PDF 를 다시 만들지 가르는 값. */
 export const partyKey = (p: AgreementParty | null) =>
-  p ? [p.businessName, p.businessNo, p.representative, p.address] : null;
+  p
+    ? [
+        p.businessName,
+        p.businessNo,
+        p.representative,
+        p.address,
+        p.storeName ?? null,
+        p.contact ?? null,
+      ]
+    : null;
+
+/** 서명자 칸 글 — "홍길동 / 대표자". */
+export const signerText = (s: Pick<SignatureRecord, "name" | "role">) =>
+  `${s.name} / ${ROLE_LABEL[s.role]}`;
 
 /**
- * 계약서 서명란 · 별지의 매장 측 빈칸을 매장 정보로 채운 표 — 모바일 전체 보기(DocContent)와 PDF(agreementPdf)가 같이 쓴다.
- * - 서명란 카페 운영사업자 칸: 상호 · 사업자등록번호 · 사업자 주소 · 대표자(서명했으면 각 화면이 서명자로 덮는다).
- * - 별지: 대상 매장(상호) · 매장 주소 · 운영사업자와 권한(상호 · 사업자번호 · 대표자 · 서명자).
- * 값이 없는 칸은 원래 빈칸([기재] · [   ]) 그대로 둔다. 서명 그림 · 서명일은 각 화면이 따로 넣는다.
+ * 협약서를 제휴사 정보로 채운 글 · 표 — 모바일 전체 보기(DocContent)와 PDF(agreementPdf)가 같이 쓴다.
+ * - 머리말: [카페명] — 연결된 매장 이름, 없으면 가입 때 적은 상호(11-18 최종 협약서 docx). 두 문단은 줄바꿈(\n)으로 나뉜다.
+ * - 서명란 표: admix 상호, 제휴사 상호 · 사업자등록번호 · 주소 · 대표자 · 서명자(서명 그림은 각 화면이 넣는다).
+ * 값이 없는 칸은 원래 빈칸([번호] · [주소] …) 그대로 둔다.
  */
 export function filledContract(
   party: AgreementParty | null,
-  signerName?: string | null,
+  signer?:
+    | (Pick<SignatureRecord, "name" | "role"> & { signedAt?: string | null })
+    | null,
 ) {
-  const doc = agreement.document;
   const or = (value: string | null | undefined, fallback: string) =>
     value || fallback;
-  const box = (value: string | null | undefined) => `[${value || "   "}]`;
-  const signatureTable = doc.signatureTable.map((row) => {
+  const store = party?.storeName || party?.businessName;
+  const preamble = agreement.preamble.replace(
+    "[카페명]",
+    or(store, "[카페명]"),
+  );
+  const partyTable = agreement.partyTable.map((row, r) => {
+    if (r === 0) return [...row];
     const out = [...row];
-    if (row[0] === "법인명 또는 상호") out[2] = or(party?.businessName, row[2]);
-    if (row[0] === "사업자등록번호") out[2] = or(party?.businessNo, row[2]);
-    if (row[0] === "사업자 주소") out[2] = or(party?.address, row[2]);
-    if (row[0] === "대표자 또는 수임자" && party?.representative)
-      out[2] = `${party.representative} (대표자)`;
+    if (row[0] === "상호") {
+      out[1] = ADMIX_NAME;
+      out[2] = or(party?.businessName, row[2]);
+    }
+    if (row[0] === "사업자등록번호") {
+      out[1] = ADMIX_PARTY.businessNo;
+      out[2] = or(party?.businessNo, row[2]);
+    }
+    if (row[0] === "사업장 주소") {
+      out[1] = ADMIX_PARTY.address;
+      out[2] = or(party?.address, row[2]);
+    }
+    if (row[0] === "대표자") {
+      out[1] = ADMIX_PARTY.representative;
+      out[2] = or(party?.representative, row[2]);
+    }
+    if (row[0] === "서명자" && signer?.name) out[2] = signerText(signer);
     return out;
   });
-  const annexTable = doc.annexTable.map((row) => {
-    const out = [...row];
-    if (row[0] === "대상 매장") out[1] = or(party?.businessName, row[1]);
-    if (row[0] === "매장 주소") out[1] = or(party?.address, row[1]);
-    if (row[0] === "운영사업자와 권한" && (party || signerName))
-      out[1] =
-        `상호·법인명 ${box(party?.businessName)} / 사업자번호 ${box(party?.businessNo)}\n` +
-        `대표자 ${box(party?.representative)} / 서명자 ${box(signerName)} / 위임 근거 [해당 시]`;
-    return out;
-  });
-  return {
-    signatureTable,
-    annexStore: or(party?.businessName, doc.annexStore),
-    annexTable,
-  };
+  return { preamble, partyTable };
 }
 
 /** 흰 유리 — 소개 화면 카드 · 칩과 같은 바탕 · 테두리 · 그림자. */
@@ -275,26 +343,47 @@ export function TextModal({
   );
 }
 
-/** 조항 목록 — "1.1 요점" 줄 아래에 설명. 원문 창 · 계약서 전체 보기가 같이 쓴다. */
-export function SectionClauses({ section }: { section: Section }) {
+/** 조 — "제1조(목적 및 협력 관계)" 아래 ①②③ 항. 1단계 읽기 · 협약서 전체 보기가 같이 쓴다. */
+export function ArticleClauses({
+  article,
+  size = "sm",
+}: {
+  article: Article;
+  /** md — 1단계 읽기(글자 한 단계 크게). */
+  size?: "sm" | "md";
+}) {
+  const md = size === "md";
   return (
     <div>
-      <h3 className="text-[14px] font-bold text-gray-900">
-        제{section.number}조 {section.title}
+      <h3
+        className={cn(
+          "font-bold text-gray-900",
+          md ? "text-[15px] sm:text-[16px]" : "text-[14px]",
+        )}
+      >
+        제{article.number}조({article.title})
       </h3>
-      <ul className="mt-[8px] flex flex-col gap-[10px]">
-        {section.items.map((c) => (
+      <ol
+        className={cn(
+          "flex flex-col",
+          md ? "mt-[8px] gap-[8px]" : "mt-[6px] gap-[6px]",
+        )}
+      >
+        {article.clauses.map((c, i) => (
           <li
-            key={c.id}
-            className="text-[13px] leading-[1.6] break-keep text-gray-600"
+            key={i}
+            className={cn(
+              "flex gap-[6px] break-keep text-gray-700",
+              md
+                ? "text-[14px] leading-[1.75] sm:text-[15px]"
+                : "text-[13px] leading-[1.65]",
+            )}
           >
-            <b className="block font-semibold text-gray-800">
-              {c.id} {c.lead}
-            </b>
-            <span className="mt-[2px] block">{c.detail}</span>
+            <span className="shrink-0 text-gray-500">{clauseMark(i)}</span>
+            <span className="min-w-0">{c}</span>
           </li>
         ))}
-      </ul>
+      </ol>
     </div>
   );
 }

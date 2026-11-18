@@ -736,7 +736,8 @@ function ctaClass(solid: boolean) {
     "group inline-flex h-[42px] cursor-pointer items-center gap-[6px] rounded-full px-[16px] text-[13px] font-semibold whitespace-nowrap transition-colors sm:h-[52px] sm:px-[26px] sm:text-[15px]",
     solid
       ? "bg-gray-900 text-surface hover:bg-primary hover:text-white"
-      : "border border-gray-300 text-gray-900 hover:border-gray-900",
+      : // 흰 버튼 → 마우스를 올리면 보라(11-18 사용자) — 히어로 · 아래 "매장으로 시작하기" 둘 다.
+        "border border-white bg-surface text-gray-900 shadow-[0_4px_14px_-6px_rgba(17,12,46,0.14)] hover:border-primary hover:bg-primary hover:text-white dark:border-gray-200",
   );
 }
 

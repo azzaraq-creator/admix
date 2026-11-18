@@ -22,7 +22,7 @@ from src.config import get_settings
 from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto, CollabReportFile
 from src.models.member_profile import BusinessRegistration
 from src.models.partners_store import PartnersStore, PartnersStoreMember, PartnersStoreRequest
-from src.models.user import User
+from src.models.user import PARTNER_AGREEMENT_VERSION, User
 from src.services import collab_request_service
 from src.services import partners_service as ps
 
@@ -191,21 +191,25 @@ def serialize_for_store(
 
 
 def _ensure_agreed(user: User) -> None:
+    # 해지해 끝난 협약(096)도 막는다 — 다시 협약하면 참여할 수 있다. 이미 확정된 콜라보는 그대로(협약서).
+    if user.partner_agreement_ended:
+        raise HTTPException(status_code=403, detail="기본협약이 끝났어요. 다시 협약하면 콜라보에 참여할 수 있어요.")
+    if user.partner_agreement_outdated:  # 협약서가 바뀌었다 — 새 판에 다시 동의해야(2026-11-18 사용자)
+        raise HTTPException(status_code=403, detail="협약서가 바뀌었어요. 새 협약서에 다시 동의하면 콜라보에 참여할 수 있어요.")
     if user.partner_agreed_at is None:
         raise HTTPException(status_code=403, detail="기본협약에 동의하면 콜라보에 참여할 수 있어요.")
 
 
 def _ensure_not_provisional(user: User, action: str) -> None:
-    """임시 승인(069 — 담당자가 현장에서 등록증 없이 넘겨 줌)으로 들어온 회원은 콜라보 목록만 본다 — 어드민이 인증 완료할
-    때까지 신청 · 확정을 막는다(2026-11-16 사용자). 등록증을 올려 검토 대기가 돼도, 반려 · 올린 것 취소여도 그대로다
-    (올려도 provisional_at 은 남는다 — 어드민 "미등록으로"만 지운다). 처음부터 등록증을 올린 회원은 예전 그대로.
-    화면은 상세부터 막는다(ProvisionalGate)."""
+    """사업자 인증을 마친(verified) 제휴사만 콜라보를 신청 · 확정한다 — 그 전엔 목록만 본다.
+    처음엔 임시 승인(069)으로 들어온 회원만 막았는데(2026-11-16), 검토 중인 제휴사도 승인 전까지 막는다(2026-11-18 사용자).
+    임시 승인 · 검토 중 · 반려 · 미등록(올린 것 취소 · 사업자 정보 없음) 모두. 화면은 상세부터 막는다(ProvisionalGate)."""
     reg = user.business_registration
-    if reg is None or reg.status == "verified":
+    if reg is not None and reg.status == "verified":
         return
-    if reg.status != "provisional" and reg.provisional_at is None:
-        return
-    if reg.status == "reviewing":
+    if reg is None or (reg.status == "unregistered" and reg.provisional_at is None):
+        detail = f"사업자등록증을 올리고 관리자가 승인하면 {action}할 수 있어요. 내 정보에서 올려 주세요."
+    elif reg.status == "reviewing":
         detail = f"담당자가 사업자등록증 인증을 마치면 {action}할 수 있어요."
     elif reg.status == "rejected":
         detail = f"사업자등록증이 반려돼 {action}할 수 없어요. 내 정보에서 다시 올려 주세요."
@@ -1229,8 +1233,18 @@ def admin_summary(db: Session) -> dict:
         today=today.isoformat(),
         members=dict(
             total=partners.count(),
-            notAgreed=partners.filter(User.partner_agreed_at.is_(None)).count(),
-            noStore=partners.filter(User.partner_agreed_at.isnot(None), ~has_store).count(),
+            # 예전 판에 동의한 회원도 "협약 전" — 새 판에 다시 동의해야 한다(회원 목록 agreement 필터와 같게).
+            notAgreed=partners.filter(
+                or_(
+                    User.partner_agreed_at.is_(None),
+                    User.partner_agreement_version.is_distinct_from(PARTNER_AGREEMENT_VERSION),
+                )
+            ).count(),
+            noStore=partners.filter(
+                User.partner_agreed_at.isnot(None),
+                User.partner_agreement_version == PARTNER_AGREEMENT_VERSION,
+                ~has_store,
+            ).count(),
             bizReviewing=biz_counts.get("reviewing", 0),
             bizProvisional=biz_counts.get("provisional", 0),
         ),

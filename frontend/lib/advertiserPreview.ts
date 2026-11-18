@@ -7,7 +7,7 @@
  * 흐름: 매장 담기(지정 희망) → 의뢰 → admix 검토 · 승인 → 모집 공지 → 매장 선착순 신청(목표를 넘으면 예비 순번)
  *   → 마감 후 광고주 검토(제외 요청 · 예비 매장 미리 승인 · 미달이면 진행 방법) → 매장 최종 확정
  *   → 광고주 진행 확정 = 계산서 발행(확정 매장 금액 합계) → 영업일 5일 안 입금(넘기면 위약금) → 준비 · 설치(5곳당 1일)
- *   → 진행(30 · 50 · 70% 중간 보고) → 철수 · 결과 보고서.
+ *   → 진행(중간 보고 한 번 — 기본 50% 날, 어드민이 기획안에서 고를 수 있다) → 철수 · 결과 보고서.
  *
  * 2026-11-09 사용자 결정: 매장 찾기 · 담기 · 예상 비용은 실제 매장(등급 · 금액, 마이그레이션 067).
  * 모집 이후(신청 매장 · 확정 · 계산서 · 보고서)는 아래 예시 매장으로 그린다. 누른 결과는 이 탭(sessionStorage)에만 남는다.
@@ -158,8 +158,11 @@ export const PAYMENT_DAYS = 5;
 export const CANCEL_HALF_REFUND_DAYS = 7;
 /** 설치: 매장 5곳당 1일, 시작 전날까지. */
 export const STORES_PER_INSTALL_DAY = 5;
-/** 중간 보고: 진행 기간의 30 · 50 · 70% 시점. */
-export const CHECK_POINTS = [0.3, 0.5, 0.7] as const;
+/**
+ * 중간 보고: 진행 기간의 50% 시점 한 번(2026-11-18 사용자: "중간 보고는 50%에만 해", 예전엔 30 · 50 · 70%).
+ * 콜라보 기간에 따라 다를 수 있어 어드민이 기획안에서 날을 고를 수 있다(PlanContent.midReport) — 고르면 그날.
+ */
+export const CHECK_POINTS = [0.5] as const;
 
 // ── 매장 ─────────────────────────────────────────────────────────────
 
@@ -360,6 +363,8 @@ export interface AdvCollab {
   /** 서버에 보낸 의뢰(081) — 고쳐 다시 보내면 같은 의뢰를 바꾼다. code 는 문서 번호 CR-YYMMDD-NN. */
   requestId?: string;
   requestCode?: string;
+  /** 중간 보고 날(11-18) — 어드민이 기획안에서 고른 날. 없으면 진행 기간의 50% 날. */
+  midReport?: string;
   status: PlanStatus;
   requestedAt?: string;
   approvedAt?: string;
@@ -466,11 +471,17 @@ type SchedulePlan = Pick<
   AdvCollab,
   "type" | "course" | "startDate" | "endDate" | "prepDays" | "targetStores" | "items" | "itemPrep"
 > &
-  Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt">>;
+  Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt" | "midReport">>;
 
-/** 30 · 50 · 70% 점검일(진행 n일차, 반올림). 12일 → 4 · 6 · 8일차. */
-export function checkpoints(start: string, end: string) {
+/**
+ * 중간 보고일(진행 n일차, 반올림) — 기본은 50% 날(12일 → 6일차). chosen(어드민이 고른 날)이 진행 기간 안이면 그날 하나.
+ */
+export function checkpoints(start: string, end: string, chosen?: string | null) {
   const len = periodDays(start, end);
+  if (chosen && chosen >= start && chosen <= end) {
+    const day = periodDays(start, chosen);
+    return [{ day, pct: day / len, date: chosen }];
+  }
   return CHECK_POINTS.map((pct) => {
     const day = Math.min(len, Math.max(1, Math.round(len * pct)));
     return { day, pct, date: addDays(start, day - 1) };
@@ -515,7 +526,7 @@ export function scheduleOf(plan: SchedulePlan, today = PREVIEW_TODAY): Schedule 
     startDate: plan.startDate,
     endDate: plan.endDate,
     removalDate: addDays(plan.endDate, 1),
-    checks: checkpoints(plan.startDate, plan.endDate),
+    checks: checkpoints(plan.startDate, plan.endDate, plan.midReport),
   };
 }
 
@@ -964,7 +975,7 @@ export interface ReportLink {
 export type ReportKind = "install" | "mid1" | "mid2" | "mid3" | "result";
 export const REPORT_LABEL: Record<ReportKind, string> = {
   install: "게첨 보고서",
-  mid1: "중간 보고 1",
+  mid1: "중간 보고",
   mid2: "중간 보고 2",
   mid3: "중간 보고 3",
   result: "결과 보고서",
@@ -1003,7 +1014,8 @@ export function todoOf(
     };
   if (c.status === "returned")
     return c.plan
-      ? { text: "admix 기획안이 왔어요 — 수정 전 · 후를 보고 확정하거나 다시 고쳐 보내 주세요", kind: "returned" }
+      ? // 뒤 설명("수정 전 · 후를 보고 …")은 뺐다(11-18 사용자 "문구는 작게 하거나 없애줘") — 기획안 탭이 바로 보여 준다.
+        { text: "admix 기획안이 왔어요", kind: "returned" }
       : { text: `admix 보완 요청 — ${c.reviewNote ?? "내용을 확인해 주세요"}`, kind: "returned" };
   if (c.status === "requested")
     return {
@@ -1559,6 +1571,7 @@ export function collabOfRequest(r: CollabRequestMine): AdvCollab {
     id: r.id,
     requestId: r.id,
     requestCode: r.code,
+    midReport: c?.midReport ?? undefined,
     brand: r.brandName,
     brandId: r.brandId,
     brandImage: r.brandImageUrl,

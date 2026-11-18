@@ -14,8 +14,8 @@ import {
 } from "@/lib/partners";
 
 /*
- * 임시 승인으로 들어온 제휴사(담당자가 현장에서 등록증 없이 넘겨 준 회원, 069) — 콜라보 목록은 보지만 상세 · 신청 · 확정은
- * 어드민이 인증 완료할 때까지 못 한다(2026-11-16 사용자). 등록증을 올려 검토 대기가 돼도 · 반려돼도 그대로 막는다.
+ * 사업자 인증 전 제휴사 — 콜라보 목록은 보지만 상세 · 신청 · 확정은 어드민이 인증 완료할 때까지 못 한다.
+ * 처음엔 임시 승인 회원(069)만(2026-11-16), 11-18부터 검토 중 · 반려 · 미등록도 모두(사용자: "검토 중인 제휴사도 승인 전까지 막아줘").
  * 콜라보 상세로 가는 링크(목록 카드 · 대시보드 · 참여 이력 …)를 누르면 이동하지 않고 이 안내 창을 띄운다.
  * 주소로 바로 들어와도 상세 화면(CollabDetail)이 같은 창을 띄우고, 서버도 신청 · 확정을 막는다(collab_service).
  * 창 오른쪽 버튼(사업자등록증 올리기 · 다시 올리기 · 내 정보로 이동)은 내 정보의 사업자등록증 칸으로 스크롤(BIZ_LICENSE_ANCHOR).
@@ -46,8 +46,8 @@ function subscribe(l: () => void) {
   return () => listeners.delete(l);
 }
 
-/** 막힌 까닭 — 임시 승인(등록증 아직) · 검토 중(올렸고 인증 전) · 반려. */
-export type BizLock = "provisional" | "reviewing" | "rejected";
+/** 막힌 까닭 — 임시 승인(등록증 아직) · 검토 중(올렸고 인증 전) · 반려 · 미등록(임시 승인 없이 등록증도 없음). */
+export type BizLock = "provisional" | "reviewing" | "rejected" | "unregistered";
 
 /**
  * 창 · 상세 자리 글 — 까닭마다. 제목은 사업자등록증 이야기인 걸 바로 알게, 본문은 "상세" 대신 "콜라보 내용",
@@ -77,6 +77,13 @@ export const BIZ_LOCK_COPY: Record<
     action: "다시 올리기",
     inline: "사업자등록증이 반려돼 콜라보 내용을 볼 수 없어요.",
     link: "내 정보에서 다시 올리기",
+  },
+  unregistered: {
+    title: "사업자등록증 승인이 필요해요",
+    body: "사업자등록증을 올리고 담당자가 인증을 마치면 콜라보 내용을 보고 신청 · 확정할 수 있어요.",
+    action: "사업자등록증 올리기",
+    inline: "사업자등록증 승인을 받으면 볼 수 있어요.",
+    link: "내 정보에서 사업자등록증 올리기",
   },
 };
 
@@ -153,20 +160,20 @@ export function AdvLockedState({ lock }: { lock: AdvBizLock }) {
 }
 
 /**
- * 콜라보 상세 · 신청 · 확정이 막혔으면 그 까닭, 아니면 null.
- * 임시 승인 시각(provisional_at)은 등록증을 올려도 남아 있어(어드민 "미등록으로"만 지운다) 인증 완료 전까지 막는다.
- * 처음부터 등록증을 올린 회원(임시 승인 없이 검토 대기)은 예전처럼 막지 않는다 — 서버 collab_service 와 같은 규칙.
+ * 콜라보 상세 · 신청 · 확정이 막혔으면 그 까닭, 아니면 null — 사업자 인증을 마친(verified) 제휴사만 연다.
+ * 처음엔 임시 승인 회원만 막았는데, 검토 중인 제휴사도 승인 전까지 막는다(11-18 사용자) — 서버 collab_service 와 같은 규칙.
  */
 export function useBizLock(): BizLock | null {
   const { data: me } = useMe();
-  const reg = me?.business_registration;
-  if (me?.member_category !== "partner" || !reg) return null;
-  if (reg.status === "verified") return null;
-  if (reg.status !== "provisional" && !reg.provisional_at) return null;
-  if (reg.status === "reviewing" || reg.status === "rejected")
+  if (me?.member_category !== "partner") return null;
+  const reg = me.business_registration;
+  if (reg?.status === "verified") return null;
+  if (reg?.status === "reviewing" || reg?.status === "rejected")
     return reg.status;
-  // 임시 승인 · 올린 등록증을 취소해 미등록이 된 경우.
-  return "provisional";
+  if (reg?.status === "provisional" || reg?.provisional_at)
+    return "provisional";
+  // 임시 승인 없이 등록증도 없음(올린 것을 취소했거나 사업자 정보가 없는 예전 회원).
+  return "unregistered";
 }
 
 /**

@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field
 
 from src.schemas.member import BusinessRegistrationOut, MemberCategory
 
@@ -124,12 +124,20 @@ class UserResponse(BaseModel):
     marketing_email: bool = False
     created_at: datetime
     business_registration: BusinessRegistrationOut | None = None
-    # 제휴사(콜라보) 기본협약 동의 시각 — 없으면 동의 전.
-    partner_agreed_at: datetime | None = None
+    # 제휴사(콜라보) 기본협약 동의 시각 — 없으면 동의 전. 해지해 끝난 협약도 없음으로 보내 다시 협약하게 한다(096).
+    partner_agreed_at: datetime | None = Field(
+        default=None, validation_alias=AliasChoices("partner_agreed_at_effective", "partner_agreed_at")
+    )
+    # 해지해 끝난 협약인지(096) — 제휴사 화면이 "다시 협약해 주세요"로 안내한다.
+    partner_agreement_ended: bool = False
+    # 예전 판 협약서에 동의했는지 — 이때도 partner_agreed_at 은 없음으로 와서 새 판에 다시 동의한다.
+    partner_agreement_outdated: bool = False
     # 기본협약 전자 서명(078) — 협약서 서명란에 보인다. 서명 도입 전에 동의했으면 비어 있다.
     partner_signer_name: str | None = None
     partner_signer_role: str | None = None
     partner_signature_url: str | None = None
+    # 협약서 문서번호(097, "20261118-00001") — 협약서 PDF 에 들어간다.
+    partner_agreement_no: str | None = None
     # 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 매장을 이 번호로 연결한다.
     partner_code: str | None = None
     # 슈퍼 계정 묶음(087) — 자기 자신 포함. 보통 회원은 빈 목록이고 계정 전환 메뉴가 없다.

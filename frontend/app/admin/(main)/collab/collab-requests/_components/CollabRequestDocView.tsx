@@ -1,11 +1,19 @@
 "use client";
 
-import { Alert, Button, Checkbox, Chip, Label, Tabs } from "@heroui/react";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Chip,
+  Label,
+  Spinner,
+  Tabs,
+} from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { FilePreviewModal } from "@/components/collabPlan/FilePreview";
 import { MaskIcon } from "@/components/common/MaskIcon";
@@ -33,6 +41,7 @@ import {
   type BaseItem,
 } from "@/lib/advertiserPreview";
 import { extractApiError } from "@/lib/apiError";
+import { downloadElementPdf } from "@/lib/elementPdf";
 import { addDays, periodDays } from "@/lib/partnersPreview";
 import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
@@ -101,6 +110,23 @@ function RequestDoc({ doc }: { doc: Doc }) {
   // 추가 기획 첨부 미리보기 창(11-17 사용자: "열기 말고 미리보기").
   const [previewOpen, setPreviewOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
+  // 의뢰서 PDF 내려받기(11-18 사용자) — 아래 종이를 그대로 떠서 A4 쪽으로.
+  const paperRef = useRef<HTMLElement>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadPdf = async () => {
+    if (!paperRef.current) return;
+    setPdfBusy(true);
+    try {
+      await downloadElementPdf(
+        paperRef.current,
+        `${doc.code} 콜라보 의뢰서.pdf`,
+      );
+    } catch (err) {
+      error("PDF를 만들지 못했어요", extractApiError(err));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const course = COURSE[doc.course];
   // 기획안 탭(085) — 차수가 있거나 광고주가 고쳐 보냈으면 기획안부터, 처음 접수면 의뢰서부터 읽는다.
   const [tab, setTab] = useState<"plan" | "doc">(
@@ -218,7 +244,28 @@ function RequestDoc({ doc }: { doc: Doc }) {
         <Tabs.Panel id="doc" className="p-0 pt-[16px]">
           {/* 책상 위 종이 한 장 */}
           <div className="rounded-[12px] bg-tone-f5f6f8 p-[8px] md:p-[32px]">
-            <article className="mx-auto flex w-full max-w-[880px] flex-col gap-[32px] rounded-[4px] bg-white px-[20px] py-[28px] text-black shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] md:gap-[40px] md:px-[56px] md:py-[56px]">
+            <div className="mx-auto flex max-w-[880px] justify-end pb-[10px] md:pb-[14px]">
+              <Button
+                size="sm"
+                variant="tertiary"
+                onPress={downloadPdf}
+                isPending={pdfBusy}
+                className="bg-white font-semibold"
+              >
+                {/* 만드는 동안엔 아이콘 자리에 작은 Spinner(11-18 사용자). */}
+                {pdfBusy ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  <MaskIcon src="/icons/download.svg" className="size-[16px]" />
+                )}
+                PDF 다운로드
+              </Button>
+            </div>
+            <article
+              ref={paperRef}
+              // light — 다크 모드에서도 종이 안 글자 · 회색을 라이트 값으로(흰 종이 위에서 옅어지지 않게).
+              className="light mx-auto flex w-full max-w-[880px] flex-col gap-[32px] rounded-[4px] bg-white px-[20px] py-[28px] text-black shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] md:gap-[40px] md:px-[56px] md:py-[56px]"
+            >
               {/* 머리 — 문서 번호 · 접수 */}
               <header className="flex flex-col gap-[28px]">
                 <div className="flex flex-wrap items-start justify-between gap-[12px]">
@@ -403,6 +450,7 @@ function RequestDoc({ doc }: { doc: Doc }) {
                         variant="tertiary"
                         onPress={() => setPreviewOpen(true)}
                         className="shrink-0 font-semibold"
+                        data-pdf-hide
                       >
                         미리보기
                       </Button>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LogoFullDark } from "@/components/icons/LogoFull";
+import { ADMIX_BIZ_NO } from "@/lib/bizNo";
 import { cn } from "@/lib/utils";
 
 const POLICY_LINKS = [
@@ -65,7 +66,7 @@ export function Footer({ fullWidth = false }: { fullWidth?: boolean }) {
             <span aria-hidden className="mx-[6px] text-gray-300">
               |
             </span>
-            사업자등록번호 635-86-01172
+            사업자등록번호 {ADMIX_BIZ_NO}
           </p>
           <p>© {new Date().getFullYear()} admix. All rights reserved.</p>
         </div>

@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     String,
@@ -21,6 +22,14 @@ from src.database import Base
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+_KST = timezone(timedelta(hours=9))
+
+# 지금 제휴사 기본협약서 판 — 프런트 partners/_components/agreement.json 의 version 과 같아야 한다(다르면 동의가 409).
+# 협약서 내용을 바꾸면 둘 다 올린다 — 예전 판에 동의한 회원은 새 판에 다시 동의한다(2026-11-18 사용자).
+# 2026-11-18 사용자: "지금 하는 걸 1.0으로" — 운영에 나간 v1.3 다음이지만 새 협약서부터 1.0으로 다시 센다(판이 다르면 다시 동의).
+PARTNER_AGREEMENT_VERSION = "1.0"
 
 
 # 회원 유형 순서 — 가입 화면 카드와 같다(프런트 lib/memberCategory.ts MEMBER_CATEGORIES).
@@ -62,6 +71,8 @@ class User(Base):
     # 제휴사(콜라보) 기본협약 동의 — 동의 시각 · 협약 버전(065). 비어 있으면 아직 동의 전(로그인 시 이어서 하기 창).
     partner_agreed_at = Column(DateTime(timezone=True), nullable=True)
     partner_agreement_version = Column(String(20), nullable=True)
+    # 협약서 문서번호(097) — 서명 날짜(KST) + 그날 순번 5자리("20261118-00001"), 동의할 때 매긴다. 다시 서명하면 새 번호.
+    partner_agreement_no = Column(String(20), nullable=True, unique=True)
     # 동의 전 진행 상태(화면이 정한 JSON — 단계 · 읽은 주제 · 별지 확인 등). 다시 로그인하면 여기서 이어서 한다.
     partner_agreement_progress = Column(JSONB, nullable=True)
     # 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 서명 그림(PNG) · 동의 때 IP.
@@ -70,6 +81,10 @@ class User(Base):
     partner_signer_role = Column(String(20), nullable=True)
     partner_signature_url = Column(String(500), nullable=True)
     partner_signed_ip = Column(String(64), nullable=True)
+    # 기본협약 해지(갱신 거절, 096) — 해지를 누른 시각 · 협약이 끝나는 날(KST, 그날부터 효력 없음 = 그때의 다음 갱신일).
+    # 종료일 전에는 해지를 취소할 수 있다(둘 다 지운다).
+    partner_termination_requested_at = Column(DateTime(timezone=True), nullable=True)
+    partner_termination_effective_on = Column(Date, nullable=True)
     # 직책 · 직함 — 어드민 회원 상세의 "직책", 광고주 담당자 정보의 "직함"(068).
     position = Column(String(100), nullable=True)
     industry = Column(String(100), nullable=True)
@@ -125,6 +140,25 @@ class User(Base):
         )
         rows.sort(key=lambda r: CATEGORY_ORDER.index(r.member_category) if r.member_category in CATEGORY_ORDER else 99)
         return [{"id": r.id, "member_category": r.member_category} for r in rows]
+
+    @property
+    def partner_agreement_ended(self) -> bool:
+        """기본협약을 해지해 끝났는지(096) — 종료일(KST)이 오늘이거나 지났으면. 그 전날까지는 유효하다."""
+        ends = self.partner_termination_effective_on
+        return ends is not None and ends <= datetime.now(_KST).date()
+
+    @property
+    def partner_agreement_outdated(self) -> bool:
+        """예전 판 협약서에 동의했는지 — 협약서 내용이 바뀌면 새 판에 다시 동의받는다(2026-11-18 사용자)."""
+        return self.partner_agreed_at is not None and self.partner_agreement_version != PARTNER_AGREEMENT_VERSION
+
+    @property
+    def partner_agreed_at_effective(self) -> datetime | None:
+        """지금 유효한 협약의 동의 시각 — 동의 전이거나 해지해 끝났거나 예전 판에 동의했으면 None.
+        제휴사 화면 · 콜라보 참여 · 매장 연결은 이 값으로 본다(끝나면 다시 협약, 2026-11-18 사용자 "응")."""
+        if self.partner_agreement_ended or self.partner_agreement_outdated:
+            return None
+        return self.partner_agreed_at
 
     @property
     def sns_provider(self) -> str | None:

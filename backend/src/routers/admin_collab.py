@@ -1,4 +1,4 @@
-"""콜라보 어드민(/admin/collab/...) — 제휴사 회원 · 사업자 인증(임시 승인) · 광고주 회원(읽기) · 광고주 콜라보 의뢰(읽기, 081) · 수정 요청 · 콜라보 모집~진행.
+"""콜라보 어드민(/admin/collab/...) — 제휴사 회원 · 사업자 인증 · 광고주 회원(읽기) · 광고주 콜라보 의뢰(읽기, 081) · 수정 요청 · 콜라보 모집~진행.
 
 매장 등록 · 수정은 routers/partners.admin_router(/admin/partners/stores). 권한은 모두 "collab"(마스터는 전체).
 """
@@ -113,15 +113,25 @@ def update_member(member_id: str, body: MemberUpdateIn, _: Admin = Perm, db: Ses
     return partners_service.admin_update_member(db, member_id, _data(body))
 
 
+class AgreementActionIn(BaseModel):
+    action: str = Field(pattern="^(terminate|cancel)$")
+
+
+@router.post("/members/{member_id}/agreement")
+def agreement_action(member_id: str, body: AgreementActionIn, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
+    """기본협약 해지(갱신 거절 — 다음 자동 갱신일까지 유효) · 해지 취소(096)."""
+    return partners_service.admin_agreement_action(db, member_id, body.action)
+
+
 class BizActionIn(BaseModel):
-    action: str = Field(pattern="^(provisional|verify|reject|reset)$")
+    action: str = Field(pattern="^(verify|reject|reset)$")
     reason: str | None = Field(default=None, max_length=500)
 
 
 @router.post("/members/{member_id}/biz")
-def biz_action(member_id: str, body: BizActionIn, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
-    """사업자 인증 — 임시 승인(현장) · 인증 완료 · 반려 · 되돌리기."""
-    return partners_service.admin_biz_action(db, member_id, body.action, body.reason)
+def biz_action(member_id: str, body: BizActionIn, admin: Admin = Perm, db: Session = Depends(get_db)) -> dict:
+    """사업자 인증 — 인증 완료 · 반려 · 되돌리기(임시 승인은 11-18에 없앴다)."""
+    return partners_service.admin_biz_action(db, member_id, body.action, body.reason, admin.id)
 
 
 @router.get("/members/{member_id}/biz-file")
@@ -172,7 +182,7 @@ def get_advertiser(member_id: str, _: Admin = Perm, db: Session = Depends(get_db
 
 
 class AdvertiserBizIn(BaseModel):
-    # 비우면 지운다. 형식은 정하지 않는다(admix 회원 관리와 같다) — 길이만 표 칸에 맞춘다.
+    # 비우면 지운다. 사업자번호는 서비스가 숫자 10자리 → 000-00-00000 으로 맞춘다(11-18). 길이는 표 칸에 맞춘다.
     business_name: str | None = Field(default=None, max_length=200)
     business_registration_no: str | None = Field(default=None, max_length=30)
 
@@ -183,6 +193,28 @@ def update_advertiser_biz(
 ) -> dict:
     """광고주 사업자 상호 · 사업자번호 저장(인증 상태는 그대로)."""
     return collab_advertiser_service.admin_update_biz(db, member_id, _data(body))
+
+
+class AdvertiserBizActionIn(BaseModel):
+    action: str = Field(pattern="^(verify|reject|reset)$")
+    reason: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/advertisers/{member_id}/biz")
+def advertiser_biz_action(
+    member_id: str, body: AdvertiserBizActionIn, admin: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """광고주 사업자 인증 — 인증 완료 · 반려 · 되돌리기(임시 승인은 제휴사만)."""
+    return collab_advertiser_service.admin_biz_action(db, member_id, body.action, body.reason, admin.id)
+
+
+@router.get("/advertisers/{member_id}/biz-rejections/{rejection_id}/file")
+def advertiser_biz_rejection_file(
+    member_id: str, rejection_id: str, _: Admin = Perm, db: Session = Depends(get_db)
+) -> FileResponse:
+    """지난 반려 때 올렸던 사업자등록증(095) — 다시 올려도 예전 파일은 남아 있다."""
+    path, filename = collab_advertiser_service.rejection_file(db, member_id, rejection_id)
+    return FileResponse(path, filename=filename)
 
 
 @router.get("/advertisers/{member_id}/business-card")

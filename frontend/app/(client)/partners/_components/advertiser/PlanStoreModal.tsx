@@ -3,11 +3,25 @@
 import { Modal } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 
+import { StoreDetailModal } from "@/app/(client)/(main)/fixed/_components/StoreDetailModal";
 import { LoadingState } from "@/components/common/RouteStates";
-import { partnersApi, partnersKeys } from "@/hooks/partners";
+import { partnersApi, partnersKeys, usePartnersStore } from "@/hooks/partners";
 import type { PlanStore } from "@/lib/collabPlan";
 
 import { PartnersStoreInfo } from "../PartnersStoreDetail";
+
+/**
+ * 기획안 지정 희망 매장 → 매장 상세 팝업(2026-11-18 사용자: "해당 매장의 상세 팝업이 뜨게 해줘") — 매장 찾기 · 관심 매장과
+ * 같은 매장 정보 팝업(StoreDetailModal, 매체 ID로 연다). 매장 id 로 받아 매체 ID 를 알아낸 뒤 띄우고,
+ * 매체 ID 가 없거나 못 받으면 예전 정보 팝업(PlanStoreModal)으로. 열 때만 그린다(닫으면 onClose).
+ */
+export function PlanStoreDetail({ store, onClose }: { store: PlanStore; onClose: () => void }) {
+  const { data, isError } = usePartnersStore(store.id);
+  if (data?.mediaId) return <StoreDetailModal mediaId={data.mediaId} onClose={onClose} />;
+  if (isError || data)
+    return <PlanStoreModal store={store} isOpen onOpenChange={(o) => !o && onClose()} />;
+  return null;
+}
 
 /**
  * 기획안 지정 희망 매장 정보 팝업 — 기획안 비교에서 매장 이름을 누르면 그 매장 사진 · 정보 · 지도를 띄운다

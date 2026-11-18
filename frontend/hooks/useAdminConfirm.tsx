@@ -3,11 +3,15 @@
 import { AlertDialog, Button } from "@heroui/react";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 type AdminConfirmOptions = {
   title: string;
   description?: ReactNode;
   confirmText?: string;
   cancelText?: string;
+  /** 넓은 창(600px) — 내용이 많은 창만(예: 기획안 보내기 확인, 2026-11-18 사용자: "팝업을 좀 더 크게"). 기본은 sm(384px). */
+  wide?: boolean;
 };
 
 type AdminConfirmState = AdminConfirmOptions & { mode: "confirm" | "alert" };
@@ -56,8 +60,8 @@ export function useAdminConfirm() {
       isDismissable
       isKeyboardDismissDisabled={false}
     >
-      <AlertDialog.Container placement="center" size="sm">
-        <AlertDialog.Dialog className="rounded-[20px]">
+      <AlertDialog.Container placement="center" size={state?.wide ? "lg" : "sm"}>
+        <AlertDialog.Dialog className={cn("rounded-[20px]", state?.wide && "max-w-[600px]")}>
           <AlertDialog.Header>
             <AlertDialog.Heading className="text-lg font-bold leading-[28px] tracking-[-0.04px] text-black">
               {state?.title}

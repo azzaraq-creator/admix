@@ -20,7 +20,7 @@ from src.models.media_master import Media
 from src.models.media_image import MediaImage
 from src.models.media_plan import MediaPlan
 from src.models.inquiry import Inquiry
-from src.models.member_profile import BusinessRegistration, MemberSanction
+from src.models.member_profile import BusinessRegistration, BusinessRegistrationRejection, MemberSanction
 from src.models.proposal import Proposal
 from src.models.proposal_item import ProposalItem
 from src.models.user import User, RefreshToken, SocialAccount, PasswordReset

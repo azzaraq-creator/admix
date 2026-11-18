@@ -24,9 +24,10 @@ import { cn } from "@/lib/utils";
  * - 영업일에만 하는 단계(admix 검토 · 신청 매장 검토 · 매장 확정 · 제작 · 준비)는 주말 · 공휴일 칸을 비운다(11-12 사용자
  *   "영업일 기준이라는 건 주말엔 진행을 안 한단 소리야"). 매장 모집 · 설치 · 진행 · 철수는 주말에도 칠한다.
  * - 한국 공휴일(krHolidays)과 일요일 날짜는 빨간 글자, 공휴일은 마우스를 올리면 이름(11-11 사용자: "한국 기준으로 공휴일은 빨간색").
+ * - 중간 보고 날(s.checks)은 진행 막대 사이에 옅은 보라 하루 칸 "보고"(11-18 사용자: "달력에 넣어줘").
  */
 
-type Phase = "request" | "admix" | "recruit" | "review" | "prep" | "install" | "run" | "removal";
+type Phase = "request" | "admix" | "recruit" | "review" | "prep" | "install" | "run" | "report" | "removal";
 
 const PHASE_LABEL: Record<Phase, string> = {
   request: "의뢰",
@@ -36,10 +37,18 @@ const PHASE_LABEL: Record<Phase, string> = {
   prep: "준비",
   install: "설치",
   run: "콜라보 진행",
+  report: "중간 보고",
   removal: "철수",
 };
 /** 하루짜리 막대엔 긴 이름이 안 들어가서 줄인 이름. */
-const SHORT_LABEL: Partial<Record<Phase, string>> = { admix: "admix", recruit: "모집", review: "검토", prep: "준비", run: "진행" };
+const SHORT_LABEL: Partial<Record<Phase, string>> = {
+  admix: "admix",
+  recruit: "모집",
+  review: "검토",
+  prep: "준비",
+  run: "진행",
+  report: "보고",
+};
 /** 단계 색 — 100 단계 파스텔 + 진한 글자, 다크는 반투명. 진행만 진한 보라. */
 const PHASE_TONE: Record<Phase, string> = {
   request: "bg-gray-100 text-gray-700",
@@ -49,11 +58,13 @@ const PHASE_TONE: Record<Phase, string> = {
   prep: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   install: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
   run: "bg-primary-500 text-white",
+  // 진행 막대 사이 하루 — 진행보다 옅은 보라로 끊어 보이게.
+  report: "bg-primary-100 text-primary-700 dark:bg-primary-400/20 dark:text-primary-200",
   removal: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
 };
 /** 영업일에만 하는 단계 — 주말 · 공휴일엔 칠하지 않는다. */
 const BUSINESS_ONLY = new Set<Phase>(["admix", "review", "prep"]);
-const ORDER: Phase[] = ["request", "admix", "recruit", "review", "prep", "install", "run", "removal"];
+const ORDER: Phase[] = ["request", "admix", "recruit", "review", "prep", "install", "run", "report", "removal"];
 const WEEK = "일월화수목금토";
 /** 기간을 고를 때 앞으로 넘겨 볼 수 있는 달 수(이번 달 + 12달). */
 const SELECT_MONTHS_AHEAD = 12;
@@ -120,7 +131,7 @@ export function ScheduleCalendar({
   const rawPhaseOf = (day: string): Phase | null => {
     if (!s) return null;
     if (day === s.removalDate) return "removal";
-    if (day >= s.startDate && day <= s.endDate) return "run";
+    if (day >= s.startDate && day <= s.endDate) return s.checks.some((k) => k.date === day) ? "report" : "run";
     if (day >= s.installStart && day < s.startDate) return "install";
     if (day > s.confirmDue && day < s.installStart) return "prep";
     if (day > s.recruitEnd && day <= s.confirmDue) return "review";
@@ -398,7 +409,10 @@ export function ScheduleCalendar({
                             : // 하루짜리 검토 · 확정 막대가 매장 확정일이면 "확정"(상세 일정의 "매장 확정"과 맞춤, 11-12).
                               s && b.phase === "review" && days[b.col] === s.confirmDue
                               ? "확정"
-                              : (SHORT_LABEL[b.phase] ?? labelOf(b.phase))}
+                              : // 중간 보고 — 한 달만 크게 볼 땐 칸이 넓어 "중간 보고" 그대로.
+                                b.phase === "report" && lg && count === 1
+                                ? labelOf(b.phase)
+                                : (SHORT_LABEL[b.phase] ?? labelOf(b.phase))}
                         </span>
                       </span>
                     ))}

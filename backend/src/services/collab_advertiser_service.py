@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from src.config import get_settings
 from src.models.advertiser_brand import AdvertiserBrand
 from src.models.advertiser_collab_request import AdvertiserCollabRequest
-from src.models.member_profile import BusinessRegistration
+from src.models.admin import Admin
+from src.models.member_profile import BusinessRegistration, BusinessRegistrationRejection
 from src.models.user import User
 from src.services import advertiser_brand_service
 
@@ -54,6 +55,7 @@ def _summary(u: User, brands: list[AdvertiserBrand]) -> dict:
         bizUploadedAt=_iso(reg.license_uploaded_at) if reg else None,
         bizVerifiedAt=_iso(reg.verified_at) if reg else None,
         bizRejectReason=reg.reject_reason if reg else None,
+        bizRejectedAt=_iso(reg.rejected_at) if reg else None,
         brands=[advertiser_brand_service.serialize(b) for b in brands],
     )
 
@@ -165,24 +167,71 @@ def admin_list(
 
 def admin_get(db: Session, member_id: str) -> dict:
     user = _advertiser_or_404(db, member_id)
-    return _summary(user, _brands_by_user(db, [user.id]).get(user.id, []))
+    out = _summary(user, _brands_by_user(db, [user.id]).get(user.id, []))
+    out["bizRejections"] = _rejections(db, user.id)
+    return out
+
+
+def _rejections(db: Session, user_id) -> list[dict]:
+    """반려 기록(095) — 최근 것부터. 상세에서만(목록엔 없다). 지금 반려 상태면 맨 앞이 지금 반려다."""
+    rows = (
+        db.query(BusinessRegistrationRejection, Admin.name, Admin.email)
+        .outerjoin(Admin, Admin.id == BusinessRegistrationRejection.rejected_by)
+        .filter(BusinessRegistrationRejection.user_id == user_id)
+        .order_by(BusinessRegistrationRejection.rejected_at.desc())
+        .all()
+    )
+    return [
+        dict(
+            id=str(r.id),
+            reason=r.reason,
+            fileName=r.file_name,
+            hasFile=bool(r.file_url),
+            rejectedAt=_iso(r.rejected_at),
+            rejectedBy=name or email,
+        )
+        for r, name, email in rows
+    ]
 
 
 def admin_update_biz(db: Session, member_id: str, data: dict) -> dict:
     """상호 · 사업자번호 — 콜라보 관리자가 직접 적어 저장한다(11-11 사용자). 인증 상태 · 등록증 파일은 그대로.
 
     빈 값은 지운다. 아직 사업자 정보 줄이 없으면 미등록 상태로 새로 만든다(admix 회원 관리와 같다).
+    사업자번호는 숫자 10자리만 받아 000-00-00000 으로 맞춰 적는다(11-18 사용자, 제휴사 가입과 같은 형식).
     """
     user = _advertiser_or_404(db, member_id)
+    values = {k: (data[k] or "").strip() or None for k in ("business_name", "business_registration_no") if k in data}
+    if values.get("business_registration_no"):
+        digits = "".join(ch for ch in values["business_registration_no"] if ch.isdigit())
+        if len(digits) != 10:
+            raise HTTPException(status_code=400, detail="사업자번호는 숫자 10자리로 적어 주세요.")
+        values["business_registration_no"] = f"{digits[:3]}-{digits[3:5]}-{digits[5:]}"
     reg = user.business_registration
     if reg is None:
         reg = BusinessRegistration(user_id=user.id, status="unregistered")
         db.add(reg)
-    for key in ("business_name", "business_registration_no"):
-        if key in data:
-            setattr(reg, key, (data[key] or "").strip() or None)
+    for key, value in values.items():
+        setattr(reg, key, value)
     db.commit()
     db.refresh(user)
+    return admin_get(db, member_id)
+
+
+# 광고주는 임시 승인이 없다 — 현장에서 같이 가입하는 제휴사 흐름이라서. 콜라보는 인증 완료(verified)여야 열린다.
+ADVERTISER_BIZ_ACTIONS = ("verify", "reject", "reset")
+
+
+def admin_biz_action(
+    db: Session, member_id: str, action: str, reason: str | None = None, admin_id: uuid.UUID | None = None
+) -> dict:
+    """사업자 인증 — 인증 완료 · 반려 · 되돌리기(11-18 사용자: "승인, 반려는 어디서 해?"). 반려 사유는 광고주 내 정보에 보인다."""
+    from src.services.partners_service import apply_biz_action  # partners_service 가 이 모듈 쪽을 가져다 쓸 수 있어 함수 안에서
+
+    if action not in ADVERTISER_BIZ_ACTIONS:
+        raise HTTPException(status_code=400, detail="알 수 없는 처리예요.")
+    user = _advertiser_or_404(db, member_id)
+    apply_biz_action(db, user, action, reason, admin_id)
     return admin_get(db, member_id)
 
 
@@ -199,6 +248,20 @@ def business_card_file(db: Session, member_id: str) -> tuple[Path, str]:
     user = _advertiser_or_404(db, member_id)
     path = _upload_path(user.business_card_url, "등록된 명함이 없어요.")
     return path, (user.business_card_name or path.name)
+
+
+def rejection_file(db: Session, member_id: str, rejection_id: str) -> tuple[Path, str]:
+    """지난 반려 때 올렸던 파일(095)."""
+    user = _advertiser_or_404(db, member_id)
+    try:
+        rid = uuid.UUID(rejection_id)
+    except ValueError:
+        rid = None
+    row = db.get(BusinessRegistrationRejection, rid) if rid else None
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="반려 기록을 찾을 수 없어요.")
+    path = _upload_path(row.file_url, "그때 올린 파일이 없어요.")
+    return path, (row.file_name or path.name)
 
 
 def license_file(db: Session, member_id: str) -> tuple[Path, str]:

@@ -8,24 +8,29 @@
  *   KS X 1001 2,350자 + 자주 쓰는 글자)을 TTF 로 풀어만 둔 것(글자 데이터는 그대로). 4단계를 열 때만 받는다(각 약 750KB).
  *   서명자 이름 등에 없는 글자가 있으면 그때만 전체 글꼴(한글 11,172자)을 CDN 에서 받는다.
  *   pdf-lib 의 "쓴 글자만 담기(subset)"는 Pretendard 에서 글자가 빠져(11-10 확인) 쓰지 않고 글꼴을 통째로 넣는다(PDF 약 0.8MB).
- * - 내용: 계약서 전체 보기(DocContent)와 같은 agreement.json — 조항을 새로 짓지 않는다.
- *   서명란 카페 쪽 칸에는 동의 때 남긴 서명자 · 손 서명 · 서명일을 넣는다(078). 서명 전이면 빈 칸 그대로.
+ * - 내용: 협약서 전체 보기(DocContent)와 같은 agreement.json(v1.0, 2026-11-18 사용자가 준 협약서 최종본) — 조항을 새로 짓지 않는다.
+ *   세 쪽(11-18 사용자: "1페이지로 표지 하나"): 1 표지(로고 · 제목 · 문서번호 · 버전 · 체결일시 · 당사자)
+ *   → 2 제목 · 머리말 · 제1조~제4조 → 3 서명란 표 · 체결일시 · 문서번호 및 버전(첨부 줄은 뺐다).
+ *   서명란 admix 서명 칸엔 도장(public/service/sign.png), 제휴사 칸엔 동의 때 남긴 서명자 · 손 서명(078). 서명 전이면 빈칸 그대로.
  * - 줄바꿈은 화면(break-keep)처럼 띄어쓰기 단위, 한 낱말이 칸보다 길 때만 글자 단위로 끊는다.
  * pdf-lib · fontkit 은 이 파일을 쓸 때만 불러온다(dynamic import) — 다른 화면 번들에 넣지 않는다.
  */
 import type { PDFFont, PDFImage } from "pdf-lib";
 
 import {
+  ADMIX_NAME,
+  ADMIX_SEAL_SRC,
   AGREEMENT,
   type AgreementParty,
+  ARTICLES,
+  clauseMark,
   filledContract,
+  footerRows,
   formatSignDate,
+  formatSignDateTime,
   ROLE_LABEL,
-  SECTIONS,
   type SignatureRecord,
 } from "./agreementShared";
-
-const DOC = AGREEMENT.document;
 
 /* A4(pt). y 는 모두 위에서 잰 값 — PDF 로 옮길 때만 뒤집는다. */
 export const PAGE_W = 595.28;
@@ -106,7 +111,7 @@ export type AgreementPdf = {
 };
 
 export const agreementPdfFileName = () =>
-  `admix_${DOC.title.replace(/\s+/g, "")}_v${AGREEMENT.version}.pdf`;
+  `${AGREEMENT.title.replace(/\s+/g, "_")}_v${AGREEMENT.version}.pdf`;
 
 /* ───────── 글꼴 · 서명 그림 불러오기 ───────── */
 
@@ -327,18 +332,20 @@ export async function buildAgreementPdf(
   /** 가입 때 적은 매장 정보(089) — 서명란 · 별지의 매장 측 빈칸을 채운다. 없으면 빈칸 그대로. */
   party: AgreementParty | null = null,
 ): Promise<AgreementPdf> {
-  const contract = filledContract(party, signature?.name);
+  const contract = filledContract(party, signature);
   const [
     { PDFDocument, rgb, LineCapStyle },
     fontkit,
     subsetFonts,
     sigBytes,
+    sealBytes,
     logo,
   ] = await Promise.all([
     import("pdf-lib"),
     import("@pdf-lib/fontkit").then((m) => m.default),
     loadFonts(FONT_URLS),
     signature ? loadSignature(signature.src) : Promise.resolve(null),
+    loadSignature(ADMIX_SEAL_SRC),
     loadLogo(),
   ]);
 
@@ -354,12 +361,7 @@ export async function buildAgreementPdf(
   let [pdf, regular, bold] = await start(subsetFonts);
   // subset 에 없는 글자(드문 이름 글자 등)가 있으면 전체 글꼴로. 못 받으면 subset 그대로(없는 글자는 빈칸).
   const covered = new Set(regular.getCharacterSet());
-  const allText = JSON.stringify([
-    DOC,
-    SECTIONS,
-    signature?.name ?? "",
-    contract,
-  ]);
+  const allText = JSON.stringify([AGREEMENT, signature?.name ?? "", contract]);
   if (Array.from(allText).some((ch) => !covered.has(ch.codePointAt(0) ?? 0))) {
     try {
       [pdf, regular, bold] = await start(await loadFonts(FULL_FONT_URLS));
@@ -379,12 +381,23 @@ export async function buildAgreementPdf(
       sigImage = null;
     }
   }
+  // admix 도장 — 못 불러오면 서명 칸은 글(조진호) 그대로.
+  let sealImage: PDFImage | null = null;
+  if (sealBytes) {
+    try {
+      sealImage = await pdf.embedPng(sealBytes);
+    } catch {
+      sealImage = null;
+    }
+  }
 
   /* 쪽 · 줄 놓기 */
   const models: { labels: Label[]; elements: PdfElement[] }[] = [];
   let page = { labels: [] as Label[], elements: [] as PdfElement[] };
   let y = TOP;
-  let block: Label = { key: "cover", text: "문서 정보" };
+  let block: Label = { key: "cover", text: "표지" };
+  /** 본문 · 서명란을 각각 한 쪽에 맞추는 배율 — 넘치면 조금씩 줄여 다시 놓는다(11-18 사용자). */
+  let fit = 1;
 
   const newPage = () => {
     page = { labels: [], elements: [] };
@@ -434,7 +447,7 @@ export async function buildAgreementPdf(
     keep?: number;
   };
   const paragraph = (text: string, o: ParaOpts = {}) => {
-    const size = o.size ?? 9.5;
+    const size = (o.size ?? 9.5) * fit;
     const lh = size * (o.lead ?? 1.7);
     const indent = o.indent ?? 0;
     const lines = wrap(text, o.bold ? bold : regular, size, CONTENT_W - indent);
@@ -444,13 +457,19 @@ export async function buildAgreementPdf(
       textAt(line, LEFT + indent, y, lh, size, !!o.bold, o.color ?? COLOR.body);
       y += lh;
     }
-    y += o.gap ?? 6;
+    y += (o.gap ?? 6) * fit;
   };
   /** 제목 — 아래 내용이 몇 줄은 같이 들어갈 자리가 있어야 놓는다. */
   const heading = (text: string, size: number, before: number, after = 6) => {
-    ensure(before + size * 1.6 + 48);
-    if (y > TOP) y += before;
-    paragraph(text, { size, bold: true, color: COLOR.ink, gap: after });
+    ensure((before + size * 1.6 + 48) * fit);
+    if (y > TOP) y += before * fit;
+    paragraph(text, {
+      size,
+      bold: true,
+      color: COLOR.ink,
+      gap: after,
+      lead: 1.5,
+    });
   };
 
   type Cell = { text: string; image?: PDFImage | null; src?: string };
@@ -459,10 +478,10 @@ export async function buildAgreementPdf(
     widths: number[],
     opts: { headRow?: boolean; headCol?: boolean },
   ) => {
-    const size = 8.5;
+    const size = 8.5 * fit;
     const lh = size * 1.6;
     const padX = 7;
-    const padY = 6;
+    const padY = 6 * fit;
     const imageH = 40;
     rows.forEach((row, r) => {
       const cells = row.map((cell, c) => {
@@ -529,98 +548,184 @@ export async function buildAgreementPdf(
     ? formatSignDate(signature.signedAt)
     : null;
 
-  /* 1. 표지 — 제목 · 문서 정보 · 머리말 */
-  paragraph(DOC.title, { size: 20, bold: true, color: COLOR.ink, gap: 4 });
-  paragraph(DOC.subtitle, { size: 9, color: COLOR.muted, gap: 18 });
-  table(
-    [
-      ["문서", DOC.title],
-      ["판", `검토본 v${AGREEMENT.version}`],
-      ["카페 측 서명자", signer ?? "-"],
-      ["서명일", signedOn ?? "-"],
-    ].map((row) => row.map((text) => ({ text }))),
-    [0.28, 0.72],
-    { headCol: true },
-  );
-  y += 16;
-  paragraph(DOC.intro, { gap: 4 });
-
-  /* 2. 먼저 확인할 핵심 조건 */
-  block = { key: "keypoints", text: "핵심 조건" };
-  heading("먼저 확인할 핵심 조건", 12.5, 22, 8);
-  DOC.keypoints.forEach((k, i) => {
-    const size = 9.5;
-    const lh = size * 1.7;
-    ensure(lh * 3);
-    textAt(`${i + 1}.`, LEFT, y, lh, size, true, COLOR.ink);
-    paragraph(k.lead, { bold: true, color: COLOR.ink, indent: 16, gap: 1 });
-    paragraph(`${k.detail} (제${k.ref}조)`, { indent: 16, gap: 8 });
-  });
-
-  /* 3. 본문 — 제1조~ */
-  SECTIONS.forEach((s, i) => {
-    block = {
-      key: `s${s.number}`,
-      text: `제${s.number}조`,
-      section: s.number,
-    };
-    if (i === 0) heading("본문", 12.5, 22, 4);
-    heading(`제${s.number}조 ${s.title}`, 10.5, 14, 5);
-    for (const c of s.items) {
-      ensure(9.5 * 1.7 * 3);
-      paragraph(`${c.id} ${c.lead}`, {
-        bold: true,
-        color: COLOR.ink,
-        gap: 1,
-      });
-      paragraph(c.detail, { gap: 8 });
-    }
-  });
-
-  /* 4. 서명란 — 맺음말과 표를 한 쪽에(나뉘면 다음 쪽으로). */
-  block = { key: "sign", text: "서명란" };
-  // 매장 측 칸은 가입 때 적은 매장 정보로 채운 표(filledContract) — 서명했으면 아래에서 서명자 · 서명 · 서명일로 덮는다.
-  const signRows: Cell[][] = contract.signatureTable.map((row) =>
-    row.map((text) => ({ text })),
-  );
-  if (signature) {
-    signRows.forEach((row) => {
-      const cafe = row[2];
-      if (row[0].text === "대표자 또는 수임자") cafe.text = signer ?? "";
-      if (row[0].text === "서명 또는 전자승인") {
-        if (sigImage) {
-          cafe.image = sigImage;
-          cafe.src = sigSrc;
-        } else cafe.text = "전자 서명(그림을 불러오지 못했어요)";
-      }
-      if (row[0].text === "서명일" && signedOn) cafe.text = signedOn;
+  /*
+   * 본문 두 쪽(11-18 사용자: "2단계로 나눠서") — 제목 · 머리말 · 제1조~제4조 | 서명란 · 체결일시 · 문서번호 및 버전. 앞에 표지 한 쪽.
+   * 어느 쪽이든 넘치면 배율(fit)을 조금씩 줄여 다시 놓는다(최소 0.8).
+   */
+  const firstPage = () => {
+    /* 1. 제목 · 머리말 — 문서 정보 표는 뺐다(docx에 없음, 서명자 · 판은 서명란 · 쪽 꼬리 · 2쪽에 있다). */
+    paragraph(AGREEMENT.title, {
+      size: 18,
+      bold: true,
+      color: COLOR.ink,
+      gap: 10,
     });
-  }
-  ensure(320);
-  y += 18;
-  paragraph(DOC.closing, { bold: true, color: COLOR.ink, gap: 10 });
-  table(signRows, [0.3, 0.35, 0.35], { headRow: true });
+    contract.preamble
+      .split("\n")
+      .forEach((text) => paragraph(text, { lead: 1.6, gap: 2 }));
 
-  /* 5. 별지 — 새 쪽에서 */
-  block = { key: "annex", text: "별지" };
+    /* 2. 본문 — 제1조~제4조. 항(①②③)은 번호 뒤로 들여 쓴다. */
+    ARTICLES.forEach((a) => {
+      block = {
+        key: `s${a.number}`,
+        text: `제${a.number}조`,
+        section: a.number,
+      };
+      heading(`제${a.number}조(${a.title})`, 10.5, 8, 2);
+      a.clauses.forEach((c, i) => {
+        const size = 9.5 * fit;
+        const lh = size * 1.6;
+        ensure(lh * 2);
+        textAt(clauseMark(i), LEFT, y, lh, size, false, COLOR.body);
+        paragraph(c, { indent: 14, lead: 1.6, gap: 3 });
+      });
+    });
+  };
+
+  const secondPage = () => {
+    /* 3. 서명란 — 제휴사 칸은 매장 정보 · 서명자로 채운 표(filledContract), 서명 칸엔 손 서명. */
+    block = { key: "sign", text: "서명란" };
+    heading("서명란", 12.5, 0, 8);
+    const signRows: Cell[][] = contract.partyTable.map((row) =>
+      row.map((text) => ({ text })),
+    );
+    signRows.forEach((row) => {
+      if (row[0].text === "서명" && sealImage) {
+        row[1].text = "";
+        row[1].image = sealImage;
+        row[1].src = ADMIX_SEAL_SRC;
+      }
+    });
+    if (signature) {
+      signRows.forEach((row) => {
+        const partner = row[2];
+        if (row[0].text === "서명") {
+          if (sigImage) {
+            partner.text = "";
+            partner.image = sigImage;
+            partner.src = sigSrc;
+          } else partner.text = "전자 서명(그림을 불러오지 못했어요)";
+        }
+      });
+    }
+    table(signRows, [0.24, 0.38, 0.38], { headRow: true });
+
+    /* 4. 체결일시 · 문서번호 및 버전 — 첨부(사업자등록증) 줄은 뺐다(11-18 사용자: "없애줘"). */
+    block = { key: "attach", text: "체결 정보" };
+    y += 18 * fit;
+    for (const [k, v] of footerRows(signature))
+      paragraph(`${k}  ${v}`, { gap: 2 });
+  };
+
+  /**
+   * 표지(11-18 사용자: "1페이지로 표지 하나") — 쪽 머리 · 꼬리 없이 로고 · 제목, 아래에 문서 정보 네 줄.
+   * 문서번호는 동의할 때 서버가 매긴 번호(097), 서명 전이면 "자동 부여".
+   */
+  const coverPage = () => {
+    block = { key: "cover", text: "표지" };
+    const COVER_LOGO_H = 20;
+    if (logo)
+      logo.paths.forEach((p) =>
+        push({
+          kind: "path",
+          d: p.d,
+          x: LEFT,
+          y: 96,
+          scale: COVER_LOGO_H / logo.h,
+          color: COLOR.ink,
+          stroke: p.stroke,
+        }),
+      );
+    else textAt("admix", LEFT, 96, COVER_LOGO_H, 16, true, COLOR.ink);
+
+    y = 300;
+    paragraph(AGREEMENT.title, {
+      size: 28,
+      bold: true,
+      color: COLOR.ink,
+      lead: 1.35,
+      gap: 14,
+    });
+    push({
+      kind: "line",
+      x1: LEFT,
+      y1: y,
+      x2: LEFT + 36,
+      y2: y,
+      color: COLOR.ink,
+      width: 1.6,
+    });
+
+    const partnerName = party?.businessName || "[사업자등록상 상호]";
+    const rows: [string, string][] = [
+      ["문서번호", signature?.docNo ?? "자동 부여"],
+      ["버전", `v${AGREEMENT.version}`],
+      [
+        "협약 체결일시",
+        signature?.signedAt
+          ? formatSignDateTime(signature.signedAt)
+          : "양측 전자서명 완료일시",
+      ],
+      ["협약 당사자", `${ADMIX_NAME}\n${partnerName}`],
+    ];
+    const LABEL_W = 96;
+    const size = 10;
+    const lh = size * 1.7;
+    y = 600;
+    push({
+      kind: "line",
+      x1: LEFT,
+      y1: y,
+      x2: RIGHT,
+      y2: y,
+      color: COLOR.ink,
+      width: 0.8,
+    });
+    for (const [k, v] of rows) {
+      const lines = v.split("\n");
+      const top = y + 9;
+      textAt(k, LEFT, top, lh, 9, false, COLOR.muted);
+      lines.forEach((line, i) =>
+        textAt(line, LEFT + LABEL_W, top + i * lh, lh, size, true, COLOR.ink),
+      );
+      y = top + lines.length * lh + 9;
+      push({
+        kind: "line",
+        x1: LEFT,
+        y1: y,
+        x2: RIGHT,
+        y2: y,
+        color: COLOR.rule,
+        width: 0.6,
+      });
+    }
+  };
+
+  /** 한 쪽에 맞을 때까지 배율을 줄여 다시 놓는다 — 쪽마다 따로(2쪽은 보통 그대로 1). */
+  const onOnePage = (draw: () => void) => {
+    const before = models.length;
+    for (fit = 1; ; fit = Math.round((fit - 0.02) * 100) / 100) {
+      models.length = before;
+      newPage();
+      draw();
+      if (models.length === before + 1 || fit <= 0.8) break;
+    }
+  };
+  models.length = 0;
   newPage();
-  heading(DOC.annexTitle, 12.5, 0, 4);
-  paragraph(contract.annexStore, { bold: true, color: COLOR.ink, gap: 10 });
-  table(
-    contract.annexTable.map((row) => row.map((text) => ({ text }))),
-    [0.28, 0.72],
-    { headCol: true },
-  );
-  y += 12;
-  for (const note of DOC.annexNotes)
-    paragraph(note, { size: 8.5, color: COLOR.muted, gap: 6 });
+  coverPage();
+  onOnePage(() => {
+    block = { key: "preamble", text: "머리말" };
+    firstPage();
+  });
+  onOnePage(secondPage);
 
   /* 머리 · 꼬리 — 쪽 수를 안 뒤에 */
   const total = models.length;
-  const headRight = `${DOC.title} · 검토본 v${AGREEMENT.version}`;
+  const headRight = `${AGREEMENT.title} · v${AGREEMENT.version}`;
   const footLeft = signer
-    ? `카페 측 서명 ${signer}${signedOn ? ` · ${signedOn}` : ""}`
-    : "검토본";
+    ? `제휴사 서명 ${signer}${signedOn ? ` · ${signedOn}` : ""}`
+    : `v${AGREEMENT.version}`;
   // 로고 — 높이 11pt, 위 35pt 에서(오른쪽 글줄 바닥선 44pt 와 아래가 맞게).
   const LOGO_H = 11;
   const brand: PdfElement[] = logo
@@ -646,6 +751,8 @@ export async function buildAgreementPdf(
         },
       ];
   const pages: PdfPage[] = models.map((m, i) => {
+    // 표지는 머리 · 꼬리 없이.
+    if (i === 0) return { title: pageTitle(m.labels), elements: m.elements };
     const right = (text: string, size: number) =>
       RIGHT - regular.widthOfTextAtSize(text, size);
     const pageNo = `${i + 1} / ${total}`;
@@ -754,7 +861,7 @@ export async function buildAgreementPdf(
         });
     }
   }
-  pdf.setTitle(`${DOC.title} 검토본 v${AGREEMENT.version}`);
+  pdf.setTitle(`${AGREEMENT.title} v${AGREEMENT.version}`);
   pdf.setAuthor("admix");
   pdf.setCreator("admix");
   pdf.setLanguage("ko-KR");

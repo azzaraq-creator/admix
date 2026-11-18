@@ -1,13 +1,14 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import { ChevronLeft, Download, FileText, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, Download, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type DragEvent, type ReactNode, useRef, useState } from "react";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { LoadingState } from "@/components/common/RouteStates";
 import {
   adminCollabApi,
@@ -434,7 +435,10 @@ function ReportFilesPanel({ c }: { c: AdminCollabDetail }) {
                   i > 0 && "border-t border-gray-100",
                 )}
               >
-                <FileText className="size-[18px] shrink-0 text-disabled" />
+                <MaskIcon
+                  src="/icons/file-text.svg"
+                  className="size-[18px] shrink-0 text-disabled"
+                />
                 <Button
                   variant="ghost"
                   onPress={() => void open(f)}

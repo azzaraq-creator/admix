@@ -2,8 +2,9 @@
 
 - 매장 등록 · 수정은 admix 담당자가 어드민에서만 한다(069). 제휴사 회원은 고유번호(P-0001)로 매장(S-0001)과 이어지고,
   한 회원이 매장 여러 곳을 가질 수 있다. 제휴사는 내 매장에서 보기만 하고, 고칠 곳은 "수정 요청"으로 보낸다.
-- 기본협약 동의 전에 사업자등록증을 올려야 한다(검토 대기도 됨). 등록증이 없으면 담당자가 어드민에서 "임시 승인"해
-  그 자리에서 다음 단계로 넘어가게 한다(status=provisional).
+- 기본협약은 사업자등록증 없이도 맺는다(2026-11-18 사용자: 등록증은 선택, 어드민 "임시 승인"은 없앴다).
+  콜라보 신청 · 확정은 관리자가 등록증을 인증해야 열린다(collab_service._ensure_not_provisional).
+  예전에 임시 승인한 회원(status=provisional)은 그대로 남아 있고 인증 전으로 본다.
 - 주소를 저장하면 카카오 주소 검색으로 위도·경도·시도·구군을 채운다(좌표를 직접 넘기면 그 값).
 - 공개(active)이고 좌표가 있는 매장은 media 표에 "콜라보" 줄을 함께 두어 매체 찾기 지도·목록에 보인다.
   숨기거나 지우면 그 줄도 지운다. 이 줄은 AI 추천(검색 표)·어드민 매체 관리에서 빠진다.
@@ -18,12 +19,13 @@ import os
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import Integer, String, case, cast, func, or_
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from src.config import get_settings
@@ -38,9 +40,10 @@ from src.models.collab_lead import CollabLead
 from src.models.media_image import MediaImage
 from src.models.media_master import Media
 from src.models.member_profile import BusinessRegistration
-from src.models.user import User
+from src.models.user import PARTNER_AGREEMENT_VERSION, User
 from src.services import kakao_address
 from src.services import media_service as ms
+from src.services.member_service import log_biz_rejection
 
 log = logging.getLogger(__name__)
 
@@ -87,8 +90,6 @@ MAIN_CUSTOMERS_MAX = 100
 INTRO_MAX = 300
 SEATS_MAX = 9999
 PARTNERS_MEDIA_SMALL = "매장"
-# 기본협약에 동의할 수 있는 사업자 등록 상태 — 올리기만 해도(검토 대기) 되고, 어드민 임시 승인도 된다.
-AGREEABLE_BIZ_STATUS = {"reviewing", "verified", "provisional"}
 # 회원 · 매장 고유번호 머리 — P-0001(제휴사 회원), S-0001(매장). 매장은 한 글자 — 매체 ID 머리(정류장 ST 등)는
 # 모두 두 글자라 겹쳐 보이지 않게(2026-11-10 사용자, 예전 ST-0001).
 PARTNER_CODE_PREFIX = "P"
@@ -257,10 +258,31 @@ def _save_signature(user: User, data_url: str) -> str:
     return f"/uploads/partner-signature/{user.id}/{stored_name}"
 
 
+# 문서번호 순번을 매기는 동안 잡는 잠금(트랜잭션 끝까지) — 같은 날 두 명이 동시에 동의해도 번호가 겹치지 않게.
+_AGREEMENT_NO_LOCK = 97_001
+AGREEMENT_NO_DAILY_MAX = 99_999
+
+
+def _next_agreement_no(db: Session, signed_at: datetime) -> str:
+    """협약서 문서번호 — 서명 날짜(KST) + 그날 순번 00001~99999(2026-11-18 사용자: "오늘날짜+00001~99999")."""
+    db.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": _AGREEMENT_NO_LOCK})
+    day = signed_at.astimezone(_KST).strftime("%Y%m%d")
+    last = (
+        db.query(func.max(User.partner_agreement_no))
+        .filter(User.partner_agreement_no.like(f"{day}-%"))
+        .scalar()
+    )
+    seq = int(last.rsplit("-", 1)[1]) + 1 if last else 1
+    if seq > AGREEMENT_NO_DAILY_MAX:
+        raise HTTPException(status_code=503, detail="오늘 협약서 번호를 다 썼어요. 내일 다시 시도해 주세요.")
+    return f"{day}-{seq:05d}"
+
+
 def agreement_record(user: User) -> dict:
     return {
         "agreedAt": user.partner_agreed_at.isoformat() if user.partner_agreed_at else None,
         "version": user.partner_agreement_version,
+        "agreementNo": user.partner_agreement_no,
         "signerName": user.partner_signer_name,
         "signerRole": user.partner_signer_role,
         "signatureUrl": user.partner_signature_url,
@@ -276,16 +298,14 @@ def agree(
     signature: str,
     ip: str | None = None,
 ) -> dict:
-    """기본협약 최종 동의 기록 — 처음 동의한 시각 · 서명(이름 · 구분 · 손 서명 그림 · IP)을 남기고, 다시 눌러도 바꾸지 않는다(078).
-    사업자등록증을 올렸거나(검토 대기 · 인증) 담당자가 임시 승인했어야 한다."""
+    """기본협약 동의 기록 — 처음 동의한 시각 · 서명(이름 · 구분 · 손 서명 그림 · IP)을 남기고, 다시 눌러도 바꾸지 않는다(078).
+    사업자등록증은 따지지 않는다(11-18 사용자: 선택 사항)."""
     ensure_partner(user)
-    if user.partner_agreed_at is None:
-        reg = user.business_registration
-        if not reg or reg.status not in AGREEABLE_BIZ_STATUS:
-            raise HTTPException(
-                status_code=400,
-                detail="사업자등록증을 먼저 올려 주세요. 담당자가 함께 있다면 임시 승인을 요청해 주세요.",
-            )
+    # 해지해 끝난 협약(096)이거나 예전 판에 동의했으면 새로 서명받아 다시 기록한다 — 해지 기록은 지운다(다시 1년씩 자동 갱신).
+    if user.partner_agreed_at_effective is None:
+        # 화면이 보여 준 판이 지금 판이 아니면(예전 화면을 열어 둔 채 동의) 받지 않는다 — 바로 또 옛 판이 된다.
+        if version != PARTNER_AGREEMENT_VERSION:
+            raise HTTPException(status_code=409, detail="협약서가 바뀌었어요. 새로고침한 뒤 다시 동의해 주세요.")
         name = (signer_name or "").strip()
         if not name or len(name) > SIGNER_NAME_MAX_LEN:
             raise HTTPException(status_code=400, detail="서명자 이름을 적어 주세요.")
@@ -297,6 +317,9 @@ def agree(
         user.partner_signed_ip = (ip or "")[:64] or None
         user.partner_agreed_at = datetime.now(timezone.utc)
         user.partner_agreement_version = version
+        user.partner_agreement_no = _next_agreement_no(db, user.partner_agreed_at)
+        user.partner_termination_requested_at = None
+        user.partner_termination_effective_on = None
         # 진행 상태(서명자 구분 등)는 남겨 둔다 — 동의 뒤 협약 화면을 다시 열 때 그대로 보여 준다.
         db.commit()
         db.refresh(user)
@@ -308,11 +331,35 @@ def agree(
 AGREEMENT_PROGRESS_MAX_LEN = 1_600_000
 
 
+# 다시 하는 협약의 진행 상태 표시(096) — 값은 끝난 협약의 종료일.
+RENEW_KEY = "renewOf"
+
+
+def _renew_tag(user: User) -> str | None:
+    """다시 하는 협약이면 그 표시 — 해지해 끝났으면 종료일, 예전 판에 동의했으면 지금 판("v2.0"). 아니면 None."""
+    if user.partner_agreement_ended:
+        return user.partner_termination_effective_on.isoformat()
+    if user.partner_agreement_outdated:
+        return f"v{PARTNER_AGREEMENT_VERSION}"
+    return None
+
+
+def agreement_progress(user: User) -> object:
+    """기본협약 진행 상태 — 해지해 끝난 협약이나 예전 판 협약을 다시 하면 지난 협약 때 상태(완료 · 서명)는 버리고 처음부터(096)."""
+    ensure_partner(user)
+    progress = user.partner_agreement_progress
+    tag = _renew_tag(user)
+    if tag is not None and not (isinstance(progress, dict) and progress.get(RENEW_KEY) == tag):
+        return None
+    return progress
+
+
 def save_agreement_progress(db: Session, user: User, progress: object) -> dict:
     """기본협약 진행 상태 저장 — 동의 전에만. 화면이 정한 JSON(dict)만 받는다.
     signature 는 완료한 손 서명(PNG data URL)만 — 동의를 마치면 진행 상태와 함께 지워지고 서명은 파일로 남는다."""
     ensure_partner(user)
-    if user.partner_agreed_at is not None:
+    tag = _renew_tag(user)
+    if user.partner_agreed_at is not None and tag is None:
         return {"ok": True}
     if progress is not None:
         signature = progress.get("signature") if isinstance(progress, dict) else None
@@ -322,6 +369,9 @@ def save_agreement_progress(db: Session, user: User, progress: object) -> dict:
             or (signature is not None and not (isinstance(signature, str) and signature.startswith(_PNG_DATA_URL)))
         ):
             raise HTTPException(status_code=400, detail="진행 상태를 저장하지 못했어요.")
+    # 끝난 협약 · 예전 판 협약을 다시 하는 중이면 그 표시를 적어 둔다 — 지난 협약 때 진행 상태와 구분한다(agreement_progress).
+    if tag is not None and isinstance(progress, dict):
+        progress = {**progress, RENEW_KEY: tag}
     user.partner_agreement_progress = progress
     db.commit()
     return {"ok": True}
@@ -1195,7 +1245,7 @@ def list_my_requests(db: Session, user: User, store_id: str) -> list[dict]:
 
 def _ensure_can_link(user: User) -> None:
     ensure_partner(user)
-    if user.partner_agreed_at is None:
+    if user.partner_agreed_at_effective is None:  # 해지해 끝난 협약도(096) — 다시 협약하면 된다
         raise HTTPException(status_code=400, detail="기본협약을 마친 뒤 매장 연결을 요청할 수 있어요.")
 
 
@@ -1619,13 +1669,59 @@ def admin_update_request(db: Session, request_id: str, data: dict) -> dict:
 
 # ── 어드민 · 제휴사 회원 ───────────────────────────────────────────────
 
-BIZ_ACTIONS = ("provisional", "verify", "reject", "reset")
+# 임시 승인(provisional)은 없앴다(11-18 사용자) — 예전에 임시 승인한 회원은 되돌리기 · 인증 완료로 정리한다.
+BIZ_ACTIONS = ("verify", "reject", "reset")
 
 
 def _latest_iso(*times: datetime | None) -> str | None:
     """가장 늦은 시각(ISO) — 모두 비었으면 None."""
     found = [t for t in times if t]
     return max(found).isoformat() if found else None
+
+
+_KST = timezone(timedelta(hours=9))
+# 협약 기간 — 서명일부터 1년, 만료일까지 갱신 거절이 없으면 1년씩 자동 갱신(협약서 협약 기간 조항).
+AGREEMENT_TERM_YEARS = 1
+
+
+def _add_years(d: date, n: int) -> date:
+    """n년 뒤 같은 날 — 2월 29일은 없는 해엔 2월 28일."""
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:
+        return d.replace(year=d.year + n, day=28)
+
+
+def agreement_term(u: User, today: date | None = None) -> dict:
+    """기본협약 기간(KST 날짜) — 지금 기간 시작일 · 다음 자동 갱신일(지금 기간 끝 다음 날) · 해지 기록.
+    해지했으면 종료일(effective_on)부터 효력이 없다 — 지나면 agreementEnded, 그 뒤엔 갱신일을 셈하지 않는다."""
+    empty = dict(
+        agreementTermStart=None,
+        agreementRenewsOn=None,
+        terminationRequestedAt=None,
+        terminationEffectiveOn=None,
+        agreementEnded=False,
+    )
+    if u.partner_agreed_at is None:
+        return empty
+    today = today or datetime.now(_KST).date()
+    signed = u.partner_agreed_at.astimezone(_KST).date()
+    ends = u.partner_termination_effective_on
+    ended = ends is not None and ends <= today
+    # 기준일 — 끝났으면 마지막 날(종료일 전날), 아니면 오늘. 그날이 든 기간과 다음 갱신일.
+    ref = ends - timedelta(days=1) if ended else today
+    n = AGREEMENT_TERM_YEARS
+    while _add_years(signed, n) <= ref:
+        n += AGREEMENT_TERM_YEARS
+    return dict(
+        agreementTermStart=_add_years(signed, n - AGREEMENT_TERM_YEARS).isoformat(),
+        agreementRenewsOn=None if ended else _add_years(signed, n).isoformat(),
+        terminationRequestedAt=(
+            u.partner_termination_requested_at.isoformat() if u.partner_termination_requested_at else None
+        ),
+        terminationEffectiveOn=ends.isoformat() if ends else None,
+        agreementEnded=ended,
+    )
 
 
 def _member_summary(u: User, stores: list[PartnersStore]) -> dict:
@@ -1646,11 +1742,17 @@ def _member_summary(u: User, stores: list[PartnersStore]) -> dict:
         lastLoginAt=u.last_login_at.isoformat() if u.last_login_at else None,
         agreedAt=u.partner_agreed_at.isoformat() if u.partner_agreed_at else None,
         agreementVersion=u.partner_agreement_version,
+        # 협약서 문서번호(097) — 협약서 PDF 에 들어간다.
+        agreementNo=u.partner_agreement_no,
+        # 예전 판 협약서에 동의 — 새 판에 다시 동의하기 전(2026-11-18 사용자).
+        agreementOutdated=u.partner_agreement_outdated,
         # 기본협약 전자 서명(078) — 어드민 회원 상세에 보인다.
         signerName=u.partner_signer_name,
         signerRole=u.partner_signer_role,
         signatureUrl=u.partner_signature_url,
         signedIp=u.partner_signed_ip,
+        # 협약 기간 · 다음 자동 갱신일 · 해지(096) — 어드민 회원 상세 기본협약 칸(2026-11-18 사용자).
+        **agreement_term(u),
         bizStatus=reg.status if reg else "unregistered",
         bizFileName=reg.license_file_name if reg else None,
         bizUploadedAt=reg.license_uploaded_at.isoformat() if reg and reg.license_uploaded_at else None,
@@ -1727,10 +1829,16 @@ def admin_list_members(
         if len(digits) >= 3 and all(ch.isdigit() or ch in "- " for ch in kw):
             conds.append(func.regexp_replace(User.phone, "[^0-9]", "", "g").like(f"%{digits}%"))
         q = q.filter(or_(*conds))
+    # 예전 판에 동의한 회원은 "협약 전"으로 — 새 판에 다시 동의해야 한다(판이 비어 있는 옛 기록도).
     if agreement == "done":
-        q = q.filter(User.partner_agreed_at.isnot(None))
+        q = q.filter(User.partner_agreed_at.isnot(None), User.partner_agreement_version == PARTNER_AGREEMENT_VERSION)
     elif agreement == "none":
-        q = q.filter(User.partner_agreed_at.is_(None))
+        q = q.filter(
+            or_(
+                User.partner_agreed_at.is_(None),
+                User.partner_agreement_version.is_distinct_from(PARTNER_AGREEMENT_VERSION),
+            )
+        )
     if biz:
         q = q.outerjoin(BusinessRegistration, BusinessRegistration.user_id == User.id)
         if biz == "unregistered":
@@ -1781,37 +1889,79 @@ def admin_lookup_member(db: Session, code: str) -> dict:
     return _member_summary(user, stores)
 
 
-def admin_biz_action(db: Session, member_id: str, action: str, reason: str | None = None) -> dict:
-    """사업자 인증 — provisional 임시 승인(현장, 등록증 없이 협약 진행) · verify 인증 완료 · reject 반려 · reset 미등록으로."""
+def apply_biz_action(
+    db: Session, user: User, action: str, reason: str | None = None, admin_id: uuid.UUID | None = None
+) -> None:
+    """사업자 인증 상태 바꾸기 — 제휴사 · 광고주(11-18) 회원 상세가 같이 쓴다. 커밋까지 한다.
+
+    verify 인증 완료 · reject 반려 · reset 미등록(파일이 있으면 검토 대기)으로. 임시 승인은 없앴다(11-18).
+    반려는 기록 표(095)에도 한 줄 남긴다 — 다시 올리거나 인증해도 지우지 않는다.
+    """
     if action not in BIZ_ACTIONS:
         raise HTTPException(status_code=400, detail="알 수 없는 처리예요.")
-    user = _partner_or_404(db, member_id)
     reg = user.business_registration
     if reg is None:
         reg = BusinessRegistration(user_id=user.id, status="unregistered")
         db.add(reg)
         user.business_registration = reg
     now = datetime.now(timezone.utc)
-    if action == "provisional":
-        if reg.status == "verified":
-            raise HTTPException(status_code=400, detail="이미 인증을 마친 회원이에요.")
-        reg.status = "provisional"
-        reg.provisional_at = now
-        reg.reject_reason = None
-    elif action == "verify":
+    if action == "verify":
         reg.status = "verified"
         reg.verified_at = now
         reg.reject_reason = None
+        reg.rejected_at = None
     elif action == "reject":
         reg.status = "rejected"
         reg.reject_reason = (reason or "").strip() or None
+        reg.rejected_at = now
         reg.verified_at = None
+        log_biz_rejection(db, reg, admin_id)
     else:
         reg.status = "reviewing" if reg.license_file_url else "unregistered"
         reg.reject_reason = None
+        reg.rejected_at = None
         reg.verified_at = None
         reg.provisional_at = None
     db.commit()
+
+
+AGREEMENT_ACTIONS = ("terminate", "cancel")
+
+
+def admin_agreement_action(db: Session, member_id: str, action: str) -> dict:
+    """기본협약 해지(갱신 거절) · 해지 취소(096, 2026-11-18 사용자).
+    해지 — 지금 기간이 끝나는 날(다음 자동 갱신일)까지는 유효하고 그날부터 끝난다. 이미 확정된 캠페인은 그대로(협약서).
+    취소 — 종료일 전에만, 다시 1년씩 자동 갱신으로 돌아간다."""
+    if action not in AGREEMENT_ACTIONS:
+        raise HTTPException(status_code=400, detail="알 수 없는 처리예요.")
+    user = _partner_or_404(db, member_id)
+    if user.partner_agreed_at is None:
+        raise HTTPException(status_code=400, detail="아직 협약하지 않은 회원이에요.")
+    term = agreement_term(user)
+    if action == "terminate":
+        if user.partner_termination_effective_on is not None:
+            raise HTTPException(status_code=409, detail="이미 해지한 협약이에요.")
+        user.partner_termination_requested_at = datetime.now(timezone.utc)
+        user.partner_termination_effective_on = date.fromisoformat(term["agreementRenewsOn"])
+    else:
+        if user.partner_termination_effective_on is None:
+            raise HTTPException(status_code=409, detail="해지하지 않은 협약이에요.")
+        if term["agreementEnded"]:
+            raise HTTPException(status_code=409, detail="이미 끝난 협약은 되돌릴 수 없어요. 다시 협약해 주세요.")
+        user.partner_termination_requested_at = None
+        user.partner_termination_effective_on = None
+    db.commit()
+    return admin_get_member(db, member_id)
+
+
+def admin_biz_action(
+    db: Session, member_id: str, action: str, reason: str | None = None, admin_id: uuid.UUID | None = None
+) -> dict:
+    """제휴사 회원 사업자 인증 — 인증 완료 · 반려 · 되돌리기."""
+    if action not in BIZ_ACTIONS:
+        raise HTTPException(status_code=400, detail="알 수 없는 처리예요.")
+    user = _partner_or_404(db, member_id)
+    apply_biz_action(db, user, action, reason, admin_id)
     return admin_get_member(db, member_id)
 
 

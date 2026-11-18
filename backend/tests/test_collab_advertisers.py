@@ -110,12 +110,42 @@ def test_admin_updates_biz_name_and_no(db: Session, people):
         db, str(adv.id), {"business_name": "  주식회사 테스트 ", "business_registration_no": "123-45-67890"}
     )
     assert (m["bizName"], m["bizNo"], m["bizStatus"]) == ("주식회사 테스트", "123-45-67890", "unregistered")
+    # 사업자번호는 숫자 10자리만 — 하이픈 없이 적어도 000-00-00000 으로, 모자라면 400(11-18)
+    m = svc.admin_update_biz(db, str(adv.id), {"business_registration_no": "1234567890"})
+    assert m["bizNo"] == "123-45-67890"
+    with pytest.raises(HTTPException) as e:
+        svc.admin_update_biz(db, str(adv.id), {"business_registration_no": "123-45"})
+    assert e.value.status_code == 400
     # 보낸 칸만 바꾼다
     m = svc.admin_update_biz(db, str(adv.id), {"business_registration_no": " "})
     assert (m["bizName"], m["bizNo"]) == ("주식회사 테스트", None)
     # 제휴사 회원은 여기서 못 바꾼다
     with pytest.raises(HTTPException) as e:
         svc.admin_update_biz(db, str(partner.id), {"business_name": "x"})
+    assert e.value.status_code == 404
+
+
+def test_admin_biz_action_verify_reject_reset(db: Session, people):
+    """광고주 사업자 인증(11-18) — 인증 완료 · 반려(사유) · 되돌리기, 임시 승인은 없다. 제휴사 회원은 404."""
+    _, adv, partner = people
+    m = svc.admin_biz_action(db, str(adv.id), "verify")
+    assert m["bizStatus"] == "verified" and m["bizVerifiedAt"]
+    m = svc.admin_biz_action(db, str(adv.id), "reject", "  사진이 흐려요 ")
+    assert (m["bizStatus"], m["bizRejectReason"], m["bizVerifiedAt"]) == ("rejected", "사진이 흐려요", None)
+    assert m["bizRejectedAt"]
+    assert [(r["reason"], r["rejectedAt"]) for r in m["bizRejections"]] == [("사진이 흐려요", m["bizRejectedAt"])]
+    m = svc.admin_biz_action(db, str(adv.id), "reset")
+    assert (m["bizStatus"], m["bizRejectReason"], m["bizRejectedAt"]) == ("unregistered", None, None)
+    # 반려 기록(095)은 되돌려도 남고, 다시 반려하면 최근 것이 맨 앞
+    assert len(m["bizRejections"]) == 1
+    m = svc.admin_biz_action(db, str(adv.id), "reject")
+    assert [r["reason"] for r in m["bizRejections"]] == [None, "사진이 흐려요"]
+    assert "bizRejections" not in svc.admin_list(db, keyword=str(adv.login_id))[1][0]
+    with pytest.raises(HTTPException) as e:
+        svc.admin_biz_action(db, str(adv.id), "provisional")
+    assert e.value.status_code == 400
+    with pytest.raises(HTTPException) as e:
+        svc.admin_biz_action(db, str(partner.id), "verify")
     assert e.value.status_code == 404
 
 

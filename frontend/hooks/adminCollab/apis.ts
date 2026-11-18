@@ -2,6 +2,7 @@ import type { PlanFile, PlanRoundPayload } from "@/lib/collabPlan";
 import { api } from "@/lib/api";
 import type {
   AdminAdvertiserMember,
+  AdvertiserBizAction,
   BizAction,
   AdminAdvCollabRequest,
   AdminAdvCollabRequestDetail,
@@ -20,6 +21,7 @@ import type {
   AdminCollabPayload,
   AdminPartnerMember,
   AdminStoreRequest,
+  AgreementAction,
   CollabAdminSummary,
   CollabPhotoStep,
   ParticipantStatus,
@@ -84,6 +86,11 @@ export const adminCollabApi = {
         reason: reason ?? null,
       })
       .then((r) => r.data),
+  /** 기본협약 해지 · 해지 취소(096). */
+  agreementAction: (id: string, action: AgreementAction) =>
+    api
+      .post<AdminPartnerMember>(`/admin/collab/members/${enc(id)}/agreement`, { action })
+      .then((r) => r.data),
   bizFile: (id: string) =>
     api
       .get<Blob>(`/admin/collab/members/${enc(id)}/biz-file`, {
@@ -133,11 +140,31 @@ export const adminCollabApi = {
         payload,
       )
       .then((r) => r.data),
+  /** 광고주 사업자 인증(11-18) — 인증 완료 · 반려(사유) · 되돌리기. */
+  advertiserBizAction: (
+    id: string,
+    action: AdvertiserBizAction,
+    reason?: string | null,
+  ) =>
+    api
+      .post<AdminAdvertiserMember>(`/admin/collab/advertisers/${enc(id)}/biz`, {
+        action,
+        reason: reason ?? null,
+      })
+      .then((r) => r.data),
   advertiserFile: (id: string, kind: "business-card" | "biz-file") =>
     api
       .get<Blob>(`/admin/collab/advertisers/${enc(id)}/${kind}`, {
         responseType: "blob",
       })
+      .then((r) => r.data),
+  /** 지난 반려 때 올렸던 사업자등록증(095). */
+  advertiserRejectionFile: (id: string, rejectionId: string) =>
+    api
+      .get<Blob>(
+        `/admin/collab/advertisers/${enc(id)}/biz-rejections/${enc(rejectionId)}/file`,
+        { responseType: "blob" },
+      )
       .then((r) => r.data),
 
   // ── 광고주 콜라보 의뢰(읽기, 081) ──

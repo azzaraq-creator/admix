@@ -82,6 +82,8 @@ export interface BusinessRegistration {
   license_uploaded_at: string | null;
   verified_at: string | null;
   provisional_at?: string | null;
+  /** 반려한 시각(095, 11-18). */
+  rejected_at?: string | null;
 }
 
 export interface MeResponse {
@@ -109,11 +111,17 @@ export interface MeResponse {
   business_registration: BusinessRegistration | null;
   /** 제휴사(콜라보) 기본협약 동의 시각 — null 이면 아직 동의 전(로그인 시 이어서 하기 창). */
   partner_agreed_at?: string | null;
+  /** 해지해 끝난 협약(096) — 이때 partner_agreed_at 은 null 로 와서 다시 협약한다. */
+  partner_agreement_ended?: boolean;
+  /** 예전 판 협약서에 동의 — 이때도 partner_agreed_at 은 null 로 와서 새 판에 다시 동의한다(11-18). */
+  partner_agreement_outdated?: boolean;
   /** 기본협약 전자 서명(078) — 협약서 서명란에 보인다. 서명 도입 전에 동의했으면 비어 있다. */
   partner_signer_name?: string | null;
   partner_signer_role?: string | null;
   /** 손 서명 그림(/uploads/partner-signature/…). */
   partner_signature_url?: string | null;
+  /** 협약서 문서번호(097, "20261118-00001") — 동의할 때 서버가 매긴다. 협약서 PDF 에 들어간다. */
+  partner_agreement_no?: string | null;
   /** 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 이 번호로 매장을 연결한다. */
   partner_code?: string | null;
   /** 슈퍼 계정 묶음(087) — 자기 자신 포함, 회원 유형 순서. 보통 회원은 빈 목록(계정 전환 메뉴 없음). */
@@ -176,7 +184,11 @@ export const authApi = {
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refresh_token: refreshToken }),
   /** 슈퍼 계정 "계정 전환" — 같은 묶음의 다른 유형 계정 토큰. 지금 리프레시 토큰은 서버가 폐기한다. */
-  switchAccount: (userId: string, remember: boolean, refreshToken: string | null) =>
+  switchAccount: (
+    userId: string,
+    remember: boolean,
+    refreshToken: string | null,
+  ) =>
     api
       .post<LoginResponse>("/auth/switch-account", {
         user_id: userId,
