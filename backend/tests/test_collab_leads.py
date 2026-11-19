@@ -156,7 +156,7 @@ def test_link_lead_to_partner(db: Session):
         )
         assert made["partnerCode"] == code and made["storeCode"].startswith("S-")
         store = db.get(PartnersStore, uuid.UUID(made["storeId"]))
-        assert [m.user_id for m in store.members] == [partner.id] and store.status == "hidden"
+        assert [m.user_id for m in store.members] == [partner.id] and store.status == "active"  # 기본 공개(11-19)
 
         # 숫자만 적어도 같은 회원
         got = ls.update_lead(db, made["id"], {"partnerCode": code.removeprefix("P-")})

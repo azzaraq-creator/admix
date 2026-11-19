@@ -65,6 +65,7 @@ import {
   hoursPayload,
   PartnersPhotoSection,
   SeatsInput,
+  STORE_STATUS_OPTIONS,
 } from "../../_components/PartnersStoreFormView";
 import { labelOf, UrlLink } from "./leadCells";
 import { findLeadLocation, useLeadConfirm } from "./useLeadConfirm";
@@ -87,6 +88,7 @@ type FormState = Required<
 };
 
 const EMPTY_STORE_INFO: StoreInfoForm = {
+  status: "active",
   storeTypeId: null,
   phone: "",
   ownerName: "",
@@ -333,7 +335,7 @@ function LeadForm({
     /** 이 저장으로 협업 확정됐으면 알림 둘째 줄 — 매장 번호와 회원에게도 보인다는 것. */
     const confirmedNote = (saved: CollabLead) =>
       saved.storeCode && !lead?.storeCode
-        ? `협업 확정 ${saved.storeCode}(비공개) — 연결한 회원에게도 연결 매장으로 보여요.`
+        ? `협업 확정 ${saved.storeCode}(${saved.storeStatus === "hidden" ? "비공개" : "공개"}) — 연결한 회원에게도 연결 매장으로 보여요.`
         : undefined;
     try {
       if (lead) {
@@ -619,6 +621,30 @@ function LeadForm({
             }
           >
             <Grid>
+              {/* 협업 확정할 때 매장 공개 상태(11-19 사용자, 기본 공개). 확정 뒤엔 매장의 지금 상태를 보여 주고 매장에서 바꾼다. */}
+              <HeroField
+                label="공개 상태"
+                help={
+                  lead?.storeId
+                    ? undefined
+                    : "협업 확정하면 이 상태로 매장이 만들어져요."
+                }
+              >
+                <HeroSelect
+                  ariaLabel="공개 상태"
+                  allowEmpty={false}
+                  isDisabled={!!lead?.storeId}
+                  value={
+                    lead?.storeId && lead.storeStatus
+                      ? lead.storeStatus
+                      : form.storeInfo.status
+                  }
+                  onChange={(v) =>
+                    setInfo("status", v === "hidden" ? "hidden" : "active")
+                  }
+                  options={STORE_STATUS_OPTIONS}
+                />
+              </HeroField>
               <HeroField label="매장 유형">
                 <HeroSelect
                   ariaLabel="매장 유형"

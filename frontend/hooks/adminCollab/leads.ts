@@ -144,7 +144,7 @@ export const useDeleteCollabLead = () => {
   });
 };
 
-/** 협업 확정 — 협업 확정 매장(비공개)을 만들고 이 기록과 잇는다(076). 기록은 목록에 그대로 남는다(11-12). */
+/** 협업 확정 — 협업 확정 매장(공개 상태는 업체 정보 탭 "공개 상태", 기본 공개 — 11-19)을 만들고 이 기록과 잇는다(076). 기록은 목록에 그대로 남는다(11-12). */
 export const useConfirmCollabLead = () => {
   const queryClient = useQueryClient();
   return useMutation({

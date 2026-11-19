@@ -751,7 +751,8 @@ function PhotoAlbum({
         }
         right={
           <span className="shrink-0 text-[13px] text-gray-500 max-sm:text-[12px]">
-            사진 <b className="font-semibold text-gray-900">{photos.length}</b>장
+            사진 <b className="font-semibold text-gray-900">{photos.length}</b>
+            장
           </span>
         }
       />
@@ -1131,7 +1132,9 @@ function RequestModal({
         <Modal.Container placement="center" size="md">
           <Modal.Dialog aria-label={`${label} 수정 요청`}>
             <Modal.CloseTrigger />
-            <Form onSubmit={submit} className="flex flex-col">
+            {/* 창 안 스크롤(HeroUI 기본 scroll inside)은 몸통이 창 높이 안에 들어와야 된다 — 사이의 form 도
+                min-h-0 flex-1 로 줄어들게(11-19 사용자: 가능 범위 수정 요청 창 "스크롤이 안 되는데"). */}
+            <Form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
               <Modal.Header className="flex flex-col items-start pr-[36px]">
                 <Modal.Heading className="text-[17px] font-bold text-gray-900">
                   {label} 수정 요청
@@ -1147,9 +1150,7 @@ function RequestModal({
                 <div className="flex flex-col gap-[6px]">
                   <span className={FIELD_LABEL}>현재 내용</span>
                   <p className="rounded-[12px] bg-gray-50 px-[12px] py-[10px] text-[13px] leading-[1.6] break-keep text-gray-600">
-                    {now ?? (
-                      <span className="text-gray-400">비어 있어요</span>
-                    )}
+                    {now ?? <span className="text-gray-400">비어 있어요</span>}
                   </p>
                 </div>
 
@@ -1222,8 +1223,8 @@ function RequestModal({
                       </div>
                       {legacyHours && !pending && (
                         <p className="text-[12px] break-keep text-gray-400">
-                          지금 적힌 운영 시간을 입력칸으로 옮기지 못했어요.
-                          새로 넣어 주세요.
+                          지금 적힌 운영 시간을 입력칸으로 옮기지 못했어요. 새로
+                          넣어 주세요.
                         </p>
                       )}
                     </div>
@@ -1365,7 +1366,7 @@ function InquiryModal({
       <Modal.Container placement="center" size="md">
         <Modal.Dialog aria-label={STORE_INQUIRY_LABEL}>
           <Modal.CloseTrigger />
-          <Form onSubmit={submit} className="flex flex-col">
+          <Form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
             <Modal.Header className="flex flex-col items-start pr-[36px]">
               <Modal.Heading className="text-[17px] font-bold text-gray-900">
                 {STORE_INQUIRY_LABEL}
@@ -1457,7 +1458,7 @@ function AddStoreModal({
       <Modal.Container placement="center" size="sm">
         <Modal.Dialog aria-label={`${STORE_ADD_LABEL} 요청`}>
           <Modal.CloseTrigger />
-          <Form onSubmit={submit} className="flex flex-col">
+          <Form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
             <Modal.Header className="flex flex-col items-start gap-[4px] pr-[36px]">
               <Modal.Heading className="text-[17px] font-bold text-gray-900">
                 {STORE_ADD_LABEL} 요청

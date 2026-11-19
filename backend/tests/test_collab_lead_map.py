@@ -3,6 +3,7 @@
 - 위치가 있으면 지도용 media 줄이 생기고, 광고주에겐 매장 모양으로 공개해도 되는 칸만 간다(연락처 · 대화 · 영업 등급은 안 감).
 - 주소가 바뀌었는데 위치를 못 받으면 지도에서 빠진다.
 - 협업 확정 매장이 지도에 뜨면(공개) 매장이 같은 매체 ID 를 이어받고, 비공개 · 협업 취소면 영업 기록이 다시 그 자리로.
+- 확정 매장의 공개 상태는 업체 정보 탭 "공개 상태"(storeInfo.status, 기본 공개 — 11-19 사용자).
 실제 postgres — 이름이 "테스트영업-지도-"인 기록만 만들고 끝나면 매장 · 지도 줄까지 지운다.
 """
 from __future__ import annotations
@@ -12,6 +13,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
@@ -115,8 +117,29 @@ def test_lead_without_location_or_moved_address_is_off_map(db: Session):
     assert db.get(Media, mid) is None
 
 
-def test_store_takes_over_map_spot_and_gives_it_back(db: Session):
+def test_confirm_public_by_default_keeps_map_spot(db: Session):
+    """11-19 — 공개 상태를 안 고르면 공개로 확정, 매장이 영업 기록 매체 ID 를 그대로 이어받는다(광고주 하트가 그대로)."""
     made = _lead(db)
+    mid = made["mediaId"]
+    assert made["storeInfo"]["status"] == "active" and made["storeStatus"] == ""
+    out = ls.confirm_lead(db, made["id"])
+    assert out["store"]["status"] == "active"
+    assert out["lead"]["mediaId"] == "" and out["lead"]["storeStatus"] == "active"
+    db.expire_all()
+    assert db.get(PartnersStore, uuid.UUID(out["store"]["id"])).media_id == mid
+    assert db.get(Media, mid).name == made["name"]
+
+
+def test_lead_store_status_choice(db: Session):
+    made = _lead(db, storeInfo={"status": "hidden"})
+    assert made["storeInfo"]["status"] == "hidden"
+    with pytest.raises(HTTPException):
+        ls.update_lead(db, made["id"], {"storeInfo": {"status": "draft"}})
+    assert ls.update_lead(db, made["id"], {"storeInfo": {}})["storeInfo"]["status"] == "active"  # 안 보내면 기본 공개
+
+
+def test_store_takes_over_map_spot_and_gives_it_back(db: Session):
+    made = _lead(db, storeInfo={"status": "hidden"})
     mid = made["mediaId"]
     out = ls.confirm_lead(db, made["id"])  # 화면이 위치를 못 보내도 영업 기록 위치로
     store_id = out["store"]["id"]
@@ -143,8 +166,7 @@ def test_store_takes_over_map_spot_and_gives_it_back(db: Session):
 def test_admin_store_delete_returns_lead_to_map(db: Session):
     made = _lead(db)
     mid = made["mediaId"]
-    store_id = ls.confirm_lead(db, made["id"])["store"]["id"]
-    ps.admin_update(db, store_id, {"status": "active"})
+    store_id = ls.confirm_lead(db, made["id"])["store"]["id"]  # 기본 공개 — 매장이 지도 자리를 이어받는다
     ps.admin_delete(db, store_id)
     db.expire_all()
     lead = db.get(CollabLead, uuid.UUID(made["id"]))

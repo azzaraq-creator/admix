@@ -33,7 +33,8 @@ export async function findLeadLocation(
 }
 
 /**
- * 협업 확정(076) — 묻고, 영업 기록 칸으로 협업 확정 매장에 비공개 매장을 만든다. 목록 줄 · 상세가 같이 쓴다.
+ * 협업 확정(076) — 묻고, 영업 기록 칸으로 협업 확정 매장에 매장을 만든다. 목록 줄 · 상세가 같이 쓴다.
+ * 공개 상태는 업체 정보 탭 "공개 상태"(11-19 사용자, 기본 공개 — 예전엔 늘 비공개).
  * 영업 기록은 지우지 않고 목록에도 그대로 남는다(11-12 사용자 — 칸이 달라 두 목록을 따로 둔다). 확정 버튼 자리에 매장 번호가 뜬다.
  * 협업 취소(11-12 사용자, 상세에서) — 확정의 반대: 만든 매장을 지우고 확정 전으로. 참여 · 수정 요청 기록이 있으면 서버가 막는다.
  */
@@ -47,9 +48,13 @@ export function useLeadConfirm() {
 
   const run = useCallback(
     async (
-      lead: Pick<CollabLead, "id" | "name" | "address" | "custom" | "photos">,
+      lead: Pick<
+        CollabLead,
+        "id" | "name" | "address" | "custom" | "photos" | "storeInfo"
+      >,
     ) => {
       const photoCount = lead.photos?.length ?? 0;
+      const hidden = lead.storeInfo?.status === "hidden";
       const ok = await confirm({
         // 11-12 사용자 — 제목은 묻는 말, 본문은 매장명 한 줄 + 짧은 설명.
         title: "협업 확정하실 건가요?",
@@ -60,7 +65,7 @@ export function useLeadConfirm() {
               <span className="font-semibold text-black">{lead.name}</span>
             </p>
             <p className="mt-[6px] break-keep">
-              협업 확정 매장에 비공개로 추가돼요.
+              협업 확정 매장에 {hidden ? "비공개" : "공개"}로 추가돼요.
               {photoCount > 0 &&
                 ` 매장 사진 ${photoCount}장도 함께 옮겨요.`}{" "}
               영업 기록은 그대로 남아요.
@@ -77,7 +82,9 @@ export function useLeadConfirm() {
         });
         success(
           "협업 확정했어요.",
-          `${store.storeCode ?? ""} 비공개 — 사진 · 금액을 채우고 공개로 바꿔 주세요.`,
+          store.status === "hidden"
+            ? `${store.storeCode ?? ""} 비공개 — 사진 · 금액을 채우고 공개로 바꿔 주세요.`
+            : `${store.storeCode ?? ""} 공개 — 광고주 매장 찾기에도 보여요.`,
         );
         return store;
       } catch (err) {

@@ -137,15 +137,16 @@ type FieldKey =
 
 /**
  * 큰 구역 하나 = 탭 하나(2026-11-10 사용자: 스크롤 대신 탭으로 넘겨 본다).
- * 순서는 매장 정보 → 매장 사진 → 위치 → 매장 등급 → 관리 — 조건 메모는 따로 탭 없이 매장 정보 맨 끝(2026-11-12 사용자).
+ * 순서는 매장 정보 → 위치 → 매장 사진 → 매장 등급 → 관리 — 조건 메모는 따로 탭 없이 매장 정보 맨 끝(2026-11-12 사용자),
+ * 위치와 매장 사진 순서를 바꿈(2026-11-19 사용자).
  */
 type FormTab = "info" | "photos" | "location" | "grade" | "manage";
 
 /** keys — 그 탭에 있는 칸. 오류가 있으면 탭에 빨간 숫자가 붙고, 저장할 때 첫 오류 탭으로 옮긴다. */
 const FORM_TABS: { id: FormTab; title: string; keys: readonly FieldKey[] }[] = [
   { id: "info", title: "매장 정보", keys: ["name", "storeType", "hours"] },
-  { id: "photos", title: "매장 사진", keys: ["images"] },
   { id: "location", title: "위치", keys: ["address"] },
+  { id: "photos", title: "매장 사진", keys: ["images"] },
   {
     id: "grade",
     title: "매장 등급",
@@ -263,7 +264,8 @@ export function SeatsInput({
   );
 }
 
-const STATUS_OPTIONS = [
+/** 공개 상태 — 영업 기록 업체 정보 탭 "공개 상태"(11-19)도 같이 쓴다. */
+export const STORE_STATUS_OPTIONS = [
   { value: "active", label: "공개" },
   { value: "hidden", label: "비공개" },
 ];
@@ -380,10 +382,6 @@ export function hoursPayload(hours: StoreHours): StoreHours | null {
     ? { slots, closed: hours.closed }
     : null;
 }
-
-/** 광고주 · 제휴사에게도 보이는 사진(메뉴처럼 어드민 전용 분류가 아닌 것). */
-const isPublicPhoto = (p: StorePhoto) =>
-  !ADMIN_ONLY_PHOTO_KINDS.includes(p.kind);
 
 /** 분류마다 첫 장에 대표 표시를 붙인다(저장할 때). */
 function withCovers(list: StorePhoto[]): StorePhoto[] {
@@ -615,10 +613,7 @@ function PartnersStoreForm({
 
   const validate = () => {
     const next: Partial<Record<FieldKey, string>> = {};
-    if (!form.images.length) next.images = "사진을 1장 이상 올려 주세요.";
-    else if (!form.images.some(isPublicPhoto))
-      next.images =
-        "메뉴 사진은 어드민에서만 보여요. 다른 분류 사진도 1장 이상 올려 주세요.";
+    // 매장 사진은 선택(2026-11-19 사용자) — 사진 없이도 등록 · 저장한다.
     if (!form.name.trim()) next.name = "매장명을 입력해 주세요.";
     if (typeId == null) next.storeType = "매장 유형을 골라 주세요.";
     if (!form.address.trim()) next.address = "매장 주소를 검색해 주세요.";
@@ -934,20 +929,6 @@ function PartnersStoreForm({
           </AdminPanel>
         </Tabs.Panel>
 
-        <Tabs.Panel id="photos" shouldForceMount className={PANEL_CLASS}>
-          <AdminPanel>
-            <PartnersPhotoSection
-              photos={form.images}
-              onChange={(images) => {
-                set("images", images);
-                if (images.some(isPublicPhoto))
-                  setErrors((prev) => ({ ...prev, images: undefined }));
-              }}
-              error={errors.images}
-            />
-          </AdminPanel>
-        </Tabs.Panel>
-
         <Tabs.Panel id="location" shouldForceMount className={PANEL_CLASS}>
           <AdminPanel>
             <div className="grid grid-cols-2 gap-x-[24px] gap-y-[20px]">
@@ -1015,6 +996,17 @@ function PartnersStoreForm({
           </AdminPanel>
         </Tabs.Panel>
 
+        {/* 매장 사진은 선택(2026-11-19 사용자) — 제목 옆 * 없이. */}
+        <Tabs.Panel id="photos" shouldForceMount className={PANEL_CLASS}>
+          <AdminPanel>
+            <PartnersPhotoSection
+              photos={form.images}
+              onChange={(images) => set("images", images)}
+              required={false}
+            />
+          </AdminPanel>
+        </Tabs.Panel>
+
         <Tabs.Panel id="grade" shouldForceMount className={PANEL_CLASS}>
           <AdminPanel>
             <div className="flex flex-col gap-[24px]">
@@ -1075,7 +1067,7 @@ function PartnersStoreForm({
                   onChange={(v) =>
                     set("status", v === "hidden" ? "hidden" : "active")
                   }
-                  options={STATUS_OPTIONS}
+                  options={STORE_STATUS_OPTIONS}
                 />
               </HeroField>
               <HeroField label="관리자 메모" wide>

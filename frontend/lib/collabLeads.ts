@@ -90,6 +90,8 @@ export interface CollabLead {
   storeId: string;
   /** 그 매장 ID(S-0001) — 없으면 "". */
   storeCode: string;
+  /** 그 매장의 지금 공개 상태 — 확정 전이면 "". 확정 뒤 업체 정보 탭 "공개 상태"가 이 값을 보여 준다(11-19). */
+  storeStatus: "active" | "hidden" | "";
   /** 광고주 지도 위치(090) — 주소(없으면 지번주소)를 화면이 카카오 지도로 찾아 저장한다. 없으면 지도에 안 뜬다. */
   latitude: number | null;
   longitude: number | null;
@@ -102,6 +104,8 @@ export interface CollabLead {
  * 매장 유형을 고르지 않으면 업체 유형으로 맞추고, 전화번호 · 사장 이름이 비면 확정할 때 매장 담당자 칸에서 채운다.
  */
 export interface LeadStoreInfo {
+  /** 협업 확정할 때 매장 공개 상태(11-19 사용자) — 기본 공개. */
+  status: "active" | "hidden";
   storeTypeId: number | null;
   phone: string;
   ownerName: string;
@@ -133,6 +137,7 @@ export type CollabLeadPayload = Partial<
     | "photoIds"
     | "storeId"
     | "storeCode"
+    | "storeStatus"
     | "latitude"
     | "longitude"
     | "mediaId"

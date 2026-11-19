@@ -74,7 +74,7 @@ export function LeadsListView() {
     ...filters,
     sort: sort === DEFAULT_SORT ? undefined : sort,
   });
-  // 줄마다 "확정" — 협업 확정 매장에 비공개 매장을 만든다(076). 확정한 줄도 이 목록에 그대로 남고(11-12 사용자 —
+  // 줄마다 "확정" — 협업 확정 매장에 매장을 만든다(076, 공개 상태는 업체 정보 탭 — 기본 공개, 11-19). 확정한 줄도 이 목록에 그대로 남고(11-12 사용자 —
   // 두 목록은 칸이 달라 따로 둔다), 버튼 자리에 만든 매장 번호가 떠 누르면 그 매장으로 간다.
   const { run: confirmLead, pendingId, dialog } = useLeadConfirm();
 
