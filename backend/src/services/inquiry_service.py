@@ -257,10 +257,10 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
     base = get_settings().email_link_base
     my_url = f"{base}/contact?tab=history" if base else ""
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
-        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        f'<img src="{base}/service/admix-logo-email-light.png" alt="admix" '
+        'width="105" height="30" style="display:block;border:0;width:105px;height:30px">'
         if base
-        else 'admix<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#7a3fe0">●</span>'
     )
     title = subject or "문의"
 
@@ -280,7 +280,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
 
     safe_title = escape(title)
     my_inquiry = (
-        f'<a href="{my_url}" style="color:#00AAA4;text-decoration:none">[문의하기 &gt; 문의내역]</a>'
+        f'<a href="{my_url}" style="color:#7a3fe0;text-decoration:none">[문의하기 &gt; 문의내역]</a>'
         if my_url
         else "[문의하기 &gt; 문의내역]"
     )
@@ -288,7 +288,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
         f"""
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0">
                 <tr>
-                  <td bgcolor="#00AAA4" style="border-radius:8px">
+                  <td bgcolor="#7a3fe0" style="border-radius:8px">
                     <a href="{my_url}" style="display:inline-block;padding:12px 24px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:8px">문의내역 확인하기</a>
                   </td>
                 </tr>
@@ -297,23 +297,23 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
         else ""
     )
     html = f"""\
-<div style="margin:0;padding:0;background-color:#000000">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+<div style="margin:0;padding:0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
           <tr>
-            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px">
               {logo_html}
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px">
               [admix] 문의하신 내용에 대한 답변이 등록되었습니다.
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               안녕하세요.<br>
               문의해 주신 내용에 대한 답변이 등록되어 안내드립니다.
               <ul style="margin:24px 0 0;padding-left:24px">
@@ -322,7 +322,7 @@ def send_inquiry_answered_email(email: str, subject: str) -> None:
             </td>
           </tr>
           <tr>
-            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               답변 내용은 서비스 내 {my_inquiry}에서 확인할 수 있습니다.<br><br>
               감사합니다.<br><br>
               admix 드림{button_html}

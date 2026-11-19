@@ -322,10 +322,10 @@ def send_password_reset_email(email: str, token: str) -> None:
     seconds = PASSWORD_RESET_TTL_SECONDS
     expiry = f"{seconds // 3600}시간" if seconds % 3600 == 0 else f"{seconds // 60}분"
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
-        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        f'<img src="{base}/service/admix-logo-email-light.png" alt="admix" '
+        'width="105" height="30" style="display:block;border:0;width:105px;height:30px">'
         if base
-        else 'admix<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#7a3fe0">●</span>'
     )
     subject = "[admix] 새로운 비밀번호를 재설정해주세요"
     text = (
@@ -339,23 +339,23 @@ def send_password_reset_email(email: str, token: str) -> None:
         "admix 드림"
     )
     html = f"""\
-<div style="margin:0;padding:0;background-color:#000000">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+<div style="margin:0;padding:0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
           <tr>
-            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px">
               {logo_html}
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px">
               [admix] 새로운 비밀번호를 재설정해주세요
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               안녕하세요.<br>
               회원님의 비밀번호 재설정 요청이 접수되었습니다.<br>
               아래 버튼을 클릭하여 새로운 비밀번호를 설정해 주세요.
@@ -365,7 +365,7 @@ def send_password_reset_email(email: str, token: str) -> None:
             <td style="padding-bottom:17px">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td bgcolor="#00AAA4" style="border-radius:8px">
+                  <td bgcolor="#7a3fe0" style="border-radius:8px">
                     <a href="{link}" style="display:inline-block;padding:12px 16px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px">비밀번호 재설정</a>
                   </td>
                 </tr>
@@ -373,7 +373,7 @@ def send_password_reset_email(email: str, token: str) -> None:
             </td>
           </tr>
           <tr>
-            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               링크는 보안을 위해 {expiry} 후 만료됩니다.<br>
               만약 비밀번호 재설정을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
               감사합니다.<br><br>
@@ -422,10 +422,10 @@ def send_email_verification_code(email: str, code: str) -> None:
     minutes = EMAIL_CODE_TTL_SECONDS // 60
     base = settings.email_link_base
     logo_html = (
-        f'<img src="{base}/service/admix-logo-email.png" alt="admix" '
-        'width="120" height="30" style="display:block;border:0;width:120px;height:30px">'
+        f'<img src="{base}/service/admix-logo-email-light.png" alt="admix" '
+        'width="105" height="30" style="display:block;border:0;width:105px;height:30px">'
         if base
-        else 'admix<span style="color:#00AAA4">●</span>'
+        else 'admix<span style="color:#7a3fe0">●</span>'
     )
     subject = "[admix] 이메일 인증코드를 확인해주세요"
     text = (
@@ -439,36 +439,36 @@ def send_email_verification_code(email: str, code: str) -> None:
         "admix 드림"
     )
     html = f"""\
-<div style="margin:0;padding:0;background-color:#000000">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000">
+<div style="margin:0;padding:0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center" style="padding:24px">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#000000">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
           <tr>
-            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px;color:#ffffff">
+            <td style="padding:24px 0;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.5px">
               {logo_html}
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:20px;font-weight:600;line-height:28px;letter-spacing:-0.08px">
               [admix] 이메일 인증코드를 확인해주세요
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               안녕하세요.<br>
               회원가입을 위한 이메일 인증 요청이 접수되었습니다.<br>
               아래 인증코드를 입력하여 이메일 인증을 완료해 주세요.
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#ffffff">
+            <td style="padding-bottom:17px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif">
               <p style="margin:0;font-size:16px;font-weight:500;line-height:24px">인증코드</p>
               <p style="margin:4px 0 0;font-size:24px;font-weight:700;line-height:32px;letter-spacing:-0.1px">{code}</p>
             </td>
           </tr>
           <tr>
-            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px;color:#ffffff">
+            <td style="font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;font-weight:500;line-height:24px">
               인증코드는 보안을 위해 {minutes}분 후 만료됩니다.<br>
               만약 이메일 인증을 요청하지 않으셨다면 본 메일을 무시해 주세요.<br>
               감사합니다.<br><br>

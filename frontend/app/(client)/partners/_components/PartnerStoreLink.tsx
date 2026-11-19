@@ -4,7 +4,7 @@ import { Button, InputGroup, TextField, toast } from "@heroui/react";
 import { Link2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { ArrowLeftIcon } from "@/components/icons";
 import { MaskIcon } from "@/components/common/MaskIcon";
@@ -130,6 +130,9 @@ export function PartnerStoreLink() {
 /** 매장 ID로 연결 — 다 치면 매장 이름 · 주소를 보여 주고 "연결 요청". 아래에 보낸 요청과 처리 상태. */
 function StoreIdCard() {
   const [body, setBody] = useState("");
+  // 한글 조합 중(한/영을 안 바꾸고 친 영문)엔 칸 글을 그대로 두고, 조합이 끝나면 영문 · 대문자로 다듬는다(11-19 사용자).
+  // 조합 중에 값을 바꾸면 브라우저에 따라 마지막 글자가 두 번 들어간다. 찾기(code)는 조합 중 글도 영문으로 세어 본다.
+  const composing = useRef(false);
   const code = storeCodeFromInput(body);
   const lookup = useStoreLinkLookup(code);
   const create = useCreateStoreLink();
@@ -169,7 +172,9 @@ function StoreIdCard() {
       <TextField
         aria-label="매장 ID"
         value={body}
-        onChange={(v) => setBody(formatStoreCodeInput(v))}
+        onChange={(v) =>
+          setBody(composing.current ? v : formatStoreCodeInput(v))
+        }
       >
         <InputGroup fullWidth variant="secondary" className="h-[48px]">
           <InputGroup.Prefix className="pl-[14px] text-[16px] font-semibold text-gray-500">
@@ -180,6 +185,14 @@ function StoreIdCard() {
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck={false}
+            onCompositionStart={() => {
+              composing.current = true;
+            }}
+            onCompositionEnd={(e) => {
+              composing.current = false;
+              setBody(formatStoreCodeInput(e.currentTarget.value));
+            }}
+            onBlur={(e) => setBody(formatStoreCodeInput(e.currentTarget.value))}
             className="text-[16px] font-semibold tracking-[0.04em]"
           />
         </InputGroup>

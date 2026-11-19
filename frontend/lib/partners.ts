@@ -1,4 +1,5 @@
 import type { PlanBlock } from "@/lib/collabPlan";
+import { hangulToQwerty } from "@/lib/hangulKeys";
 
 /** 콜라보 — 매체 찾기 카테고리·/partners 대시보드가 같이 쓰는 값. 백엔드 partners_service 와 같다. */
 
@@ -230,21 +231,29 @@ export const partnersStoreHref = (key: string) =>
 export const STORE_CODE_PREFIX = "S-";
 const STORE_CODE_BODY_LEN = 8;
 
+/** 매장 ID 글자만 — 한글 자판으로 친 글(ㅁ · 뮤 …)은 같은 자리 영문으로 바꾸고(11-19 사용자: 한/영을 안 바꾸면
+ * 영문이 지워져 "숫자만 입력 가능"), 대문자로, 숫자 · 영문 밖은 뺀다. */
+function storeCodeChars(raw: string): string {
+  return hangulToQwerty(raw)
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, "");
+}
+
 /**
  * 매장 ID 입력 다듬기 — 칸 안 글(머리 "S-"는 칸 앞에 따로 보인다). 소문자는 대문자로, 4자 뒤 하이픈은 저절로
  * (11-17 사용자: "소문자로 입력해도 자동으로 대문자로, -도 자동으로"). 머리까지 치거나 붙여 넣은 "s7kq2…" · "S-7KQ2-M9XD"도 머리를 뗀다
- * — 매장 ID 본문은 S 로 시작하지 않는다(서버 STORE_CODE_FIRST).
+ * — 매장 ID 본문은 S 로 시작하지 않는다(서버 STORE_CODE_FIRST). 한글 자판으로 친 글도 영문으로 바꾼다(11-19).
  */
 export function formatStoreCodeInput(raw: string): string {
-  let t = raw.toUpperCase().replace(/[^0-9A-Z]/g, "");
+  let t = storeCodeChars(raw);
   if (t.startsWith("S")) t = t.slice(1);
   t = t.slice(0, STORE_CODE_BODY_LEN);
   return t.length > 4 ? `${t.slice(0, 4)}-${t.slice(4)}` : t;
 }
 
-/** 다 친 매장 ID(S-7KQ2-M9XD) — 칸 안 글이 8자가 아니면 null. */
+/** 다 친 매장 ID(S-7KQ2-M9XD) — 칸 안 글이 8자가 아니면 null. 한글 조합 중인 글(마지막 "ㅁ")도 영문으로 세어 본다. */
 export function storeCodeFromInput(body: string): string | null {
-  const t = body.replace(/-/g, "");
+  const t = storeCodeChars(body);
   return t.length === STORE_CODE_BODY_LEN
     ? `${STORE_CODE_PREFIX}${t.slice(0, 4)}-${t.slice(4)}`
     : null;

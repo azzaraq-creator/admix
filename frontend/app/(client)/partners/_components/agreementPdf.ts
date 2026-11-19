@@ -27,9 +27,7 @@ import {
   ARTICLES,
   clauseMark,
   filledContract,
-  formatSignDate,
   formatSignDateTime,
-  ROLE_LABEL,
   type SignatureRecord,
 } from "./agreementShared";
 
@@ -588,13 +586,6 @@ export async function buildAgreementPdf(
     });
   };
 
-  const signer = signature
-    ? `${ROLE_LABEL[signature.role]} ${signature.name}`
-    : null;
-  const signedOn = signature?.signedAt
-    ? formatSignDate(signature.signedAt)
-    : null;
-
   /*
    * 본문 한 쪽 — 제목 · 머리말 · 제1조~제4조, 쪽 아래에 서명란(11-19 사용자: "서명란이 2페이지 밑에 오게"). 앞에 표지 한 쪽.
    * 넘치면 배율(fit)을 조금씩 줄여 다시 놓는다(최소 0.8).
@@ -799,9 +790,14 @@ export async function buildAgreementPdf(
   /* 머리 · 꼬리 — 쪽 수를 안 뒤에 */
   const total = models.length;
   const headRight = AGREEMENT.title;
-  const footLeft = signer
-    ? `제휴사 서명 ${signer}${signedOn ? ` · ${signedOn}` : ""}`
-    : "";
+  // 쪽 꼬리 왼쪽은 문서번호 · 체결일시(11-19 사용자: 예전 "제휴사 서명 대표자 … · 날짜"를 "문서 번호로 바꿔줘",
+  // 이어서 "문서번호 옆에 체결일시 뜨게") — 서명 전이면 비운다.
+  const footLeft = [
+    signature?.docNo,
+    signature?.signedAt && `체결일시 ${formatSignDateTime(signature.signedAt)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   // 로고 — 높이 11pt, 위 35pt 에서(오른쪽 글줄 바닥선 44pt 와 아래가 맞게).
   const LOGO_H = 11;
   const brand: PdfElement[] = logo
