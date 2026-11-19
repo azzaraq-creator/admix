@@ -416,7 +416,8 @@ function PartnersLoginLogo() {
           height={16}
           className="h-[16px] w-auto dark:brightness-0 dark:invert"
         />
-        <span className="text-[13px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-gray-400">
+        {/* "C" 왼쪽 여백(약 0.05em)만큼 당겨 글자 로고 "a" 왼쪽 끝과 맞춘다 — 사이드바 로고와 같게(11-19 사용자). */}
+        <span className="-ml-[0.05em] text-[13px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-gray-400">
           Collaboration
         </span>
       </span>

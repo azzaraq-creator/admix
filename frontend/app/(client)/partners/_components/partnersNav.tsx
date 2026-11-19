@@ -307,6 +307,8 @@ export function PartnersLogo({
           className={cn(
             "leading-none font-medium tracking-[0.04em] whitespace-nowrap text-gray-400",
             compact ? "text-[11px]" : "text-[13px]",
+            // "C" 왼쪽 여백(약 0.05em)만큼 당겨 글자 로고 "a" 왼쪽 끝과 맞춘다(11-19 사용자). 가운데 정렬(위 띠)은 그대로.
+            !center && "-ml-[0.05em]",
           )}
         >
           Collaboration
