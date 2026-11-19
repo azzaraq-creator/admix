@@ -45,8 +45,12 @@ export type SignatureRecord = {
   role: Role;
   src: string;
   signedAt: string | null;
-  /** 협약서 문서번호(097, "20261118-00001") — 동의할 때 서버가 매긴다. 방금 서명했거나 번호 전 동의면 없다. */
+  /** 협약서 문서번호(098, "ADMIX-COLLAB-20261119-483920") — 동의할 때 서버가 매긴다. 방금 서명해 아직 못 받았으면 없다. */
   docNo?: string | null;
+  /** 요청일시(098) — 회원가입을 마치고 협약서 작성으로 넘어간 때(처음 협약 = 가입 시각). 표지에 들어간다. */
+  requestedAt?: string | null;
+  /** 작성일시(098) — 협약서를 작성하기 시작한 때. 표지에 들어간다. */
+  startedAt?: string | null;
 };
 
 /** 서명일 — "2026년 11월 10일"(한국 시간). 협약서 단계 · 계약서 서명란 · PDF 가 같이 쓴다. */
@@ -73,20 +77,6 @@ export const formatSignDateTime = (iso: string) => {
     parts.find((x) => x.type === t)?.value ?? "";
   return `${get("year")}년 ${get("month")} ${get("day")}일 ${get("hour")}:${get("minute")}`;
 };
-
-/** 협약서 꼬리 · 표지 줄 — 협약 체결일시 · 문서번호 및 버전. 서명 전이면 agreement.json 의 자리 글자 그대로. */
-export function footerRows(signature: SignatureRecord | null | undefined) {
-  return AGREEMENT.footer.map(([k, v]) => {
-    if (k === "협약 체결일시" && signature?.signedAt)
-      return [k, formatSignDateTime(signature.signedAt)] as const;
-    if (v === "[자동 부여]")
-      return [
-        k,
-        `${signature?.docNo ?? "자동 부여"} · v${AGREEMENT.version}`,
-      ] as const;
-    return [k, v] as const;
-  });
-}
 
 /** admix 도장(public/service/sign.png, 11-18 사용자: "admix 서명에 sign.png를 넣어줘") — 서명란 admix 서명 칸. */
 export const ADMIX_SEAL_SRC = "/service/sign.png";

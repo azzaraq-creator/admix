@@ -298,9 +298,7 @@ function TaskPhase({
     <div className="flex flex-col gap-[8px]">
       <dt className="flex h-[32px] items-center justify-between gap-[8px] rounded-[12px] bg-gray-50 px-[12px]">
         <span className="text-[13px] font-bold text-gray-900">{label}</span>
-        <span className="text-[12px] font-medium text-gray-500">
-          {when}
-        </span>
+        <span className="text-[12px] font-medium text-gray-500">{when}</span>
       </dt>
       <dd className="min-w-0">
         <ul className="flex flex-col gap-[6px] text-gray-700">{children}</ul>
@@ -1542,7 +1540,7 @@ function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
       <div className="flex flex-1 flex-col items-center justify-center gap-[12px] text-center">
         <p className="text-[15px] font-semibold break-keep text-gray-900">
           {!agreed
-            ? "기본협약을 해야 볼 수 있어요."
+            ? "협약서를 작성해야 볼 수 있어요."
             : stores.length === 0
               ? "매장을 연결하면 볼 수 있어요."
               : `${store?.name ?? "이 매장"}에서 볼 수 있는 콜라보가 아니에요.`}
@@ -1558,7 +1556,7 @@ function DetailById({ id, from }: { id: string; from?: CollabFrom }) {
           className="text-[14px] font-semibold"
         >
           {!agreed
-            ? "기본협약 하러 가기"
+            ? "협약서 작성하러 가기"
             : locked
               ? "매장 연결하러 가기"
               : "콜라보 참여로"}

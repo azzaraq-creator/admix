@@ -63,7 +63,7 @@ export function PartnerStoreLink() {
           className="flex items-center gap-[6px] text-[13px] font-semibold text-gray-500 hover:text-gray-800"
         >
           <ArrowLeftIcon className="size-[16px]" />
-          기본협약
+          협약서
         </Link>
         <JoinFlow current={2} />
       </div>
@@ -87,13 +87,13 @@ export function PartnerStoreLink() {
           )}
         >
           <p className="text-[15px] font-bold break-keep text-gray-900">
-            기본협약을 마치면 매장을 연결할 수 있어요.
+            협약서를 작성하면 매장을 연결할 수 있어요.
           </p>
           <Button
             onPress={() => router.push(AGREEMENT_HREF)}
             className="h-[44px] rounded-[19px] px-[20px] font-bold max-sm:w-full"
           >
-            기본협약 하기
+            협약서 작성하기
           </Button>
         </section>
       ) : (
@@ -364,7 +364,9 @@ function NewStoreCard({ code }: { code: string | null }) {
     // 매장 ID 카드(흰 유리)와 갈리게 — 점선 테두리 · 옅은 판 · 그림자 없음.
     <section className="flex min-w-0 flex-col gap-[16px] rounded-[24px] border border-dashed border-gray-300 bg-surface/40 p-[20px] sm:p-[28px] dark:border-gray-200">
       <PathHead
-        icon={<MaskIcon src="/icons/stroke-store.svg" className="size-[20px]" />}
+        icon={
+          <MaskIcon src="/icons/stroke-store.svg" className="size-[20px]" />
+        }
         tone="bg-amber-50 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300"
         chip="매장 ID가 없어요"
         title="처음 등록하는 매장이에요"

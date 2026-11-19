@@ -89,7 +89,7 @@ export function StoreCollabResponses({ storeId }: { storeId: string }) {
           {/* 언제부터 답할 수 있었는지 · 세지 않는 모집 안내는 뺐다(2026-11-12 사용자). 답 기다리는 수는 탭에 보인다. */}
           {!data.since && (
             <p className="text-xs text-disabled">
-              연결 회원이 기본협약을 마치면 새 콜라보마다 참여 여부를 물어요.
+              연결 회원이 협약서를 작성하면 새 콜라보마다 참여 여부를 물어요.
             </p>
           )}
 

@@ -141,6 +141,14 @@ def biz_file(member_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -> 
     return FileResponse(path, filename=filename)
 
 
+@router.post("/members/{member_id}/biz-file")
+async def upload_biz_file(
+    member_id: str, file: UploadFile = File(...), _: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """관리자가 받은 사업자등록증을 대신 올린다(2026-11-19 사용자) — 검토 대기가 되고, 확인한 뒤 인증 완료를 누른다."""
+    return partners_service.admin_upload_biz_file(db, member_id, file.filename, await file.read())
+
+
 class LinkStoreIn(BaseModel):
     store_code: str = Field(min_length=1, max_length=20)
 

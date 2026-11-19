@@ -126,3 +126,31 @@ def test_ended_agreement_must_sign_again(db: Session, partner):  # noqa: F811
     assert partner.partner_termination_effective_on is None and partner.partner_agreement_ended is False
     assert UserResponse.model_validate(partner).partner_agreed_at == partner.partner_agreed_at
     cs._ensure_agreed(partner)
+
+
+def test_agreement_records_pile_up(db: Session, partner):  # noqa: F811
+    """협약 이력(099, 2026-11-19 사용자 "기록만 남기기") — 다시 협약해도 지난 줄은 남고, 해지는 그때 줄에 적힌다."""
+    from tests.test_collab_flow import _SIGNATURE
+
+    pid = str(partner.id)
+    first = ps.agree(db, partner, PARTNER_AGREEMENT_VERSION, "홍길동", "representative", _SIGNATURE, ip="10.0.0.4")
+    ps.admin_agreement_action(db, pid, "terminate")
+    [rec] = ps.agreement_records(db, partner)
+    assert rec["agreementNo"] == first["agreementNo"] and rec["terminationEffectiveOn"] is not None
+    # 해지 취소도 그 줄에 따라간다
+    ps.admin_agreement_action(db, pid, "cancel")
+    assert ps.agreement_records(db, partner)[0]["terminationEffectiveOn"] is None
+    ps.admin_agreement_action(db, pid, "terminate")
+    # 종료일이 지나 끝남 → 다시 서명
+    partner.partner_agreed_at = datetime.now(timezone.utc) - timedelta(days=400)
+    partner.partner_termination_effective_on = datetime.now(KST).date()
+    db.commit()
+    db.query(ps.PartnerAgreementRecord).filter_by(user_id=partner.id).update(
+        {"agreed_at": partner.partner_agreed_at}
+    )
+    db.commit()
+    second = ps.agree(db, partner, PARTNER_AGREEMENT_VERSION, "김철수", "delegate", _SIGNATURE, ip="10.0.0.5")
+    new, old = ps.agreement_records(db, partner)
+    assert new["agreementNo"] == second["agreementNo"] != old["agreementNo"] == first["agreementNo"]
+    assert new["signerName"] == "김철수" and new["terminationEffectiveOn"] is None
+    assert old["signerName"] == "홍길동" and old["terminationEffectiveOn"] and "signedIp" not in old

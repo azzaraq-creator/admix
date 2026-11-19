@@ -120,8 +120,13 @@ export interface MeResponse {
   partner_signer_role?: string | null;
   /** 손 서명 그림(/uploads/partner-signature/…). */
   partner_signature_url?: string | null;
-  /** 협약서 문서번호(097, "20261118-00001") — 동의할 때 서버가 매긴다. 협약서 PDF 에 들어간다. */
+  /** 협약서 문서번호(098, "ADMIX-COLLAB-20261119-483920") — 동의할 때 서버가 매긴다. 협약서 PDF 에 들어간다. */
   partner_agreement_no?: string | null;
+  /** 협약서 PDF 표지의 요청 · 작성일시(098) — 가입 뒤 협약서 작성으로 넘어간 때 · 작성을 시작한 때. */
+  partner_agreement_requested_at?: string | null;
+  partner_agreement_started_at?: string | null;
+  /** 협약 해지(096) — 끝나는 날(KST YYYY-MM-DD, 그날부터 효력 없음). 있으면 다음 갱신일 대신 종료 예정일. */
+  partner_termination_effective_on?: string | null;
   /** 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 이 번호로 매장을 연결한다. */
   partner_code?: string | null;
   /** 슈퍼 계정 묶음(087) — 자기 자신 포함, 회원 유형 순서. 보통 회원은 빈 목록(계정 전환 메뉴 없음). */

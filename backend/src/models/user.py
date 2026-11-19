@@ -71,8 +71,13 @@ class User(Base):
     # 제휴사(콜라보) 기본협약 동의 — 동의 시각 · 협약 버전(065). 비어 있으면 아직 동의 전(로그인 시 이어서 하기 창).
     partner_agreed_at = Column(DateTime(timezone=True), nullable=True)
     partner_agreement_version = Column(String(20), nullable=True)
-    # 협약서 문서번호(097) — 서명 날짜(KST) + 그날 순번 5자리("20261118-00001"), 동의할 때 매긴다. 다시 서명하면 새 번호.
-    partner_agreement_no = Column(String(20), nullable=True, unique=True)
+    # 협약서 문서번호(097 · 098) — "ADMIX-COLLAB-{서명 날짜 KST}-{무작위 6자리}", 동의할 때 매긴다. 다시 서명하면 새 번호.
+    # 097 때 매긴 번호("20261118-00001")는 그대로 남는다.
+    partner_agreement_no = Column(String(40), nullable=True, unique=True)
+    # 협약서 표지의 세 시각(098) — 요청일시: 가입 뒤 협약서 작성으로 넘어간 때(처음 협약 = 가입 시각, 동의할 때 정한다).
+    # 작성일시: 이번 작성을 시작한 때(진행 상태 첫 저장). 체결일시는 partner_agreed_at.
+    partner_agreement_requested_at = Column(DateTime(timezone=True), nullable=True)
+    partner_agreement_started_at = Column(DateTime(timezone=True), nullable=True)
     # 동의 전 진행 상태(화면이 정한 JSON — 단계 · 읽은 주제 · 별지 확인 등). 다시 로그인하면 여기서 이어서 한다.
     partner_agreement_progress = Column(JSONB, nullable=True)
     # 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 서명 그림(PNG) · 동의 때 IP.

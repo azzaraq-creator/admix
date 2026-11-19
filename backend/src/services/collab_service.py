@@ -193,11 +193,11 @@ def serialize_for_store(
 def _ensure_agreed(user: User) -> None:
     # 해지해 끝난 협약(096)도 막는다 — 다시 협약하면 참여할 수 있다. 이미 확정된 콜라보는 그대로(협약서).
     if user.partner_agreement_ended:
-        raise HTTPException(status_code=403, detail="기본협약이 끝났어요. 다시 협약하면 콜라보에 참여할 수 있어요.")
+        raise HTTPException(status_code=403, detail="협약이 끝났어요. 협약서를 다시 작성하면 콜라보에 참여할 수 있어요.")
     if user.partner_agreement_outdated:  # 협약서가 바뀌었다 — 새 판에 다시 동의해야(2026-11-18 사용자)
         raise HTTPException(status_code=403, detail="협약서가 바뀌었어요. 새 협약서에 다시 동의하면 콜라보에 참여할 수 있어요.")
     if user.partner_agreed_at is None:
-        raise HTTPException(status_code=403, detail="기본협약에 동의하면 콜라보에 참여할 수 있어요.")
+        raise HTTPException(status_code=403, detail="협약서를 작성하면 콜라보에 참여할 수 있어요.")
 
 
 def _ensure_not_provisional(user: User, action: str) -> None:

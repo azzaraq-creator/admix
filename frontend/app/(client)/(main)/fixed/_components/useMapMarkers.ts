@@ -31,6 +31,15 @@ const CATEGORY_COLOR: Record<string, [string, string]> = {
 };
 const DEFAULT_COLOR: [string, string] = ["122,63,224", "#5b21c4"]; // 보라
 
+/**
+ * 카테고리 지도 핀 색(꽉 찬 색) — 매체 찾기 카테고리 탭 이름 앞 작은 동그라미(2026-11-19 사용자: "탭에서 카테고리 앞에 동그라미로 색깔을 알려줘").
+ * 색 핀이 없는 카테고리는 기본 보라 핀이라 보라.
+ */
+export function categoryPinColor(categoryLarge: string): string {
+  const [rgb] = CATEGORY_COLOR[categoryLarge] ?? DEFAULT_COLOR;
+  return `rgb(${rgb})`;
+}
+
 function pinBackground(
   categoryLarge: string | null | undefined,
   selected: boolean,

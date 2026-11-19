@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field
 
@@ -136,8 +136,13 @@ class UserResponse(BaseModel):
     partner_signer_name: str | None = None
     partner_signer_role: str | None = None
     partner_signature_url: str | None = None
-    # 협약서 문서번호(097, "20261118-00001") — 협약서 PDF 에 들어간다.
+    # 협약 해지(갱신 거절, 096) — 끝나는 날(KST, 그날부터 효력 없음). 있으면 협약 기록에 "다음 갱신일" 대신 종료 예정일.
+    partner_termination_effective_on: date | None = None
+    # 협약서 문서번호(097 · 098, "ADMIX-COLLAB-20261119-483920") — 협약서 PDF 에 들어간다.
     partner_agreement_no: str | None = None
+    # 협약서 PDF 표지의 요청 · 작성일시(098) — 가입 뒤 협약서 작성으로 넘어간 때 · 작성을 시작한 때.
+    partner_agreement_requested_at: datetime | None = None
+    partner_agreement_started_at: datetime | None = None
     # 제휴사(콜라보) 회원 고유번호(P-0001, 069) — 담당자가 매장을 이 번호로 연결한다.
     partner_code: str | None = None
     # 슈퍼 계정 묶음(087) — 자기 자신 포함. 보통 회원은 빈 목록이고 계정 전환 메뉴가 없다.

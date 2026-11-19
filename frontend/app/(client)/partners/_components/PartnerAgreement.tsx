@@ -208,6 +208,8 @@ function AgreementBody({
         src: `${API_BASE_URL}${me.partner_signature_url}`,
         signedAt: me.partner_agreed_at ?? null,
         docNo: me.partner_agreement_no ?? null,
+        requestedAt: me.partner_agreement_requested_at ?? null,
+        startedAt: me.partner_agreement_started_at ?? null,
       }
     : null;
   // 계약서 — 서버 기록이 오기 전(동의 직후)이면 방금 한 서명으로.
@@ -425,7 +427,7 @@ function AgreementBody({
       >
         {/* ── 위 — 4단계 (배경 카드 없이 지금 단계만 흰 알약. PC는 네 칸을 고르게, 모바일은 가로로 넘기는 한 줄) ── */}
         <aside className="min-w-0">
-          <nav ref={stageNav} aria-label="기본협약 동의 단계">
+          <nav ref={stageNav} aria-label="협약서 작성 단계">
             {/* 모바일은 양 끝을 HeroUI ScrollShadow 로 흐리게 — 넘길 단계가 더 있다는 표시(11-08 사용자). sm 이상은 끈다. */}
             <ScrollShadow
               orientation="horizontal"

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 
+import { MaskIcon } from "@/components/common/MaskIcon";
 import { SpinningSymbol } from "@/components/common/SpinningSymbol";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { TOAST_TIMEOUT } from "@/hooks/useSonner";
@@ -39,6 +40,8 @@ const signatureKey = (s: SignatureRecord | null) =>
         s.role,
         s.signedAt,
         s.docNo ?? null,
+        s.requestedAt ?? null,
+        s.startedAt ?? null,
       ]
     : null;
 
@@ -201,6 +204,7 @@ export function AgreementPdfViewer({
   party = null,
   className,
   stickyToolbar = false,
+  downloadable = false,
 }: {
   signature: SignatureRecord | null;
   /** 가입 때 적은 매장 정보(089) — 계약서 매장 측 빈칸을 채운다. */
@@ -208,6 +212,8 @@ export function AgreementPdfViewer({
   className?: string;
   /** 스크롤하는 창 안에서 도구줄을 위에 붙여 둔다(바깥을 overflow-clip 으로 — hidden 이면 sticky 가 안 먹는다). */
   stickyToolbar?: boolean;
+  /** "새 창에서 보기" 왼쪽에 "PDF 다운로드"(제휴사 협약서 화면, 11-19 사용자) — 미리보기로 만든 PDF 를 그대로 받는다. */
+  downloadable?: boolean;
 }) {
   const { data: pdf, isError, refetch } = useQuery(pdfQuery(signature, party));
   const [index, setIndex] = useState(0);
@@ -283,6 +289,18 @@ export function AgreementPdfViewer({
             {current + 1} / {total}
           </span>
         )}
+        {downloadable && (
+          <Button
+            size="sm"
+            variant="tertiary"
+            isDisabled={!pdf}
+            onPress={() => pdf && savePdf(pdf)}
+            className="ml-auto shrink-0 gap-[6px] text-[13px] font-semibold"
+          >
+            <MaskIcon src="/icons/download.svg" className="size-[13px]" />
+            PDF 다운로드
+          </Button>
+        )}
         <Button
           size="sm"
           variant="tertiary"
@@ -291,7 +309,10 @@ export function AgreementPdfViewer({
           onPress={() =>
             pdf && withBlobUrl(pdf, (url) => window.open(url, "_blank"))
           }
-          className="ml-auto shrink-0 text-[13px] font-semibold"
+          className={cn(
+            "shrink-0 text-[13px] font-semibold",
+            !downloadable && "ml-auto",
+          )}
         >
           <ExternalLink className="size-[14px]" />
           <span className="max-sm:hidden">새 창에서 보기</span>

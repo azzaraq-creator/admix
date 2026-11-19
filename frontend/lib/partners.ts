@@ -582,6 +582,9 @@ export interface AdminPartnerMember {
   agreementVersion: string | null;
   /** 협약서 문서번호(097, "20261118-00001") — 협약서 PDF 에 들어간다. 예전 서버 · 번호 전 동의면 없다. */
   agreementNo?: string | null;
+  /** 협약서 PDF 표지의 요청 · 작성일시(098) — 가입 뒤 협약서 작성으로 넘어간 때 · 작성을 시작한 때. */
+  agreementRequestedAt?: string | null;
+  agreementStartedAt?: string | null;
   /** 예전 판 협약서에 동의 — 새 판에 다시 동의하기 전(11-18). 예전 서버면 없다. */
   agreementOutdated?: boolean;
   /** 기본협약 전자 서명(078) — 서명자 이름 · 구분(representative/delegate) · 손 서명 그림 · 동의 때 IP. 서명 도입 전 동의면 비어 있다. */

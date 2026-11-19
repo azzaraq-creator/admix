@@ -11,10 +11,10 @@ import {
   Separator,
   TextArea,
 } from "@heroui/react";
-import { ChevronLeft, Copy, Download, Search, X } from "lucide-react";
+import { ChevronLeft, Copy, Download, Search, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import {
   AgreementPdfViewer,
@@ -40,6 +40,7 @@ import {
   useUnlinkStore,
   useUpdateCollabMember,
   useUpdateStoreRequest,
+  useUploadBizFile,
 } from "@/hooks/adminCollab";
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
@@ -71,13 +72,18 @@ const BIG_BLOCK = `${BIG} w-full sm:w-auto`;
 type BizCode = AdminPartnerMember["bizStatus"];
 
 /** 사업자 상태마다 한 줄 안내 — 담당자가 지금 무엇을 하면 되는지. */
+/** 사업자등록증 파일 — 회원이 올릴 때와 같은 규칙(PDF · JPG · PNG, 10MB, 서버 member_service). */
+const BIZ_FILE_ACCEPT =
+  ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
+const BIZ_FILE_MAX = 10 * 1024 * 1024;
+
 const BIZ_GUIDE: Record<BizCode, string> = {
   unregistered:
-    "아직 사업자등록증을 올리지 않았어요. 협약은 할 수 있고, 등록증을 받아 인증해야 콜라보 기능이 열려요.",
+    "아직 사업자등록증을 올리지 않았어요. 협약은 할 수 있고, 등록증을 받아 인증해야 콜라보 기능이 열려요. 받은 등록증은 여기서 바로 올릴 수 있어요.",
   reviewing: "등록증을 올렸어요. 파일을 확인하고 인증 완료 또는 반려해 주세요.",
   // 임시 승인은 없앴다(11-18 사용자) — 예전에 임시 승인한 회원만 이 상태로 남아 있다.
   provisional:
-    "예전에 임시 승인한 회원이에요. 등록증을 받아 인증 완료로 바꿔 주세요.",
+    "예전에 임시 승인한 회원이에요. 등록증을 받아 올리고 인증 완료로 바꿔 주세요.",
   verified: "사업자 인증을 마쳤어요.",
   rejected: "반려한 상태예요. 다시 올리면 검토 대기로 바뀌어요.",
 };
@@ -275,6 +281,8 @@ function StoreInfoSection({ member }: { member: AdminPartnerMember }) {
 
 function BizSection({ member }: { member: AdminPartnerMember }) {
   const action = useBizAction();
+  const upload = useUploadBizFile();
+  const fileRef = useRef<HTMLInputElement>(null);
   const { confirm, alert, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
   const [rejecting, setRejecting] = useState(false);
@@ -324,6 +332,41 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
     if (ok) await run("reset", "인증 상태를 되돌렸어요.");
   };
 
+  /** 관리자가 받은 등록증을 대신 올린다(11-19 사용자) — 검토 대기가 되고, 확인한 뒤 인증 완료를 누른다. */
+  const uploadFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > BIZ_FILE_MAX) {
+      await alert({
+        title: "파일이 너무 커요",
+        description: "10MB 이하 파일만 올릴 수 있어요.",
+        confirmText: "확인",
+      });
+      return;
+    }
+    if (status === "verified") {
+      const ok = await confirm({
+        title: "등록증 파일을 바꿀까요?",
+        description:
+          "인증을 마친 회원이에요. 파일을 바꾸면 검토 대기로 돌아가요. 확인한 뒤 인증 완료를 다시 눌러 주세요.",
+        confirmText: "바꾸기",
+      });
+      if (!ok) return;
+    }
+    try {
+      await upload.mutateAsync({ id: member.id, file });
+      success(
+        "등록증을 올렸어요.",
+        "파일을 확인했다면 인증 완료를 눌러 주세요.",
+      );
+    } catch (err) {
+      await alert({
+        title: "올리지 못했어요",
+        description: extractApiError(err),
+        confirmText: "확인",
+      });
+    }
+  };
+
   const openFile = async () => {
     setOpening(true);
     try {
@@ -347,7 +390,7 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
   const canReject =
     hasFile && (status === "reviewing" || status === "provisional");
   const canReset = ["provisional", "verified", "rejected"].includes(status);
-  const busy = action.isPending;
+  const busy = action.isPending || upload.isPending;
   /** 담당자가 처리할 차례 — 카드를 옅은 보라로. */
   const highlight = status === "unregistered" || status === "reviewing";
 
@@ -371,30 +414,67 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
         <FactRow label="등록증 파일">
           {hasFile ? (
             <span className="flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[6px]">
-              <span className="flex min-w-0 items-center gap-[6px]">
-                <MaskIcon
-                  src="/icons/file-text.svg"
-                  className="size-[16px] shrink-0 text-tone-4a5565"
-                />
-                <span className="min-w-0 break-all font-semibold">
-                  {member.bizFileName}
+              {/* 좁은 화면에서 이름이 날짜 옆에 끼어 잘게 끊기지 않게 — 넘치면 날짜가 다음 줄로. */}
+              <span className="flex min-w-0 flex-wrap items-center gap-x-[6px] gap-y-[2px]">
+                <span className="flex min-w-0 items-center gap-[6px]">
+                  <MaskIcon
+                    src="/icons/file-text.svg"
+                    className="size-[16px] shrink-0 text-tone-4a5565"
+                  />
+                  <span className="min-w-0 break-all font-semibold">
+                    {member.bizFileName}
+                  </span>
                 </span>
                 <span className="shrink-0 text-xs text-disabled">
                   {dotDateTime(member.bizUploadedAt)} 올림
                 </span>
               </span>
+              <span className="flex gap-[6px]">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={openFile}
+                  isDisabled={opening}
+                >
+                  {opening ? "여는 중…" : "파일 보기"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  onPress={() => fileRef.current?.click()}
+                  isPending={upload.isPending}
+                  isDisabled={busy}
+                >
+                  바꾸기
+                </Button>
+              </span>
+            </span>
+          ) : (
+            <span className="flex flex-wrap items-center justify-between gap-x-[8px] gap-y-[6px]">
+              <span className="text-disabled">올린 파일이 없어요</span>
               <Button
                 size="sm"
                 variant="secondary"
-                onPress={openFile}
-                isDisabled={opening}
+                onPress={() => fileRef.current?.click()}
+                isPending={upload.isPending}
+                isDisabled={busy}
               >
-                {opening ? "여는 중…" : "파일 보기"}
+                <Upload className="size-[14px]" />
+                등록증 올리기
               </Button>
             </span>
-          ) : (
-            <span className="text-disabled">올린 파일이 없어요</span>
           )}
+          {/* 숨긴 파일 입력 — 어드민 HeroUI 규칙의 예외(버튼으로 연다). */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept={BIZ_FILE_ACCEPT}
+            className="hidden"
+            onChange={(e) => {
+              void uploadFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
         </FactRow>
         {member.bizProvisionalAt && (
           <FactRow label="임시 승인">
@@ -555,7 +635,7 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
     const ok = await confirm(
       kind === "terminate"
         ? {
-            title: "기본협약을 해지할까요?",
+            title: "협약을 해지할까요?",
             description: renews
               ? `${dotDay(dayBefore(renews))}까지는 협약이 유효하고, ${dotDay(renews)}부터 끝나요. 자동 갱신은 하지 않아요. 이미 확정된 콜라보는 그대로 진행돼요. 끝나기 전까지는 해지를 취소할 수 있어요.`
               : "다음 자동 갱신일부터 협약이 끝나요.",
@@ -592,7 +672,7 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
 
   return (
     <Section
-      title="기본협약"
+      title="협약서"
       right={
         <Chip size="sm" variant="soft" color={chip[state].color}>
           {chip[state].label}
@@ -733,6 +813,8 @@ function AgreementPdfRow({
         src: signatureSrc,
         signedAt: member.agreedAt,
         docNo: member.agreementNo ?? null,
+        requestedAt: member.agreementRequestedAt ?? null,
+        startedAt: member.agreementStartedAt ?? null,
       }
     : null;
   const tag = memberFileTag(member);

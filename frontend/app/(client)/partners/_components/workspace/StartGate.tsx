@@ -60,14 +60,14 @@ export function StartGate({ agreed }: { agreed: boolean }) {
                 ? "매장 연결을 요청했어요"
                 : agreed
                   ? "매장을 연결하면 콜라보에 참여할 수 있어요"
-                  : "기본협약을 마치면 콜라보에 참여할 수 있어요"}
+                  : "협약서를 작성하면 콜라보에 참여할 수 있어요"}
             </h2>
             <p className="mt-[4px] text-[13px] leading-[1.6] break-keep text-gray-500 sm:text-[14px]">
               {pending
                 ? `${pending.storeName ?? "요청한 매장"}에 연결을 요청했어요. 담당자가 확인하면 연결돼요.`
                 : agreed
                   ? "매장 ID가 있으면 연결을 요청해 주세요. 처음 등록하는 매장이면 아래 회원 고유번호를 담당자에게 알려 주세요."
-                  : "사업자등록증을 올리고 기본협약에 동의하면, 매장을 연결할 수 있어요."}
+                  : "협약서를 작성하면 매장을 연결할 수 있어요."}
             </p>
             {code && !pending && (
               <p className="mt-[10px] inline-flex items-center gap-[8px] rounded-[12px] bg-gray-50 px-[12px] py-[6px] text-[13px] text-gray-600">
@@ -84,7 +84,7 @@ export function StartGate({ agreed }: { agreed: boolean }) {
           onPress={() => router.push(agreed ? STORE_LINK_HREF : AGREEMENT_HREF)}
           className="h-[44px] shrink-0 rounded-[19px] px-[20px] font-bold max-sm:w-full"
         >
-          {pending ? "요청 보기" : agreed ? "매장 연결하기" : "기본협약 하기"}
+          {pending ? "요청 보기" : agreed ? "매장 연결하기" : "협약서 작성하기"}
           <ArrowRight className="size-[15px]" />
         </Button>
       </section>
@@ -163,20 +163,19 @@ function GateModal({
             <Modal.Heading className="text-[17px] font-bold break-keep text-gray-900">
               {agreed
                 ? "매장이 연결되면 볼 수 있어요"
-                : "기본협약을 해야 볼 수 있어요"}
+                : "협약서를 작성해야 볼 수 있어요"}
             </Modal.Heading>
           </Modal.Header>
           <Modal.Body>
             <p className="text-[14px] leading-[1.6] break-keep text-gray-600">
               {agreed
                 ? "매장을 연결하면 콜라보 내용을 보고 신청할 수 있어요. 매장 ID가 있으면 연결을 요청해 주세요."
-                : "콜라보 내용을 보고 신청하려면 기본협약에 동의해 주세요. 사업자등록증도 함께 올려요."}
+                : "콜라보 내용을 보고 신청하려면 협약서를 작성해 주세요. 사업자등록증도 올려 주세요."}
             </p>
             {agreed && code && (
               <p className="mt-[12px] rounded-[14px] bg-gray-50 px-[14px] py-[10px] text-[13px] text-gray-600">
                 처음 등록하는 매장이면 담당자에게 회원 고유번호{" "}
-                <b className="font-bold text-gray-900">{code}</b>
-                를 알려 주세요.
+                <b className="font-bold text-gray-900">{code}</b>를 알려 주세요.
               </p>
             )}
           </Modal.Body>
@@ -192,7 +191,7 @@ function GateModal({
               onPress={onNext}
               className="h-[44px] flex-1 rounded-[19px] font-bold"
             >
-              {agreed ? "매장 연결하기" : "기본협약 하기"}
+              {agreed ? "매장 연결하기" : "협약서 작성하기"}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

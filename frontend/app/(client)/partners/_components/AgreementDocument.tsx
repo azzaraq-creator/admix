@@ -6,9 +6,12 @@ import { useState, type ReactNode } from "react";
 
 import { FileTextIcon, PencilIcon, RotateCwIcon } from "@/components/icons";
 import { LoadingState } from "@/components/common/RouteStates";
-import { MaskIcon } from "@/components/common/MaskIcon";
 import { useMe } from "@/hooks/auth";
-import { useMyPartnersStores } from "@/hooks/partners";
+import {
+  useAgreementRecords,
+  useMyPartnersStores,
+  type AgreementRecordItem,
+} from "@/hooks/partners";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { API_BASE_URL } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -20,8 +23,9 @@ import {
   ArticleClauses,
   type AgreementParty,
   filledContract,
-  footerRows,
+  formatSignDateTime,
   partyOf,
+  ROLE_LABEL,
   type Role,
   type SignatureRecord,
   TextModal,
@@ -74,9 +78,152 @@ export function PartnerAgreementDocument() {
         src: `${API_BASE_URL}${me.partner_signature_url}`,
         signedAt: me.partner_agreed_at ?? null,
         docNo: me.partner_agreement_no ?? null,
+        requestedAt: me.partner_agreement_requested_at ?? null,
+        startedAt: me.partner_agreement_started_at ?? null,
       }
     : null;
-  return <AgreementDocumentView signature={signature} party={party} />;
+  return (
+    <AgreementDocumentView
+      signature={signature}
+      party={party}
+      log={{
+        endsOn: me.partner_termination_effective_on ?? null,
+      }}
+    />
+  );
+}
+
+/* ───────── 협약 기록 ───────── */
+
+type LogExtra = { endsOn: string | null };
+
+/** KST 날짜 "YYYY-MM-DD". */
+const kstDay = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+const dayLabel = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+};
+
+/** 다음 자동 갱신일 — 서명일부터 1년씩(협약서 제4조 ①), 오늘보다 뒤인 첫 기념일(KST). */
+function nextRenewal(signedAt: string) {
+  const [y, m, d] = kstDay(new Date(signedAt)).split("-");
+  const today = kstDay(new Date());
+  for (let k = 1; ; k++) {
+    const next = `${Number(y) + k}-${m}-${d}`;
+    if (next > today) return next;
+  }
+}
+
+/** 협약 이력 한 줄의 상태 — 지금 협약 · 해지 예정 · 끝남 · 예전 판 · 다시 협약. */
+function recordStatus(r: AgreementRecordItem, current: boolean) {
+  const today = kstDay(new Date());
+  const ends = r.terminationEffectiveOn;
+  if (ends && ends <= today) return `${dayLabel(ends)} 종료`;
+  if (current) return ends ? `해지 예정 · ${dayLabel(ends)} 종료` : "지금 협약";
+  if (ends) return `${dayLabel(ends)} 종료`;
+  return r.version !== AGREEMENT.version ? "예전 판" : "다시 협약";
+}
+
+/**
+ * 협약 기록(11-19 사용자: "로그 데이터를 기록한 거를 위에 배치") — 협약서 화면 맨 위.
+ * 위 칸: 문서번호 · 협약 당사자 · 다음 자동 갱신일(해지했으면 종료 예정일). 협약서 버전은 어드민에서만(11-19 사용자).
+ * 아래: 협약 이력(099, 사용자 "기록만 남기기") — 서명할 때마다 한 줄, 최근 것부터. 지난 판 원문은 없어 PDF 는 지금 협약만.
+ * 승인 순서(작성 요청 → 작성 시작 → 서명 → 체결)는 뺐다(11-19 사용자: "그 밑에 승인 순서는 없애줘").
+ */
+function AgreementLog({
+  signature,
+  party,
+  log,
+}: {
+  signature: SignatureRecord | null;
+  party: AgreementParty | null;
+  log: LogExtra;
+}) {
+  const records = useAgreementRecords();
+  const signedAt = signature?.signedAt ?? null;
+  const facts: [string, string][] = [
+    ["문서번호", signature?.docNo ?? "자동 부여"],
+    [
+      "협약 당사자",
+      party?.businessName || party?.storeName || "매장 운영사업자",
+    ],
+    log.endsOn
+      ? ["협약 종료 예정일", dayLabel(log.endsOn)]
+      : [
+          "다음 자동 갱신일",
+          signedAt ? dayLabel(nextRenewal(signedAt)) : "기록 없음",
+        ],
+  ];
+  const items = records.data ?? [];
+  return (
+    <section className="rounded-[20px] bg-surface p-[16px] shadow-[0_6px_18px_rgba(42,20,89,0.08)] sm:p-[24px]">
+      <h2 className="text-[16px] font-bold text-gray-900 sm:text-[18px]">
+        협약 기록
+      </h2>
+      <dl className="mt-[12px] grid grid-cols-2 gap-[1px] overflow-hidden rounded-[16px] bg-gray-100 sm:grid-cols-[1.7fr_1fr_1fr]">
+        {/* 문서번호가 길어 PC 는 첫 칸을 넓게, 모바일은 문서번호만 한 줄 전체로(번호가 중간에서 끊기지 않게). */}
+        {facts.map(([k, v], i) => (
+          <div
+            key={k}
+            className={cn(
+              "min-w-0 bg-gray-50 px-[14px] py-[10px]",
+              i === 0 && "max-sm:col-span-2",
+            )}
+          >
+            <dt className="text-[12px] text-gray-500">{k}</dt>
+            <dd className="mt-[2px] text-[14px] font-semibold break-all text-gray-900">
+              {v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {items.length > 0 && (
+        <>
+          {/* 협약 이력은 작게(11-19 사용자: "그렇게 중요한 건 아님") — 회색 작은 글자 한 줄씩. */}
+          <h3 className="mt-[16px] text-[12px] font-medium text-gray-500">
+            협약 이력
+          </h3>
+          <ul className="mt-[2px] flex flex-col">
+            {items.map((r, i) => {
+              const current = i === 0 && r.agreementNo === signature?.docNo;
+              // 서명 IP 는 어드민에서만(11-19 사용자) — 여기선 서명자만.
+              const who = [
+                r.signerRole ? ROLE_LABEL[r.signerRole as Role] : "",
+                r.signerName ?? "",
+              ]
+                .join(" ")
+                .trim();
+              return (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-baseline gap-x-[8px] py-[3px] text-[12px] text-gray-500"
+                >
+                  <span>{formatSignDateTime(r.agreedAt)}</span>
+                  <span className="break-all">
+                    {r.agreementNo ?? "문서번호 없음"}
+                  </span>
+                  {who && <span>{who}</span>}
+                  <span
+                    className={cn(
+                      current ? "font-medium text-primary" : "text-gray-400",
+                    )}
+                  >
+                    {recordStatus(r, current)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </section>
+  );
 }
 
 /** 협약 전 안내 문구 — 옛 판에 동의한 회원 · 해지해 끝난 협약 · 처음(이어서 하기 창과 같은 말). */
@@ -141,9 +288,11 @@ function AgreementEmpty({ kind }: { kind: keyof typeof EMPTY_COPY }) {
 function AgreementDocumentView({
   signature,
   party,
+  log,
 }: {
   signature: SignatureRecord | null;
   party: AgreementParty | null;
+  log: LogExtra;
 }) {
   const isDesktop = useIsDesktop();
   // 모바일 — 종이 대신 버튼 → 협약서 창(11-08 사용자: "팝업 띄워서 볼 수 있게").
@@ -152,24 +301,13 @@ function AgreementDocumentView({
 
   return (
     <div className="flex flex-col gap-[16px] sm:gap-[20px]">
-      <PageHead
-        title="협약서"
-        className="max-sm:sr-only"
-        right={
-          // 흰 버튼 + 내려받기 아이콘(public/icons/download.svg, 11-17 사용자). 모바일은 아래 카드 안 버튼으로.
-          <Button
-            variant="outline"
-            isPending={pdf.pending}
-            onPress={pdf.download}
-            className="h-[40px] gap-[6px] rounded-[17px] border-gray-200 bg-white pr-[15px] pl-[14px] text-[13px] font-semibold text-gray-800 max-sm:hidden dark:bg-surface"
-          >
-            <MaskIcon src="/icons/download.svg" className="size-[13px]" />
-            PDF 다운로드
-          </Button>
-        }
-      />
+      {/* PC "PDF 다운로드"는 미리보기 도구줄 "새 창에서 보기" 왼쪽으로(11-19 사용자). 모바일은 아래 카드 안 버튼. */}
+      <PageHead title="협약서" className="max-sm:sr-only" />
 
-      {/* 모바일 — 협약서 카드: 위 문서 이름 · 판, 아래 "전체 보기"(창) · "PDF 다운로드". A4 쪽은 휴대폰 폭에서 글자가 너무 작아 미리보기는 PC 만. */}
+      {/* 협약 기록 — 맨 위(11-19 사용자). */}
+      <AgreementLog signature={signature} party={party} log={log} />
+
+      {/* 모바일 — 협약서 카드: 위 문서 이름 · 문서번호(판은 어드민에서만), 아래 "전체 보기"(창) · "PDF 다운로드". A4 쪽은 휴대폰 폭에서 글자가 너무 작아 미리보기는 PC 만. */}
       <div className="flex flex-col gap-[12px] rounded-[20px] bg-surface p-[14px] shadow-[0_6px_18px_rgba(42,20,89,0.08)] sm:hidden">
         <div className="flex items-center gap-[12px]">
           <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[17px] bg-gray-100 text-gray-600">
@@ -179,9 +317,11 @@ function AgreementDocumentView({
             <b className="line-clamp-2 text-[14px] font-bold break-keep text-gray-900">
               {AGREEMENT.title}
             </b>
-            <span className="text-[12px] text-gray-500">
-              v{AGREEMENT.version}
-            </span>
+            {signature?.docNo && (
+              <span className="text-[12px] break-all text-gray-500">
+                {signature.docNo}
+              </span>
+            )}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-[8px]">
@@ -219,6 +359,7 @@ function AgreementDocumentView({
         <AgreementPdfViewer
           signature={signature}
           party={party}
+          downloadable
           className="max-sm:hidden"
         />
       )}
@@ -264,7 +405,7 @@ function DocTable({
 
 /**
  * 협약서 본문 — 모바일 협약서 창(전체 보기). PC 는 같은 내용을 PDF 미리보기(agreementPdf)로 본다.
- * 순서는 협약서(11-18 최종 docx) 그대로: 제목 · 머리말 · 제1조~제4조 · 서명란 표 · 체결일시 · 문서번호 및 버전(첨부 줄은 뺐다).
+ * 순서는 협약서(11-18 최종 docx) 그대로: 제목 · 머리말 · 제1조~제4조 · 서명란 표 · 체결일시 · 문서번호(첨부 · 버전 줄은 뺐다).
  * 제목은 모바일 17px(11-08 사용자: "타이틀 폰트 줄여줘").
  */
 function DocContent({
@@ -309,7 +450,7 @@ function DocContent({
         {AGREEMENT.title}
       </h1>
       <p className="muted mt-[4px] text-[12px] text-gray-400">
-        {signature?.docNo ? `${signature.docNo} · ` : ""}v{AGREEMENT.version}
+        {signature?.docNo ?? "문서번호 자동 부여"}
       </p>
       <p className="mt-[12px] whitespace-pre-line">{contract.preamble}</p>
 
@@ -322,15 +463,6 @@ function DocContent({
       <div className="mt-[24px] overflow-x-auto">
         <DocTable rows={contract.partyTable} cells={signCells} />
       </div>
-
-      <dl className="mt-[20px] flex flex-col gap-[4px] text-[12px]">
-        {footerRows(signature).map(([k, v]) => (
-          <div key={k} className="flex gap-[8px]">
-            <dt className="shrink-0 font-semibold text-gray-800">{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
     </>
   );
 }

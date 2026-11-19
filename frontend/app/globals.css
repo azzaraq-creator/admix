@@ -241,25 +241,25 @@
    Select · Autocomplete 목록(popover)은 body 에 따로 붙으므로 popover 클래스도 함께 둔다.
    shadcn(관리자 일부) · 다른 HeroUI 부품(Button · Radio 등)은 그대로다. */
 :where(
-    .input,
-    .textfield,
-    .textarea,
-    .input-group,
-    .select,
-    .select__popover,
-    .autocomplete,
-    .autocomplete__popover,
-    .combo-box,
-    .combo-box__popover,
-    .search-field,
-    .time-field,
-    .date-field,
-    .date-input-group,
-    .date-picker,
-    .date-picker__popover,
-    .number-field,
-    .input-otp
-  ) {
+  .input,
+  .textfield,
+  .textarea,
+  .input-group,
+  .select,
+  .select__popover,
+  .autocomplete,
+  .autocomplete__popover,
+  .combo-box,
+  .combo-box__popover,
+  .search-field,
+  .time-field,
+  .date-field,
+  .date-input-group,
+  .date-picker,
+  .date-picker__popover,
+  .number-field,
+  .input-otp
+) {
   --app-accent: var(--accent);
   --app-accent-foreground: var(--accent-foreground);
   --app-background: var(--background);
@@ -342,30 +342,23 @@
 }
 
 /*
- * 콜라보 소개(/partners, PartnersLanding [data-partners-landing]) 배경 그라데이션 — 11-17 사용자 "배경이 너무 밋밋한데 그라데이션 넣어봐".
- * 본문 상자(최대 1120px)가 아니라 본문 스크롤 영역(main) 전체에 깐다 — 상자 가장자리에서 빛이 잘려 보이지 않게.
- * background-attachment: local 이라 내용과 같이 스크롤되고, 위치(%)는 스크롤 영역 전체 기준 · 크기는 px(%면 휴대폰에서 세로로 긴 띠가 된다).
- * admix 심볼 색(보라 · 하늘 · 분홍 · 파랑)을 아주 옅게. 다크 모드는 더 옅게.
+ * 콜라보 소개(/partners, PartnersLanding [data-partners-landing]) 바탕 — 흰색(다크 모드는 surface).
+ * 11-19 사용자 레퍼런스(흰 바탕 + 보라 판 · 회색 카드)에 맞춰 11-17 그라데이션을 뺐다.
+ * 본문 상자(최대 1120px)가 아니라 본문 스크롤 영역(main) 전체에 깐다.
+ * 11-19 사용자 "사진이 화면을 꽉 채우게" — 이 화면만 본문 상자의 폭 제한 · 여백을 풀고(첫 화면 사진이 본문 끝까지),
+ * 본문(main)을 크기 기준 상자로 둬 첫 화면 높이를 보이는 높이(100cqh)에 맞춘다. 아래 구역은 화면이 스스로 1120px 상자에 담는다.
  */
 main:has([data-partners-landing]) {
-  --landing-a: 0.42;
-  --landing-b: 0.14;
-  background-image:
-    radial-gradient(760px 560px at 80% 380px, rgb(183 163 242 / var(--landing-a)), transparent 70%),
-    radial-gradient(560px 420px at 0% 0%, rgb(56 189 248 / var(--landing-b)), transparent 70%),
-    radial-gradient(620px 520px at 100% 42%, rgb(255 95 162 / calc(var(--landing-b) * 0.8)), transparent 70%),
-    radial-gradient(660px 560px at 0% 64%, rgb(109 139 255 / var(--landing-b)), transparent 70%),
-    radial-gradient(820px 480px at 70% 97%, rgb(183 163 242 / calc(var(--landing-a) * 0.65)), transparent 70%);
-  background-attachment: local;
-  background-repeat: no-repeat;
+  background-color: var(--color-surface);
+  container-type: size;
 }
-html.dark main:has([data-partners-landing]) {
-  --landing-a: 0.16;
-  --landing-b: 0.07;
+main:has([data-partners-landing]) > div {
+  max-width: none;
+  padding: 0;
 }
 
-/* 콜라보 소개(/partners) 첫 화면 맨 아래 아래 화살표 — 천천히 살짝 내려갔다 올라온다(PartnersLanding ScrollCue). */
-@keyframes partners-landing-cue {
+/* 콜라보 소개 첫 화면 아래 마우스 아이콘(ScrollMouseIcon) — 천천히 아래로 내려갔다 올라온다(PartnersLanding Hero). */
+@keyframes partners-scroll-bob {
   0%,
   100% {
     transform: translateY(0);
@@ -774,7 +767,8 @@ html.dark {
   --color-tone-fff1f0: #271817;
   --color-tone-fff2f1: #261817;
   --color-tone-fff3d3: #281b00;
-  --color-tone-fff8ec: #21190a;}
+  --color-tone-fff8ec: #21190a;
+}
 
 /* 콜라보(/partners) 다크 모드 — 배경 빛 · 유리 카드 위에서 흐린 회색 글자(gray-400 · 500)가 잘 안 보여
    한 단계 밝힌다(11-08 사용자). partners/layout 의 .partners-ui 안에서만 — admix 본 화면은 그대로. */
@@ -907,7 +901,8 @@ html.dark .partners-ui {
   --color-tone-fff1f0: #fff1f0;
   --color-tone-fff2f1: #fff2f1;
   --color-tone-fff3d3: #fff3d3;
-  --color-tone-fff8ec: #fff8ec;}
+  --color-tone-fff8ec: #fff8ec;
+}
 
 /* 유동인구 조건 창 — 고를 수 없는 성별·연령 칩을 누르면 이유 상자를 잠깐 밝힌다(PopGridLayer). */
 @keyframes pop-grid-flash {

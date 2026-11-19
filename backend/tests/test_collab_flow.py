@@ -165,17 +165,31 @@ def _legacy_provisional(db: Session, partner: User) -> None:
     db.refresh(partner)
 
 
-def test_agreement_no_counts_per_day(db: Session, partner: User):
-    """문서번호는 날마다 00001부터 — 그날 가장 큰 번호 다음(097). 먼 날짜로 실제 기록과 겹치지 않게."""
-    signed = datetime(2099, 1, 1, 3, 0, tzinfo=timezone.utc)  # KST 2099-01-01 12:00
-    assert ps._next_agreement_no(db, signed) == "20990101-00001"
-    partner.partner_agreement_no = "20990101-00041"
+def test_agreement_no_random_and_started_at(db: Session, partner: User):
+    """문서번호는 ADMIX-COLLAB-날짜(KST)-무작위 6자리(098), 겹치면 다시 뽑는다. 작성일시는 진행 상태 첫 저장 시각."""
+    signed = datetime(2099, 1, 1, 15, 0, tzinfo=timezone.utc)  # KST 2099-01-02 00:00
+    no = ps._next_agreement_no(db, signed)
+    assert re.fullmatch(r"ADMIX-COLLAB-20990102-[1-9]\d{5}", no)
+    # 이미 쓴 번호가 나오면 다시 뽑는다.
+    partner.partner_agreement_no = no
     db.flush()
-    assert ps._next_agreement_no(db, signed) == "20990101-00042"
-    # 다음 날(KST)은 다시 1번부터 — UTC 로는 같은 날이어도 KST 날짜를 따른다.
-    assert ps._next_agreement_no(db, datetime(2099, 1, 1, 15, 0, tzinfo=timezone.utc)) == "20990102-00001"
+    seq = iter([int(no.rsplit("-", 1)[1]) - 100_000, 1])
+    orig = ps.secrets.randbelow
+    ps.secrets.randbelow = lambda n: next(seq)
+    try:
+        assert ps._next_agreement_no(db, signed) == "ADMIX-COLLAB-20990102-100001"
+    finally:
+        ps.secrets.randbelow = orig
     partner.partner_agreement_no = None
     db.commit()
+
+    # 진행 상태를 처음 저장하면 작성일시가 생기고, 다시 저장해도 그대로다.
+    assert partner.partner_agreement_started_at is None
+    ps.save_agreement_progress(db, partner, {"stage": "topics"})
+    first = partner.partner_agreement_started_at
+    assert first is not None
+    ps.save_agreement_progress(db, partner, {"stage": "annex"})
+    assert partner.partner_agreement_started_at == first
 
 
 def test_agreement_without_biz_license(db: Session, partner: User):
@@ -199,9 +213,17 @@ def test_agreement_without_biz_license(db: Session, partner: User):
         out = _agree(db, partner)
         assert out["version"] == PARTNER_AGREEMENT_VERSION
         assert out["signerName"] == "홍길동" and out["signerRole"] == "representative"
-        # 문서번호 — 서명 날짜(KST) + 그날 순번 5자리(097).
+        # 문서번호 — ADMIX-COLLAB-서명 날짜(KST)-무작위 6자리(098). 작성일시는 서명 시각보다 늦지 않다.
         kst_day = partner.partner_agreed_at.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d")
-        assert re.fullmatch(rf"{kst_day}-\d{{5}}", out["agreementNo"])
+        assert re.fullmatch(rf"ADMIX-COLLAB-{kst_day}-\d{{6}}", out["agreementNo"])
+        assert out["startedAt"] and partner.partner_agreement_started_at <= partner.partner_agreed_at
+        # 요청일시 — 처음 협약이라 가입 시각.
+        assert partner.partner_agreement_requested_at == partner.created_at
+        # 협약 이력(099) — 서명 한 번에 한 줄.
+        records = ps.agreement_records(db, partner)
+        assert len(records) == 1 and records[0]["agreementNo"] == out["agreementNo"]
+        # 서명 IP 는 어드민에서만 — 제휴사 이력엔 없다.
+        assert records[0]["signerName"] == "홍길동" and "signedIp" not in records[0]
         assert out["signatureUrl"].startswith(f"/uploads/partner-signature/{partner.id}/")
         assert (sig_dir / out["signatureUrl"].rsplit("/", 1)[1]).is_file()
         assert partner.partner_signed_ip == "10.0.0.1"

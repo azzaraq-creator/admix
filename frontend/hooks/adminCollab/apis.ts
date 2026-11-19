@@ -97,6 +97,17 @@ export const adminCollabApi = {
         responseType: "blob",
       })
       .then((r) => r.data),
+  /** 관리자가 받은 사업자등록증을 대신 올린다(11-19) — 검토 대기가 되고, 확인한 뒤 인증 완료를 누른다. */
+  uploadBizFile: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api
+      .post<AdminPartnerMember>(
+        `/admin/collab/members/${enc(id)}/biz-file`,
+        form,
+      )
+      .then((r) => r.data);
+  },
   /** 회원 정보 바꾸기 — 지금은 연락처만(숫자만 보내도, '-'를 넣어 보내도 서버가 숫자만 저장). */
   updateMember: (id: string, payload: { phone?: string | null }) =>
     api

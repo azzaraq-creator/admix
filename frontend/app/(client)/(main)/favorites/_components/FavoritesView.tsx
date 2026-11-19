@@ -59,6 +59,7 @@ import { useSonner } from "@/hooks/useSonner";
 import { setStoredFlag, useStoredFlag } from "@/hooks/useStoredFlag";
 import { cn } from "@/lib/utils";
 import { formatTotalWithInquiry } from "@/lib/media";
+import { PARTNERS_MEDIA_CATEGORY } from "@/lib/partners";
 
 import { GUIDE_DEMO_FAVORITES } from "../../proposals/_components/guideDemo";
 import { FavoriteRow, FavoriteRowSkeleton } from "./FavoriteRow";
@@ -173,7 +174,13 @@ export function FavoritesView({ member }: { member: boolean }) {
     : myRows;
 
   const { data: opts } = useMediaFilterOptions();
-  const { optionsByKey, price, regions } = buildFilterUi(opts);
+  // 콜라보 매장은 admix 관심 매체에 없다(관심 매장은 콜라보 화면에서만, 11-19 사용자) — 카테고리 고르기에서도 뺀다.
+  const { optionsByKey, price, regions } = buildFilterUi(
+    opts && {
+      ...opts,
+      categories: opts.categories.filter((c) => c !== PARTNERS_MEDIA_CATEGORY),
+    },
+  );
 
   // 고른 매체 — 지금 목록에 보이는 것만 센다(필터로 빠지거나 관심 취소된 매체는 자동으로 빠진다).
   const [myPicked, setPicked] = useState<string[]>([]);

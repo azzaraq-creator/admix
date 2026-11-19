@@ -383,6 +383,30 @@ def update_business_registration(
     return get_member(db, user_id)
 
 
+# 사업자등록증 파일 — PDF · 이미지 10MB. 회원 본인(auth /me/business-registration) · 어드민(콜라보 회원 상세)이 같이 쓴다.
+LICENSE_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
+LICENSE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def store_license_upload(
+    db: Session, user_id: uuid.UUID, file_name: str | None, content: bytes
+) -> BusinessRegistration:
+    """사업자등록증 파일을 저장하고 검토 대기로(save_license_file) — 관리자가 대신 올릴 때(2026-11-19 사용자).
+    예전 파일은 지우지 않는다 — 반려 기록(095)이 그 파일을 가리킬 수 있다."""
+    ext = Path(file_name or "").suffix.lower()
+    if ext not in LICENSE_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="PDF · JPG · PNG 파일만 올릴 수 있어요.")
+    if not content:
+        raise HTTPException(status_code=400, detail="빈 파일이에요.")
+    if len(content) > LICENSE_MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="파일 크기는 10MB 이하만 올릴 수 있어요.")
+    dest_dir = Path(get_settings().upload_dir) / "business" / str(user_id)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex}{ext}"
+    (dest_dir / stored_name).write_bytes(content)
+    return save_license_file(db, user_id, f"/uploads/business/{user_id}/{stored_name}", file_name=file_name)
+
+
 def save_license_file(
     db: Session, user_id: uuid.UUID, file_url: str, file_name: str | None = None
 ) -> BusinessRegistration:

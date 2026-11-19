@@ -52,6 +52,7 @@ import { MediaFindCard, MediaFindCardSkeleton } from "./MediaFindCard";
 import { MediaFindTopBar } from "./MediaFindTopBar";
 import { PopGridTargetPanel, type PopGridState } from "./PopGridLayer";
 import { DEFAULT_MEDIA_SORT, type MediaSortKey } from "./MediaSortSelect";
+import { categoryPinColor } from "./useMapMarkers";
 import {
   searchPlaces,
   type KakaoPlace,
@@ -475,8 +476,8 @@ export function MediaFindPanel({
           onHoverArea?.(hovered ? (row.operatingArea ?? null) : null)
       : undefined;
 
-  // 콜라보 매장 카드 — 광고주만 눌러서 매장 정보 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
-  const partnersAccess = usePartnersCardAccess();
+  // 콜라보 매장 카드 — admix 매체 찾기는 회원이면 누구나 간단한 팝업(광고주 포함), 콜라보 매장 찾기(only)는 광고주가 다 본다(11-19).
+  const partnersAccess = usePartnersCardAccess(only ? "collab" : "admix");
   const handleItemClick = (row: MediaCardRow) => {
     const item: MediaItemData = {
       id: row.id,
@@ -1017,6 +1018,14 @@ export function MediaFindPanel({
                   id={key}
                   className="gap-[4px] rounded-[13px] whitespace-nowrap"
                 >
+                  {/* admix 매체 찾기 — 카테고리 이름 앞에 지도 핀 색 동그라미(11-19 사용자). 전체 · 매장 유형 탭엔 없다. */}
+                  {!typeTabs && !only && key !== ALL_CATEGORY_TAB && (
+                    <span
+                      aria-hidden
+                      className="mr-[1px] size-[7px] shrink-0 rounded-full"
+                      style={{ backgroundColor: categoryPinColor(key) }}
+                    />
+                  )}
                   {label}
                   {categoryCounts && (
                     <span>

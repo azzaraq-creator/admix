@@ -88,6 +88,16 @@ export const useAdvertiserBizAction = () => {
   });
 };
 
+/** 사업자등록증 대신 올리기(11-19). */
+export const useUploadBizFile = () => {
+  const onSaved = useMemberSaved();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      adminCollabApi.uploadBizFile(id, file),
+    onSuccess: onSaved,
+  });
+};
+
 export const useBizAction = () => {
   const onSaved = useMemberSaved();
   return useMutation({

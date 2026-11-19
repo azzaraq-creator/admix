@@ -38,26 +38,83 @@ export const openPartnersNotice = (next: NoticeKind = "member") => setKind(next)
 export const PARTNERS_INTRO_HREF = "/partners?intro=1";
 
 /**
- * 콜라보 매장 정보 팝업을 열 수 있는 회원 — 사업자등록증 승인을 마친 광고주만. 제휴사(콜라보)도 콜라보 메뉴는 쓰지만 매체 찾기에서
- * 다른 매장 팝업은 못 연다(11-16 사용자: "제휴사도 다른 회원 유형들과 동일하게 막아줘").
- * 승인 전 광고주도 못 연다(11-17 사용자: "사업자등록증 승인 받았을 때만 상세 페이지를 볼 수 있게").
- * 제휴사가 자기 매장을 "광고주에게 보이는 화면"(/partners/stores/[id])으로 보는 건 그대로라 서버(ensure_viewer)는 막지 않는다.
+ * 콜라보 매장 정보 팝업을 다 볼 수 있는 회원 — 사업자등록증 승인을 마친 광고주만(금액 · 가능 범위 · 관심 매장).
+ * 승인 전 광고주는 못 연다(11-17 사용자: "사업자등록증 승인 받았을 때만 상세 페이지를 볼 수 있게").
+ * 광고주가 아닌 회원(일반 · 대행사 · 매체사 · 제휴사)은 간단한 팝업만(preview — 2026-11-19 사용자: "눌러서 팝업까진 보게",
+ * 예전 11-16엔 제휴사까지 모두 막았다). 서버도 광고주가 아니면 간단한 정보만 준다(partners_service.get_public).
  */
 const canOpenPartnersStore = (
   me: Parameters<typeof advBizLockOf>[0],
 ) => me?.member_category === "advertiser" && advBizLockOf(me) === null;
 
 /**
+ * 콜라보 매장을 어디서 보는지 — admix: admix 매체 찾기(/fixed), collab: 콜라보 화면(매장 찾기 · 관심 매장 · 기획안).
+ * admix 에선 광고주도 다른 회원과 같이 간단히 보기만 — 금액 · 가능 범위 · 관심 매장은 콜라보 화면에서만(2026-11-19 사용자).
+ */
+export type PartnersStoreWhere = "admix" | "collab";
+
+/**
  * 콜라보 카드를 어떻게 보일지 — 매체 찾기 목록·지도 말풍선 · 콜라보 매장 찾기 · 관심 매장.
- * open: 승인을 마친 광고주(누르면 매장 정보 팝업). unverified: 승인 전 광고주(눌리지 않고 금액 · 가능 범위를 흐리게, 하트 막음).
- * locked: 그 밖(비회원·일반·대행사·매체사·제휴사) — 보이기만 하고 눌리지 않는다(자물쇠).
+ * admix 매체 찾기: 회원이면 누구나 preview(광고주 포함 — 누르면 간단한 매장 정보 팝업, 하트 자리는 "콜라보 바로 가기"), 비회원은 locked.
+ * 콜라보 화면: open: 승인을 마친 광고주(누르면 매장 정보 팝업). unverified: 승인 전 광고주(눌리지 않고 금액 · 가능 범위를 흐리게, 하트 막음).
+ * 광고주가 아닌 회원은 preview, 비회원은 locked(보이기만 하고 눌리지 않는다, 자물쇠).
  * 로그인했는데 회원 정보를 아직 받는 중이면 열 수 있는 쪽으로 본다(useOpenPartners 와 같다).
  */
-export function usePartnersCardAccess(): PartnersCardAccess {
+export function usePartnersCardAccess(
+  where: PartnersStoreWhere = "collab",
+): PartnersCardAccess {
   const { data: me } = useMe();
+  if (where === "admix") return me || getUserToken() ? "preview" : "locked";
   if (!me && getUserToken()) return "open";
   if (canOpenPartnersStore(me)) return "open";
-  return me?.member_category === "advertiser" ? "unverified" : "locked";
+  if (!me) return "locked";
+  return me.member_category === "advertiser" ? "unverified" : "preview";
+}
+
+/** 콜라보 바로 가기로 열 매장 — 광고주는 콜라보 매장 찾기에서 이 매장 자리로 옮기고 매장 정보 팝업을 바로 연다. */
+export type PartnersGoTarget = {
+  mediaId: string;
+  lat?: number | null;
+  lng?: number | null;
+};
+
+// 콜라보 매장 찾기에서 매장 자리 둘레(도) · 지도 레벨 — 매체 찾기 검색으로 매체를 골랐을 때(±0.005)와 같은 넓이, 이름 말풍선이 보이는 가까이.
+const GO_STORE_RADIUS_DEG = 0.005;
+const GO_STORE_ZOOM = 3;
+
+/** 콜라보 매장 찾기에서 그 매장을 여는 주소 — /partners/find?store=CF-0002(+ 매장 자리 지도 영역). */
+export function partnersFindStoreHref(target: PartnersGoTarget): string {
+  const q = new URLSearchParams({ store: target.mediaId });
+  const { lat, lng } = target;
+  if (lat != null && lng != null) {
+    q.set("zoom", String(GO_STORE_ZOOM));
+    q.set("neLat", String(lat + GO_STORE_RADIUS_DEG));
+    q.set("swLat", String(lat - GO_STORE_RADIUS_DEG));
+    q.set("neLng", String(lng + GO_STORE_RADIUS_DEG));
+    q.set("swLng", String(lng - GO_STORE_RADIUS_DEG));
+  }
+  return `/partners/find?${q.toString()}`;
+}
+
+/**
+ * 콜라보 바로 가기 — 안내 창 없이 새 탭으로 콜라보 화면을 연다. admix 매체 찾기의 콜라보 매장 카드 · 간단한 매장 정보 팝업(11-19 사용자).
+ * 광고주는 콜라보 매장 찾기에서 그 매장 자리로 옮기고 매장 정보 팝업을 바로 연다(target, 11-19 사용자 — 금액 · 가능 범위 · 관심 매장은 거기서).
+ * 제휴사는 대시보드, 그 밖(일반·대행사·매체사)은 /partners(회원 유형에 맞게 소개 페이지를 보여 준다, PartnersHome).
+ */
+export function useGoPartners(target?: PartnersGoTarget) {
+  const { data: me } = useMe();
+  return () => {
+    const category = me?.member_category;
+    window.open(
+      category === "partner"
+        ? PARTNERS_DASHBOARD_HREF
+        : category === "advertiser" && target
+          ? partnersFindStoreHref(target)
+          : "/partners",
+      "_blank",
+      "noopener",
+    );
+  };
 }
 
 /**
@@ -83,12 +140,11 @@ export function useOpenPartners() {
 }
 
 /**
- * 콜라보 매장 정보 팝업(StoreDetailModal)을 띄워도 되는지 — 광고주만.
- * 안 되면 안내 창(비회원은 로그인 안내, 콜라보 메뉴를 못 쓰는 회원은 "전용 메뉴")을 띄우고 false.
- * 제휴사(콜라보)는 이미 콜라보 회원이라 "전용 메뉴" 창 없이 그냥 막는다(카드에 자물쇠 · 툴팁이 있다).
+ * 콜라보 매장 정보 팝업(StoreDetailModal)을 띄워도 되는지 — 회원이면(admix 매체 찾기는 누구나 간단히 보기, 11-19).
+ * 비회원은 로그인 안내 창을 띄우고 false. 콜라보 화면에선 승인 전 광고주를 그냥 막는다(카드에 자물쇠 · 툴팁이 있다).
  * 예전엔 매장 상세를 새 탭으로 열었다(11-16 사용자: "admix처럼 상세 팝업이 뜨게").
  */
-export function usePartnersStoreGate() {
+export function usePartnersStoreGate(where: PartnersStoreWhere = "collab") {
   const { data: me } = useMe();
   return () => {
     // 로그인했는데 회원 정보를 아직 받는 중이면 연다 — 팝업이 매장 정보를 못 받으면 안내 문구를 띄운다.
@@ -97,11 +153,11 @@ export function usePartnersStoreGate() {
       openPartnersNotice("guest");
       return false;
     }
-    if (!canOpenPartnersStore(me)) {
-      if (!canUsePartners(me.member_category)) openPartnersNotice("member");
-      return false;
-    }
-    return true;
+    return (
+      where === "admix" ||
+      me.member_category !== "advertiser" ||
+      canOpenPartnersStore(me)
+    );
   };
 }
 

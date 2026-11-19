@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { CheckMark } from "./agreementShared";
 
 /**
- * 제휴사(콜라보) 가입 진행 — 기본협약 동의(/partners/join/agreement) 위에 쓴다.
+ * 제휴사(콜라보) 가입 진행 — 협약서 작성(/partners/join/agreement) 위에 쓴다. 둘째 칸은 화면 제목과 같은 "협약서 작성"(11-19 사용자).
  * 03은 매장 연결 — 담당자가 어드민에서 매장을 등록하고 회원 고유번호로 잇는다(2026-11-09, 069).
  */
-const FLOW = ["가입 정보", "기본협약 동의", "매장 연결"];
+const FLOW = ["가입 정보", "협약서 작성", "매장 연결"];
 
 /**
  * 가입 진행 표시 — current 앞은 체크, current 는 흰 알약, 뒤는 번호만(모바일은 지금 단계만 이름).
@@ -52,9 +52,7 @@ export function JoinFlow({
             ) : i < current ? (
               <CheckMark on />
             ) : (
-              <span>
-                {String(i + 1).padStart(2, "0")}
-              </span>
+              <span>{String(i + 1).padStart(2, "0")}</span>
             )}
             {/* 모바일은 지금 단계만 이름을 보인다(좁은 화면에서 줄바꿈 방지). */}
             <span className={cn(i !== current && "sr-only sm:not-sr-only")}>

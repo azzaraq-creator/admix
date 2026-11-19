@@ -90,9 +90,9 @@ export function SignupCompleteView() {
             title="회원가입이 완료되었어요!"
             description={
               partner ? (
-                // "동의하면" 뒤에서 줄을 바꾼다(11-13 사용자).
+                // "작성하면" 뒤에서 줄을 바꾼다(11-13 사용자). 사업자등록증은 선택이라 뺐다(11-18), "기본협약"은 "협약서"로(11-19 사용자).
                 <>
-                  사업자등록증을 올리고 기본협약에 동의하면
+                  협약서를 작성하면
                   <br />
                   담당자가 매장을 연결해 드려요
                 </>
@@ -153,7 +153,7 @@ export function SignupCompleteView() {
         {partner ? (
           <div className="flex w-full flex-col gap-[8px] max-sm:mt-auto">
             <PrimaryAction
-              label="기본협약 하기"
+              label="협약서 작성하기"
               onPress={() => router.push(PARTNER_AGREEMENT_HREF)}
             />
             {/* 버튼 44px → 곡률 19px. 큰 버튼과 겹쳐 보이지 않게 바탕 없는 회색 글자 버튼. */}

@@ -1,23 +1,30 @@
 "use client";
 
-import { Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@heroui/react";
 import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 
+import {
+  type PartnersGoTarget,
+  useGoPartners,
+} from "@/components/common/PartnersAccessNotice";
 import { cn } from "@/lib/utils";
 
 /**
- * 콜라보 매장 카드를 누를 수 있는지 — open: 매장 정보 팝업이 뜬다, locked: 보이기만 하고 눌리지 않는다(광고주가 아님),
+ * 콜라보 매장 카드를 누를 수 있는지 — open: 매장 정보 팝업이 뜬다(승인을 마친 광고주),
+ * preview: 광고주가 아닌 회원(일반 · 대행사 · 매체사 · 제휴사) — 눌러서 간단한 매장 정보 팝업(금액 · 가능 범위 없이)을 보고,
+ * 하트 대신 "콜라보 바로 가기"(export.svg)(2026-11-19 사용자 — 예전엔 locked 처럼 막았다),
+ * locked: 보이기만 하고 눌리지 않는다(비회원),
  * unverified: 사업자등록증 승인 전 광고주 — locked 처럼 눌리지 않고, 금액 · 가능 범위를 흐리게 가리고 관심(하트)도 막는다(11-17 사용자).
  */
-export type PartnersCardAccess = "open" | "locked" | "unverified";
+export type PartnersCardAccess = "open" | "preview" | "locked" | "unverified";
 
 /** 카드를 열 수 없는지(locked · unverified). */
 export const isCardLocked = (access: PartnersCardAccess | undefined) =>
   access === "locked" || access === "unverified";
 
-const LOCKED_HINT: Record<Exclude<PartnersCardAccess, "open">, string> = {
-  locked: "광고주 회원만 열 수 있어요.",
+const LOCKED_HINT: Record<"locked" | "unverified", string> = {
+  locked: "로그인하면 볼 수 있어요.",
   unverified: "사업자등록증 승인을 받으면 볼 수 있어요.",
 };
 
@@ -72,7 +79,7 @@ export function PartnersAccessMark({
   /** 바깥 칩 모양(크기·바탕·모서리) — 놓이는 자리의 옆 버튼과 맞춘다. */
   className?: string;
 }) {
-  if (access === "open") return null;
+  if (access === "open" || access === "preview") return null;
   return (
     <Tooltip isOpen={hovered} delay={0} closeDelay={0}>
       <Tooltip.Trigger
@@ -88,6 +95,47 @@ export function PartnersAccessMark({
       </Tooltip.Trigger>
       <Tooltip.Content placement={placement} className="whitespace-nowrap">
         {LOCKED_HINT[access]}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
+/**
+ * 콜라보 바로 가기 — 광고주가 아닌 회원(preview)의 콜라보 매장 카드 · 지도 말풍선에서 하트 자리(2026-11-19 사용자: "관심 버튼을 export.svg로").
+ * 새 탭으로 콜라보 화면을 연다 — 광고주는 콜라보 매장 찾기에서 이 매장 팝업까지(target), 제휴사는 대시보드, 그 밖은 소개.
+ * 아이콘은 public/icons/export.svg 를 글자색으로 칠한다.
+ * 크기 · 바탕 · 모서리는 놓이는 자리의 하트 버튼과 맞춘다(className). onPress 는 카드 클릭으로 번지지 않는다.
+ */
+export function PartnersLinkButton({
+  target,
+  className,
+  iconClassName,
+}: {
+  /** 이 카드의 매장 — 광고주는 콜라보 매장 찾기에서 그 매장 팝업을 바로 연다. */
+  target?: PartnersGoTarget;
+  className?: string;
+  iconClassName?: string;
+}) {
+  const go = useGoPartners(target);
+  return (
+    <Tooltip delay={0} closeDelay={0}>
+      <Button
+        isIconOnly
+        variant="ghost"
+        aria-label="콜라보 바로 가기"
+        onPress={go}
+        className={cn("min-w-0 p-0", className)}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "shrink-0 bg-current [mask:url(/icons/export.svg)_center/contain_no-repeat]",
+            iconClassName,
+          )}
+        />
+      </Button>
+      <Tooltip.Content placement="top" className="whitespace-nowrap">
+        콜라보 바로 가기
       </Tooltip.Content>
     </Tooltip>
   );

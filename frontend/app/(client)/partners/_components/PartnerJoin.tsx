@@ -150,7 +150,7 @@ export function PartnerJoin() {
             협약 단계 미리보기
           </span>
           <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-gray-900 sm:mt-[12px] sm:text-[24px]">
-            기본협약 살펴보기
+            협약서 살펴보기
           </h2>
           {/* 설명 — 한 줄로 줄였다(11-08 사용자: "문구를 줄이거나 없애줘"). 모바일은 높이를 아끼려 뺀다. */}
           <p className="mt-[8px] hidden text-[14px] leading-[1.7] break-keep text-gray-600 sm:block">

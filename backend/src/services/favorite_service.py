@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.models.media_favorite import MediaFavorite
 from src.models.media_master import Media
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
 from src.services.media_service import (
     _apply_media_sort,
     _media_base_query,
@@ -15,6 +16,17 @@ from src.services.media_service import (
     attach_partners,
     price_histogram,
 )
+
+
+def _only_mine(base, member_id: uuid.UUID, categories: list[str] | None):
+    """내가 담은 매체만. 콜라보 매장은 콜라보 화면의 관심 매장(카테고리 "콜라보"로 부를 때)에만 —
+    admix 관심 매체 · 기획안에 담기 목록에선 뺀다(2026-11-19 사용자: "관심 매장도 콜라보 페이지에서만")."""
+    base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
+        MediaFavorite.member_id == member_id
+    )
+    if not categories or PARTNERS_MEDIA_CATEGORY not in categories:
+        base = base.filter(Media.category_large.is_distinct_from(PARTNERS_MEDIA_CATEGORY))
+    return base
 
 
 def list_favorite_ids(db: Session, member_id: uuid.UUID) -> list[str]:
@@ -62,9 +74,7 @@ def list_favorite_cards(
         keyword=keyword,
         regions=regions,
     )
-    base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
-        MediaFavorite.member_id == member_id
-    )
+    base = _only_mine(base, member_id, categories)
     rows = (
         _apply_media_sort(base, sort, latest=MediaFavorite.created_at)
         .options(selectinload(Media.images), selectinload(Media.plans))
@@ -99,9 +109,7 @@ def favorite_price_histogram(
         keyword=keyword,
         regions=regions,
     )
-    base = base.join(MediaFavorite, MediaFavorite.media_id == Media.media_id).filter(
-        MediaFavorite.member_id == member_id
-    )
+    base = _only_mine(base, member_id, categories)
     return price_histogram(db, base)
 
 

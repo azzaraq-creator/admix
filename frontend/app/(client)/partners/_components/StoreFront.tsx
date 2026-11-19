@@ -335,7 +335,8 @@ function PreviewFrame({
             <Chip className="gap-0 rounded-[8px] bg-tone-ededef py-[3px] text-[11px] leading-[16.5px] text-zinc-500 max-sm:text-[10px]">
               {PARTNERS_MEDIA_CATEGORY}
               <ChevronRightBoldIcon className="size-[16px] shrink-0" />
-              {PARTNERS_MEDIA_SMALL}
+              {/* 매장 유형(카페 · 식당 …) — 광고주가 보는 카드와 같게(11-19). 유형이 없으면 "매장". */}
+              {store.storeType || PARTNERS_MEDIA_SMALL}
             </Chip>
           </div>
         </div>
@@ -784,14 +785,15 @@ function PhotoAlbum({
           )}
           {/*
            * 한 번에 6장(3칸 × 2줄)까지 보이고, 더 있으면 안에서 스크롤 + 위아래 흐림(HeroUI ScrollShadow)(11-10 사용자).
-           * 2줄 높이 = 카드 폭으로 정해지는 정사각형 두 장 + 간격 — 바깥 칸 폭(cqw)으로 계산한다.
+           * 2줄 높이 = 칸 폭으로 정해지는 가로 4:3 사진 두 장 + 간격 — 바깥 칸 폭(cqw)으로 계산한다
+           * (한 장 폭 (100cqw − 12px) / 3, 높이는 그 3/4). 2026-11-19 사용자: "가로로 사진을 찍거든" — 예전엔 정사각형.
            * 대표 사진은 왼쪽 위 작은 표시(전체 탭은 분류 이름도). 누르면 갤러리 — 어드민이 적은 사진 메모도 보인다.
            */}
           <div className="@container">
             <ScrollShadow
               size={36}
               className="overflow-y-auto overscroll-contain"
-              style={{ maxHeight: "calc((100cqw - 12px) * 2 / 3 + 6px)" }}
+              style={{ maxHeight: "calc((100cqw - 12px) / 2 + 6px)" }}
             >
               <ul className="grid grid-cols-3 gap-[6px]">
                 {shown.map((p) => (
@@ -802,7 +804,7 @@ function PhotoAlbum({
                       onClick={() =>
                         onOpen(Math.max(0, store.imageUrls.indexOf(p.url)))
                       }
-                      className="group relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-[10px] bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 max-sm:rounded-[8px]"
+                      className="group relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden rounded-[10px] bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 max-sm:rounded-[8px]"
                     >
                       <MediaImage
                         src={mediaSrc(p.url)}

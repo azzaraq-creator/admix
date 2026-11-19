@@ -39,8 +39,9 @@ from src.utils.deps import get_current_user, get_current_user_optional_lenient
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-LICENSE_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
-LICENSE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+# 사업자등록증 파일 규칙 — 어드민이 대신 올릴 때도 같게(member_service).
+LICENSE_ALLOWED_EXTENSIONS = member_service.LICENSE_ALLOWED_EXTENSIONS
+LICENSE_MAX_UPLOAD_SIZE = member_service.LICENSE_MAX_UPLOAD_SIZE
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)

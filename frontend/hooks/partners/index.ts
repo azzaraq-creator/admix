@@ -142,6 +142,11 @@ export const partnersApi = {
     api
       .get<{ progress: unknown }>("/partners/me/agreement/progress")
       .then((r) => r.data.progress ?? null),
+  /** 협약 이력(099) — 서명할 때마다 쌓인 기록, 최근 것부터. */
+  agreementRecords: () =>
+    api
+      .get<{ items: AgreementRecordItem[] }>("/partners/me/agreement/records")
+      .then((r) => r.data.items),
   saveAgreementProgress: (progress: unknown) =>
     api.put("/partners/me/agreement/progress", { progress }),
   /** 기본협약 최종 동의 — 동의 시각 · 버전과 전자 서명(이름 · 구분 · 손 서명 PNG)을 남긴다(078). */
@@ -258,6 +263,20 @@ export const partnersApi = {
   },
 };
 
+/** 협약 이력 한 줄(099) — 서명할 때마다 쌓이고, 해지는 그 줄에 적힌다. */
+export type AgreementRecordItem = {
+  id: string;
+  agreementNo: string | null;
+  version: string | null;
+  requestedAt: string | null;
+  startedAt: string | null;
+  agreedAt: string;
+  signerName: string | null;
+  signerRole: string | null;
+  terminationRequestedAt: string | null;
+  terminationEffectiveOn: string | null;
+};
+
 export const partnersKeys = {
   all: ["partners"] as const,
   mine: () => [...partnersKeys.all, "mine"] as const,
@@ -334,6 +353,20 @@ export const useDeleteBrand = () => {
   });
 };
 
+/** 협약 이력(099) — 지금 문서번호가 바뀌면(다시 협약) 새로 받는다. */
+export const useAgreementRecords = () => {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: [
+      ...partnersKeys.all,
+      "agreementRecords",
+      me?.partner_agreement_no ?? null,
+    ],
+    queryFn: partnersApi.agreementRecords,
+    enabled: me?.member_category === "partner",
+  });
+};
+
 export const useMyPartnersStores = () => {
   const { data: me } = useMe();
   return useQuery({
@@ -406,12 +439,13 @@ export const usePartnersStores = (params: {
   });
 };
 
+// 매장 정보 팝업 — 회원이면 누구나(광고주가 아니면 서버가 간단한 정보만 준다, 2026-11-19 사용자: admix 매체 찾기에서 팝업까진 보게).
 export const usePartnersStore = (key: string) => {
   const { data: me } = useMe();
   return useQuery({
     queryKey: partnersKeys.store(key),
     queryFn: () => partnersApi.store(key),
-    enabled: canUsePartners(me?.member_category),
+    enabled: !!me,
     retry: false,
   });
 };

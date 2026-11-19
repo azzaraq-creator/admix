@@ -21,6 +21,7 @@ from src.models.ai_recommend_job import AiRecommendJob
 from src.models.partners_store import PartnersStore, PartnersStoreRequest, PartnersStoreType
 from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto, CollabReportFile
 from src.models.collab_lead import CollabLead, CollabLeadSetting
+from src.models.partner_agreement_record import PartnerAgreementRecord
 
 __all__ = [
     "AdMessage",
@@ -38,6 +39,7 @@ __all__ = [
     "CollabReportFile",
     "CollabLead",
     "CollabLeadSetting",
+    "PartnerAgreementRecord",
     "AdSession",
     "MessageRole",
     "KeywordCategory",

@@ -38,6 +38,7 @@ import {
   useMediaTraffic,
   useMediaTrafficVolume,
 } from "@/hooks/media";
+import { useMe } from "@/hooks/auth";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 import {
@@ -318,18 +319,19 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   const [selectedMedia, setSelectedMedia] = useState<MediaItemData | null>(
     null,
   );
-  // 콜라보 매장 — 매체 정보 팝업 대신 매장 정보 팝업(StoreDetailModal, 11-16 사용자: "admix처럼 상세 팝업").
+  // 콜라보 매장 — 매체 정보 팝업 대신 매장 정보 팝업(StoreDetailModal, 11-16 사용자: "admix처럼 상세 팝업"). 값은 매체 ID(CF-0001).
   // 예전엔 매장 상세를 새 탭으로 열었다.
-  const [selectedStore, setSelectedStore] = useState<MediaCardRow | null>(
-    null,
-  );
-  const storeGate = usePartnersStoreGate();
+  const [selectedStore, setSelectedStore] = useState<string | null>(null);
+  // admix 매체 찾기(only 없음)는 광고주도 간단히 보기만 — 다 보는 건 콜라보 매장 찾기(only)에서(11-19 사용자).
+  const storeWhere = only ? "collab" : "admix";
+  const storeGate = usePartnersStoreGate(storeWhere);
   const openStore = (row: MediaCardRow) => {
-    if (storeGate()) setSelectedStore(row);
+    if (storeGate()) setSelectedStore(row.id);
   };
-  // 콜라보 매장 카드 — 광고주만 눌러서 팝업을 열고, 그 외(제휴사 포함)는 보이기만 한다(카드가 눌리지 않음).
-  const partnersAccess = usePartnersCardAccess();
-  // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 정보 팝업(광고주만, 그 외는 막힘).
+  // 콜라보 매장 카드 — admix 매체 찾기는 회원이면 누구나(광고주 포함) 간단한 팝업(금액 · 가능 범위 · 관심 없이, 11-19),
+  // 콜라보 매장 찾기는 광고주가 다 본다(승인 전 광고주는 보이기만). 비회원은 보이기만 한다(카드가 눌리지 않음).
+  const partnersAccess = usePartnersCardAccess(storeWhere);
+  // 지도 말풍선에서 고른 매체 — 콜라보 매장은 매장 정보 팝업(비회원은 로그인 안내, 승인 전 광고주는 막힘).
   const selectPopupRow = (row: MediaCardRow) => {
     if (row.categoryLarge === PARTNERS_MEDIA_CATEGORY) openStore(row);
     else setSelectedMedia(cardRowToItem(row));
@@ -352,6 +354,23 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
       : { ...(only?.initialView ?? DEFAULT_CENTER) };
   });
   const [focusId, setFocusId] = useState<string | undefined>(undefined);
+  // 지도에서 직접 누른 핀 — 이 핀으로 포커스가 옮겨 가도 지도를 가운데로 옮기지 않는다(상세 팝업 뒤 지도가 움직이지 않게).
+  const [pinFocusId, setPinFocusId] = useState<string | undefined>(undefined);
+  // 콜라보 매장 찾기에 ?store=CF-0002 로 들어오면(admix 매체 찾기 매장 팝업의 "콜라보 바로 가기", 광고주 — 11-19 사용자)
+  // 그 매장 정보 팝업을 바로 연다. 지도는 주소의 영역(매장 자리)으로 이미 옮겨 와 있고, 핀은 선택 표시만 한다.
+  // 회원 정보를 받은 뒤 한 번만 — 승인 전 광고주는 막힌다(storeGate). 주소에서 store 는 바로 지운다(새로 고침에 다시 안 뜨게).
+  const { data: me } = useMe();
+  const storeParam = only ? searchParams.get("store") : null;
+  useEffect(() => {
+    if (!storeParam || !me) return;
+    replaceQuery((q) => q.delete("store"));
+    if (!storeGate()) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 주소로 넘어온 매장을 한 번 여는 것
+    setSelectedStore(storeParam);
+    setPinFocusId(storeParam);
+    setFocusId(storeParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 회원 정보가 오면 한 번만
+  }, [storeParam, me]);
   // 목록에서 마우스를 올린 이동매체의 운행 지역 — 지도에 반투명 영역으로 그린다.
   const [hoverArea, setHoverArea] = useState<OperatingArea | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
@@ -574,12 +593,17 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
       : null;
   }, [spotParam]);
 
-  // 팝업이 열린 핀을 다시 누르면 닫는다(선택도 푼다).
+  // 단독 핀 — 미리보기(작은 지도 팝업) 없이 바로 상세 팝업(2026-11-19 사용자: "겹쳐 있지 않고 단독일 경우엔 미리보기 없이
+  // 바로 팝업"). 겹친 핀(숫자 배지)은 그대로 목록 미리보기. 핀은 선택 표시만 하고 지도는 옮기지 않는다(pinFocusId).
+  // 콜라보 매장은 매장 정보 팝업(광고주가 아니면 간단히 보기, 비회원은 로그인 안내) — 목록 미리보기에서 고를 때와 같다(selectPopupRow).
   const handleMarkerClick = (id: string) => {
     setGroupPopup(null);
-    const reopen = popupId !== id;
-    setPopupId(reopen ? id : null);
-    setFocusId(reopen ? id : undefined);
+    setPopupId(null);
+    const marker = markers.find((m) => m.id === id);
+    if (!marker) return;
+    setPinFocusId(id);
+    setFocusId(id);
+    selectPopupRow(markerToCardRow(marker));
   };
 
   // 겹친 마커(카운트 배지) 클릭 → 그 매체들을 리스트 팝업으로. 이미 열린 묶음을 다시 누르면 닫는다.
@@ -682,7 +706,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
               }
             : null
         }
-        selectedId={selectedMedia?.id ?? selectedStore?.id}
+        selectedId={selectedMedia?.id ?? selectedStore ?? undefined}
         onSelectMedia={setSelectedMedia}
         onSelectStore={openStore}
         onFocusMedia={(id) => {
@@ -711,7 +735,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
             onGroupClick={handleGroupClick}
             onMarkerClick={handleMarkerClick}
             focusId={focusId}
-            focusCenter={!popupId}
+            focusCenter={!popupId && focusId !== pinFocusId}
             popupId={popupId}
             popupPosition={
               groupPopup && groupPopup.length > 0
@@ -831,8 +855,9 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
       {/* 매장 정보 팝업도 닫아도 핀 포커스는 그대로(매체 정보 팝업과 같다). */}
       {selectedStore && (
         <StoreDetailModal
-          mediaId={selectedStore.id}
+          mediaId={selectedStore}
           onClose={() => setSelectedStore(null)}
+          brief={!only}
         />
       )}
 

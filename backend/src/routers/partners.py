@@ -132,6 +132,12 @@ def save_agreement_progress(
     return partners_service.save_agreement_progress(db, user, body.get("progress"))
 
 
+@router.get("/me/agreement/records")
+def agreement_records(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """협약 이력(099) — 서명할 때마다 쌓인 기록, 최근 것부터."""
+    return {"items": partners_service.agreement_records(db, user)}
+
+
 def _client_ip(request: Request) -> str | None:
     """요청한 곳 IP — 운영은 nginx 뒤라 X-Forwarded-For 첫 값, 없으면 바로 붙은 곳."""
     forwarded = request.headers.get("x-forwarded-for", "")
@@ -511,8 +517,8 @@ def list_stores(
 
 @router.get("/stores/{key}")
 def get_store(key: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    """key — 매장 id 또는 매체 찾기 media_id(CF-0001)."""
-    partners_service.ensure_viewer(user)
+    """key — 매장 id 또는 매체 찾기 media_id(CF-0001).
+    로그인한 회원 누구나 — 광고주가 아니면 간단한 정보만(2026-11-19 사용자: admix 매체 찾기에서 팝업까지는 보게). 목록은 그대로 광고주 · 제휴사만."""
     return partners_service.get_public(db, key, user)
 
 

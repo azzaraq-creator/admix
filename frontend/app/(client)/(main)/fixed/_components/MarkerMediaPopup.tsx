@@ -20,6 +20,7 @@ import {
 } from "@/components/common/PartnersCardDetails";
 import {
   PartnersAccessMark,
+  PartnersLinkButton,
   isCardLocked,
   type PartnersCardAccess,
 } from "@/components/common/PartnersAccessMark";
@@ -149,7 +150,8 @@ export function MediaPopupCard({
   roadview?: boolean;
   /**
    * 콜라보 매장 카드를 누를 수 있는지(지도 팝업) — 기획안 담기 자리에 표시를 두고, 카드에 마우스를 올리면 툴팁.
-   * open: 누르면 매장 정보 팝업, locked: 광고주 회원이 아니라(제휴사 포함) 보이기만 하고 눌리지 않는다(자물쇠).
+   * open: 누르면 매장 정보 팝업, preview: 광고주가 아닌 회원 — 누르면 간단한 매장 정보 팝업, 하트 자리는 "콜라보 바로 가기"(11-19),
+   * locked: 비회원 · unverified: 승인 전 광고주 — 보이기만 하고 눌리지 않는다(자물쇠).
    * 믹시 추천 목록은 주지 않는다(표시 없음, 전처럼 눌림).
    */
   partnersAccess?: PartnersCardAccess;
@@ -190,6 +192,25 @@ export function MediaPopupCard({
     notifyName: row.name,
     label: likeLabel,
   });
+  // 광고주가 아닌 회원(preview)의 콜라보 카드는 하트 대신 "콜라보 바로 가기"(export.svg, 11-19 사용자) — 같은 칸.
+  const like =
+    access === "preview" ? (
+      <PartnersLinkButton
+        target={{ mediaId: row.id, lat: row.lat, lng: row.lng }}
+        className="size-[28px] shrink-0 rounded-[11px] bg-gray-100 text-gray-400 data-[hovered=true]:bg-gray-200 data-[hovered=true]:text-gray-600"
+        iconClassName="size-[13px]"
+      />
+    ) : (
+      <LikeButton
+        liked={liked}
+        onToggle={toggleLiked}
+        label={likeLabel}
+        isDisabled={concealed}
+      />
+    );
+  // 카테고리 칩 오른쪽 — 콜라보 매장은 매장 유형(카페 · 식당 …, 11-19). 유형이 없으면 "매장".
+  const categorySmall =
+    (partners && row.partners?.storeType) || row.categorySmall;
 
   // 안에 버튼(찜·담기)이 있어 카드 자체는 버튼이 될 수 없으므로, 키보드는 매체명 버튼으로 상세를 연다.
   // HeroUI Button의 기본 높이·패딩·가운데 정렬을 풀어 글자처럼 보이게 한다.
@@ -261,12 +282,7 @@ export function MediaPopupCard({
             {name}
           </div>
           <div className="col-start-2 row-start-1 flex gap-[4px] sm:row-span-2">
-            <LikeButton
-              liked={liked}
-              onToggle={toggleLiked}
-              label={likeLabel}
-              isDisabled={concealed}
-            />
+            {like}
             {roadviewAt && (
               // 간략히 보기는 아이콘만 — 옆 버튼들과 같은 밝은 회색 바탕.
               <a
@@ -353,12 +369,7 @@ export function MediaPopupCard({
                   <StopNoChip stopNo={row.stopNo} className="self-center" />
                 )}
                 {name}
-                <LikeButton
-                  liked={liked}
-                  onToggle={toggleLiked}
-                  label={likeLabel}
-                  isDisabled={concealed}
-                />
+                {like}
               </div>
               {row.address && (
                 <div className="flex items-start gap-[3px]">
@@ -373,10 +384,10 @@ export function MediaPopupCard({
               {row.categoryLarge && (
                 <Chip className="min-w-0 self-start gap-0 rounded-[7px] bg-tone-ededef py-[2px] text-[11px] max-sm:text-[10px] leading-[16px] text-zinc-500">
                   {row.categoryLarge}
-                  {row.categorySmall && (
+                  {categorySmall && (
                     <>
                       <ChevronRightBoldIcon className="size-[14px] shrink-0" />
-                      {row.categorySmall}
+                      {categorySmall}
                     </>
                   )}
                 </Chip>

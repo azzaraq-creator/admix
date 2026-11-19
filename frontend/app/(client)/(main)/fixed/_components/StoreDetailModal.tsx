@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, Popover, Tooltip } from "@heroui/react";
+import { Button, Chip, Popover, Tooltip } from "@heroui/react";
 import { Fragment, useState, type ReactNode } from "react";
 
 import {
@@ -10,6 +10,7 @@ import {
   MediaDetailSkeleton,
 } from "@/components/common/MediaDetailModal";
 import { ImageLightbox } from "@/components/common/ImageLightbox";
+import { useGoPartners } from "@/components/common/PartnersAccessNotice";
 import { MediaImageCarousel } from "@/components/common/MediaImageCarousel";
 import { MediaLocationMapModal } from "@/components/common/media-detail/MediaLocationMapModal";
 import { NearbyStations } from "@/components/common/media-detail/NearbyStations";
@@ -46,8 +47,8 @@ import { type CollabPick, collabFeeText, GradeBox } from "./collabPick";
 /*
  * 콜라보 매장 정보 팝업 — 매체 찾기 · 광고주 매장 찾기(/partners/find) · 관심 매장에서 매장 카드나 지도 말풍선을 누르면 띄운다
  * (11-16 사용자: "매장을 누르면 페이지 이동이 되는데 admix처럼 상세 팝업이 뜨게"). 예전엔 매장 상세(/partners/stores/[id])를 새 탭으로 열었다.
- * 매체 정보 팝업과 같은 틀(DetailModalShell) — 왼쪽 사진(정사각형, 11-16 사용자: "매장 사진을 정사각형으로 보여줘" —
- * 팝업도 좁게 780px, 사진 · 오른쪽 칸 둘 다 360px: "너비를 좁혀도 될 듯"), 오른쪽 이름 · 주소(누르면 위치 지도) · 가까운 역 · 매장 유형 칩 · 태그 · 금액 · 매장 정보.
+ * 매체 정보 팝업과 같은 틀(DetailModalShell) — 왼쪽 사진(가로 4:3, 440px — 2026-11-19 사용자: "가로로 사진을 찍거든".
+ * 11-16엔 정사각형 360px에 팝업도 780px로 좁혔다), 오른쪽 칸 360px에 이름 · 주소(누르면 위치 지도) · 가까운 역 · 매장 유형 칩 · 태그 · 금액 · 매장 정보.
  * 매장 정보는 사진 옆 오른쪽 칸 안에(11-16 사용자: "아래 매장 정보를 예쁘게 배치해 줘" — 처음엔 사진 아래 2칸 격자였다).
  * 11-17 사용자("주요 고객층 · 소개 · 규모도 보이게, 사장님 이름 · 전화번호는 빼줘, 가독성 좋게 깔끔하게"):
  * 이름 · 주소 · 가까운 역 아래에 소개(줄바꿈 그대로), 선 아래에 금액 → "매장 정보"(운영 시간 · 규모 · 주요 고객층, 이름표 열을 맞춘 줄)
@@ -60,6 +61,10 @@ import { type CollabPick, collabFeeText, GradeBox } from "./collabPick";
  * 유동인구는 넣지 않는다(11-16 사용자: "매장 정보에는 유동인구 정보 빼줘") — 매체 상세(같은 매체 ID)에서는 가까운 역만 쓴다.
  * 콜라보 금액은 광고주에게만(11-16 사용자) — 비회원 · 제휴사 · 그 밖의 회원에겐 금액 칸 자체를 그리지 않는다(자물쇠 · 안내도 없이).
  * 서버도 광고주에게만 등급 · 금액을 준다(partners_service._pricing).
+ * admix 매체 찾기에선 누구나(광고주 포함) 간단히 보기(brief, 2026-11-19 사용자: "눌러서 팝업까진 보게" →
+ * "광고주도 admix 매체 찾기에선 다른 유형과 동일하게, 콜라보 페이지에서만 다 보게. 관심 매장도 콜라보 페이지에서만") —
+ * 금액 · 가능 범위 없이 사진 · 기본 정보 · 매장 정보만, 하트 대신 "콜라보 바로 가기"(새 탭).
+ * 서버도 광고주가 아니면 가능 범위 · 매장 ID를 빼고 준다. 콜라보 화면(매장 찾기 · 관심 매장 · 기획안)의 광고주만 다 본다.
  * 사진은 분류(외관 · 내관 …)마다 대표 한 장씩 — 큰 사진 왼쪽 아래 분류 이름, 그 오른쪽에 설명(어드민 사진 메모),
  * 썸네일에도 분류 이름(11-16 사용자: "외관인지 내관인지 분류명이 왼쪽에 … 대표 이미지가 아닌 이미지들도").
  * 같은 분류 사진이 더 있으면 큰 사진 오른쪽 위 "펼쳐보기" — 누르면 그 분류 사진이 대표 사진 바로 뒤로 썸네일 줄
@@ -122,29 +127,46 @@ function photoGroups(store: PartnersStore): StorePhotoView[][] {
 export function StoreDetailModal({
   mediaId,
   onClose,
+  brief: briefProp = false,
 }: {
   mediaId: string;
   onClose: () => void;
+  /** 간단히 보기 — admix 매체 찾기(광고주도). 안 주면 광고주가 아닌 회원만 간단히 보기. */
+  brief?: boolean;
 }) {
   const { data: store, isError } = usePartnersStore(mediaId);
   // 가까운 역 — 매체 상세(같은 매체 ID). 둘 다 받은 뒤 그린다(나중에 오면 이름 아래 줄이 끼어들며 흔들린다).
   // 매체 상세를 못 받아도 매장 내용은 그대로 보인다.
   const media = useMediaDetail(mediaId);
   const vm = media.data ? toMediaDetailViewModel(media.data) : null;
-  // 광고주만 금액 칸 · 하트는 "관심 매장"(관심 매장 메뉴는 광고주 화면). 그 밖의 회원은 admix "관심 매체".
+  // 광고주만 금액 칸 · 하트는 "관심 매장"(관심 매장 메뉴는 광고주 화면).
+  // 광고주가 아닌 회원은 간단히 보기 — 금액 · 가능 범위 없이, 하트 대신 "콜라보 바로 가기"(11-19).
   const { data: me } = useMe();
   const advertiser = me?.member_category === "advertiser";
+  const brief = briefProp || (!!me && !advertiser);
   const likeLabel = advertiser ? "관심 매장" : "관심 매체";
+  // 금액 — 콜라보 화면의 광고주만(admix 매체 찾기에선 광고주도 안 그린다).
+  const showFee = advertiser && !brief;
   const { liked, setLiked } = useFavorite(mediaId, {
     notifyName: store?.name ?? "",
     label: likeLabel,
+  });
+  // 콜라보 바로 가기 — 광고주는 콜라보 매장 찾기에서 이 매장 자리로 옮기고 팝업을 바로 연다(11-19).
+  const goPartners = useGoPartners({
+    mediaId,
+    lat: store?.latitude,
+    lng: store?.longitude,
   });
 
   return (
     <DetailModalShell
       ariaLabel="매장 상세"
       title="매장 정보"
-      hint={`매장 정보를 확인하고 ${likeLabel}에 담을 수 있어요.`}
+      hint={
+        brief
+          ? "콜라보 매장 정보를 간단히 볼 수 있어요."
+          : `매장 정보를 확인하고 ${likeLabel}에 담을 수 있어요.`
+      }
       onClose={onClose}
       narrow
       footer={
@@ -154,12 +176,33 @@ export function StoreDetailModal({
             onLikedChange={setLiked}
             onClose={onClose}
             likeLabel={likeLabel}
+            likeSlot={
+              brief ? (
+                // 하트 자리 — 꺼진 하트 버튼과 같은 흰 바탕 · 테두리, 새 탭 아이콘(export.svg)은 글자색.
+                <Button
+                  variant="ghost"
+                  onPress={goPartners}
+                  className="h-auto gap-[7px] rounded-[18px] border border-tone-ececef bg-surface px-[16px] py-[10px] text-[13px] font-medium text-zinc-900 data-[hovered=true]:bg-zinc-50 max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px] max-sm:text-[12px]"
+                >
+                  <span
+                    aria-hidden
+                    className="size-[13px] shrink-0 bg-current text-gray-500 [mask:url(/icons/export.svg)_center/contain_no-repeat] max-sm:size-[12px]"
+                  />
+                  콜라보 바로 가기
+                </Button>
+              ) : undefined
+            }
           />
         )
       }
     >
       {store && !media.isPending ? (
-        <StoreDetailBody store={store} vm={vm} showFee={advertiser} />
+        <StoreDetailBody
+          store={store}
+          vm={vm}
+          showFee={showFee}
+          showScope={!brief}
+        />
       ) : isError ? (
         <p className="py-[64px] text-center text-[14px] font-semibold break-keep text-gray-600">
           지금은 매장 정보를 볼 수 없어요. 비공개로 바뀌었거나 콜라보를 쉬는
@@ -176,11 +219,14 @@ function StoreDetailBody({
   store,
   vm,
   showFee,
+  showScope,
 }: {
   store: PartnersStore;
   vm: MediaDetailViewModel | null;
   /** 광고주만 — 아니면 금액 칸을 그리지 않는다. */
   showFee: boolean;
+  /** 가능 범위 — 광고주가 아닌 회원의 간단히 보기엔 없다(11-19). */
+  showScope: boolean;
 }) {
   const groups = photoGroups(store);
   // 펼친 분류(묶음 번호) — 그 분류 사진이 대표 사진 바로 뒤로 이어 나온다. 한 번에 한 분류만.
@@ -217,7 +263,7 @@ function StoreDetailBody({
   // 주소를 누르면 여는 위치 지도.
   const [mapOpen, setMapOpen] = useState(false);
   const info = storeRows(store);
-  const hasScope = scopeEntries(store.scope).length > 0;
+  const hasScope = showScope && scopeEntries(store.scope).length > 0;
 
   return (
     <>
@@ -225,7 +271,7 @@ function StoreDetailBody({
         <ImageGallery
           key={`gallery-${expanded}`}
           images={urls}
-          square
+          landscape
           captions={overlays}
           thumbLabels={shown.map((s) => s.photo.label)}
           initialIndex={start}
@@ -235,7 +281,7 @@ function StoreDetailBody({
           key={`carousel-${expanded}`}
           slides={urls.length > 0 ? urls : [undefined]}
           sizes="100vw"
-          className="aspect-square w-full shrink-0 rounded-[10px] sm:hidden"
+          className="aspect-[4/3] w-full shrink-0 rounded-[10px] sm:hidden"
           captions={overlays}
           initialIndex={start}
           onSlideClick={setZoom}

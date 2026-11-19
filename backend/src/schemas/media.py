@@ -54,6 +54,8 @@ class PartnersCardInfo(BaseModel):
     photoKinds: dict[str, str] = {}
     # 가능 범위(093) — 항목 키(print · goods …) → ok · no, 고르지 않은 항목은 없다(11-17 카드에 보인다).
     scope: dict[str, str] = {}
+    # 매장 유형 이름(카페 · 식당 …) — 카드 카테고리 "콜라보 › 카페"(11-19). 유형을 안 정한 매장은 없다("콜라보 › 매장").
+    storeType: str | None = None
 
 
 class MediaCardRow(BaseModel):

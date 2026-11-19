@@ -180,7 +180,10 @@ export function DetailModalShell({
   onClose: () => void;
   /** 버튼 줄 — 불러오는 동안은 비워 둔다. */
   footer?: ReactNode;
-  /** 좁은 팝업(780px) — 매장 정보 팝업: 정사각형 사진(360px) 옆 칸도 360px(11-16 사용자: "너비를 좁혀도 될 듯"). */
+  /**
+   * 좁은 팝업(860px) — 매장 정보 팝업: 가로 사진(440px, 4:3) 옆 칸 360px.
+   * 처음엔 정사각형 사진(360px)에 맞춰 780px(11-16 사용자: "너비를 좁혀도 될 듯") → 11-19 사진을 가로로 바꾸며 넓혔다.
+   */
   narrow?: boolean;
   children: ReactNode;
 }) {
@@ -197,7 +200,7 @@ export function DetailModalShell({
         placement="center"
         className={cn(
           "sm:w-full sm:p-[20px]",
-          narrow ? "sm:max-w-[820px]" : "sm:max-w-[980px]",
+          narrow ? "sm:max-w-[900px]" : "sm:max-w-[980px]",
         )}
       >
         <Modal.Dialog
@@ -761,6 +764,7 @@ export function DetailActions({
   onClose,
   onAddProposal,
   likeLabel = "관심 매체",
+  likeSlot,
 }: {
   liked: boolean;
   onLikedChange: (liked: boolean) => void;
@@ -768,6 +772,8 @@ export function DetailActions({
   /** 없으면 기획안 담기 버튼을 뺀다. */
   onAddProposal?: () => void;
   likeLabel?: string;
+  /** 하트 자리에 대신 둘 버튼 — 광고주가 아닌 회원의 매장 정보 팝업은 "콜라보 바로 가기"(11-19). */
+  likeSlot?: ReactNode;
 }) {
   return (
     <>
@@ -783,6 +789,7 @@ export function DetailActions({
       </Button>
       {/* 꺼짐: 흰 바탕 + 회색 하트(아직 안 담김), 마우스를 올리면 바탕만 살짝 어두워진다. 켜짐: 연분홍 바탕·붉은 테두리 + 빨간 하트·글자.
             켜는 순간 하트가 살짝 튀어 눌렸다는 걸 알려 준다. 폭은 고정이라 상태가 바뀌어도 버튼이 흔들리지 않는다. */}
+      {likeSlot ?? (
       <ToggleButton
         variant="ghost"
         aria-label={likeLabel}
@@ -807,6 +814,7 @@ export function DetailActions({
         />
         {likeLabel}
       </ToggleButton>
+      )}
       {onAddProposal && (
         <Button
           variant="primary"
@@ -828,21 +836,22 @@ export function DetailActions({
 const THUMBS_PER_VIEW = 4;
 const THUMB_W = 104;
 const THUMB_GAP = 8;
-// 정사각형(매장 정보 팝업) — 칸 360px, 썸네일도 정사각형으로 4장이 꼭 맞게((360 − 8 × 3) / 4).
-const SQUARE_W = 360;
-const SQUARE_THUMB_W = 84;
+// 가로 사진(매장 정보 팝업) — 칸 440px에 큰 사진 4:3(330px), 썸네일도 4:3(104 × 78)으로 4장이 꼭 맞게.
 
 export function ImageGallery({
   images,
-  square = false,
+  landscape = false,
   captions,
   thumbLabels,
   onOpen,
   initialIndex = 0,
 }: {
   images: string[];
-  /** 큰 사진 · 썸네일을 정사각형으로(11-16 사용자: "매장 사진을 정사각형으로 보여줘"). 매체 정보 팝업은 그대로. */
-  square?: boolean;
+  /**
+   * 큰 사진 · 썸네일을 가로 4:3으로 고정(매장 정보 팝업, 2026-11-19 사용자: "가로로 사진을 찍거든").
+   * 11-16엔 정사각형("매장 사진을 정사각형으로 보여줘")이었다. 매체 정보 팝업은 칸 높이에 맞춰 늘어난다(그대로).
+   */
+  landscape?: boolean;
   /** 큰 사진 위에 겹칠 것(images 와 같은 순서) — 매장 정보 팝업의 사진 분류 · 설명 · 펼쳐보기 버튼(누를 것만 pointer-events-auto). */
   captions?: (ReactNode | undefined)[];
   /** 썸네일 왼쪽 아래 작은 이름표(images 와 같은 순서) — 매장 사진 분류(외관 · 내관 …). */
@@ -855,7 +864,7 @@ export function ImageGallery({
    */
   initialIndex?: number;
 }) {
-  const thumbW = square ? SQUARE_THUMB_W : THUMB_W;
+  const thumbW = THUMB_W;
   const [index, setIndex] = useState(initialIndex);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const current = images[index];
@@ -927,18 +936,18 @@ export function ImageGallery({
     <div
       className={cn(
         "flex w-full shrink-0 flex-col gap-[10px] max-sm:hidden",
-        square ? "max-w-[360px]" : "md:w-[440px]",
+        landscape ? "max-w-[440px] md:w-[440px]" : "md:w-[440px]",
       )}
     >
-      {/* 큰 이미지는 최소 240px, PC에선 남는 높이만큼 늘어난다(썸네일 줄은 그대로). 정사각형이면 칸 폭(360px)만큼. */}
+      {/* 큰 이미지는 최소 240px, PC에선 남는 높이만큼 늘어난다(썸네일 줄은 그대로). 가로 사진이면 4:3 고정(330px). */}
       {/* 누르면 크게 보기(지금 보고 있는 장부터). 이미지가 없으면 누를 게 없다. */}
       {/* 겹칠 것(captions)에 버튼이 있을 수 있어 크게 보기 버튼과 나란히 둔다(버튼 안에 버튼은 안 된다). */}
       {current ? (
         <div
           className={cn(
             "relative w-full shrink-0 overflow-hidden rounded-[10px]",
-            square
-              ? "aspect-square"
+            landscape
+              ? "aspect-[4/3]"
               : "h-[240px] md:h-auto md:min-h-[240px] md:flex-1",
           )}
         >
@@ -950,7 +959,7 @@ export function ImageGallery({
           >
             <MediaThumbnail
               src={current}
-              sizes={square ? `${SQUARE_W}px` : "440px"}
+              sizes="440px"
               className="size-full transition-transform duration-300 group-hover:scale-[1.02]"
             />
           </button>
@@ -960,8 +969,8 @@ export function ImageGallery({
         <MediaThumbnail
           className={cn(
             "w-full shrink-0 rounded-[10px]",
-            square
-              ? "aspect-square"
+            landscape
+              ? "aspect-[4/3]"
               : "h-[240px] md:h-auto md:min-h-[240px] md:flex-1",
           )}
           fallback={<Logo className="size-[40px] opacity-30" />}
@@ -973,7 +982,7 @@ export function ImageGallery({
             ref={stripRef}
             className={cn(
               "flex snap-x snap-mandatory items-center gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              square ? "h-[84px]" : "h-[60px]",
+              landscape ? "h-[78px]" : "h-[60px]",
             )}
           >
             {images.map((src, i) => {
@@ -988,7 +997,7 @@ export function ImageGallery({
                   // 선택 표시는 색 없이 — 고른 장은 그대로, 나머지만 흐리게 둔다(화면에 보라가 많아서).
                   className={cn(
                     "relative shrink-0 snap-start overflow-hidden rounded-[10px] transition-opacity",
-                    square ? "size-[84px]" : "h-[60px] w-[104px]",
+                    landscape ? "h-[78px] w-[104px]" : "h-[60px] w-[104px]",
                     selected ? "opacity-100" : "opacity-40 hover:opacity-70",
                   )}
                 >

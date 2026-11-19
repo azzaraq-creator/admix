@@ -49,6 +49,8 @@ export interface PartnersCardInfo {
   photoKinds?: Record<string, string>;
   /** 가능 범위(093) — 관심 매장 · 매장 찾기 카드 아래 칸(11-17). 예전 서버면 없다(줄째 안 그린다). */
   scope?: CollabScope;
+  /** 매장 유형 이름(카페 · 식당 …) — 카드 카테고리 "콜라보 › 카페"(11-19). 유형이 없거나 예전 서버면 categorySmall("매장"). */
+  storeType?: string | null;
 }
 
 export interface MediaCardRow {
