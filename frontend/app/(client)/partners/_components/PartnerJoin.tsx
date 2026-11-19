@@ -3,10 +3,8 @@
 import { Button, ScrollShadow } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { ChevronRightIcon, SmallCheckIcon } from "@/components/icons";
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { useMe } from "@/hooks/auth";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
-import { cn } from "@/lib/utils";
 import {
   PARTNER_AGREEMENT_HREF,
   PARTNER_SIGNUP_HREF,
@@ -62,12 +60,7 @@ export function PartnerJoin() {
       <div className="grid grid-cols-1 items-center gap-[14px] sm:gap-[32px] lg:grid-cols-[1fr_380px] lg:gap-[40px] xl:grid-cols-[1fr_420px] xl:gap-[64px]">
         {/* ── 왼쪽 — 소개 · 가입 순서 · 좋은 점 ── */}
         <section className="flex min-w-0 flex-col">
-          <span
-            className={cn(
-              collabScript.className,
-              "text-[14px] font-bold tracking-[0.04em] text-gray-400 sm:text-[16px] dark:text-white/60",
-            )}
-          >
+          <span className="text-[14px] font-medium tracking-[0.04em] text-gray-400 sm:text-[16px] dark:text-white/60">
             Collaboration
           </span>
           <h1 className="mt-[6px] text-[24px] leading-[1.3] font-bold tracking-[-0.03em] break-keep text-gray-900 sm:mt-[10px] sm:text-[36px] xl:text-[44px]">

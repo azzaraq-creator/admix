@@ -21,7 +21,6 @@ import {
   useState,
 } from "react";
 
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import {
   ChevronRightIcon,
@@ -364,7 +363,7 @@ export function AdminSidebar() {
 /**
  * 사이드바 로고 — 심볼 + 글자 로고(11-10 사용자). 왼쪽 정렬. 남색 바탕이라 글자만 흰색인 admix-logo-white.svg
  * (admix-logo.svg 에서 글자 색만 바꾼 것, 심볼 그라데이션은 같다).
- * 콜라보 어드민이면 밑에 옅은 회색 "Collaboration"(HS활공명조) — 제휴사 화면(/partners) 로고와 같은 글꼴 · 모양.
+ * 콜라보 어드민이면 밑에 옅은 회색 "Collaboration"(Pretendard 중간 굵기) — 제휴사 화면(/partners) 로고와 같은 글꼴 · 모양.
  * compact — 모바일 위 띠 · 메뉴 서랍: 로고 22px · Collaboration 11px. 아니면 PC 사이드바: 로고 26px(사용자 화면과 같다).
  */
 function AdminLogo({
@@ -392,9 +391,7 @@ function AdminLogo({
       {collab && (
         <span
           className={cn(
-            collabScript.className,
-            // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(제휴사 로고와 같다).
-            "pl-[2px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-white/45",
+            "pl-[2px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-white/45",
             compact ? "text-[11px]" : "text-[12px]",
           )}
         >

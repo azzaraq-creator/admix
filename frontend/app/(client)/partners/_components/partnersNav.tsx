@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import type { ComponentType, MouseEvent } from "react";
 
 import { PartnersIcon } from "@/components/icons";
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { useMyPartnersStores } from "@/hooks/partners";
@@ -241,7 +240,7 @@ export const fadeLabel = (collapsed: boolean) =>
     : "opacity-100 transition-opacity duration-300";
 
 /**
- * 로고 — 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(사이드바 콜라보 메뉴와 같은 HS활공명조).
+ * 로고 — 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(Pretendard 중간 굵기, 11-19 사용자 — 예전 HS활공명조에서 바꾸고 "얇게").
  * 심볼(36px) 가운데를 아이콘 열(x=39px)에 맞춘다 → 왼쪽 여백 11px. 접으면 심볼만 남는다.
  * symbol={false} — 모바일 위 띠: 심볼 없이 글자 로고 + Collaboration만(11-08 사용자).
  * compact — 모바일 위 띠: 글자 로고 13px · Collaboration 11px("모바일에서 로고 더 작게", 11-08 사용자).
@@ -306,9 +305,7 @@ export function PartnersLogo({
         />
         <span
           className={cn(
-            collabScript.className,
-            // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(사이드바 메뉴와 같다).
-            "leading-none font-bold tracking-[0.04em] whitespace-nowrap text-gray-400",
+            "leading-none font-medium tracking-[0.04em] whitespace-nowrap text-gray-400",
             compact ? "text-[11px]" : "text-[13px]",
           )}
         >

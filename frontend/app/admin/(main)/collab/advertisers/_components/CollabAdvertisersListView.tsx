@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import {
   CommonTable,
   type SearchOption,
@@ -50,9 +49,7 @@ export function BrandThumb({
     <span
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-gray-100",
-        // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(BrandAvatar 와 같다).
-        !src &&
-          cn(collabScript.className, "leading-none font-bold text-gray-400"),
+        !src && "leading-none font-bold text-gray-400",
         className,
       )}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.55) }}

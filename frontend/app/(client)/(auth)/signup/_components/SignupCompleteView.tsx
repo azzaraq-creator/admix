@@ -4,7 +4,6 @@ import { Button } from "@heroui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { collabScript } from "@/app/(client)/(main)/_components/collabFont";
 import { dismissPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 import { useMe } from "@/hooks/auth";
 import { MEMBER_CATEGORY_LABEL } from "@/lib/memberCategory";
@@ -30,12 +29,10 @@ import {
  * 광고주는 "admix 시작하기" 아래에 "Collaboration 시작하기"(콜라보 대시보드)를 하나 더 둔다(11-09 사용자).
  */
 
-/** "Collaboration" 글자 — 사이드바 · 콜라보 로고와 같은 HS활공명조(파일이 Regular 하나라 굵기는 브라우저가 만든다). */
+/** "Collaboration" 글자 — 콜라보 로고와 같은 Pretendard 중간 굵기(11-19 사용자: "얇게"). */
 function CollabWord() {
   return (
-    <span className={cn(collabScript.className, "font-bold tracking-[0.04em]")}>
-      Collaboration
-    </span>
+    <span className="font-medium tracking-[0.04em]">Collaboration</span>
   );
 }
 

@@ -14,14 +14,12 @@ import {
 } from "@/components/icons";
 import { useOpenPartners } from "@/components/common/PartnersAccessNotice";
 import { useLogout } from "@/hooks/auth";
-import { cn } from "@/lib/utils";
 
 import {
   ACCOUNT_KEY_PREFIX,
   ACCOUNT_TRIGGER_KEY,
   AccountSwitchSubmenu,
 } from "./AccountSwitchMenu";
-import { collabScript } from "./collabFont";
 import { THEME_KEY_PREFIX, ThemeSubmenu } from "./ThemeMenu";
 import { openLoginModal } from "./useLoginModal";
 
@@ -143,8 +141,8 @@ function BackToAdmixItem() {
 }
 
 /**
- * Collaboration 줄 — PC 사이드바 맨 아래 줄과 같은 모양(HS활공명조 "Collaboration" + 새 탭 ↗).
- * 아이콘 자리에는 사이드바를 접었을 때와 같은 글꼴 "C". 누르면 useOpenPartners — 제휴사는 대시보드, 광고주는 콜라보 첫 화면,
+ * Collaboration 줄 — PC 사이드바 맨 아래 줄과 같은 모양(Pretendard 중간 굵기 "Collaboration" + 새 탭 ↗).
+ * 아이콘 자리에는 같은 글꼴 "C". 누르면 useOpenPartners — 제휴사는 대시보드, 광고주는 콜라보 첫 화면,
  * 그 외 회원 · 비회원은 "전용 메뉴" 안내 창.
  */
 function CollabItem() {
@@ -156,20 +154,13 @@ function CollabItem() {
     >
       <span
         aria-hidden
-        className={cn(
-          collabScript.className,
-          "w-[16px] shrink-0 text-center text-[17px] leading-none font-bold text-gray-500",
-        )}
+        className="w-[16px] shrink-0 text-center text-[17px] leading-none font-bold text-gray-500"
       >
         C
       </span>
       <span
         aria-hidden
-        className={cn(
-          collabScript.className,
-          // 글꼴 파일이 Regular 하나뿐이라 font-bold 는 브라우저가 굵게 만들어 그린다(사이드바와 같다).
-          "text-[15px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-black",
-        )}
+        className="text-[15px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-black"
       >
         Collaboration
       </span>

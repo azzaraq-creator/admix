@@ -21,12 +21,10 @@ import { ChevronRightIcon, EyeIcon, XIcon } from "@/components/icons";
 import { LogoFullDark } from "@/components/icons/LogoFull";
 import { authApi, authKeys, useLogin, useSnsLogin } from "@/hooks/auth";
 import { getUserToken, setTokens } from "@/lib/userToken";
-import { cn } from "@/lib/utils";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 import { COLLAB_SIGNUP_HREF } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 
-import { collabScript } from "./collabFont";
 import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
@@ -398,7 +396,7 @@ export function LoginModal({
 
 /**
  * 콜라보 로그인 창 로고 — /partners 사이드바 로고(PartnersSidebar의 PartnersLogo)와 같은 모양:
- * 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(HS활공명조, 굵게).
+ * 왼쪽 admix 심볼 + 오른쪽 위 글자 로고, 그 밑에 옅은 회색 Collaboration(Pretendard 중간 굵기).
  */
 function PartnersLoginLogo() {
   return (
@@ -418,12 +416,7 @@ function PartnersLoginLogo() {
           height={16}
           className="h-[16px] w-auto dark:brightness-0 dark:invert"
         />
-        <span
-          className={cn(
-            collabScript.className,
-            "text-[13px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-gray-400",
-          )}
-        >
+        <span className="text-[13px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-gray-400">
           Collaboration
         </span>
       </span>

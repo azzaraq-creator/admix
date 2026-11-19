@@ -55,7 +55,7 @@ const ADVERTISER_SIGNUP_HREF = `${COLLAB_SIGNUP_HREF}&category=advertiser`;
 
 /**
  * 샘플 사진(11-19) — public/images/partners-landing/{이름}.jpg. Pexels 사진 번호(바꿀 때 참고):
- * hero-wide 17295778(흑백으로 보임) · role-brand 34939732 · role-admix 7550298 · role-store 8662149 ·
+ * role-brand 34939732 · role-admix 7550298 · role-store 8662149 ·
  * format-print 11696469 · goods 8148587 · supplies 7319334 · dp 3735630 · menu 2068296 · space 31168538 ·
  * flow-1 7793988 · 2 6476254 · 3 40168907 · 4 31353701 · 5 13131123 · 6 3183186.
  */
@@ -275,7 +275,7 @@ function scrollBehavior(): ScrollBehavior {
 }
 
 /**
- * 첫 화면 — 흑백 사진이 본문을 꽉 채우고(폭 · 보이는 높이 전부, 휴대폰 아래 탭 바만큼 뺀다) 그 위에 제목 · 버튼만
+ * 첫 화면 — 배경(처음엔 흑백 사진, 11-19 어노브 필오프 영상으로 바꿈)이 본문을 꽉 채우고(폭 · 보이는 높이 전부, 휴대폰 아래 탭 바만큼 뺀다) 그 위에 제목 · 버튼만
  * (11-19 사용자: 넷째 레퍼런스의 "첫 시작하는 이미지 부분이 좋다" → "더 간단하게, 사진 위에" · "말풍선 다 빼줘" → "사진이 화면을 꽉 채우게,
  * 아래 스크롤이 있다는 걸 명확히"). 글은 왼쪽 아래(아래 구역과 같은 1120px 상자 왼쪽 끝) — 사진 속 사람을 가리지 않게,
  * 아래 · 왼쪽으로 어둡게 덮어 흰 글이 읽히게 한다(색은 #000 고정 — black 토큰은 다크 모드에서 밝게 뒤집힌다).
@@ -290,14 +290,7 @@ function Hero({
 }) {
   return (
     <section className="relative h-[calc(100cqh-var(--partners-tabbar-space,0px))] min-h-[520px] overflow-hidden bg-[#16131f]">
-      {/* 휴대폰처럼 세로로 길면 사진 양옆이 잘린다 — 사람이 가운데 오른쪽(62%)에 있어 그쪽에 맞춘다. */}
-      <ImageSlot
-        src={sample("hero-wide")}
-        // 세로 화면은 높이에 맞춰 덮어 사진이 화면 폭보다 넓게 그려진다(3:2 → 높이의 1.5배) — 그만큼 큰 사진을 받게.
-        sizes="(orientation: portrait) 150vh, 100vw"
-        priority
-        className="absolute inset-0 [&_img]:object-[62%_50%] [&_img]:grayscale"
-      />
+      <HeroVideo />
       <div
         aria-hidden
         className="absolute inset-0 bg-linear-to-t from-[#000]/80 via-[#000]/30 to-[#000]/5"
@@ -343,6 +336,49 @@ function Hero({
         </span>
       </button>
     </section>
+  );
+}
+
+/**
+ * 첫 화면 배경 영상 — 어노브 필오프 옥외광고 현장(11-19 사용자: 흑백 사진을 "어노브 필오프 OOH_2025.mp4로 바꿔줘").
+ * 원본(VP9 · 소리 있음 · 8.4MB)은 아이폰 사파리에서 안 나올 수 있어 소리를 빼고 H.264 로 다시 뽑았다
+ * (public/videos/partners-landing — PC 1080p 7.8MB, 휴대폰 720p 4.6MB). 광고 색이 중요해 흑백으로 바꾸지 않는다.
+ * 소리 없이 자동 재생 · 반복 — React 는 muted 를 HTML 에 안 적어(서버 렌더) 사파리가 자동 재생을 막을 수 있어 붙은 뒤 다시 켠다.
+ * 움직임 줄이기면 재생하지 않고 첫 장면(poster)만.
+ */
+function HeroVideo() {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = true;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      v.pause();
+      return;
+    }
+    v.play().catch(() => {});
+  }, []);
+  return (
+    <video
+      ref={ref}
+      aria-hidden
+      autoPlay
+      muted
+      loop
+      playsInline
+      poster="/images/partners-landing/hero-video-poster.jpg"
+      className="absolute inset-0 size-full object-cover"
+    >
+      <source
+        src="/videos/partners-landing/unove-peeloff-ooh-2025-720.mp4"
+        type="video/mp4"
+        media="(max-width: 767px)"
+      />
+      <source
+        src="/videos/partners-landing/unove-peeloff-ooh-2025-1080.mp4"
+        type="video/mp4"
+      />
+    </video>
   );
 }
 
@@ -496,7 +532,7 @@ function FormatCard({
 
 /* ── 진행 방식 ───────────────────────────────────────────────────────── */
 
-/** 가운데 제목 + 흰 단계 카드 두 칸 — 왼쪽 "N단계"(보라) · 제목 · 설명 · 누가 하는지, 오른쪽 작은 그림 칸(세무 업무 절차). */
+/** 가운데 제목 + 흰 단계 카드 두 칸(테두리 없이 옅은 그림자) — 왼쪽 "N단계"(보라) · 제목 · 설명 · 누가 하는지, 오른쪽 작은 그림 칸(세무 업무 절차). */
 function Flow() {
   return (
     <section>
@@ -533,7 +569,8 @@ function FlowCard({
       ref={revealRef}
       style={reveal.style}
       className={cn(
-        "flex items-start justify-between gap-[16px] rounded-[20px] bg-surface p-[20px] ring-1 ring-gray-200 sm:p-[28px]",
+        // 테두리 대신 옅은 그림자(11-19 사용자: "테두리 말고 다른 카드 UI") — 다크는 그림자가 안 보여 한 단계 밝은 바탕으로.
+        "flex items-start justify-between gap-[16px] rounded-[20px] bg-surface p-[20px] shadow-[0_1px_3px_rgba(42,20,89,0.05),0_10px_28px_rgba(42,20,89,0.07)] sm:p-[28px] dark:bg-gray-50 dark:shadow-none",
         reveal.className,
       )}
     >
