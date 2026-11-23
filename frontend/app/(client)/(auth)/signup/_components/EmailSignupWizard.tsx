@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useRegister, useSnsLogin, type SnsProvider } from "@/hooks/auth";
 import { isMemberCategory, type MemberCategory } from "@/lib/memberCategory";
@@ -20,7 +20,12 @@ import { MethodStep } from "./MethodStep";
 import { SignupShell } from "./SignupShell";
 import { TermsStep, type MarketingChannels } from "./TermsStep";
 import { errorDetail, errorStatus } from "./signupUi";
-import { saveSignupCategory, useFinishSignup } from "./useFinishSignup";
+import {
+  saveSignupCategory,
+  saveSignupNext,
+  signupNextOf,
+  useFinishSignup,
+} from "./useFinishSignup";
 
 type Step = "category" | "method" | "email" | "info" | "terms";
 
@@ -47,6 +52,9 @@ export function EmailSignupWizard() {
   const registerMutation = useRegister();
   const finish = useFinishSignup(collab);
   const preset = searchParams.get("category");
+  // ?next= — 가입을 마치면 갈 주소(콜라보 소개 "의뢰서 작성하기" → 로그인 창 회원가입 → 의뢰서). 소셜 가입에 다녀와도 쓰게 보관한다.
+  const next = signupNextOf(searchParams.get("next"));
+  useEffect(() => saveSignupNext(next), [next]);
   const [category, setCategory] = useState<MemberCategory | null>(() =>
     isMemberCategory(preset) && (!collab || collabAllows(preset))
       ? preset
@@ -66,7 +74,8 @@ export function EmailSignupWizard() {
     if (!category) return;
     saveSignupCategory(category);
     // 콜라보 가입이면 소셜 로그인을 마친 뒤에도 콜라보로 — 처음 가입은 /signup/sns?from=collab(콜백), 이미 회원이면 콜라보 화면.
-    sns.start(provider, collab ? "/partners" : undefined);
+    // 이미 회원이면 갈 주소(next)가 있을 때 그리로.
+    sns.start(provider, collab ? (next ?? "/partners") : undefined);
   };
 
   const handleSubmit = async (

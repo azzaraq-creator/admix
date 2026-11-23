@@ -158,6 +158,7 @@ export function MediaFindPanel({
   onRequestMapMove,
   getViewport,
   onHoverArea,
+  onHoverMedia,
   popGrid,
   demo,
   only,
@@ -188,6 +189,8 @@ export function MediaFindPanel({
   } | null;
   /** 이동매체 카드에 마우스를 올리면 그 운행 지역, 떼면 null — 지도에 영역으로 그린다. */
   onHoverArea?: (area: OperatingArea | null) => void;
+  /** 위치가 있는 매체 카드에 마우스를 올리면 그 매체, 떼면 null — 지도에서 그 핀을 강조한다(11-23 사용자). */
+  onHoverMedia?: (marker: MapMarker | null) => void;
   /** "유동인구" 층 — 위쪽 줄 "유동인구" 버튼으로 조건 칸(PC·태블릿은 목록 칸 자리, 모바일은 아래 시트)을 연다. */
   popGrid?: PopGridState;
   /**
@@ -469,12 +472,33 @@ export function MediaFindPanel({
   /** URL 파라미터를 고쳐 다시 조회한다. 이 화면의 모든 상태는 URL이 원본이다. */
   const commit = replaceQuery;
 
-  // 이동매체 카드에 마우스를 올리면 운행 지역을 지도에 그린다(고정매체는 핀이 있어 그리지 않는다).
-  const areaHover = (row: MediaCardRow) =>
-    row.mediaSource === "MOVING" && row.operatingArea
-      ? (hovered: boolean) =>
-          onHoverArea?.(hovered ? (row.operatingArea ?? null) : null)
-      : undefined;
+  // 카드에 마우스를 올리면 지도에 표시 — 이동매체는 운행 지역을 그리고, 위치가 있는 매체는 그 핀을 강조한다(11-23 사용자).
+  // 핀 강조는 마우스로만 — 터치는 누를 때 올림만 생기고 뗌이 없어 강조가 남는다.
+  const cardHover = (row: MediaCardRow) => {
+    const area =
+      row.mediaSource === "MOVING" && row.operatingArea
+        ? row.operatingArea
+        : null;
+    const pin: MapMarker | null =
+      onHoverMedia && row.lat != null && row.lng != null
+        ? {
+            id: row.id,
+            lat: row.lat,
+            lng: row.lng,
+            name: row.name,
+            categoryLarge: row.categoryLarge,
+            categorySmall: row.categorySmall,
+          }
+        : null;
+    if (!area && !pin) return undefined;
+    return (hovered: boolean) => {
+      if (area) onHoverArea?.(hovered ? area : null);
+      if (pin)
+        onHoverMedia?.(
+          hovered && window.matchMedia("(hover: hover)").matches ? pin : null,
+        );
+    };
+  };
 
   // 콜라보 매장 카드 — admix 매체 찾기는 회원이면 누구나 간단한 팝업(광고주 포함), 콜라보 매장 찾기(only)는 광고주가 다 본다(11-19).
   const partnersAccess = usePartnersCardAccess(only ? "collab" : "admix");
@@ -987,6 +1011,7 @@ export function MediaFindPanel({
           onSelectionChange={(key) => {
             setTabPressed(true);
             onHoverArea?.(null);
+            onHoverMedia?.(null);
             scrollRef.current?.scrollTo({ top: 0 });
             commit((q) => {
               // 매장 유형 탭이면 storeType, 아니면 카테고리.
@@ -1127,7 +1152,7 @@ export function MediaFindPanel({
                 selected={pinned.id === selectedId}
                 onClick={() => handleItemClick(pinned)}
                 onAddProposal={() => onAddProposal?.(pinned.id)}
-                onHoverChange={areaHover(pinned)}
+                onHoverChange={cardHover(pinned)}
                 compact={compactList}
                 partnersAccess={partnersAccess}
                 collabPick={only?.pickOf?.(pinned)}
@@ -1188,7 +1213,7 @@ export function MediaFindPanel({
                     selected={row.id === selectedId}
                     onClick={() => handleItemClick(row)}
                     onAddProposal={() => onAddProposal?.(row.id)}
-                    onHoverChange={areaHover(row)}
+                    onHoverChange={cardHover(row)}
                     compact={compactList}
                     partnersAccess={partnersAccess}
                     collabPick={only?.pickOf?.(row)}

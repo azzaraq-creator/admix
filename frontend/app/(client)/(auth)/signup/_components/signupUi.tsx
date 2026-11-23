@@ -1,6 +1,7 @@
 import { Button, Card, Chip, Description, Label } from "@heroui/react";
 import type { ComponentProps, ReactNode } from "react";
 
+import { EyeIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -140,6 +141,28 @@ export function SideButton({
       )}
       {...props}
     />
+  );
+}
+
+/** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — InputGroup.Suffix 안에 둔다(회원가입 · 비밀번호 재설정). */
+export function PasswordToggle({
+  shown,
+  onToggle,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      isIconOnly
+      variant="ghost"
+      size="sm"
+      aria-label={shown ? "비밀번호 숨기기" : "비밀번호 보기"}
+      onPress={onToggle}
+      className="size-[28px] min-w-0 rounded-[11px] text-zinc-400 data-[hovered=true]:text-zinc-900"
+    >
+      <EyeIcon off={shown} className="size-[16px]" />
+    </Button>
   );
 }
 

@@ -54,7 +54,7 @@ import {
   PanelCard,
   SHADOW_FLOAT,
 } from "../workspace/workspaceUi";
-import { ADV_BRANDS_HREF } from "./advUi";
+import { ADV_BRANDS_HREF, ADV_NEW_HREF } from "./advUi";
 
 /*
  * /partners/brands (광고주) — 내 브랜드(11-09 사용자: "광고주는 브랜드를 여러 개 가질 수 있다, 브랜드 이미지도 여기서 등록").
@@ -788,6 +788,9 @@ export function AdvBrands({ openNew = false }: { openNew?: boolean }) {
     n: number;
   }>({ brand: null, n: openNew ? 1 : 0 });
   const [formOpen, setFormOpen] = useState(openNew);
+  // ?new=1 로 왔으면 브랜드를 등록하자마자 새 의뢰서로(11-23 사용자: "브랜드 추가부터 하게") — 주소를 걷어 내도 남게 처음 값을 쥔다.
+  // 그 창을 닫으면(등록 안 함) 이 화면에 머무는 것으로 본다.
+  const [thenRequest, setThenRequest] = useState(openNew);
   useEffect(() => {
     if (openNew) router.replace(ADV_BRANDS_HREF, { scroll: false });
   }, [openNew, router]);
@@ -897,7 +900,13 @@ export function AdvBrands({ openNew = false }: { openNew?: boolean }) {
         </EmptyBox>
       )}
 
-      <Modal.Backdrop isOpen={formOpen} onOpenChange={setFormOpen}>
+      <Modal.Backdrop
+        isOpen={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setThenRequest(false);
+        }}
+      >
         <Modal.Container placement="center" size="md">
           <Modal.Dialog
             aria-label={form.brand ? "브랜드 고치기" : "브랜드 등록"}
@@ -906,12 +915,23 @@ export function AdvBrands({ openNew = false }: { openNew?: boolean }) {
               <Modal.Heading className="text-[18px] font-bold text-gray-900">
                 {form.brand ? "브랜드 고치기" : "브랜드 등록"}
               </Modal.Heading>
+              {thenRequest && !form.brand && (
+                <p className="mt-[4px] text-[13px] break-keep text-gray-500">
+                  의뢰서는 등록한 브랜드로 작성해요. 등록하면 바로 의뢰서로 넘어가요.
+                </p>
+              )}
             </Modal.Header>
             <BrandForm
               key={form.n}
               brand={form.brand}
-              onDone={() => setFormOpen(false)}
-              onCancel={() => setFormOpen(false)}
+              onDone={() => {
+                setFormOpen(false);
+                if (thenRequest && !form.brand) router.push(ADV_NEW_HREF);
+              }}
+              onCancel={() => {
+                setFormOpen(false);
+                setThenRequest(false);
+              }}
             />
           </Modal.Dialog>
         </Modal.Container>

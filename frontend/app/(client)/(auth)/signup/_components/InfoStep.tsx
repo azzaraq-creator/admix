@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Button,
   Chip,
   Description,
   FieldError,
@@ -17,7 +16,7 @@ import {
   PASSWORD_RULES,
   RuleChip,
 } from "@/components/common/PasswordRuleChips";
-import { EyeIcon, InfoIcon } from "@/components/icons";
+import { InfoIcon } from "@/components/icons";
 import {
   authApi,
   type PartnerStoreInfoPayload,
@@ -37,6 +36,7 @@ import {
   CardHeading,
   FieldLabel,
   FieldMessage,
+  PasswordToggle,
   PrimaryAction,
   RADIUS,
   SideButton,
@@ -103,28 +103,6 @@ export function contactOf(info: SignupInfo): ContactInfo | null {
 }
 
 export type ContactInfo = Pick<ProfileUpdatePayload, "position" | "department">;
-
-/** 비밀번호 칸 오른쪽 보기·숨기기 버튼 — InputGroup.Suffix 안에 둔다. */
-function PasswordToggle({
-  shown,
-  onToggle,
-}: {
-  shown: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Button
-      isIconOnly
-      variant="ghost"
-      size="sm"
-      aria-label={shown ? "비밀번호 숨기기" : "비밀번호 보기"}
-      onPress={onToggle}
-      className="size-[28px] min-w-0 rounded-[11px] text-zinc-400 data-[hovered=true]:text-zinc-900"
-    >
-      <EyeIcon off={shown} className="size-[16px]" />
-    </Button>
-  );
-}
 
 /** 4단계 — 시안(00. 회원가입 - 회원정보 입력). */
 export function InfoStep({
@@ -235,7 +213,7 @@ export function InfoStep({
         ? serverError.message
         : "";
 
-  /** 사업자등록증 칸 — 대행사 · 매체사는 "정보 추가 입력" 상자 안, 광고주는 다른 칸과 같은 이름표. 제휴사(콜라보)는 없다(기본협약에서 올린다). */
+  /** 사업자등록증 칸 — 대행사 · 매체사는 구분선 아래 "정보 추가 입력" 묶음 안, 광고주는 다른 칸과 같은 이름표. 제휴사(콜라보)는 없다(기본협약에서 올린다). */
   const bizCert = (
     <div className="flex w-full flex-col gap-[8px]">
       {advertiser ? (
@@ -601,22 +579,29 @@ export function InfoStep({
             {bizCert}
           </>
         ) : (
-          <div className="flex w-full flex-col gap-[12px] rounded-[10px] border border-tone-ececef bg-surface p-[16px]">
-            <p className="text-[13px] font-semibold text-zinc-900">
-              정보 추가 입력
-            </p>
-            <TextField
-              aria-label="회사명"
-              autoComplete="organization"
-              value={values.company}
-              onChange={(value) => set("company", value)}
-              fullWidth
-            >
-              <Input placeholder="회사명" className="h-[44px] rounded-[19px]" />
-            </TextField>
+          // 대행사 · 매체사 · 일반 — 상자 대신 위에 구분선(11-23 사용자: "박스가 아닌 구분선으로"). 이름 위 · 광고주 구분선과 같은 모양.
+          <>
+            <Separator className="my-[4px] bg-tone-ececef" />
+            <div className="flex w-full flex-col gap-[12px]">
+              <p className="text-[13px] font-semibold text-zinc-900">
+                정보 추가 입력
+              </p>
+              <TextField
+                aria-label="회사명"
+                autoComplete="organization"
+                value={values.company}
+                onChange={(value) => set("company", value)}
+                fullWidth
+              >
+                <Input
+                  placeholder="회사명"
+                  className="h-[44px] rounded-[19px]"
+                />
+              </TextField>
 
-            {showBizCert && bizCert}
-          </div>
+              {showBizCert && bizCert}
+            </div>
+          </>
         )}
 
         <PrimaryAction type="submit" label="다음" pending={checkingPhone} />

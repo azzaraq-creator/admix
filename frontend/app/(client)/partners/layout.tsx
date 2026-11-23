@@ -8,6 +8,7 @@ import { LoginModal } from "@/app/(client)/(main)/_components/LoginModal";
 import { LNB_COLLAPSED_COOKIE } from "@/app/(client)/(main)/_components/lnbCookie";
 import { LnbProvider } from "@/app/(client)/(main)/_components/useLnb";
 
+import { AdvertiserOnlyNotice } from "./_components/AdvertiserOnlyNotice";
 import { PartnerResumeModal } from "./_components/PartnerResumeModal";
 import { PartnersContent } from "./_components/partnersPending";
 import { PartnersSessionWatch } from "./_components/PartnersSessionWatch";
@@ -59,6 +60,8 @@ export default async function PartnersLayout({
         <PartnerResumeModal />
         {/* 임시 승인 제휴사 — 콜라보 상세 링크를 막고 "사업자등록증을 올려 주세요" 창(11-16). */}
         <ProvisionalGate />
+        {/* 광고주 회원만 의뢰서 — 소개 "의뢰서 작성하기"를 다른 유형 회원이 누르거나 그 버튼으로 로그인했을 때(11-23). */}
+        <AdvertiserOnlyNotice />
         {/* 다른 탭에서 로그아웃하면(로그인 쿠키가 사라지면) 비회원용 콜라보 소개로. */}
         <PartnersSessionWatch />
       </div>

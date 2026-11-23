@@ -1,40 +1,55 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
-  type RefObject,
 } from "react";
 
-import {
-  COLLAB_SIGNUP_HREF,
-  PARTNER_SIGNUP_HREF,
-} from "@/app/(client)/(auth)/signup/_components/CategoryStep";
-import { CategoryChangeModal } from "@/app/(client)/(mypage)/profile/_components/CategoryChangeModal";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import {
-  ArrowLeftIcon,
-  ArrowUpIcon,
   ChevronDoubleDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ScrollMouseIcon,
 } from "@/components/icons";
+import { openLoginModalTo } from "@/app/(client)/(main)/_components/useLoginModal";
 import { useMe } from "@/hooks/auth";
-import { canUsePartners } from "@/lib/memberCategory";
-import { COLLAB_SCOPE_ITEMS, PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
+import { COLLAB_SCOPE_ITEMS } from "@/lib/partners";
 import { cn } from "@/lib/utils";
+
+import { openAdvertiserOnlyNotice } from "./AdvertiserOnlyNotice";
+import { ContactFab } from "./ContactFab";
+import {
+  BackToTop,
+  bodyClass,
+  CtaArrow,
+  ctaClass,
+  Eyebrow,
+  FORMAT_COPY,
+  H2,
+  ImageSlot,
+  LEAD,
+  Reveal,
+  scrollBehavior,
+  StartActions,
+  StartBand,
+  useCollabStart,
+  useReveal,
+} from "./landingKit";
+import { openBizGate, useAdvBizLock } from "./workspace/ProvisionalGate";
 
 /*
  * 말투(11-19 사용자: "말투가 요체인데 담백하게") — 이 화면만 해요체를 쓰지 않는다. 제목은 명사로 맺고(레퍼런스처럼),
- *   설명 · 카드 글은 합니다체 짧은 문장. 버튼 이름(…로 시작하기 · 대시보드로 가기)은 그대로.
+ *   설명 · 카드 글은 합니다체 짧은 문장. 버튼 이름(…로 시작하기 · … 보기 · 대시보드로 가기)은 그대로.
+ * 11-23: 첫 화면 비회원 버튼은 하위 안내 페이지로(브랜드 협업 구성 /partners/about/brand · 매장 참여 방법 /partners/about/store)
+ *   → 같은 날 "브랜드 협업 구성 보기"는 아래 콜라보 구성으로 스크롤, 둘째는 "콜라보 의뢰하기"(의뢰서 작성하기와 같은 동작)로 바꿨다.
+ *   공용 조각(제목 · 등장 · 이미지 칸 · 시작 버튼 · 맨 위로)은 landingKit.tsx.
  * /partners 소개 — 비회원 · 콜라보를 못 쓰는 회원(일반 · 대행사 · 매체사), ?intro=1 이면 누구나.
  * 11-19 사용자: 레퍼런스 세 장(전자서명 서비스 · 다크 세계관 소개 · 세무회계 랜딩)에 맞춰 다시 — 11-17 잡지형(회색조 · 가는 선)을 통째로 바꿨다.
  *   위에서 아래로:
@@ -50,125 +65,95 @@ import { cn } from "@/lib/utils";
  *   밑에서 슥 올라오는 등장(useReveal), 맨 아래 회색 "맨 위로", 회원 유형별 버튼(대시보드로 가기 · 회원 유형 바꾸기 창).
  */
 
-/** 콜라보 가입 1단계에 유형을 골라 둔다 — 광고주 · 제휴사(콜라보) 모두 바로 회원가입으로(11-12 사용자). */
-const ADVERTISER_SIGNUP_HREF = `${COLLAB_SIGNUP_HREF}&category=advertiser`;
-
 /**
- * 샘플 사진(11-19) — public/images/partners-landing/{이름}.jpg. Pexels 사진 번호(바꿀 때 참고):
- * role-brand 34939732 · role-admix 7550298 · role-store 8662149 ·
- * format-print 11696469 · goods 8148587 · supplies 7319334 · dp 3735630 · menu 2068296 · space 31168538 ·
- * flow-1 7793988 · 2 6476254 · 3 40168907 · 4 31353701 · 5 13131123 · 6 3183186.
+ * 소개 사진 세 칸 — 누가 무엇을 하는지(브랜드 · admix · 매장). 제목 · 설명은 11-23 사용자가 준 내용을 다듬은 것.
+ * 사진은 11-23 사용자가 public/images 에 넣은 partners_1 · 2 · 3(2는 png) — 같은 날 먼저 넣은 role-*-unove.jpg(작아서 흐림)를 바꿨다
+ *   ("배경 이미지를 partners_1.jpg로 …"). 처음 넣은 Pexels role-*.jpg 는 지웠다(그중 둘은 about-* 로 소개 하위 페이지 머리가 쓴다).
+ * note — 문장마다 한 줄로 시작한다(길면 그 안에서 줄바꿈).
  */
-const sample = (name: string) => `/images/partners-landing/${name}.jpg`;
+/**
+ * 마우스를 올리면 떠오름 — 콜라보 구성 카드(11-23 사용자, 소개 세 칸은 LIFT_ROLE).
+ * 처음 6px · 짙은 그림자는 "너무 과하다" → 3px · 옅은 그림자 → "더 올라오게, 그림자가 안 어울려" → 6px.
+ * 그림자는 아래 끝에만 몰린 짙은 띠 대신 카드 둘레로 넓게 퍼지는 옅은 그림자 — 회색 카드 아래 때처럼 보이지 않게.
+ * 터치 기기에선 hover 가 없다(Tailwind v4). 움직임 줄이기면 그림자만.
+ */
+const LIFT =
+  "transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-[6px] hover:shadow-[0_20px_48px_-20px_rgba(22,19,31,0.16)] motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+/** 소개 세 칸은 "조금 더 올라오게"(11-23 사용자) — 8px · 그림자도 그만큼. 나머지 칸은 어둡게 덮어 올린 칸에 눈이 가게(RoleColumn). */
+const LIFT_ROLE =
+  "transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-[8px] hover:shadow-[0_22px_36px_-18px_rgba(22,19,31,0.4)] motion-reduce:transition-none motion-reduce:hover:translate-y-0";
 
-/** 구역 제목 — 모든 구역이 같은 크기. */
-const H2 =
-  "text-[28px] leading-[1.32] font-bold tracking-[-0.03em] break-keep text-gray-900 sm:text-[38px]";
-/** 구역 설명. */
-const LEAD =
-  "text-[15px] leading-[1.75] break-keep text-gray-500 sm:text-[16px]";
-
-/** 소개 사진 세 칸 — 누가 무엇을 하는지(브랜드 · admix · 매장). 글은 지금 화면 · 협약서에 있는 사실만. */
 const ROLES: {
   chip: string;
   image: string;
   title: [string, string];
-  note: string;
+  note: string[];
 }[] = [
   {
     chip: "브랜드",
-    image: sample("role-brand"),
-    title: ["직접 고른 매장에", "콜라보 의뢰"],
-    note: "매장 사진과 금액을 보고 고릅니다.",
+    image: "/images/partners_1.jpg",
+    title: ["원하는 매장과", "협업 방식 선택"],
+    note: ["캠페인 목적에 맞는 매장과 희망 구성을 담아 의뢰합니다."],
   },
   {
     chip: "admix",
-    image: sample("role-admix"),
-    title: ["준비부터 관리까지", "admix가 담당"],
-    note: "제작 · 설치 · 철수와 보고서를 맡습니다.",
+    image: "/images/partners_2.png",
+    title: ["기획부터", "현장 운영까지"],
+    note: [
+      "브랜드 요청을 바탕으로 협업을 기획합니다.",
+      "매장과 일정을 조율합니다.",
+      "제작 · 설치 · 철수와 결과 보고까지 진행합니다.",
+    ],
   },
   {
     chip: "매장",
-    image: sample("role-store"),
-    title: ["매장 공간으로", "콜라보 참여"],
-    note: "등록비 · 이용료가 없습니다.",
+    image: "/images/partners_3.jpg",
+    title: ["우리 매장에 맞는", "협업에 참여"],
+    note: [
+      "등록비와 이용료 없이 제휴를 신청합니다.",
+      "캠페인 일정을 확인하고 참여 여부를 직접 정합니다.",
+    ],
   },
 ];
 
-/** 콜라보 구성 카드 중 넓은 칸(PC 세 칸 중 두 칸) — 넓은 · 좁은이 줄마다 엇갈리게(세무 핵심 서비스처럼). */
-const WIDE_FORMATS = new Set([0, 3, 4]);
-
-/** 진행 방식 — 단계마다 누가 하는지(브랜드 · admix · 매장) 칩으로. 11-13 판의 여섯 단계(11-17 되살림) 그대로. */
-type Actor = "brand" | "admix" | "partner";
-const FLOW: { title: string; who: Actor[]; body: string }[] = [
-  {
-    title: "의뢰",
-    who: ["brand"],
-    body: "구성 · 기간 · 원하는 매장을 담아 의뢰합니다.",
-  },
-  {
-    title: "기획안",
-    who: ["admix"],
-    body: "admix가 기획안을 보내고, 브랜드가 확인하면 확정됩니다.",
-  },
-  {
-    title: "매장 모집",
-    who: ["partner"],
-    body: "매장이 선착순으로 참여를 신청합니다.",
-  },
-  {
-    title: "매장 확정",
-    who: ["brand", "partner"],
-    body: "브랜드가 살펴본 뒤 매장이 최종 확정합니다.",
-  },
-  {
-    title: "진행",
-    who: ["admix", "partner"],
-    body: "준비 · 설치를 마치면 시작하고, 중간 보고로 상황을 알립니다.",
-  },
-  {
-    title: "결과 보고",
-    who: ["admix"],
-    body: "철수 후 결과 보고서를 전달합니다.",
-  },
+/**
+ * 진행 방식 — 여섯 단계(11-13 판 · 11-17 되살림)마다 브랜드 · 매장이 하는 일. 하지 않는 단계는 비운다.
+ * admix 몫(기획안 · 준비 · 설치 · 결과 보고)은 표 아래 한 줄과 다음 구역(AdmixPart)이 말한다(11-23 사용자 레퍼런스: 브랜드 · 매장 두 줄 표).
+ */
+const FLOW: { title: string; brand?: string; partner?: string }[] = [
+  { title: "의뢰", brand: "의뢰서 작성" },
+  { title: "기획안", brand: "기획안 확정" },
+  { title: "매장 모집", partner: "선착순 참여 신청" },
+  { title: "매장 확정", brand: "신청 매장 확인", partner: "참여 최종 확정" },
+  { title: "진행", brand: "중간 보고 확인", partner: "준비 · 매장 운영" },
+  { title: "결과 보고", brand: "결과 보고서 확인" },
 ];
-
-/** 진행 방식 칩 — 누가 하는지 아주 옅은 색만(브랜드 보라 · 매장 노랑 · admix 회색, 11-13 판과 같은 짝). */
-const ACTOR: Record<Actor, { label: string; className: string }> = {
-  brand: {
-    label: "브랜드",
-    className:
-      "bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300",
-  },
-  partner: {
-    label: "매장",
-    className:
-      "bg-amber-50 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
-  },
-  admix: { label: "admix", className: "bg-gray-100 text-gray-700" },
-};
 
 /** admix가 맡는 일 — 진행 순서대로 한 문장씩. 운영 관리는 "문제를 대신 처리해요"처럼 책임을 떠맡는 말은 쓰지 않는다(11-17 사용자). */
+// 11-23 사용자 문구를 다듬음 — "캠페인"은 이 화면 용어 "콜라보"로, "사전에"는 "미리"로.
 const ADMIX_PART: { title: string; body: string }[] = [
   {
-    title: "매장 확인",
-    body: "admix가 직접 확인한 매장만 사진과 정보를 올립니다.",
+    title: "제휴 매장 확인",
+    body: "admix가 직접 확인한 매장의 사진과 정보를 제공합니다.",
   },
   {
     title: "운영 관리",
-    body: "매장과 일정을 맞추고, 진행 상황을 꾸준히 확인합니다.",
+    body: "브랜드와 매장의 일정을 조율하고, 콜라보 진행 상황을 공유합니다.",
   },
   {
     title: "제작 · 설치 · 철수",
-    body: "제작을 맡기면 만들어서 설치하고, 끝나면 철수합니다.",
+    body: "제작을 의뢰하면 미리 협의한 범위대로 만들고, 현장 설치 · 철수를 조율합니다.",
   },
   {
-    title: "보고서",
-    body: "설치했을 때, 진행 중간, 끝난 뒤에 보고서를 보내 드립니다.",
+    title: "결과 보고서 제공",
+    body: "현장 사진, 제품 배포 수량 등 미리 정한 운영 항목을 보고서로 정리해 브랜드에 전달합니다.",
   },
 ];
 
-/** 이용 방법 — 브랜드(광고주 회원) · 매장(제휴사)이 각각 하는 일. 글은 11-17 판 그대로, 카드 제목만 붙였다. */
+/**
+ * 이용 방법 — 브랜드(광고주 회원) · 매장(제휴사)이 각각 하는 일.
+ * 제목은 11-23 사용자 문구(가운뎃점은 띄움, "캠페인"은 이 화면 용어 콜라보로), 설명은 사용자 글을 합니다체 한 문장으로 다듬음.
+ */
 const AUDIENCES: {
   id: "advertiser" | "partner";
   label: string;
@@ -179,19 +164,19 @@ const AUDIENCES: {
     label: "브랜드",
     items: [
       {
-        icon: "/icons/stroke-store.svg",
-        title: "매장 고르기",
-        body: "매장 사진과 금액을 보고 고릅니다.",
+        icon: "/icons/store.svg",
+        title: "협업 매장 찾기",
+        body: "매장 사진과 예상 비용을 보고 콜라보에 어울리는 매장을 고릅니다.",
       },
       {
         icon: "/icons/heart.svg",
-        title: "관심 매장",
-        body: "마음에 드는 매장은 관심 매장에 담아 둡니다.",
+        title: "관심 매장 저장",
+        body: "마음에 드는 매장을 저장해 두고, 콜라보를 준비할 때 다시 봅니다.",
       },
       {
-        icon: "/icons/dashboard.svg",
-        title: "진행 확인",
-        body: "의뢰 내용과 진행 상황, 보고서를 한 화면에서 봅니다.",
+        icon: "/icons/presentation.svg",
+        title: "진행 현황 · 결과 확인",
+        body: "의뢰 내용부터 진행 상황, 결과 보고서까지 한 화면에서 확인합니다.",
       },
     ],
   },
@@ -200,41 +185,62 @@ const AUDIENCES: {
     label: "매장",
     items: [
       {
-        icon: "/icons/tag.svg",
-        title: "비용 없음",
-        body: "등록비 · 이용료가 없습니다.",
+        icon: "/icons/fill-collabo.svg",
+        title: "무료 제휴 등록",
+        body: "등록비와 정기 이용료 없이 매장을 등록합니다.",
       },
       {
-        icon: "/icons/stroke-square-check.svg",
-        title: "참여 선택",
-        body: "콜라보마다 참여 여부를 직접 고릅니다.",
+        icon: "/icons/handshake.svg",
+        title: "콜라보별 참여 결정",
+        body: "콜라보 일정과 협업 내용을 확인하고 참여 여부를 직접 정합니다.",
       },
       {
-        icon: "/icons/box.svg",
-        title: "설치 · 철수",
-        body: "설치 · 철수는 admix가 합니다.",
+        icon: "/icons/fill-box.svg",
+        title: "설치 · 철수 지원",
+        body: "설치가 필요한 콜라보는 미리 협의한 범위에서 admix가 설치와 철수를 맡습니다.",
       },
     ],
   },
 ];
 
 export function PartnersLanding({ member = false }: { member?: boolean }) {
-  const { data: me } = useMe();
-  // 광고주 · 제휴사가 ?intro=1 로 보면 가입 대신 대시보드로, 다른 유형 회원은 회원 유형 바꾸기로.
-  const collabMember = canUsePartners(me?.member_category);
-  const otherMember = (member || !!me) && !collabMember;
+  // 아래 보라 띠: 광고주 · 제휴사가 ?intro=1 로 보면 가입 대신 대시보드로, 다른 유형 회원은 회원 유형 바꾸기(창).
+  const { collabMember, otherMember, openCategory, modal } =
+    useCollabStart(member);
   const top = useRef<HTMLDivElement>(null);
-  // 회원 유형 바꾸기 창(내 정보와 같은 창) — 첫 화면 · 아래 띠 버튼이 같이 연다(11-17 사용자: "페이지 이동 말고 팝업").
-  // 광고주 · 제휴사로 바꾸면 내 정보를 다시 받아 PartnersHome 이 대시보드로 옮겨 준다.
-  const [categoryOpen, setCategoryOpen] = useState(false);
   // 첫 화면(사진 위)과 아래 보라 띠는 버튼 색이 다르다 — 사진 위는 어두운 회색 · 흰색이고 마우스를 올리면 보라(11-19 사용자).
   const actions = (onPhoto: boolean) => (
     <StartActions
       onPhoto={onPhoto}
       collabMember={collabMember}
       otherMember={otherMember}
-      onChangeCategory={() => setCategoryOpen(true)}
+      onChangeCategory={openCategory}
     />
+  );
+  const startRequest = useRequestStart(collabMember || otherMember);
+  // 첫 화면 버튼 둘(11-23 사용자): "브랜드 협업 구성 보기"는 아래 콜라보 구성으로 스크롤(처음엔 하위 안내 페이지로 이동),
+  // "콜라보 의뢰하기"는 콜라보 구성 아래 "의뢰서 작성하기"와 같은 동작(처음엔 "매장 참여 방법 보기" 하위 페이지).
+  // 로그인해도 바뀌지 않는다(11-23 사용자: 다른 유형 회원이면 "회원 유형 바꾸기"로 바뀌던 것을 "안 바뀌게") — 회원 유형별 동작은 버튼이 맡는다.
+  // 가입 · 대시보드 · 회원 유형 바꾸기는 아래 보라 띠에 남는다.
+  const heroActions = (
+    <>
+      <button
+        type="button"
+        onClick={() => scrollToSection(FORMATS_ID)}
+        className={ctaClass(true, true)}
+      >
+        브랜드 협업 구성 보기
+        <CtaArrow />
+      </button>
+      <button
+        type="button"
+        onClick={startRequest}
+        className={ctaClass(false, true)}
+      >
+        콜라보 의뢰하기
+        <CtaArrow />
+      </button>
+    </>
   );
 
   return (
@@ -245,21 +251,18 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
       // 본문 상자의 폭 제한 · 여백은 이 화면에서 풀린다(globals.css) — 첫 화면은 본문 끝까지, 아래 구역은 여기서 1120px 상자에.
       className="flex flex-col"
     >
-      <Hero actions={actions(true)} otherMember={otherMember} />
-      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-[120px] px-[16px] pt-[96px] pb-[calc(40px+var(--partners-tabbar-space,0px))] sm:gap-[200px] sm:px-[24px] sm:pt-[160px] sm:pb-[72px]">
+      <Hero actions={heroActions} otherMember={otherMember} />
+      <div className={bodyClass()}>
         <Overview />
-        <Formats />
+        <Formats signedIn={collabMember || otherMember} />
         <Flow />
         <AdmixPart />
         <Audiences />
         <StartBand actions={actions(false)} />
         <BackToTop target={top} />
       </div>
-      <CategoryChangeModal
-        open={categoryOpen}
-        onOpenChange={setCategoryOpen}
-        current={me?.member_category}
-      />
+      {modal}
+      <ContactFab />
     </div>
   );
 }
@@ -267,11 +270,14 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
 /* ── 첫 화면 ─────────────────────────────────────────────────────────── */
 
 const OVERVIEW_ID = "partners-overview";
+/** 콜라보 구성 — 첫 화면 "브랜드 협업 구성 보기"가 여기로 스크롤한다. */
+const FORMATS_ID = "partners-formats";
 
-function scrollBehavior(): ScrollBehavior {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ? "auto"
-    : "smooth";
+/** 본문(main)이 스크롤되는 화면이라 scrollIntoView 로 — 위 칸 여백은 구역의 scroll-mt. */
+function scrollToSection(id: string) {
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
 }
 
 /**
@@ -317,11 +323,7 @@ function Hero({
       </div>
       <button
         type="button"
-        onClick={() =>
-          document
-            .getElementById(OVERVIEW_ID)
-            ?.scrollIntoView({ behavior: scrollBehavior(), block: "start" })
-        }
+        onClick={() => scrollToSection(OVERVIEW_ID)}
         aria-label="아래로 스크롤"
         className="absolute bottom-[20px] left-1/2 flex -translate-x-1/2 cursor-pointer text-white/90 transition-colors hover:text-white sm:bottom-[32px]"
       >
@@ -393,18 +395,35 @@ function Overview() {
     <section id={OVERVIEW_ID} className="scroll-mt-[32px]">
       <Reveal className="mx-auto flex max-w-[640px] flex-col items-center text-center">
         <Eyebrow>콜라보 소개</Eyebrow>
-        <h2 className={H2}>매장 공간에서 진행하는 브랜드 콜라보</h2>
-        <p className={cn(LEAD, "mt-[16px] sm:mt-[20px]")}>
-          구성은 매장마다 가능한 범위 안에서 고릅니다.
+        {/* 11-23 사용자 문구 — 쉼표에서 줄을 나눈다. 설명은 사용자 글("카페 메뉴부터 … 브랜드 캠페인을 제안합니다")을 짧게(캠페인 → 이 화면 용어 콜라보).
+            강조는 다른 구역 제목처럼 둘째 줄만 보라("강조할 부분에 보라색", 11-23 사용자). */}
+        <h2 className={H2}>
+          브랜드와 매장의 협업,
+          <br />
+          <span className="text-primary">admix가 연결합니다</span>
+        </h2>
+        {/* 두 줄 설명이라 행간을 좁힌다(11-23 사용자: "행간 좁혀줘") — 다른 구역 설명은 LEAD 그대로 1.75. */}
+        <p className={cn(LEAD, "mt-[16px] leading-[1.5] sm:mt-[20px]")}>
+          카페 메뉴부터 굿즈 전시, 제품 체험까지.
+          <br />
+          매장에 어울리는 콜라보를 admix가 제안합니다.
         </p>
       </Reveal>
       <div aria-hidden className="flex flex-col items-center">
-        <span className="mt-[40px] h-[72px] border-l-2 border-dotted border-primary-300 sm:mt-[56px] sm:h-[112px]" />
+        {/* 점선 길이 — 11-23 사용자 "조금 더 짧게"(72 · 112px → 52 · 80px). */}
+        <span className="mt-[40px] h-[52px] border-l-2 border-dotted border-primary-300 sm:mt-[56px] sm:h-[80px]" />
         <span className="size-[9px] rounded-full bg-primary" />
       </div>
-      <div className="mt-[40px] grid overflow-hidden rounded-[24px] sm:mt-[56px] sm:rounded-[28px] lg:grid-cols-3">
+      {/* 세 칸은 한 판 — 마우스를 올린 칸만 살짝 뜨게(11-23 사용자) 판 대신 칸마다 바깥 모서리를 둥글린다(판에서 자르면 뜬 칸 · 그림자가 잘린다). */}
+      {/* group/roles — 판 위에 마우스가 있으면 올리지 않은 칸을 어둡게(RoleColumn). */}
+      <div className="group/roles mt-[40px] grid sm:mt-[56px] lg:grid-cols-3">
         {ROLES.map((r, i) => (
-          <RoleColumn key={r.chip} role={r} index={i} />
+          <RoleColumn
+            key={r.chip}
+            role={r}
+            index={i}
+            last={i === ROLES.length - 1}
+          />
         ))}
       </div>
     </section>
@@ -414,41 +433,71 @@ function Overview() {
 function RoleColumn({
   role: r,
   index: i,
+  last,
 }: {
   role: (typeof ROLES)[number];
   index: number;
+  last: boolean;
 }) {
   const [revealRef, reveal] = useReveal<HTMLDivElement>(i * 120);
   return (
+    // 바깥은 등장 효과(translate · 지연)만, 칸 모양 · 떠오름은 안쪽 — 둘을 한 곳에 두면 떠오를 때도 등장 지연 · 속도를 탄다.
+    // 뜬 칸이 옆 칸 위로 그림자를 드리우게 바깥에 hover:z-10.
     <div
       ref={revealRef}
       style={reveal.style}
-      className={cn(
-        // 칸 사이 옅은 흰 선 — 사진을 넣기 전(회색 한 판)에도 세 칸이 갈려 보이게.
-        "relative flex h-[300px] flex-col items-center justify-center px-[24px] text-center not-first:border-white/25 max-lg:not-first:border-t sm:h-[420px] lg:h-[480px] lg:not-first:border-l",
-        reveal.className,
-      )}
+      className={cn("group/col relative hover:z-10", reveal.className)}
     >
-      <ImageSlot
-        src={r.image}
-        sizes="(min-width: 1024px) 360px, 100vw"
-        className="absolute inset-0"
-      />
-      <span
-        aria-hidden
-        className="absolute inset-0 bg-linear-to-b from-[#000]/55 via-[#000]/50 to-[#000]/75"
-      />
-      <span className="relative rounded-full bg-white/15 px-[12px] py-[4px] text-[13px] font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
-        {r.chip}
-      </span>
-      <h3 className="relative mt-[16px] text-[24px] leading-[1.38] font-bold tracking-[-0.03em] break-keep text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.35)] sm:text-[28px]">
-        {r.title[0]}
-        <br />
-        {r.title[1]}
-      </h3>
-      <p className="absolute inset-x-[24px] bottom-[24px] text-[13px] break-keep text-white/80 sm:bottom-[32px] sm:text-[14px]">
-        {r.note}
-      </p>
+      <div
+        className={cn(
+          // 칸 사이 옅은 흰 선 — 사진을 넣기 전(회색 한 판)에도 세 칸이 갈려 보이게.
+          // 휴대폰 높이 340px — 설명이 세 줄이어도 제목과 붙지 않게(11-23, 예전 300px).
+          "relative flex h-[340px] flex-col items-center justify-center overflow-hidden px-[24px] text-center sm:h-[420px] lg:h-[480px]",
+          i > 0 && "border-white/25 max-lg:border-t lg:border-l",
+          // 바깥 모서리만 둥글게 — 휴대폰 · 태블릿은 위아래로 쌓여 첫 칸 위 · 끝 칸 아래, PC는 첫 칸 왼쪽 · 끝 칸 오른쪽.
+          i === 0 &&
+            "rounded-t-[24px] sm:rounded-t-[28px] lg:rounded-tr-none lg:rounded-bl-[28px]",
+          last &&
+            "rounded-b-[24px] sm:rounded-b-[28px] lg:rounded-tr-[28px] lg:rounded-bl-none",
+          LIFT_ROLE,
+        )}
+      >
+        <ImageSlot
+          src={r.image}
+          sizes="(min-width: 1024px) 360px, 100vw"
+          className="absolute inset-0"
+        />
+        <span
+          aria-hidden
+          className="absolute inset-0 bg-linear-to-b from-[#000]/55 via-[#000]/50 to-[#000]/75"
+        />
+        <span className="relative rounded-full bg-white/15 px-[12px] py-[4px] text-[13px] font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
+          {r.chip}
+        </span>
+        <h3 className="relative mt-[16px] text-[24px] leading-[1.38] font-bold tracking-[-0.03em] break-keep text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.35)] sm:text-[28px]">
+          {r.title[0]}
+          <br />
+          {r.title[1]}
+        </h3>
+        {/* 설명은 점 목록(11-23 사용자: "* · 점 · - 같은 걸로 리스트 형식으로") — 목록 묶음은 칸 가운데, 줄은 왼쪽 맞춤.
+          PC는 좌우 여백 16px — 24px면 점 자리만큼 모자라 브랜드 설명 끝 "의뢰합니다."가 혼자 둘째 줄로 넘어간다(1440). */}
+        <ul className="absolute inset-x-[24px] bottom-[24px] mx-auto flex w-fit max-w-full flex-col gap-[4px] text-left text-[13px] leading-[1.6] break-keep text-white/80 sm:bottom-[32px] sm:text-[14px] lg:inset-x-[16px]">
+          {r.note.map((line) => (
+            <li key={line} className="flex gap-[8px]">
+              <span
+                aria-hidden
+                className="mt-[0.7em] size-[4px] shrink-0 rounded-full bg-white/70"
+              />
+              {line}
+            </li>
+          ))}
+        </ul>
+        {/* 다른 칸에 마우스를 올리면 이 칸을 글까지 어둡게 덮는다 — 올린 칸에 눈이 가게(11-23 사용자). 이 칸 위면 덮지 않는다. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[#000]/40 opacity-0 transition-opacity duration-300 group-hover/roles:opacity-100 group-hover/col:opacity-0! motion-reduce:transition-none"
+        />
+      </div>
     </div>
   );
 }
@@ -456,154 +505,333 @@ function RoleColumn({
 /* ── 콜라보 구성 ─────────────────────────────────────────────────────── */
 
 /**
- * 가운데 제목(두째 줄만 보라) + 크고 작은 회색 카드 묶음 — 카드마다 제목 · 설명 + 그림 칸(세무 핵심 서비스).
- * PC는 세 칸 기준으로 넓은 칸(두 칸) · 좁은 칸이 줄마다 엇갈리고, 넓은 칸은 글 왼쪽 · 그림 오른쪽. 태블릿 두 칸, 휴대폰 한 칸.
- * 순서 · 이름 · 설명은 매장 "가능 범위"(COLLAB_SCOPE_ITEMS)와 같다(11-17 사용자).
+ * 가운데 제목(두째 줄만 보라) + 회색 카드 묶음 — 카드마다 제목 · 설명 + 사진.
+ * 카드는 둘씩 세 짝(FORMAT_PAIRS) — 짝마다 세로 4:5 사진 하나 + 정사각형 사진 하나(FORMAT_SQUARE).
+ * 11-23 사용자: 같은 크기 격자 + 모두 세로 4:5(landingKit FORMAT_GRID — 하위 페이지는 아직 그 모양)에서
+ *   굿즈 · 소모품 "정사각형이 좋을 것 같아" + "전체적으로 배치를 다시" → 비율이 섞여도 끝선이 맞는 짝 배치로.
+ * - PC(lg): 짝이 세로 칸 셋 — 세로 · 정사각형이 칸마다 엇갈리고(바둑판), 칸마다 두 장 합이 같아 세 칸 끝선이 맞는다.
+ * - 태블릿(sm): 짝이 가로 줄 — 폭을 사진 비율대로(4:5 → 4, 정사각형 → 5) 나눠 한 줄 사진 높이가 같다.
+ * - 휴대폰: 한 줄로 쌓는다.
+ * 글 줄 수가 달라 남는 높이는 글과 사진 사이로 — 사진은 비율 그대로 카드 아래에 붙어 끝선이 맞는다(mt-auto).
+ * 순서는 매장 "가능 범위"(COLLAB_SCOPE_ITEMS)와 같고(11-17 사용자) PC에선 칸(세로)으로 읽힌다. 이름 · 설명은 11-23 사용자 문구(FORMAT_COPY — 소개 페이지만).
  */
-function Formats() {
+function Formats({ signedIn }: { signedIn: boolean }) {
   return (
-    <section>
+    <section id={FORMATS_ID} className="scroll-mt-[32px]">
       <Reveal className="mx-auto flex max-w-[640px] flex-col items-center text-center">
         <Eyebrow>콜라보 구성</Eyebrow>
+        {/* 11-23 사용자 문구(예전 "컵홀더부터 한정 메뉴까지, 매장에서 만나는 브랜드 콜라보" · "콜라보 목적과 매장 환경에 맞춰
+            여섯 가지 구성을 조합합니다"에서 바꿈) — 둘째 줄만 보라. */}
         <h2 className={H2}>
-          매장에서 할 수 있는
+          브랜드와 매장이 함께하는
           <br />
           <span className="text-primary">여섯 가지 콜라보</span>
         </h2>
-        <p className={cn(LEAD, "mt-[16px] sm:mt-[20px]")}>
-          의뢰서에서 원하는 구성을 골라 담으면 됩니다.
+        {/* 휴대폰에서 두 줄로 갈릴 때 끝말만 남지 않게 줄 길이를 고르게(text-balance). */}
+        <p className={cn(LEAD, "mt-[16px] text-balance sm:mt-[20px]")}>
+          의뢰서에서 원하는 구성을 담으면 됩니다.
         </p>
       </Reveal>
-      <ul className="mt-[40px] grid gap-[12px] sm:mt-[64px] sm:grid-cols-2 sm:gap-[16px] lg:grid-cols-3">
-        {COLLAB_SCOPE_ITEMS.map((item, i) => (
-          <FormatCard
-            key={item.key}
-            item={item}
-            index={i}
-            wide={WIDE_FORMATS.has(i)}
-          />
+      <div className="mt-[40px] grid gap-[12px] sm:mt-[64px] sm:gap-[16px] lg:grid-cols-3">
+        {FORMAT_PAIRS.map((pair, p) => (
+          <ul
+            key={pair[0].key}
+            className="flex flex-col gap-[12px] sm:flex-row sm:gap-[16px] lg:flex-col"
+          >
+            {pair.map((item, j) => (
+              <FormatCard key={item.key} item={item} delay={p * 80 + j * 110} />
+            ))}
+          </ul>
         ))}
-      </ul>
+      </div>
+      <FormatActions signedIn={signedIn} />
     </section>
   );
 }
 
-function FormatCard({
-  item,
-  index: i,
-  wide,
-}: {
-  item: (typeof COLLAB_SCOPE_ITEMS)[number];
-  index: number;
-  wide: boolean;
-}) {
-  // 한 줄(두 장)씩 차례로.
-  const [revealRef, reveal] = useReveal<HTMLLIElement>((i % 2) * 110);
+/** 의뢰서 작성 화면(광고주) — 브랜드가 없으면 그 화면이 브랜드 등록부터 연다(AdvRequestForm). */
+const REQUEST_HREF = "/partners/collabs/new";
+
+/**
+ * 의뢰서 작성 시작 — 콜라보 구성 아래 "의뢰서 작성하기"(11-23 사용자 — 처음엔 회원가입 · 견적서 요청 · 기획안 작성하기 셋)와
+ * 첫 화면 비회원 "콜라보 의뢰하기"(11-23 사용자: "의뢰서 작성하기 버튼과 동일한 기능")가 같이 쓴다.
+ * - 비회원: 로그인 창 → 로그인하면 바로 의뢰서. 창 안 회원가입은 광고주를 미리 골라 두고, 가입을 마치면 의뢰서로(LoginModal ?next=).
+ *   광고주가 아닌 계정으로 로그인하면 옮기지 않고 "광고주 회원만" 창(AdvertiserOnlyNotice).
+ * - 광고주: 의뢰서로. 사업자등록증 승인 전이면 승인 안내 창(ProvisionalGate).
+ * - 다른 유형 회원: "광고주 회원만" 창.
+ */
+function useRequestStart(signedIn: boolean) {
+  const router = useRouter();
+  const { data: me } = useMe();
+  const advLock = useAdvBizLock();
+  return () => {
+    if (!signedIn) {
+      openLoginModalTo(REQUEST_HREF, {
+        category: "advertiser",
+        onOther: openAdvertiserOnlyNotice,
+      });
+      return;
+    }
+    // 회원 정보를 아직 못 받았으면 의뢰서로 — 그 화면의 가드가 유형 · 승인을 다시 본다.
+    if (me && me.member_category !== "advertiser") {
+      openAdvertiserOnlyNotice();
+      return;
+    }
+    if (advLock) {
+      openBizGate();
+      return;
+    }
+    router.push(REQUEST_HREF);
+  };
+}
+
+/** 콜라보 구성 아래 "의뢰서 작성하기" — 동작은 useRequestStart(첫 화면 "콜라보 의뢰하기"와 같다). */
+function FormatActions({ signedIn }: { signedIn: boolean }) {
+  const start = useRequestStart(signedIn);
+  return (
+    <Reveal className="mt-[32px] flex justify-center sm:mt-[48px]">
+      <button
+        type="button"
+        onClick={start}
+        className="group inline-flex h-[42px] cursor-pointer items-center gap-[6px] rounded-full bg-primary px-[18px] text-[13px] font-semibold whitespace-nowrap text-white transition-colors hover:bg-primary-700 sm:h-[52px] sm:px-[26px] sm:text-[15px]"
+      >
+        의뢰서 작성하기
+        <CtaArrow />
+      </button>
+    </Reveal>
+  );
+}
+
+type FormatItem = (typeof COLLAB_SCOPE_ITEMS)[number];
+
+/**
+ * 정사각형 사진 칸 — 굿즈 · 소모품(11-23 사용자: "정사각형이 좋을 것 같아", 그땐 가로 사진).
+ *   같은 날 두 사진이 세로(굿즈 3:4 · 소모품 4:5)로 바뀌어 위아래가 조금 잘린다 — 소모품은 컵홀더가 남게 아래쪽(FORMAT_COPY position).
+ * 공간 연출은 원본이 거의 정사각형(1440×1517)이라 4:5보다 덜 잘린다. 나머지(홍보물 · 전시 · 메뉴)는 세로 4:5 원본 그대로.
+ */
+const FORMAT_SQUARE: ReadonlySet<FormatItem["key"]> = new Set([
+  "goods",
+  "supplies",
+  "space",
+]);
+
+/** 둘씩 세 짝 — [홍보물 · 굿즈] [소모품 · 전시] [메뉴 · 공간]. 짝마다 세로 하나 + 정사각형 하나. */
+const FORMAT_PAIRS = [0, 2, 4].map((i) => COLLAB_SCOPE_ITEMS.slice(i, i + 2));
+
+function FormatCard({ item, delay }: { item: FormatItem; delay: number }) {
+  const [revealRef, reveal] = useReveal<HTMLLIElement>(delay);
+  const square = FORMAT_SQUARE.has(item.key);
   return (
     <li
       ref={revealRef}
       style={reveal.style}
       className={cn(
-        "flex min-w-0 flex-col gap-[20px] rounded-[24px] bg-gray-50 p-[24px] sm:p-[28px]",
-        wide &&
-          "lg:col-span-2 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-stretch lg:gap-[28px]",
+        // 태블릿 줄에선 폭을 사진 비율대로 — 기본 폭은 안쪽 div 좌우 여백(28px × 2)만, 남는 폭을 grow 4 : 5로 나눠 사진 폭이 정확히 4 : 5.
+        "flex min-w-0 flex-col sm:basis-[56px] lg:basis-auto",
+        square ? "grow-[5]" : "grow-[4]",
         reveal.className,
       )}
     >
-      <div className="min-w-0">
-        <h3 className="text-[19px] leading-[1.4] font-bold tracking-[-0.02em] text-gray-900 sm:text-[21px]">
-          {item.label}
-        </h3>
-        <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:text-[15px]">
-          {item.desc}
-        </p>
-      </div>
-      <ImageSlot
-        src={sample(`format-${item.key}`)}
-        sizes="(min-width: 1024px) 420px, (min-width: 640px) 50vw, 100vw"
+      {/* 카드 모양은 안쪽 div에 — 마우스를 올리면 살짝 떠오르며 아래에 옅은 그림자(LIFT, 11-23 사용자).
+          li 에는 등장 효과의 translate · 지연이 걸려 있어 따로 둔다. flex-1 로 li 높이를 다 채워야 사진 끝선(mt-auto)이 맞는다. */}
+      <div
         className={cn(
-          "mt-auto h-[120px] rounded-[16px] sm:h-[180px]",
-          wide && "lg:mt-0 lg:h-auto lg:min-h-[200px]",
+          // 옅은 테두리(11-23 사용자 "테두리가 살짝" → gray-200 은 "너무 진해" → gray-100) — 안쪽 ring 이라 크기가 그대로다(li 의 sm:basis-[56px] 계산이 안 바뀐다).
+          "flex flex-1 flex-col gap-[20px] rounded-[24px] bg-gray-50 p-[24px] ring-1 ring-gray-100 ring-inset sm:p-[28px]",
+          LIFT,
         )}
-      />
+      >
+        <div className="min-w-0">
+          <h3 className="text-[19px] leading-[1.4] font-bold tracking-[-0.02em] text-gray-900 sm:text-[21px]">
+            {FORMAT_COPY[item.key].label}
+          </h3>
+          <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:text-[15px]">
+            {FORMAT_COPY[item.key].desc}
+          </p>
+        </div>
+        <ImageSlot
+          src={FORMAT_COPY[item.key].image}
+          position={FORMAT_COPY[item.key].position}
+          sizes="(min-width: 1024px) 320px, (min-width: 640px) 55vw, 100vw"
+          className={cn(
+            "mt-auto w-full rounded-[16px]",
+            square ? "aspect-square" : "aspect-[4/5]",
+          )}
+        />
+      </div>
     </li>
   );
 }
 
 /* ── 진행 방식 ───────────────────────────────────────────────────────── */
 
-/** 가운데 제목 + 흰 단계 카드 두 칸(테두리 없이 옅은 그림자) — 왼쪽 "N단계"(보라) · 제목 · 설명 · 누가 하는지, 오른쪽 작은 그림 칸(세무 업무 절차). */
+/**
+ * 가운데 제목 + 단계 × 브랜드 · 매장 표(11-23 사용자 레퍼런스: "PC는 가로, 모바일은 세로").
+ * PC(lg)는 단계가 가로 칸(번호 · 이름 아래 보라 점을 이은 줄), 브랜드 · 매장이 줄. 그보다 좁으면 단계가 세로 줄, 브랜드 · 매장이 칸.
+ * 줄 이름은 한 단계 진한 색, 할 일 칸은 옅은 색 — 예전엔 흰 단계 카드 여섯 장(설명 · 누가 하는지 칩 · 작은 사진).
+ */
 function Flow() {
   return (
     <section>
       <Reveal className="mx-auto flex max-w-[640px] flex-col items-center text-center">
         <Eyebrow>진행 방식</Eyebrow>
+        {/* 11-23 사용자 문구 — 쉼표에서 줄을 나누고 둘째 줄만 보라("진행과정"은 띄어 씀). */}
         <h2 className={H2}>
-          의뢰부터 결과 보고까지
+          의뢰부터 결과 보고까지,
           <br />
-          <span className="text-primary">콜라보 진행 과정</span>
+          <span className="text-primary">콜라보 진행 과정 한눈에 보기</span>
         </h2>
         <p className={cn(LEAD, "mt-[16px] sm:mt-[20px]")}>
-          진행 상황과 보고서는 화면에서 바로 확인합니다.
+          admix가 콜라보 기획부터 운영 조율, 결과 보고까지 담당합니다.
         </p>
       </Reveal>
-      <ol className="mt-[40px] grid gap-[12px] sm:mt-[64px] sm:grid-cols-2 sm:gap-[16px]">
-        {FLOW.map((step, i) => (
-          <FlowCard key={step.title} step={step} index={i} />
-        ))}
-      </ol>
+      <Reveal className="mt-[40px] sm:mt-[64px]">
+        <FlowRows />
+        <FlowColumns />
+      </Reveal>
     </section>
   );
 }
 
-function FlowCard({
-  step: s,
-  index: i,
+const FLOW_SIDES = ["brand", "partner"] as const;
+type FlowSide = (typeof FLOW_SIDES)[number];
+/** 줄 · 칸 이름(브랜드 · 매장) — 할 일 칸보다 한 단계 진하게. */
+const FLOW_LABEL: Record<FlowSide, string> = {
+  // 보라 글자는 primary-700 그대로 — 다크에선 토큰이 밝은 보라로 바뀐다(primary-200은 다크에서 어두워 안 보임).
+  brand: "bg-primary-100 text-primary-700 dark:bg-primary-500/25",
+  partner:
+    "bg-amber-100 text-amber-800 dark:bg-amber-400/20 dark:text-amber-200",
+};
+const FLOW_CELL: Record<FlowSide, string> = {
+  brand: "bg-primary-50 dark:bg-primary-500/10",
+  partner: "bg-amber-50 dark:bg-amber-400/10",
+};
+const flowNo = (i: number) => String(i + 1).padStart(2, "0");
+
+function FlowLabel({
+  side,
+  className,
 }: {
-  step: (typeof FLOW)[number];
-  index: number;
+  side: FlowSide;
+  className?: string;
 }) {
-  const [revealRef, reveal] = useReveal<HTMLLIElement>((i % 2) * 110);
   return (
-    <li
-      ref={revealRef}
-      style={reveal.style}
+    <div
       className={cn(
-        // 테두리 대신 옅은 그림자(11-19 사용자: "테두리 말고 다른 카드 UI") — 다크는 그림자가 안 보여 한 단계 밝은 바탕으로.
-        "flex items-start justify-between gap-[16px] rounded-[20px] bg-surface p-[20px] shadow-[0_1px_3px_rgba(42,20,89,0.05),0_10px_28px_rgba(42,20,89,0.07)] sm:p-[28px] dark:bg-gray-50 dark:shadow-none",
-        reveal.className,
+        "flex items-center justify-center rounded-[12px] font-bold",
+        FLOW_LABEL[side],
+        className,
       )}
     >
-      <div className="min-w-0">
-        <span className="text-[13px] font-bold text-primary sm:text-[14px]">
-          {i + 1}단계
-        </span>
-        <h3 className="mt-[6px] text-[18px] leading-[1.4] font-bold tracking-[-0.02em] text-gray-900 sm:text-[20px]">
-          {s.title}
-        </h3>
-        <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500 sm:text-[15px]">
-          {s.body}
-        </p>
-        <span className="mt-[14px] flex flex-wrap gap-[4px]">
-          {s.who.map((a) => (
-            <span
-              key={a}
-              className={cn(
-                "rounded-full px-[8px] py-[2px] text-[12px] font-semibold whitespace-nowrap",
-                ACTOR[a].className,
-              )}
-            >
-              {ACTOR[a].label}
-            </span>
-          ))}
-        </span>
+      {side === "brand" ? "브랜드" : "매장"}
+    </div>
+  );
+}
+
+function FlowCell({
+  side,
+  text,
+  className,
+}: {
+  side: FlowSide;
+  text?: string;
+  className?: string;
+}) {
+  // 하지 않는 단계는 빈칸 — 자리만 지킨다.
+  if (!text) return <div aria-hidden />;
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center rounded-[12px] text-center font-medium break-keep text-gray-800",
+        FLOW_CELL[side],
+        className,
+      )}
+    >
+      {text}
+    </div>
+  );
+}
+
+/**
+ * PC(lg) — 단계가 가로 칸. 왼쪽 첫 칸은 줄 이름(브랜드 · 매장).
+ * lg(본문 약 800px)는 할 일이 두 줄로 넘어가지 않게 이름 칸 · 사이 · 글자를 한 단계 작게, xl부터 넉넉하게.
+ */
+function FlowColumns() {
+  return (
+    <div className="hidden grid-cols-[72px_repeat(6,minmax(0,1fr))] gap-x-[6px] gap-y-[10px] lg:grid xl:grid-cols-[88px_repeat(6,minmax(0,1fr))] xl:gap-x-[8px]">
+      <div />
+      {FLOW.map((s, i) => (
+        <div key={s.title} className="flex flex-col items-center text-center">
+          <span className="text-[13px] font-bold text-primary">
+            {flowNo(i)}
+          </span>
+          <span className="mt-[2px] text-[17px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-gray-900">
+            {s.title}
+          </span>
+        </div>
+      ))}
+      {/* 단계를 잇는 줄 — 칸 가운데마다 보라 점. */}
+      <div />
+      {/* 줄은 첫 칸 가운데부터 끝 칸 가운데까지 — 칸 폭의 반 = (전체 - 사이 다섯) / 12. */}
+      <div className="relative col-span-6 mb-[6px] grid h-[9px] grid-cols-6 gap-x-[6px] xl:gap-x-[8px]">
+        <span className="absolute inset-x-[calc((100%-30px)/12)] top-1/2 h-px -translate-y-1/2 bg-gray-200 xl:inset-x-[calc((100%-40px)/12)]" />
+        {FLOW.map((s) => (
+          <span
+            key={s.title}
+            className="relative mx-auto size-[9px] rounded-full bg-primary"
+          />
+        ))}
       </div>
-      <ImageSlot
-        src={sample(`flow-${i + 1}`)}
-        sizes="88px"
-        className="size-[64px] shrink-0 rounded-[16px] sm:size-[88px] sm:rounded-[20px]"
-      />
-    </li>
+      {FLOW_SIDES.map((side) => (
+        <Fragment key={side}>
+          <FlowLabel side={side} className="text-[14px] xl:text-[15px]" />
+          {FLOW.map((s) => (
+            <FlowCell
+              key={s.title}
+              side={side}
+              text={s[side]}
+              className="min-h-[64px] px-[6px] py-[12px] text-[13px] leading-[1.45] xl:px-[10px] xl:text-[14px]"
+            />
+          ))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** PC보다 좁을 때 — 단계가 세로 줄(번호 동그라미 · 이름), 브랜드 · 매장이 칸. */
+function FlowRows() {
+  return (
+    <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-[6px] gap-y-[8px] sm:gap-x-[10px] sm:gap-y-[10px] lg:hidden">
+      <div />
+      {FLOW_SIDES.map((side) => (
+        <FlowLabel
+          key={side}
+          side={side}
+          className="h-[36px] text-[13px] sm:h-[42px] sm:text-[15px]"
+        />
+      ))}
+      {FLOW.map((s, i) => (
+        <Fragment key={s.title}>
+          <div className="flex min-w-0 items-center gap-[8px] sm:gap-[10px]">
+            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700 sm:size-[30px] sm:text-[12px] dark:bg-primary-500/25">
+              {flowNo(i)}
+            </span>
+            <span className="min-w-0 text-[14px] leading-[1.35] font-bold break-keep text-gray-900 sm:text-[16px]">
+              {s.title}
+            </span>
+          </div>
+          {FLOW_SIDES.map((side) => (
+            <FlowCell
+              key={side}
+              side={side}
+              text={s[side]}
+              className="min-h-[48px] px-[8px] py-[10px] text-[12px] leading-[1.4] sm:min-h-[56px] sm:text-[14px]"
+            />
+          ))}
+        </Fragment>
+      ))}
+    </div>
   );
 }
 
@@ -644,11 +872,8 @@ function AdmixPart() {
       <section className="grid gap-[32px] overflow-hidden rounded-[28px] bg-gray-50 py-[48px] pl-[24px] sm:rounded-[36px] sm:py-[72px] sm:pl-[48px] lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-[48px] lg:rounded-tr-[160px] lg:py-[88px] lg:pl-[56px]">
         <div className="min-w-0 pr-[24px] sm:pr-[48px] lg:pr-0">
           <Eyebrow>admix 운영</Eyebrow>
-          <h2 className={H2}>
-            admix가
-            <br />
-            맡는 일
-          </h2>
+          {/* 제목은 한 줄(11-23 사용자 — "admix가 / 맡는 일"로 끊겨 배치가 이상해 보였다). */}
+          <h2 className={H2}>admix가 맡는 일</h2>
           <p className={cn(LEAD, "mt-[16px] sm:mt-[20px]")}>
             콜라보에 필요한 준비와 관리는 admix가 맡습니다.
           </p>
@@ -659,7 +884,7 @@ function AdmixPart() {
               aria-label="이전 카드"
               isDisabled={edge.start}
               onPress={() => go(-1)}
-              className="size-[44px] rounded-full border-gray-300 bg-surface"
+              className="size-[44px] rounded-full border-gray-200 bg-surface"
             >
               <ChevronLeftIcon className="size-[18px]" />
             </Button>
@@ -669,7 +894,7 @@ function AdmixPart() {
               aria-label="다음 카드"
               isDisabled={edge.end}
               onPress={() => go(1)}
-              className="size-[44px] rounded-full border-gray-300 bg-surface"
+              className="size-[44px] rounded-full border-gray-200 bg-surface"
             >
               <ChevronRightIcon className="size-[18px]" />
             </Button>
@@ -788,248 +1013,6 @@ function AudienceCard({
       <p className="mt-[6px] text-[14px] leading-[1.6] break-keep text-gray-500">
         {item.body}
       </p>
-    </div>
-  );
-}
-
-/* ── 시작 띠 ─────────────────────────────────────────────────────────── */
-
-/** 보라 띠(PC는 알약 모양) — 왼쪽 한 줄, 오른쪽 흰 버튼(전자서명 자료 받기 띠). 회원 유형별 버튼은 첫 화면과 같다. */
-function StartBand({ actions }: { actions: ReactNode }) {
-  return (
-    <Reveal>
-      <section className="flex flex-col gap-[20px] rounded-[28px] bg-primary px-[24px] py-[32px] shadow-[0_20px_40px_-16px_rgba(122,63,224,0.55)] sm:px-[40px] lg:flex-row lg:items-center lg:justify-between lg:rounded-full lg:py-[28px] lg:pr-[28px] lg:pl-[56px]">
-        <h2 className="text-[20px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-white sm:text-[24px]">
-          admix 콜라보, 지금 시작
-        </h2>
-        <div className="flex flex-row flex-wrap items-center gap-[8px]">
-          {actions}
-        </div>
-      </section>
-    </Reveal>
-  );
-}
-
-/* ── 공용 ────────────────────────────────────────────────────────────── */
-
-/** 구역 제목 위 작은 보라 글자(레퍼런스의 작은 머리) — 번호 없이 구역 이름만. */
-function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <span className="mb-[12px] block text-[14px] font-semibold text-primary sm:mb-[16px] sm:text-[15px]">
-      {children}
-    </span>
-  );
-}
-
-/**
- * 이미지 칸 — 회색 바탕 위에 사진을 칸 크기에 맞춰 채운다(object-cover). src 가 없으면 회색 칸 그대로
- * (11-19 사용자: 처음엔 "회색 배경으로 비워줘", 이어서 "샘플 이미지들을 넣어 줄 수 있어?"). data-image-slot 으로 찾기 쉽게.
- * 사진은 꾸밈이라 글로 읽지 않는다(aria-hidden · alt 빈칸) — 같은 내용이 옆 글에 있다.
- */
-function ImageSlot({
-  src,
-  sizes,
-  priority = false,
-  className,
-}: {
-  src?: string;
-  sizes?: string;
-  priority?: boolean;
-  className?: string;
-}) {
-  return (
-    <div
-      aria-hidden
-      data-image-slot=""
-      className={cn("relative overflow-hidden bg-gray-200", className)}
-    >
-      {src && (
-        <Image
-          src={src}
-          alt=""
-          fill
-          sizes={sizes}
-          priority={priority}
-          className="object-cover"
-        />
-      )}
-    </div>
-  );
-}
-
-/** 회원 유형별 시작 버튼 — 콜라보 회원은 대시보드, 다른 유형 회원은 회원 유형 바꾸기(창), 비회원은 브랜드 · 매장 가입. */
-function StartActions({
-  onPhoto,
-  collabMember,
-  otherMember,
-  onChangeCategory,
-}: {
-  onPhoto: boolean;
-  collabMember: boolean;
-  otherMember: boolean;
-  onChangeCategory: () => void;
-}) {
-  if (collabMember)
-    return (
-      <CtaLink href={PARTNERS_DASHBOARD_HREF} onPhoto={onPhoto} solid>
-        대시보드로 가기
-      </CtaLink>
-    );
-  if (otherMember)
-    return (
-      <button
-        type="button"
-        onClick={onChangeCategory}
-        className={ctaClass(true, onPhoto)}
-      >
-        회원 유형 바꾸기
-        <CtaArrow />
-      </button>
-    );
-  return (
-    <>
-      <CtaLink href={ADVERTISER_SIGNUP_HREF} onPhoto={onPhoto} solid>
-        브랜드로 시작하기
-      </CtaLink>
-      <CtaLink href={PARTNER_SIGNUP_HREF} onPhoto={onPhoto}>
-        매장으로 시작하기
-      </CtaLink>
-    </>
-  );
-}
-
-/**
- * 시작 버튼.
- * - 첫 화면 사진 위(onPhoto): solid 어두운 회색(사이트 어두운 버튼 · "맨 위로"와 같은 gray-800 #262a3d — 처음 넣은 남색은
- *   "이 사이트에서 자주 사용하는 어두운 색"으로 바꿈) · 아니면 흰색, 마우스를 올리면 둘 다 보라 바탕 + 흰 글(11-19 사용자).
- * - 아래 보라 띠: solid 흰 알약(마우스를 올리면 연보라) · 아니면 흰 테두리 — 보라 바탕이라 보라로 바뀌면 안 보인다.
- * 색은 hex 로 고정한 곳이 있다 — 회색 · 남색 토큰은 다크 모드에서 밝게 뒤집힌다.
- */
-function CtaLink({
-  href,
-  onPhoto,
-  solid = false,
-  children,
-}: {
-  href: string;
-  onPhoto: boolean;
-  solid?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Link href={href} className={ctaClass(solid, onPhoto)}>
-      {children}
-      <CtaArrow />
-    </Link>
-  );
-}
-
-function ctaClass(solid: boolean, onPhoto: boolean) {
-  return cn(
-    "group inline-flex h-[42px] cursor-pointer items-center gap-[6px] rounded-full border px-[16px] text-[13px] font-semibold whitespace-nowrap transition-colors sm:h-[52px] sm:px-[26px] sm:text-[15px]",
-    onPhoto
-      ? solid
-        ? "border-transparent bg-[#262a3d] text-white hover:bg-primary"
-        : "border-transparent bg-white text-[#16131f] hover:bg-primary hover:text-white"
-      : solid
-        ? "border-transparent bg-white text-gray-900 hover:bg-primary-50 hover:text-primary-700 dark:text-[#16131f]"
-        : "border-white/60 bg-transparent text-white hover:bg-white/10",
-  );
-}
-
-function CtaArrow() {
-  return (
-    <ArrowLeftIcon className="size-[14px] rotate-180 transition-transform group-hover:translate-x-[2px] sm:size-[16px]" />
-  );
-}
-
-/**
- * 맨 위로 — 이 화면은 창이 아니라 본문(main)이 스크롤되므로, 소개를 감싼 칸에서 위로 올라가며 스크롤되는 상자를 찾아 올린다
- * (없으면 창). 색은 남색 기운의 진한 회색(11-13 사용자: "회색이나 남색으로").
- */
-function BackToTop({ target }: { target: RefObject<HTMLElement | null> }) {
-  const goTop = () => {
-    const behavior = scrollBehavior();
-    let el = target.current?.parentElement ?? null;
-    while (el) {
-      const { overflowY } = getComputedStyle(el);
-      if (
-        /(auto|scroll)/.test(overflowY) &&
-        el.scrollHeight > el.clientHeight
-      ) {
-        el.scrollTo({ top: 0, behavior });
-        return;
-      }
-      el = el.parentElement;
-    }
-    window.scrollTo({ top: 0, behavior });
-  };
-  return (
-    <Reveal className="-mt-[48px] flex justify-center sm:-mt-[120px]">
-      <Button
-        variant="ghost"
-        onPress={goTop}
-        className="h-[44px] gap-[6px] rounded-full bg-gray-800/90 px-[20px] text-[14px] font-semibold text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-colors data-[hovered=true]:bg-gray-900"
-      >
-        <ArrowUpIcon className="size-[16px]" />맨 위로
-      </Button>
-    </Reveal>
-  );
-}
-
-/** 스크롤 등장 — 처음엔 32px 아래 · 투명, 화면에 들어오면 0.9초 동안 제자리로. */
-const REVEAL_BASE =
-  "transition-[opacity,translate] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:transition-none";
-
-/**
- * 스크롤해 화면에 들어오면 밑에서 슥 올라오며 나타나게(11-13 사용자: "스크롤 내릴 때 하나씩 … 밑에서 슥 올라오는 것처럼").
- * 15%쯤 보이면 시작하고, 한 번 나타나면 그대로 둔다. delay(ms): 나란한 것들을 하나씩 차례로. 움직임 줄이기면 처음부터 보인다.
- */
-function useReveal<T extends HTMLElement>(delay = 0) {
-  // 요소는 콜백 ref 로 받는다 — 렌더 중에 ref 객체를 넘기지 않게(react-hooks/refs).
-  const [el, ref] = useState<T | null>(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        setShown(true);
-        io.disconnect();
-      },
-      // 화면 아래 끝 여백(rootMargin)은 두지 않는다 — 맨 아래 "맨 위로"처럼 더 내릴 수 없는 것도 나타나게.
-      { threshold: 0.15 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [el]);
-  // 기다림은 나타날 때만 — 처음 숨길 때 기다리면 깜빡 보였다 사라진다.
-  const style: CSSProperties | undefined =
-    shown && delay ? { transitionDelay: `${delay}ms` } : undefined;
-  const className = cn(
-    REVEAL_BASE,
-    shown ? "translate-y-0 opacity-100" : "translate-y-[32px] opacity-0",
-  );
-  return [ref, { style, className }] as const;
-}
-
-function Reveal({
-  delay,
-  className,
-  children,
-}: {
-  delay?: number;
-  className?: string;
-  children: ReactNode;
-}) {
-  const [revealRef, reveal] = useReveal<HTMLDivElement>(delay);
-  return (
-    <div
-      ref={revealRef}
-      style={reveal.style}
-      className={cn(reveal.className, className)}
-    >
-      {children}
     </div>
   );
 }

@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { LoadingState } from "@/components/common/RouteStates";
+import {
+  isLoginLeaving,
+  setLoginLeaving,
+} from "@/app/(client)/(main)/_components/useLoginModal";
 import { useHasUserToken, useMe } from "@/hooks/auth";
 import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 
@@ -34,9 +38,11 @@ export function PartnersHome({
     !intro &&
     (me?.member_category === "partner" || me?.member_category === "advertiser");
 
+  // 소개의 "의뢰서 작성하기"로 로그인해 의뢰서로 옮겨 가는 중이면 대시보드로 보내지 않는다(11-23 사용자). 화면이 내려가면 표시를 지운다.
   useEffect(() => {
-    if (partner) router.replace(PARTNERS_DASHBOARD_HREF);
+    if (partner && !isLoginLeaving()) router.replace(PARTNERS_DASHBOARD_HREF);
   }, [partner, router]);
+  useEffect(() => () => setLoginLeaving(false), []);
 
   // 소개는 회원 정보를 기다리지 않는다 — 가입 버튼 대신 무엇을 보여 줄지만 회원 정보로 고른다.
   if (intro) return <PartnersLanding member={!!me} />;

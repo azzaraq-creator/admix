@@ -373,6 +373,8 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
   }, [storeParam, me]);
   // 목록에서 마우스를 올린 이동매체의 운행 지역 — 지도에 반투명 영역으로 그린다.
   const [hoverArea, setHoverArea] = useState<OperatingArea | null>(null);
+  // 목록에서 마우스를 올린 매체 — 지도에서 그 핀을 강조한다(11-23 사용자).
+  const [hoverMarker, setHoverMarker] = useState<MapMarker | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [groupPopup, setGroupPopup] = useState<MapMarker[] | null>(null);
   // 지도 팝업 "간략히 보기" — 핀을 바꿔 눌러도 고른 보기를 유지한다.
@@ -720,6 +722,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
         onRequestMapMove={handleRequestMapMove}
         getViewport={() => lastViewportRef.current}
         onHoverArea={setHoverArea}
+        onHoverMedia={setHoverMarker}
         popGrid={shownPop}
         only={only}
         mapSlot={
@@ -736,6 +739,7 @@ export function FixedMediaView({ only }: { only?: MediaFindOnly } = {}) {
             onMarkerClick={handleMarkerClick}
             focusId={focusId}
             focusCenter={!popupId && focusId !== pinFocusId}
+            hoverMarker={hoverMarker}
             popupId={popupId}
             popupPosition={
               groupPopup && groupPopup.length > 0

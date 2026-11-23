@@ -116,6 +116,7 @@ export function MapArea({
   focusId,
   focusOffsetX = 0,
   focusCenter = true,
+  hoverMarker,
   autoFit = true,
   moveTarget,
   onBoundsChange,
@@ -144,6 +145,8 @@ export function MapArea({
   focusId?: string;
   focusOffsetX?: number;
   focusCenter?: boolean;
+  /** 목록 카드에 마우스를 올린 매체 — 그 핀을 강조한다(지도는 옮기지 않는다). */
+  hoverMarker?: MapMarker | null;
   autoFit?: boolean;
   moveTarget?: MoveTarget | null;
   onBoundsChange?: (bounds: MapBoundsPayload) => void;
@@ -223,6 +226,7 @@ export function MapArea({
     focusOffsetX,
     focusCenter,
     moveTarget,
+    hover: hoverMarker,
     onMarkerClick,
     onClusterClick,
     onGroupClick,

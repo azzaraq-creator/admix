@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import {
   Button,
@@ -218,10 +218,15 @@ function MediaFindCardImpl({
   const [hovered, setHovered] = useState(false);
   // 하트에 마우스를 올렸는지(likeTooltip 일 때만) — 하트 툴팁과 자물쇠 툴팁이 같이 뜨지 않게.
   const [likeHovered, setLikeHovered] = useState(false);
+  // 마우스를 올린 채로 카드가 사라지면(탭 · 정렬로 목록이 바뀜) 뗌이 오지 않는다 — 그때도 뗀 것으로 알려
+  // 지도 강조(운행 지역 · 핀)가 남지 않게 한다.
+  const leaveRef = useRef<(() => void) | null>(null);
   const handleHover = (next: boolean) => {
     if (access) setHovered(next);
     onHoverChange?.(next);
+    leaveRef.current = next && onHoverChange ? () => onHoverChange(false) : null;
   };
+  useEffect(() => () => leaveRef.current?.(), []);
   const hoverProps =
     access || onHoverChange
       ? {

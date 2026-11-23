@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 /**
  * 광고주 내 브랜드 — 브랜드 여러 개(이름 · 사진)를 등록해 두고 의뢰서에서 고른다(실제 데이터, 068).
  * ?new=1 이면 들어오자마자 브랜드 등록 창을 연다(브랜드 없이 "새 콜라보 의뢰"를 누른 때, 11-11 사용자).
+ * 그 창에서 등록하면 바로 새 의뢰서로 간다(11-23 사용자 — 의뢰서에 브랜드 없이 오면 여기로 보낸다).
  */
 export default async function PartnersBrandsPage({
   searchParams,

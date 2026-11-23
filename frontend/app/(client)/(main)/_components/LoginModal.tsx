@@ -25,7 +25,14 @@ import { PARTNERS_DASHBOARD_HREF } from "@/lib/partners";
 import { resetPartnerResume } from "@/app/(client)/partners/_components/PartnerResumeModal";
 import { COLLAB_SIGNUP_HREF } from "@/app/(client)/(auth)/signup/_components/CategoryStep";
 
-import { setLoginModalOpen, useLoginModalOpen } from "./useLoginModal";
+import { saveSignupNext } from "@/app/(client)/(auth)/signup/_components/useFinishSignup";
+
+import {
+  setLoginLeaving,
+  setLoginModalOpen,
+  takeLoginNext,
+  useLoginModalOpen,
+} from "./useLoginModal";
 
 function KakaoIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -108,17 +115,25 @@ export function LoginModal({
   // 소셜 페이지에서 뒤로가기로 돌아와도 버튼이 잠긴 채 남지 않게 useSnsLogin이 풀어 준다.
   const { pending: snsPending, start: startSnsLogin } = useSnsLogin();
   // 콜라보 화면에서 소셜 로그인하면 로그인 뒤 보던 콜라보 화면으로 돌아온다(admix 화면은 콜백이 정한다).
-  const handleSnsLogin = (provider: "kakao" | "naver") =>
+  // 갈 주소(openLoginModalTo)가 있으면 그리로 — 처음 가입이면 가입을 마친 뒤 그리로(광고주만, useFinishSignup).
+  const handleSnsLogin = (provider: "kakao" | "naver") => {
+    const next = takeLoginNext()?.href ?? null;
+    saveSignupNext(next);
     startSnsLogin(
       provider,
-      partners
-        ? `${window.location.pathname}${window.location.search}`
-        : undefined,
+      next ??
+        (partners
+          ? `${window.location.pathname}${window.location.search}`
+          : undefined),
     );
+  };
 
   const closeLogin = (value: boolean) => {
     setLoginModalOpen(value);
-    if (!value) setCredentialError(false);
+    if (!value) {
+      setCredentialError(false);
+      takeLoginNext();
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -135,6 +150,10 @@ export function LoginModal({
         remember: keepLoggedIn,
       });
       setTokens(res.access_token, res.refresh_token, keepLoggedIn);
+      // 갈 주소를 받고 열린 창(콜라보 소개 "의뢰서 작성하기")이면 회원 정보를 받기 전에 "옮겨 가는 중"을 켠다 —
+      // 회원 정보가 들어오면 보던 소개 화면이 광고주를 대시보드로 보내려 해서다(PartnersHome).
+      const next = takeLoginNext();
+      if (next) setLoginLeaving(true);
       // 진행 중인 기본협약 창 — 로그인할 때마다 다시 묻는다.
       resetPartnerResume();
       // 로그인(기존 회원)은 게스트 기획안을 승계하지 않는다 — 무관한 잔여
@@ -153,6 +172,20 @@ export function LoginModal({
       // 게스트로 이미 캐시된 쿼리(예: 내 기획안)이 그대로 남는다. 사이드바(useMe)만
       // 반영되고 페이지는 비회원처럼 보이는 문제 → 로그인 시점에 강제 재동기화.
       queryClient.invalidateQueries();
+      // 갈 주소를 받고 열린 창(콜라보 소개 "의뢰서 작성하기")이면 그리로.
+      if (next) {
+        // 그 유형만 쓰는 곳(광고주 의뢰서)인데 다른 유형으로 로그인했으면 옮기지 않고 안내 창(11-23 사용자) —
+        // 제휴사는 보던 소개가 대시보드로 보내려다 "옮겨 가는 중"이라 멈춰 있으니 직접 대시보드로.
+        if (next.only && me && me.member_category !== next.only.category) {
+          setLoginLeaving(false);
+          next.only.onOther();
+          if (me.member_category === "partner") router.replace(PARTNERS_DASHBOARD_HREF);
+          else router.refresh();
+          return;
+        }
+        router.push(next.href);
+        return;
+      }
       // admix 화면에서 제휴사(콜라보)로 로그인하면 매장용 대시보드로 보낸다(콜라보 화면 로그인은 그 자리에 둔다).
       if (!partners && me?.member_category === "partner") {
         router.push(PARTNERS_DASHBOARD_HREF);
@@ -161,6 +194,7 @@ export function LoginModal({
       router.refresh();
     } catch (error) {
       if (getErrorStatus(error) === 403) {
+        takeLoginNext();
         setLoginModalOpen(false);
         setRestrictedOpen(true);
         return;
@@ -170,8 +204,20 @@ export function LoginModal({
   };
 
   const goTo = (path: string) => {
+    takeLoginNext();
     setLoginModalOpen(false);
     router.push(path);
+  };
+
+  // 콜라보 화면에서는 콜라보 가입(1단계부터, 광고주 · 제휴사(콜라보)만)으로.
+  // 갈 주소를 받고 열린 창이면 가입을 마친 뒤 그리로(?next= — 광고주로 가입했을 때만 따른다, useFinishSignup) ·
+  // 그 주소가 한 유형만 쓰는 곳이면 1단계에서 그 유형을 미리 골라 둔다(바꿀 수는 있다, 11-23 사용자).
+  const goToSignup = () => {
+    const next = partners ? takeLoginNext() : null;
+    let href = partners ? COLLAB_SIGNUP_HREF : "/signup";
+    if (next?.only) href += `&category=${next.only.category}`;
+    if (next) href += `&next=${encodeURIComponent(next.href)}`;
+    goTo(href);
   };
 
   return (
@@ -345,10 +391,7 @@ export function LoginModal({
               <Button
                 variant="ghost"
                 size="sm"
-                // 콜라보 화면에서는 콜라보 가입(1단계부터, 광고주 · 제휴사(콜라보)만)으로.
-                onPress={() =>
-                  goTo(partners ? COLLAB_SIGNUP_HREF : "/signup")
-                }
+                onPress={goToSignup}
                 className="h-auto min-w-0 gap-[1px] p-0 text-[13px] font-semibold text-black underline-offset-4 data-[hovered=true]:bg-transparent data-[hovered=true]:underline"
               >
                 회원가입

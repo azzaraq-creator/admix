@@ -34,7 +34,7 @@ export const ADV_FIND_HREF = "/partners/find";
 /** 관심 매장 — 매장 찾기에서 하트를 누른 매장(11-11 사용자). */
 export const ADV_FAVORITES_HREF = "/partners/favorites";
 export const ADV_BRANDS_HREF = "/partners/brands";
-/** 내 브랜드 — 들어가자마자 브랜드 등록 창을 연다(브랜드 없이 새 의뢰를 누른 때). */
+/** 내 브랜드 — 들어가자마자 브랜드 등록 창을 열고, 등록하면 새 의뢰서로 간다(브랜드 없이 새 의뢰를 누른 때 · 11-23). */
 export const ADV_BRANDS_NEW_HREF = `${ADV_BRANDS_HREF}?new=1`;
 
 /**

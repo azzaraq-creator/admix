@@ -20,6 +20,7 @@ export interface KakaoMarker {
   setMap: (map: KakaoMap | KakaoRoadview | null) => void;
   setImage: (image: KakaoMarkerImage) => void;
   setZIndex: (zIndex: number) => void;
+  setVisible: (visible: boolean) => void;
 }
 
 export interface KakaoCustomOverlay {

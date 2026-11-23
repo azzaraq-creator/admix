@@ -1513,9 +1513,16 @@ function Loaded({ editId, brands }: { editId?: string; brands: AdvertiserBrand[]
 }
 
 export function AdvRequestForm({ editId }: { editId?: string }) {
+  const router = useRouter();
   const ready = useAdvReady();
   const brands = useMyBrands();
-  return ready && !brands.isLoading ? (
+  // 브랜드 없이 새 의뢰서에 오면 브랜드 등록부터 — 등록 창이 열린 내 브랜드로, 등록하면 다시 여기로(AdvBrands, 11-23 사용자).
+  // 브랜드를 못 받아 왔을 땐(data 없음) 옮기지 않는다.
+  const noBrand = !editId && brands.data?.length === 0;
+  useEffect(() => {
+    if (noBrand) router.replace(ADV_BRANDS_NEW_HREF);
+  }, [noBrand, router]);
+  return ready && !brands.isLoading && !noBrand ? (
     <Loaded editId={editId} brands={brands.data ?? []} />
   ) : (
     <LoadingState />
