@@ -73,7 +73,7 @@ export function AboutFrame({
             </>
           }
         />
-        <BackToTop target={top} />
+        <BackToTop target={top} compact />
       </div>
       {modal}
     </div>

@@ -891,17 +891,29 @@ function FlowRows() {
 /* ── admix 운영 ──────────────────────────────────────────────────────── */
 
 /**
- * 회색 판(오른쪽 위만 크게 둥글게) — 왼쪽 제목 · 설명 · 넘기기 버튼, 오른쪽 카드 줄은 판 오른쪽 끝까지 이어지고 가로로 넘긴다.
- * 첫 장만 보라(전자서명 보안 구역). 휴대폰은 손가락으로 넘긴다(넘기기 버튼은 태블릿 · PC만).
+ * 왼쪽 제목 · 설명 · 넘기기 버튼, 오른쪽 연한 회색 카드 줄은 본문 오른쪽 끝까지 이어지고 가로로 넘긴다(아래 진행 막대).
+ * 휴대폰은 손가락으로 넘긴다(넘기기 버튼은 태블릿 · PC만). 11-24 판 없이 흰 바탕 · 카드는 모두 같은 모양(예전 회색 판 · 첫 장만 보라).
  */
+/** 넘기기 버튼 — 테두리 없이 카드와 같은 연한 회색 동그라미(11-24 사용자 "버튼도 UI를 바꿔줘. 아니면 테두리를 연하게?" — 예전 흰 바탕 + 회색 테두리). */
+const ARROW_BTN =
+  "size-[44px] rounded-full bg-gray-100 text-gray-800 data-[hovered=true]:bg-gray-200";
+
 function AdmixPart() {
-  const [row, setRow] = useState<HTMLOListElement | null>(null);
+  // 넘기는 상자(ScrollShadow) — 안에 카드 줄(ol).
+  const [row, setRow] = useState<HTMLDivElement | null>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
+  // 아래 진행 막대 — 지금 보이는 구간(왼쪽 · 폭)을 전체 줄에 대한 비율로.
+  const [bar, setBar] = useState({ left: 0, width: 1 });
   const measure = useCallback(() => {
     if (!row) return;
+    const { scrollLeft, scrollWidth, clientWidth } = row;
     setEdge({
-      start: row.scrollLeft <= 2,
-      end: row.scrollLeft + row.clientWidth >= row.scrollWidth - 2,
+      start: scrollLeft <= 2,
+      end: scrollLeft + clientWidth >= scrollWidth - 2,
+    });
+    setBar({
+      left: scrollLeft / scrollWidth,
+      width: clientWidth / scrollWidth,
     });
   }, [row]);
   useEffect(() => {
@@ -915,15 +927,22 @@ function AdmixPart() {
     const card = row?.querySelector("li");
     if (!row || !card) return;
     row.scrollBy({
-      left: dir * (card.clientWidth + 12),
+      // 카드 폭 + 사이(휴대폰 12 · 그 위 16px).
+      left:
+        dir *
+        (card.clientWidth +
+          (parseFloat(getComputedStyle(card.parentElement ?? row).columnGap) ||
+            12)),
       behavior: scrollBehavior(),
     });
   };
 
   return (
     <Reveal>
-      <section className="grid gap-[32px] overflow-hidden rounded-[28px] bg-gray-50 py-[48px] pl-[24px] sm:rounded-[36px] sm:py-[72px] sm:pl-[48px] lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-[48px] lg:rounded-tr-[160px] lg:py-[88px] lg:pl-[56px]">
-        <div className="min-w-0 pr-[24px] sm:pr-[48px] lg:pr-0">
+      {/* 판 없이 흰 바탕 위에 바로(11-24 사용자 "이 배경도 바꾸고 싶어" → 시안 중 "판 없이 흰 바탕") — 예전엔 회색 판(오른쪽 위만 크게 둥글게).
+          카드가 대신 연한 회색(콜라보 구성 카드와 같은 gray-50 + 옅은 테두리). */}
+      <section className="grid gap-[32px] lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-[48px]">
+        <div className="min-w-0">
           <Eyebrow>admix 운영</Eyebrow>
           {/* 제목은 한 줄(11-23 사용자 — "admix가 / 맡는 일"로 끊겨 배치가 이상해 보였다). */}
           <h2 className={H2}>admix가 맡는 일</h2>
@@ -933,65 +952,80 @@ function AdmixPart() {
           <div className="mt-[28px] flex gap-[8px] max-sm:hidden">
             <Button
               isIconOnly
-              variant="outline"
+              variant="ghost"
               aria-label="이전 카드"
               isDisabled={edge.start}
               onPress={() => go(-1)}
-              className="size-[44px] rounded-full border-gray-200 bg-surface"
+              className={ARROW_BTN}
             >
               <ChevronLeftIcon className="size-[18px]" />
             </Button>
             <Button
               isIconOnly
-              variant="outline"
+              variant="ghost"
               aria-label="다음 카드"
               isDisabled={edge.end}
               onPress={() => go(1)}
-              className="size-[44px] rounded-full border-gray-200 bg-surface"
+              className={ARROW_BTN}
             >
               <ChevronRightIcon className="size-[18px]" />
             </Button>
           </div>
         </div>
-        <ol
-          ref={setRow}
-          onScroll={measure}
-          className="flex snap-x snap-mandatory scroll-pl-[2px] gap-[12px] overflow-x-auto pr-[24px] pb-[4px] [scrollbar-width:none] sm:pr-[48px] [&::-webkit-scrollbar]:hidden"
-        >
-          {ADMIX_PART.map((p, i) => (
-            <li
-              key={p.title}
-              className={cn(
-                "flex min-h-[260px] w-[236px] shrink-0 snap-start flex-col rounded-[24px] p-[24px] sm:min-h-[300px] sm:w-[264px] sm:p-[28px]",
-                i === 0
-                  ? "bg-primary text-white"
-                  : "bg-surface text-gray-900 ring-1 ring-gray-100",
-              )}
+        {/* 11-24 사용자 "넘기는 건 좋은데 UI가 더 편하게" — 넘기기는 그대로, 카드를 모두 같은 흰 카드로(예전엔 첫 장만 보라),
+            번호 밑줄 없이 왼쪽 위 번호만, 제목 · 설명은 아래로. 카드 줄 아래 진행 막대로 어디쯤인지 보인다. */}
+        <div className="min-w-0">
+          {/* 양 끝은 HeroUI ScrollShadow 로 흐리게 — 넘길 카드가 더 있다는 표시(11-24 사용자). 가로 ScrollShadow 는 세로도
+              auto 가 되어 위아래 스크롤이 생길 수 있어 세로는 자른다(콜라보 구성과 같은 처리).
+              카드 줄은 본문 오른쪽 끝에서 멈춘다(11-24 사용자 "오른쪽 여백이 없고, 내용이 넘어가는데?" — 잠깐 본문 여백까지 이어 붙였다). */}
+          <ScrollShadow
+            ref={setRow}
+            onScroll={measure}
+            orientation="horizontal"
+            hideScrollBar
+            size={40}
+            className="snap-x snap-mandatory scroll-pl-[2px] overflow-x-auto overflow-y-hidden pb-[4px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {/* w-max — 줄 폭을 카드 폭 합에 맞춘다(넘기는 상자에 여백을 두게 되면 마지막 카드 뒤에 붙도록). */}
+            <ol className="flex w-max gap-[12px] sm:gap-[16px]">
+              {ADMIX_PART.map((p, i) => (
+                <li
+                  key={p.title}
+                  // 11-24 "카드를 더 매력적이게" 로 큰 번호 · 마우스 올림 어두운 카드 · 작은 화면 그림 · 점으로 잇는 순서를 차례로 해 봤다가
+                  // 사용자 "처음이 나은 것 같기도" → "내용이 잘 보였으면 좋겠는데 잘 안 보이는 느낌" — 번호 바로 아래 제목 · 설명(아래로
+                  // 밀어 두던 빈칸을 없앰), 설명 글자를 한 단계 크고 진하게, 카드를 조금 넓혀 줄 수를 줄임.
+                  className="flex w-[264px] shrink-0 snap-start flex-col rounded-[24px] bg-gray-50 p-[24px] ring-1 ring-gray-100 ring-inset sm:w-[304px] sm:p-[28px]"
+                >
+                  {/* 번호는 왼쪽 위(11-24 사용자 "아이콘을 빼고, 그 위치에 숫자를") — 잠깐 아이콘 칸 + 오른쪽 위 옅은 번호였다. */}
+                  <span className="text-[15px] font-bold text-gray-400 sm:text-[16px]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="mt-[12px] text-[19px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-gray-900 sm:mt-[14px] sm:text-[21px]">
+                    {p.title}
+                  </h3>
+                  <p className="mt-[10px] text-[15px] leading-[1.7] break-keep text-gray-600 sm:text-[16px]">
+                    {p.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </ScrollShadow>
+          {/* 진행 막대 — 카드가 다 들어가 넘길 게 없으면 감춘다. */}
+          {!(edge.start && edge.end) && (
+            <div
+              aria-hidden
+              className="relative mt-[20px] h-[3px] overflow-hidden rounded-full bg-gray-200 sm:mt-[28px]"
             >
               <span
-                className={cn(
-                  "w-fit border-b-2 pb-[2px] text-[15px] font-bold",
-                  i === 0
-                    ? "border-white/80 text-white"
-                    : "border-gray-900 text-gray-900",
-                )}
-              >
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <h3 className="mt-[28px] text-[21px] leading-[1.38] font-bold tracking-[-0.02em] break-keep sm:text-[24px]">
-                {p.title}
-              </h3>
-              <p
-                className={cn(
-                  "mt-[12px] text-[14px] leading-[1.65] break-keep sm:text-[15px]",
-                  i === 0 ? "text-white/80" : "text-gray-500",
-                )}
-              >
-                {p.body}
-              </p>
-            </li>
-          ))}
-        </ol>
+                className="absolute inset-y-0 rounded-full bg-gray-800 transition-[left,width] duration-200 ease-out motion-reduce:transition-none"
+                style={{
+                  left: `${bar.left * 100}%`,
+                  width: `${bar.width * 100}%`,
+                }}
+              />
+            </div>
+          )}
+        </div>
       </section>
     </Reveal>
   );

@@ -110,7 +110,8 @@ export const LEAD =
  */
 export function bodyClass(compact = false) {
   return cn(
-    "mx-auto flex w-full max-w-[1120px] flex-col px-[16px] pb-[calc(40px+var(--partners-tabbar-space,0px))] sm:px-[24px] sm:pb-[72px]",
+    // 아래 여백 — 맨 끝 "맨 위로" 아래(11-24 사용자 "좁혀줘": 40 · 72 → 32 · 40px).
+    "mx-auto flex w-full max-w-[1120px] flex-col px-[16px] pb-[calc(32px+var(--partners-tabbar-space,0px))] sm:px-[24px] sm:pb-[40px]",
     compact
       ? "gap-[96px] pt-[72px] sm:gap-[160px] sm:pt-[120px]"
       : "gap-[120px] pt-[96px] sm:gap-[200px] sm:pt-[160px]",
@@ -291,7 +292,7 @@ export function StartActions({
  * 시작 버튼.
  * - 첫 화면 사진 위(onPhoto): solid 어두운 회색(사이트 어두운 버튼 · "맨 위로"와 같은 gray-800 #262a3d — 처음 넣은 남색은
  *   "이 사이트에서 자주 사용하는 어두운 색"으로 바꿈) · 아니면 흰색, 마우스를 올리면 둘 다 보라 바탕 + 흰 글(11-19 사용자).
- * - 아래 시작 띠(먹색 판): solid 흰 알약 · 아니면 흰 테두리, 마우스를 올려도 보라 없이 밝기만(11-24 사용자 "보라색이 너무 많아").
+ * - 아래 시작 띠(회색 카드): 첫 화면 버튼과 같은 짝 — solid 어두운 회색 · 아니면 흰 알약(회색 판 위라 옅은 테두리), 마우스를 올리면 보라.
  * 색은 hex 로 고정한 곳이 있다 — 회색 · 남색 토큰은 다크 모드에서 밝게 뒤집힌다.
  */
 export function CtaLink({
@@ -321,8 +322,8 @@ export function ctaClass(solid: boolean, onPhoto: boolean) {
         ? "border-transparent bg-[#262a3d] text-white hover:bg-primary"
         : "border-transparent bg-white text-[#16131f] hover:bg-primary hover:text-white"
       : solid
-        ? "border-transparent bg-white text-[#16131f] hover:bg-[#e9e8ee]"
-        : "border-white/40 bg-transparent text-white hover:bg-white/10",
+        ? "border-transparent bg-[#262a3d] text-white hover:bg-primary"
+        : "border-gray-200 bg-white text-[#16131f] hover:border-transparent hover:bg-primary hover:text-white",
   );
 }
 
@@ -333,9 +334,9 @@ export function CtaArrow() {
 }
 
 /**
- * 시작 띠(PC는 알약 모양) — 왼쪽 한 줄, 오른쪽 버튼. 회원 유형별 버튼은 StartActions.
- * 먹색 판(첫 화면 영상 바탕과 같은 #16131f) + 흰 제목 + 흰 버튼(11-24 사용자: 진한 보라 띠가 "너무 쨍한 느낌" → 옅은 보라 판 →
- * "보라색이 너무 많아! 먹색?"). 색은 hex 로 고정 — 회색 토큰은 다크 모드에서 뒤집힌다. 다크 모드에선 바탕과 섞이지 않게 옅은 흰 테두리.
+ * 시작 띠 — 판 없이 위에 가는 회색 선 하나, 그 아래 왼쪽 제목 · 오른쪽 버튼(휴대폰은 제목 아래 버튼). 회원 유형별 버튼은 StartActions.
+ * 11-24 사용자: 진한 보라 띠 "너무 쨍한 느낌" → 옅은 보라 판 "보라색이 너무 많아" → 먹색 판 "너무 뜬금없는 느낌" → 회색 카드
+ * "다른 거랑 너무 겹쳐" → 보라 · 노랑 그러데이션(테두리 없이 · 옅은 그림자) "좀 화려한 느낌?" → 시안 셋 중 "판 없이 위 선만".
  */
 export function StartBand({
   title = "admix 콜라보, 지금 시작",
@@ -346,8 +347,8 @@ export function StartBand({
 }) {
   return (
     <Reveal>
-      <section className="flex flex-col gap-[20px] rounded-[28px] bg-[#16131f] px-[20px] py-[32px] sm:px-[40px] lg:flex-row lg:items-center lg:justify-between lg:rounded-full lg:py-[28px] lg:pr-[28px] lg:pl-[56px] dark:ring-1 dark:ring-white/10">
-        <h2 className="text-[20px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-white sm:text-[24px]">
+      <section className="flex flex-col gap-[20px] border-t border-gray-200 pt-[32px] sm:pt-[40px] lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-[20px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-gray-900 sm:text-[24px]">
           {title}
         </h2>
         {/* 버튼은 늘 가로 한 줄(11-23 사용자 "가로로 배치해 줘" — 좁은 휴대폰에서 줄이 넘어가 세로로 쌓였다).
@@ -362,12 +363,18 @@ export function StartBand({
 
 /**
  * 맨 위로 — 이 화면은 창이 아니라 본문(main)이 스크롤되므로, 소개를 감싼 칸에서 위로 올라가며 스크롤되는 상자를 찾아 올린다
- * (없으면 창). 색은 남색 기운의 진한 회색(11-13 사용자: "회색이나 남색으로").
+ * (없으면 창). 반투명 흰 바탕(50% — 70% → 90%("투명도를 좀 더 줄여줘"를 불투명하게로 잘못 읽음) → "더 투명하게") + 검은 글자(11-24 사용자 — 예전엔 남색 기운의 진한 회색, 11-13 "회색이나 남색으로").
+ * 위아래 간격은 휴대폰 32px · 그 위 40px(11-24 사용자 "위 아래 영역이 너무 넓은데 좀 좁혀줘" — 예전 위 72~80 · 아래 40~72px).
+ * 위 간격 = 본문 사이(bodyClass gap) − 끌어올림이라 compact(하위 안내 페이지) 여부를 받는다. 아래는 bodyClass pb.
+ * 첫 화면(target 의 첫 자식 — 영상 · 사진 머리)을 지나 내려가면 나타나 화면 아래에 붙어 있다(11-24 사용자). sticky 라
+ * 본문 칸 가운데에 서고, 맨 끝에 닿으면 원래 자리(띠 아래)에 멈춘다. 첫 화면이 보이는 동안은 숨기고 눌리지도 않게(inert).
  */
 export function BackToTop({
   target,
+  compact = false,
 }: {
   target: RefObject<HTMLElement | null>;
+  compact?: boolean;
 }) {
   const goTop = () => {
     const behavior = scrollBehavior();
@@ -385,16 +392,32 @@ export function BackToTop({
     }
     window.scrollTo({ top: 0, behavior });
   };
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const hero = target.current?.firstElementChild;
+    if (!hero) return;
+    const io = new IntersectionObserver(([e]) => setShown(!e.isIntersecting));
+    io.observe(hero);
+    return () => io.disconnect();
+  }, [target]);
   return (
-    <Reveal className="-mt-[48px] flex justify-center sm:-mt-[120px]">
+    <div
+      inert={!shown}
+      className={cn(
+        // 칸 전체는 클릭을 통과시키고 버튼만 받는다 — 붙어 있는 동안 아래 카드 · 버튼을 가리지 않게.
+        "pointer-events-none sticky bottom-[calc(16px+var(--partners-tabbar-space,0px))] z-20 flex justify-center transition-[opacity,translate] duration-300 ease-out sm:bottom-[24px] motion-reduce:transition-none",
+        compact ? "-mt-[64px] sm:-mt-[120px]" : "-mt-[88px] sm:-mt-[160px]",
+        shown ? "translate-y-0 opacity-100" : "translate-y-[12px] opacity-0",
+      )}
+    >
       <Button
         variant="ghost"
         onPress={goTop}
-        className="h-[44px] gap-[6px] rounded-full bg-gray-800/90 px-[20px] text-[14px] font-semibold text-surface shadow-[0_4px_12px_rgba(0,0,0,0.18)] backdrop-blur transition-colors data-[hovered=true]:bg-gray-900"
+        className="pointer-events-auto h-[44px] gap-[6px] rounded-full bg-white/50 px-[20px] text-[14px] font-semibold text-[#16131f] shadow-[0_4px_14px_rgba(22,19,31,0.12)] ring-1 ring-black/5 backdrop-blur-md transition-colors data-[hovered=true]:bg-white"
       >
         <ArrowUpIcon className="size-[16px]" />맨 위로
       </Button>
-    </Reveal>
+    </div>
   );
 }
 
