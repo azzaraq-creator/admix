@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 
@@ -121,12 +122,24 @@ const ROLES: {
  * 진행 방식 — 여섯 단계(11-13 판 · 11-17 되살림)마다 브랜드 · 매장이 하는 일. 하지 않는 단계는 비운다.
  * admix 몫(기획안 · 준비 · 설치 · 결과 보고)은 표 아래 한 줄과 다음 구역(AdmixPart)이 말한다(11-23 사용자 레퍼런스: 브랜드 · 매장 두 줄 표).
  */
-const FLOW: { title: string; brand?: string; partner?: string }[] = [
+const FLOW: {
+  title: string;
+  brand?: string;
+  partner?: string;
+  /** 여러 단계에 걸친 일 — 이 단계부터 몇 칸을 한 칸으로 잇는다(PC는 가로, 좁은 화면은 세로). 덮인 단계의 그 칸은 비워 둔다. */
+  span?: Partial<Record<FlowSide, number>>;
+}[] = [
   { title: "의뢰", brand: "의뢰서 작성" },
   { title: "기획안", brand: "기획안 확정" },
-  { title: "매장 모집", partner: "선착순 참여 신청" },
-  { title: "매장 확정", brand: "신청 매장 확인", partner: "참여 최종 확정" },
-  { title: "진행", brand: "중간 보고 확인", partner: "준비 · 매장 운영" },
+  // 11-24 사용자: 브랜드 "신청 매장 확인"을 3단계 매장 모집부터 4단계 매장 확정까지 잇는다(예전엔 4단계에만).
+  {
+    title: "매장 모집",
+    brand: "신청 매장 확인",
+    partner: "참여 신청", // 11-24 사용자: "선착순 참여 신청" → "참여 신청"
+    span: { brand: 2 },
+  },
+  { title: "매장 확정", partner: "참여 확정" }, // 11-24 사용자: "참여 최종 확정" → "참여 확정"
+  { title: "진행", brand: "중간 보고 확인", partner: "콜라보 운영" }, // 11-24 사용자: "준비 · 매장 운영" → "콜라보 운영"
   { title: "결과 보고", brand: "결과 보고서 확인" },
 ];
 
@@ -727,6 +740,9 @@ const FLOW_CELL: Record<FlowSide, string> = {
   partner: "bg-amber-50 dark:bg-amber-400/10",
 };
 const flowNo = (i: number) => String(i + 1).padStart(2, "0");
+/** 앞 단계의 이어진 칸(span)에 덮인 칸인지 — 덮인 칸은 그리지 않는다(그리드가 자리를 넘긴다). */
+const flowCovered = (side: FlowSide, i: number) =>
+  FLOW.some((s, j) => j < i && j + (s.span?.[side] ?? 1) > i);
 
 function FlowLabel({
   side,
@@ -752,10 +768,12 @@ function FlowCell({
   side,
   text,
   className,
+  style,
 }: {
   side: FlowSide;
   text?: string;
   className?: string;
+  style?: CSSProperties;
 }) {
   // 하지 않는 단계는 빈칸 — 자리만 지킨다.
   if (!text) return <div aria-hidden />;
@@ -766,6 +784,7 @@ function FlowCell({
         FLOW_CELL[side],
         className,
       )}
+      style={style}
     >
       {text}
     </div>
@@ -805,14 +824,21 @@ function FlowColumns() {
       {FLOW_SIDES.map((side) => (
         <Fragment key={side}>
           <FlowLabel side={side} className="text-[14px] xl:text-[15px]" />
-          {FLOW.map((s) => (
-            <FlowCell
-              key={s.title}
-              side={side}
-              text={s[side]}
-              className="min-h-[64px] px-[6px] py-[12px] text-[13px] leading-[1.45] xl:px-[10px] xl:text-[14px]"
-            />
-          ))}
+          {FLOW.map((s, i) =>
+            flowCovered(side, i) ? null : (
+              <FlowCell
+                key={s.title}
+                side={side}
+                text={s[side]}
+                className="min-h-[64px] px-[6px] py-[12px] text-[13px] leading-[1.45] xl:px-[10px] xl:text-[14px]"
+                style={
+                  s.span?.[side]
+                    ? { gridColumn: `span ${s.span[side]}` }
+                    : undefined
+                }
+              />
+            ),
+          )}
         </Fragment>
       ))}
     </div>
@@ -841,14 +867,21 @@ function FlowRows() {
               {s.title}
             </span>
           </div>
-          {FLOW_SIDES.map((side) => (
-            <FlowCell
-              key={side}
-              side={side}
-              text={s[side]}
-              className="min-h-[48px] px-[8px] py-[10px] text-[12px] leading-[1.4] sm:min-h-[56px] sm:text-[14px]"
-            />
-          ))}
+          {FLOW_SIDES.map((side) =>
+            flowCovered(side, i) ? null : (
+              <FlowCell
+                key={side}
+                side={side}
+                text={s[side]}
+                className="min-h-[48px] px-[8px] py-[10px] text-[12px] leading-[1.4] sm:min-h-[56px] sm:text-[14px]"
+                style={
+                  s.span?.[side]
+                    ? { gridRow: `span ${s.span[side]}` }
+                    : undefined
+                }
+              />
+            ),
+          )}
         </Fragment>
       ))}
     </div>

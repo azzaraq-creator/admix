@@ -1,9 +1,9 @@
 "use client";
 
 import { AlertDialog, Button } from "@heroui/react";
-import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
+import { openLoginModal } from "@/app/(client)/(main)/_components/useLoginModal";
 import { openMemberPlanModal } from "@/components/common/MemberPlanModal";
 import { useMe } from "@/hooks/auth";
 import type { PartnersCardAccess } from "@/components/common/PartnersAccessMark";
@@ -20,9 +20,12 @@ import { canUsePartners } from "@/lib/memberCategory";
 
 type NoticeKind = "member" | "guest";
 let kind: NoticeKind | null = null;
+// 마지막으로 연 창 — 닫히며 사라지는 동안에도 같은 글을 보이게(안 그러면 비회원 창이 "전용 메뉴" 글로 바뀌며 사라진다).
+let lastKind: NoticeKind = "member";
 const listeners = new Set<() => void>();
 const setKind = (next: NoticeKind | null) => {
   kind = next;
+  if (next) lastKind = next;
   listeners.forEach((l) => l());
 };
 const subscribe = (cb: () => void) => {
@@ -171,9 +174,8 @@ export function PartnersAccessNoticeHost() {
   );
   // 여기서 회원 정보(useMe)를 부르지 않는다 — 앱 맨 위에서 먼저 받아 오면
   // 나중에 하이드레이션되는 사이드 메뉴가 서버 HTML(불러오는 중)과 달라진다.
-  const router = useRouter();
   const close = () => setKind(null);
-  const guest = current === "guest";
+  const guest = (current ?? lastKind) === "guest";
 
   return (
     <AlertDialog.Backdrop
@@ -220,15 +222,16 @@ export function PartnersAccessNoticeHost() {
             >
               닫기
             </Button>
-            {/* 닫기와 같은 회색(tertiary). */}
+            {/* 대시보드 보기는 닫기와 같은 회색(tertiary), 로그인은 보라(primary — 11-24 사용자). */}
             <Button
-              variant="tertiary"
+              variant={guest ? "primary" : "tertiary"}
               className={DIALOG_BUTTON}
               onPress={() => {
                 close();
-                // 매장 상세(비회원)는 대시보드의 로그인 창으로(LOGIN_HREF),
-                // 메뉴는 콜라보 (소개) 대시보드를 새 탭으로 연다.
-                if (guest) router.push("/?login=1");
+                // 매장 정보(비회원)는 보던 화면 그 자리에서 로그인 창을 연다 — 예전엔 대시보드(/?login=1)로 옮겨 가서
+                // 보던 지도를 잃었다(11-24 사용자). 이 창을 쓰는 매체 찾기 · 콜라보 매장 찾기는 둘 다 로그인 창이 있다
+                // (ClientShell · 콜라보 레이아웃). 메뉴는 콜라보 (소개) 대시보드를 새 탭으로 연다.
+                if (guest) openLoginModal();
                 else window.open(PARTNERS_INTRO_HREF, "_blank", "noopener");
               }}
             >
