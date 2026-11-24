@@ -15,9 +15,34 @@ import { PartnersSessionWatch } from "./_components/PartnersSessionWatch";
 import { PartnersSidebar } from "./_components/PartnersSidebar";
 import { ProvisionalGate } from "./_components/workspace/ProvisionalGate";
 
+const PARTNERS_TITLE = "콜라보 | admix";
+const PARTNERS_DESCRIPTION = "매장과 광고주를 잇는 admix 콜라보";
+
+/**
+ * 링크 미리보기(카카오톡 등 오픈그래프) — 11-24 사용자: 지정하지 않으면 페이지 첫 사진(소개 세 칸 첫 칸)이 떠서
+ * 첫 화면 영상의 첫 장면(poster)으로, 설명은 페이지 설명 그대로("여기를 눌러 링크를 확인하세요." 기본 문구 대신).
+ * 사진 주소는 절대 주소여야 해서 운영 주소를 기준으로 둔다. 하위 페이지도 따로 정하지 않으면 이 값을 물려받는다.
+ * 카카오톡은 미리보기를 한동안 기억한다 — 바꾼 뒤엔 카카오 개발자 "공유 디버거"에서 주소 캐시를 지운다.
+ */
 export const metadata: Metadata = {
-  title: "콜라보 | admix",
-  description: "매장과 광고주를 잇는 admix 콜라보",
+  metadataBase: new URL("https://www.admix.co.kr"),
+  title: PARTNERS_TITLE,
+  description: PARTNERS_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: "admix",
+    locale: "ko_KR",
+    title: PARTNERS_TITLE,
+    description: PARTNERS_DESCRIPTION,
+    images: [
+      {
+        url: "/images/partners-landing/hero-video-poster.jpg",
+        width: 1600,
+        height: 902,
+        alt: "어노브 옥외광고 현장",
+      },
+    ],
+  },
 };
 
 /**
