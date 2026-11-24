@@ -19,8 +19,10 @@ const PARTNERS_TITLE = "콜라보 | admix";
 const PARTNERS_DESCRIPTION = "매장과 광고주를 잇는 admix 콜라보";
 
 /**
- * 링크 미리보기(카카오톡 등 오픈그래프) — 11-24 사용자: 지정하지 않으면 페이지 첫 사진(소개 세 칸 첫 칸)이 떠서
- * 첫 화면 영상의 첫 장면(poster)으로, 설명은 페이지 설명 그대로("여기를 눌러 링크를 확인하세요." 기본 문구 대신).
+ * 링크 미리보기(카카오톡 등 오픈그래프) — 11-24 사용자: 지정하지 않으면 페이지 첫 사진(소개 세 칸 첫 칸)이 떠서 지정.
+ * 사진은 처음엔 첫 화면 영상 첫 장면(poster) → 같은 날 "흰 배경에 admix-logo.svg를 중앙에"로 바꿈.
+ *   og-partners.png 1200×630 — public/service/admix-logo.svg 를 폭 480px로 가운데(가운데 정사각형으로 잘려도 로고가 남게).
+ * 설명은 페이지 설명 그대로("여기를 눌러 링크를 확인하세요." 기본 문구 대신).
  * 사진 주소는 절대 주소여야 해서 운영 주소를 기준으로 둔다. 하위 페이지도 따로 정하지 않으면 이 값을 물려받는다.
  * 카카오톡은 미리보기를 한동안 기억한다 — 바꾼 뒤엔 카카오 개발자 "공유 디버거"에서 주소 캐시를 지운다.
  */
@@ -36,10 +38,10 @@ export const metadata: Metadata = {
     description: PARTNERS_DESCRIPTION,
     images: [
       {
-        url: "/images/partners-landing/hero-video-poster.jpg",
-        width: 1600,
-        height: 902,
-        alt: "어노브 옥외광고 현장",
+        url: "/images/partners-landing/og-partners.png",
+        width: 1200,
+        height: 630,
+        alt: "admix",
       },
     ],
   },
