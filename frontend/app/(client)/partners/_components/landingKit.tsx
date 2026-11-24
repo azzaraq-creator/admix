@@ -291,7 +291,7 @@ export function StartActions({
  * 시작 버튼.
  * - 첫 화면 사진 위(onPhoto): solid 어두운 회색(사이트 어두운 버튼 · "맨 위로"와 같은 gray-800 #262a3d — 처음 넣은 남색은
  *   "이 사이트에서 자주 사용하는 어두운 색"으로 바꿈) · 아니면 흰색, 마우스를 올리면 둘 다 보라 바탕 + 흰 글(11-19 사용자).
- * - 아래 보라 띠: solid 흰 알약(마우스를 올리면 연보라) · 아니면 흰 테두리 — 보라 바탕이라 보라로 바뀌면 안 보인다.
+ * - 아래 시작 띠(먹색 판): solid 흰 알약 · 아니면 흰 테두리, 마우스를 올려도 보라 없이 밝기만(11-24 사용자 "보라색이 너무 많아").
  * 색은 hex 로 고정한 곳이 있다 — 회색 · 남색 토큰은 다크 모드에서 밝게 뒤집힌다.
  */
 export function CtaLink({
@@ -321,8 +321,8 @@ export function ctaClass(solid: boolean, onPhoto: boolean) {
         ? "border-transparent bg-[#262a3d] text-white hover:bg-primary"
         : "border-transparent bg-white text-[#16131f] hover:bg-primary hover:text-white"
       : solid
-        ? "border-transparent bg-white text-gray-900 hover:bg-primary-50 hover:text-primary-700 dark:text-[#16131f]"
-        : "border-white/60 bg-transparent text-white hover:bg-white/10",
+        ? "border-transparent bg-white text-[#16131f] hover:bg-[#e9e8ee]"
+        : "border-white/40 bg-transparent text-white hover:bg-white/10",
   );
 }
 
@@ -332,7 +332,11 @@ export function CtaArrow() {
   );
 }
 
-/** 보라 띠(PC는 알약 모양) — 왼쪽 한 줄, 오른쪽 흰 버튼(전자서명 자료 받기 띠). 회원 유형별 버튼은 첫 화면과 같다. */
+/**
+ * 시작 띠(PC는 알약 모양) — 왼쪽 한 줄, 오른쪽 버튼. 회원 유형별 버튼은 StartActions.
+ * 먹색 판(첫 화면 영상 바탕과 같은 #16131f) + 흰 제목 + 흰 버튼(11-24 사용자: 진한 보라 띠가 "너무 쨍한 느낌" → 옅은 보라 판 →
+ * "보라색이 너무 많아! 먹색?"). 색은 hex 로 고정 — 회색 토큰은 다크 모드에서 뒤집힌다. 다크 모드에선 바탕과 섞이지 않게 옅은 흰 테두리.
+ */
 export function StartBand({
   title = "admix 콜라보, 지금 시작",
   actions,
@@ -342,7 +346,7 @@ export function StartBand({
 }) {
   return (
     <Reveal>
-      <section className="flex flex-col gap-[20px] rounded-[28px] bg-primary px-[20px] py-[32px] shadow-[0_20px_40px_-16px_rgba(122,63,224,0.55)] sm:px-[40px] lg:flex-row lg:items-center lg:justify-between lg:rounded-full lg:py-[28px] lg:pr-[28px] lg:pl-[56px]">
+      <section className="flex flex-col gap-[20px] rounded-[28px] bg-[#16131f] px-[20px] py-[32px] sm:px-[40px] lg:flex-row lg:items-center lg:justify-between lg:rounded-full lg:py-[28px] lg:pr-[28px] lg:pl-[56px] dark:ring-1 dark:ring-white/10">
         <h2 className="text-[20px] leading-[1.4] font-bold tracking-[-0.02em] break-keep text-white sm:text-[24px]">
           {title}
         </h2>

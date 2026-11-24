@@ -22,7 +22,6 @@ import {
   useReveal,
   type Actor,
 } from "./landingKit";
-import { ContactFab } from "./ContactFab";
 
 /*
  * 콜라보 소개 하위 안내 페이지(11-23 사용자) — 브랜드 협업 구성(/partners/about/brand) · 매장 참여 방법(/partners/about/store).
@@ -77,7 +76,6 @@ export function AboutFrame({
         <BackToTop target={top} />
       </div>
       {modal}
-      <ContactFab />
     </div>
   );
 }

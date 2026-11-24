@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, ScrollShadow, Tabs } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
@@ -20,12 +20,13 @@ import {
 } from "@/components/icons";
 import { openLoginModalTo } from "@/app/(client)/(main)/_components/useLoginModal";
 import { useMe } from "@/hooks/auth";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { COLLAB_SCOPE_ITEMS } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 import { openAdvertiserOnlyNotice } from "./AdvertiserOnlyNotice";
-import { ContactFab } from "./ContactFab";
 import {
+  ACTOR,
   BackToTop,
   bodyClass,
   CtaArrow,
@@ -262,7 +263,6 @@ export function PartnersLanding({ member = false }: { member?: boolean }) {
         <BackToTop target={top} />
       </div>
       {modal}
-      <ContactFab />
     </div>
   );
 }
@@ -516,6 +516,7 @@ function RoleColumn({
  * 순서는 매장 "가능 범위"(COLLAB_SCOPE_ITEMS)와 같고(11-17 사용자) PC에선 칸(세로)으로 읽힌다. 이름 · 설명은 11-23 사용자 문구(FORMAT_COPY — 소개 페이지만).
  */
 function Formats({ signedIn }: { signedIn: boolean }) {
+  const isDesktop = useIsDesktop();
   return (
     <section id={FORMATS_ID} className="scroll-mt-[32px]">
       <Reveal className="mx-auto flex max-w-[640px] flex-col items-center text-center">
@@ -532,18 +533,36 @@ function Formats({ signedIn }: { signedIn: boolean }) {
           의뢰서에서 원하는 구성을 담으면 됩니다.
         </p>
       </Reveal>
-      <div className="mt-[40px] grid gap-[12px] sm:mt-[64px] sm:gap-[16px] lg:grid-cols-3">
-        {FORMAT_PAIRS.map((pair, p) => (
-          <ul
-            key={pair[0].key}
-            className="flex flex-col gap-[12px] sm:flex-row sm:gap-[16px] lg:flex-col"
-          >
-            {pair.map((item, j) => (
-              <FormatCard key={item.key} item={item} delay={p * 80 + j * 110} />
-            ))}
-          </ul>
-        ))}
-      </div>
+      {/* 휴대폰은 카드 여섯 장을 한 줄로 두고 좌우로 넘긴다(11-24 사용자) — 짝(ul)은 contents 로 풀어 카드가 바로 줄에 선다.
+          양 끝은 HeroUI ScrollShadow 로 흐리게(넘길 카드가 더 있다는 표시), 다음 카드 끝이 살짝 보이게 카드 폭은 화면보다 좁게.
+          본문 좌우 여백(16px)까지 끝까지 넘어가게 -mx · px. 태블릿 · PC는 예전 짝 배치 그대로(ScrollShadow 끔).
+          HeroUI 가로 ScrollShadow 는 늘 overflow-x:auto 라 세로도 auto 가 되어, 등장 효과(아래 32px) · 마우스 올림(위로 뜸 + 그림자)에
+          위아래 스크롤이 생겼다(11-24 사용자 "높이 맞춰줘") — 휴대폰은 세로만 자르고, 태블릿 · PC는 overflow 를 풀어 둔다. */}
+      <ScrollShadow
+        orientation="horizontal"
+        hideScrollBar
+        size={28}
+        isEnabled={!isDesktop}
+        visibility={isDesktop ? "none" : "auto"}
+        className="mt-[40px] max-sm:-mx-[16px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[16px] max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-[16px] sm:overflow-visible max-sm:pb-[4px] [scrollbar-width:none] sm:mt-[64px] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex gap-[12px] sm:grid sm:gap-[16px] lg:grid-cols-3">
+          {FORMAT_PAIRS.map((pair, p) => (
+            <ul
+              key={pair[0].key}
+              className="contents sm:flex sm:flex-row sm:gap-[16px] lg:flex-col"
+            >
+              {pair.map((item, j) => (
+                <FormatCard
+                  key={item.key}
+                  item={item}
+                  delay={p * 80 + j * 110}
+                />
+              ))}
+            </ul>
+          ))}
+        </div>
+      </ScrollShadow>
       <FormatActions signedIn={signedIn} />
     </section>
   );
@@ -627,8 +646,9 @@ function FormatCard({ item, delay }: { item: FormatItem; delay: number }) {
       style={reveal.style}
       className={cn(
         // 태블릿 줄에선 폭을 사진 비율대로 — 기본 폭은 안쪽 div 좌우 여백(28px × 2)만, 남는 폭을 grow 4 : 5로 나눠 사진 폭이 정확히 4 : 5.
-        "flex min-w-0 flex-col sm:basis-[56px] lg:basis-auto",
-        square ? "grow-[5]" : "grow-[4]",
+        // 휴대폰은 가로로 넘기는 줄 — 폭 고정(다음 카드 끝이 보이게 화면의 약 4/5), 카드 왼쪽 끝에 맞춰 멈춘다.
+        "flex min-w-0 flex-col max-sm:w-[min(78vw,300px)] max-sm:shrink-0 max-sm:snap-start sm:basis-[56px] lg:basis-auto",
+        square ? "sm:grow-[5]" : "sm:grow-[4]",
         reveal.className,
       )}
     >
@@ -946,7 +966,7 @@ function AdmixPart() {
 
 /* ── 이용 방법 ───────────────────────────────────────────────────────── */
 
-/** 왼쪽 제목 · 설명, 오른쪽 브랜드 · 매장 두 줄 카드 — 오른쪽 줄을 조금 내려 엇갈리게(전자서명 계약서 양식). 휴대폰은 한 줄. */
+/** 왼쪽 제목 · 설명, 오른쪽 브랜드 · 매장 두 줄 카드 — 오른쪽 줄을 조금 내려 엇갈리게(전자서명 계약서 양식). 휴대폰은 브랜드 · 매장 탭(11-24). */
 function Audiences() {
   return (
     <section className="grid gap-[36px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-[56px]">
@@ -961,22 +981,63 @@ function Audiences() {
           회원 유형에 따라 쓰는 화면이 다릅니다.
         </p>
       </Reveal>
-      <div className="grid gap-[12px] sm:grid-cols-2 sm:gap-[16px]">
+      {/* 휴대폰만 브랜드 · 매장 탭(11-24 사용자, 기본 브랜드) — 탭은 색 없이 HeroUI 기본(같은 날 "탭에서는 색깔을 빼줘").
+          고른 쪽 카드 세 장만 한 줄로. 태블릿 · PC는 아래 두 줄 엇갈림 그대로("PC는 다시 원래대로"). */}
+      <Tabs defaultSelectedKey="advertiser" className="gap-[16px] sm:hidden">
+        <Tabs.ListContainer className="w-fit rounded-[17px]">
+          <Tabs.List aria-label="회원 유형">
+            {AUDIENCES.map((a) => (
+              <Tabs.Tab
+                key={a.id}
+                id={a.id}
+                // 줄바꿈 없이(처음엔 "브랜\n드"로 꺾였다), 두 탭 폭을 비슷하게.
+                className="min-w-[84px] rounded-[13px] px-[20px] whitespace-nowrap"
+              >
+                {a.label}
+                <Tabs.Indicator className="rounded-[13px]" />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+        {AUDIENCES.map((a) => (
+          <Tabs.Panel
+            key={a.id}
+            id={a.id}
+            className="flex flex-col gap-[12px] p-0"
+          >
+            {a.items.map((it, i) => (
+              <AudienceCard
+                key={it.title}
+                item={it}
+                partner={a.id === "partner"}
+                delay={i * 90}
+              />
+            ))}
+          </Tabs.Panel>
+        ))}
+      </Tabs>
+      <div className="hidden gap-[16px] sm:grid sm:grid-cols-2">
         {AUDIENCES.map((a, col) => (
           <div
             key={a.id}
-            className={cn(
-              "flex flex-col gap-[12px] sm:gap-[16px]",
-              col === 1 && "sm:mt-[64px]",
-            )}
+            className={cn("flex flex-col gap-[16px]", col === 1 && "mt-[64px]")}
           >
-            <span className="w-fit rounded-full bg-gray-100 px-[12px] py-[4px] text-[13px] font-semibold text-gray-700 max-sm:mt-[12px]">
+            {/* 이름표도 브랜드 보라 · 매장 노랑(11-24 사용자, 예전 회색) — 아이콘 칸 · 진행 방식 칩(ACTOR)과 같은 짝. cn(tailwind-merge)이 뒤 bg 를 남긴다. */}
+            <span
+              className={cn(
+                "w-fit rounded-full px-[12px] py-[4px] text-[13px] font-semibold",
+                ACTOR[a.id === "partner" ? "partner" : "brand"].className,
+                // 흰 바탕에선 매장 amber-50 이 거의 안 보여 한 단계 진하게(진행 방식 칩은 회색 카드 위라 그대로).
+                a.id === "partner" && "bg-amber-100",
+              )}
+            >
               {a.label}
             </span>
             {a.items.map((it, i) => (
               <AudienceCard
                 key={it.title}
                 item={it}
+                partner={a.id === "partner"}
                 delay={col * 140 + i * 90}
               />
             ))}
@@ -989,9 +1050,12 @@ function Audiences() {
 
 function AudienceCard({
   item,
+  partner,
   delay,
 }: {
   item: (typeof AUDIENCES)[number]["items"][number];
+  /** 매장 카드 — 아이콘 칸을 노랑으로(브랜드는 보라). 진행 방식의 누가 하는지 칩(ACTOR: 브랜드 보라 · 매장 노랑)과 같은 짝. */
+  partner: boolean;
   delay: number;
 }) {
   const [revealRef, reveal] = useReveal<HTMLDivElement>(delay);
@@ -1004,7 +1068,13 @@ function AudienceCard({
         reveal.className,
       )}
     >
-      <span className="flex size-[36px] items-center justify-center rounded-[11px] bg-primary text-white">
+      {/* 브랜드 · 매장 색 구분(11-23 사용자: "아이콘 배경 색을 바꿀까?"). */}
+      <span
+        className={cn(
+          "flex size-[36px] items-center justify-center rounded-[11px] text-white",
+          partner ? "bg-amber-500" : "bg-primary",
+        )}
+      >
         <MaskIcon src={item.icon} className="size-[18px]" />
       </span>
       <h3 className="mt-[20px] text-[17px] leading-[1.4] font-bold tracking-[-0.02em] text-gray-900 sm:mt-auto sm:pt-[28px] sm:text-[19px]">
