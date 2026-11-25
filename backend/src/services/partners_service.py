@@ -45,6 +45,7 @@ from src.services import kakao_address
 from src.services import media_service as ms
 from src.services import member_service
 from src.services.member_service import log_biz_rejection
+from src.services.auth_service import set_marketing
 
 log = logging.getLogger(__name__)
 
@@ -1992,9 +1993,18 @@ def admin_get_member(db: Session, member_id: str) -> dict:
 
 
 def admin_update_member(db: Session, member_id: str, data: dict) -> dict:
-    """제휴사 회원 정보 — 지금은 연락처만(2026-11-10 사용자: 회원 상세에서 바꾸고, 비밀번호는 따로 문의).
-    연락처는 숫자만 저장한다(9 ~ 11자리, '-'는 화면이 넣는다). 비우면 지운다. 다른 회원과 겹치면 막는다."""
+    """제휴사 회원 정보 — 연락처(2026-11-10 사용자: 회원 상세에서 바꾸고, 비밀번호는 따로 문의) · 마케팅 수신(11-25).
+    연락처는 숫자만 저장한다(9 ~ 11자리, '-'는 화면이 넣는다). 비우면 지운다. 다른 회원과 겹치면 막는다.
+    마케팅 수신은 받을 방법(문자 · 이메일)을 보낸다 — 하나라도 켜면 동의, 둘 다 끄면 비동의(2026-11-25 사용자: "관리자가 직접 바꿀 수 있게").
+    안 보낸 방법은 지금 화면에 보이는 값(동의했을 때만 켜짐)으로 둔다."""
     user = _partner_or_404(db, member_id)
+    if "marketing_sms" in data or "marketing_email" in data:
+        agreed = bool(user.marketing_consent)
+        sms = data.get("marketing_sms")
+        email = data.get("marketing_email")
+        sms = bool(sms) if sms is not None else agreed and bool(user.marketing_sms)
+        email = bool(email) if email is not None else agreed and bool(user.marketing_email)
+        set_marketing(user, sms or email, sms, email)
     if "phone" in data:
         digits = "".join(ch for ch in str(data["phone"] or "") if ch.isdigit())
         if digits and not 9 <= len(digits) <= 11:

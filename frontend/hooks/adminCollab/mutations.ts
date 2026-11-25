@@ -17,7 +17,11 @@ import type {
 } from "@/lib/partners";
 
 import { adminPartnersKeys } from "../adminPartners/keys";
-import { adminCollabApi, type StoreTypePayload } from "./apis";
+import {
+  adminCollabApi,
+  type StoreTypePayload,
+  type UpdateMemberPayload,
+} from "./apis";
 import { adminCollabKeys } from "./keys";
 
 /** 회원 · 매장 연결이 바뀌면 매장 목록 · 숫자도 같이 다시 불러온다. */
@@ -127,8 +131,8 @@ export const useAgreementAction = () => {
 export const useUpdateCollabMember = () => {
   const onSaved = useMemberSaved();
   return useMutation({
-    mutationFn: ({ id, phone }: { id: string; phone: string | null }) =>
-      adminCollabApi.updateMember(id, { phone }),
+    mutationFn: ({ id, ...payload }: { id: string } & UpdateMemberPayload) =>
+      adminCollabApi.updateMember(id, payload),
     onSuccess: onSaved,
   });
 };

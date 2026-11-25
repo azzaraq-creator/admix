@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 
+import { ThemeSubmenu } from "@/app/(client)/(main)/_components/ThemeMenu";
 import { MaskIcon } from "@/components/common/MaskIcon";
 import {
   ChevronRightIcon,
@@ -630,6 +631,9 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
                 if (key === "logout") handleLogout();
               }}
             >
+              {/* 화면 모드(11-25 사용자: "어드민에도 다크 · 라이트 · 시스템") — 사용자 화면 프로필 메뉴와 같은 줄 · 하위 메뉴.
+                  next-themes 한 설정이라 같은 브라우저의 admix 화면과 같이 바뀐다. */}
+              <ThemeSubmenu />
               <Dropdown.Item
                 id="logout"
                 textValue="로그아웃"

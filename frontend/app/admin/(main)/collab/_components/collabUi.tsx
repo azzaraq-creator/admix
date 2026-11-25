@@ -145,12 +145,17 @@ const CHECKBOX_SCOPE =
 
 /**
  * 마케팅 정보 수신 — 회원 상세용 체크박스(11-24 사용자: "체크박스형식으로 보여줘").
- * 문자 · 이메일을 읽기 전용으로 — 동의하지 않았으면 둘 다 빈 칸. 목록 표는 글(MarketingValue) 그대로.
+ * 문자 · 이메일 — 동의하지 않았으면 둘 다 빈 칸. 목록 표는 글(MarketingValue) 그대로.
+ * onChange 가 있으면 관리자가 눌러 바꾼다(11-25 제휴사 회원 상세), 없으면 읽기 전용(광고주 회원).
  */
 export function MarketingChecks({
   member,
+  onChange,
+  isDisabled = false,
 }: {
   member: Parameters<typeof marketingStatus>[0];
+  onChange?: (next: { sms: boolean; email: boolean }) => void;
+  isDisabled?: boolean;
 }) {
   const status = marketingStatus(member);
   if (!status) return <span className="text-disabled">-</span>;
@@ -167,12 +172,22 @@ export function MarketingChecks({
       className="flex flex-wrap items-center gap-x-[16px] gap-y-[6px]"
     >
       {items.map((item) => (
-        // 읽기 전용 — 마우스를 올려도 손가락 모양이 되지 않게(의뢰서 확인 체크와 같다).
+        // 읽기 전용이면 마우스를 올려도 손가락 모양이 되지 않게(의뢰서 확인 체크와 같다).
         <Checkbox
           key={item.key}
           isSelected={item.on}
-          isReadOnly
-          className={cn(CHECKBOX_SCOPE, "cursor-default [&_*]:cursor-default")}
+          isReadOnly={!onChange}
+          isDisabled={isDisabled}
+          onChange={(on) =>
+            onChange?.({
+              sms: item.key === "sms" ? on : status.sms,
+              email: item.key === "email" ? on : status.email,
+            })
+          }
+          className={cn(
+            CHECKBOX_SCOPE,
+            !onChange && "cursor-default [&_*]:cursor-default",
+          )}
         >
           <Checkbox.Content className="items-center gap-[6px]">
             {/* 빈 칸도 흰 카드 위에서 보이게 회색 테두리(회원 내 정보와 같다). */}

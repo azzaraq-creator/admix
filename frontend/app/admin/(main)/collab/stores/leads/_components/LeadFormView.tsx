@@ -539,13 +539,16 @@ function LeadForm({
         </Button>
       </CollabPageHead>
 
+      {lead?.storeId && <StoreOwnedBanner lead={lead} />}
+
       {/* 이 매장이 가입했으면 맨 위에서 제휴사 회원과 잇는다(072) — 매장 상세의 "연결 회원"과 같은 회원 검색 창. 탭 위에 둔다(매장 폼과 같다). */}
       <CollabSection
         title="제휴사 회원 연결"
         desc={
           // 회원 화면의 연결 매장은 협업 확정 매장 쪽 연결이라, 여기서 이으면 확정까지 같이 된다(11-12 사용자).
+          // 확정한 기록의 "연결 회원을 바꾸면 매장 연결 회원도 같이" 안내는 뺐다(11-25 사용자: "이 문구 빼줘") — 동작은 그대로.
           lead?.storeId
-            ? `연결 회원을 바꾸면 협업 확정 매장(${lead.storeCode})의 연결 회원도 같이 바뀌어요.`
+            ? undefined
             : "이 매장이 제휴사로 가입했으면 회원을 골라 연결해요. 연결하고 저장하면 협업 확정돼요."
         }
       >
@@ -585,14 +588,7 @@ function LeadForm({
         </Tabs.ListContainer>
 
         <Tabs.Panel id="info" shouldForceMount className={PANEL_CLASS}>
-          <CollabSection
-            title="업체 정보"
-            desc={
-              storeOwned && lead ? (
-                <StoreOwnedNote lead={lead} what="업체명 · 주소는 " />
-              ) : undefined
-            }
-          >
+          <CollabSection title="업체 정보">
             <Grid>
               <HeroField label={label("name")} required>
                 {text("name", label("name"), "text", storeOwned)}
@@ -619,14 +615,7 @@ function LeadForm({
           </CollabSection>
 
           {/* 협업 확정 매장 정보(092, 2026-11-17 사용자) — 협업 확정 매장 폼의 매장 정보 칸과 같다. 확정하면 이 값으로 매장을 만든다. */}
-          <CollabSection
-            title="매장 정보"
-            desc={
-              storeOwned && lead ? (
-                <StoreOwnedNote lead={lead} after=" · 자동 반영" />
-              ) : undefined
-            }
-          >
+          <CollabSection title="매장 정보">
             <Grid locked={storeOwned}>
               {/* 협업 확정할 때 매장 공개 상태(11-19 사용자, 기본 공개). 확정 뒤엔 매장의 지금 상태를 보여 주고 매장에서 바꾼다. */}
               <HeroField
@@ -928,28 +917,35 @@ function LeadForm({
 }
 
 /**
- * 협업 확정한 기록의 잠긴 칸 안내 — 매장에서 고치면 여기 적힌다(11-25).
- * 사용자: "요체 빼고 간략하게, 강조해서" — 회색 설명 대신 글자 색만 한 단계(보라).
+ * 협업 확정한 기록 맨 위 안내 — 업체명 · 주소 · 매장 정보는 매장 값이 기준이라 여기선 잠겨 있고, 매장에서 고치면 여기 적힌다(11-25).
+ * 사용자: "협업 확정 매장에서만 수정 가능하다는 것과 매장 정보 고치기를 최상단에 눈에 띄게 따로"(그전엔 구역마다 한 줄 안내).
+ * 요체 없이 짧게, 옅은 보라 판 + 테두리, "자동 반영" 둘째 줄은 뺐다(모두 같은 날 사용자).
  */
-function StoreOwnedNote({
-  lead,
-  what = "",
-  after = "",
-}: {
-  lead: CollabLead;
-  what?: string;
-  after?: string;
-}) {
+function StoreOwnedBanner({ lead }: { lead: CollabLead }) {
+  const router = useRouter();
   return (
-    <span className="text-primary-700">
-      {what}협업 확정 매장({lead.storeCode})에서만 수정{after}{" "}
-      <Link
-        href={`${STORES_HREF}/${lead.storeId}/edit`}
-        className="font-semibold underline"
-      >
-        매장 정보 고치기
-      </Link>
-    </span>
+    <AdminPanel className="border border-primary-200 bg-primary-50">
+      <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col">
+          <p className="text-[15px] font-bold leading-[22px] break-keep text-primary-800">
+            협업 확정된 매장은 협업 확정{" "}
+            {/* 휴대폰에서 매장 번호와 "에서만"이 갈라지지 않게 */}
+            <span className="whitespace-nowrap">
+              매장({lead.storeCode})에서만
+            </span>{" "}
+            수정 가능
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          className="shrink-0 max-sm:w-full"
+          onPress={() => router.push(`${STORES_HREF}/${lead.storeId}/edit`)}
+        >
+          매장 정보 고치기
+        </Button>
+      </div>
+    </AdminPanel>
   );
 }
 

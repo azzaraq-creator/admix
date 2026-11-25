@@ -38,6 +38,13 @@ export interface StoreTypePayload {
 }
 
 /** 콜라보 어드민(/admin/collab/...) — 권한 "collab". 매장 등록 · 수정은 hooks/adminPartners. */
+/** 어드민 제휴사 회원 정보 바꾸기(PATCH /admin/collab/members/{id}) — 보낸 칸만 바뀐다. */
+export type UpdateMemberPayload = {
+  phone?: string | null;
+  marketing_sms?: boolean;
+  marketing_email?: boolean;
+};
+
 export const adminCollabApi = {
   summary: () =>
     api.get<CollabAdminSummary>("/admin/collab/summary").then((r) => r.data),
@@ -108,8 +115,9 @@ export const adminCollabApi = {
       )
       .then((r) => r.data);
   },
-  /** 회원 정보 바꾸기 — 지금은 연락처만(숫자만 보내도, '-'를 넣어 보내도 서버가 숫자만 저장). */
-  updateMember: (id: string, payload: { phone?: string | null }) =>
+  /** 회원 정보 바꾸기 — 연락처(숫자만 보내도, '-'를 넣어 보내도 서버가 숫자만 저장) · 마케팅 수신(11-25).
+   *  마케팅은 받을 방법을 보낸다 — 하나라도 켜면 동의, 둘 다 끄면 비동의. */
+  updateMember: (id: string, payload: UpdateMemberPayload) =>
     api
       .patch<AdminPartnerMember>(`/admin/collab/members/${enc(id)}`, payload)
       .then((r) => r.data),

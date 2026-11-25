@@ -1159,6 +1159,29 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
     setPhone(formatPhoneInput(member.phone ?? ""));
   };
 
+  const saveMarketing = async (next: { sms: boolean; email: boolean }) => {
+    try {
+      await update.mutateAsync({
+        id: member.id,
+        marketing_sms: next.sms,
+        marketing_email: next.email,
+      });
+      const channels = [next.sms && "문자", next.email && "이메일"]
+        .filter(Boolean)
+        .join(" · ");
+      success(
+        "마케팅 수신을 바꿨어요.",
+        channels ? `${channels}로 받아요.` : "마케팅 정보를 받지 않아요.",
+      );
+    } catch (err) {
+      await alert({
+        title: "마케팅 수신을 바꾸지 못했어요",
+        description: extractApiError(err),
+        confirmText: "확인",
+      });
+    }
+  };
+
   const save = async () => {
     if (invalid) return;
     if (!digits) {
@@ -1274,9 +1297,14 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         <MetaItem label="마지막 업데이트">
           {dotDateTime(member.updatedAt)}
         </MetaItem>
-        {/* 받을 방법(문자 · 이메일, 083)을 체크박스로 — 새 콜라보 알림을 어디로 보낼지(11-24 사용자). */}
+        {/* 받을 방법(문자 · 이메일, 083)을 체크박스로 — 새 콜라보 알림을 어디로 보낼지(11-24 사용자).
+            누르면 바로 저장(11-25 사용자: "관리자가 직접 바꿀 수 있게") — 하나라도 켜면 동의, 둘 다 끄면 비동의. */}
         <MetaItem label="마케팅 수신">
-          <MarketingChecks member={member} />
+          <MarketingChecks
+            member={member}
+            onChange={saveMarketing}
+            isDisabled={update.isPending}
+          />
         </MetaItem>
       </dl>
       <Separator />
