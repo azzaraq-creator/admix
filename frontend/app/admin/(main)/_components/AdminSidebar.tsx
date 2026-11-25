@@ -299,7 +299,20 @@ export function AdminSidebar() {
     <RouterProvider navigate={(href) => router.push(href)}>
       {/* 모바일(<lg): 상단 헤더 + 햄버거 드로어 */}
       {/* print:hidden — 콜라보 결과 보고서를 PDF로 저장(인쇄)할 때 메뉴는 빼고 본문만. */}
+      {/*
+       * 메뉴 열기는 왼쪽 끝, 로고는 오른쪽 끝 — 메뉴가 왼쪽에서 나오므로(11-25 사용자: "메뉴 왼쪽에 배치해 줘" → "로고는 오른쪽에 배치해 줘").
+       * 버튼 안쪽 여백만큼 왼쪽으로 당겨 아이콘을 본문 여백에 맞춘다.
+       */}
       <header className="sticky top-0 z-30 flex h-[56px] shrink-0 items-center justify-between bg-admin-nav px-[16px] lg:hidden print:hidden!">
+        <Button
+          isIconOnly
+          variant="ghost"
+          aria-label="메뉴 열기"
+          onPress={() => setDrawerOpen(true)}
+          className={cn("-ml-[8px] text-white/75", ROW_HOVER)}
+        >
+          <MenuIcon className="size-[24px]" />
+        </Button>
         <Link
           href={collabMode ? COLLAB_HOME : "/admin"}
           aria-label="대시보드"
@@ -307,15 +320,6 @@ export function AdminSidebar() {
         >
           <AdminLogo collab={collabMode} compact />
         </Link>
-        <Button
-          isIconOnly
-          variant="ghost"
-          aria-label="메뉴 열기"
-          onPress={() => setDrawerOpen(true)}
-          className={cn("text-white/75", ROW_HOVER)}
-        >
-          <MenuIcon className="size-[24px]" />
-        </Button>
       </header>
 
       {/* 모바일 메뉴(HeroUI Drawer, 왼쪽) — 열려 있는 동안 배경 스크롤 잠금 · 바깥 누르기 · Esc 로 닫기는 Drawer 가 맡는다.

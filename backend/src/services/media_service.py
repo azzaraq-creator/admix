@@ -1870,12 +1870,13 @@ def list_media(
     date_to: str | None = None,
     keyword: str | None = None,
     media_type: str | None = None,
+    category: str | None = None,
     sort: str = "created",
     order: str = "desc",
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[int, list[dict]]:
-    """등록일(createdAt) 기간·유형·키워드(매체명) 필터 + 정렬 + 페이지네이션. (total, items) 반환.
+    """등록일(createdAt) 기간·유형·카테고리(대분류)·키워드(매체명) 필터 + 정렬 + 페이지네이션. (total, items) 반환.
 
     sort: "created"(등록일, 기본 — 신규순) | "updated"(업데이트) | "id"(매체 ID), order: "desc" | "asc".
     등록일은 원천 시스템 등록일이 있으면 그것을, 없으면(어드민·엑셀로 넣은 매체) DB에 들어온 시각을 쓴다.
@@ -1889,6 +1890,8 @@ def list_media(
         )
         # 콜라보 매장 줄은 "콜라보 매장 관리"에서 다룬다.
         .filter(_not_partners())
+        # 카테고리(대분류) — 어드민 매체 목록 검색(11-25 사용자: "카테고리 넣어줘").
+        .filter(Media.category_large == category if category else true())
         .order_by(Media.media_id)
         .all()
     )

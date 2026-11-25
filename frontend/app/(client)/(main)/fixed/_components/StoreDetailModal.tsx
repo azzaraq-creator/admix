@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Chip, Popover, Tooltip } from "@heroui/react";
+import { Button, Chip } from "@heroui/react";
 import { Fragment, useState, type ReactNode } from "react";
 
 import {
@@ -30,21 +30,32 @@ import { useMe } from "@/hooks/auth";
 import { useFavorite } from "@/hooks/favorites";
 import { useMediaDetail } from "@/hooks/media";
 import { usePartnersStore } from "@/hooks/partners";
-import { useCanHover } from "@/hooks/useCanHover";
 import {
   COLLAB_SCOPE_VALUE_LABEL,
   COLLAB_SCOPE_VALUES,
   PARTNERS_MEDIA_CATEGORY,
   type CollabScope,
   type PartnersStore,
-  photoKindLabel,
   scopeEntries,
 } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 import { type CollabPick, collabFeeText, GradeBox } from "./collabPick";
+import {
+  AgreedMark,
+  PhotoCaption,
+  photoGroups,
+  SCOPE_TILE,
+  type StorePhotoView,
+  storeRows,
+} from "./storeDetailParts";
+import { StorePamphletModal } from "./StorePamphlet";
 
 /*
+ * 2026-11-24 사용자("콜라보 매장 찾기 페이지에서 매장 정보 팝업의 형태와 내용의 UI를 아예 바꾸려고 해 — 팜플렛처럼"):
+ * 콜라보 화면(매장 찾기 · 관심 매장 · 기획안 지정 매장)은 접힌 리플렛 모양(StorePamphletModal)으로 새로 그린다.
+ * 아래 설명은 admix 매체 찾기의 간단히 보기(brief) — 매체 정보 팝업과 같은 틀 그대로다.
+ *
  * 콜라보 매장 정보 팝업 — 매체 찾기 · 광고주 매장 찾기(/partners/find) · 관심 매장에서 매장 카드나 지도 말풍선을 누르면 띄운다
  * (11-16 사용자: "매장을 누르면 페이지 이동이 되는데 admix처럼 상세 팝업이 뜨게"). 예전엔 매장 상세(/partners/stores/[id])를 새 탭으로 열었다.
  * 매체 정보 팝업과 같은 틀(DetailModalShell) — 왼쪽 사진(가로 4:3, 440px — 2026-11-19 사용자: "가로로 사진을 찍거든".
@@ -72,20 +83,6 @@ import { type CollabPick, collabFeeText, GradeBox } from "./collabPick";
  * 처음엔 "내관 6장 보기"로 그 분류만 크게 보기를 열었다). 큰 사진을 누르면 지금 줄 그대로 크게 보기(분류 · 설명).
  */
 
-/**
- * 매장 정보 줄(이름 ― 값) — 값이 없는 줄은 빼고, 다 없으면 묶음째 그리지 않는다(11-16 사용자: "더 예쁘게" —
- * 영업 기록 매장은 아직 다 비어 "-" 줄만 남았다). 전화번호 · 사장님은 뺐다(11-17 사용자). 줄 앞 아이콘은 없다(11-16 "아이콘은 빼줘").
- */
-const storeRows = (store: PartnersStore): [string, string][] =>
-  (
-    [
-      ["운영 시간", store.businessHours],
-      ["규모", store.seats != null ? `좌석 ${store.seats}석` : null],
-      ["주요 고객층", store.mainCustomers],
-    ] as [string, string | null | undefined][]
-  ).filter((r): r is [string, string] => !!r[1]?.trim());
-
-type StorePhotoView = { url: string; label?: string; memo?: string };
 /** 줄에 보이는 사진 한 장과 그 분류 묶음 번호. */
 type ShownPhoto = { photo: StorePhotoView; group: number };
 
@@ -100,28 +97,6 @@ const shownPhotos = (
       group,
     })),
   );
-
-/**
- * 분류별 사진 묶음 — 분류 순(서버 순서), 묶음마다 대표 사진이 맨 앞. 분류 정보가 없는 예전 사진은 한 장씩 따로.
- * 메뉴 사진은 서버가 광고주 · 제휴사에게 내보내지 않는다.
- */
-function photoGroups(store: PartnersStore): StorePhotoView[][] {
-  const photos = store.images ?? [];
-  if (photos.length === 0) return store.imageUrls.map((url) => [{ url }]);
-  const byKind = new Map<string, StorePhotoView[]>();
-  for (const p of photos) {
-    const list = byKind.get(p.kind) ?? [];
-    const view = {
-      url: p.url,
-      label: photoKindLabel(p.kind),
-      memo: p.memo?.trim() || undefined,
-    };
-    if (p.cover) list.unshift(view);
-    else list.push(view);
-    byKind.set(p.kind, list);
-  }
-  return [...byKind.values()];
-}
 
 /** 닫히면 부모가 바로 언마운트한다(매체 정보 팝업과 같다). mediaId 는 매체 찾기 카드의 매체 ID(CF-0001). */
 export function StoreDetailModal({
@@ -158,6 +133,45 @@ export function StoreDetailModal({
     lng: store?.longitude,
   });
 
+  const footer = store && (
+    <DetailActions
+      liked={liked}
+      onLikedChange={setLiked}
+      onClose={onClose}
+      likeLabel={likeLabel}
+      likeSlot={
+        brief ? (
+          // 하트 자리 — 꺼진 하트 버튼과 같은 흰 바탕 · 테두리, 새 탭 아이콘(export.svg)은 글자색.
+          <Button
+            variant="ghost"
+            onPress={goPartners}
+            className="h-auto gap-[7px] rounded-[18px] border border-tone-ececef bg-surface px-[16px] py-[10px] text-[13px] font-medium text-zinc-900 data-[hovered=true]:bg-zinc-50 max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px] max-sm:text-[12px]"
+          >
+            <span
+              aria-hidden
+              className="size-[13px] shrink-0 bg-current text-gray-500 [mask:url(/icons/export.svg)_center/contain_no-repeat] max-sm:size-[12px]"
+            />
+            콜라보 바로 가기
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
+  // 콜라보 화면 — 팜플렛(11-24 사용자). admix 매체 찾기(briefProp)만 아래 예전 틀.
+  if (!briefProp)
+    return (
+      <StorePamphletModal
+        store={store && !media.isPending ? store : undefined}
+        vm={vm}
+        isError={isError}
+        showFee={showFee}
+        showScope={!brief}
+        footer={footer}
+        onClose={onClose}
+      />
+    );
+
   return (
     <DetailModalShell
       ariaLabel="매장 상세"
@@ -169,32 +183,7 @@ export function StoreDetailModal({
       }
       onClose={onClose}
       narrow
-      footer={
-        store && (
-          <DetailActions
-            liked={liked}
-            onLikedChange={setLiked}
-            onClose={onClose}
-            likeLabel={likeLabel}
-            likeSlot={
-              brief ? (
-                // 하트 자리 — 꺼진 하트 버튼과 같은 흰 바탕 · 테두리, 새 탭 아이콘(export.svg)은 글자색.
-                <Button
-                  variant="ghost"
-                  onPress={goPartners}
-                  className="h-auto gap-[7px] rounded-[18px] border border-tone-ececef bg-surface px-[16px] py-[10px] text-[13px] font-medium text-zinc-900 data-[hovered=true]:bg-zinc-50 max-sm:min-w-0 max-sm:flex-1 max-sm:gap-[6px] max-sm:px-[8px] max-sm:text-[12px]"
-                >
-                  <span
-                    aria-hidden
-                    className="size-[13px] shrink-0 bg-current text-gray-500 [mask:url(/icons/export.svg)_center/contain_no-repeat] max-sm:size-[12px]"
-                  />
-                  콜라보 바로 가기
-                </Button>
-              ) : undefined
-            }
-          />
-        )
-      }
+      footer={footer}
     >
       {store && !media.isPending ? (
         <StoreDetailBody
@@ -391,66 +380,6 @@ function StoreDetailBody({
   );
 }
 
-/** 협약 확정 표시 — 초록 마크(public/icons/collabo.svg). 다크 모드는 success 토큰이 밝은 초록으로 바뀐다. */
-const AGREED_ICON =
-  "block h-[16px] w-[15px] bg-current text-success [mask:url(/icons/collabo.svg)_center/contain_no-repeat] max-sm:h-[14px] max-sm:w-[13px]";
-const AGREED_LABEL = "협약 확정 매장";
-
-/**
- * 매장 이름 뒤 협약 확정 표시 — 이름 줄 높이(1lh)의 가운데에 둔다(11-17 사용자: "매장명이랑 협약 확정 마크를 중간에 오게").
- * 마우스가 있으면 올려서 Tooltip(눌러도 닫히지 않게), 터치 기기는 눌러서 Popover로 "협약 확정 매장"(11-17 사용자) —
- * 인기 · 신규 표시(MediaBadgeChip)와 같은 갈래: 화면 폭이 아니라 입력 방식(useCanHover)으로 나눈다.
- * 말풍선은 HeroUI 기본 모양 — 라이트 · 다크 모드에 맞춰 바탕 · 글자색이 바뀐다.
- * 말풍선은 표시 오른쪽에(11-17 사용자: "오른쪽에 뜨게") — 자리가 모자라면 HeroUI가 알아서 반대쪽으로 뒤집는다.
- */
-function AgreedMark() {
-  const canHover = useCanHover();
-  // Tooltip 은 올려야만 열린다 — 마우스로 눌러도 열리게 열림을 직접 쥔다(올렸다 떼면 닫힘은 Tooltip 그대로).
-  const [tipOpen, setTipOpen] = useState(false);
-  const trigger =
-    "ml-[5px] inline-flex h-[1lh] cursor-pointer items-center rounded-[4px] align-top outline-none focus-visible:ring-2 focus-visible:ring-primary/40 max-sm:ml-[4px]";
-  const icon = <span aria-hidden className={AGREED_ICON} />;
-  if (canHover) {
-    return (
-      <Tooltip
-        delay={0}
-        closeDelay={0}
-        shouldCloseOnPress={false}
-        isOpen={tipOpen}
-        onOpenChange={setTipOpen}
-      >
-        <Tooltip.Trigger
-          aria-label={AGREED_LABEL}
-          className={trigger}
-          onPointerUp={() => setTipOpen(true)}
-        >
-          {icon}
-        </Tooltip.Trigger>
-        <Tooltip.Content
-          showArrow
-          placement="right"
-          className="px-[10px] py-[6px] text-[12px] leading-[1.5] font-semibold whitespace-nowrap"
-        >
-          <Tooltip.Arrow />
-          {AGREED_LABEL}
-        </Tooltip.Content>
-      </Tooltip>
-    );
-  }
-  return (
-    <Popover>
-      <Popover.Trigger aria-label={AGREED_LABEL} className={trigger}>
-        {icon}
-      </Popover.Trigger>
-      <Popover.Content placement="right" className="max-w-[240px]">
-        <Popover.Dialog className="px-[12px] py-[8px] text-[13px] leading-[1.5] font-semibold whitespace-nowrap text-gray-900">
-          {AGREED_LABEL}
-        </Popover.Dialog>
-      </Popover.Content>
-    </Popover>
-  );
-}
-
 /**
  * 큰 사진 위 — 왼쪽 아래 분류 이름 + 그 오른쪽 설명(길면 두 줄까지, 아래 어둡게 깔아 읽히게),
  * 같은 분류 사진이 더 있으면 오른쪽 위 "펼쳐보기"(펼친 분류의 사진에선 "접기").
@@ -506,25 +435,6 @@ function PhotoOverlay({
   );
 }
 
-/** 크게 보기 왼쪽 위 — 분류 이름 + 그 오른쪽 설명. */
-function PhotoCaption({ photo }: { photo: StorePhotoView }) {
-  if (!photo.label && !photo.memo) return null;
-  return (
-    <div className="flex items-start gap-[8px]">
-      {photo.label && (
-        <span className="shrink-0 rounded-[7px] bg-white/15 px-[8px] text-[13px] leading-[24px] font-semibold text-white">
-          {photo.label}
-        </span>
-      )}
-      {photo.memo && (
-        <p className="min-w-0 text-[14px] leading-[24px] font-medium break-keep text-white/90">
-          {photo.memo}
-        </p>
-      )}
-    </div>
-  );
-}
-
 /** 묶음 — 작은 제목 아래 이름표 | 값 줄(이름표 열 너비를 맞춰 값이 한 줄로 읽히게). */
 function InfoGroup({
   title,
@@ -561,23 +471,6 @@ function StoreInfoRows({ rows }: { rows: [string, string][] }) {
     </InfoGroup>
   );
 }
-
-/** 가능 범위 칸 색 — 가능은 옅은 초록 칸 + 초록 체크, 불가능은 회색 칸 + 회색 엑스(빨강은 쓰지 않는다 — 은은하게). */
-const SCOPE_TILE = {
-  ok: {
-    tile: "border-emerald-100 bg-emerald-50/50 dark:border-success/20 dark:bg-success-bg/60",
-    mark: "bg-emerald-100 text-emerald-600 dark:bg-success/15 dark:text-success",
-    label: "text-zinc-800",
-    desc: "text-zinc-500",
-  },
-  no: {
-    tile: "border-tone-ececef bg-tone-f7f7f8",
-    mark: "bg-zinc-200/70 text-zinc-400 dark:bg-zinc-200",
-    // 불가능도 설명은 읽혀야 한다 — 이름은 한 단계 진하게.
-    label: "text-zinc-500",
-    desc: "text-zinc-400",
-  },
-} as const;
 
 /**
  * 가능 범위 — 항목마다 작은 칸(체크 · 엑스 + 이름 + 설명), 두 열로(11-17 사용자: "보기 좋게 리디자인, 각각 상세 설명도 —

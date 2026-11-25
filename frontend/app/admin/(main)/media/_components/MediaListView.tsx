@@ -24,6 +24,7 @@ import { ChevronDownIcon, PlusIcon } from "@/components/icons";
 import {
   mediaApi,
   type MediaListSort,
+  useAdminMediaFieldOptions,
   useBulkImportMedia,
   useMediaList,
 } from "@/hooks/media";
@@ -63,6 +64,8 @@ type MediaSearch = {
   dateFrom?: string;
   dateTo?: string;
   type?: string;
+  /** 카테고리(대분류) */
+  category?: string;
   keyword?: string;
 };
 
@@ -112,24 +115,37 @@ function MediaSearchBar({
 }) {
   const [range, setRange] = useState<DateRange>(null);
   const [type, setType] = useState("all");
+  const [category, setCategory] = useState("all");
   const [keyword, setKeyword] = useState("");
+  // 카테고리(대분류) 선택지 — 매체 폼과 같은 목록(기본 카테고리 + 지금 매체들에 든 값).
+  const { data: fieldOptions } = useAdminMediaFieldOptions();
+  const categoryOptions = [
+    { id: "all", label: "전체" },
+    ...Object.keys(fieldOptions?.categories ?? {}).map((c) => ({
+      id: c,
+      label: c,
+    })),
+  ];
 
   const submit = () =>
     onSearch({
       dateFrom: range?.start.toString(),
       dateTo: range?.end.toString(),
       type: type === "all" ? undefined : type,
+      category: category === "all" ? undefined : category,
       keyword: keyword.trim() || undefined,
     });
   const reset = () => {
     setRange(null);
     setType("all");
+    setCategory("all");
     setKeyword("");
   };
 
   return (
     <div className="flex flex-wrap items-end gap-[16px]">
-      <DateRangePicker className="w-[300px]" value={range} onChange={setRange}>
+      {/* 기간은 날짜 두 개가 겨우 들어가는 폭으로(11-25 사용자: "기간 크기 줄여줘"). */}
+      <DateRangePicker className="w-[244px]" value={range} onChange={setRange}>
         <Label>기간</Label>
         <DateField.Group fullWidth variant="secondary">
           <DateField.Input slot="start">
@@ -197,6 +213,32 @@ function MediaSearchBar({
         </Select.Popover>
       </Select>
 
+      {/* 카테고리(대분류) — 11-25 사용자: "카테고리 넣어줘". */}
+      <Select
+        className="w-[150px]"
+        variant="secondary"
+        selectedKey={category}
+        onSelectionChange={(key) =>
+          setCategory(key == null ? "all" : String(key))
+        }
+      >
+        <Label>카테고리</Label>
+        <Select.Trigger>
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover>
+          <ListBox>
+            {categoryOptions.map((o) => (
+              <ListBox.Item key={o.id} id={o.id} textValue={o.label}>
+                {o.label}
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Select.Popover>
+      </Select>
+
       <div className="flex min-w-[240px] flex-1 flex-col gap-[4px]">
         <Label htmlFor="media-keyword">매체명</Label>
         <Input
@@ -240,6 +282,7 @@ export function MediaListView() {
     date_to: search.dateTo,
     keyword: search.keyword,
     type: search.type,
+    category: search.category,
     sort: SORT_BY_COLUMN[sortDescriptor.column as keyof Media] ?? "created",
     order: sortDescriptor.direction === "ascending" ? "asc" : "desc",
   });

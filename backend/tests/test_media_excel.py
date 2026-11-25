@@ -54,11 +54,13 @@ def test_export_layout_and_values():
     finally:
         db.close()
     headers = [c.value for c in ws[2]]
-    assert headers[:3] == ["매체 ID", "매체명", "구분명"]
+    assert headers[:3] == ["매체 ID *", "매체명 *", "구분명"]
     assert ws["A1"].value == "기본 정보"
     assert "디바이스 유형" not in headers and "등급 근거" not in headers
-    assert headers[-2:] == ["대표 이미지 URL", "사진 수"]
-    source_col = headers.index("고정/이동") + 1
+    # 사용하지 않는 칸 · 자동으로 정하는 칸은 다운로드에도 없다(11-25).
+    for gone in ("대표 이미지 URL", "원본 상세 ID", "상권(호칭)", "최소 광고비(원)", "위도", "등록일시"):
+        assert gone not in headers
+    source_col = headers.index("고정/이동 *") + 1
     values = {ws.cell(row=r, column=source_col).value for r in range(3, ws.max_row + 1)}
     assert values <= {"고정", "이동", "", None}
 
@@ -67,7 +69,7 @@ def _filled_template(rows: list[dict], plans: list[dict]) -> bytes:
     """양식을 받아 칸 이름(* 뺀 것) 기준으로 매체 등록·상품 시트를 채운다."""
     wb = load_workbook(BytesIO(media_excel.media_template_xlsx()))
     for sheet, header_row, first_row, values in (
-        ("매체 등록", 2, 3, rows),
+        ("매체", 2, 3, rows),
         ("상품", 1, 2, plans),
     ):
         ws = wb[sheet]
@@ -82,12 +84,12 @@ def _filled_template(rows: list[dict], plans: list[dict]) -> bytes:
 
 def test_template_layout():
     wb = load_workbook(BytesIO(media_excel.media_template_xlsx()))
-    assert wb.sheetnames == ["매체 등록", "상품", "작성 안내"]
-    ws = wb["매체 등록"]
+    assert wb.sheetnames == ["매체", "상품", "작성 안내"]
+    ws = wb["매체"]
     headers = [c.value for c in ws[2]]
-    assert headers[0] == "연결 번호 *"
+    assert headers[0] == "매체 ID *"
     assert "매체명 *" in headers and "구분명" in headers
-    assert "매체 ID" not in headers and "원본 상세 ID" not in headers
+    assert "원본 상세 ID" not in headers
     assert "상권(호칭)" not in headers and "지역 코드" not in headers
     assert "디바이스 유형" not in headers
     # 가격은 상품에서 계산하므로 매체 시트에 없다.
@@ -98,12 +100,12 @@ def test_template_layout():
         assert gone not in headers
     assert "시/도 (이동 매체) *" in headers and "구/군 (이동 매체)" in headers
     plan_headers = [c.value for c in wb["상품"][1]]
-    assert plan_headers[:3] == ["연결 번호 *", "상품명 *", "판매 방식 *"]
+    assert plan_headers[:5] == ["매체 ID *", "매체명", "상품 번호", "상품명 *", "판매 방식 *"]
     assert ws.data_validations.dataValidation and wb["상품"].data_validations.dataValidation
 
 
 def _plan(link, name, ad=None, prod=None, **kw):
-    return {"연결 번호": link, "상품명": name, "판매 방식": kw.get("master", "단품"),
+    return {"매체 ID": link, "상품명": name, "판매 방식": kw.get("master", "단품"),
             "계약 기간": 1, "기간 단위": "개월", "광고비(원)": ad, "제작비(원)": prod}
 
 
@@ -125,19 +127,19 @@ def test_import_korean_template_with_plans():
               "매체 타입": "DOOH"}
     content = _filled_template(
         [
-            {**base, "연결 번호": 1},
-            {**moving, "연결 번호": 2},
-            {**base, "연결 번호": 3, "매체명": "필수 누락", "도로명 주소": None},  # 고정인데 주소 없음
-            {**base, "연결 번호": 4, "매체명": "잘못된 값", "설치 장소": "옥상"},  # 선택지에 없음
-            {**base, "연결 번호": 5, "매체명": "상품 없음"},                      # 상품 시트에 없음
-            {**base, "연결 번호": 1, "매체명": "번호 겹침"},                      # 연결 번호 중복
+            {**base, "매체 ID": 1},
+            {**moving, "매체 ID": 2},
+            {**base, "매체 ID": 3, "매체명": "필수 누락", "도로명 주소": None},  # 고정인데 주소 없음
+            {**base, "매체 ID": 4, "매체명": "잘못된 값", "설치 장소": "옥상"},  # 선택지에 없음
+            {**base, "매체 ID": 5, "매체명": "상품 없음"},                      # 상품 시트에 없음
+            {**base, "매체 ID": 1, "매체명": "번호 겹침"},                      # 매체 ID(임시 번호) 중복
         ],
         [
             _plan(1, "빌보드", "5,000,000", 300000),
             _plan(1, "랩핑", 3000000),
             _plan(2, "영상(20초)", 1000000, 50000),  # DOOH → 제작비 저장 안 함
-            _plan(9, "주인 없음", 100),              # 연결 번호 9인 매체 없음
-            {"연결 번호": 2, "상품명": "단위 없음", "판매 방식": "개별", "계약 기간": 1},  # 기간 단위 누락
+            _plan(9, "주인 없음", 100),              # 매체 ID 9인 매체 없음
+            {"매체 ID": 2, "상품명": "단위 없음", "판매 방식": "개별", "계약 기간": 1},  # 기간 단위 누락
         ],
     )
     db = SessionLocal()
@@ -152,7 +154,7 @@ def test_import_korean_template_with_plans():
         reasons = " ".join(e["reason"] for e in result["errors"])
         assert "도로명 주소" in reasons and "공간형 / 외부형" in reasons
         assert "상품이 없습니다" in reasons and "겹칩니다" in reasons
-        assert "연결 번호 9인 매체가" in reasons and "기간 단위" in reasons
+        assert "매체 ID 9인 매체가" in reasons and "기간 단위" in reasons
 
         fixed = by_name["엑셀등록 고정"]
         assert fixed.media_id.startswith("BB-")
@@ -188,8 +190,53 @@ def test_export_has_plan_sheet():
     finally:
         db.close()
     ws = wb["상품"]
-    assert [c.value for c in ws[1]][:4] == ["매체 ID", "매체명", "상품 번호", "상품명"]
+    assert [c.value for c in ws[1]][:4] == ["매체 ID *", "매체명", "상품 번호", "상품명 *"]
     assert ws.max_row - 1 == plan_count
+
+
+def test_export_and_template_have_same_columns():
+    """매체 데이터 다운로드는 업로드 양식에 매체를 채운 것 — 시트 · 칸 이름 · 순서가 같다(11-25 사용자)."""
+    db = SessionLocal()
+    try:
+        exported = load_workbook(BytesIO(media_excel.export_media_xlsx(db)))
+    finally:
+        db.close()
+    template = load_workbook(BytesIO(media_excel.media_template_xlsx()))
+    assert exported.sheetnames == template.sheetnames
+    for sheet, header_rows in (("매체", (1, 2)), ("상품", (1,))):
+        for r in header_rows:
+            assert [c.value for c in exported[sheet][r]] == [c.value for c in template[sheet][r]], (sheet, r)
+
+
+def test_old_template_with_link_number_still_imports():
+    """예전 양식(맨 앞 칸 "연결 번호")으로 적어 둔 파일도 올라간다."""
+    base = {
+        "매체명": "엑셀예전양식",
+        "고정/이동": "고정",
+        "판매 유형": "단품",
+        "카테고리(대)": "전광판/빌보드",
+        "카테고리(소)": "전광판",
+        "매체 타입": "OOH",
+        "설치 장소": "외부형",
+        "도로명 주소": "서울 강남구 강남대로 396",
+    }
+    wb = load_workbook(BytesIO(_filled_template([{**base, "매체 ID": 1}], [_plan(1, "빌보드", 100)])))
+    wb["매체"].cell(row=2, column=1, value="연결 번호 *")
+    wb["상품"].cell(row=1, column=1, value="연결 번호 *")
+    buf = BytesIO()
+    wb.save(buf)
+    db = SessionLocal()
+    created: list[str] = []
+    try:
+        result = media_excel.import_media_xlsx(db, buf.getvalue())
+        created = [m.media_id for m in db.query(Media).filter(Media.name == "엑셀예전양식")]
+        assert result["inserted"] == 1 and result["errors"] == [], result
+    finally:
+        if created:
+            db.query(MediaPlan).filter(MediaPlan.media_id.in_(created)).delete(synchronize_session=False)
+            db.query(Media).filter(Media.media_id.in_(created)).delete(synchronize_session=False)
+            db.commit()
+        db.close()
 
 
 def test_import_downloaded_file_skips_existing_ids():
@@ -244,10 +291,10 @@ def test_import_fills_address_from_road_address(fake_kakao_address):
     }
     content = _filled_template(
         [
-            {**base, "연결 번호": 1},
+            {**base, "매체 ID": 1},
             # 같은 주소 — 검색은 한 번만, 직접 적은 시/도는 그대로
-            {**base, "연결 번호": 2, "매체명": "엑셀주소 직접", "시/도 (이동 매체)": "서울특별시"},
-            {**base, "연결 번호": 3, "매체명": "엑셀주소 없음", "도로명 주소": "없는 주소 1"},
+            {**base, "매체 ID": 2, "매체명": "엑셀주소 직접", "시/도 (이동 매체)": "서울특별시"},
+            {**base, "매체 ID": 3, "매체명": "엑셀주소 없음", "도로명 주소": "없는 주소 1"},
         ],
         [_plan(n, "빌보드", 100) for n in (1, 2, 3)],
     )

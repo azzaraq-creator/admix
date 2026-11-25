@@ -33,6 +33,7 @@ import { formatPhone } from "@/lib/phone";
 import {
   CollabPageHead,
   CollabSection,
+  MarketingChecks,
   openFileInNewTab,
 } from "../../_components/collabUi";
 import { BrandThumb } from "./CollabAdvertisersListView";
@@ -221,6 +222,10 @@ function ContactSection({ member }: { member: AdminAdvertiserMember }) {
         <InfoRow label="업종">{member.industry}</InfoRow>
         <InfoRow label="연락처">{formatPhone(member.phone)}</InfoRow>
         <InfoRow label="이메일">{member.email}</InfoRow>
+        {/* 받을 방법(문자 · 이메일, 083)을 체크박스로(11-24 사용자). */}
+        <InfoRow label="마케팅 수신">
+          <MarketingChecks member={member} />
+        </InfoRow>
       </dl>
     </CollabSection>
   );

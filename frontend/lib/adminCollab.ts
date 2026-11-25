@@ -62,6 +62,10 @@ export interface AdminAdvertiserMember {
   createdAt: string | null;
   /** 마지막 로그인(091) — 기록이 없으면 null. */
   lastLoginAt: string | null;
+  /** 마케팅 정보 수신 동의 · 받을 방법(083, 11-24 어드민에 보임) — 방법은 동의했을 때만 뜻이 있다. 예전 서버면 없다. */
+  marketingConsent?: boolean;
+  marketingSms?: boolean;
+  marketingEmail?: boolean;
   bizStatus: BizStatusCode;
   bizName: string | null;
   bizNo: string | null;
@@ -351,6 +355,30 @@ export const dotDate = (ymd: string | null | undefined) =>
 /** YYYY-MM-DD → 11.09 */
 export const shortDate = (ymd: string | null | undefined) =>
   ymd ? ymd.slice(5, 10).replace("-", ".") : "-";
+
+/**
+ * 마케팅 정보 수신 — 제휴사 · 광고주 회원 목록 · 상세(11-24 사용자).
+ * 받을 방법(문자 · 이메일, 083)은 동의했을 때만 켠다. channels는 목록 글("문자 · 이메일"). 예전 서버라 값이 없으면 null.
+ */
+export function marketingStatus(member: {
+  marketingConsent?: boolean;
+  marketingSms?: boolean;
+  marketingEmail?: boolean;
+}): {
+  agreed: boolean;
+  sms: boolean;
+  email: boolean;
+  channels: string;
+} | null {
+  if (member.marketingConsent == null) return null;
+  const agreed = member.marketingConsent;
+  const sms = agreed && !!member.marketingSms;
+  const email = agreed && !!member.marketingEmail;
+  const channels = [sms && "문자", email && "이메일"]
+    .filter(Boolean)
+    .join(" · ");
+  return { agreed, sms, email, channels };
+}
 
 /** ISO 시각 → 2026.11.09 14:20 (브라우저 시간대, 한국에서 쓰므로 KST). */
 export function dotDateTime(iso: string | null | undefined) {

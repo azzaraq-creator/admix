@@ -10,6 +10,7 @@ import { dotDate, dotDateTime, type AdminAdvertiserMember } from "@/lib/adminCol
 import { BizStatusBadge, bizStatusLabel } from "@/lib/bizStatus";
 import { formatPhone } from "@/lib/phone";
 
+import { MarketingChecks } from "../../_components/collabUi";
 import { FileRow, InfoRow } from "./CollabAdvertiserDetailView";
 import { BrandThumb } from "./CollabAdvertisersListView";
 
@@ -97,6 +98,9 @@ function Body({ memberId, onClose }: { memberId: string; onClose: () => void }) 
             <InfoRow label="업종">{member.industry}</InfoRow>
             <InfoRow label="연락처">{formatPhone(member.phone)}</InfoRow>
             <InfoRow label="이메일">{member.email}</InfoRow>
+            <InfoRow label="마케팅 수신">
+              <MarketingChecks member={member} />
+            </InfoRow>
           </dl>
         </Part>
         <Part title={`브랜드 ${member.brands.length}개`}>

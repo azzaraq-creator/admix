@@ -587,6 +587,10 @@ export interface AdminPartnerMember {
   updatedAt: string | null;
   /** 마지막 로그인(091) — 기록이 없으면 null. */
   lastLoginAt: string | null;
+  /** 마케팅 정보 수신 동의 · 받을 방법(083, 11-24 어드민에 보임) — 방법은 동의했을 때만 뜻이 있다. 예전 서버면 없다. */
+  marketingConsent?: boolean;
+  marketingSms?: boolean;
+  marketingEmail?: boolean;
   agreedAt: string | null;
   agreementVersion: string | null;
   /** 협약서 문서번호(097, "20261118-00001") — 협약서 PDF 에 들어간다. 예전 서버 · 번호 전 동의면 없다. */

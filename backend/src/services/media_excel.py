@@ -3,8 +3,10 @@
 - 칸 순서·이름·구역은 어드민 폼(frontend/app/admin/(main)/media/_components/mediaFields.ts)과 같다.
   폼을 고치면 여기도 함께 고친다(tests/test_media_excel.py 가 빠진 컬럼을 잡는다).
 - 폼의 "사용하지 않는 값" 구역(UNUSED_COLUMNS)은 내보내지도 받지도 않는다.
+- 매체 데이터 다운로드와 업로드 양식은 같은 칸 · 같은 순서다(11-25 사용자) — 다운로드는 양식에 매체를 채운 것.
+  상권 · 원천 데이터 구역과 자동으로 정하는 칸(주소 세부 · 위경도 · 가격 범위 등)은 둘 다 뺀다(_SHEET_SKIP).
 - 선택값은 한글로(INSIDE → 공간형), 예/아니오, 태그는 쉼표로 풀어 쓴다. 올릴 때는 거꾸로 바꾼다.
-- 상품(media_plan)은 "상품" 시트에 한 줄씩. 다운로드는 매체 ID로, 업로드 양식은 "연결 번호"로 매체와 잇는다.
+- 상품(media_plan)은 "상품" 시트에 한 줄씩, 매체 ID로 매체와 잇는다(새 매체는 1, 2, 3 같은 임시 번호).
 - 일괄 등록은 이 한글 양식(1행 구역, 2행 칸 이름)과 예전 영문 양식(1행 DB 컬럼명)을 모두 받는다.
 """
 from __future__ import annotations
@@ -199,9 +201,6 @@ UNUSED_COLUMNS = frozenset(
     }
 )
 
-# 내보낼 때 덧붙이는 계산 칸(사진에서 만든다).
-_PHOTO_SECTION = ("사진", ["대표 이미지 URL", "사진 수"])
-
 # "상품" 시트 칸 — 어드민 매체 폼의 상품 칸과 같다(media_service._PLAN_EDITABLE).
 PLAN_MASTER_TYPES = {"PM_INDIVIDUAL": "단품", "PM_PACKAGE": "패키지"}
 PLAN_DURATION_TYPES = {"MONTHS": "개월", "WEEKS": "주", "YEARS": "년", "DAYS": "일"}
@@ -220,8 +219,13 @@ PLAN_COLUMNS: list[tuple[str, str, object]] = [
 PLAN_REQUIRED = frozenset(
     {"product_display_name", "product_master_type", "contractual_duration", "contractual_duration_type"}
 )
+# 매체와 상품을 잇는 칸 — 다운로드 · 양식 모두 매체 ID(새 매체는 임시 번호, 11-25).
+# 예전 양식은 "연결 번호"였다 — 그 양식으로 올려도 읽는다.
+MEDIA_ID_LABEL = "매체 ID"
 LINK_LABEL = "연결 번호"
+MEDIA_SHEET = "매체"  # 예전 양식은 "매체 등록"(올릴 때는 첫 시트를 읽어 이름은 상관없다)
 PLAN_SHEET = "상품"
+GUIDE_SHEET = "작성 안내"
 
 
 def _style_header_row(ws, row: int, labels: list[str], required: frozenset | set = frozenset()) -> None:
@@ -239,12 +243,16 @@ def _style_header_row(ws, row: int, labels: list[str], required: frozenset | set
 
 
 def _write_plan_sheet(wb, medias: list[Media]) -> None:
-    """다운로드의 "상품" 시트 — 한 줄에 상품 하나, 매체 ID·상품 번호와 함께(상품 번호 순)."""
+    """"상품" 시트 — 한 줄에 상품 하나. 매체 ID로 매체 시트와 잇는다(다운로드 · 양식 같은 칸).
+
+    매체명 · 상품 번호는 다운로드에서 채우는 참고 칸이다(올릴 때 읽지 않는다). 양식은 빈 줄로 둔다.
+    """
     from openpyxl.utils import get_column_letter
 
     ws = wb.create_sheet(PLAN_SHEET)
-    fixed = ["매체 ID", "매체명", "상품 번호"]
-    _style_header_row(ws, 1, [*fixed, *[c[1] for c in PLAN_COLUMNS]])
+    fixed = [MEDIA_ID_LABEL, "매체명", "상품 번호"]
+    required = {MEDIA_ID_LABEL} | {label for key, label, _ in PLAN_COLUMNS if key in PLAN_REQUIRED}
+    _style_header_row(ws, 1, [*fixed, *[c[1] for c in PLAN_COLUMNS]], required)
     won_cols = {
         len(fixed) + i for i, (_, _, conv) in enumerate(PLAN_COLUMNS, start=1) if conv == "won"
     }
@@ -263,6 +271,10 @@ def _write_plan_sheet(wb, medias: list[Media]) -> None:
                 if col in won_cols:
                     cell.number_format = "#,##0"
             row += 1
+    # 선택 칸 드롭다운 — 채운 줄 아래로도 새 상품을 적을 수 있게 넉넉히.
+    for col, (_, _, conv) in enumerate(PLAN_COLUMNS, start=len(fixed) + 1):
+        if isinstance(conv, dict):
+            _add_dropdown(ws, col, list(conv.values()), 2, row + _NEW_ROWS)
     ws.freeze_panes = "D2"
     last_col = get_column_letter(len(fixed) + len(PLAN_COLUMNS))
     ws.auto_filter.ref = f"A1:{last_col}{max(1, row - 1)}"
@@ -291,83 +303,23 @@ def _cell(value, conv):
     return value
 
 
-def _thumbnail(m: Media) -> str:
-    """대표 이미지 — 대표 표시 우선, 없으면 첫 사진(기획안과 같은 기준)."""
-    imgs = sorted(m.images, key=lambda i: (not i.is_thumbnail, i.sort_order))
-    return imgs[0].image_url if imgs else ""
-
-
 def export_media_xlsx(db: Session) -> bytes:
-    """전체 매체 — "매체" 시트(1행 구역 이름, 2행 칸 이름, 3행부터 매체·매체 ID 순)와 "상품" 시트."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from openpyxl.utils import get_column_letter
-
-    columns = [col for _, cols in SECTIONS for col in cols]
+    """전체 매체 — 업로드 양식과 같은 통(매체 · 상품 · 작성 안내 시트)에 매체 ID 순으로 채운다."""
     medias = (
         db.query(Media)
-        .options(selectinload(Media.images), selectinload(Media.plans))
+        .options(selectinload(Media.plans))
         .order_by(Media.media_id)
         .all()
     )
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "매체"
-
-    section_fill = PatternFill("solid", fgColor="EDE3F7")
-    header_fill = PatternFill("solid", fgColor="F5F5F5")
-    bold = Font(bold=True)
-    thin = Side(style="thin", color="D9D9D9")
-    center = Alignment(horizontal="center", vertical="center")
-
-    # 1행: 구역 이름(병합), 2행: 칸 이름
-    col_no = 1
-    for title, cols in [*SECTIONS, (_PHOTO_SECTION[0], _PHOTO_SECTION[1])]:
-        labels = [c[1] for c in cols] if title != _PHOTO_SECTION[0] else cols
-        start = col_no
-        for label in labels:
-            cell = ws.cell(row=2, column=col_no, value=label)
-            cell.font, cell.fill, cell.alignment = bold, header_fill, center
-            cell.border = Border(bottom=thin)
-            col_no += 1
-        ws.cell(row=1, column=start, value=title)
-        if col_no - 1 > start:
-            ws.merge_cells(start_row=1, start_column=start, end_row=1, end_column=col_no - 1)
-        head = ws.cell(row=1, column=start)
-        head.font, head.fill, head.alignment = bold, section_fill, center
-
-    won_cols = [i for i, (_, _, conv) in enumerate(columns, start=1) if conv == "won"]
-    for row_no, m in enumerate(medias, start=3):
-        for i, (key, _, conv) in enumerate(columns, start=1):
-            ws.cell(row=row_no, column=i, value=_cell(getattr(m, key), conv))
-        ws.cell(row=row_no, column=len(columns) + 1, value=_thumbnail(m))
-        ws.cell(row=row_no, column=len(columns) + 2, value=len(m.images))
-        for i in won_cols:
-            ws.cell(row=row_no, column=i).number_format = "#,##0"
-
-    # 칸 너비 — 칸 이름 길이 기준(긴 글 칸은 넓게), 첫 두 칸(ID·매체명)과 머리 두 줄 고정.
-    wide = {"description", "audience_summary", "special_remarks", "markers_vo",
-            "map_bounds_vo", "recommended_media_items", "list_labels"}
-    for i, (key, label, _) in enumerate(columns, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = 40 if key in wide else max(12, len(label) * 2 + 2)
-    ws.column_dimensions[get_column_letter(len(columns) + 1)].width = 40
-    ws.freeze_panes = "C3"
-    ws.auto_filter.ref = f"A2:{get_column_letter(len(columns) + 2)}{max(2, len(medias) + 2)}"
-
-    _write_plan_sheet(wb, medias)
-
-    buf = BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+    return _media_workbook(medias)
 
 
 # ── 업로드 양식 · 일괄 등록 ─────────────────────────────────────────
 
-# 양식에 넣지 않는 칸 — 매체 ID(자동 부여), 다른 데이터에서 정해지는 값.
-# 광고비·제작비 범위와 제작비 유무는 "상품" 시트에서 계산한다.
-# 상권·원천 데이터 구역(원천 시스템이 계산해 둔 값)도 양식에서는 뺀다. "사용하지 않는 값"은 SECTIONS 에 없다.
-# 다운로드 엑셀을 그대로 올리면 이 칸들도 읽는다(상품에서 계산한 값이 덮어쓴다).
+# 매체 시트에 넣지 않는 칸 — 다운로드 · 양식 모두(11-25 사용자: "두 엑셀의 칸이 달라 어렵다 · 사용하지 않는 칸은 빼 줘").
+# 다른 데이터에서 정해지는 값: 광고비·제작비 범위와 제작비 유무는 "상품" 시트에서 계산한다.
+# 상권·원천 데이터 구역(원천 시스템이 계산해 둔 값, 어드민 폼에서도 숨김)도 뺀다. "사용하지 않는 값"은 SECTIONS 에 없다.
+# 예전에 받아 둔 다운로드 엑셀(이 칸들이 있던 판)을 올려도 읽는다(상품에서 계산한 값이 덮어쓴다).
 _PLAN_DERIVED = frozenset(
     {
         "min_advertisement_fee_krw",
@@ -390,15 +342,15 @@ _ADDRESS_FILLED = (
     "latitude",
     "longitude",
 )
-_TEMPLATE_ADDRESS_SKIP = frozenset(_ADDRESS_FILLED) - {"city", "district"}
-# 양식에서만 쓰는 칸 이름 — 고정 매체는 자동으로 채우니 이동 매체 칸으로 보이게 한다(다운로드 엑셀은 원래 이름).
-_TEMPLATE_LABELS = {"city": "시/도 (이동 매체)", "district": "구/군 (이동 매체)"}
-_TEMPLATE_SKIP = (
-    frozenset({"media_id", "created_at", "updated_at", "spec_unit", "audience_summary"})  # 인구 요약은 자동(ai_index)
+_SHEET_ADDRESS_SKIP = frozenset(_ADDRESS_FILLED) - {"city", "district"}
+# 엑셀 칸 이름 — 고정 매체는 자동으로 채우니 이동 매체 칸으로 보이게 한다(SECTIONS 이름은 예전 다운로드 판).
+_SHEET_LABELS = {"city": "시/도 (이동 매체)", "district": "구/군 (이동 매체)"}
+_SHEET_SKIP = (
+    frozenset({"created_at", "updated_at", "spec_unit", "audience_summary"})  # 인구 요약은 자동(ai_index)
     | _PLAN_DERIVED
-    | _TEMPLATE_ADDRESS_SKIP
+    | _SHEET_ADDRESS_SKIP
 )
-_TEMPLATE_SKIP_SECTIONS = frozenset({"상권", "원천 데이터"})
+_SHEET_SKIP_SECTIONS = frozenset({"상권", "원천 데이터"})
 
 # 필수 칸 — 어드민 폼과 같다(목록 카드·필터·지도에 꼭 필요한 값). 가격은 상품에서 온다.
 REQUIRED = frozenset(
@@ -425,6 +377,11 @@ _CHOICES: dict[str, list[str]] = {
 
 # 작성 안내 — (칸, 입력 방법, 예시)
 _GUIDE: dict[str, tuple[str, str]] = {
+    "media_id": (
+        "상품 시트와 잇는 값. 새 매체는 1, 2, 3처럼 임시 번호를 적으면 저장할 때 ID가 매겨집니다. "
+        "이미 있는 매체 ID의 줄은 올려도 건너뜁니다.",
+        "1",
+    ),
     "name": ("장소·매체 이름. 화면에는 '매체명 구분명'으로 붙어 보입니다.", "신사역"),
     "second_name": ("같은 매체명이 여러 개일 때 구분하는 말. 없으면 비웁니다.", "벽면"),
     "media_source": ("고정 / 이동 중에서 고릅니다.", "고정"),
@@ -489,17 +446,18 @@ _PLAN_GUIDE: dict[str, tuple[str, str]] = {
 }
 
 
-def _template_sections() -> list[tuple[str, list[tuple[str, str, object]]]]:
+def _sheet_sections() -> list[tuple[str, list[tuple[str, str, object]]]]:
+    """매체 시트 칸 — 다운로드 · 양식이 똑같이 쓴다(사용하지 않는 값 · 자동으로 정하는 값은 뺀다)."""
     return [
-        (title, [(k, _TEMPLATE_LABELS.get(k, label), conv) for k, label, conv in cols if k not in _TEMPLATE_SKIP])
+        (title, [(k, _SHEET_LABELS.get(k, label), conv) for k, label, conv in cols if k not in _SHEET_SKIP])
         for title, cols in SECTIONS
-        if title not in _TEMPLATE_SKIP_SECTIONS
+        if title not in _SHEET_SKIP_SECTIONS
     ]
 
 
 def _is_required(key: str) -> str | None:
-    """필수 표시 — 항상이면 "필수", 고정·이동 한쪽만이면 그 이름."""
-    if key in REQUIRED:
+    """필수 표시 — 항상이면 "필수", 고정·이동 한쪽만이면 그 이름. 매체 ID는 상품 시트와 잇는 값이라 필수."""
+    if key in REQUIRED or key == "media_id":
         return "필수"
     if key in REQUIRED_FIXED:
         return "고정 매체 필수"
@@ -518,7 +476,7 @@ def _choices(key: str, conv) -> list[str] | None:
     return _CHOICES.get(key)
 
 
-def _add_dropdown(ws, col: int, options: list[str], first_row: int) -> None:
+def _add_dropdown(ws, col: int, options: list[str], first_row: int, last_row: int) -> None:
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -532,37 +490,30 @@ def _add_dropdown(ws, col: int, options: list[str], first_row: int) -> None:
     )
     ws.add_data_validation(dv)
     letter = get_column_letter(col)
-    dv.add(f"{letter}{first_row}:{letter}{first_row + 999}")
+    dv.add(f"{letter}{first_row}:{letter}{last_row}")
 
 
-def media_template_xlsx() -> bytes:
-    """일괄 등록 양식 — "매체 등록"·"상품"·"작성 안내" 시트.
+# 드롭다운을 채운 줄 아래로 더 걸어 두는 줄 수 — 새 매체 · 상품을 이어 적을 수 있게.
+_NEW_ROWS = 1000
+# 긴 글 칸은 넓게.
+_WIDE = frozenset({"description", "special_remarks", "list_labels", "moving_location_detail"})
 
-    매체 등록: 다운로드 엑셀과 같은 구조(1행 구역, 2행 칸 이름, 필수는 *), 맨 앞에 연결 번호.
-    상품: 한 줄에 상품 하나, 연결 번호로 매체와 잇는다. 선택 칸은 드롭다운.
-    """
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font, PatternFill
+
+def _write_media_sheet(ws, sections, medias: list[Media]) -> None:
+    """매체 시트 — 1행 구역 이름, 2행 칸 이름(필수는 * · 빨간색), 3행부터 한 줄에 매체 하나. 선택 칸은 드롭다운."""
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 
-    sections = _template_sections()
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "매체 등록"
     section_fill = PatternFill("solid", fgColor="EDE3F7")
     header_fill = PatternFill("solid", fgColor="F5F5F5")
     required_fill = PatternFill("solid", fgColor="FDECEC")
     bold, red = Font(bold=True), Font(bold=True, color="D65856")
     center = Alignment(horizontal="center", vertical="center")
+    thin = Side(style="thin", color="D9D9D9")
 
-    # 1열: 연결 번호(상품 시트와 잇는 값)
-    link = ws.cell(row=2, column=1, value=f"{LINK_LABEL} *")
-    link.font, link.fill, link.alignment = red, required_fill, center
-    head = ws.cell(row=1, column=1, value="연결")
-    head.font, head.fill, head.alignment = bold, section_fill, center
-    ws.column_dimensions["A"].width = 12
-
-    col_no = 2
+    columns = [col for _, cols in sections for col in cols]
+    last_row = len(medias) + 2 + _NEW_ROWS
+    col_no = 1
     for title, cols in sections:
         start = col_no
         for key, label, conv in cols:
@@ -571,57 +522,80 @@ def media_template_xlsx() -> bytes:
             cell.font = red if need else bold
             cell.fill = required_fill if need else header_fill
             cell.alignment = center
-            ws.column_dimensions[get_column_letter(col_no)].width = max(14, len(label) * 2 + 4)
+            cell.border = Border(bottom=thin)
+            width = 40 if key in _WIDE else max(14, len(label) * 2 + 4)
+            ws.column_dimensions[get_column_letter(col_no)].width = width
             options = _choices(key, conv)
             if options:
-                _add_dropdown(ws, col_no, options, 3)
+                _add_dropdown(ws, col_no, options, 3, last_row)
             col_no += 1
         ws.cell(row=1, column=start, value=title)
         if col_no - 1 > start:
             ws.merge_cells(start_row=1, start_column=start, end_row=1, end_column=col_no - 1)
         head = ws.cell(row=1, column=start)
         head.font, head.fill, head.alignment = bold, section_fill, center
+
+    for row_no, m in enumerate(medias, start=3):
+        for i, (key, _, conv) in enumerate(columns, start=1):
+            ws.cell(row=row_no, column=i, value=_cell(getattr(m, key), conv))
+    # 매체 ID · 매체명과 머리 두 줄 고정.
     ws.freeze_panes = "C3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(len(columns))}{max(2, len(medias) + 2)}"
 
-    plans_ws = wb.create_sheet(PLAN_SHEET)
-    plan_labels = [LINK_LABEL, *[c[1] for c in PLAN_COLUMNS]]
-    required_labels = {LINK_LABEL} | {label for key, label, _ in PLAN_COLUMNS if key in PLAN_REQUIRED}
-    _style_header_row(plans_ws, 1, plan_labels, required_labels)
-    for col, (_, _, conv) in enumerate(PLAN_COLUMNS, start=2):
-        if isinstance(conv, dict):
-            _add_dropdown(plans_ws, col, list(conv.values()), 2)
-    plans_ws.freeze_panes = "B2"
 
-    guide = wb.create_sheet("작성 안내")
+def _write_guide_sheet(wb, sections) -> None:
+    from openpyxl.styles import Font, PatternFill
+
+    guide = wb.create_sheet(GUIDE_SHEET)
     guide.append(["시트", "칸 이름", "필수", "입력 방법", "예시"])
     for cell in guide[1]:
-        cell.font, cell.fill = bold, header_fill
+        cell.font, cell.fill = Font(bold=True), PatternFill("solid", fgColor="F5F5F5")
     guide.append([
         "(공통)", "", "",
-        "매체 등록 시트 3행부터 한 줄에 매체 하나, 상품 시트 2행부터 한 줄에 상품 하나를 적습니다. "
-        "두 시트의 '연결 번호'가 같으면 그 매체의 상품입니다(매체마다 상품 하나 이상 필수). "
-        "매체 ID는 저장할 때 카테고리에 따라 자동으로 매겨지고(전광판 EB-0001 · 쉘터 SH-0001 등), "
-        "광고비·제작비 범위는 상품에서 계산됩니다. 사진은 등록 후 어드민 매체 화면에서 올립니다.",
+        "매체 시트 3행부터 한 줄에 매체 하나, 상품 시트 2행부터 한 줄에 상품 하나를 적습니다. "
+        "두 시트의 '매체 ID'가 같으면 그 매체의 상품입니다(매체마다 상품 하나 이상 필수). "
+        "새 매체는 매체 ID에 1, 2, 3처럼 임시 번호를 적으면 저장할 때 카테고리에 따라 ID가 매겨집니다"
+        "(전광판 EB-0001 · 쉘터 SH-0001 등). "
+        "이미 있는 매체 ID의 줄은 올려도 건너뜁니다 — 있는 매체는 어드민 매체 화면에서 고칩니다. "
+        "광고비·제작비 범위는 상품에서 계산되고, 사진은 등록 후 어드민 매체 화면에서 올립니다.",
         "",
     ])
-    guide.append(["매체 등록", LINK_LABEL, "필수", "상품 시트와 잇는 번호. 매체마다 다르게(1, 2, 3 …).", "1"])
     for _, cols in sections:
         for key, label, conv in cols:
             how, example = _GUIDE.get(key, ("", ""))
             options = _choices(key, conv)
             if options and not how:
                 how = " / ".join(options)
-            guide.append(["매체 등록", label, _is_required(key) or "", how, example])
-    guide.append([PLAN_SHEET, LINK_LABEL, "필수", "이 상품이 속한 매체의 연결 번호.", "1"])
+            guide.append([MEDIA_SHEET, label, _is_required(key) or "", how, example])
+    guide.append([PLAN_SHEET, MEDIA_ID_LABEL, "필수", "이 상품이 속한 매체의 매체 ID(새 매체면 매체 시트에 적은 임시 번호).", "1"])
+    guide.append([PLAN_SHEET, "매체명", "", "참고용 — 다운로드에서 채워 두는 칸이고, 올릴 때는 읽지 않습니다.", ""])
+    guide.append([PLAN_SHEET, "상품 번호", "", "참고용 — 저장할 때 자동으로 매겨집니다. 새 상품은 비웁니다.", ""])
     for key, label, _ in PLAN_COLUMNS:
         how, example = _PLAN_GUIDE.get(key, ("", ""))
         guide.append([PLAN_SHEET, label, "필수" if key in PLAN_REQUIRED else "", how, example])
     for letter, width in zip("ABCDE", (12, 24, 14, 80, 36)):
         guide.column_dimensions[letter].width = width
 
+
+def _media_workbook(medias: list[Media]) -> bytes:
+    """매체 · 상품 · 작성 안내 시트 — 다운로드(매체를 채움)와 양식(빈 줄)이 같은 칸 · 같은 순서다."""
+    from openpyxl import Workbook
+
+    sections = _sheet_sections()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = MEDIA_SHEET
+    _write_media_sheet(ws, sections, medias)
+    _write_plan_sheet(wb, medias)
+    _write_guide_sheet(wb, sections)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def media_template_xlsx() -> bytes:
+    """일괄 등록 양식 — 매체 데이터 다운로드와 같은 칸의 빈 통."""
+    return _media_workbook([])
 
 
 # 바뀌기 전 칸 이름·선택값 — 예전에 받아 둔 엑셀을 올려도 읽히게 함께 받는다.
@@ -639,7 +613,7 @@ def _header_key_map() -> dict[str, tuple[str, object]]:
     labels = {label: (key, conv) for _, cols in SECTIONS for key, label, conv in cols}
     for old, new in _OLD_LABELS.items():
         labels[old] = labels[new]
-    for key, label in _TEMPLATE_LABELS.items():
+    for key, label in _SHEET_LABELS.items():
         labels[label] = labels[_label_of(key)]
     return labels
 
@@ -747,6 +721,11 @@ def _parse_plan_cell(key: str, conv, raw):
     return int(number)
 
 
+def _subject(label: str) -> str:
+    """잇는 칸 이름 + 주격 조사 — "연결 번호가" · "매체 ID가"."""
+    return f"{label}가"
+
+
 def _link_key(raw) -> str:
     """연결 번호 — 1 과 1.0, "1" 을 같은 번호로 본다."""
     if ms._is_blank(raw):
@@ -776,7 +755,7 @@ def _read_plans(wb, link_label: str) -> tuple[dict[str, list[tuple[int, dict]]],
             continue
         link = _link_key(row[link_idx] if link_idx < len(row) else None)
         if not link:
-            errors.append({"row": row_no, "media_id": "", "reason": f"상품 시트: {link_label}이 비었습니다."})
+            errors.append({"row": row_no, "media_id": "", "reason": f"상품 시트: {_subject(link_label)} 비었습니다."})
             continue
         plan: dict = {"plan_no": None}
         try:
@@ -838,7 +817,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
     """엑셀 일괄 등록 — 한글 양식이면 여기서, 예전 영문 양식이면 media_service 로 넘긴다.
 
     한글 양식은 어드민 폼과 같은 규칙(필수 칸, 음수, 상품 하나 이상)을 지키고, 매체 ID 는 자동 부여한다.
-    매체와 상품은 "연결 번호"로 잇는다(다운로드 엑셀은 매체 ID로 이어져 있다).
+    매체와 상품은 매체 ID로 잇는다(새 매체는 임시 번호, 예전 양식은 "연결 번호").
     매체 ID 칸에 이미 있는 ID가 적힌 줄(다운로드 엑셀을 그대로 올린 경우)은 건너뛴다(수정하지 않음).
     반환: {total, inserted, skipped, failed, errors}. 한 줄이 실패해도 나머지는 계속 넣는다.
     """
@@ -863,12 +842,12 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
             columns.append((idx, *found))
     names = {key: label for _, cols in SECTIONS for key, label, _ in cols}
     # 양식으로 올렸으면 오류 문구도 양식의 칸 이름으로
-    names.update({k: label for k, label in _TEMPLATE_LABELS.items() if label in header})
+    names.update({k: label for k, label in _SHEET_LABELS.items() if label in header})
     existing_ids = {r[0] for r in db.query(Media.media_id).all()}
     skip_keys = {"media_id", "created_at", "updated_at"} | _PLAN_DERIVED
 
-    # 매체와 상품을 잇는 칸 — 업로드 양식은 연결 번호, 다운로드 엑셀은 매체 ID.
-    link_label = LINK_LABEL if LINK_LABEL in header else "매체 ID"
+    # 매체와 상품을 잇는 칸 — 지금 양식 · 다운로드는 매체 ID(새 매체는 임시 번호), 예전 양식은 연결 번호.
+    link_label = LINK_LABEL if LINK_LABEL in header else MEDIA_ID_LABEL
     link_idx = header.index(link_label) if link_label in header else None
     plans_by_link, plan_errors = _read_plans(wb, link_label)
 
@@ -922,7 +901,10 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
             continue
         link = _link_key(row[link_idx] if link_idx is not None and link_idx < len(row) else None)
         if not link:
-            fail(row_no, f"{link_label}이 비었습니다. 상품 시트와 잇는 번호를 적어 주세요.")
+            fail(
+                row_no,
+                f"{_subject(link_label)} 비었습니다. 새 매체는 1, 2, 3처럼 번호를 적고 상품 시트에도 같은 번호를 적어 주세요.",
+            )
             continue
         if link in seen_links:
             fail(row_no, f"{link_label} {link}이(가) 다른 줄과 겹칩니다.")

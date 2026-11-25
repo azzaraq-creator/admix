@@ -1,11 +1,11 @@
 "use client";
 
-import { Button, Chip, Pagination } from "@heroui/react";
+import { Button, Checkbox, Chip, Label, Pagination } from "@heroui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
-import { PARTICIPANT_STATUS_LABEL } from "@/lib/adminCollab";
+import { marketingStatus, PARTICIPANT_STATUS_LABEL } from "@/lib/adminCollab";
 import {
   COLLAB_PHASE_LABEL,
   type CollabPhase,
@@ -111,6 +111,88 @@ export function ParticipantChip({ status }: { status: ParticipantStatus }) {
     <Chip size="sm" variant="soft" color={STATUS_COLOR[status]}>
       {PARTICIPANT_STATUS_LABEL[status]}
     </Chip>
+  );
+}
+
+/**
+ * 마케팅 정보 수신 값 — 제휴사 · 광고주 회원 목록 · 상세(11-24 사용자).
+ * "동의 · 문자 · 이메일"(받을 방법은 흐리게) · "비동의"(흐리게). 예전 서버라 값이 없으면 "-".
+ */
+export function MarketingValue({
+  member,
+}: {
+  member: Parameters<typeof marketingStatus>[0];
+}) {
+  const status = marketingStatus(member);
+  if (!status) return <span className="text-disabled">-</span>;
+  if (!status.agreed) return <span className="text-disabled">비동의</span>;
+  return (
+    <span>
+      동의
+      {status.channels && (
+        <span className="text-disabled"> · {status.channels}</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * HeroUI 체크박스를 원래 모양으로 — 보라 체크 + 6px 모서리 네모(전역 accent · radius가 shadcn용이라 그대로면 연보라 원).
+ * 회원 내 정보의 받을 방법 체크(HEROUI_CHECKBOX_SCOPE)와 같다.
+ */
+const CHECKBOX_SCOPE =
+  "[--app-accent:var(--accent)] [--app-accent-foreground:var(--accent-foreground)] [--app-radius:0.46875rem]";
+
+/**
+ * 마케팅 정보 수신 — 회원 상세용 체크박스(11-24 사용자: "체크박스형식으로 보여줘").
+ * 문자 · 이메일을 읽기 전용으로 — 동의하지 않았으면 둘 다 빈 칸. 목록 표는 글(MarketingValue) 그대로.
+ */
+export function MarketingChecks({
+  member,
+}: {
+  member: Parameters<typeof marketingStatus>[0];
+}) {
+  const status = marketingStatus(member);
+  if (!status) return <span className="text-disabled">-</span>;
+  const items = [
+    { key: "sms", label: "문자", on: status.sms },
+    { key: "email", label: "이메일", on: status.email },
+  ];
+  return (
+    <span
+      role="group"
+      aria-label={
+        status.agreed ? "마케팅 정보 수신 동의" : "마케팅 정보 수신 비동의"
+      }
+      className="flex flex-wrap items-center gap-x-[16px] gap-y-[6px]"
+    >
+      {items.map((item) => (
+        // 읽기 전용 — 마우스를 올려도 손가락 모양이 되지 않게(의뢰서 확인 체크와 같다).
+        <Checkbox
+          key={item.key}
+          isSelected={item.on}
+          isReadOnly
+          className={cn(CHECKBOX_SCOPE, "cursor-default [&_*]:cursor-default")}
+        >
+          <Checkbox.Content className="items-center gap-[6px]">
+            {/* 빈 칸도 흰 카드 위에서 보이게 회색 테두리(회원 내 정보와 같다). */}
+            <Checkbox.Control className="border border-gray-300 in-data-[selected=true]:border-accent in-data-[selected=true]:bg-accent">
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            {/* Checkbox.Content 가 이미 <label> 이라 글자는 span 으로(label 안 label 방지). */}
+            <Label
+              elementType="span"
+              className={cn(
+                "text-sm font-medium",
+                item.on ? "text-black" : "text-disabled",
+              )}
+            >
+              {item.label}
+            </Label>
+          </Checkbox.Content>
+        </Checkbox>
+      ))}
+    </span>
   );
 }
 

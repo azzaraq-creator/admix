@@ -1831,6 +1831,10 @@ def _member_summary(u: User, stores: list[PartnersStore]) -> dict:
         updatedAt=_latest_iso(u.updated_at, reg.updated_at if reg else None),
         # 마지막 로그인(091, 2026-11-16 사용자) — 기록이 없으면 None.
         lastLoginAt=u.last_login_at.isoformat() if u.last_login_at else None,
+        # 마케팅 정보 수신 동의 · 받을 방법(083) — 어드민 회원 목록 · 상세에 보인다(2026-11-24 사용자). 방법은 동의했을 때만 뜻이 있다.
+        marketingConsent=u.marketing_consent,
+        marketingSms=u.marketing_sms,
+        marketingEmail=u.marketing_email,
         agreedAt=u.partner_agreed_at.isoformat() if u.partner_agreed_at else None,
         agreementVersion=u.partner_agreement_version,
         # 협약서 문서번호(097) — 협약서 PDF 에 들어간다.

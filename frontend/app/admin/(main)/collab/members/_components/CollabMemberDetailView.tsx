@@ -61,7 +61,7 @@ import {
 } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import { openFileInNewTab } from "../../_components/collabUi";
+import { MarketingChecks, openFileInNewTab } from "../../_components/collabUi";
 import { StoreSearchModal } from "../../_components/StoreSearchModal";
 
 const MEMBERS_HREF = "/admin/collab/members";
@@ -77,10 +77,11 @@ const BIZ_FILE_ACCEPT =
   ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
 const BIZ_FILE_MAX = 10 * 1024 * 1024;
 
-const BIZ_GUIDE: Record<BizCode, string> = {
+const BIZ_GUIDE: Record<BizCode, string | null> = {
   unregistered:
     "아직 사업자등록증을 올리지 않았어요. 협약은 할 수 있고, 등록증을 받아 인증해야 콜라보 기능이 열려요. 받은 등록증은 여기서 바로 올릴 수 있어요.",
-  reviewing: "등록증을 올렸어요. 파일을 확인하고 인증 완료 또는 반려해 주세요.",
+  // 검토 대기는 안내 글 없이 — 파일 · 인증 완료 · 반려 버튼만(11-24 사용자: "이 문구 빼줘").
+  reviewing: null,
   // 임시 승인은 없앴다(11-18 사용자) — 예전에 임시 승인한 회원만 이 상태로 남아 있다.
   provisional:
     "예전에 임시 승인한 회원이에요. 등록증을 받아 올리고 인증 완료로 바꿔 주세요.",
@@ -266,7 +267,8 @@ function StoreInfoSection({ member }: { member: AdminPartnerMember }) {
   const empty = (value: string | null | undefined) =>
     value || <span className="text-disabled">없음</span>;
   return (
-    <Section title="매장 정보" desc="가입할 때 적은 내용이에요.">
+    // 제목 옆 "가입할 때 적은 내용이에요." 는 뺐다(11-24 사용자: "이거 빼줘").
+    <Section title="매장 정보">
       <dl className="grid gap-x-[20px] gap-y-[16px] sm:grid-cols-2">
         <MetaItem label="상호">{empty(member.bizName)}</MetaItem>
         <MetaItem label="사업자 번호">{empty(member.bizNo)}</MetaItem>
@@ -400,9 +402,11 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
       right={<BizChip status={status} />}
       className={highlight ? "bg-primary-50" : undefined}
     >
-      <p className="text-sm leading-[22px] text-tone-4a5565">
-        {BIZ_GUIDE[status]}
-      </p>
+      {BIZ_GUIDE[status] && (
+        <p className="text-sm leading-[22px] text-tone-4a5565">
+          {BIZ_GUIDE[status]}
+        </p>
+      )}
 
       {/* 기록은 한 상자에 이름표 | 값 줄로(파일 · 임시 승인 · 인증 완료 · 반려 사유). 처리할 차례(옅은 보라 카드)면 상자는 흰 바탕. */}
       <dl
@@ -1113,22 +1117,16 @@ function StoresSection({ member }: { member: AdminPartnerMember }) {
           ))}
         </ul>
       )}
-      {/* 매장 상세의 "회원 검색"처럼 — 검색 창에서 골라 바로 연결한다(2026-11-10 사용자). 설명은 제목 옆에서 버튼 옆 작은 글자로. */}
-      <div className="flex flex-col gap-[8px] sm:flex-row sm:items-center sm:gap-[12px]">
-        <Button
-          variant="primary"
-          className={`${BIG} w-full shrink-0 sm:w-fit`}
-          isDisabled={link.isPending}
-          onPress={() => setSearching(true)}
-        >
-          <Search className="size-[16px]" />
-          {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
-        </Button>
-        <p className="text-xs leading-[18px] text-disabled">
-          어드민에 등록한 매장을 골라 연결해요. 다른 회원이 연결된 매장이면 함께
-          연결돼요.
-        </p>
-      </div>
+      {/* 매장 상세의 "회원 검색"처럼 — 검색 창에서 골라 바로 연결한다(2026-11-10 사용자). 버튼 옆 설명 글은 뺐다(11-24 사용자: "이거 빼줘"). */}
+      <Button
+        variant="primary"
+        className={`${BIG} w-full shrink-0 sm:w-fit`}
+        isDisabled={link.isPending}
+        onPress={() => setSearching(true)}
+      >
+        <Search className="size-[16px]" />
+        {link.isPending ? "연결 중…" : "매장 검색해서 연결"}
+      </Button>
       <StoreSearchModal
         isOpen={searching}
         onOpenChange={setSearching}
@@ -1276,6 +1274,10 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         <MetaItem label="가입일시">{dotDateTime(member.createdAt)}</MetaItem>
         <MetaItem label="마지막 업데이트">
           {dotDateTime(member.updatedAt)}
+        </MetaItem>
+        {/* 받을 방법(문자 · 이메일, 083)을 체크박스로 — 새 콜라보 알림을 어디로 보낼지(11-24 사용자). */}
+        <MetaItem label="마케팅 수신">
+          <MarketingChecks member={member} />
         </MetaItem>
       </dl>
       <Separator />

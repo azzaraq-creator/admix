@@ -6,6 +6,8 @@ export type MediaListSort = "created" | "updated" | "id";
 
 export interface MediaListParams extends AdminListParams {
   type?: string;
+  /** 카테고리(대분류) — 어드민 매체 목록 검색(11-25). */
+  category?: string;
   sort?: MediaListSort;
   order?: "asc" | "desc";
 }

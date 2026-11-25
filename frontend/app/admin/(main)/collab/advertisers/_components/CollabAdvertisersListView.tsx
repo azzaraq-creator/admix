@@ -26,7 +26,11 @@ import { isOptimizable, mediaSrc } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 import { BizReviewQueue } from "../../_components/BizReviewQueue";
-import { CollabPageHead, SimplePager } from "../../_components/collabUi";
+import {
+  CollabPageHead,
+  MarketingValue,
+  SimplePager,
+} from "../../_components/collabUi";
 
 type Row = AdminAdvertiserMember & { no: string };
 type Brand = AdminAdvertiserMember["brands"][number];
@@ -144,6 +148,13 @@ const columnList: TableColumn<Row>[] = [
       ) : (
         <span className="whitespace-nowrap text-disabled">등록 전</span>
       ),
+  },
+  {
+    // 마케팅 정보 수신 동의 · 받을 방법(083, 11-24 사용자).
+    name: "marketingConsent",
+    label: "마케팅 수신",
+    className: NOWRAP,
+    renderer: (m) => <MarketingValue member={m} />,
   },
   {
     name: "createdAt",
@@ -351,6 +362,11 @@ export function CollabAdvertisersListView() {
                   {m.lastLoginAt && (
                     <span className="text-disabled">
                       로그인 {dotDateTime(m.lastLoginAt)}
+                    </span>
+                  )}
+                  {m.marketingConsent != null && (
+                    <span className="text-disabled">
+                      마케팅 {m.marketingConsent ? "동의" : "비동의"}
                     </span>
                   )}
                 </div>

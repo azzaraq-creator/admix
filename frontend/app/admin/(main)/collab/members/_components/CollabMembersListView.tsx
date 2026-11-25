@@ -18,7 +18,11 @@ import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 import { BizReviewQueue } from "../../_components/BizReviewQueue";
-import { CollabPageHead, PageNav } from "../../_components/collabUi";
+import {
+  CollabPageHead,
+  MarketingValue,
+  PageNav,
+} from "../../_components/collabUi";
 
 const MEMBERS_HREF = "/admin/collab/members";
 
@@ -120,6 +124,12 @@ const COLUMNS: MemberTableColumn[] = [
       ) : (
         muted("연결 전")
       ),
+  },
+  {
+    // 마케팅 정보 수신 동의 · 받을 방법(083, 11-24 사용자).
+    id: "marketing",
+    label: "마케팅 수신",
+    render: (m) => <MarketingValue member={m} />,
   },
   {
     // 회원 정보 · 사업자 등록(올림 · 임시 승인 · 인증) 중 늦은 쪽.
@@ -483,6 +493,11 @@ export function CollabMembersListView() {
                       {m.lastLoginAt && (
                         <span className="text-disabled">
                           로그인 {formatDateTime(m.lastLoginAt)}
+                        </span>
+                      )}
+                      {m.marketingConsent != null && (
+                        <span className="text-disabled">
+                          마케팅 {m.marketingConsent ? "동의" : "비동의"}
                         </span>
                       )}
                     </div>
