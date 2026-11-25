@@ -356,14 +356,17 @@ def agree(
         if started is None or (user.partner_agreed_at is not None and started <= user.partner_agreed_at):
             started = now
         # 요청일시(098, 2026-11-19 사용자: "회원가입 후 작성하라고 넘어가는 단계의 시간") — 처음 협약은 가입 시각.
-        # 다시 하는 협약은 다시 해야 하게 된 때 — 해지로 끝났으면 종료일(KST 0시), 판이 바뀌었으면 새 판을 처음 연 때(작성 시작).
+        # 다시 하는 협약은 다시 해야 하게 된 때 — 해지로 끝났으면 종료일(KST 0시),
+        # 판이 바뀌었으면 협약서 화면을 처음 연 때(mark_renew_requested, 2026-11-25 사용자 — 예전엔 작성 시작과 같은 시각이라 "이상해").
+        # 화면을 연 기록이 없으면(그 전에 열었던 회원) 작성 시작으로.
         if user.partner_agreed_at is None:
             requested = user.created_at or started
         elif user.partner_agreement_ended:
             end = user.partner_termination_effective_on
             requested = datetime(end.year, end.month, end.day, tzinfo=_KST)
         else:
-            requested = started
+            opened = user.partner_agreement_requested_at
+            requested = min(opened, started) if opened is not None and opened > user.partner_agreed_at else started
         user.partner_signature_url = _save_signature(user, signature)
         user.partner_signer_name = name
         user.partner_signer_role = signer_role
@@ -422,6 +425,18 @@ def agreement_progress(user: User) -> object:
     if tag is not None and not (isinstance(progress, dict) and progress.get(RENEW_KEY) == tag):
         return None
     return progress
+
+
+def mark_renew_requested(db: Session, user: User) -> None:
+    """예전 판에 동의한 회원이 협약서 화면을 처음 연 때를 요청일시로 적어 둔다(2026-11-25 사용자: 다시 하는 협약의 요청일시 =
+    "협약서 화면을 처음 연 때"). 서명하면 agree 가 이 값을 표지 · 협약 이력에 쓴다. 이미 이번 판 것으로 적혀 있으면 그대로.
+    처음 협약은 가입 시각, 해지로 끝난 협약은 종료일이라 여기서 적지 않는다."""
+    if user.member_category != "partner" or not user.partner_agreement_outdated or user.partner_agreement_ended:
+        return
+    opened = user.partner_agreement_requested_at
+    if opened is None or opened <= user.partner_agreed_at:
+        user.partner_agreement_requested_at = datetime.now(timezone.utc)
+        db.commit()
 
 
 def save_agreement_progress(db: Session, user: User, progress: object) -> dict:
@@ -818,6 +833,16 @@ def _lead_of(db: Session, store: PartnersStore) -> CollabLead | None:
     if store.id is None:
         return None
     return db.query(CollabLead).filter(CollabLead.store_id == store.id).first()
+
+
+def _follow_lead(db: Session, store: PartnersStore) -> None:
+    """협업 확정으로 만든 매장이면 고친 값을 그 영업 기록에도 적는다(2026-11-25 사용자: "수정 요청을 반영하면 영업 기록도 같이").
+    sync_media 보다 먼저 — 매장이 비공개면 지도엔 영업 기록이 뜨는데, 그 줄이 새 값으로 그려지게."""
+    lead = _lead_of(db, store)
+    if lead is not None:
+        from src.services import collab_lead_service  # 그쪽이 이 모듈을 가져다 쓴다
+
+        collab_lead_service.follow_store(lead, store)
 
 
 def fill_media(
@@ -1573,6 +1598,7 @@ def admin_update(db: Session, store_id: str, data: dict) -> dict:
         set_members(store, users)
     _apply_store_type(db, store, data)
     _apply(store, data, admin=True)
+    _follow_lead(db, store)
     sync_media(db, store)
     db.commit()
     db.refresh(store)
@@ -1747,6 +1773,7 @@ def admin_update_request(db: Session, request_id: str, data: dict) -> dict:
                 raise HTTPException(status_code=404, detail="매장을 찾을 수 없어요.")
             r.before_text = _store_text(store, r.field)
             _apply(store, _apply_data(r.field, r.after_value), admin=True)
+            _follow_lead(db, store)  # 영업 기록에도(11-25)
             sync_media(db, store)
         r.status = status
         r.handled_at = now if status in ("done", "rejected") else None

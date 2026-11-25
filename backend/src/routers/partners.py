@@ -119,9 +119,12 @@ class PartnerAgreementIn(BaseModel):
 
 
 @router.get("/me/agreement/progress")
-def agreement_progress(user: User = Depends(get_current_user)) -> dict:
-    """기본협약 진행 상태 — 동의 전에 저장해 둔 곳(없으면 null)."""
-    return {"progress": partners_service.agreement_progress(user)}
+def agreement_progress(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """기본협약 진행 상태 — 동의 전에 저장해 둔 곳(없으면 null).
+    협약서 화면이 열 때 부른다 — 예전 판에 동의한 회원이면 이때를 다시 하는 협약의 요청일시로 적는다(11-25)."""
+    progress = partners_service.agreement_progress(user)
+    partners_service.mark_renew_requested(db, user)
+    return {"progress": progress}
 
 
 @router.put("/me/agreement/progress")

@@ -70,23 +70,12 @@ const BIG_BLOCK = `${BIG} w-full sm:w-auto`;
 
 type BizCode = AdminPartnerMember["bizStatus"];
 
-/** 사업자 상태마다 한 줄 안내 — 담당자가 지금 무엇을 하면 되는지. */
 /** 사업자등록증 파일 — 회원이 올릴 때와 같은 규칙(PDF · JPG · PNG, 10MB, 서버 member_service). */
 const BIZ_FILE_ACCEPT =
   ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
 const BIZ_FILE_MAX = 10 * 1024 * 1024;
 
-const BIZ_GUIDE: Record<BizCode, string | null> = {
-  unregistered:
-    "아직 사업자등록증을 올리지 않았어요. 협약은 할 수 있고, 등록증을 받아 인증해야 콜라보 기능이 열려요. 받은 등록증은 여기서 바로 올릴 수 있어요.",
-  // 검토 대기는 안내 글 없이 — 파일 · 인증 완료 · 반려 버튼만(11-24 사용자: "이 문구 빼줘").
-  reviewing: null,
-  // 임시 승인은 없앴다(11-18 사용자) — 예전에 임시 승인한 회원만 이 상태로 남아 있다.
-  provisional:
-    "예전에 임시 승인한 회원이에요. 등록증을 받아 올리고 인증 완료로 바꿔 주세요.",
-  verified: "사업자 인증을 마쳤어요.",
-  rejected: "반려한 상태예요. 다시 올리면 검토 대기로 바뀌어요.",
-};
+// 사업자 인증 카드의 상태별 안내 글은 모두 뺐다 — 상태 칩 · 기록 · 버튼만(11-24 검토 대기, 11-25 나머지 사용자: "이런 문구 빼줘").
 
 /** 사업자 상태 칩 색(HeroUI Chip). */
 const BIZ_CHIP_COLOR: Record<
@@ -401,12 +390,6 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
       right={<BizChip status={status} />}
       className={highlight ? "bg-primary-50" : undefined}
     >
-      {BIZ_GUIDE[status] && (
-        <p className="text-sm leading-[22px] text-tone-4a5565">
-          {BIZ_GUIDE[status]}
-        </p>
-      )}
-
       {/* 기록은 한 상자에 이름표 | 값 줄로(파일 · 임시 승인 · 인증 완료 · 반려 사유). 처리할 차례(옅은 보라 카드)면 상자는 흰 바탕. */}
       <dl
         className={cn(

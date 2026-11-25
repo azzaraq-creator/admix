@@ -295,6 +295,8 @@ function LeadForm({
     JSON.stringify(toPayload(initial, fields));
   const saving = create.isPending || update.isPending;
   const label = (key: string) => labelOf(meta, key);
+  // 협업 확정한 기록 — 업체명 · 주소 · 매장 정보는 매장 값이 기준이라 여기선 잠근다(매장에서 고치면 여기도 바뀐다, 11-25 사용자).
+  const storeOwned = !!lead?.storeId;
   const facet = (key: LeadFacetKey) => meta?.facets[key] ?? [];
 
   // 칸 설정에 없는 추가 항목 값(원본에만 있던 칸)도 빠뜨리지 않고 뒤에 보인다.
@@ -416,12 +418,18 @@ function LeadForm({
     await leadConfirm.cancel(lead);
   };
 
-  const text = (key: keyof FormState, ariaLabel: string, type = "text") => (
+  const text = (
+    key: keyof FormState,
+    ariaLabel: string,
+    type = "text",
+    disabled = false,
+  ) => (
     <Input
       variant="secondary"
       fullWidth
       type={type}
       aria-label={ariaLabel}
+      disabled={disabled}
       value={String(form[key] ?? "")}
       onChange={(e) => set(key, e.target.value as never)}
     />
@@ -577,21 +585,29 @@ function LeadForm({
         </Tabs.ListContainer>
 
         <Tabs.Panel id="info" shouldForceMount className={PANEL_CLASS}>
-          <CollabSection title="업체 정보">
+          <CollabSection
+            title="업체 정보"
+            desc={
+              storeOwned && lead ? (
+                <StoreOwnedNote lead={lead} what="업체명 · 주소는 " />
+              ) : undefined
+            }
+          >
             <Grid>
               <HeroField label={label("name")} required>
-                {text("name", label("name"))}
+                {text("name", label("name"), "text", storeOwned)}
               </HeroField>
               <HeroField label={label("type")}>{combo("type")}</HeroField>
               <HeroField label={label("region")}>{combo("region")}</HeroField>
               <HeroField label={label("grade")}>{combo("grade")}</HeroField>
               <Wide>
                 <HeroField label={label("address")}>
-                  {text("address", label("address"))}
+                  {text("address", label("address"), "text", storeOwned)}
                 </HeroField>
               </Wide>
               {lotField && (
                 <LotAddressField
+                  disabled={storeOwned}
                   label={lotField.label}
                   base={form.custom[lotField.key] ?? ""}
                   detail={form.custom[LEAD_LOT_DETAIL_KEY] ?? ""}
@@ -606,21 +622,12 @@ function LeadForm({
           <CollabSection
             title="매장 정보"
             desc={
-              lead?.storeId ? (
-                <>
-                  협업 확정한 뒤로는 협업 확정 매장({lead.storeCode})에서
-                  고쳐요. 여기서 고쳐도 매장은 바뀌지 않아요.{" "}
-                  <Link
-                    href={`${STORES_HREF}/${lead.storeId}/edit`}
-                    className="font-semibold text-black underline"
-                  >
-                    매장 정보 고치기
-                  </Link>
-                </>
+              storeOwned && lead ? (
+                <StoreOwnedNote lead={lead} after=" · 자동 반영" />
               ) : undefined
             }
           >
-            <Grid>
+            <Grid locked={storeOwned}>
               {/* 협업 확정할 때 매장 공개 상태(11-19 사용자, 기본 공개). 확정 뒤엔 매장의 지금 상태를 보여 주고 매장에서 바꾼다. */}
               <HeroField
                 label="공개 상태"
@@ -920,6 +927,32 @@ function LeadForm({
   );
 }
 
+/**
+ * 협업 확정한 기록의 잠긴 칸 안내 — 매장에서 고치면 여기 적힌다(11-25).
+ * 사용자: "요체 빼고 간략하게, 강조해서" — 회색 설명 대신 글자 색만 한 단계(보라).
+ */
+function StoreOwnedNote({
+  lead,
+  what = "",
+  after = "",
+}: {
+  lead: CollabLead;
+  what?: string;
+  after?: string;
+}) {
+  return (
+    <span className="text-primary-700">
+      {what}협업 확정 매장({lead.storeCode})에서만 수정{after}{" "}
+      <Link
+        href={`${STORES_HREF}/${lead.storeId}/edit`}
+        className="font-semibold underline"
+      >
+        매장 정보 고치기
+      </Link>
+    </span>
+  );
+}
+
 /** 추가 항목 칸 하나 — 칸 설정의 종류(text · number · date · textarea)대로. 주소(https://…)면 아래에 열기 링크. */
 function CustomField({
   field,
@@ -975,12 +1008,15 @@ function CustomField({
  * (도로명을 골라도 지번으로). 층 · 호수 같은 상세 주소는 옆 칸에 따로 적는다(2026-11-12 사용자). 원본 값은 그대로 보인다.
  */
 function LotAddressField({
+  disabled = false,
   label,
   base,
   detail,
   onBase,
   onDetail,
 }: {
+  /** 협업 확정한 기록 — 매장에서 고친다(11-25). */
+  disabled?: boolean;
   label: string;
   base: string;
   detail: string;
@@ -1009,6 +1045,7 @@ function LotAddressField({
               variant="secondary"
               fullWidth
               readOnly
+              disabled={disabled}
               aria-label={label}
               placeholder="주소를 검색해 주세요"
               value={base}
@@ -1026,6 +1063,7 @@ function LotAddressField({
               variant="secondary"
               className="shrink-0 max-sm:w-[40px] max-sm:px-0"
               aria-label="주소 검색"
+              isDisabled={disabled}
               onPress={() => setOpen(true)}
             >
               <Search className="size-[16px]" />
@@ -1038,6 +1076,7 @@ function LotAddressField({
             variant="secondary"
             fullWidth
             aria-label="상세 주소"
+            disabled={disabled}
             placeholder="층 · 호수 등"
             value={detail}
             onChange={(e) => onDetail(e.target.value)}
@@ -1053,9 +1092,22 @@ function LotAddressField({
   );
 }
 
-function Grid({ children }: { children: ReactNode }) {
+/** locked — 협업 확정한 기록의 매장 정보처럼 매장에서 고치는 칸(누르거나 고를 수 없게, 흐리게). */
+function Grid({
+  children,
+  locked = false,
+}: {
+  children: ReactNode;
+  locked?: boolean;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
+    <div
+      inert={locked}
+      className={cn(
+        "grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2",
+        locked && "opacity-[var(--disabled-opacity)]",
+      )}
+    >
       {children}
     </div>
   );

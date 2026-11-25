@@ -283,8 +283,8 @@ function PreviewCard({
             className="h-[16px] w-[18px] shrink-0"
           />
         }
+        // 설명 줄 없음(11-25 사용자 "이 문구 없애줘" — 예전 "admix 홈 매체 찾기 목록에 이 카드로 보여요.").
         title="광고주에게 보이는 화면"
-        description="admix 홈 매체 찾기 목록에 이 카드로 보여요."
       />
       <PreviewFrame store={store} onOpen={onOpen} />
     </PanelCard>
@@ -536,11 +536,11 @@ function ProfileCard({
     },
   ];
   const biz = BIZ[bizStatus];
-  // 매체 찾기에 안 보이는 까닭 — 비공개이거나 주소 좌표가 없을 때(서버 sync_media).
-  const hiddenReason = store.mediaId
-    ? null
-    : store.status === "hidden"
-      ? "관리자가 비공개로 둔 매장이에요."
+  // 매체 찾기에 안 보이는 까닭 — 주소 좌표가 없을 때만 알린다(서버 sync_media).
+  // 비공개 매장은 알리지 않는다(11-25 사용자 "비공개여도 이거 안 뜨게" — 예전 "관리자가 비공개로 둔 매장이에요.").
+  const hiddenReason =
+    store.mediaId || store.status === "hidden"
+      ? null
       : "주소로 위치를 찾지 못했어요. 주소 줄을 눌러 바른 주소를 알려 주세요.";
 
   return (
@@ -739,14 +739,15 @@ function PhotoAlbum({
       <SectionHead
         icon={<MaskIcon src="/icons/camera.svg" className="size-[18px]" />}
         title="우리 매장 사진첩"
+        // 짧게, 요체 없이(11-25 사용자 "말을 줄여줘. 요체 쓰지 말고" — 예전 "분류마다 ★ 대표 사진이 광고주에게 먼저 보여요.").
         description={
           <>
-            분류마다{" "}
+            분류별{" "}
             <Star
               aria-hidden
               className="mb-[2px] inline size-[11px] fill-current text-primary-600"
             />{" "}
-            대표 사진이 광고주에게 먼저 보여요.
+            대표 사진 먼저 노출
           </>
         }
         right={
@@ -832,7 +833,8 @@ function PhotoAlbum({
         </>
       ) : (
         <p className="flex min-h-[140px] items-center justify-center rounded-[18px] bg-gray-50 px-[16px] text-center text-[13px] break-keep text-gray-400">
-          아직 사진이 없어요. 담당자가 매장을 방문하면 올려 드려요.
+          {/* 11-25 사용자 "아직 사진이 없어요. 문구 없애줘" — 빈 칸이라 없다는 말은 빼고 안내만. */}
+          담당자가 매장을 방문하면 올려 드려요.
         </p>
       )}
     </PanelCard>

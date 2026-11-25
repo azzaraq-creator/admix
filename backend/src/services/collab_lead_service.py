@@ -5,6 +5,7 @@ API 는 원본 영업 앱(sales_records.data)과 같은 칸 이름(camelCase)으
 """
 from __future__ import annotations
 
+import copy
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -422,8 +423,11 @@ def create_lead(db: Session, data: dict) -> dict:
 
 
 def update_lead(db: Session, lead_id: str, data: dict) -> dict:
-    """보낸 칸만 바꾼다. 제휴사 회원 연결이 바뀌면 협업 확정 매장도 맞춘다(_sync_partner_store)."""
+    """보낸 칸만 바꾼다. 제휴사 회원 연결이 바뀌면 협업 확정 매장도 맞춘다(_sync_partner_store).
+    협업 확정한 기록은 매장이 가진 칸(업체명 · 주소 · 위치 · 매장 정보)을 받지 않는다 — 매장에서 고치면 여기에 적힌다(follow_store)."""
     lead = _get(db, lead_id)
+    if lead.store_id:
+        data = _without_store_owned(lead, data)
     prev_partner = lead.partner_user_id
     prev_address = _store_address_of(lead)[0]
     try:
@@ -645,6 +649,83 @@ def delete_lead(db: Session, lead_id: str) -> None:
     _drop_media(db, lead)  # 지도 줄도(090) — 협업 확정 매장이 이어받은 줄은 매장 것이라 그대로
     db.delete(lead)
     db.commit()
+
+
+# ── 협업 확정 매장 → 영업 기록(2026-11-25 사용자) ─────────────────────
+# "수정 요청을 반영하면 협업 확정 매장이랑 영업 기록 둘 다 바뀌게" — 확정한 뒤로는 매장 값이 기준이다.
+# 매장을 고치면(어드민 매장 수정 · 수정 요청 처리 완료) 그 영업 기록의 업체명 · 주소 · 위치 · 매장 정보(092)를 매장 값으로 다시 적고,
+# 영업 기록 화면에서는 이 칸들을 고치지 않는다(update_lead 가 버린다). 매장 사진은 예전처럼 확정할 때 한 번만 옮긴다.
+# 매장이 비공개면 지도엔 영업 기록이 대신 뜨는데(090), 이렇게 맞춰 둬야 옛 이름 · 주소로 뜨지 않는다.
+
+STORE_OWNED_KEYS = ("name", "address", "storeInfo", "location")
+
+
+def _without_store_owned(lead: CollabLead, data: dict) -> dict:
+    """협업 확정한 기록에 저장할 값 — 매장이 가진 칸은 빼고, 추가 항목 안 지번주소 · 상세 주소는 지금 값 그대로."""
+    out = {k: v for k, v in data.items() if k not in STORE_OWNED_KEYS}
+    if isinstance(out.get("custom"), dict):
+        custom = dict(out["custom"])
+        now = lead.custom or {}
+        for key in (LOT_ADDRESS_KEY, LOT_DETAIL_KEY):
+            if key in now:
+                custom[key] = now[key]
+            else:
+                custom.pop(key, None)
+        out["custom"] = custom
+    return out
+
+
+def _store_owned_values(lead: CollabLead) -> tuple:
+    return (
+        lead.name,
+        lead.address,
+        dict(lead.custom or {}),
+        lead.latitude,
+        lead.longitude,
+        lead.city,
+        lead.district,
+        dict(lead.store_info or {}),
+    )
+
+
+def follow_store(lead: CollabLead, store) -> bool:
+    """매장 값을 영업 기록에 적는다(커밋은 부르는 쪽에서). 바뀐 게 있으면 True — 그때만 수정 시각을 고친다.
+
+    주소는 영업 기록이 쓰던 칸에 — "주소" 칸을 썼으면 주소 + 상세 주소를 그 칸에(확정 때 통째로 옮긴 것과 같은 모양),
+    지번주소로 확정했으면 지번주소 · 상세 주소 칸에.
+    """
+    before = _store_owned_values(lead)
+    lead.name = store.name
+    address = (store.address or "").strip()
+    detail = (store.address_detail or "").strip()
+    custom = dict(lead.custom or {})
+    if (lead.address or "").strip() or not str(custom.get(LOT_ADDRESS_KEY) or "").strip():
+        lead.address = " ".join(t for t in (address, detail) if t)[:300] or None
+    else:
+        custom[LOT_ADDRESS_KEY] = address
+        if detail:
+            custom[LOT_DETAIL_KEY] = detail
+        else:
+            custom.pop(LOT_DETAIL_KEY, None)
+        lead.custom = custom
+    lead.latitude, lead.longitude = store.latitude, store.longitude
+    lead.city, lead.district = store.city, store.district
+    info = {
+        "status": store.status if store.status in STORE_STATUSES else None,
+        "storeTypeId": store.store_type_id,
+        "phone": store.phone,
+        "ownerName": store.owner_name,
+        "mainCustomers": store.main_customers,
+        "intro": store.intro,
+        "seats": store.seats,
+        "hours": copy.deepcopy(store.hours),
+        "scope": dict(store.scope or {}),
+    }
+    lead.store_info = {k: v for k, v in info.items() if v not in (None, "", [], {})}  # 비운 값은 넣지 않는다(092)
+    changed = _store_owned_values(lead) != before
+    if changed:
+        lead.updated_at = datetime.now(timezone.utc)
+    return changed
 
 
 # ── 광고주 지도(090) ────────────────────────────────────────────────────

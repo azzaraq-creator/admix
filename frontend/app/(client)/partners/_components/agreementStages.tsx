@@ -50,7 +50,7 @@ const BIZ_TEXT: Record<string, string> = {
   // 올렸으면 "서명 완료"처럼 완료로(11-18 사용자) — 승인 전이라는 건 아래 설명 글이 말한다.
   reviewing: "등록 완료",
   verified: "인증 완료",
-  provisional: "임시 승인",
+  // provisional(예전 임시 승인)은 이름표 없이 — 11-18에 없앤 상태라 남은 회원에게도 안 보인다(11-25 사용자 "이거 빼줘").
   rejected: "반려 · 다시 올려 주세요",
 };
 
@@ -109,17 +109,18 @@ export function BizLicenseBlock({ className }: { className?: string }) {
             선택
           </span>
         </b>
-        {status !== "unregistered" && (
+        {BIZ_TEXT[status] && (
           <span className="flex items-center gap-[6px] text-[13px] font-semibold text-gray-700">
             <CheckMark on={done} />
-            {BIZ_TEXT[status] ?? status}
+            {BIZ_TEXT[status]}
           </span>
         )}
       </div>
       <p className="mt-[6px] text-[13px] leading-[1.6] break-keep text-gray-600">
         {done
           ? "사업자등록증을 올렸어요. 관리자가 승인해야 콜라보 기능을 쓸 수 있어요."
-          : "지금 안 올려도 협약할 수 있어요. 관리자가 사업자등록증을 승인해야 콜라보 기능을 쓸 수 있어요."}
+          : // 짧게, 요체 없이(11-25 사용자 "앞 문장은 빼고 … 요체가 아니라 간단하게만").
+            "관리자 승인 후 콜라보 기능 사용 가능"}
       </p>
       {status === "rejected" && reg?.reject_reason && (
         <p className="mt-[6px] text-[12px] break-keep text-error">

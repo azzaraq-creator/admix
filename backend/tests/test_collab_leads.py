@@ -469,3 +469,126 @@ def test_confirm_moves_lead_photos_to_store(db: Session):
         if store_id:
             db.query(PartnersStore).filter(PartnersStore.id == uuid.UUID(store_id)).delete(synchronize_session=False)
             db.commit()
+
+
+# ── 협업 확정 매장 → 영업 기록(11-25) ─────────────────────────────────
+FOLLOW_LOC = {"latitude": 37.5445, "longitude": 127.0557, "city": "서울", "district": "성동구"}
+
+
+def _no_kakao(monkeypatch):
+    """매장 주소가 바뀌면 서버가 카카오로 시도 · 구군을 찾는다 — 시험에선 밖으로 나가지 않게."""
+    from src.services import kakao_address
+
+    monkeypatch.setattr(kakao_address, "lookup", lambda address: {"city": "서울", "district": "성동구", **FOLLOW_LOC})
+
+
+def _delete_store(db: Session, store_id: str | None) -> None:
+    """매장을 지운다 — 지도 줄(매체 ID)은 영업 기록이 이어받아 fixture 가 같이 지운다."""
+    from src.services import partners_service as ps
+
+    db.rollback()
+    if store_id:
+        ps.admin_delete(db, store_id)
+
+
+def test_store_changes_follow_to_lead(db: Session, monkeypatch):
+    """11-25 사용자: "수정 요청을 반영하면 협업 확정 매장이랑 영업 기록 둘 다" — 어드민 매장 수정 · 수정 요청 처리 완료 모두
+    영업 기록의 업체명 · 주소 · 위치 · 매장 정보를 매장 값으로 다시 적는다."""
+    from src.models.partners_store import PartnersStoreRequest
+    from src.services import partners_service as ps
+
+    _no_kakao(monkeypatch)
+    name = f"테스트영업-{uuid.uuid4().hex[:6]}"
+    made = ls.create_lead(
+        db, {"name": name, "address": "서울 성동구 연무장길 1", "storeInfo": {"phone": "02-111-1111", "intro": "처음 소개"}}
+    )
+    store_id = None
+    try:
+        out = ls.confirm_lead(db, made["id"], FOLLOW_LOC)
+        store_id = out["store"]["id"]
+
+        ps.admin_update(db, store_id, {"name": f"{name} 2호", "intro": "바꾼 소개", "seats": 30, "scope": {"print": "ok"}})
+        got = ls.get_lead(db, made["id"])
+        assert got["name"] == f"{name} 2호"
+        info = got["storeInfo"]
+        assert info["intro"] == "바꾼 소개" and info["seats"] == 30 and info["scope"] == {"print": "ok"}
+        assert info["phone"] == "02-111-1111"  # 안 고친 칸은 그대로
+
+        sid = uuid.UUID(store_id)
+        hours = {"slots": [{"days": "daily", "open": "10:00", "close": "22:00"}], "closed": ["mon"]}
+        address = {"address": "서울 성동구 성수이로 1", "address_detail": "2층", **FOLLOW_LOC, "latitude": 37.5401}
+        reqs = [
+            PartnersStoreRequest(store_id=sid, field="hours", after_value=hours),
+            PartnersStoreRequest(store_id=sid, field="address", after_value=address),
+            PartnersStoreRequest(store_id=sid, field="owner_name", after_value="김사장"),
+            PartnersStoreRequest(store_id=sid, field="name", after_value=f"{name} 3호"),
+        ]
+        db.add_all(reqs)
+        db.commit()
+        for r in reqs:
+            ps.admin_update_request(db, str(r.id), {"status": "done"})
+        got = ls.get_lead(db, made["id"])
+        assert got["name"] == f"{name} 3호"
+        assert got["address"] == "서울 성동구 성수이로 1 2층"
+        assert abs(got["latitude"] - 37.5401) < 1e-6
+        assert got["storeInfo"]["hours"] == hours and got["storeInfo"]["ownerName"] == "김사장"
+    finally:
+        _delete_store(db, store_id)
+
+
+def test_confirmed_lead_keeps_store_owned_fields(db: Session, monkeypatch):
+    """11-25 — 협업 확정한 기록은 업체명 · 주소 · 지번주소 · 위치 · 매장 정보를 영업 기록에서 고치지 않는다(매장에서 고친다).
+    다른 영업 칸은 그대로 저장된다."""
+    _no_kakao(monkeypatch)
+    made = ls.create_lead(db, {"name": f"테스트영업-{uuid.uuid4().hex[:6]}", "address": "서울 성동구 연무장길 1"})
+    store_id = None
+    try:
+        store_id = ls.confirm_lead(db, made["id"], FOLLOW_LOC)["store"]["id"]
+        before = ls.get_lead(db, made["id"])
+        got = ls.update_lead(
+            db,
+            made["id"],
+            {
+                "name": "바꾸면 안 됨",
+                "address": "서울 성동구 성수이로 99",
+                "storeInfo": {"phone": "010-9999-9999"},
+                "location": {**FOLLOW_LOC, "latitude": 37.6},
+                "custom": {"cf_lot_address": "바꾸면 안 됨", "cf_zone": "연무장"},
+                "note": "메모는 바뀜",
+            },
+        )
+        assert got["name"] == before["name"] and got["address"] == before["address"]
+        assert got["storeInfo"] == before["storeInfo"] and got["latitude"] == before["latitude"]
+        assert "cf_lot_address" not in got["custom"] and got["custom"]["cf_zone"] == "연무장"
+        assert got["note"] == "메모는 바뀜"
+    finally:
+        _delete_store(db, store_id)
+
+
+def test_hidden_store_change_redraws_lead_map_row(db: Session, monkeypatch):
+    """11-25 — 지번주소로 확정한 기록은 지번주소 칸에 적고, 매장이 비공개면 지도에 대신 뜨는 영업 기록 줄도 새 이름 · 주소로."""
+    from src.services import partners_service as ps
+
+    _no_kakao(monkeypatch)
+    lot = "서울 성동구 성수동2가 289-234"
+    made = ls.create_lead(
+        db,
+        {
+            "name": f"테스트영업-{uuid.uuid4().hex[:6]}",
+            "custom": {"cf_lot_address": lot, "cf_lot_address_detail": "3층"},
+            "storeInfo": {"status": "hidden"},
+        },
+    )
+    store_id = None
+    try:
+        store_id = ls.confirm_lead(db, made["id"], FOLLOW_LOC)["store"]["id"]
+        new_name = f"{made['name']} 바꿈"
+        ps.admin_update(db, store_id, {"name": new_name, "address_detail": "4층"})
+        got = ls.get_lead(db, made["id"])
+        assert got["address"] == ""
+        assert got["custom"]["cf_lot_address"] == lot and got["custom"]["cf_lot_address_detail"] == "4층"
+        assert got["storeInfo"]["status"] == "hidden"
+        m = db.get(Media, got["mediaId"])
+        assert m is not None and m.name == new_name and m.address_detail == "4층"
+    finally:
+        _delete_store(db, store_id)

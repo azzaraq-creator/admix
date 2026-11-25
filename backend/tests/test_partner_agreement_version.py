@@ -38,6 +38,15 @@ def test_outdated_agreement_must_sign_again(db: Session, partner):  # noqa: F811
     none_ids = {x["id"] for x in ps.admin_list_members(db, keyword=partner.email, agreement="none")[1]}
     done_ids = {x["id"] for x in ps.admin_list_members(db, keyword=partner.email, agreement="done")[1]}
     assert pid in none_ids and pid not in done_ids
+    # 협약서 화면을 처음 연 때 = 다시 하는 협약의 요청일시(11-25) — 다시 열어도 그대로
+    old_requested = first - timedelta(days=1)
+    partner.partner_agreement_requested_at = old_requested
+    db.commit()
+    ps.mark_renew_requested(db, partner)
+    opened = partner.partner_agreement_requested_at
+    assert opened > first
+    ps.mark_renew_requested(db, partner)
+    assert partner.partner_agreement_requested_at == opened
     # 지난 판 진행 상태는 버리고 처음부터 — 다시 하는 중 저장한 건 그대로
     assert ps.agreement_progress(partner) is None
     ps.save_agreement_progress(db, partner, {"stage": "topics"})
@@ -50,6 +59,12 @@ def test_outdated_agreement_must_sign_again(db: Session, partner):  # noqa: F811
     out = ps.agree(db, partner, PARTNER_AGREEMENT_VERSION, "홍길동", "representative", _SIGNATURE, ip="10.0.0.3")
     assert out["version"] == PARTNER_AGREEMENT_VERSION and partner.partner_agreed_at > first
     assert partner.partner_agreement_outdated is False
+    # 표지 — 요청(화면 연 때) ≤ 작성(첫 저장) ≤ 체결
+    assert partner.partner_agreement_requested_at == opened
+    assert opened <= partner.partner_agreement_started_at <= partner.partner_agreed_at
+    # 동의를 마치면 더 적지 않는다
+    ps.mark_renew_requested(db, partner)
+    assert partner.partner_agreement_requested_at == opened
     assert UserResponse.model_validate(partner).partner_agreed_at == partner.partner_agreed_at
     cs._ensure_agreed(partner)
     m = ps.admin_get_member(db, pid)
