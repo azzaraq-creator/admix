@@ -98,7 +98,7 @@ def import_media(
     db: Session = Depends(get_db),
     _: Admin = Depends(require_permission("media")),
 ) -> dict:
-    """엑셀 일괄등록 — media_id(No) 기준 중복 제외, 없는 행만 삽입."""
+    """엑셀 일괄 등록 · 수정 — 새 매체는 넣고, 매체 ID가 있는 줄은 그 매체를 고친다(바뀐 게 없으면 그대로)."""
     filename = (file.filename or "").lower()
     if not filename.endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="xlsx 파일만 업로드할 수 있습니다.")

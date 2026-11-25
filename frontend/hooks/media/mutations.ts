@@ -7,7 +7,8 @@ export const useBulkImportMedia = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => adminMediaApi.bulkImport(file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: mediaKeys.list() }),
+    // 있는 매체도 고치므로(11-25) 목록뿐 아니라 상세 · 선택지까지 새로 받는다.
+    onSuccess: () => qc.invalidateQueries({ queryKey: mediaKeys.all }),
   });
 };
 

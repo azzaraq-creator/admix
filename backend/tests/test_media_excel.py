@@ -8,6 +8,7 @@ from sqlalchemy import inspect as sa_inspect
 from src.database import SessionLocal
 from src.models.media_master import Media
 from src.models.media_plan import MediaPlan
+from src.models.partners_store import PARTNERS_MEDIA_CATEGORY
 from src.services import kakao_address, media_excel
 
 # 카카오 주소 검색 대신 쓰는 가짜 결과 — 테스트는 바깥 API 를 부르지 않는다.
@@ -61,16 +62,20 @@ def test_export_layout_and_values():
     for gone in ("대표 이미지 URL", "원본 상세 ID", "상권(호칭)", "최소 광고비(원)", "위도", "등록일시"):
         assert gone not in headers
     source_col = headers.index("고정/이동 *") + 1
-    values = {ws.cell(row=r, column=source_col).value for r in range(3, ws.max_row + 1)}
+    values = {ws.cell(row=r, column=source_col).value for r in range(4, ws.max_row + 1)}
     assert values <= {"고정", "이동", "", None}
 
 
-def _filled_template(rows: list[dict], plans: list[dict]) -> bytes:
-    """양식을 받아 칸 이름(* 뺀 것) 기준으로 매체 등록·상품 시트를 채운다."""
+def _filled_template(rows: list[dict], plans: list[dict], *, over_examples: bool = False) -> bytes:
+    """양식을 받아 칸 이름(* 뺀 것) 기준으로 매체 등록·상품 시트를 채운다.
+
+    예시 줄(매체 3행 · 상품 2행) 아래부터 적는다. over_examples 면 예시 줄 위에 덮어 적는다.
+    """
     wb = load_workbook(BytesIO(media_excel.media_template_xlsx()))
+    shift = 1 if over_examples else 0
     for sheet, header_row, first_row, values in (
-        ("매체", 2, 3, rows),
-        ("상품", 1, 2, plans),
+        ("매체", 2, 4 - shift, rows),
+        ("상품", 1, 3 - shift, plans),
     ):
         ws = wb[sheet]
         labels = [str(c.value or "").rstrip(" *") for c in ws[header_row]]
@@ -186,12 +191,15 @@ def test_export_has_plan_sheet():
     db = SessionLocal()
     try:
         wb = load_workbook(BytesIO(media_excel.export_media_xlsx(db)))
-        plan_count = db.query(MediaPlan).count()
+        plan_count = (
+            db.query(MediaPlan).join(Media, Media.media_id == MediaPlan.media_id)
+            .filter(media_excel.ms._not_partners()).count()
+        )
     finally:
         db.close()
     ws = wb["상품"]
     assert [c.value for c in ws[1]][:4] == ["매체 ID *", "매체명", "상품 번호", "상품명 *"]
-    assert ws.max_row - 1 == plan_count
+    assert ws.max_row - 2 == plan_count  # 칸 이름 · 예시 줄 아래가 상품
 
 
 def test_export_and_template_have_same_columns():
@@ -206,6 +214,81 @@ def test_export_and_template_have_same_columns():
     for sheet, header_rows in (("매체", (1, 2)), ("상품", (1,))):
         for r in header_rows:
             assert [c.value for c in exported[sheet][r]] == [c.value for c in template[sheet][r]], (sheet, r)
+
+
+def test_export_leaves_out_collab_stores():
+    """매체 데이터 다운로드에 콜라보 매장 줄은 없다(11-25 사용자: "콜라보는 빼줘")."""
+    db = SessionLocal()
+    try:
+        ws = load_workbook(BytesIO(media_excel.export_media_xlsx(db)))["매체"]
+        collab_ids = {
+            m.media_id for m in db.query(Media.media_id).filter(Media.category_large == PARTNERS_MEDIA_CATEGORY)
+        }
+    finally:
+        db.close()
+    exported = {ws.cell(row=r, column=1).value for r in range(4, ws.max_row + 1)}
+    assert collab_ids and not (exported & collab_ids)
+
+
+def test_first_row_has_borders():
+    """1행(매체 시트 구역 이름 · 상품 시트 칸 이름)에 테두리 — 옆 칸과 구분(11-25 사용자)."""
+    wb = load_workbook(BytesIO(media_excel.media_template_xlsx()))
+    ws = wb["매체"]
+    for merged in ws.merged_cells.ranges:
+        if merged.min_row != 1:
+            continue
+        assert ws.cell(row=1, column=merged.min_col).border.left.style == "thin"
+        assert ws.cell(row=1, column=merged.max_col).border.right.style == "thin"
+    assert all(c.border.left.style == "thin" and c.border.right.style == "thin" for c in wb["상품"][1])
+
+
+def test_example_rows_under_headers():
+    """칸 이름 바로 아래 회색 예시 줄 — 다운로드 · 양식 모두, 칸마다 "예)"로 시작(11-25 사용자)."""
+    db = SessionLocal()
+    try:
+        exported = load_workbook(BytesIO(media_excel.export_media_xlsx(db)))
+    finally:
+        db.close()
+    template = load_workbook(BytesIO(media_excel.media_template_xlsx()))
+    for wb in (exported, template):
+        for sheet, row in (("매체", 3), ("상품", 2)):
+            examples = [c.value for c in wb[sheet][row]]
+            assert all(isinstance(v, str) and v.startswith("예) ") for v in examples), (sheet, examples)
+        assert wb["매체"]["A3"].value == "예) 새 매체는 1, 2, 3..."
+    assert template["매체"].freeze_panes == "C4" and template["상품"].freeze_panes == "D3"
+
+
+def test_import_ignores_examples_even_when_written_over():
+    """예시 줄은 건너뛰고, 예시 줄 위에 덮어 적은 줄은 남은 예시 칸만 빈칸으로 본다."""
+    base = {
+        "매체 ID": 1,
+        "매체명": "엑셀예시덮어쓰기",
+        "고정/이동": "고정",
+        "판매 유형": "단품",
+        "카테고리(대)": "전광판/빌보드",
+        "카테고리(소)": "전광판",
+        "매체 타입": "OOH",
+        "설치 장소": "외부형",
+        "도로명 주소": "서울 강남구 강남대로 396",
+    }
+    db = SessionLocal()
+    created: list[str] = []
+    try:
+        empty = media_excel.import_media_xlsx(db, media_excel.media_template_xlsx())
+        assert empty["total"] == 0 and empty["errors"] == [], empty
+        content = _filled_template([base], [_plan(1, "빌보드", 100)], over_examples=True)
+        result = media_excel.import_media_xlsx(db, content)
+        created = [m.media_id for m in db.query(Media).filter(Media.name == "엑셀예시덮어쓰기")]
+        assert result["inserted"] == 1 and result["errors"] == [], result
+        media = db.query(Media).filter(Media.media_id == created[0]).one()
+        # 덮어 적지 않은 칸의 예시(2층 로비 · 리드타임 7 …)는 들어가지 않는다.
+        assert media.address_detail is None and media.lead_time_bizdays is None
+    finally:
+        if created:
+            db.query(MediaPlan).filter(MediaPlan.media_id.in_(created)).delete(synchronize_session=False)
+            db.query(Media).filter(Media.media_id.in_(created)).delete(synchronize_session=False)
+            db.commit()
+        db.close()
 
 
 def test_old_template_with_link_number_still_imports():
@@ -239,14 +322,173 @@ def test_old_template_with_link_number_still_imports():
         db.close()
 
 
-def test_import_downloaded_file_skips_existing_ids():
+def test_import_downloaded_file_as_is_changes_nothing():
+    """다운로드를 그대로 올리면 아무것도 바뀌지 않는다(모든 매체 "변경 없음", 수정 시각도 그대로)."""
+    from sqlalchemy import func
+
     db = SessionLocal()
     try:
-        before = db.query(Media).count()
+        total = db.query(Media).count()
+        exported = db.query(Media).filter(media_excel.ms._not_partners()).count()  # 콜라보 매장은 빠진다
+        last_update = db.query(func.max(Media.updated_at)).scalar()
         result = media_excel.import_media_xlsx(db, media_excel.export_media_xlsx(db))
-        assert result["inserted"] == 0 and result["skipped"] == before
-        assert result["errors"] == []  # 건너뛴 매체의 상품 줄은 오류로 잡지 않는다
-        assert db.query(Media).count() == before
+        assert result["errors"] == [], result["errors"][:5]
+        assert (result["inserted"], result["updated"], result["unchanged"]) == (0, 0, exported)
+        assert db.query(Media).count() == total
+        assert db.query(func.max(Media.updated_at)).scalar() == last_update
+    finally:
+        db.close()
+
+
+def _snapshot(db, media_id: str) -> tuple[dict, list[dict]]:
+    m = db.query(Media).filter(Media.media_id == media_id).one()
+    media = {c.key: getattr(m, c.key) for c in sa_inspect(Media).column_attrs}
+    plans = [
+        {c.key: getattr(p, c.key) for c in sa_inspect(MediaPlan).column_attrs}
+        for p in db.query(MediaPlan).filter(MediaPlan.media_id == media_id)
+    ]
+    return media, plans
+
+
+def _restore(db, media_id: str, media: dict, plans: list[dict]) -> None:
+    """테스트로 바꾼 값을 원래 값으로 되돌린다(로컬 DB — 사용자가 같은 매체를 보고 있을 수 있다)."""
+    from src.services import ai_index
+
+    db.rollback()
+    db.query(MediaPlan).filter(MediaPlan.media_id == media_id).delete(synchronize_session=False)
+    db.query(Media).filter(Media.media_id == media_id).update(media, synchronize_session=False)
+    for p in plans:
+        db.add(MediaPlan(**p))
+    db.commit()
+    ai_index.sync_media_ids(db, [media_id])
+
+
+def _downloaded_with(db, media_id: str, media_cells: dict, plan_edit) -> bytes:
+    """다운로드를 받아 한 매체의 칸을 고친다. plan_edit(ws, rows, labels)로 상품 시트를 손본다."""
+    wb = load_workbook(BytesIO(media_excel.export_media_xlsx(db)))
+    ws = wb["매체"]
+    labels = [str(c.value or "").rstrip(" *") for c in ws[2]]
+    row = next(r for r in range(4, ws.max_row + 1) if ws.cell(row=r, column=1).value == media_id)
+    for label, value in media_cells.items():
+        # ws.cell(..., value=None)은 칸을 비우지 않는다 — .value 로 넣는다.
+        ws.cell(row=row, column=labels.index(label) + 1).value = value
+    plans = wb["상품"]
+    plan_labels = [str(c.value or "").rstrip(" *") for c in plans[1]]
+    plan_rows = [r for r in range(3, plans.max_row + 1) if plans.cell(row=r, column=1).value == media_id]
+    plan_edit(plans, plan_rows, plan_labels)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_import_updates_existing_media_and_plans():
+    """다운로드에서 고쳐 올리면 그 매체를 고친다 — 빈칸은 지우고, 상품은 번호로 고치고 번호 없는 줄은 새 상품(11-25)."""
+    db = SessionLocal()
+    m = (
+        db.query(Media)
+        .filter(
+            media_excel.ms._not_partners(),
+            Media.plan_count >= 1,
+            Media.address.isnot(None),
+            Media.stop_no.isnot(None),
+        )
+        .order_by(Media.media_id)
+        .first()
+    )
+    media_id = m.media_id
+    before_media, before_plans = _snapshot(db, media_id)
+    first_no = min(p["plan_no"] for p in before_plans)
+
+    def edit_plans(ws, rows, labels):
+        first = next(r for r in rows if ws.cell(row=r, column=labels.index("상품 번호") + 1).value == first_no)
+        ws.cell(row=first, column=labels.index("광고비(원)") + 1, value=1234000)
+        new = ws.max_row + 1
+        for label, value in (("매체 ID", media_id), ("상품명", "엑셀수정 새 상품"), ("판매 방식", "단품"),
+                             ("계약 기간", 2), ("기간 단위", "주"), ("광고비(원)", 500000)):
+            ws.cell(row=new, column=labels.index(label) + 1, value=value)
+
+    try:
+        content = _downloaded_with(
+            db, media_id, {"매체 설명": "엑셀로 고친 설명", "리드타임(영업일)": 9, "정류장 번호": None}, edit_plans
+        )
+        result = media_excel.import_media_xlsx(db, content)
+        assert result["errors"] == [] and result["updated"] == 1 and result["inserted"] == 0, result
+        db.expire_all()
+        after = db.query(Media).filter(Media.media_id == media_id).one()
+        assert after.description == "엑셀로 고친 설명" and after.lead_time_bizdays == 9
+        assert after.stop_no is None  # 빈칸은 지운다
+        assert after.latitude == before_media["latitude"]  # 주소를 안 바꾸면 위치는 그대로
+        plans = {p.plan_no: p for p in after.plans}
+        assert len(plans) == len(before_plans) + 1 and after.plan_count == len(plans)
+        assert plans[first_no].advertisement_fee == 1234000
+        new_plan = next(p for p in plans.values() if p.product_display_name == "엑셀수정 새 상품")
+        assert new_plan.plan_no > max(p["plan_no"] for p in before_plans)
+        assert after.min_advertisement_fee_krw == min(p.advertisement_fee for p in plans.values() if p.advertisement_fee is not None)
+    finally:
+        _restore(db, media_id, before_media, before_plans)
+        db.close()
+
+
+def test_import_update_address_relocates_and_removed_plan_is_deleted():
+    """주소를 바꾸면 위치를 다시 찾고, 상품 시트에서 지운 상품은 지운다. 잘못 적은 상품 줄이 있으면 고치지 않는다."""
+    db = SessionLocal()
+    m = (
+        db.query(Media)
+        .filter(media_excel.ms._not_partners(), Media.plan_count >= 2, Media.media_source != "MOVING")
+        .order_by(Media.media_id)
+        .first()
+    )
+    if m is None:
+        db.close()
+        pytest.skip("상품이 둘 이상인 고정 매체가 없다")
+    media_id = m.media_id
+    before_media, before_plans = _snapshot(db, media_id)
+    keep_no = min(p["plan_no"] for p in before_plans)
+
+    def drop_others(ws, rows, labels):
+        for r in rows:
+            if ws.cell(row=r, column=labels.index("상품 번호") + 1).value != keep_no:
+                for c in range(1, len(labels) + 1):
+                    ws.cell(row=r, column=c).value = None
+
+    def break_one(ws, rows, labels):
+        ws.cell(row=rows[0], column=labels.index("계약 기간") + 1, value="한 달")
+
+    try:
+        bad = _downloaded_with(db, media_id, {"매체 설명": "고치면 안 됨"}, break_one)
+        result = media_excel.import_media_xlsx(db, bad)
+        assert result["updated"] == 0 and result["failed"] == 1, result
+        db.expire_all()
+        assert db.query(Media).filter(Media.media_id == media_id).one().description == before_media["description"]
+
+        content = _downloaded_with(db, media_id, {"도로명 주소": "서울 강남구 강남대로 396"}, drop_others)
+        result = media_excel.import_media_xlsx(db, content)
+        assert result["errors"] == [] and result["updated"] == 1, result
+        db.expire_all()
+        after = db.query(Media).filter(Media.media_id == media_id).one()
+        assert float(after.latitude) == 37.4979 and after.district == "강남구"
+        assert [p.plan_no for p in after.plans] == [keep_no] and after.plan_count == 1
+    finally:
+        _restore(db, media_id, before_media, before_plans)
+        db.close()
+
+
+def test_import_skips_collab_store_rows():
+    """예전 다운로드에 들어 있던 콜라보 매장 줄은 고치지 않고 건너뛴다."""
+    db = SessionLocal()
+    try:
+        store = db.query(Media).filter(Media.category_large == PARTNERS_MEDIA_CATEGORY).first()
+        if store is None:
+            pytest.skip("콜라보 매장이 없다")
+        wb = load_workbook(BytesIO(media_excel.media_template_xlsx()))
+        wb["매체"].cell(row=4, column=1, value=store.media_id)
+        wb["매체"].cell(row=4, column=2, value="엑셀로 바꾸면 안 됨")
+        buf = BytesIO()
+        wb.save(buf)
+        result = media_excel.import_media_xlsx(db, buf.getvalue())
+        assert result["skipped"] == 1 and result["updated"] == 0 and result["errors"] == [], result
+        db.expire_all()
+        assert db.query(Media).filter(Media.media_id == store.media_id).one().name != "엑셀로 바꾸면 안 됨"
     finally:
         db.close()
 

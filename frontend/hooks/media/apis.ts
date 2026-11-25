@@ -692,6 +692,11 @@ export interface MediaImportError {
 export interface MediaImportResult {
   total: number;
   inserted: number;
+  /** 매체 ID가 있는 줄 중 값이 바뀌어 고친 매체(11-25) */
+  updated?: number;
+  /** 매체 ID가 있는 줄 중 바뀐 게 없는 매체 */
+  unchanged?: number;
+  /** 건너뛴 줄 — 콜라보 매장 */
   skipped: number;
   failed: number;
   errors: MediaImportError[];

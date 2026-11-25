@@ -320,7 +320,9 @@ export function MediaListView() {
     try {
       const result = await bulkImport.mutateAsync(file);
       const parts = [`${result.inserted}건 등록`];
-      if (result.skipped > 0) parts.push(`${result.skipped}건 중복 제외`);
+      if (result.updated) parts.push(`${result.updated}건 수정`);
+      if (result.unchanged) parts.push(`${result.unchanged}건 변경 없음`);
+      if (result.skipped > 0) parts.push(`${result.skipped}건 제외`);
       if (result.failed > 0) parts.push(`${result.failed}건 실패`);
       if (result.failed === 0) {
         success(parts.join(", "));
