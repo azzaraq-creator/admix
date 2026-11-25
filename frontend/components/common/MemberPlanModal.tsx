@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 /*
  * 회원 유형 비교(플랜 소개) 창 — 가입 1단계·회원 정보·콜라보 안내 창에서 연다.
- * 정책이 아직 정해지지 않아 이용 범위는 큰 줄기만 적는다(비회원·일반·광고주·대행사·매체사·제휴사(콜라보)).
+ * 이용 범위는 11-25 사용자가 정한 표 그대로(비회원·일반·광고주·대행사·매체사·제휴사(콜라보)) — 유형 이름 아래 설명은 없다.
  * 어디서든 openMemberPlanModal() 로 열고, 창은 MemberPlanModalHost 하나가 그린다(ClientShell·가입 화면).
  */
 
@@ -28,7 +28,12 @@ const subscribe = (cb: () => void) => {
 
 export const openMemberPlanModal = () => setOpen(true);
 
-type Cell = { mark: "yes" | "no" | "limit" | "none"; text?: string };
+/** yes ✓ · no ✕ · limit △ — 아래에 작은 덧말. word 는 표시 없이 낱말만(사업자등록증 "필수" · "없음"). */
+type Cell = {
+  mark: "yes" | "no" | "limit" | "word";
+  text?: string;
+  strong?: boolean;
+};
 
 const COLUMNS = [
   { key: "guest", label: "비회원" },
@@ -40,9 +45,18 @@ const COLUMNS = [
 ] as const;
 
 const yes = (text?: string): Cell => ({ mark: "yes", text });
-const no = (text?: string): Cell => ({ mark: "no", text });
+const no = (): Cell => ({ mark: "no" });
 const limit = (text: string): Cell => ({ mark: "limit", text });
-const none: Cell = { mark: "none" };
+const word = (text: string, strong = false): Cell => ({
+  mark: "word",
+  text,
+  strong,
+});
+
+// 11-25 사용자가 정한 이용 범위.
+const GUEST_MIXI = limit("20자 내외 · 3회");
+const MEMBER_MIXI = limit("50자 내외 · 20회");
+const INTRO_ONLY = limit("소개 페이지만");
 
 const ROWS: { label: string; cells: Cell[] }[] = [
   {
@@ -50,62 +64,49 @@ const ROWS: { label: string; cells: Cell[] }[] = [
     cells: [yes(), yes(), yes(), yes(), yes(), yes()],
   },
   {
-    label: "매체 상세 정보 · 관심 매체",
-    cells: [no("제한"), yes(), yes(), yes(), yes(), yes()],
+    label: "매체 상세 정보",
+    cells: [yes(), yes(), yes(), yes(), yes(), yes()],
+  },
+  {
+    label: "관심 매체",
+    cells: [no(), yes(), yes(), yes(), yes(), yes()],
   },
   {
     label: "AI 믹시 추천",
     cells: [
-      limit("체험 횟수"),
-      limit("횟수 제한"),
+      GUEST_MIXI,
+      MEMBER_MIXI,
       yes("무제한*"),
       yes("무제한*"),
-      limit("횟수 제한"),
-      limit("횟수 제한"),
+      MEMBER_MIXI,
+      MEMBER_MIXI,
     ],
   },
   {
     label: "사업자등록증",
     cells: [
-      none,
-      { mark: "none", text: "필요 없음" },
-      { mark: "limit", text: "올리고 승인" },
-      { mark: "limit", text: "올리고 승인" },
-      { mark: "limit", text: "올려야 함" },
-      { mark: "limit", text: "올려야 함" },
+      word("없음"),
+      word("없음"),
+      word("필수", true),
+      word("필수", true),
+      word("필수", true),
+      word("필수", true),
     ],
   },
   {
     label: "매체 등록",
-    cells: [none, none, none, none, yes("사업자등록증 후"), none],
+    cells: [no(), no(), no(), no(), yes("사업자등록증 확인 후"), no()],
   },
   {
     label: "콜라보 메뉴",
-    cells: [
-      { mark: "none", text: "둘러보기" },
-      none,
-      yes("콜라보 매장 찾기"),
-      none,
-      none,
-      yes("내 매장 · 콜라보 참여"),
-    ],
+    cells: [INTRO_ONLY, INTRO_ONLY, yes(), INTRO_ONLY, INTRO_ONLY, yes()],
   },
 ];
 
-const MARK: Record<Cell["mark"], ReactNode> = {
+const MARK: Record<Exclude<Cell["mark"], "word">, ReactNode> = {
   yes: <span className="text-[15px] font-bold text-primary">✓</span>,
   no: <span className="text-[15px] font-bold text-gray-300">✕</span>,
   limit: <span className="text-[15px] font-bold text-amber-500">△</span>,
-  none: <span className="text-gray-300">–</span>,
-};
-
-const COL_DESC: Record<(typeof COLUMNS)[number]["key"], string> = {
-  guest: "로그인 전",
-  general: "개인 사용자",
-  advertiser: "직접 광고 집행",
-  agency: "광고 기획 · 집행 대행",
-  media_owner: "매체 등록 · 관리",
-  partner: "매장 콜라보 참여",
 };
 
 export function MemberPlanModalHost() {
@@ -131,18 +132,19 @@ export function MemberPlanModalHost() {
             <Modal.Heading className="text-[16px] leading-[22px] font-bold text-gray-900 sm:text-[18px] sm:leading-[26px]">
               회원 유형 비교
             </Modal.Heading>
+            {/* 11-25 사용자: 이 한 줄만, 요체 말고 짧게. */}
             <p className="text-[12px] leading-[18px] text-gray-500 sm:text-[13px] sm:leading-[20px]">
-              회원 유형에 따라 이용할 수 있는 기능이 달라요. 가입 후에도 회원
-              정보에서 언제든 유형을 바꿀 수 있어요.
+              가입 후에도 회원 정보에서 언제든 유형 변경 가능
             </p>
           </Modal.Header>
           <Modal.Body className="m-0 mt-[16px] p-0 sm:mt-[20px]">
             {/* 좁은 화면은 표를 옆으로 밀어 본다 — 기능 이름 칸은 왼쪽에 붙어 있다. */}
             <div className="overflow-x-auto rounded-[16px] border border-gray-200">
-              <table className="w-full min-w-[680px] border-collapse text-center text-[12px] sm:text-[13px]">
+              {/* 유형 여섯 칸은 같은 너비(table-fixed) — 유형 이름 아래 설명을 빼니 글 길이대로 들쭉날쭉했다. 긴 덧말은 낱말 단위로 줄바꿈. */}
+              <table className="w-full min-w-[740px] table-fixed border-collapse text-center text-[12px] sm:text-[13px]">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="sticky left-0 z-10 w-[150px] bg-gray-50 px-[12px] py-[12px] text-left font-semibold text-gray-500">
+                    <th className="sticky left-0 z-10 w-[130px] bg-gray-50 px-[12px] py-[12px] text-left font-semibold text-gray-500">
                       기능
                     </th>
                     {COLUMNS.map((c) => (
@@ -156,9 +158,6 @@ export function MemberPlanModalHost() {
                       >
                         <p className="font-bold whitespace-nowrap text-gray-900">
                           {c.label}
-                        </p>
-                        <p className="mt-[2px] text-[11px] font-normal whitespace-nowrap text-gray-400">
-                          {COL_DESC[c.key]}
                         </p>
                       </th>
                     ))}
@@ -179,16 +178,27 @@ export function MemberPlanModalHost() {
                               "border-l border-dashed border-gray-200",
                           )}
                         >
-                          <div className="flex flex-col items-center gap-[2px]">
-                            {cell.mark === "none" && cell.text
-                              ? null
-                              : MARK[cell.mark]}
-                            {cell.text && (
-                              <span className="text-[11px] leading-[14px] whitespace-nowrap text-gray-500">
-                                {cell.text}
-                              </span>
-                            )}
-                          </div>
+                          {cell.mark === "word" ? (
+                            <span
+                              className={cn(
+                                "whitespace-nowrap",
+                                cell.strong
+                                  ? "font-semibold text-gray-900"
+                                  : "text-gray-400",
+                              )}
+                            >
+                              {cell.text}
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-[2px]">
+                              {MARK[cell.mark]}
+                              {cell.text && (
+                                <span className="text-[11px] leading-[14px] break-keep text-gray-500">
+                                  {cell.text}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -199,7 +209,6 @@ export function MemberPlanModalHost() {
             <ul className="mt-[12px] flex flex-col gap-[2px] text-[11px] leading-[17px] text-gray-500 sm:text-[12px]">
               {[
                 "* 광고주 · 대행사는 사업자등록증을 올리고 관리자 확인을 통과하면 AI 믹시를 횟수 제한 없이 쓸 수 있어요.",
-                "매체사는 사업자등록증을 올려야 매체를 등록할 수 있고, 제휴사(콜라보)는 협약서를 작성하면 담당자가 매장을 연결해 드려요.",
                 "세부 이용 범위(횟수 등)는 서비스 운영에 따라 바뀔 수 있어요.",
               ].map((line) => (
                 <li key={line}>{line}</li>

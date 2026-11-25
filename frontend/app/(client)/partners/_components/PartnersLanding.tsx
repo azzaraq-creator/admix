@@ -545,16 +545,18 @@ function Formats({ signedIn }: { signedIn: boolean }) {
           양 끝은 HeroUI ScrollShadow 로 흐리게(넘길 카드가 더 있다는 표시), 다음 카드 끝이 살짝 보이게 카드 폭은 화면보다 좁게.
           본문 좌우 여백(16px)까지 끝까지 넘어가게 -mx · px. 태블릿 · PC는 예전 짝 배치 그대로(ScrollShadow 끔).
           HeroUI 가로 ScrollShadow 는 늘 overflow-x:auto 라 세로도 auto 가 되어, 등장 효과(아래 32px) · 마우스 올림(위로 뜸 + 그림자)에
-          위아래 스크롤이 생겼다(11-24 사용자 "높이 맞춰줘") — 휴대폰은 세로만 자르고, 태블릿 · PC는 overflow 를 풀어 둔다. */}
+          위아래 스크롤이 생겼다(11-24 사용자 "높이 맞춰줘") — 휴대폰은 세로만 자르고, 태블릿 · PC는 overflow 를 풀어 둔다.
+          좌우 16px 여백은 넘기는 틀이 아니라 안쪽 줄(w-max)에 — 틀의 오른쪽 여백은 넘길 폭에 안 들어가 맨 끝 카드가
+          화면 끝에 붙었다(11-25 사용자 "슬라이드가 공간을 넘어가"). */}
       <ScrollShadow
         orientation="horizontal"
         hideScrollBar
         size={28}
         isEnabled={!isDesktop}
         visibility={isDesktop ? "none" : "auto"}
-        className="mt-[40px] max-sm:-mx-[16px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[16px] max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-[16px] sm:overflow-visible max-sm:pb-[4px] [scrollbar-width:none] sm:mt-[64px] [&::-webkit-scrollbar]:hidden"
+        className="mt-[40px] max-sm:-mx-[16px] max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-[16px] max-sm:overflow-x-auto max-sm:overflow-y-hidden sm:overflow-visible max-sm:pb-[4px] [scrollbar-width:none] sm:mt-[64px] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="flex gap-[12px] sm:grid sm:gap-[16px] lg:grid-cols-3">
+        <div className="flex gap-[12px] max-sm:w-max max-sm:px-[16px] sm:grid sm:gap-[16px] lg:grid-cols-3">
           {FORMAT_PAIRS.map((pair, p) => (
             <ul
               key={pair[0].key}
@@ -655,7 +657,8 @@ function FormatCard({ item, delay }: { item: FormatItem; delay: number }) {
       className={cn(
         // 태블릿 줄에선 폭을 사진 비율대로 — 기본 폭은 안쪽 div 좌우 여백(28px × 2)만, 남는 폭을 grow 4 : 5로 나눠 사진 폭이 정확히 4 : 5.
         // 휴대폰은 가로로 넘기는 줄 — 폭 고정(다음 카드 끝이 보이게 화면의 약 4/5), 카드 왼쪽 끝에 맞춰 멈춘다.
-        "flex min-w-0 flex-col max-sm:w-[min(78vw,300px)] max-sm:shrink-0 max-sm:snap-start sm:basis-[56px] lg:basis-auto",
+        // 넘기면 다음 카드가 그때 나타나므로 휴대폰은 차례 기다림 없이(delay-0! — 인라인 transitionDelay 를 이긴다) 0.4초로 빨리(11-25 사용자).
+        "flex min-w-0 flex-col max-sm:w-[min(78vw,300px)] max-sm:shrink-0 max-sm:snap-start max-sm:delay-0! max-sm:duration-[400ms] sm:basis-[56px] lg:basis-auto",
         square ? "sm:grow-[5]" : "sm:grow-[4]",
         reveal.className,
       )}

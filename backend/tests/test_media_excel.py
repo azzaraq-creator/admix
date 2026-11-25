@@ -473,6 +473,57 @@ def test_import_update_address_relocates_and_removed_plan_is_deleted():
         db.close()
 
 
+def test_old_source_plan_values_pass_when_plans_untouched():
+    """원천의 옛 상품 값(지금 규칙에 안 맞음)이 다운로드 그대로면 오류로 잡지 않는다(운영 4개 매체, 11-25).
+
+    상품을 안 고치면 매체 칸은 고치고, 같은 매체의 다른 상품을 고치면 그 매체는 고치지 않는다.
+    """
+    db = SessionLocal()
+    m = (
+        db.query(Media)
+        .filter(media_excel.ms._not_partners(), Media.plan_count >= 2)
+        .order_by(Media.media_id)
+        .first()
+    )
+    if m is None:
+        db.close()
+        pytest.skip("상품이 둘 이상인 매체가 없다")
+    media_id = m.media_id
+    before_media, before_plans = _snapshot(db, media_id)
+    old_no, other_no = sorted(p["plan_no"] for p in before_plans)[:2]
+    db.query(MediaPlan).filter(MediaPlan.media_id == media_id, MediaPlan.plan_no == old_no).update(
+        {"product_master_type": "PM_OLD", "contractual_duration_type": "QUARTER"}, synchronize_session=False
+    )
+    db.commit()
+
+    def edit_other(ws, rows, labels):
+        r = next(r for r in rows if ws.cell(row=r, column=labels.index("상품 번호") + 1).value == other_no)
+        ws.cell(row=r, column=labels.index("광고비(원)") + 1).value = 777000
+
+    try:
+        result = media_excel.import_media_xlsx(db, media_excel.export_media_xlsx(db))
+        assert result["errors"] == [] and result["updated"] == 0 and result["failed"] == 0, result["errors"][:3]
+
+        content = _downloaded_with(db, media_id, {"매체 설명": "옛 상품 값 그대로 매체만"}, lambda *a: None)
+        result = media_excel.import_media_xlsx(db, content)
+        assert result["errors"] == [] and result["updated"] == 1, result
+        db.expire_all()
+        after = db.query(Media).filter(Media.media_id == media_id).one()
+        assert after.description == "옛 상품 값 그대로 매체만"
+        assert {p.plan_no: p.product_master_type for p in after.plans}[old_no] == "PM_OLD"
+
+        content = _downloaded_with(db, media_id, {}, edit_other)
+        result = media_excel.import_media_xlsx(db, content)
+        assert result["updated"] == 0 and result["failed"] == 1, result
+        assert any("판매 방식" in e["reason"] for e in result["errors"]), result["errors"]
+        db.expire_all()
+        fees = {p.plan_no: p.advertisement_fee for p in db.query(MediaPlan).filter(MediaPlan.media_id == media_id)}
+        assert fees[other_no] != 777000
+    finally:
+        _restore(db, media_id, before_media, before_plans)
+        db.close()
+
+
 def test_import_skips_collab_store_rows():
     """예전 다운로드에 들어 있던 콜라보 매장 줄은 고치지 않고 건너뛴다."""
     db = SessionLocal()

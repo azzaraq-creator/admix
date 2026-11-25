@@ -820,26 +820,40 @@ def _link_key(raw) -> str:
 PLAN_NO_LABEL = "상품 번호"
 
 
-def _read_plans(wb, link_label: str) -> tuple[dict[str, list[tuple[int, dict]]], list[dict], set[str]]:
-    """상품 시트 → {연결 값: [(행, 상품)]}, 오류 목록, 잘못 적힌 줄이 있는 연결 값. 상품 시트가 없으면 빈 값.
+def _read_plans(
+    wb, link_label: str
+) -> tuple[dict[str, list[tuple[int, dict]]], list[dict], dict[str, list[dict]]]:
+    """상품 시트 → {연결 값: [(행, 상품)]}, 오류 목록, {연결 값: [잘못 적힌 줄]}. 상품 시트가 없으면 빈 값.
 
     상품 번호는 있는 매체의 상품을 고칠 때 어느 상품인지 찾는 값이다(비우면 새 상품).
+    잘못 적힌 줄은 바로 오류로 두지 않고 따로 돌려준다 — 있는 매체의 상품이 원천의 옛 값 그대로면
+    (다운로드 때와 같으면) 오류로 잡지 않는다(import_media_xlsx 참고).
     """
     if PLAN_SHEET not in wb.sheetnames:
-        return {}, [], set()
+        return {}, [], {}
     rows = list(wb[PLAN_SHEET].iter_rows(values_only=True))
     if not rows:
-        return {}, [], set()
+        return {}, [], {}
     labels = {label: (key, conv) for key, label, conv in PLAN_COLUMNS}
+    plan_labels = {key: label for key, label, _ in PLAN_COLUMNS}
     header = [_clean_label(v) for v in rows[0]]
     if link_label not in header:
-        return {}, [{"row": 1, "media_id": "", "reason": f"상품 시트: '{link_label}' 칸이 없습니다."}], set()
+        return {}, [{"row": 1, "media_id": "", "reason": f"상품 시트: '{link_label}' 칸이 없습니다."}], {}
     link_idx = header.index(link_label)
     no_idx = header.index(PLAN_NO_LABEL) if PLAN_NO_LABEL in header else None
     cols = [(i, *labels[h]) for i, h in enumerate(header) if h in labels]
     out: dict[str, list[tuple[int, dict]]] = {}
     errors: list[dict] = []
-    bad_links: set[str] = set()
+    bad_rows: dict[str, list[dict]] = {}
+
+    def bad(row_no: int, link: str, row: tuple, reason: str) -> None:
+        bad_rows.setdefault(link, []).append({
+            "row": row_no,
+            "plan_no": row[no_idx] if no_idx is not None and no_idx < len(row) else None,
+            "cells": {key: (row[i] if i < len(row) else None) for i, key, _ in cols},
+            "error": {"row": row_no, "media_id": "", "reason": reason},
+        })
+
     for row_no, row in enumerate(rows[1:], start=2):
         row = _drop_examples(row)
         if all(ms._is_blank(v) for v in row):
@@ -853,10 +867,12 @@ def _read_plans(wb, link_label: str) -> tuple[dict[str, list[tuple[int, dict]]],
             if no_idx is not None and no_idx < len(row):
                 plan["plan_no"] = _parse_plan_cell("plan_no", None, row[no_idx])
             for i, key, conv in cols:
-                plan[key] = _parse_plan_cell(key, conv, row[i] if i < len(row) else None)
+                try:
+                    plan[key] = _parse_plan_cell(key, conv, row[i] if i < len(row) else None)
+                except ValueError as exc:  # 어느 칸인지 함께 알린다
+                    raise ValueError(f"{plan_labels[key]}: {exc}") from None
         except ValueError as exc:
-            errors.append({"row": row_no, "media_id": "", "reason": f"상품 시트: {exc}"})
-            bad_links.add(link)
+            bad(row_no, link, row, f"상품 시트: {exc}")
             continue
         # 기기·면 수량은 비우면 1(어드민 폼의 기본값과 같다).
         for key in ("default_device_quantity", "default_surface_quantity"):
@@ -864,11 +880,36 @@ def _read_plans(wb, link_label: str) -> tuple[dict[str, list[tuple[int, dict]]],
                 plan[key] = 1
         missing = [label for key, label, _ in PLAN_COLUMNS if key in PLAN_REQUIRED and plan.get(key) is None]
         if missing:
-            errors.append({"row": row_no, "media_id": "", "reason": "상품 시트: 필수 칸이 비었습니다: " + ", ".join(missing)})
-            bad_links.add(link)
+            bad(row_no, link, row, "상품 시트: 필수 칸이 비었습니다: " + ", ".join(missing))
             continue
         out.setdefault(link, []).append((row_no, plan))
-    return out, errors, bad_links
+    return out, errors, bad_rows
+
+
+def _unchanged_plan_no(m: Media, bad_row: dict) -> int | None:
+    """잘못 적힌 상품 줄이 그 매체 상품의 다운로드 값 그대로면 그 상품 번호, 아니면 None."""
+    try:
+        no = _parse_plan_cell("plan_no", None, bad_row["plan_no"])
+    except ValueError:
+        return None
+    plan = next((p for p in m.plans if p.plan_no == no), None)
+    if plan is None:
+        return None
+    for key, _, conv in PLAN_COLUMNS:
+        if key not in bad_row["cells"]:
+            continue
+        value = getattr(plan, key)
+        if key == "contractual_duration_type" and value and not value.endswith("S"):
+            value = f"{value}S"  # 다운로드(_write_plan_sheet)와 같은 모양
+        shown = _shown(value, conv)
+        raw = bad_row["cells"][key]
+        if ms._is_blank(raw):
+            if shown not in ("", None):
+                return None
+            continue
+        if (raw.strip() if isinstance(raw, str) else raw) != shown:
+            return None
+    return no
 
 
 def _fill_address(data: dict, cache: dict[str, dict | str]) -> str | None:
@@ -1074,7 +1115,8 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
     link_label = LINK_LABEL if LINK_LABEL in header else MEDIA_ID_LABEL
     link_idx = header.index(link_label) if link_label in header else None
     id_idx = next((idx for idx, key, _ in columns if key == "media_id"), None)
-    plans_by_link, plan_errors, bad_plan_links = _read_plans(wb, link_label)
+    plans_by_link, plan_errors, bad_plan_rows = _read_plans(wb, link_label)
+    resolved_rows: set[int] = set()  # 옛 값 그대로라 오류로 잡지 않은 상품 줄
 
     # 파일에 적힌 매체 ID 중 DB에 있는 것 — 고칠 매체(상품까지 한 번에 읽는다)와 콜라보 매장.
     file_ids = {
@@ -1137,13 +1179,32 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
             if bad:
                 fail(row_no, bad)
                 continue
-            if link in bad_plan_links:
-                # 잘못 적힌 상품 줄을 빼고 맞추면 그 상품이 지워진다 — 이 매체는 고치지 않는다.
-                fail(row_no, "상품 시트에 잘못 적힌 줄이 있어 이 매체는 고치지 않았습니다. 상품 시트 오류를 먼저 고쳐 주세요.")
-                continue
-            result = _update_existing(
-                db, existing[existing_id], data, plans_by_link.get(link), address_cache, names
-            )
+            plan_items = plans_by_link.get(link)
+            bad_here = bad_plan_rows.get(link, [])
+            if bad_here:
+                # 원천의 옛 값(지금 규칙에 안 맞는 값)이 다운로드 때 그대로인 상품 줄은, 이 매체의 상품을
+                # 하나도 안 고쳤을 때만 받아 주고 상품은 그대로 둔다(운영 4개 매체, 11-25).
+                # 그 밖에는 잘못 적힌 줄을 빼고 맞추면 그 상품이 지워지므로 이 매체를 고치지 않는다.
+                old_plans = {p.plan_no: p for p in old.plans}
+                kept = [_unchanged_plan_no(old, b) for b in bad_here]
+                valid = [plan for _, plan in plan_items or []]
+                plans_same = (
+                    None not in kept
+                    and len(set(kept)) == len(kept)
+                    and len(valid) + len(kept) == len(old_plans)
+                    and all(
+                        p["plan_no"] in old_plans
+                        and p["plan_no"] not in kept
+                        and _plan_same(old_plans[p["plan_no"]], p)
+                        for p in valid
+                    )
+                )
+                if not plans_same:
+                    fail(row_no, "상품 시트에 잘못 적힌 줄이 있어 이 매체는 고치지 않았습니다. 상품 시트 오류를 먼저 고쳐 주세요.")
+                    continue
+                resolved_rows.update(b["row"] for b in bad_here)
+                plan_items = None
+            result = _update_existing(db, old, data, plan_items, address_cache, names)
             if result is None:
                 unchanged += 1
             elif result is True:
@@ -1202,6 +1263,9 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
         except Exception:
             fail(row_no, "저장 실패")
 
+    plan_errors.extend(
+        b["error"] for items in bad_plan_rows.values() for b in items if b["row"] not in resolved_rows
+    )
     # 어느 매체에도 이어지지 않은 상품 줄 — 연결 번호를 잘못 적은 경우.
     for link, items in plans_by_link.items():
         if link not in seen_links:
@@ -1211,6 +1275,7 @@ def import_media_xlsx(db: Session, content: bytes) -> dict:
                     "media_id": "",
                     "reason": f"상품 시트: {link_label} {link}인 매체가 매체 등록 시트에 없습니다.",
                 })
+    plan_errors.sort(key=lambda e: e["row"])
     errors.extend(plan_errors[: max(0, ms._IMPORT_MAX_ERRORS - len(errors))])
 
     db.commit()

@@ -20,7 +20,6 @@ import {
   AgreementPdfViewer,
   useDownloadAgreementPdf,
 } from "@/app/(client)/partners/_components/AgreementPdfPreview";
-import { agreementPdfFileName } from "@/app/(client)/partners/_components/agreementPdf";
 import {
   AGREEMENT,
   partyOf,
@@ -792,10 +791,30 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
   );
 }
 
-/** 받는 파일 이름에 붙일 회원 구분(고유번호 → 회사명 → 아이디). 파일 이름에 못 쓰는 글자는 뺀다. */
-function memberFileTag(member: AdminPartnerMember) {
-  const tag = member.partnerCode || member.companyName || member.loginId || "";
-  return tag.replace(/[\\/:*?"<>|\s]+/g, "").slice(0, 40);
+/** 파일 이름 한 토막 — 파일 이름에 못 쓰는 글자 · 빈칸 · 밑줄(토막 구분)은 뺀다. */
+const fileNamePart = (text: string) =>
+  text.replace(/[\\/:*?"<>|\s_]+/g, "").slice(0, 40);
+
+/**
+ * 협약서 PDF 파일 이름 — 상호명_서명자(대표자/위임자)_협약서 판_고유번호.pdf
+ * (11-25 사용자: "상호명_서명자(대표자인지 위임자인지)_협약서 버전_회원 고유 ID으로").
+ * 판은 회원이 서명한 판(없으면 지금 판). 예: 횹약캎훼_대표자_v1.0_P-0010.pdf
+ */
+function agreementFileName(member: AdminPartnerMember) {
+  const bizName =
+    member.bizName ||
+    member.companyName ||
+    member.stores[0]?.name ||
+    member.name ||
+    "상호미입력";
+  const signer = !member.signerRole
+    ? "서명전"
+    : member.signerRole === "delegate"
+      ? "위임자"
+      : "대표자";
+  const version = `v${member.agreementVersion || AGREEMENT.version}`;
+  const id = member.partnerCode || member.loginId || member.id.slice(0, 8);
+  return `${[bizName, signer, version, id].map(fileNamePart).join("_")}.pdf`;
 }
 
 /**
@@ -821,10 +840,7 @@ function AgreementPdfRow({
         startedAt: member.agreementStartedAt ?? null,
       }
     : null;
-  const tag = memberFileTag(member);
-  const fileName = tag
-    ? agreementPdfFileName().replace(/\.pdf$/, `_${tag}.pdf`)
-    : agreementPdfFileName();
+  const fileName = agreementFileName(member);
   // 가입 때 적은 매장 정보(089) + 연결 매장 이름 · 휴대폰 — 회원이 받는 협약서와 같게 제휴사 빈칸을 채운다.
   const party = partyOf(
     {
