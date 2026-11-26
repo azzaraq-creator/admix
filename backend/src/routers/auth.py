@@ -11,6 +11,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
+    Request,
     Response,
     UploadFile,
     status,
@@ -36,6 +37,7 @@ from src.schemas.auth import (
 )
 from src.services import auth_service, member_service, partners_service, proposal_service
 from src.utils.deps import get_current_user, get_current_user_optional_lenient
+from src.utils.request_info import client_ip, user_agent
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,7 +47,7 @@ LICENSE_MAX_UPLOAD_SIZE = member_service.LICENSE_MAX_UPLOAD_SIZE
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.register(
         db,
         body.email,
@@ -60,7 +62,9 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         marketing_email=body.marketing_email,
         store_info=body.store_info.model_dump() if body.store_info else None,
     )
-    access, refresh = auth_service.issue_tokens(db, user, remember=True)
+    access, refresh = auth_service.issue_tokens(
+        db, user, remember=True, method="signup", ip=client_ip(request), user_agent=user_agent(request)
+    )
     proposal_service.claim_session_proposals(
         db, member_id=user.id, session_id=body.session_id
     )
@@ -68,9 +72,11 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, body.email, body.password)
-    access, refresh = auth_service.issue_tokens(db, user, remember=body.remember)
+    access, refresh = auth_service.issue_tokens(
+        db, user, remember=body.remember, method="password", ip=client_ip(request), user_agent=user_agent(request)
+    )
     proposal_service.claim_session_proposals(
         db, member_id=user.id, session_id=body.session_id
     )
@@ -84,8 +90,10 @@ def logout(body: RefreshRequest, db: Session = Depends(get_db)) -> Response:
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    access, refresh_token = auth_service.rotate_refresh_token(db, body.refresh_token)
+def refresh(body: RefreshRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+    access, refresh_token = auth_service.rotate_refresh_token(
+        db, body.refresh_token, ip=client_ip(request), user_agent=user_agent(request)
+    )
     return TokenResponse(access_token=access, refresh_token=refresh_token)
 
 
@@ -100,12 +108,19 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
 @router.post("/switch-account", response_model=TokenResponse)
 def switch_account(
     body: SwitchAccountRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     """슈퍼 계정(087) "계정 전환" — 같은 묶음의 다른 유형 계정으로 새 토큰을 준다. 묶음 밖 계정은 403."""
     access, refresh_token = auth_service.switch_account(
-        db, current_user, body.user_id, remember=body.remember, refresh_token=body.refresh_token
+        db,
+        current_user,
+        body.user_id,
+        remember=body.remember,
+        refresh_token=body.refresh_token,
+        ip=client_ip(request),
+        user_agent=user_agent(request),
     )
     return TokenResponse(access_token=access, refresh_token=refresh_token)
 

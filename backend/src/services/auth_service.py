@@ -12,6 +12,7 @@ from src.config import get_settings
 from src.models.member_profile import BusinessRegistration, MemberSanction
 from src.models.proposal import Proposal
 from src.models.user import EmailVerification, PasswordReset, RefreshToken, User
+from src.models.user_login_log import UserLoginLog
 from src.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -27,8 +28,21 @@ settings = get_settings()
 PASSWORD_RESET_TTL_SECONDS = 3600
 EMAIL_CODE_TTL_SECONDS = 600
 
+# 자동 로그인으로 볼 쉰 시간(100) — 토큰은 1시간짜리라 쓰는 동안엔 1시간쯤마다 바꾼다.
+# 지난 토큰이 끝나고도 이만큼 넘게 아무것도 안 하다가 바꾸면 "다시 들어온 것"으로 보고 로그인 기록에 남긴다.
+AUTO_LOGIN_IDLE = timedelta(minutes=30)
 
-def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, str]:
+
+def issue_tokens(
+    db: Session,
+    user: User,
+    remember: bool = False,
+    *,
+    method: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[str, str]:
+    """토큰을 준다. method 가 있으면 로그인 기록(100)에 한 줄 남긴다 — 쓰는 동안 바꾸는 토큰은 method 없이."""
     access = create_access_token(
         {"sub": str(user.id)}, settings.jwt_access_secret, settings.jwt_access_expires
     )
@@ -47,6 +61,8 @@ def issue_tokens(db: Session, user: User, remember: bool = False) -> tuple[str, 
     db.query(User).filter(User.id == user.id).update(
         {User.last_login_at: now, User.updated_at: User.updated_at}, synchronize_session=False
     )
+    if method:
+        db.add(UserLoginLog(user_id=user.id, method=method, ip=ip, user_agent=user_agent, created_at=now))
     db.commit()
     return access, refresh
 
@@ -232,6 +248,8 @@ def switch_account(
     target_id,
     remember: bool = False,
     refresh_token: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
 ) -> tuple[str, str]:
     """슈퍼 계정 묶음(087) 안에서 다른 계정으로 옮긴다 — 같은 묶음일 때만. 지금 계정의 리프레시 토큰은 폐기한다."""
     target = db.query(User).filter(User.id == target_id).first()
@@ -246,7 +264,7 @@ def switch_account(
         row = db.query(RefreshToken).filter(RefreshToken.token == hash_token(refresh_token)).first()
         if row is not None and row.user_id == current.id:
             row.revoked = True
-    return issue_tokens(db, target, remember=remember)
+    return issue_tokens(db, target, remember=remember, method="switch", ip=ip, user_agent=user_agent)
 
 
 def withdraw(db: Session, user: User) -> None:
@@ -258,7 +276,9 @@ def withdraw(db: Session, user: User) -> None:
     db.commit()
 
 
-def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:
+def rotate_refresh_token(
+    db: Session, refresh_token: str, ip: str | None = None, user_agent: str | None = None
+) -> tuple[str, str]:
     payload = decode_token(refresh_token, settings.jwt_refresh_secret)
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="유효하지 않은 리프레시 토큰입니다.")
@@ -279,7 +299,13 @@ def rotate_refresh_token(db: Session, refresh_token: str) -> tuple[str, str]:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
     row.revoked = True
     db.commit()
-    return issue_tokens(db, user, bool(payload.get("remember", False)))
+    # 지난 토큰이 끝나고(1시간) 30분 넘게 쉬었다가 바꾸면 자동 로그인으로 다시 들어온 것(100).
+    # 쓰는 동안 1시간마다 바꾸는 건 기록하지 않는다.
+    idle = datetime.now(timezone.utc) - row.created_at - timedelta(seconds=settings.jwt_access_expires)
+    method = "auto" if idle > AUTO_LOGIN_IDLE else None
+    return issue_tokens(
+        db, user, bool(payload.get("remember", False)), method=method, ip=ip, user_agent=user_agent
+    )
 
 
 def revoke_refresh_token(db: Session, refresh_token: str) -> None:

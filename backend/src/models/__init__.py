@@ -17,6 +17,7 @@ from src.models.proposal import Proposal
 from src.models.proposal_counter_file import ProposalCounterFile
 from src.models.proposal_item import ProposalItem
 from src.models.user import PasswordReset, RefreshToken, SocialAccount, User
+from src.models.user_login_log import UserLoginLog
 from src.models.ai_recommend_job import AiRecommendJob
 from src.models.partners_store import PartnersStore, PartnersStoreRequest, PartnersStoreType
 from src.models.collab import Collab, CollabNotice, CollabParticipant, CollabPhoto, CollabReportFile
@@ -55,6 +56,7 @@ __all__ = [
     "AdminRefreshToken",
     "User",
     "RefreshToken",
+    "UserLoginLog",
     "SocialAccount",
     "PasswordReset",
     "BusinessRegistration",

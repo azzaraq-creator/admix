@@ -117,7 +117,7 @@ export function StartGate({ agreed }: { agreed: boolean }) {
             }
           >
             <b className="text-gray-700">지금 모집 중인 콜라보가 없어요.</b>새
-            모집은 이메일 또는 문자로 알려 드려요.
+            모집은 이메일 또는 알림톡으로 알려 드려요.
           </EmptyBox>
         )}
       </section>

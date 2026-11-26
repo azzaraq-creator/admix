@@ -34,6 +34,7 @@ import {
   useAgreementAction,
   useBizAction,
   useCollabMember,
+  useCollabMemberLogins,
   useCollabRequests,
   useLinkStore,
   useUnlinkStore,
@@ -44,7 +45,11 @@ import {
 import { useAdminConfirm } from "@/hooks/useAdminConfirm";
 import { useSonner } from "@/hooks/useSonner";
 import { copyText } from "@/lib/clipboard";
-import { dotDateTime, type BizAction } from "@/lib/adminCollab";
+import {
+  dotDateTime,
+  LOGIN_METHOD_LABEL,
+  type BizAction,
+} from "@/lib/adminCollab";
 import { extractApiError } from "@/lib/apiError";
 import { bizStatusLabel } from "@/lib/bizStatus";
 import { isOptimizable, mediaSrc } from "@/lib/media";
@@ -240,7 +245,81 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
       <BizSection member={member} />
       <AgreementSection member={member} />
       <StoresSection member={member} />
+      <LoginLogSection memberId={member.id} />
     </div>
+  );
+}
+
+/** 처음에 보이는 로그인 기록 줄 수 — "더 보기"로 이만큼씩 더 편다. */
+const LOGIN_PAGE = 10;
+
+/**
+ * 로그인 기록(100, 2026-11-26 사용자: "회원을 선택하면 로그인 로그를 확인할 수 있게") — 최근 것부터.
+ * 일시 · 방법 · 기기 · IP. 자동 로그인은 쓰는 동안 바꾸는 토큰은 빼고, 오래 쉬었다가 다시 들어온 때만 한 줄(서버).
+ * 서버는 최근 100줄까지 준다. 넓으면 네 칸 한 줄, 휴대폰은 일시 · 방법 / 기기 · IP 두 줄.
+ */
+function LoginLogSection({ memberId }: { memberId: string }) {
+  const { data, isLoading } = useCollabMemberLogins(memberId);
+  const [shown, setShown] = useState(LOGIN_PAGE);
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+
+  return (
+    <Section title="로그인 기록" desc={data ? `${total}번` : undefined}>
+      {isLoading ? (
+        <LoadingState />
+      ) : items.length === 0 ? (
+        <p className="rounded-[14px] bg-gray-50 px-[16px] py-[18px] text-center text-sm text-disabled">
+          아직 로그인 기록이 없어요.
+        </p>
+      ) : (
+        <div className="flex flex-col rounded-[14px] bg-gray-50 px-[16px] py-[4px]">
+          <div
+            aria-hidden
+            className="hidden grid-cols-[136px_104px_minmax(0,1fr)_128px] gap-x-[12px] border-b border-gray-100 py-[8px] text-xs font-medium text-disabled sm:grid"
+          >
+            <span>일시</span>
+            <span>방법</span>
+            <span>기기</span>
+            <span>IP</span>
+          </div>
+          <ul className="flex flex-col divide-y divide-gray-100">
+            {items.slice(0, shown).map((log) => (
+              <li
+                key={log.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-[12px] gap-y-[2px] py-[10px] text-sm sm:grid-cols-[136px_104px_minmax(0,1fr)_128px] sm:items-center"
+              >
+                <span className="text-black">{dotDateTime(log.at)}</span>
+                <span className="font-medium text-black max-sm:text-right">
+                  {LOGIN_METHOD_LABEL[log.method] ?? log.method}
+                </span>
+                <span className="truncate text-tone-4a5565 max-sm:text-xs">
+                  {log.device ?? "-"}
+                </span>
+                <span className="truncate text-tone-4a5565 max-sm:text-right max-sm:text-xs">
+                  {log.ip ?? "-"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {items.length > shown && (
+        <Button
+          variant="tertiary"
+          size="sm"
+          className="self-center"
+          onPress={() => setShown((n) => n + LOGIN_PAGE)}
+        >
+          더 보기
+        </Button>
+      )}
+      {items.length > 0 && shown >= items.length && total > items.length && (
+        <p className="text-center text-xs text-disabled">
+          최근 {items.length}번까지 보여요.
+        </p>
+      )}
+    </Section>
   );
 }
 
@@ -1166,7 +1245,7 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         marketing_sms: next.sms,
         marketing_email: next.email,
       });
-      const channels = [next.sms && "문자", next.email && "이메일"]
+      const channels = [next.sms && "알림톡", next.email && "이메일"]
         .filter(Boolean)
         .join(" · ");
       success(
@@ -1297,7 +1376,7 @@ function AccountSection({ member }: { member: AdminPartnerMember }) {
         <MetaItem label="마지막 업데이트">
           {dotDateTime(member.updatedAt)}
         </MetaItem>
-        {/* 받을 방법(문자 · 이메일, 083)을 체크박스로 — 새 콜라보 알림을 어디로 보낼지(11-24 사용자).
+        {/* 받을 방법(알림톡 · 이메일, 083)을 체크박스로 — 새 콜라보 알림을 어디로 보낼지(11-24 사용자).
             누르면 바로 저장(11-25 사용자: "관리자가 직접 바꿀 수 있게") — 하나라도 켜면 동의, 둘 다 끄면 비동의. */}
         <MetaItem label="마케팅 수신">
           <MarketingChecks

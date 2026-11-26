@@ -13,6 +13,8 @@ export const adminCollabKeys = {
   members: (params?: CollabMemberListParams) =>
     [...adminCollabKeys.all, "members", params ?? {}] as const,
   member: (id: string) => [...adminCollabKeys.all, "member", id] as const,
+  memberLogins: (id: string) =>
+    [...adminCollabKeys.all, "memberLogins", id] as const,
   lookup: (code: string) => [...adminCollabKeys.all, "lookup", code] as const,
   advertisers: (params?: CollabAdvertiserListParams) =>
     [...adminCollabKeys.all, "advertisers", params ?? {}] as const,

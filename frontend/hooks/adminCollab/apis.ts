@@ -13,6 +13,7 @@ import type {
   CollabListParams,
   CollabMemberListParams,
   CollabRequestListParams,
+  MemberLogins,
   Paged,
 } from "@/lib/adminCollab";
 import type {
@@ -79,6 +80,11 @@ export const adminCollabApi = {
   member: (id: string) =>
     api
       .get<AdminPartnerMember>(`/admin/collab/members/${enc(id)}`)
+      .then((r) => r.data),
+  /** 로그인 기록(100) — 최근 것부터 100줄까지와 전체 개수. */
+  memberLogins: (id: string) =>
+    api
+      .get<MemberLogins>(`/admin/collab/members/${enc(id)}/logins`)
       .then((r) => r.data),
   lookupMember: (code: string) =>
     api

@@ -116,7 +116,7 @@ export function ParticipantChip({ status }: { status: ParticipantStatus }) {
 
 /**
  * 마케팅 정보 수신 값 — 제휴사 · 광고주 회원 목록 · 상세(11-24 사용자).
- * "동의 · 문자 · 이메일"(받을 방법은 흐리게) · "비동의"(흐리게). 예전 서버라 값이 없으면 "-".
+ * "동의 · 알림톡 · 이메일"(받을 방법은 흐리게) · "비동의"(흐리게). 예전 서버라 값이 없으면 "-".
  */
 export function MarketingValue({
   member,
@@ -145,7 +145,7 @@ const CHECKBOX_SCOPE =
 
 /**
  * 마케팅 정보 수신 — 회원 상세용 체크박스(11-24 사용자: "체크박스형식으로 보여줘").
- * 문자 · 이메일 — 동의하지 않았으면 둘 다 빈 칸. 목록 표는 글(MarketingValue) 그대로.
+ * 알림톡 · 이메일 — 동의하지 않았으면 둘 다 빈 칸. 목록 표는 글(MarketingValue) 그대로.
  * onChange 가 있으면 관리자가 눌러 바꾼다(11-25 제휴사 회원 상세), 없으면 읽기 전용(광고주 회원).
  */
 export function MarketingChecks({
@@ -160,7 +160,7 @@ export function MarketingChecks({
   const status = marketingStatus(member);
   if (!status) return <span className="text-disabled">-</span>;
   const items = [
-    { key: "sms", label: "문자", on: status.sms },
+    { key: "sms", label: "알림톡", on: status.sms },
     { key: "email", label: "이메일", on: status.email },
   ];
   return (

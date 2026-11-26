@@ -94,7 +94,7 @@ export function EmailSignupWizard() {
         member_category: category,
         company_name: info.company.trim() || undefined,
         marketing_consent: marketingConsent,
-        // 제휴사 가입에서 고른 받을 방법(SMS · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
+        // 제휴사 가입에서 고른 받을 방법(알림톡 · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
         marketing_sms: channels?.sms,
         marketing_email: channels?.email,
         // 제휴사(콜라보) 매장 정보(089) — 필수, 서버가 사업자 등록 줄에 저장한다.

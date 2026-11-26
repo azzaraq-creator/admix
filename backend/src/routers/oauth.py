@@ -1,7 +1,7 @@
 """소셜 로그인 라우터 — 카카오/네이버 authorize URL + 콜백."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -14,6 +14,7 @@ from src.schemas.auth import (
 )
 from src.services import auth_service, oauth_service
 from src.utils.deps import get_current_user
+from src.utils.request_info import client_ip, user_agent
 from src.utils.security import generate_url_token
 
 router = APIRouter(prefix="/auth/sns", tags=["auth"])
@@ -28,12 +29,15 @@ def authorize(provider: str) -> OAuthUrlResponse:
 @router.get("/{provider}/callback", response_model=TokenResponse)
 def callback(
     provider: str,
+    request: Request,
     code: str = Query(...),
     state: str = Query(""),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     user = oauth_service.login_with_provider(db, provider, code, state)
-    access, refresh = auth_service.issue_tokens(db, user)
+    access, refresh = auth_service.issue_tokens(
+        db, user, method=provider, ip=client_ip(request), user_agent=user_agent(request)
+    )
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 

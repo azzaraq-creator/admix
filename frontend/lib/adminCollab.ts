@@ -358,7 +358,7 @@ export const shortDate = (ymd: string | null | undefined) =>
 
 /**
  * 마케팅 정보 수신 — 제휴사 · 광고주 회원 목록 · 상세(11-24 사용자).
- * 받을 방법(문자 · 이메일, 083)은 동의했을 때만 켠다. channels는 목록 글("문자 · 이메일"). 예전 서버라 값이 없으면 null.
+ * 받을 방법(알림톡 · 이메일, 083)은 동의했을 때만 켠다. channels는 목록 글("알림톡 · 이메일"). 예전 서버라 값이 없으면 null.
  */
 export function marketingStatus(member: {
   marketingConsent?: boolean;
@@ -374,11 +374,38 @@ export function marketingStatus(member: {
   const agreed = member.marketingConsent;
   const sms = agreed && !!member.marketingSms;
   const email = agreed && !!member.marketingEmail;
-  const channels = [sms && "문자", email && "이메일"]
+  const channels = [sms && "알림톡", email && "이메일"]
     .filter(Boolean)
     .join(" · ");
   return { agreed, sms, email, channels };
 }
+
+/**
+ * 회원 로그인 기록 한 줄(100, 11-26 사용자) — 어드민 제휴사 회원 상세.
+ * method: password(이메일) · kakao · naver · signup(가입) · switch(계정 전환) · auto(자동 로그인 — 오래 쉬었다가 다시 들어옴).
+ * device 는 서버가 브라우저 정보를 줄인 글("Mac · Chrome").
+ */
+export interface MemberLoginLog {
+  id: string;
+  at: string;
+  method: string;
+  ip: string | null;
+  device: string | null;
+}
+
+export interface MemberLogins {
+  total: number;
+  items: MemberLoginLog[];
+}
+
+export const LOGIN_METHOD_LABEL: Record<string, string> = {
+  password: "이메일 로그인",
+  kakao: "카카오 로그인",
+  naver: "네이버 로그인",
+  signup: "가입",
+  switch: "계정 전환",
+  auto: "자동 로그인",
+};
 
 /** ISO 시각 → 2026.11.09 14:20 (브라우저 시간대, 한국에서 쓰므로 KST). */
 export function dotDateTime(iso: string | null | undefined) {

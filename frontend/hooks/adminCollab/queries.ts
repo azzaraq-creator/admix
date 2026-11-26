@@ -51,6 +51,14 @@ export const useCollabMember = (id: string | null) =>
     refetchOnWindowFocus: true,
   });
 
+/** 회원 로그인 기록(100) — 상세 아래 "로그인 기록". 창으로 돌아오면 다시 불러온다. */
+export const useCollabMemberLogins = (id: string) =>
+  useQuery({
+    queryKey: adminCollabKeys.memberLogins(id),
+    queryFn: () => adminCollabApi.memberLogins(id),
+    refetchOnWindowFocus: true,
+  });
+
 /** 고유번호로 회원 미리 보기 — 매장 연결 전 확인. 못 찾으면 오류(재시도 없음). */
 export const useCollabMemberLookup = (code: string) =>
   useQuery({

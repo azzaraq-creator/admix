@@ -343,7 +343,7 @@ export function ProfileView() {
   };
   const savedMarketing = me?.marketing_consent ?? false;
   const marketing = marketingDraft ?? savedMarketing;
-  // 콜라보 내 정보(/partners/profile)에서만 — 새 콜라보 알림 설명 + 받을 방법(문자 · 이메일, 둘 다 가능) 체크박스(11-12 사용자).
+  // 콜라보 내 정보(/partners/profile)에서만 — 새 콜라보 알림 설명 + 받을 방법(알림톡 · 이메일, 둘 다 가능) 체크박스(11-12 사용자).
   // admix 내 정보(/profile)는 예전 그대로(방법 없이 동의만 켜면 서버가 둘 다로 본다).
   const pathname = usePathname();
   const collab = pathname?.startsWith("/partners") ?? false;
@@ -467,7 +467,7 @@ export function ProfileView() {
       return;
     }
     if (collab && marketing && !channels.sms && !channels.email) {
-      setMarketingError("SMS나 이메일 중 하나는 골라 주세요.");
+      setMarketingError("알림톡이나 이메일 중 하나는 골라 주세요.");
       return;
     }
     if (marketingDraft !== null && marketingDraft !== savedMarketing)
@@ -964,7 +964,7 @@ export function ProfileView() {
                 >
                   {(
                     [
-                      ["sms", "SMS"],
+                      ["sms", "알림톡"],
                       ["email", "이메일"],
                     ] as const
                   ).map(([key, label]) => (

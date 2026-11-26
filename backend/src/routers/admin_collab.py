@@ -102,6 +102,14 @@ def get_member(member_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -
     return partners_service.admin_get_member(db, member_id)
 
 
+@router.get("/members/{member_id}/logins")
+def member_logins(
+    member_id: str, limit: int = Query(100, ge=1, le=500), _: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """제휴사 회원 로그인 기록(100) — 일시 · 방법(이메일 · 소셜 · 자동 로그인 …) · IP · 기기, 최근 것부터."""
+    return partners_service.admin_member_logins(db, member_id, limit)
+
+
 class MemberUpdateIn(BaseModel):
     # 연락처 — 숫자 9 ~ 11자리('-'는 빼고 저장), 비우면 지운다. 비밀번호는 어드민에서 바꾸지 않는다(문의).
     phone: str | None = Field(default=None, max_length=20)
@@ -112,7 +120,7 @@ class MemberUpdateIn(BaseModel):
 
 @router.patch("/members/{member_id}")
 def update_member(member_id: str, body: MemberUpdateIn, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
-    """제휴사 회원 정보 바꾸기 — 연락처 · 마케팅 수신(문자 · 이메일)."""
+    """제휴사 회원 정보 바꾸기 — 연락처 · 마케팅 수신(알림톡 · 이메일)."""
     return partners_service.admin_update_member(db, member_id, _data(body))
 
 

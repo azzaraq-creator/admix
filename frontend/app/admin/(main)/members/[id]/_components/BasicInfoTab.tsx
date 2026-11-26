@@ -222,11 +222,11 @@ function ReadValue({ value }: { value: string }) {
   );
 }
 
-/** 마케팅 수신 — "동의 (문자 · 이메일)" · "비동의". 받을 방법(083)은 동의했을 때만 붙인다. */
+/** 마케팅 수신 — "동의 (알림톡 · 이메일)" · "비동의". 받을 방법(083)은 동의했을 때만 붙인다. */
 function marketingText(member: MemberDetail) {
   if (!member.marketing_consent) return "비동의";
   const channels = [
-    member.marketing_sms && "문자",
+    member.marketing_sms && "알림톡",
     member.marketing_email && "이메일",
   ].filter(Boolean);
   return channels.length ? `동의 (${channels.join(" · ")})` : "동의";
@@ -361,7 +361,7 @@ export function BasicInfoTab({
                 <ReadValue value={member.withdrawn_at?.slice(0, 10) ?? "-"} />
               </Row>
               <Row label="마케팅 수신">
-                {/* 동의했으면 받을 방법(문자 · 이메일, 083)도 — 새 콜라보 알림을 어디로 보낼지. */}
+                {/* 동의했으면 받을 방법(알림톡 · 이메일, 083)도 — 새 콜라보 알림을 어디로 보낼지. */}
                 <ReadValue value={marketingText(member)} />
               </Row>
               {/* 광고주는 직책을 아래 "담당자 정보"의 직함으로 본다(같은 값). */}

@@ -46,6 +46,7 @@ from src.services import media_service as ms
 from src.services import member_service
 from src.services.member_service import log_biz_rejection
 from src.services.auth_service import set_marketing
+from src.services import login_log_service
 
 log = logging.getLogger(__name__)
 
@@ -1995,7 +1996,7 @@ def admin_get_member(db: Session, member_id: str) -> dict:
 def admin_update_member(db: Session, member_id: str, data: dict) -> dict:
     """제휴사 회원 정보 — 연락처(2026-11-10 사용자: 회원 상세에서 바꾸고, 비밀번호는 따로 문의) · 마케팅 수신(11-25).
     연락처는 숫자만 저장한다(9 ~ 11자리, '-'는 화면이 넣는다). 비우면 지운다. 다른 회원과 겹치면 막는다.
-    마케팅 수신은 받을 방법(문자 · 이메일)을 보낸다 — 하나라도 켜면 동의, 둘 다 끄면 비동의(2026-11-25 사용자: "관리자가 직접 바꿀 수 있게").
+    마케팅 수신은 받을 방법(알림톡 · 이메일)을 보낸다 — 하나라도 켜면 동의, 둘 다 끄면 비동의(2026-11-25 사용자: "관리자가 직접 바꿀 수 있게").
     안 보낸 방법은 지금 화면에 보이는 값(동의했을 때만 켜짐)으로 둔다."""
     user = _partner_or_404(db, member_id)
     if "marketing_sms" in data or "marketing_email" in data:
@@ -2015,6 +2016,12 @@ def admin_update_member(db: Session, member_id: str, data: dict) -> dict:
     db.commit()
     db.refresh(user)
     return admin_get_member(db, member_id)
+
+
+def admin_member_logins(db: Session, member_id: str, limit: int = 100) -> dict:
+    """제휴사 회원 로그인 기록(100, 2026-11-26 사용자: "회원을 선택하면 로그인 로그를 확인할 수 있게") — 최근 것부터."""
+    user = _partner_or_404(db, member_id)
+    return login_log_service.recent(db, user.id, limit)
 
 
 def admin_lookup_member(db: Session, code: str) -> dict:

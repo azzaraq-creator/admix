@@ -268,12 +268,13 @@ export function CollabMarketingNote({
       {advertiser ? (
         <>
           동의하면 <span className={em}>매체 광고 맞춤 기획안</span>과{" "}
-          <span className={em}>콜라보 일정</span>을 SMS나 이메일로 알려 드려요.
+          <span className={em}>콜라보 일정</span>을 알림톡이나 이메일로 알려
+          드려요.
         </>
       ) : (
         <>
-          동의하면 <span className={em}>새로운 콜라보</span>가 열렸을 때 SMS나
-          이메일로 알려 드려요.
+          동의하면 <span className={em}>새로운 콜라보</span>가 열렸을 때
+          알림톡이나 이메일로 알려 드려요.
         </>
       )}
     </p>

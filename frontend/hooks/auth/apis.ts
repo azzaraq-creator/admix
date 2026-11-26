@@ -56,7 +56,7 @@ export interface ProfileUpdatePayload {
   company_name?: string;
   phone?: string;
   marketing_consent?: boolean;
-  /** 마케팅 정보 받을 방법(083) — 문자 · 이메일, 둘 다 가능. 동의를 켠 채 둘 다 끄면 서버가 막는다. */
+  /** 마케팅 정보 받을 방법(083) — 알림톡 · 이메일, 둘 다 가능. 동의를 켠 채 둘 다 끄면 서버가 막는다. */
   marketing_sms?: boolean;
   marketing_email?: boolean;
   member_category?: MemberCategory;

@@ -125,7 +125,7 @@ function SnsSignupFlow({ me, collab }: { me: MeResponse; collab: boolean }) {
       await authApi.completeSnsSignup({
         email: verifiedEmail,
         marketing_consent: marketingConsent,
-        // 제휴사 가입에서 고른 받을 방법(SMS · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
+        // 제휴사 가입에서 고른 받을 방법(알림톡 · 이메일). 없으면 서버가 동의했을 때 둘 다로 본다.
         marketing_sms: channels?.sms,
         marketing_email: channels?.email,
         member_category: category,

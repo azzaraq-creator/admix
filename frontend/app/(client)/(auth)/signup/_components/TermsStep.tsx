@@ -40,7 +40,7 @@ export interface MarketingChannels {
   email: boolean;
 }
 const CHANNELS = [
-  ["sms", "SMS"],
+  ["sms", "알림톡"],
   ["email", "이메일"],
 ] as const;
 const ALL_CHANNELS = CHANNELS.map(([key]) => key as string);
@@ -118,7 +118,7 @@ function TermBadge({ required }: { required: boolean }) {
 /**
  * 5단계 — 시안(00. 회원가입 - 약관동의).
  * 전체 동의·필수 4개·선택 1개를 HeroUI CheckboxGroup 하나로 묶는다.
- * 제휴사(partner) 가입이면 마케팅 동의 설명이 새 콜라보 알림으로 바뀌고, 그 아래 받을 방법(SMS · 이메일, 둘 다 가능)을 고른다.
+ * 제휴사(partner) 가입이면 마케팅 동의 설명이 새 콜라보 알림으로 바뀌고, 그 아래 받을 방법(알림톡 · 이메일, 둘 다 가능)을 고른다.
  */
 export function TermsStep({
   pending,
@@ -158,7 +158,7 @@ export function TermsStep({
   const submit = () => {
     if (!partner || !marketing) return onSubmit(marketing);
     if (!channels.length) {
-      setChannelError("SMS나 이메일 중 하나는 골라 주세요.");
+      setChannelError("알림톡이나 이메일 중 하나는 골라 주세요.");
       return;
     }
     onSubmit(true, {
@@ -279,7 +279,7 @@ export function TermsStep({
         {/* 제휴사 — 새 콜라보 알림 안내(눈에 띄게, 11-12 사용자). 체크박스 밖이라 눌러도 동의가 바뀌지 않는다. 글자 줄(17 + 16 + 12px)에 맞춘다. */}
         {partner && <CollabMarketingNote className="-mt-[8px] ml-[45px]" />}
 
-        {/* 제휴사 — 받을 방법(SMS · 이메일). 약관 그룹과 값이 섞이지 않게 따로 묶는다. */}
+        {/* 제휴사 — 받을 방법(알림톡 · 이메일). 약관 그룹과 값이 섞이지 않게 따로 묶는다. */}
         {partner && (
           <CheckboxGroup
             aria-label="마케팅 정보 받을 방법"
