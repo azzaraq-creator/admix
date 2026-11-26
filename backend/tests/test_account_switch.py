@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.config import get_settings
 from src.database import SessionLocal
 from src.models.user import RefreshToken, User
+from src.models.user_login_log import UserLoginLog
 from src.schemas.auth import UserResponse
 from src.services import auth_service
 from src.utils.security import decode_token, hash_token
@@ -70,6 +71,8 @@ def test_switch_issues_tokens_for_target_and_revokes_old(db: Session, accounts):
     assert payload and payload["sub"] == str(advertiser.id)
     old = db.query(RefreshToken).filter(RefreshToken.token == hash_token(old_refresh)).one()
     assert old.revoked
+    # 계정 전환은 로그인 기록(100)에 남기지 않는다(11-26 사용자).
+    assert db.query(UserLoginLog).filter(UserLoginLog.user_id == advertiser.id).count() == 0
 
 
 def test_switch_outside_group_is_forbidden(db: Session, accounts):

@@ -47,7 +47,7 @@ LICENSE_MAX_UPLOAD_SIZE = member_service.LICENSE_MAX_UPLOAD_SIZE
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.register(
         db,
         body.email,
@@ -62,9 +62,8 @@ def register(body: RegisterRequest, request: Request, db: Session = Depends(get_
         marketing_email=body.marketing_email,
         store_info=body.store_info.model_dump() if body.store_info else None,
     )
-    access, refresh = auth_service.issue_tokens(
-        db, user, remember=True, method="signup", ip=client_ip(request), user_agent=user_agent(request)
-    )
+    # 가입하고 바로 들어온 건 로그인 기록(100)에 남기지 않는다 — 가입일시가 따로 있다(11-26 사용자).
+    access, refresh = auth_service.issue_tokens(db, user, remember=True)
     proposal_service.claim_session_proposals(
         db, member_id=user.id, session_id=body.session_id
     )
@@ -108,19 +107,12 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
 @router.post("/switch-account", response_model=TokenResponse)
 def switch_account(
     body: SwitchAccountRequest,
-    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     """슈퍼 계정(087) "계정 전환" — 같은 묶음의 다른 유형 계정으로 새 토큰을 준다. 묶음 밖 계정은 403."""
     access, refresh_token = auth_service.switch_account(
-        db,
-        current_user,
-        body.user_id,
-        remember=body.remember,
-        refresh_token=body.refresh_token,
-        ip=client_ip(request),
-        user_agent=user_agent(request),
+        db, current_user, body.user_id, remember=body.remember, refresh_token=body.refresh_token
     )
     return TokenResponse(access_token=access, refresh_token=refresh_token)
 

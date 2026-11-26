@@ -7,11 +7,13 @@
 - nginx 접속 기록(EC2 /var/log/nginx, 14일 치): 어느 주소로 왔는지(로그인 · 가입 · 토큰 바꾸기 …) · IP · 브라우저.
 둘을 시각으로 맞춰(토큰 시각 1초 전 ~ 3초 뒤의 성공한 요청) 방법 · IP · 브라우저를 채운다.
 토큰 바꾸기는 지금 규칙과 같게 — 바로 앞 토큰이 끝나고(1시간) 30분 넘게 쉬었다가 바꾼 것만 "자동 로그인"으로 남긴다.
+로그인한 것만 넣는다(11-26 사용자: "그냥 딱 로그인 한 것만!") — 이메일 · 카카오 · 네이버 로그인과 자동 로그인.
 
 남기지 않는 것(미리 보기에 개수를 보여 준다):
+- 이메일 가입하고 바로 들어온 것(가입일시가 따로 있다) · 내부 계정 전환("계정 전환은 빼줘").
 - 접속 기록이 없는 때(14일보다 오래된 토큰) — 방법 · IP 를 알 수 없다.
 - 시각이 맞는 요청을 못 찾은 토큰.
-- 이미 쌓이기 시작한 뒤(로그인 기록 첫 줄 이후)의 토큰과, 같은 회원 · 같은 시각 줄이 이미 있는 것 — 두 번 돌려도 겹치지 않는다.
+- 이미 쌓이기 시작한 뒤(로그인 기록 첫 줄 이후)의 토큰과, 같은 회원 · 5초 안 줄이 이미 있는 것 — 두 번 돌려도 겹치지 않는다.
 --apply 없이 돌리면 무엇을 넣을지만 보여 준다 — 읽기 전용 트랜잭션이라 DB 에 아무것도 쓰지 않는다.
 """
 from __future__ import annotations
@@ -38,6 +40,8 @@ _POST_KIND = {
 ACCESS = timedelta(hours=1)  # 접근 토큰 수명(settings.jwt_access_expires 와 같게)
 IDLE = timedelta(minutes=30)  # auth_service.AUTO_LOGIN_IDLE
 BEFORE, AFTER = timedelta(seconds=1), timedelta(seconds=3)  # 토큰 시각 기준 요청 시각 범위
+SAME = timedelta(seconds=5)  # 이미 있는 줄과 같은 로그인으로 볼 시각 차
+SKIP_KINDS = {"signup": "가입 · 계정 전환", "switch": "가입 · 계정 전환"}  # 요청은 짝지어 쓰고 줄은 넣지 않는다
 
 
 @dataclass
@@ -96,7 +100,10 @@ def plan(
     tokens = sorted(tokens, key=lambda t: t.created_at)
     used: set[int] = set()
     rows: list[dict] = []
-    skipped = {"접속 기록 전": 0, "요청 못 찾음": 0, "쓰는 중 토큰 바꾸기": 0, "이미 있음": 0}
+    skipped = {"접속 기록 전": 0, "요청 못 찾음": 0, "쓰는 중 토큰 바꾸기": 0, "가입 · 계정 전환": 0, "이미 있음": 0}
+    have: dict[str, list[datetime]] = {}
+    for uid, at in existing:
+        have.setdefault(uid, []).append(at)
     by_user: dict[str, list[Token]] = {}
     for tok in tokens:
         earlier = by_user.setdefault(str(tok.user_id), [])
@@ -125,13 +132,16 @@ def plan(
         used.add(i)
         hit = hits[i]
         method = hit.kind
+        if method in SKIP_KINDS:
+            skipped[SKIP_KINDS[method]] += 1
+            continue
         if method == "refresh":
             idle = tok.created_at - prev.created_at - ACCESS if prev else None
             if idle is not None and idle <= IDLE:
                 skipped["쓰는 중 토큰 바꾸기"] += 1
                 continue
             method = "auto"
-        if (str(tok.user_id), tok.created_at) in existing:
+        if any(abs(at - tok.created_at) <= SAME for at in have.get(str(tok.user_id), ())):
             skipped["이미 있음"] += 1
             continue
         rows.append(

@@ -248,8 +248,6 @@ def switch_account(
     target_id,
     remember: bool = False,
     refresh_token: str | None = None,
-    ip: str | None = None,
-    user_agent: str | None = None,
 ) -> tuple[str, str]:
     """슈퍼 계정 묶음(087) 안에서 다른 계정으로 옮긴다 — 같은 묶음일 때만. 지금 계정의 리프레시 토큰은 폐기한다."""
     target = db.query(User).filter(User.id == target_id).first()
@@ -264,7 +262,8 @@ def switch_account(
         row = db.query(RefreshToken).filter(RefreshToken.token == hash_token(refresh_token)).first()
         if row is not None and row.user_id == current.id:
             row.revoked = True
-    return issue_tokens(db, target, remember=remember, method="switch", ip=ip, user_agent=user_agent)
+    # 내부 계정 전환은 로그인 기록(100)에 남기지 않는다(11-26 사용자: "계정 전환은 빼줘").
+    return issue_tokens(db, target, remember=remember)
 
 
 def withdraw(db: Session, user: User) -> None:

@@ -134,10 +134,12 @@ def test_backfill_matches_tokens_to_requests():
         _nginx("21/Nov/2026:09:00:00", "POST /auth/refresh", ip="5.6.7.8", ua=IPHONE_SAFARI),  # 다음 날 다시
         _nginx("21/Nov/2026:09:30:00", "POST /auth/login", status=401),  # 실패는 빼고
         _nginx("22/Nov/2026:08:00:00", "GET /auth/sns/kakao/callback?code=x&state=y"),
+        _nginx("23/Nov/2026:08:00:01", "POST /auth/register", status=201),  # 가입 — 넣지 않는다
+        _nginx("23/Nov/2026:09:00:01", "POST /auth/switch-account"),  # 계정 전환 — 넣지 않는다
     ]
     hits, start = parse(lines)
     assert start == datetime(2026, 11, 12, tzinfo=utc)
-    assert [h.kind for h in hits] == ["password", "refresh", "refresh", "kakao"]
+    assert [h.kind for h in hits] == ["password", "refresh", "refresh", "kakao", "signup", "switch"]
 
     u = "user-1"
     at = lambda *a: datetime(2026, 11, *a, tzinfo=utc)  # noqa: E731
@@ -148,6 +150,8 @@ def test_backfill_matches_tokens_to_requests():
         Token(u, at(21, 8, 59, 59, 800_000), week),
         Token(u, at(22, 7, 59, 59, 500_000), week),
         Token(u, at(22, 12, 0, 0), week),  # 요청을 못 찾음
+        Token("user-2", at(23, 8, 0, 0, 700_000), timedelta(days=30)),
+        Token(u, at(23, 9, 0, 0, 900_000), week),
     ]
     rows, skipped = plan(tokens, hits, start, None, set())
     assert [(r["method"], r["ip"]) for r in rows] == [
@@ -156,9 +160,15 @@ def test_backfill_matches_tokens_to_requests():
         ("kakao", "1.2.3.4"),
     ]
     assert rows[1]["user_agent"] == IPHONE_SAFARI
-    assert skipped == {"접속 기록 전": 1, "요청 못 찾음": 1, "쓰는 중 토큰 바꾸기": 1, "이미 있음": 0}
+    assert skipped == {
+        "접속 기록 전": 1,
+        "요청 못 찾음": 1,
+        "쓰는 중 토큰 바꾸기": 1,
+        "가입 · 계정 전환": 2,
+        "이미 있음": 0,
+    }
 
-    # 이미 쌓이기 시작한 뒤의 토큰 · 같은 시각 줄은 다시 넣지 않는다
-    rows2, skipped2 = plan(tokens, hits, start, at(22, 0, 0, 0), {(u, at(20, 10, 0, 0, 600_000))})
+    # 이미 쌓이기 시작한 뒤의 토큰 · 몇 초 안 같은 회원 줄은 다시 넣지 않는다
+    rows2, skipped2 = plan(tokens, hits, start, at(22, 0, 0, 0), {(u, at(20, 10, 0, 2))})
     assert [r["method"] for r in rows2] == ["auto"]
     assert skipped2["이미 있음"] == 1

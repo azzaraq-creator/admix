@@ -382,7 +382,8 @@ export function marketingStatus(member: {
 
 /**
  * 회원 로그인 기록 한 줄(100, 11-26 사용자) — 어드민 제휴사 회원 상세.
- * method: password(이메일) · kakao · naver · signup(가입) · switch(계정 전환) · auto(자동 로그인 — 오래 쉬었다가 다시 들어옴).
+ * 로그인한 것만(11-26 사용자: "그냥 딱 로그인 한 것만!") — 가입 · 내부 계정 전환은 서버가 남기지 않는다.
+ * method: password(이메일) · kakao · naver · auto(자동 로그인 — 오래 쉬었다가 다시 들어옴).
  * device 는 서버가 브라우저 정보를 줄인 글("Mac · Chrome").
  */
 export interface MemberLoginLog {
@@ -402,8 +403,6 @@ export const LOGIN_METHOD_LABEL: Record<string, string> = {
   password: "이메일 로그인",
   kakao: "카카오 로그인",
   naver: "네이버 로그인",
-  signup: "가입",
-  switch: "계정 전환",
   auto: "자동 로그인",
 };
 
