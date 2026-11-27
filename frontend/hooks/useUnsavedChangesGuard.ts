@@ -5,6 +5,32 @@ import { useCallback, useEffect, useRef } from "react";
 
 const GUARD_STATE = { unsavedChangesGuard: true };
 
+type NavigationLike = EventTarget & {
+  canGoBack?: boolean;
+  back?: () => { committed?: Promise<unknown>; finished?: Promise<unknown> };
+};
+
+/**
+ * 이 창의 기록으로 한 칸 뒤로 간다. history.back()은 화면 안 iframe(주소 검색 카카오 우편번호 등)이 쌓은 기록부터
+ * 되돌려 위 화면은 그대로일 수 있다(2026-11-27 운영: 새 매장 등록 뒤 화면 이동이 늘 3초 — 주소를 검색하면 생김).
+ * Navigation API 가 있으면 이 창 기록만 거슬러 가고, 없으면 history.back().
+ */
+function backInPage() {
+  const navigation = (window as Window & { navigation?: NavigationLike })
+    .navigation;
+  if (navigation?.canGoBack && navigation.back) {
+    try {
+      const result = navigation.back();
+      result?.committed?.catch(() => {});
+      result?.finished?.catch(() => {});
+      return;
+    } catch {
+      // 아래 history.back() 으로
+    }
+  }
+  window.history.back();
+}
+
 /**
  * 저장하지 않은 수정 내용이 있을 때 페이지를 떠나기 전에 확인한다.
  *
@@ -49,11 +75,11 @@ export function useUnsavedChangesGuard(
       guardedRef.current = false;
       // 그사이 저장했으면 묻지 않고 원래 하려던 뒤로 가기를 이어 간다.
       if (!whenRef.current) {
-        window.history.back();
+        backInPage();
         return;
       }
       if (await confirmRef.current()) {
-        window.history.back();
+        backInPage();
       } else {
         window.history.pushState(GUARD_STATE, "", window.location.href);
         guardedRef.current = true;
@@ -116,7 +142,7 @@ export function useUnsavedChangesGuard(
     ) => {
       const go = () => {
         if (back) {
-          router.back();
+          backInPage();
           return;
         }
         if (!href) return;
@@ -167,7 +193,7 @@ export function useUnsavedChangesGuard(
         else timer = window.setTimeout(check, 100);
       };
       timer = window.setTimeout(check, 300);
-      window.history.back();
+      backInPage();
     },
     [router],
   );

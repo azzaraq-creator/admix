@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Drawer, ListBox, Popover } from "@heroui/react";
+import { Badge, Button, Chip, Drawer, ListBox, Popover } from "@heroui/react";
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -42,6 +42,35 @@ function Bell({ className }: { className?: string }) {
       src="/icons/notification.svg"
       className={cn("shrink-0 text-gray-800", className)}
     />
+  );
+}
+
+/**
+ * 종 + 오른쪽 위 알림 수(HeroUI Badge) — 모바일 위 띠 · PC 사이드바를 접었을 때(11-27 사용자).
+ * 색은 PC 사이드바 펼친 상태의 숫자 알약과 같은 red-500, 흰 테두리로 종과 떨어져 보이게.
+ */
+function BellWithCount({
+  count,
+  className,
+}: {
+  count: number;
+  className?: string;
+}) {
+  return (
+    <Badge.Anchor>
+      <Bell className={className} />
+      {count > 0 && (
+        <Badge
+          aria-hidden
+          color="danger"
+          size="sm"
+          placement="top-right"
+          className="border-surface bg-red-500 px-[3px] font-bold text-white"
+        >
+          <Badge.Label>{count}</Badge.Label>
+        </Badge>
+      )}
+    </Badge.Anchor>
   );
 }
 
@@ -109,8 +138,32 @@ function NotificationContent({ onClose }: { onClose: () => void }) {
                 <span className="truncate text-[14px] leading-[1.4] font-semibold text-gray-900">
                   {t.title}
                 </span>
-                <span className="truncate text-[12px] leading-[1.4] text-gray-500">
-                  {t.detail}
+                <span className="flex min-w-0 items-center gap-[6px] text-[12px] leading-[1.4] text-gray-500">
+                  {/* 콜라보 이름만 한 단계 진하게(11-27 사용자 "콜라보 이름도 조금 임팩트") — 브랜드 · 설명은 회색 그대로. */}
+                  <span className="truncate">
+                    {t.brand}
+                    {/* 브랜드 · 콜라보 이름 사이 "-"(11-27 사용자 "브랜드명 옆에 - 하나 그어줘"). */}
+                    <span aria-hidden className="mx-[5px] text-gray-400">
+                      -
+                    </span>
+                    <b className="font-semibold text-gray-800">
+                      {t.collabTitle}
+                    </b>
+                    {t.detail && ` · ${t.detail}`}
+                  </span>
+                  {/* 마감 — 날짜만 Chip, 뒤에 "마감"(11-27 사용자). */}
+                  {t.due && (
+                    <span className="flex shrink-0 items-center gap-[4px]">
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        className="h-[18px] rounded-[6px] px-[6px] text-[11px] font-semibold text-gray-700"
+                      >
+                        {t.due}
+                      </Chip>
+                      마감
+                    </span>
+                  )}
                 </span>
               </span>
               <ChevronRight className="size-[16px] shrink-0 text-gray-300 transition-[color,translate] group-data-[hovered=true]:translate-x-[2px] group-data-[hovered=true]:text-gray-500" />
@@ -160,7 +213,11 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
           open ? "bg-gray-100" : "bg-gray-50 hover:bg-gray-100",
         )}
       >
-        <Bell className="size-[18px]" />
+        {/* 접었을 때만 종 오른쪽 위에 알림 수(Badge, 11-27 사용자 "접은 상태에서도 Badge로") — 펼치면 오른쪽 끝 알약. */}
+        <BellWithCount
+          count={collapsed ? count : 0}
+          className="size-[18px]"
+        />
         <span
           className={cn(
             "text-sm font-semibold whitespace-nowrap text-gray-900",
@@ -171,6 +228,21 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
         >
           {LABEL}
         </span>
+        {/* 알림 수 — 오른쪽 끝, 옆 메뉴 "콜라보 참여" 숫자와 같은 크기의 알약(11-27 사용자). 접으면 글자처럼 숨긴다.
+            색은 빨강(11-27 사용자 "이것까지 보라색이면 좀 그래. 빨간색 어때?") — 예전 종의 빨간 점과 같은 red-500. */}
+        {count > 0 && (
+          <span
+            aria-hidden
+            className={cn(
+              "ml-auto flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red-500 px-[5px] text-[11px] leading-none font-bold text-white",
+              collapsed
+                ? "sm:opacity-0 sm:transition-none"
+                : "opacity-100 transition-opacity duration-300",
+            )}
+          >
+            {count}
+          </span>
+        )}
       </button>
       {isDesktop && (
         <Popover isOpen={open} onOpenChange={setOpen}>
@@ -210,7 +282,8 @@ export function PartnerNotificationHeaderButton() {
         className="ml-auto flex h-full w-[48px] shrink-0 items-center justify-center text-gray-900"
       >
         {/* PC 사이드바 알림과 같은 종(notification.svg) — 11-08 사용자: "모바일 알림 아이콘이 달라". */}
-        <Bell className="size-[20px]" />
+        {/* 알림 수 — 종 오른쪽 위 HeroUI Badge(11-27 사용자 "모바일 종에도 알림 수 띄워줘. Badge로"). */}
+        <BellWithCount count={items.length} className="size-[20px]" />
       </button>
       {!isDesktop && (
         <Drawer.Backdrop isOpen={open} onOpenChange={setOpen}>

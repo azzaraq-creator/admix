@@ -432,7 +432,13 @@ export function todosOf(state: PreviewState, today = todayKst()) {
     collabId: string;
     kind: "photo" | "confirm" | "answer" | "notice";
     title: string;
+    /** 브랜드 · 콜라보 이름 — 알림 목록이 콜라보 이름만 한 단계 진하게 보여 준다(11-27 사용자 "조금 임팩트"). */
+    brand: string;
+    collabTitle: string;
+    /** 이름 뒤에 " · "로 붙는 설명(없으면 이름만). */
     detail: string;
+    /** 마감 날짜(11.06) — 알림 목록이 detail 뒤에 Chip + "마감"으로 붙인다(11-27 사용자). */
+    due?: string;
   }[] = [];
   for (const c of state.collabs) {
     const due = dueStepOf(c, today);
@@ -442,7 +448,9 @@ export function todosOf(state: PreviewState, today = todayKst()) {
         collabId: c.id,
         kind: "photo",
         title: `${STEP_LABEL[due.step]} 사진을 올려 주세요`,
-        detail: `${c.brand} ${c.title} · ${due.day}일차 남은 수량`,
+        brand: c.brand,
+        collabTitle: c.title,
+        detail: `${due.day}일차 남은 수량`,
       });
     // 새로 열린 콜라보 — 참여 / 미참여를 묻는다(11-12 사용자). 마감까지 답이 없으면 무응답.
     if (c.standing === "none" && categoryOf(c, today) === "recruiting")
@@ -451,7 +459,11 @@ export function todosOf(state: PreviewState, today = todayKst()) {
         collabId: c.id,
         kind: "answer",
         title: "새 콜라보에 참여할까요?",
-        detail: `${c.brand} ${c.title} · ${md(c.recruitEnd)}까지 답해 주세요`,
+        // 예전 "· 11.06까지 답해 주세요" → 날짜 Chip + "마감"(11-27 사용자).
+        brand: c.brand,
+        collabTitle: c.title,
+        detail: "",
+        due: md(c.recruitEnd),
       });
     if (c.standing === "requested")
       todos.push({
@@ -459,7 +471,9 @@ export function todosOf(state: PreviewState, today = todayKst()) {
         collabId: c.id,
         kind: "confirm",
         title: "최종 확정 요청이 도착했어요",
-        detail: `${c.brand} ${c.title} · ${kstStamp(c.confirmDue)}까지`,
+        brand: c.brand,
+        collabTitle: c.title,
+        detail: `${kstStamp(c.confirmDue)}까지`,
       });
     const unread = c.notices.filter((n) => !state.reads.includes(n.id)).length;
     if (unread && c.standing === "confirmed")
@@ -468,7 +482,9 @@ export function todosOf(state: PreviewState, today = todayKst()) {
         collabId: c.id,
         kind: "notice",
         title: `새 공지 ${unread}건`,
-        detail: `${c.brand} ${c.title} · 진행 안내함에서 확인`,
+        brand: c.brand,
+        collabTitle: c.title,
+        detail: "진행 안내함에서 확인",
       });
   }
   // 확정 요청은 기한이 있으니 맨 위 — 대시보드 "확정할 콜라보" 구역을 알림으로 옮겼다(2026-11-09 사용자).
