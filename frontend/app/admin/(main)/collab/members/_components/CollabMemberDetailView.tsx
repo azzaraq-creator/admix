@@ -249,7 +249,7 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
       <BizSection member={member} />
       <AgreementSection member={member} />
       <StoresSection member={member} />
-      <LoginLogSection memberId={member.id} />
+      <LoginLogSection memberId={member.id} joinedAt={member.createdAt} />
     </div>
   );
 }
@@ -262,7 +262,14 @@ const LOGIN_PAGE_SIZE = 10;
  * 일시 · 방법 · 기기 · IP. 자동 로그인은 쓰는 동안 바꾸는 토큰은 빼고, 오래 쉬었다가 다시 들어온 때만 한 줄(서버).
  * 10줄씩 아래 쪽 번호(PageNav, 회원 목록과 같은 HeroUI Pagination)로 넘긴다. 넓으면 네 칸 한 줄, 휴대폰은 일시 · 방법 / 기기 · IP 두 줄.
  */
-function LoginLogSection({ memberId }: { memberId: string }) {
+function LoginLogSection({
+  memberId,
+  joinedAt,
+}: {
+  memberId: string;
+  /** 가입일시 — 기록이 없을 때 안내에(가입하고 바로 들어온 건 기록하지 않아서). */
+  joinedAt: string | null | undefined;
+}) {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useCollabMemberLogins(
     memberId,
@@ -277,8 +284,12 @@ function LoginLogSection({ memberId }: { memberId: string }) {
       {isLoading ? (
         <LoadingState />
       ) : items.length === 0 ? (
+        // 가입하고 바로 들어온 건 기록하지 않아(11-26) "기록이 안 쌓인다"로 헷갈려서, 가입 시각을 같이 알린다(11-27 사용자).
         <p className="rounded-[14px] bg-gray-50 px-[16px] py-[18px] text-center text-sm text-disabled">
           아직 로그인 기록이 없어요.
+          {joinedAt && dotDateTime(joinedAt) !== "-" && (
+            <> {dotDateTime(joinedAt).slice(5)}에 가입하고 바로 들어왔어요.</>
+          )}
         </p>
       ) : (
         <div className="flex flex-col rounded-[14px] bg-gray-50 px-[16px] py-[4px]">

@@ -6,11 +6,11 @@ import { type ReactNode } from "react";
 import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
-import { installDays } from "@/lib/advertiserPreview";
 import {
-  addDays,
   categoryOf,
   diffDays,
+  installLabelOf,
+  installSpanOf,
   md,
   recruitBadgeOf,
   recruitKindOf,
@@ -85,13 +85,9 @@ export function PeriodBar({
   const total = Math.max(1, diffDays(c.removalDate, from) + 1);
   const pct = (d: string) =>
     Math.min(100, Math.max(0, (diffDays(d, from) / total) * 100));
-  // 설치는 목표 매장 5곳당 하루, 진행 시작 전날까지(11-26 사용자 "5개당 하루씩 추가야" — 광고주 일정의 installDays 와 같은 규칙).
-  const installEnd = addDays(c.startDate, -1);
-  const installStart = addDays(c.startDate, -installDays(c.targetStores));
-  const installLabel =
-    installStart === installEnd
-      ? md(installStart)
-      : `${md(installStart)} ~ ${md(installEnd)}`;
+  // 설치는 목표 매장 5곳당 하루, 진행 시작 전날까지(11-26 사용자 "5개당 하루씩 추가야" — 상세와 같은 installSpanOf).
+  const { start: installStart, end: installEnd } = installSpanOf(c);
+  const installLabel = installLabelOf(c);
   const segs = (
     [
       ["recruit", c.recruitStart, c.recruitEnd],

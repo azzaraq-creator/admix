@@ -76,13 +76,138 @@ export function detailImageUrls(
   return [...covers, ...store.imageUrls.filter((u) => !shown.has(u))];
 }
 
-/** 운영 시간 요일 구분 · 휴무일 — 백엔드 partners_service.HOURS_DAYS · CLOSED_DAYS 와 같다(073). */
+/**
+ * 운영 시간 요일 구분 · 휴무일 — 백엔드 partners_service.HOURS_DAYS · CLOSED_DAYS 와 같다(073).
+ * 11-27 사용자 "요일별로 선택할 수 있는 옵션도": 월~일 하나씩도 고른다. 겹치는 구분은 함께 못 고른다.
+ * 11-27 사용자 "월요일 외 평일 이런 식으로": 나머지 평일 · 나머지 요일(한 줄만) — 다른 줄이 고르지 않은 날.
+ * 이름은 다른 줄을 보고 "월요일 외 평일" · "월요일 외 매일"로 붙인다(hoursDaysLabel).
+ */
 export const HOURS_DAYS = [
   { value: "daily", label: "매일" },
   { value: "weekday", label: "평일" },
   { value: "weekend", label: "주말(공휴일)" },
+  { value: "mon", label: "월요일" },
+  { value: "tue", label: "화요일" },
+  { value: "wed", label: "수요일" },
+  { value: "thu", label: "목요일" },
+  { value: "fri", label: "금요일" },
+  { value: "sat", label: "토요일" },
+  { value: "sun", label: "일요일" },
+  { value: "rest_weekday", label: "나머지 평일" },
+  { value: "rest", label: "나머지 요일" },
 ] as const;
 export type HoursDays = (typeof HOURS_DAYS)[number]["value"];
+type RestDays = "rest_weekday" | "rest";
+type FixedDays = Exclude<HoursDays, RestDays>;
+const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+const HOURS_DAY_NAME = Object.fromEntries(
+  HOURS_DAYS.map((d) => [d.value, d.label]),
+) as Record<HoursDays, string>;
+/** 요일 구분마다 덮는 날 — 백엔드 HOURS_DAY_COVERS · HOURS_REST 와 같다. */
+const HOURS_DAY_COVERS: Record<FixedDays, readonly string[]> = {
+  daily: WEEK_DAYS,
+  weekday: WEEK_DAYS.slice(0, 5),
+  weekend: ["sat", "sun"],
+  mon: ["mon"],
+  tue: ["tue"],
+  wed: ["wed"],
+  thu: ["thu"],
+  fri: ["fri"],
+  sat: ["sat"],
+  sun: ["sun"],
+};
+const HOURS_REST: Record<RestDays, readonly string[]> = {
+  rest_weekday: WEEK_DAYS.slice(0, 5),
+  rest: WEEK_DAYS,
+};
+const isRestDays = (d: HoursDays): d is RestDays => d in HOURS_REST;
+const firstDay = (d: FixedDays) =>
+  Math.min(...HOURS_DAY_COVERS[d].map((x) => WEEK_DAYS.indexOf(x as never)));
+/** 나머지 줄이 빼는 다른 줄 — 나머지 평일은 평일에 걸친 줄만. 월요일부터. */
+function restBasis(days: RestDays, all: HoursDays[]): FixedDays[] {
+  return all
+    .filter((d): d is FixedDays => !isRestDays(d))
+    .filter((d) => HOURS_DAY_COVERS[d].some((x) => HOURS_REST[days].includes(x)))
+    .sort((a, b) => firstDay(a) - firstDay(b));
+}
+/** 그 줄이 덮는 날 — 나머지는 다른 고정 줄이 덮지 않은 날. all = 모든 줄의 요일 구분. */
+export function hoursDaysCover(days: HoursDays, all: HoursDays[]): string[] {
+  if (!isRestDays(days)) return [...HOURS_DAY_COVERS[days]];
+  const taken = new Set(
+    all
+      .filter((d): d is FixedDays => !isRestDays(d))
+      .flatMap((d) => HOURS_DAY_COVERS[d]),
+  );
+  return HOURS_REST[days].filter((x) => !taken.has(x));
+}
+/** 요일 구분 이름 — 나머지는 "월요일 외 평일" · "월요일 · 수요일 외 매일"(백엔드 hours_days_label 과 같다). */
+export function hoursDaysLabel(days: HoursDays, all: HoursDays[]): string {
+  if (!isRestDays(days)) return HOURS_DAY_NAME[days];
+  const basis = restBasis(days, all);
+  if (!basis.length) return HOURS_DAY_NAME[days];
+  return `${basis.map((d) => HOURS_DAY_NAME[d]).join(" · ")} 외 ${days === "rest_weekday" ? "평일" : "매일"}`;
+}
+/** 줄들이 함께 쓸 수 있는지 — 고정 줄끼리 겹치지 않고, 나머지는 한 줄 · 뺄 줄과 남는 날이 있어야 한다(백엔드와 같다). */
+export function hoursDaysValid(all: HoursDays[]): boolean {
+  const fixed = all.filter((d): d is FixedDays => !isRestDays(d));
+  const seen = new Set<string>();
+  for (const d of fixed)
+    for (const x of HOURS_DAY_COVERS[d]) {
+      if (seen.has(x)) return false;
+      seen.add(x);
+    }
+  const rests = all.filter(isRestDays);
+  if (rests.length > 1) return false;
+  return rests.every(
+    (d) => restBasis(d, all).length > 0 && hoursDaysCover(d, all).length > 0,
+  );
+}
+/** 뺄 줄이 사라진 나머지 줄은 그냥 평일 · 매일로(다른 줄을 지우거나 바꿨을 때). */
+export function normalizeHoursDays(all: HoursDays[]): HoursDays[] {
+  return all.map((d) =>
+    isRestDays(d) && !restBasis(d, all).length
+      ? d === "rest_weekday"
+        ? "weekday"
+        : "daily"
+      : d,
+  );
+}
+/** i 번째 줄에서 고를 수 있는 요일 구분(이름은 다른 줄을 보고 붙인다). */
+export function hoursDayOptions(
+  all: HoursDays[],
+  i: number,
+): { value: HoursDays; label: string }[] {
+  return HOURS_DAYS.flatMap(({ value }) => {
+    const next = normalizeHoursDays(all.map((d, j) => (j === i ? value : d)));
+    if (next[i] !== value || !hoursDaysValid(next)) return [];
+    return [{ value, label: hoursDaysLabel(value, next) }];
+  });
+}
+/**
+ * "운영 시간 추가"가 새 줄에 넣을 요일 구분 — 나머지 줄이 없고 쓸 수 있으면 "○요일 외 평일"(11-27 사용자 예: 월요일만 다를 때).
+ * 아니면 아직 아무 줄도 덮지 않은 구분 중 마지막 줄이 요일 하나면 그 다음 요일(월요일 → 화요일 …), 아니면 목록 순서의 첫 것.
+ * 그것도 없으면 "○요일 외 매일". 없으면 null.
+ */
+export function nextHoursDays(slots: { days: HoursDays }[]): HoursDays | null {
+  const all = slots.map((s) => s.days);
+  const hasRest = all.some(isRestDays);
+  if (!hasRest && hoursDaysValid([...all, "rest_weekday"])) return "rest_weekday";
+  const covered = new Set(all.flatMap((d) => hoursDaysCover(d, all)));
+  const free = HOURS_DAYS.map((d) => d.value).filter(
+    (v): v is FixedDays =>
+      !isRestDays(v) && HOURS_DAY_COVERS[v].every((x) => !covered.has(x)),
+  );
+  const i = WEEK_DAYS.findIndex((d) => d === all[all.length - 1]);
+  if (i >= 0) {
+    const after = [...WEEK_DAYS.slice(i + 1), ...WEEK_DAYS.slice(0, i)].find(
+      (d) => free.includes(d),
+    );
+    if (after) return after;
+  }
+  if (free[0]) return free[0];
+  if (!hasRest && hoursDaysValid([...all, "rest"])) return "rest";
+  return null;
+}
 export const CLOSED_DAYS = [
   { value: "mon", label: "월요일" },
   { value: "tue", label: "화요일" },
@@ -93,8 +218,8 @@ export const CLOSED_DAYS = [
   { value: "sun", label: "일요일" },
   { value: "holiday", label: "공휴일" },
 ] as const;
-/** 운영 시간은 요일 구분별로 2개까지(평일 · 주말이 다를 수 있어서). */
-export const MAX_HOURS_SLOTS = 2;
+/** 운영 시간 줄 수 — 요일마다 한 줄씩이면 7줄(겹치지 않게 고르면 이보다 많을 수 없다). */
+export const MAX_HOURS_SLOTS = 7;
 /** 운영 시간 입력값 — 시간은 "10:00" 처럼 24시간. 화면에 보이는 글(businessHours)은 서버가 이걸로 만든다. */
 export interface StoreHours {
   slots: { days: HoursDays; open: string; close: string }[];
@@ -687,6 +812,9 @@ export interface AdminCollab {
   space: string | null;
   quantity: number | null;
   benefit: string | null;
+  /** 지급 시점 · 점검 사진 요청(102) — 비면 매장 화면은 "콜라보 시작 전 지급" · "남은 수량이 보이게 사진 한 장". */
+  benefitWhen: string | null;
+  checkPhoto: string | null;
   staffScript: string | null;
   targetStores: number;
   status: "draft" | "published" | "cancelled";
@@ -773,6 +901,8 @@ export interface AdminCollabPayload {
   space?: string | null;
   quantity?: number | null;
   benefit?: string | null;
+  benefit_when?: string | null;
+  check_photo?: string | null;
   staff_script?: string | null;
   target_stores?: number;
   status?: "draft" | "published" | "cancelled";

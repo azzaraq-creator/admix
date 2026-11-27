@@ -14,8 +14,11 @@ import { Plus, Trash2 } from "lucide-react";
 
 import {
   CLOSED_DAYS,
-  HOURS_DAYS,
+  hoursDayOptions,
+  hoursDaysLabel,
   MAX_HOURS_SLOTS,
+  nextHoursDays,
+  normalizeHoursDays,
   type HoursDays,
   type StoreHours,
 } from "@/lib/partners";
@@ -118,10 +121,6 @@ export function hoursPayload(hours: StoreHours): StoreHours | null {
 export const hoursIncomplete = (hours: StoreHours) =>
   hours.slots.some((s) => Boolean(s.open) !== Boolean(s.close));
 
-const DAYS_LABEL: Record<HoursDays, string> = Object.fromEntries(
-  HOURS_DAYS.map((d) => [d.value, d.label]),
-) as Record<HoursDays, string>;
-
 /** "10:00" ↔ TimeField 값(24시간). */
 const timeOf = (hhmm: string): Time | null => {
   try {
@@ -169,8 +168,8 @@ function HourInput({
 }
 
 /**
- * 운영 시간 — 요일 구분 Select + 여는 · 닫는 시간 TimeField, 2줄까지(평일 · 주말이 다를 때).
- * 두 줄이면 "매일"은 고를 수 없다(매일이던 줄은 평일로 바꾸고 주말 줄을 더한다).
+ * 운영 시간 — 요일 구분(매일 · 평일 · 주말(공휴일) · 월~일) Select + 여는 · 닫는 시간 TimeField. 줄마다 다른 요일 구분,
+ * 같은 날을 덮는 구분은 함께 못 고른다(매일이던 한 줄은 "추가하기"로 평일 + 주말로 나뉜다, 11-27 요일별 고르기).
  * 한 줄에 요일 구분 · 여는 시간 ~ 닫는 시간(11-10 사용자: "한 줄로 깔끔하게"), 줄 더하기는 아래 "추가하기".
  */
 export function BusinessHoursEditor({
@@ -183,45 +182,48 @@ export function BusinessHoursEditor({
   variant?: FieldVariant;
 }) {
   const slots = value.slots;
+  const days = slots.map((s) => s.days);
+  // 줄을 바꾸거나 지운 뒤 — 뺄 줄이 사라진 "○요일 외 …" 줄은 평일 · 매일로 바꾼다.
+  const withSlots = (next: StoreHours["slots"]) => {
+    const fixed = normalizeHoursDays(next.map((s) => s.days));
+    onChange({
+      ...value,
+      slots: next.map((s, j) => ({ ...s, days: fixed[j] })),
+    });
+  };
   const setSlot = (i: number, patch: Partial<StoreHours["slots"][number]>) =>
-    onChange({
-      ...value,
-      slots: slots.map((s, j) => (j === i ? { ...s, ...patch } : s)),
-    });
+    withSlots(slots.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
+  // 새 줄 — "매일" 한 줄이면 평일 + 주말로 나누고, 아니면 이미 고른 줄과 겹치지 않는 첫 요일 구분을
+  // 마지막 줄 시간 그대로 더한다(평일 → 주말(공휴일) → 월요일 … 순, 11-27 요일별 고르기).
+  const onlyDaily = slots.length === 1 && slots[0].days === "daily";
+  const nextDays = nextHoursDays(slots);
+  const canAdd = onlyDaily || nextDays !== null;
   const addSlot = () => {
-    const [first] = slots;
-    if (!first || slots.length >= MAX_HOURS_SLOTS) return;
-    const copy = { open: first.open, close: first.close };
-    onChange({
-      ...value,
-      slots:
-        first.days === "daily"
-          ? [
-              { ...first, days: "weekday" },
-              { days: "weekend", ...copy },
-            ]
-          : [
-              first,
-              {
-                days: first.days === "weekday" ? "weekend" : "weekday",
-                ...copy,
-              },
-            ],
-    });
+    const last = slots[slots.length - 1];
+    if (!last) return;
+    const copy = { open: last.open, close: last.close };
+    if (onlyDaily) {
+      onChange({
+        ...value,
+        slots: [
+          { ...last, days: "weekday" },
+          { days: "weekend", ...copy },
+        ],
+      });
+      return;
+    }
+    if (!nextDays) return;
+    onChange({ ...value, slots: [...slots, { days: nextDays, ...copy }] });
   };
 
   const removeSlot = (i: number) => {
     const rest = slots.filter((_, j) => j !== i);
-    onChange({ ...value, slots: rest.length ? rest : EMPTY_HOURS.slots });
+    withSlots(rest.length ? rest : EMPTY_HOURS.slots);
   };
 
-  const optionsFor = (i: number) =>
-    HOURS_DAYS.filter(
-      (d) =>
-        !(slots.length > 1 && d.value === "daily") &&
-        !slots.some((s, j) => j !== i && s.days === d.value),
-    );
+  // 다른 줄과 같은 날을 덮는 구분은 빼고, "○요일 외 평일"처럼 다른 줄을 보고 이름을 붙여 보여 준다.
+  const optionsFor = (i: number) => hoursDayOptions(days, i);
 
   return (
     <div className="flex flex-col gap-[8px]">
@@ -252,14 +254,14 @@ export function BusinessHoursEditor({
             </Select.Popover>
           </Select>
           <HourInput
-            label={`${DAYS_LABEL[slot.days]} 여는 시간`}
+            label={`${hoursDaysLabel(slot.days, days)} 여는 시간`}
             value={slot.open}
             onChange={(open) => setSlot(i, { open })}
             variant={variant}
           />
           <span className="shrink-0 text-[13px] text-gray-400">~</span>
           <HourInput
-            label={`${DAYS_LABEL[slot.days]} 닫는 시간`}
+            label={`${hoursDaysLabel(slot.days, days)} 닫는 시간`}
             value={slot.close}
             onChange={(close) => setSlot(i, { close })}
             variant={variant}
@@ -269,7 +271,7 @@ export function BusinessHoursEditor({
               isIconOnly
               size="sm"
               variant="tertiary"
-              aria-label={`${DAYS_LABEL[slot.days]} 운영 시간 빼기`}
+              aria-label={`${hoursDaysLabel(slot.days, days)} 운영 시간 빼기`}
               onPress={() => removeSlot(i)}
               className="shrink-0 max-sm:size-[28px] max-sm:min-w-[28px]"
             >
@@ -278,7 +280,7 @@ export function BusinessHoursEditor({
           )}
         </div>
       ))}
-      {slots.length < MAX_HOURS_SLOTS && (
+      {canAdd && (
         <Button
           size="sm"
           variant="tertiary"

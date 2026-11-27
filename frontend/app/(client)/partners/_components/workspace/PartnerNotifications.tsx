@@ -33,37 +33,17 @@ const KIND_DOT = {
 } as const;
 
 /**
- * 종 — notification.svg 모양을 회색 두 톤(몸통 진하게 gray-800 · 추 gray-500)으로 — 옆 메뉴 아이콘과 같은 진하기.
- * 보라 · 노랑은 쓰지 않는다(11-06 사용자: "보라 싫다", "노랑 · 주황은 혼자 화려해"). 옅은 회색은 "칙칙하다"(11-08).
- * badge 면 badge-notification.svg 모양(오른쪽 위가 파인 몸통 + 빨간 점).
+ * 종 — public/icons/notification.svg 그대로(MaskIcon, 옆 메뉴 아이콘과 같은 gray-800).
+ * 알림이 와도 모양을 바꾸지 않는다(11-27 사용자: "알림 온 거랑 별개로 notification.svg로만") — 예전엔 두 톤 종 + 빨간 점.
  */
-function BellTwoTone({
-  badge = false,
-  className,
-}: {
-  badge?: boolean;
-  className?: string;
-}) {
+function Bell({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 16 18"
-      fill="none"
-      aria-hidden
-      className={cn("shrink-0", className)}
-    >
-      <path
-        d="M8 18C9.38503 18 10.5633 17.1652 11 16H5C5.43668 17.1652 6.61497 18 8 18Z"
-        className="fill-gray-500"
-      />
-      <path d={badge ? BELL_BADGE_BODY : BELL_BODY} className="fill-gray-800" />
-      {badge && <circle cx="13" cy="3" r="3" className="fill-red-500" />}
-    </svg>
+    <MaskIcon
+      src="/icons/notification.svg"
+      className={cn("shrink-0 text-gray-800", className)}
+    />
   );
 }
-const BELL_BODY =
-  "M2.22281 16H13.7772C15.6056 16 16.6492 14.1609 15.5522 12.8721C15.0666 12.3016 14.7673 11.6249 14.6867 10.9153L14.2395 6.97519C13.9984 4.85063 12.4123 3.10719 10.2699 2.37366V2.26995C10.2699 1.01629 9.25366 0 8 0C6.74634 0 5.73005 1.01629 5.73005 2.26995V2.37366C3.58766 3.10719 2.0016 4.85063 1.76046 6.97519L1.31328 10.9153C1.23274 11.6249 0.933441 12.3016 0.447786 12.8721C-0.649243 14.1609 0.394434 16 2.22281 16Z";
-const BELL_BADGE_BODY =
-  "M8 0C8.67094 0.000106293 9.272 0.292983 9.6875 0.755859C9.25311 1.39573 9 2.16834 9 3C9 5.20914 10.7908 7 13 7C13.4244 6.99996 13.833 6.93302 14.2168 6.81055C14.2248 6.86521 14.233 6.9204 14.2392 6.97559L14.6865 10.915C14.767 11.6246 15.0661 12.3016 15.5517 12.8721C16.6488 14.1608 15.6047 16 13.7764 16H2.22265C0.394296 16 -0.649702 14.1608 0.447264 12.8721C0.932919 12.3015 1.23196 11.6247 1.3125 10.915L1.75976 6.97559C2.00088 4.85113 3.58724 3.10761 5.72949 2.37402V2.26953C5.72971 1.01607 6.74648 0 8 0Z";
 
 function useNotifications() {
   const { state, today } = usePartnerWorkspace();
@@ -180,7 +160,7 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
           open ? "bg-gray-100" : "bg-gray-50 hover:bg-gray-100",
         )}
       >
-        <BellTwoTone badge={count > 0} className="h-[18px] w-[16px] mx-[1px]" />
+        <Bell className="size-[18px]" />
         <span
           className={cn(
             "text-sm font-semibold whitespace-nowrap text-gray-900",
@@ -215,7 +195,7 @@ export function PartnerNotificationCard({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** 모바일 위 띠 — 종 아이콘(PC와 같은 두 톤 종) + 아래 시트. */
+/** 모바일 위 띠 — 종 아이콘(PC와 같은 notification.svg) + 아래 시트. */
 export function PartnerNotificationHeaderButton() {
   const items = useNotifications();
   const [open, setOpen] = useState(false);
@@ -229,8 +209,8 @@ export function PartnerNotificationHeaderButton() {
         onClick={() => setOpen(true)}
         className="ml-auto flex h-full w-[48px] shrink-0 items-center justify-center text-gray-900"
       >
-        {/* PC 사이드바 알림과 같은 종(회색 두 톤 · 알림이 있으면 빨간 점) — 11-08 사용자: "모바일 알림 아이콘이 달라". */}
-        <BellTwoTone badge={items.length > 0} className="h-[20px] w-[18px]" />
+        {/* PC 사이드바 알림과 같은 종(notification.svg) — 11-08 사용자: "모바일 알림 아이콘이 달라". */}
+        <Bell className="size-[20px]" />
       </button>
       {!isDesktop && (
         <Drawer.Backdrop isOpen={open} onOpenChange={setOpen}>

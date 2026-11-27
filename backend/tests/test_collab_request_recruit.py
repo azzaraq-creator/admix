@@ -64,9 +64,23 @@ def test_start_recruiting_from_confirmed_plan(db: Session, made):  # noqa: F811
         rs.admin_start_recruiting(db, rid, {})
     assert e.value.status_code == 409
 
+    # 매장 운영(2026-11-27) — 기획안에 적은 값이 콜라보로 넘어간다(빈 칸은 None).
+    ops = {"space": "계산대 옆 선반", "staffScript": " 구매 고객께 샘플을 드려요 ", "checkPhoto": "", "benefit": "브랜드 티 세트"}
     one = rs.admin_send_round(
-        db, _Admin(), rid, {"content": _round_content(req, title="겨울 콜라보", targetStores=12), "baseRound": 0}
+        db,
+        _Admin(),
+        rid,
+        {"content": _round_content(req, title="겨울 콜라보", targetStores=12, ops=ops), "baseRound": 0},
     )
+    assert one["rounds"][-1]["content"]["ops"] == {
+        "space": "계산대 옆 선반",
+        "staffScript": "구매 고객께 샘플을 드려요",
+        "checkPhoto": None,
+        "benefit": "브랜드 티 세트",
+        "benefitWhen": None,
+    }
+    assert {"ops:space", "ops:staffScript", "ops:benefit"} <= set(one["rounds"][-1]["changed"])
+    assert "ops:checkPhoto" not in one["rounds"][-1]["changed"]
     rs.confirm(db, advertiser, rid, {"round": 1})
     assert rs.admin_get(db, rid)["collabId"] is None
 
@@ -93,6 +107,8 @@ def test_start_recruiting_from_confirmed_plan(db: Session, made):  # noqa: F811
         ("브랜딩 홍보물", "A4 포스터 1장", "admix"),
         ("브랜딩 소모품", "컵홀더 전체", "made"),
     ]
+    assert (out["space"], out["staffScript"], out["benefit"]) == ("계산대 옆 선반", "구매 고객께 샘플을 드려요", "브랜드 티 세트")
+    assert out["benefitWhen"] is None and out["checkPhoto"] is None
     assert req["code"] in (out.get("adminMemo") or "")
     got = rs.admin_get(db, rid)
     assert got["collabId"] == out["id"] and got["status"] == "confirmed"
@@ -147,3 +163,32 @@ def test_recruit_board_moves_request_to_collabs(db: Session, made):  # noqa: F81
     db.get(Collab, out["id"]).status = "draft"
     db.commit()
     assert out["id"] not in [c["id"] for c in rs.admin_recruit_board(db)["collabs"]]
+
+
+def test_plan_ops_compare_and_limits(db: Session, made):  # noqa: F811
+    """매장 운영 — 혜택은 지급 시점과 한 항목, 모두 비면 None, 길이 제한."""
+    advertiser, _ = made
+    brand = bs.create(db, advertiser, {"name": "운영", "image_url": None})
+    req = rs.create(db, advertiser, _payload(brand["id"]))
+    rid = req["id"]
+    assert req["original"].get("ops") is None
+    # 모두 빈 칸이면 None — 처음 의뢰서와 같아 '수정'이 아니다.
+    one = rs.admin_send_round(
+        db, _Admin(), rid, {"content": _round_content(req, ops={"space": " ", "benefit": ""}), "baseRound": 0}
+    )
+    assert one["rounds"][-1]["content"]["ops"] is None
+    assert not [k for k in one["rounds"][-1]["changed"] if k.startswith("ops:")]
+    # 광고주도 고친다 — 지급 시점만 바꿔도 매장 혜택 항목이 '수정'.
+    two = rs.send_round(
+        db,
+        advertiser,
+        rid,
+        {"content": _round_content(one, ops={"benefitWhen": "설치 날 지급"}), "baseRound": 1, "notes": {}},
+    )
+    assert two["rounds"][-1]["changed"] == ["ops:benefit"]
+    assert two["rounds"][-1]["content"]["ops"]["benefitWhen"] == "설치 날 지급"
+    with pytest.raises(HTTPException) as e:
+        rs.admin_send_round(
+            db, _Admin(), rid, {"content": _round_content(two, ops={"checkPhoto": "가" * 201}), "baseRound": 2}
+        )
+    assert e.value.status_code == 400

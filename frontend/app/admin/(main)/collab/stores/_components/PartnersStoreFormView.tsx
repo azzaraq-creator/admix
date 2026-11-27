@@ -56,8 +56,11 @@ import {
   COLLAB_GRADES,
   GRADE_CRITERIA,
   GRADE_MEMO_MAX_LEN,
-  HOURS_DAYS,
+  hoursDayOptions,
+  hoursDaysLabel,
   MAX_HOURS_SLOTS,
+  nextHoursDays,
+  normalizeHoursDays,
   PARTNERS_IMAGE_MAX_SIDE,
   PARTNERS_PHOTO_MEMO_MAX_LEN,
   PHOTO_KIND_LABEL,
@@ -449,10 +452,12 @@ export function PartnersStoreFormView({ mode }: { mode: "create" | "edit" }) {
         </Button>
       </div>
     );
-  // 저장 뒤 다시 불러오면(수정 시각이 바뀌면) 폼을 새 값으로 다시 그린다.
+  // 매장마다 폼 하나 — 예전엔 수정 시각(updatedAt)을 key 로 써서 저장 뒤 다시 불러오면 폼을 새로 그렸는데, 그 사이
+  // 저장 뒤 이동(release → popstate 다음 이동)이 사라져 첫 저장엔 화면이 그대로였다(2026-11-27 사용자: "2번을 누르면
+  // 화면 이동이 되고 2번 저장이 돼"). 저장하면 늘 상세로 가니 새로 그릴 일이 없다.
   return (
     <PartnersStoreForm
-      key={detail?.updatedAt ?? "new"}
+      key={detail?.id ?? "new"}
       id={id}
       detail={detail}
       tab={tab}
@@ -509,6 +514,9 @@ function PartnersStoreForm({
   // 주소를 고른 뒤 위치를 찾는 동안 — 위치 탭 지도 자리에 "찾는 중"을 띄운다.
   const [locating, setLocating] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
+  // 저장 중 — 저장 요청부터 상세로 옮겨 갈 때까지 버튼을 막고 Spinner(11-27 사용자). ref 는 빠른 두 번 누름 막기.
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -635,7 +643,9 @@ function PartnersStoreForm({
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (savingRef.current || !validate()) return;
+    savingRef.current = true;
+    setSaving(true);
     const snapshot = form;
     const coords = coordsOf(form);
     const payload: AdminPartnersStorePayload = {
@@ -701,6 +711,8 @@ function PartnersStoreForm({
           replace: true,
         });
     } catch (err) {
+      savingRef.current = false;
+      setSaving(false);
       await alert({
         title: "저장 실패",
         description: extractApiError(err),
@@ -1091,16 +1103,21 @@ function PartnersStoreForm({
         </Button>
         <div className="flex items-center gap-[8px]">
           {isEdit && (
-            <Button variant="danger-soft" onPress={handleDelete}>
+            <Button
+              variant="danger-soft"
+              onPress={handleDelete}
+              isDisabled={saving}
+            >
               삭제
             </Button>
           )}
           <Button
             variant="primary"
-            onPress={handleSave}
-            isDisabled={save.isPending}
+            onPress={() => void handleSave()}
+            isPending={saving}
           >
-            {save.isPending ? "저장 중…" : "저장"}
+            {saving && <Spinner size="sm" color="current" />}
+            {saving ? "저장 중…" : "저장"}
           </Button>
         </div>
       </div>
@@ -1681,10 +1698,6 @@ function PhotoTile({
   );
 }
 
-const DAYS_LABEL: Record<HoursDays, string> = Object.fromEntries(
-  HOURS_DAYS.map((d) => [d.value, d.label]),
-) as Record<HoursDays, string>;
-
 /** "10:00" ↔ TimeField 값(24시간). */
 const timeOf = (hhmm: string): Time | null => {
   try {
@@ -1725,8 +1738,8 @@ function HourInput({
 }
 
 /**
- * 운영 시간 — 요일 구분(매일 · 평일 · 주말(공휴일)) Select + 여는 · 닫는 시간 TimeField. 평일 · 주말이 다를 수 있어
- * 2줄까지. 두 줄이면 "매일"은 고를 수 없다(매일이던 줄은 평일로 바꾸고 주말 줄을 더한다).
+ * 운영 시간 — 요일 구분(매일 · 평일 · 주말(공휴일) · 월~일) Select + 여는 · 닫는 시간 TimeField. 줄마다 다른 요일 구분,
+ * 같은 날을 덮는 구분은 함께 못 고른다(매일이던 한 줄은 "추가"하면 평일 + 주말로 나뉜다). 11-27 사용자: 요일별 고르기.
  */
 export function BusinessHoursEditor({
   value,
@@ -1736,45 +1749,48 @@ export function BusinessHoursEditor({
   onChange: (next: StoreHours) => void;
 }) {
   const slots = value.slots;
+  const days = slots.map((s) => s.days);
+  // 줄을 바꾸거나 지운 뒤 — 뺄 줄이 사라진 "○요일 외 …" 줄은 평일 · 매일로 바꾼다.
+  const withSlots = (next: StoreHours["slots"]) => {
+    const fixed = normalizeHoursDays(next.map((s) => s.days));
+    onChange({
+      ...value,
+      slots: next.map((s, j) => ({ ...s, days: fixed[j] })),
+    });
+  };
   const setSlot = (i: number, patch: Partial<StoreHours["slots"][number]>) =>
-    onChange({
-      ...value,
-      slots: slots.map((s, j) => (j === i ? { ...s, ...patch } : s)),
-    });
+    withSlots(slots.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
+  // 새 줄 — "매일" 한 줄이면 평일 + 주말로 나누고, 아니면 이미 고른 줄과 겹치지 않는 첫 요일 구분을
+  // 마지막 줄 시간 그대로 더한다(평일 → 주말(공휴일) → 월요일 … 순, 11-27 요일별 고르기).
+  const onlyDaily = slots.length === 1 && slots[0].days === "daily";
+  const nextDays = nextHoursDays(slots);
+  const canAdd = onlyDaily || nextDays !== null;
   const addSlot = () => {
-    const [first] = slots;
-    if (!first || slots.length >= MAX_HOURS_SLOTS) return;
-    const copy = { open: first.open, close: first.close };
-    onChange({
-      ...value,
-      slots:
-        first.days === "daily"
-          ? [
-              { ...first, days: "weekday" },
-              { days: "weekend", ...copy },
-            ]
-          : [
-              first,
-              {
-                days: first.days === "weekday" ? "weekend" : "weekday",
-                ...copy,
-              },
-            ],
-    });
+    const last = slots[slots.length - 1];
+    if (!last) return;
+    const copy = { open: last.open, close: last.close };
+    if (onlyDaily) {
+      onChange({
+        ...value,
+        slots: [
+          { ...last, days: "weekday" },
+          { days: "weekend", ...copy },
+        ],
+      });
+      return;
+    }
+    if (!nextDays) return;
+    onChange({ ...value, slots: [...slots, { days: nextDays, ...copy }] });
   };
 
   const removeSlot = (i: number) => {
     const rest = slots.filter((_, j) => j !== i);
-    onChange({ ...value, slots: rest.length ? rest : EMPTY_HOURS.slots });
+    withSlots(rest.length ? rest : EMPTY_HOURS.slots);
   };
 
-  const optionsFor = (i: number) =>
-    HOURS_DAYS.filter(
-      (d) =>
-        !(slots.length > 1 && d.value === "daily") &&
-        !slots.some((s, j) => j !== i && s.days === d.value),
-    ).map((d) => ({ value: d.value, label: d.label }));
+  // 다른 줄과 같은 날을 덮는 구분은 빼고, "○요일 외 평일"처럼 다른 줄을 보고 이름을 붙여 보여 준다.
+  const optionsFor = (i: number) => hoursDayOptions(days, i);
 
   return (
     <div className="flex flex-col gap-[8px]">
@@ -1790,13 +1806,13 @@ export function BusinessHoursEditor({
             />
           </div>
           <HourInput
-            label={`${DAYS_LABEL[slot.days]} 여는 시간`}
+            label={`${hoursDaysLabel(slot.days, days)} 여는 시간`}
             value={slot.open}
             onChange={(open) => setSlot(i, { open })}
           />
           <span className="text-sm text-disabled">~</span>
           <HourInput
-            label={`${DAYS_LABEL[slot.days]} 닫는 시간`}
+            label={`${hoursDaysLabel(slot.days, days)} 닫는 시간`}
             value={slot.close}
             onChange={(close) => setSlot(i, { close })}
           />
@@ -1805,7 +1821,7 @@ export function BusinessHoursEditor({
               isIconOnly
               size="sm"
               variant="tertiary"
-              aria-label={`${DAYS_LABEL[slot.days]} 운영 시간 빼기`}
+              aria-label={`${hoursDaysLabel(slot.days, days)} 운영 시간 빼기`}
               onPress={() => removeSlot(i)}
             >
               <Trash2 className="size-[14px]" />
@@ -1813,7 +1829,7 @@ export function BusinessHoursEditor({
           )}
         </div>
       ))}
-      {slots.length < MAX_HOURS_SLOTS && (
+      {canAdd && (
         <Button
           size="sm"
           variant="tertiary"

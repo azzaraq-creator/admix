@@ -449,6 +449,9 @@ class CollabIn(BaseModel):
     space: str | None = Field(default=None, max_length=200)
     quantity: int | None = None
     benefit: str | None = Field(default=None, max_length=200)
+    # 지급 시점 · 점검 사진 요청(102) — 비면 매장 화면이 예전 고정 문구.
+    benefit_when: str | None = Field(default=None, max_length=100)
+    check_photo: str | None = Field(default=None, max_length=200)
     staff_script: str | None = None
     target_stores: int | None = None
     status: str | None = None

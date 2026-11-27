@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Chip, Input, Tabs } from "@heroui/react";
+import { Button, Card, Chip, Input, Tabs, Tooltip } from "@heroui/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
 import Image from "next/image";
@@ -122,6 +122,15 @@ export function BizLicenseBoard({
   });
   const total = data?.total ?? 0;
   const searching = !!(category || status || keyword);
+  // zip 은 "상태"를 고르지 않았으면 검토 완료만 담는다(11-27 사용자: "전체 다운로드는 검토 완료만 받게").
+  // 상태를 직접 고르면 그 상태 그대로. 장 수도 실제로 담기는 수로 센다(1줄만 받아 total 만 쓴다).
+  const zipParams: BizLicenseZipParams = {
+    ...filterParams,
+    status: status || "verified",
+  };
+  const zipQuery = useLicenses({ page: 1, page_size: 1, ...zipParams });
+  const zipCount = zipQuery.data?.total ?? 0;
+  const verifiedOnly = !status;
   // 회원 유형 이름은 그 어드민 조건과 같게(콜라보는 "제휴사", admix 는 "제휴사(콜라보)").
   const categoryLabels = new Map(
     categoryOptions.map((o) => [o.value, o.label]),
@@ -171,7 +180,7 @@ export function BizLicenseBoard({
   const downloadOne = (item: BizLicenseItem) =>
     save(item.memberId, () => loadFile(item), item.downloadName);
   const downloadAll = () =>
-    save(ALL, () => loadZip(filterParams), `사업자등록증_${today()}.zip`);
+    save(ALL, () => loadZip(zipParams), `사업자등록증_${today()}.zip`);
 
   const filters = [
     {
@@ -359,19 +368,33 @@ export function BizLicenseBoard({
                   </Tabs.List>
                 </Tabs.ListContainer>
               </Tabs>
-              {/* 조건이 있으면 그 조건에 맞는 것만 담는다 — 이름도 "N장 다운로드"로. */}
-              <Button
-                variant="secondary"
-                // 새 조건 결과를 받는 동안엔 막는다 — 앞 조건의 장 수가 보이는 사이에 다른 것을 담지 않게.
-                isDisabled={total === 0 || isPlaceholderData}
-                isPending={saving === ALL}
-                onPress={() => void downloadAll()}
+              {/* 조건이 있으면 그 조건에 맞는 것만 담는다 — 이름도 "N장 다운로드"로(N = zip 에 담기는 수).
+                  상태를 고르지 않았으면 검토 완료만 담고, 올려 두면 Tooltip 으로 알린다(11-27 사용자). */}
+              <Tooltip
+                delay={300}
+                closeDelay={0}
+                isDisabled={!verifiedOnly}
               >
-                <Download className="size-[16px]" />
-                {searching
-                  ? `${total.toLocaleString()}장 다운로드`
-                  : "전체 다운로드"}
-              </Button>
+                <Button
+                  variant="secondary"
+                  // 새 조건 결과를 받는 동안엔 막는다 — 앞 조건의 장 수가 보이는 사이에 다른 것을 담지 않게.
+                  isDisabled={
+                    zipCount === 0 ||
+                    isPlaceholderData ||
+                    zipQuery.isPlaceholderData
+                  }
+                  isPending={saving === ALL}
+                  onPress={() => void downloadAll()}
+                >
+                  <Download className="size-[16px]" />
+                  {searching
+                    ? `${zipCount.toLocaleString()}장 다운로드`
+                    : "전체 다운로드"}
+                </Button>
+                <Tooltip.Content>
+                  검토 완료된 사업자등록증만 다운로드해요.
+                </Tooltip.Content>
+              </Tooltip>
             </div>
           </div>
           {data.items.length === 0 ? (

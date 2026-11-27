@@ -49,6 +49,11 @@ import {
   fieldText,
   filesOf,
   midReportOf,
+  OPS_DEFAULT,
+  OPS_KEYS,
+  OPS_LABEL,
+  OPS_MAX,
+  opsKey,
   PLAN_FILE_ACCEPT,
   PLAN_FILE_MAX,
   PLAN_FILE_MAX_COUNT,
@@ -57,8 +62,10 @@ import {
   shownFields,
   storeText,
   type PlanContent,
+  type OpsKey,
   type PlanFieldKey,
   type PlanFile,
+  type PlanOps,
   type PlanStore,
   type PlanVersion,
   type SchedulePart,
@@ -719,17 +726,25 @@ export function PlanCompare({
           afterExtra: extraOf(k, after.content),
         }
       : null;
-  const itemFields = fields.filter((f) => f.key.startsWith("item:"));
+  // 묶음 — 기본안 여러 줄 · 매장 운영(2026-11-27) 여러 줄을 이름표 하나 아래에.
+  const groups = [
+    { prefix: "item:", key: "items", label: "기본안", fields: fields.filter((f) => f.key.startsWith("item:")) },
+    { prefix: "ops:", key: "ops", label: "매장 운영", fields: fields.filter((f) => f.key.startsWith("ops:")) },
+  ];
+  const groupOf = (k: PlanFieldKey) => groups.find((g) => k.startsWith(g.prefix));
+  const subLabel = (k: PlanFieldKey) =>
+    k.startsWith("ops:") ? OPS_LABEL[k.slice(4) as OpsKey] : ITEM_LABEL[k.slice(5) as BaseItem];
   const rows = fields.map((f) => {
-    if (f.key.startsWith("item:")) {
-      if (f !== itemFields[0]) return null;
+    const g = groupOf(f.key);
+    if (g) {
+      if (f !== g.fields[0]) return null;
       return (
         <ItemGroup
-          key="items"
-          label="기본안"
-          rows={itemFields.map((x) => ({
+          key={g.key}
+          label={g.label}
+          rows={g.fields.map((x) => ({
             key: x.key,
-            label: ITEM_LABEL[x.key.slice(5) as BaseItem],
+            label: subLabel(x.key),
             value: valueOf(after.content, x.key),
             change: changeOf(x.key),
           }))}
@@ -763,12 +778,13 @@ export function PlanCompare({
     });
     const tableRows: { key: string; label: string; lines: CmpLine[] }[] = [];
     for (const f of fields) {
-      if (f.key.startsWith("item:")) {
-        if (f !== itemFields[0]) continue;
+      const g = groupOf(f.key);
+      if (g) {
+        if (f !== g.fields[0]) continue;
         tableRows.push({
-          key: "items",
-          label: "기본안",
-          lines: itemFields.map((x) => lineOf(x.key, ITEM_LABEL[x.key.slice(5) as BaseItem])),
+          key: g.key,
+          label: g.label,
+          lines: g.fields.map((x) => lineOf(x.key, subLabel(x.key))),
         });
         continue;
       }
@@ -1227,6 +1243,15 @@ export function PlanEditor({
       const was = midReportOf(base)?.date ?? null;
       return set({ midReport: was && was >= draft.startDate && was <= draft.endDate ? was : null });
     }
+    if (k.startsWith("ops:")) {
+      const key = k.slice(4) as OpsKey;
+      const was = base.ops ?? {};
+      const patch: PlanOps =
+        key === "benefit"
+          ? { benefit: was.benefit ?? null, benefitWhen: was.benefitWhen ?? null }
+          : { [key]: was[key] ?? null };
+      return set({ ops: { ...draft.ops, ...patch } });
+    }
     if (k.startsWith("item:")) {
       const key = k.slice(5);
       const was = base.items.find((x) => x.key === key);
@@ -1262,6 +1287,8 @@ export function PlanEditor({
     else if (cur) items = items.map((x) => (x.key === key ? { ...x, ...patch } : x));
     set({ items: BASE_ITEMS.flatMap((b) => items.filter((x) => x.key === b)) });
   };
+
+  const setOps = (patch: PlanOps) => set({ ops: { ...draft.ops, ...patch } });
 
   const d = derivedOf(draft, avg, undefined, requestDate);
   const b = derivedOf(base, avg, undefined, requestDate);
@@ -1423,6 +1450,56 @@ export function PlanEditor({
         </div>,
       );
     }),
+    // 매장 운영(2026-11-27 사용자) — 매장이 시작 전에 할 일 · 점검 사진 · 받는 것. 모집을 시작하면 콜라보로 넘어간다.
+    ...OPS_KEYS.map((key) =>
+      row(
+        opsKey(key),
+        `매장 운영 · ${OPS_LABEL[key]}`,
+        key === "staffScript" ? (
+          <TextArea
+            variant="secondary"
+            aria-label={OPS_LABEL[key]}
+            rows={2}
+            value={draft.ops?.staffScript ?? ""}
+            maxLength={OPS_MAX.staffScript}
+            placeholder="예: 음료를 사시면 티백 샘플을 하나 드려요"
+            onChange={(e) => setOps({ staffScript: e.target.value })}
+            className="w-full"
+          />
+        ) : key === "benefit" ? (
+          <div className="flex flex-col gap-[8px] sm:flex-row">
+            <Input
+              variant="secondary"
+              aria-label="매장 혜택"
+              value={draft.ops?.benefit ?? ""}
+              maxLength={OPS_MAX.benefit}
+              placeholder="예: 브랜드 티 세트 1박스"
+              onChange={(e) => setOps({ benefit: e.target.value })}
+              className="w-full sm:flex-1"
+            />
+            <Input
+              variant="secondary"
+              aria-label="지급 시점"
+              value={draft.ops?.benefitWhen ?? ""}
+              maxLength={OPS_MAX.benefitWhen}
+              placeholder={`예: ${OPS_DEFAULT.benefitWhen}`}
+              onChange={(e) => setOps({ benefitWhen: e.target.value })}
+              className="w-full sm:w-[220px]"
+            />
+          </div>
+        ) : (
+          <Input
+            variant="secondary"
+            aria-label={OPS_LABEL[key]}
+            value={draft.ops?.[key] ?? ""}
+            maxLength={OPS_MAX[key]}
+            placeholder={key === "space" ? "예: 계산대 옆 선반" : `예: ${OPS_DEFAULT.checkPhoto}`}
+            onChange={(e) => setOps({ [key]: e.target.value })}
+            className="w-full"
+          />
+        ),
+      ),
+    ),
     row(
       "extraPlan",
       "추가 기획",

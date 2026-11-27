@@ -56,6 +56,19 @@ export interface PreviewPhoto {
   thumb?: string | null;
 }
 
+/**
+ * 매장 운영 칸이 비었을 때 매장 화면에 나가는 문구(2026-11-27 — 예전엔 늘 이 고정 문구).
+ * 기획안 "매장 운영"(collabPlan OPS_DEFAULT) · 어드민 콜라보 수정 placeholder 도 같은 글.
+ */
+export const COLLAB_OPS_DEFAULT = {
+  checkPhoto: "남은 수량이 보이게 사진 한 장",
+  benefitWhen: "콜라보 시작 전 지급",
+} as const;
+export const checkPhotoOf = (c: { checkPhoto?: string | null }) =>
+  c.checkPhoto?.trim() || COLLAB_OPS_DEFAULT.checkPhoto;
+export const benefitWhenOf = (c: { benefitWhen?: string | null }) =>
+  c.benefitWhen?.trim() || COLLAB_OPS_DEFAULT.benefitWhen;
+
 export interface PreviewCollab {
   id: string;
   brand: string;
@@ -79,6 +92,9 @@ export interface PreviewCollab {
   space: string;
   quantity: number;
   benefit: string;
+  /** 지급 시점 · 점검 사진 요청(102, 기획안 "매장 운영") — 비면(예시 데이터 포함) 예전 고정 문구. */
+  benefitWhen?: string;
+  checkPhoto?: string;
   staffScript: string;
   targetStores: number;
   appliedStores: number;
@@ -153,6 +169,32 @@ export const kstFullStamp = (iso: string) =>
 
 // ── 화면에서 쓰는 계산 ─────────────────────────────────
 
+/** 설치: 매장 5곳당 1일, 시작 전날까지(광고주 일정 · 제휴사 화면 공용 — advertiserPreview 가 다시 내보낸다). */
+export const STORES_PER_INSTALL_DAY = 5;
+export const installDays = (stores: number) =>
+  Math.max(1, Math.ceil(Math.max(1, stores) / STORES_PER_INSTALL_DAY));
+
+/**
+ * 콜라보 설치 기간 — 목표 매장 5곳당 하루, 진행 시작 전날까지(11-26 사용자 "5개당 하루씩 추가야").
+ * 어드민이 그보다 이른 설치일을 넣었으면 그날부터.
+ */
+export function installSpanOf(
+  c: Pick<PreviewCollab, "installDate" | "startDate" | "targetStores">,
+) {
+  const rule = addDays(c.startDate, -installDays(c.targetStores));
+  const start = c.installDate && c.installDate < rule ? c.installDate : rule;
+  const end = addDays(c.startDate, -1);
+  return { start, end: end < start ? start : end };
+}
+
+/** "12.30 ~ 12.31"(하루면 "12.30"). */
+export function installLabelOf(
+  c: Pick<PreviewCollab, "installDate" | "startDate" | "targetStores">,
+) {
+  const s = installSpanOf(c);
+  return s.start === s.end ? md(s.start) : `${md(s.start)} ~ ${md(s.end)}`;
+}
+
 /** 목록 칸 — 미참여·취소, 마감했는데 신청 안 한 콜라보는 목록에 없다(참여 이력에만). */
 export function categoryOf(
   c: PreviewCollab,
@@ -221,7 +263,7 @@ export function chipOf(
     case "confirmed":
       if (cat === "done") return { label: "완료", tone: "green" };
       if (cat === "ongoing") return { label: "진행 중", tone: "purple" };
-      return { label: `확정 · 설치 ${md(c.installDate)}`, tone: "green" };
+      return { label: `확정 · 설치 ${installLabelOf(c)}`, tone: "green" };
     default: {
       const left = diffDays(c.recruitEnd, today);
       return {
@@ -268,7 +310,7 @@ export function nextActionOf(c: PreviewCollab, today = todayKst()) {
           ? `다음 점검 ${md(next.date)} · ${next.day}일차 사진`
           : `철수 ${md(c.removalDate)} · admix가 회수해요`;
       }
-      return `설치 ${md(c.installDate)} · admix가 방문 세팅해요`;
+      return `설치 ${installLabelOf(c)} · admix가 방문 세팅해요`;
     default:
       return `${md(c.recruitEnd)}까지 참여 · 미참여를 알려 주세요`;
   }
@@ -280,7 +322,7 @@ export function confirmItemsOf(c: PreviewCollab) {
     {
       id: "period",
       label: "기간",
-      value: `${range(c.startDate, c.endDate)} · 설치 ${md(c.installDate)} · 철수 ${md(c.removalDate)}`,
+      value: `${range(c.startDate, c.endDate)} · 설치 ${installLabelOf(c)} · 철수 ${md(c.removalDate)}`,
     },
     { id: "task", label: "해야 할 일", value: c.task },
     { id: "space", label: "사용 공간", value: c.space },
@@ -292,12 +334,12 @@ export function confirmItemsOf(c: PreviewCollab) {
     {
       id: "report",
       label: "사진 보고",
-      value: `${c.checks.map((k) => k.day).join("·")}일차에 남은 수량이 보이게 사진 한 장`,
+      value: `${c.checks.map((k) => k.day).join("·")}일차에 ${checkPhotoOf(c)}`,
     },
     {
       id: "benefit",
       label: "매장 혜택",
-      value: `${c.benefit} · 콜라보 시작 전 지급`,
+      value: `${c.benefit} · ${benefitWhenOf(c)}`,
     },
     {
       id: "duty",

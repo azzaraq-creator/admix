@@ -27,8 +27,10 @@ import {
 } from "@/lib/partners";
 import {
   PREVIEW_TODAY,
+  STORES_PER_INSTALL_DAY,
   addDays,
   diffDays,
+  installDays,
   kst,
   kstStamp,
   periodDays,
@@ -158,8 +160,8 @@ export const ADMIX_MAKE_TALK_DAYS = 14;
  */
 export const PAYMENT_DAYS = 5;
 export const CANCEL_HALF_REFUND_DAYS = 7;
-/** 설치: 매장 5곳당 1일, 시작 전날까지. */
-export const STORES_PER_INSTALL_DAY = 5;
+/** 설치: 매장 5곳당 1일, 시작 전날까지 — 규칙은 partnersPreview(제휴사 화면과 공용), 여기선 다시 내보낸다. */
+export { STORES_PER_INSTALL_DAY, installDays };
 /**
  * 중간 보고: 진행 기간의 50% 시점 한 번(2026-11-18 사용자: "중간 보고는 50%에만 해", 예전엔 30 · 50 · 70%).
  * 콜라보 기간에 따라 다를 수 있어 어드민이 기획안에서 날을 고를 수 있다(PlanContent.midReport) — 고르면 그날.
@@ -453,9 +455,6 @@ export const previewNow = () => {
 export const endOfDay = (d: string) => kst(d, "23:59");
 
 // ── 일정 역산 ────────────────────────────────────────────────────────
-
-export const installDays = (stores: number) =>
-  Math.max(1, Math.ceil(Math.max(1, stores) / STORES_PER_INSTALL_DAY));
 
 export interface Schedule {
   noticeDate: string;
@@ -1632,10 +1631,12 @@ export function collabOfRequest(r: CollabRequestMine): AdvCollab {
     extraPlanFile: r.planFile ?? undefined,
     contact: { same: false, ...r.contact },
     task: "",
-    space: "",
+    // 기획안 "매장 운영"(11-27) — 의뢰 내용 탭에 적힌 것만 보인다(처음 의뢰서엔 없다).
+    space: c?.ops?.space ?? "",
+    staffScript: c?.ops?.staffScript ?? "",
     quantityPerStore: 0,
     targetRatio: 0.2,
-    benefit: "",
+    benefit: c?.ops?.benefit ?? "",
     // 서버 상태(085) → 화면 단계: admix 기획안이 옴 = 기획안 확인(returned), 내가 확정 = 승인(approved, 진행 단계는 아직 예시),
     // 접수 · 내가 고쳐 보냄 = admix 검토 중. 취소한 의뢰도 지우지 않고 "취소"로 남긴다(084, 11-12 사용자).
     status:

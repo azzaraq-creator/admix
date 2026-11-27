@@ -35,7 +35,7 @@ import {
   GRADE_CRITERIA,
   COLLAB_SCOPE_VALUE_LABEL,
   COLLAB_SCOPE_VALUES,
-  HOURS_DAYS,
+  hoursDaysLabel,
   PHOTO_KIND_LABEL,
   PHOTO_KINDS,
   scopeEntries,
@@ -59,9 +59,6 @@ type EditTab = "info" | "photos" | "location" | "grade" | "manage";
 export const storeEditHref = (id: string, tab?: EditTab) =>
   `${STORES_HREF}/${encodeURIComponent(id)}/edit?from=detail${tab ? `&tab=${tab}` : ""}`;
 
-const DAYS_LABEL = Object.fromEntries(
-  HOURS_DAYS.map((d) => [d.value, d.label]),
-) as Record<string, string>;
 const CLOSED_LABEL = Object.fromEntries(
   CLOSED_DAYS.map((d) => [d.value, d.label]),
 ) as Record<string, string>;
@@ -565,7 +562,10 @@ function HoursText({ store }: { store: AdminPartnersStore }) {
         {slots.map((s) => (
           <span key={s.days}>
             <span className="text-tone-4a5565">
-              {DAYS_LABEL[s.days] ?? s.days}
+              {hoursDaysLabel(
+                s.days,
+                slots.map((x) => x.days),
+              )}
             </span>{" "}
             {s.open} ~ {s.close}
           </span>

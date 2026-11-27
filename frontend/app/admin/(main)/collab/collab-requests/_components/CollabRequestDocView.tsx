@@ -46,6 +46,9 @@ import { extractApiError } from "@/lib/apiError";
 import {
   confirmedScheduleOf,
   fieldText,
+  OPS_KEYS,
+  OPS_LABEL,
+  opsKey,
   versionsOf,
   type PlanFile,
   type PlanVersion,
@@ -347,11 +350,14 @@ function DocPaper({
   const admixTalk =
     hasAdmixMake && prepDays != null && prepDays <= ADMIX_MAKE_TALK_DAYS;
 
+  // 매장 운영(2026-11-27) — 확정 기획안에 적힌 것만. 처음 의뢰서엔 없다.
+  const ops = content?.ops && Object.values(content.ops).some((v) => v?.trim()) ? content : null;
   // 칸 번호 — 비어서 빠지는 칸(추가 기획 · 남길 말 …)이 있어도 1부터 이어지게.
   const sections = [
     "overview",
     "company",
     "items",
+    ...(ops ? ["ops"] : []),
     ...(doc.extraPlan || doc.planFile || files.length ? ["extra"] : []),
     "stores",
     ...(doc.estimate ? ["cost"] : []),
@@ -566,6 +572,20 @@ function DocPaper({
             </Note>
           )}
         </DocSection>
+
+        {ops && (
+          <DocSection no={no("ops")} title="매장 운영">
+            <KvTable>
+              {OPS_KEYS.map((k) => (
+                <Kv key={k} label={OPS_LABEL[k]} wide>
+                  <span className="whitespace-pre-line break-keep">
+                    {fieldText(ops, opsKey(k))}
+                  </span>
+                </Kv>
+              ))}
+            </KvTable>
+          </DocSection>
+        )}
 
         {(doc.extraPlan || doc.planFile || files.length > 0) && (
           <DocSection no={no("extra")} title="추가 기획">

@@ -630,8 +630,19 @@ Round = AdvertiserCollabRequestRound
 FIELD_KEYS: tuple[str, ...] = (
     "title", "summary", "period", "midReport", "course", "stores",
     *(f"item:{k}" for k in ITEM_KEYS),
+    *(f"ops:{k}" for k in ("space", "staffScript", "checkPhoto", "benefit")),
     "extraPlan", "preferred",
 )
+# 매장 운영(2026-11-27 사용자: "시작 전에 해야 할 거를 … 기획안 확정하기 전에 작성을 어딘가에서") — 기획안 차수에서 적고
+# (admix · 광고주 모두 고칠 수 있다) 모집을 시작하면 콜라보의 같은 칸으로 넘긴다. 처음 의뢰서(0차)엔 없다.
+# 비교 · 수정 이유 단위는 네 가지 — 매장 혜택(benefit)은 지급 시점(benefitWhen)과 한 항목.
+OPS_FIELDS: dict[str, tuple[str, int]] = {
+    "space": ("설치 자리", 200),
+    "staffScript": ("직원 안내 멘트", 500),
+    "checkPhoto": ("점검 사진", 200),
+    "benefit": ("매장 혜택", 200),
+    "benefitWhen": ("지급 시점", 100),
+}
 NOTE_MAX = 300
 # 목록에서 거를 수 있는 기획안 상태.
 PLAN_STATUSES = ("submitted", "proposed", "revised", "confirmed")
@@ -706,6 +717,15 @@ def _field_value(content: dict, key: str):
         return (row.get("prep"), (row.get("note") or "").strip()) if row else None
     if key == "preferred":
         return [p.get("id") for p in content.get("preferred") or []]
+    if key.startswith("ops:"):
+        ops = content.get("ops") or {}
+
+        def val(k: str):
+            v = ops.get(k)
+            return v.strip() if isinstance(v, str) and v.strip() else None
+
+        k = key.removeprefix("ops:")
+        return (val("benefit"), val("benefitWhen")) if k == "benefit" else val(k)
     if key == "extraPlan":
         # 추가 기획 = 글 + 첨부 — 파일을 붙이거나 빼도 이 항목이 '수정'이다.
         v = content.get("extraPlan")
@@ -797,6 +817,7 @@ def _clean_content(db: Session, req: AdvertiserCollabRequest, raw, base: dict, *
         raise _bad("목표 매장 수는 최소 매장 수보다 적을 수 없어요.")
 
     out["items"] = _items(raw.get("items"))
+    out["ops"] = _ops(raw.get("ops"))
     out["extraPlan"] = _text(raw.get("extraPlan"), max_len=1000, label="추가 기획")
     out["files"] = _clean_files(req, raw.get("files"), base, author=author)
 
@@ -818,6 +839,19 @@ def _clean_content(db: Session, req: AdvertiserCollabRequest, raw, base: dict, *
     out["estimate"] = _estimate(raw.get("estimate"))
     out["schedule"] = _schedule(raw.get("schedule"))
     return out
+
+
+def _ops(raw) -> dict | None:
+    """매장 운영 — 칸마다 글(빈 칸은 None). 모두 비면 None."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise _bad("매장 운영 값이 올바르지 않아요.")
+    out = {
+        k: _text(raw.get(k) if isinstance(raw.get(k), str) else None, max_len=n, label=label)
+        for k, (label, n) in OPS_FIELDS.items()
+    }
+    return out if any(out.values()) else None
 
 
 def _clean_notes(raw) -> dict:
@@ -1036,7 +1070,7 @@ RECRUIT_DATE_KEYS = ("recruit_start", "recruit_end", "confirm_due", "install_dat
 def admin_start_recruiting(db: Session, request_id: str, data: dict) -> dict:
     """확정한 의뢰의 마지막 차수(= 광고주가 확정한 기획안)로 매장 모집 콜라보를 만들고 의뢰에 잇는다.
 
-    브랜드 · 캠페인명 · 한 줄 소개 · 진행 기간 · 목표 매장 수 · 기본안(이름 · 조건 · 누가 준비)은 기획안 그대로,
+    브랜드 · 캠페인명 · 한 줄 소개 · 진행 기간 · 목표 매장 수 · 기본안(이름 · 조건 · 누가 준비) · 매장 운영은 기획안 그대로,
     모집 시작 · 마감 · 확정 기한 · 설치 · 철수는 화면이 보낸 날짜 — 모집 시작은 오늘(누른 날)이어야 한다(11-26).
     바로 공개(published)라 제휴사 매장에 보인다.
     이미 시작했으면(이은 콜라보가 남아 있으면) 막는다 — 콜라보를 지웠으면 다시 시작할 수 있다.
@@ -1050,6 +1084,7 @@ def admin_start_recruiting(db: Session, request_id: str, data: dict) -> dict:
     if req.collab_id and db.get(Collab, req.collab_id) is not None:
         raise HTTPException(status_code=409, detail="이미 매장 모집을 시작했어요.")
     c = _latest_content(req)
+    ops = c.get("ops") or {}
     items = [
         {"label": ITEM_LABELS.get(x.get("key"), x.get("key") or ""), "note": x.get("note") or "", "prep": x.get("prep")}
         for x in (c.get("items") or [])
@@ -1062,6 +1097,12 @@ def admin_start_recruiting(db: Session, request_id: str, data: dict) -> dict:
         "collab_type": "made" if any(i["prep"] in ("made", "admix") for i in items) else "ready",
         "items": items,
         "target_stores": c.get("targetStores") or req.target_stores,
+        # 매장 운영(2026-11-27) — 기획안에 적은 그대로. 비면 콜라보도 비고 매장 화면은 예전 고정 문구.
+        "space": ops.get("space"),
+        "staff_script": ops.get("staffScript"),
+        "check_photo": ops.get("checkPhoto"),
+        "benefit": ops.get("benefit"),
+        "benefit_when": ops.get("benefitWhen"),
         "start_date": c.get("startDate"),
         "end_date": c.get("endDate"),
         "status": "published",

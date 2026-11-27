@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import math
 import os
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
@@ -30,7 +31,9 @@ from src.services import partners_service as ps
 KST = timezone(timedelta(hours=9))
 PHOTO_STEPS = ("install", "check1", "check2", "check3")
 CHECK_STEPS = ("check1", "check2", "check3")
-CHECK_PCTS = (0.25, 0.6, 0.9)
+# 점검(사진 보고)은 진행 기간 50% 날 한 번(2026-11-26 사용자: "점검일은 50%일 때만 해. 일단은." — 예전 25 · 60 · 90%).
+# 광고주 일정의 중간 보고(advertiserPreview CHECK_POINTS)와 같은 날. check2 · check3 은 예전 콜라보 사진 때문에 남겨 둔다.
+CHECK_PCTS = (0.5,)
 # 신청 순서를 셀 때 같이 세는 참여(확정 요청 · 확정한 매장도 순서를 지킨다).
 ACTIVE = ("applied", "requested", "confirmed")
 # 기간이 겹치면 다른 콜라보에 신청할 수 없게 하는 참여.
@@ -67,11 +70,12 @@ def _iso(v: datetime | None) -> str | None:
 
 
 def make_checks(start: date, end: date) -> list[dict]:
-    """점검일 — 진행 기간의 25 · 60 · 90% 날(몇 일차인지와 함께). 예시 데이터와 같은 규칙."""
+    """점검일 — 진행 기간의 50% 날(몇 일차인지와 함께). 화면 checkpoints(Math.round)와 같게 반올림한다."""
     days = (end - start).days + 1
     out = []
     for step, pct in zip(CHECK_STEPS, CHECK_PCTS):
-        day = max(1, round(days * pct))
+        # round() 는 .5 를 짝수로 보내(2.5 → 2) 화면 Math.round(2.5 → 3)와 어긋난다 — floor(x + 0.5).
+        day = min(days, max(1, math.floor(days * pct + 0.5)))
         out.append({"step": step, "date": (start + timedelta(days=day - 1)).isoformat(), "day": day})
     return out
 
@@ -159,6 +163,8 @@ def serialize_for_store(
         space=c.space or "",
         quantity=c.quantity or 0,
         benefit=c.benefit or "",
+        benefitWhen=c.benefit_when or "",
+        checkPhoto=c.check_photo or "",
         staffScript=c.staff_script or "",
         targetStores=c.target_stores,
         appliedStores=applied,
@@ -512,6 +518,8 @@ def admin_serialize(c: Collab, counts: dict | None = None) -> dict:
         space=c.space,
         quantity=c.quantity,
         benefit=c.benefit,
+        benefitWhen=c.benefit_when,
+        checkPhoto=c.check_photo,
         staffScript=c.staff_script,
         targetStores=c.target_stores,
         status=c.status,
@@ -824,7 +832,13 @@ def _apply_collab(c: Collab, data: dict) -> None:
             if not v:
                 raise HTTPException(status_code=400, detail=f"{label}을(를) 적어 주세요.")
             setattr(c, key, v)
-    for key, n in (("brand_image_url", 500), ("space", 200), ("benefit", 200)):
+    for key, n in (
+        ("brand_image_url", 500),
+        ("space", 200),
+        ("benefit", 200),
+        ("benefit_when", 100),
+        ("check_photo", 200),
+    ):
         if key in data:
             setattr(c, key, _txt(data[key], n))
     for key in ("summary", "task", "staff_script", "admin_memo"):

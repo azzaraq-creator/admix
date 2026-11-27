@@ -44,6 +44,9 @@ class Collab(Base):
     space = Column(String(200), nullable=True)
     quantity = Column(Integer, nullable=True)
     benefit = Column(String(200), nullable=True)
+    # 매장 혜택 지급 시점 · 점검 사진 요청(102, 2026-11-27) — 비면 매장 화면이 "콜라보 시작 전 지급" · "남은 수량이 보이게 사진 한 장".
+    benefit_when = Column(String(100), nullable=True)
+    check_photo = Column(String(200), nullable=True)
     staff_script = Column(Text, nullable=True)
     target_stores = Column(Integer, nullable=False, default=1, server_default="1")
     status = Column(String(20), nullable=False, default="draft", server_default="draft")  # draft/published/cancelled

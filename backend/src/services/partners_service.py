@@ -63,7 +63,69 @@ ADMIN_ONLY_PHOTO_KINDS = frozenset({"menu"})
 _LEGACY_PHOTO_KIND = {"seat": "interior", "restroom": "interior"}
 PHOTO_MEMO_MAX_LEN = 50
 # 운영 시간(073) — 요일 구분 · 휴무일. 화면 frontend/lib/partners.ts HOURS_DAYS · CLOSED_DAYS 와 같다.
-HOURS_DAYS = {"daily": "매일", "weekday": "평일", "weekend": "주말(공휴일)"}
+# 11-27 사용자 "요일별로 선택할 수 있는 옵션도": 월~일 하나씩도 고른다. 겹치는 구분(매일 + 월요일, 평일 + 화요일 …)은 막는다.
+HOURS_DAYS = {
+    "daily": "매일",
+    "weekday": "평일",
+    "weekend": "주말(공휴일)",
+    "mon": "월요일",
+    "tue": "화요일",
+    "wed": "수요일",
+    "thu": "목요일",
+    "fri": "금요일",
+    "sat": "토요일",
+    "sun": "일요일",
+    # 11-27 사용자 "월요일 외 평일 이런 식으로": 다른 줄이 고르지 않은 나머지 평일 · 나머지 요일(한 줄만).
+    # 글에는 "월요일 외 평일" · "월요일 외 매일"처럼 다른 줄 이름을 붙인다(hours_days_label).
+    "rest_weekday": "나머지 평일",
+    "rest": "나머지 요일",
+}
+# 요일 구분마다 덮는 날 — 겹침 확인 · 글 순서(월요일부터)에 쓴다. 나머지(rest*)는 다른 줄을 보고 센다(hours_days_cover).
+_WEEK = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+HOURS_DAY_COVERS = {
+    "daily": set(_WEEK),
+    "weekday": set(_WEEK[:5]),
+    "weekend": {"sat", "sun"},
+    **{d: {d} for d in _WEEK},
+}
+HOURS_REST = {"rest_weekday": set(_WEEK[:5]), "rest": set(_WEEK)}
+
+
+def _rest_basis(days: str, all_days: list[str]) -> list[str]:
+    """나머지 줄이 빼는 다른 줄(고정 구분) — 나머지 평일은 평일에 걸친 줄만. 월요일부터 순서."""
+    base = HOURS_REST[days]
+    fixed = [d for d in all_days if d not in HOURS_REST and HOURS_DAY_COVERS[d] & base]
+    return sorted(fixed, key=lambda d: min(_WEEK.index(x) for x in HOURS_DAY_COVERS[d]))
+
+
+def hours_days_cover(days: str, all_days: list[str]) -> set[str]:
+    """그 줄이 덮는 날 — 나머지는 다른 고정 줄이 덮지 않은 날."""
+    if days not in HOURS_REST:
+        return HOURS_DAY_COVERS[days]
+    taken = set().union(*(HOURS_DAY_COVERS[d] for d in all_days if d not in HOURS_REST))
+    return HOURS_REST[days] - taken
+
+
+def _first_day(days: str) -> int:
+    return min(_WEEK.index(x) for x in HOURS_DAY_COVERS[days])
+
+
+def _hours_order(days: str, all_days: list[str]) -> float:
+    """글 순서 — 고정 줄은 덮는 첫 요일 순, 나머지 줄은 그 이름에 붙는 줄들 바로 뒤("월요일 · 월요일 외 평일 · 주말")."""
+    if days not in HOURS_REST:
+        return _first_day(days)
+    basis = _rest_basis(days, all_days)
+    return max((_first_day(d) for d in basis), default=-1) + 0.5
+
+
+def hours_days_label(days: str, all_days: list[str]) -> str:
+    """요일 구분 이름 — 나머지는 "월요일 외 평일" · "월요일 · 주말(공휴일) 외 매일"."""
+    if days not in HOURS_REST:
+        return HOURS_DAYS[days]
+    basis = _rest_basis(days, all_days)
+    if not basis:
+        return HOURS_DAYS[days]
+    return f"{' · '.join(HOURS_DAYS[d] for d in basis)} 외 {'평일' if days == 'rest_weekday' else '매일'}"
 CLOSED_DAYS = {
     "mon": "월요일",
     "tue": "화요일",
@@ -74,7 +136,7 @@ CLOSED_DAYS = {
     "sun": "일요일",
     "holiday": "공휴일",
 }
-MAX_HOURS_SLOTS = 2
+MAX_HOURS_SLOTS = 7  # 요일마다 한 줄씩이면 7줄(겹치지 않게 고르면 이보다 많을 수 없다)
 # 매장 어필(tags)은 2026-11-17 사용자 요청으로 없앴다 — DB 칸(cafe_store.tags · cafe_store_type.tags)만 남고 읽고 쓰지 않는다.
 # 가능 범위(093, 2026-11-17 사용자: 조건 메모 대신) — 항목마다 가능(ok) · 불가능(no), 고르지 않은 항목은 넣지 않는다.
 # 화면 frontend/lib/partners.ts COLLAB_SCOPE_ITEMS 와 같은 순서 · 키. 예전 조건 메모(cafe_store.notes · cafe_store_type.notes)는
@@ -658,7 +720,8 @@ def _hhmm(value) -> str:
 
 
 def _clean_hours(raw) -> dict | None:
-    """운영 시간 입력값 정리 — 요일 구분(매일 · 평일 · 주말)별 여는 · 닫는 시간 2개까지, 휴무일. 비었으면 None."""
+    """운영 시간 입력값 정리 — 요일 구분(매일 · 평일 · 주말 · 월~일)별 여는 · 닫는 시간, 휴무일. 비었으면 None.
+    겹치는 구분(매일 + 다른 것, 평일 + 화요일, 주말 + 토요일 …)은 막고, 월요일부터 덮는 순서로 정렬한다."""
     if not raw:
         return None
     slots: list[dict] = []
@@ -666,13 +729,29 @@ def _clean_hours(raw) -> dict | None:
         days = (s or {}).get("days")
         if days not in HOURS_DAYS:
             raise HTTPException(status_code=400, detail="운영 시간의 요일 구분을 다시 골라 주세요.")
-        if any(x["days"] == days for x in slots):
-            raise HTTPException(status_code=400, detail=f"운영 시간에 '{HOURS_DAYS[days]}'이 두 번 있어요.")
+        if days not in HOURS_REST:
+            clash = next(
+                (x for x in slots if x["days"] not in HOURS_REST and HOURS_DAY_COVERS[x["days"]] & HOURS_DAY_COVERS[days]),
+                None,
+            )
+            if clash is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"운영 시간의 '{HOURS_DAYS[clash['days']]}'과 '{HOURS_DAYS[days]}'이 겹쳐요.",
+                )
         slots.append({"days": days, "open": _hhmm(s.get("open")), "close": _hhmm(s.get("close"))})
     if len(slots) > MAX_HOURS_SLOTS:
         raise HTTPException(status_code=400, detail=f"운영 시간은 {MAX_HOURS_SLOTS}개까지 넣을 수 있어요.")
-    if len(slots) > 1 and any(x["days"] == "daily" for x in slots):
-        raise HTTPException(status_code=400, detail="'매일'은 다른 운영 시간과 함께 쓸 수 없어요.")
+    all_days = [x["days"] for x in slots]
+    rests = [d for d in all_days if d in HOURS_REST]
+    if len(rests) > 1:
+        raise HTTPException(status_code=400, detail="'나머지' 운영 시간은 한 줄만 넣을 수 있어요.")
+    for d in rests:
+        if not _rest_basis(d, all_days) or not hours_days_cover(d, all_days):
+            raise HTTPException(
+                status_code=400, detail=f"'{HOURS_DAYS[d]}'에 해당하는 요일이 없어요. 다른 줄을 먼저 골라 주세요."
+            )
+    slots.sort(key=lambda x: _hours_order(x["days"], all_days))
     picked = set(raw.get("closed") or [])
     if picked - set(CLOSED_DAYS):
         raise HTTPException(status_code=400, detail="휴무일을 다시 골라 주세요.")
@@ -686,7 +765,9 @@ def hours_text(hours: dict | None) -> str | None:
     """운영 시간 글 — "평일 10:00 ~ 22:00 · 주말(공휴일) 11:00 ~ 21:00 (월요일 휴무)"."""
     if not hours:
         return None
-    text = " · ".join(f"{HOURS_DAYS[s['days']]} {s['open']} ~ {s['close']}" for s in hours.get("slots") or [])
+    slots = hours.get("slots") or []
+    all_days = [s["days"] for s in slots]
+    text = " · ".join(f"{hours_days_label(s['days'], all_days)} {s['open']} ~ {s['close']}" for s in slots)
     closed = ", ".join(CLOSED_DAYS[d] for d in hours.get("closed") or [] if d in CLOSED_DAYS)
     if closed:
         text = f"{text} ({closed} 휴무)" if text else f"{closed} 휴무"

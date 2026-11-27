@@ -43,12 +43,15 @@ import { TOAST_TIMEOUT } from "@/hooks/useSonner";
 import {
   CONFIRM_SENTENCE,
   STEP_LABEL,
+  benefitWhenOf,
   categoryOf,
+  checkPhotoOf,
   chipOf,
   confirmItemsOf,
   diffDays,
   dow,
   dueStepOf,
+  installSpanOf,
   kstStamp,
   md,
   nextActionOf,
@@ -300,7 +303,8 @@ function TaskPhase({
         <span className="text-[12px] font-medium text-gray-500">{when}</span>
       </dt>
       <dd className="min-w-0">
-        <ul className="flex flex-col gap-[6px] text-gray-700">{children}</ul>
+        {/* 줄 간격은 옆 "admix가 해 줘요"와 같은 12px(11-27 사용자: "옆에 내용의 간격을 맞춰줘"). */}
+        <ul className="flex flex-col gap-[12px] text-gray-700">{children}</ul>
       </dd>
     </div>
   );
@@ -324,11 +328,12 @@ export function SectionRule() {
   return <Separator className="my-[2px] bg-gray-200 sm:my-[8px]" />;
 }
 
-/** 날짜 앞머리 — "11.02 (월)" 굵게. */
-function When({ d }: { d: string }) {
+/** 날짜 앞머리 — "11.02 (월)" 굵게. end 가 다르면 "12.30 (수) ~ 12.31 (목)". */
+function When({ d, end }: { d: string; end?: string }) {
   return (
     <b className="mr-[6px] font-bold text-gray-900">
       {md(d)} ({dow(d)})
+      {end && end !== d && ` ~ ${md(end)} (${dow(end)})`}
     </b>
   );
 }
@@ -437,7 +442,21 @@ function lifeOf(c: PreviewCollab): { steps: LifeStep[]; at: number } | null {
       label: "최종 확정",
       date: c.confirmedAt ? md(c.confirmedAt) : `~${md(c.confirmDue)}`,
     },
-    { label: "설치", date: md(c.installDate) },
+    {
+      label: "설치",
+      // 설치 기간(5곳당 하루, 11-26 사용자 "설치일이 달라") — 좁은 화면은 첫날만(진행 칸처럼).
+      date: (() => {
+        const s = installSpanOf(c);
+        return s.start === s.end ? (
+          md(s.start)
+        ) : (
+          <>
+            {md(s.start)}
+            <span className="max-sm:hidden">~{md(s.end)}</span>
+          </>
+        );
+      })(),
+    },
     {
       label: "진행",
       // 좁은 화면은 시작일만(다섯 칸이 한 줄에 들어가게).
@@ -754,7 +773,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   else if (confirmed && dueStep && cat === "ongoing")
     action = {
       title: `${STEP_LABEL[dueStep.step]} · ${dueStep.day}일차`,
-      sub: "남은 수량이 보이게 사진 한 장이면 돼요",
+      // 기획안 "매장 운영"에 적은 점검 사진 요청(11-27), 없으면 예전 문구.
+      sub: c.checkPhoto?.trim() || "남은 수량이 보이게 사진 한 장이면 돼요",
       button: "사진 올리기",
       kind: "photo",
     };
@@ -796,7 +816,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
       step: k.step,
       date: k.date,
       title: `${i + 1}차 점검 · ${k.day}일차`,
-      who: "남은 수량이 보이게 사진 한 장",
+      who: checkPhotoOf(c),
     })),
   ];
   const timeline: [string, string][] = [
@@ -1185,7 +1205,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                     label="시작 전"
                     when={`~${md(c.installDate)} (${dow(c.installDate)})`}
                   >
-                    <TaskLine head="자리">{c.space} 비워 두기</TaskLine>
+                    {/* 설치 자리는 기획안 "매장 운영"에서 넘어온다(11-27) — 비면 줄째 뺀다("자리 비워 두기"만 남았다). */}
+                    {c.space?.trim() && <TaskLine head="자리">{c.space} 비워 두기</TaskLine>}
                     {c.items.filter(isSetupItem).map((i) => (
                       <TaskLine key={i.label} head={i.label}>
                         {i.note}
@@ -1205,9 +1226,12 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                     label="진행 중"
                     when={`${md(c.startDate)}~${md(c.endDate)}`}
                   >
-                    <RoleItem>
-                      <b className="font-semibold text-gray-900">{c.task}</b>
-                    </RoleItem>
+                    {/* 할 일(task)이 비면 줄째 뺀다 — 의뢰에서 연 콜라보는 비어 있어 점만 남았다(11-26). */}
+                    {c.task?.trim() && (
+                      <RoleItem>
+                        <b className="font-semibold text-gray-900">{c.task}</b>
+                      </RoleItem>
+                    )}
                     {c.items
                       .filter((i) => !isSetupItem(i))
                       .map((i) => (
@@ -1227,7 +1251,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                           .join(" · ")}
                       </b>
                       <span className="block text-gray-600">
-                        남은 수량이 보이게 사진 한 장
+                        {checkPhotoOf(c)}
                       </span>
                     </RoleItem>
                   </TaskPhase>
@@ -1248,12 +1272,15 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                 }
                 title="admix가 해 줘요"
               >
+                {/* 11-26 사용자: 설치일은 설치 기간으로("설치일이 달라"), "· n개 세팅" · "점검 사진을 보고 소진이 빠르면 재입고" 줄은 뺌. */}
                 <ul className="flex flex-col gap-[12px] text-[14px] leading-[1.6] break-keep text-gray-700">
                   <RoleItem>
-                    <When d={c.installDate} />
-                    방문 설치 · {c.quantity.toLocaleString("ko-KR")}개 세팅
+                    <When
+                      d={installSpanOf(c).start}
+                      end={installSpanOf(c).end}
+                    />
+                    방문 설치
                   </RoleItem>
-                  <RoleItem>점검 사진을 보고 소진이 빠르면 재입고</RoleItem>
                   {c.staffScript ? (
                     <RoleItem>
                       직원용 안내 카드를 출력해 계산대·서빙대에 비치
@@ -1279,7 +1306,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                       {c.benefit}
                     </b>
                     <span className="mt-[4px] block text-[13px] text-primary-700/80">
-                      콜라보 시작 전 지급
+                      {benefitWhenOf(c)}
                     </span>
                   </RoleItem>
                 </ul>

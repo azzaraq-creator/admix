@@ -58,6 +58,8 @@ type FormState = {
   space: string;
   quantity: string;
   benefit: string;
+  benefitWhen: string;
+  checkPhoto: string;
   staffScript: string;
   adminMemo: string;
 };
@@ -97,6 +99,8 @@ const toForm = (c: AdminCollabDetail): FormState => ({
   space: c.space ?? "",
   quantity: c.quantity != null ? String(c.quantity) : "",
   benefit: c.benefit ?? "",
+  benefitWhen: c.benefitWhen ?? "",
+  checkPhoto: c.checkPhoto ?? "",
   staffScript: c.staffScript ?? "",
   adminMemo: c.adminMemo ?? "",
 });
@@ -191,6 +195,8 @@ function CollabForm({
       space: orNull(form.space),
       quantity: form.quantity.trim() ? Number(form.quantity) : null,
       benefit: orNull(form.benefit),
+      benefit_when: orNull(form.benefitWhen),
+      check_photo: orNull(form.checkPhoto),
       staff_script: orNull(form.staffScript),
       admin_memo: orNull(form.adminMemo),
     };
@@ -424,7 +430,31 @@ function CollabForm({
               onChange={(e) => set("benefit", e.target.value)}
             />
           </HeroField>
-          <div className="hidden md:block" />
+          {/* 지급 시점 · 점검 사진(102, 11-27) — 기획안 "매장 운영"에서 넘어온다. 비면 매장 화면은 예전 문구. */}
+          <HeroField label="지급 시점">
+            <Input
+              variant="secondary"
+              fullWidth
+              aria-label="지급 시점"
+              maxLength={100}
+              placeholder="예: 콜라보 시작 전 지급"
+              value={form.benefitWhen}
+              onChange={(e) => set("benefitWhen", e.target.value)}
+            />
+          </HeroField>
+          <div className="md:col-span-2">
+            <HeroField label="점검 사진">
+              <Input
+                variant="secondary"
+                fullWidth
+                aria-label="점검 사진"
+                maxLength={200}
+                placeholder="예: 남은 수량이 보이게 사진 한 장"
+                value={form.checkPhoto}
+                onChange={(e) => set("checkPhoto", e.target.value)}
+              />
+            </HeroField>
+          </div>
           <div className="md:col-span-2">
             <HeroField label="직원 안내 멘트">
               <TextArea

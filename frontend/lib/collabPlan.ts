@@ -29,7 +29,7 @@ import {
   type StoreRef,
 } from "@/lib/advertiserPreview";
 import type { CollabGrade, PartnersStore } from "@/lib/partners";
-import { PREVIEW_TODAY, addDays, kst, periodDays } from "@/lib/partnersPreview";
+import { COLLAB_OPS_DEFAULT, PREVIEW_TODAY, addDays, kst, periodDays } from "@/lib/partnersPreview";
 
 // ── 서버 모양 ─────────────────────────────────────────────────────────
 
@@ -73,6 +73,36 @@ export const PLAN_FILE_ACCEPT = ".pdf,.ppt,.pptx,.key,.doc,.docx,.hwp,.hwpx,.xls
 export const PLAN_FILE_MAX = 20 * 1024 * 1024;
 export const PLAN_FILE_MAX_COUNT = 10;
 
+/**
+ * 매장 운영(2026-11-27 사용자: "시작 전에 해야 할 거를 광고주나 어드민이 기획안 확정하기 전에 작성을 어딘가에서 할 거 같은데")
+ * — 기획안 차수에서 적고(admix · 광고주 모두 고친다) 매장 모집을 시작하면 콜라보의 같은 칸으로 넘어간다(서버 OPS_FIELDS).
+ * 처음 의뢰서(0차)엔 없다. 비어 있으면 매장 화면이 예전 고정 문구(지급 시점 · 점검 사진)를 보인다.
+ */
+export interface PlanOps {
+  /** 설치 자리 — 매장 "시작 전 · 자리 … 비워 두기". */
+  space?: string | null;
+  /** 직원 안내 멘트 — 매장 "시작 전 · 직원". */
+  staffScript?: string | null;
+  /** 점검 사진 요청 — 비면 "남은 수량이 보이게 사진 한 장". */
+  checkPhoto?: string | null;
+  /** 매장 혜택(받는 것)과 지급 시점 — 한 항목으로 비교한다. 지급 시점이 비면 "콜라보 시작 전 지급". */
+  benefit?: string | null;
+  benefitWhen?: string | null;
+}
+
+export const OPS_KEYS = ["space", "staffScript", "checkPhoto", "benefit"] as const;
+export type OpsKey = (typeof OPS_KEYS)[number];
+export const OPS_LABEL: Record<OpsKey, string> = {
+  space: "설치 자리",
+  staffScript: "직원 안내 멘트",
+  checkPhoto: "점검 사진",
+  benefit: "매장 혜택",
+};
+/** 비어 있을 때 매장 화면에 나가는 문구(콜라보 상세 · 확인 항목과 같다). */
+export const OPS_DEFAULT = COLLAB_OPS_DEFAULT;
+/** 글자 수 — 서버 OPS_FIELDS 와 같다. */
+export const OPS_MAX = { space: 200, staffScript: 500, checkPhoto: 200, benefit: 200, benefitWhen: 100 } as const;
+
 /** 한 차수의 고칠 수 있는 내용 전부(회사 · 담당자 · 남긴 말은 의뢰서 그대로). */
 export interface PlanContent {
   title: string;
@@ -88,6 +118,8 @@ export interface PlanContent {
   minStores: number;
   targetStores: number;
   items: PlanItem[];
+  /** 매장 운영 — 처음 의뢰서 · 예전 차수엔 없다(null). */
+  ops?: PlanOps | null;
   extraPlan: string | null;
   /** 추가 기획 첨부 — 서버가 늘 채워 준다(첨부 전 옛 차수는 앞 차수 목록을 이어받는다). */
   files?: PlanFile[];
@@ -140,10 +172,12 @@ export type PlanFieldKey =
   | "course"
   | "stores"
   | `item:${BaseItem}`
+  | `ops:${OpsKey}`
   | "extraPlan"
   | "preferred";
 
 export const itemKey = (k: BaseItem): PlanFieldKey => `item:${k}`;
+export const opsKey = (k: OpsKey): PlanFieldKey => `ops:${k}`;
 
 /** 화면 순서 — 의뢰서 칸 순서와 같다. 기본안은 6가지가 각각 한 항목. */
 export const PLAN_FIELDS: { key: PlanFieldKey; label: string }[] = [
@@ -154,6 +188,7 @@ export const PLAN_FIELDS: { key: PlanFieldKey; label: string }[] = [
   { key: "course", label: "모집 코스" },
   { key: "stores", label: "매장 수" },
   ...BASE_ITEMS.map((k) => ({ key: itemKey(k), label: `기본안 · ${ITEM_LABEL[k]}` })),
+  ...OPS_KEYS.map((k) => ({ key: opsKey(k), label: `매장 운영 · ${OPS_LABEL[k]}` })),
   { key: "extraPlan", label: "추가 기획" },
   { key: "preferred", label: "지정 희망 매장" },
 ];
@@ -163,6 +198,7 @@ export const fieldLabel = (k: string) => PLAN_FIELDS.find((f) => f.key === k)?.l
 const itemOf = (c: PlanContent, k: BaseItem) => c.items.find((x) => x.key === k);
 export const filesOf = (c: PlanContent | null | undefined): PlanFile[] => c?.files ?? [];
 const blank = (v: string | null | undefined) => (v ?? "").trim();
+const opsOf = (c: PlanContent): PlanOps => c.ops ?? {};
 
 /** 항목 하나의 비교 값(문자열) — 빈 글자와 없음은 같게 본다. 서버 _field_value 와 같은 규칙. */
 export function fieldValue(c: PlanContent, k: PlanFieldKey): string {
@@ -186,6 +222,15 @@ export function fieldValue(c: PlanContent, k: PlanFieldKey): string {
       return `${c.minStores}/${c.targetStores}`;
     case "preferred":
       return c.preferred.map((p) => p.id).join(",");
+    case "ops:benefit":
+      // 매장 혜택은 지급 시점과 한 항목 — 시점만 바꿔도 '수정'(서버와 같다).
+      return blank(opsOf(c).benefit) || blank(opsOf(c).benefitWhen)
+        ? `${blank(opsOf(c).benefit)}|${blank(opsOf(c).benefitWhen)}`
+        : "";
+    case "ops:space":
+    case "ops:staffScript":
+    case "ops:checkPhoto":
+      return blank(opsOf(c)[k.slice(4) as OpsKey]);
     default: {
       const row = itemOf(c, k.slice(5) as BaseItem);
       return row ? `${row.prep}|${blank(row.note)}` : "";
@@ -196,9 +241,10 @@ export function fieldValue(c: PlanContent, k: PlanFieldKey): string {
 export const changedKeys = (a: PlanContent, b: PlanContent): PlanFieldKey[] =>
   PLAN_FIELDS.map((f) => f.key).filter((k) => fieldValue(a, k) !== fieldValue(b, k));
 
-/** 두 차수 어느 쪽에도 없는 기본안은 줄로 보이지 않는다. */
+/** 두 차수 어느 쪽에도 없는 기본안 · 비어 있는 매장 운영 칸은 줄로 보이지 않는다. */
 export function shownFields(...cs: (PlanContent | null | undefined)[]) {
   return PLAN_FIELDS.filter((f) => {
+    if (f.key.startsWith("ops:")) return cs.some((c) => c && fieldValue(c, f.key));
     if (!f.key.startsWith("item:")) return true;
     const k = f.key.slice(5) as BaseItem;
     return cs.some((c) => c && itemOf(c, k));
@@ -300,6 +346,16 @@ export function fieldText(c: PlanContent, k: PlanFieldKey): string {
       return `최소 ${c.minStores}곳 · 목표 ${c.targetStores}곳`;
     case "preferred":
       return c.preferred.length ? c.preferred.map((p) => p.name).join(", ") : "없음";
+    case "ops:benefit": {
+      const v = blank(opsOf(c).benefit);
+      const when = blank(opsOf(c).benefitWhen);
+      if (!v && !when) return "-";
+      return `${v || "-"} · ${when || OPS_DEFAULT.benefitWhen}`;
+    }
+    case "ops:space":
+    case "ops:staffScript":
+    case "ops:checkPhoto":
+      return blank(opsOf(c)[k.slice(4) as OpsKey]) || "-";
     default: {
       const row = itemOf(c, k.slice(5) as BaseItem);
       return row ? `${PREP_LABEL[row.prep] ?? row.prep} · ${blank(row.note) || "-"}` : "넣지 않음";
@@ -519,6 +575,7 @@ export function roundPayloadOf(
       midReport: draft.midReport || null,
       extraPlan: blank(draft.extraPlan) || null,
       items: draft.items.map((x) => ({ ...x, note: x.note.trim() })),
+      ops: opsPayloadOf(draft.ops),
       preferredIds: preferred.map((p) => p.id),
       estimate: d.estimate,
       schedule: d.schedule,
@@ -526,6 +583,18 @@ export function roundPayloadOf(
     notes: keep,
     baseRound,
   };
+}
+
+/** 매장 운영 보낼 값 — 빈 칸은 null, 모두 비면 null(서버 _ops 와 같다). */
+function opsPayloadOf(ops: PlanOps | null | undefined): PlanOps | null {
+  const out: PlanOps = {
+    space: blank(ops?.space) || null,
+    staffScript: blank(ops?.staffScript) || null,
+    checkPhoto: blank(ops?.checkPhoto) || null,
+    benefit: blank(ops?.benefit) || null,
+    benefitWhen: blank(ops?.benefitWhen) || null,
+  };
+  return Object.values(out).some(Boolean) ? out : null;
 }
 
 /** 나머지 매장 평균 금액 — 마지막 차수에 적힌 값(바뀌면 비교가 흔들리지 않게), 없으면 매장 목록 평균. */
@@ -550,6 +619,10 @@ export function planErrorsOf(c: PlanContent, before: PlanContent): Partial<Recor
   else if (c.preferred.length > c.targetStores) e.preferred = `지정 희망 매장(${c.preferred.length}곳)보다 목표가 적어요.`;
   if (!c.items.length) e[itemKey(BASE_ITEMS[0])] = "콜라보 기본안을 하나 이상 넣어 주세요.";
   for (const x of c.items) if (!x.note.trim()) e[itemKey(x.key as BaseItem)] = "조건을 적어 주세요.";
+  for (const k of OPS_KEYS)
+    if (blank(opsOf(c)[k]).length > OPS_MAX[k]) e[opsKey(k)] = `${OPS_LABEL[k]}은(는) ${OPS_MAX[k]}자까지예요.`;
+  if (blank(opsOf(c).benefitWhen).length > OPS_MAX.benefitWhen)
+    e[opsKey("benefit")] = `지급 시점은 ${OPS_MAX.benefitWhen}자까지예요.`;
   if (blank(c.extraPlan).length > 1000) e.extraPlan = "추가 기획은 1000자까지예요.";
   return e;
 }
