@@ -1,5 +1,11 @@
 import type { PlanFile, PlanRoundPayload } from "@/lib/collabPlan";
 import { api } from "@/lib/api";
+import type { RecruitBoard } from "@/lib/collabRecruit";
+import type {
+  BizLicensePage,
+  BizLicenseParams,
+  BizLicenseZipParams,
+} from "@/lib/bizLicense";
 import type {
   AdminAdvertiserMember,
   AdvertiserBizAction,
@@ -31,6 +37,15 @@ import type {
 } from "@/lib/partners";
 
 const enc = encodeURIComponent;
+
+/** 매장 모집 시작(101) — 확정 기획안 일정으로 센 날짜(YYYY-MM-DD, 확정 기한은 "YYYY-MM-DDT18:00"). */
+export interface StartRecruitingPayload {
+  recruit_start: string;
+  recruit_end: string;
+  confirm_due: string;
+  install_date: string;
+  removal_date: string;
+}
 
 /** 매장 유형 저장 — 보낸 것만 바꾼다. */
 export interface StoreTypePayload {
@@ -81,10 +96,25 @@ export const adminCollabApi = {
     api
       .get<AdminPartnerMember>(`/admin/collab/members/${enc(id)}`)
       .then((r) => r.data),
-  /** 로그인 기록(100) — 최근 것부터 100줄까지와 전체 개수. */
-  memberLogins: (id: string) =>
+  /** 사업자등록증 모아 보기(11-26) — 제휴사 · 광고주가 올린 등록증, 최근 올린 것부터. */
+  bizLicenses: (params: BizLicenseParams) =>
     api
-      .get<MemberLogins>(`/admin/collab/members/${enc(id)}/logins`)
+      .get<BizLicensePage>("/admin/collab/business-registrations", { params })
+      .then((r) => r.data),
+  /** 조건에 맞는 제휴사 · 광고주 사업자등록증 전부를 zip 하나로. */
+  bizLicensesZip: (params: BizLicenseZipParams) =>
+    api
+      .get<Blob>("/admin/collab/business-registrations/download", {
+        params,
+        responseType: "blob",
+      })
+      .then((r) => r.data),
+  /** 로그인 기록(100) — 최근 것부터 한 쪽(size 줄)과 전체 개수. */
+  memberLogins: (id: string, page: number, size: number) =>
+    api
+      .get<MemberLogins>(`/admin/collab/members/${enc(id)}/logins`, {
+        params: { page, size },
+      })
       .then((r) => r.data),
   lookupMember: (code: string) =>
     api
@@ -207,6 +237,17 @@ export const adminCollabApi = {
       )
       .then((r) => r.data),
   /** admix 기획안 보내기(085) — 항목별로 고친 내용 · 수정 이유. 그사이 광고주가 보냈으면 409. */
+  /** 매장 모집 화면(11-26) — 모집 시작 전 확정 의뢰(ready) · 모집 현황 콜라보(collabs). */
+  recruitBoard: () =>
+    api.get<RecruitBoard>("/admin/collab/recruiting").then((r) => r.data),
+  /** 확정한 의뢰로 매장 모집 시작(101) — 확정 기획안으로 콜라보(모집 공고)를 만들고 의뢰에 잇는다. */
+  startRecruiting: (id: string, payload: StartRecruitingPayload) =>
+    api
+      .post<AdminCollabDetail>(
+        `/admin/collab/collab-requests/${enc(id)}/start-recruiting`,
+        payload,
+      )
+      .then((r) => r.data),
   sendAdvRequestRound: (id: string, payload: PlanRoundPayload) =>
     api
       .post<AdminAdvCollabRequestDetail>(
@@ -272,10 +313,6 @@ export const adminCollabApi = {
   collab: (id: string) =>
     api
       .get<AdminCollabDetail>(`/admin/collab/collabs/${enc(id)}`)
-      .then((r) => r.data),
-  createCollab: (payload: AdminCollabPayload) =>
-    api
-      .post<AdminCollabDetail>("/admin/collab/collabs", payload)
       .then((r) => r.data),
   updateCollab: (id: string, payload: AdminCollabPayload) =>
     api

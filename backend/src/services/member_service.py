@@ -5,12 +5,16 @@ canonical 값은 목록 응답에서만 한글로 변환(상세는 canonical 유
 """
 from __future__ import annotations
 
+import re
+import tempfile
 import uuid
+import zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import IO
 
 from fastapi import HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from src.config import get_settings
@@ -455,6 +459,156 @@ def get_business_card_file(db: Session, user_id: uuid.UUID) -> tuple[Path, str]:
     if not path.is_file():
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
     return path, (user.business_card_name or path.name)
+
+
+# 내려받을 때 파일 이름 앞 회원 유형(11-26 사용자: "회원유형_상호명 또는 회원명_사업자등록증.확장자") — 괄호 설명 없이 짧게.
+_LICENSE_FILE_CATEGORY = {
+    "advertiser": "광고주",
+    "agency": "대행사",
+    "media_owner": "매체사",
+    "general": "일반",
+    "partner": "제휴사",
+}
+# 윈도우 · 맥에서 파일 이름에 못 쓰는 글자
+_BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+
+
+def license_download_name(user: User, biz: BusinessRegistration) -> str:
+    """등록증 내려받기 이름 — "제휴사_참커피_사업자등록증.jpg". 상호가 없으면 회원 이름, 확장자는 올린 파일 그대로."""
+    kind = _LICENSE_FILE_CATEGORY.get(user.member_category or "", "회원")
+    who = (biz.business_name or "").strip() or (user.name or "").strip() or user.login_id
+    who = _BAD_FILENAME_CHARS.sub("", who).strip(" .") or "회원"
+    ext = Path(biz.license_file_url or "").suffix or Path(biz.license_file_name or "").suffix
+    return f"{kind}_{who}_사업자등록증{ext.lower()}"
+
+
+def _license_query(
+    db: Session,
+    *,
+    categories: set[str] | None,
+    category: str | None,
+    status: str | None,
+    keyword: str | None,
+):
+    """사업자등록증 모아 보기 조건 — 목록 · 한꺼번에 내려받기가 같이 쓴다. 최근 올린 것부터."""
+    q = (
+        db.query(BusinessRegistration, User)
+        .join(User, User.id == BusinessRegistration.user_id)
+        .filter(BusinessRegistration.license_file_url.isnot(None), User.status != "withdrawn")
+    )
+    if categories:
+        q = q.filter(User.member_category.in_(categories))
+    if category:
+        q = q.filter(User.member_category == category)
+    if status:
+        q = q.filter(BusinessRegistration.status == status)
+    kw = (keyword or "").strip()
+    if kw:
+        like = f"%{kw}%"
+        conds = [
+            User.name.ilike(like),
+            User.login_id.ilike(like),
+            User.company_name.ilike(like),
+            User.partner_code.ilike(like),
+            BusinessRegistration.business_name.ilike(like),
+        ]
+        digits = "".join(ch for ch in kw if ch.isdigit())
+        if digits:
+            conds.append(func.replace(BusinessRegistration.business_registration_no, "-", "").like(f"%{digits}%"))
+        q = q.filter(or_(*conds))
+    return q.order_by(
+        BusinessRegistration.license_uploaded_at.desc().nullslast(),
+        BusinessRegistration.updated_at.desc(),
+    )
+
+
+def list_business_licenses(
+    db: Session,
+    *,
+    categories: set[str] | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    keyword: str | None = None,
+    page: int = 1,
+    page_size: int = 12,
+) -> tuple[int, list[dict]]:
+    """사업자등록증 모아 보기(2026-11-26 사용자: "사업자등록증을 따로 모아서 볼 수 있는 메뉴") — 파일을 올린 회원만, 최근 올린 것부터.
+
+    categories 는 어드민마다 보이는 회원(콜라보 = 제휴사 · 광고주, admix = 전체), category · status 는 화면 조건.
+    keyword 는 이름 · 아이디 · 회사명 · 고유번호 · 상호, 숫자가 있으면 사업자 번호('-' 빼고)도 찾는다. 탈퇴한 회원은 뺀다.
+    """
+    q = _license_query(db, categories=categories, category=category, status=status, keyword=keyword)
+    total = q.count()
+    page = max(page, 1)
+    rows = q.offset((page - 1) * page_size).limit(page_size).all()
+    iso = lambda dt: dt.isoformat() if dt else None  # noqa: E731
+    items = [
+        {
+            "memberId": str(u.id),
+            "name": u.name or u.login_id,
+            "loginId": u.login_id,
+            "category": u.member_category,
+            "categoryLabel": _CATEGORY.get(u.member_category, u.member_category or "-"),
+            "partnerCode": u.partner_code,
+            "companyName": u.company_name,
+            "bizStatus": biz.status,
+            "businessName": biz.business_name,
+            "businessNo": biz.business_registration_no,
+            "representativeName": biz.representative_name,
+            "fileName": biz.license_file_name,
+            "fileUrl": biz.license_file_url,
+            "downloadName": license_download_name(u, biz),
+            "uploadedAt": iso(biz.license_uploaded_at),
+            "verifiedAt": iso(biz.verified_at),
+        }
+        for biz, u in rows
+    ]
+    return total, items
+
+
+def license_zip_names() -> tuple[str, str]:
+    """한꺼번에 받은 zip 이름(한국 날짜) — ("사업자등록증_20261126.zip", 옛 브라우저용 영문 이름)."""
+    day = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
+    return f"사업자등록증_{day}.zip", f"business-registrations-{day}.zip"
+
+
+def business_licenses_zip(
+    db: Session,
+    *,
+    categories: set[str] | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    keyword: str | None = None,
+) -> tuple[IO[bytes], int]:
+    """화면 조건에 맞는 등록증을 zip 하나로(11-26 사용자: "전체 다운로드 시엔 zip으로") — (파일, 담은 수).
+
+    파일 이름은 하나씩 받을 때와 같다(license_download_name). 같은 이름이 또 나오면 " (2)"를 붙인다.
+    디스크에 파일이 없는 회원은 건너뛴다. 하나도 못 담으면 404.
+    사진 · PDF 는 이미 눌려 있어 다시 누르지 않고(ZIP_STORED) 담기만 한다. 크면 디스크 임시 파일로 넘어간다.
+    """
+    root = Path(get_settings().upload_dir)
+    rows = _license_query(db, categories=categories, category=category, status=status, keyword=keyword).all()
+    out = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)
+    used: dict[str, int] = {}
+    count = 0
+    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
+        for biz, u in rows:
+            path = root / biz.license_file_url.removeprefix("/uploads/")
+            if not path.is_file():
+                continue
+            name = license_download_name(u, biz)
+            n = used.get(name, 0) + 1
+            used[name] = n
+            if n > 1:
+                stem, dot, ext = name.rpartition(".")
+                name = f"{stem} ({n}).{ext}" if dot else f"{name} ({n})"
+            zf.write(path, arcname=name)
+            count += 1
+    if count == 0:
+        out.close()
+        raise HTTPException(status_code=404, detail="내려받을 사업자등록증 파일이 없습니다.")
+    out.seek(0)
+    return out, count
 
 
 def get_license_file(db: Session, user_id: uuid.UUID) -> tuple[Path, str]:

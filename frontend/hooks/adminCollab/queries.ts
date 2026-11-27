@@ -7,6 +7,7 @@ import type {
   CollabMemberListParams,
   CollabRequestListParams,
 } from "@/lib/adminCollab";
+import type { BizLicenseParams } from "@/lib/bizLicense";
 
 import { adminCollabApi } from "./apis";
 import { adminCollabKeys } from "./keys";
@@ -51,11 +52,21 @@ export const useCollabMember = (id: string | null) =>
     refetchOnWindowFocus: true,
   });
 
-/** 회원 로그인 기록(100) — 상세 아래 "로그인 기록". 창으로 돌아오면 다시 불러온다. */
-export const useCollabMemberLogins = (id: string) =>
+/** 사업자등록증 모아 보기(11-26) — 제휴사 · 광고주. 쪽을 넘기는 동안 앞 쪽을 그대로 보여 준다. */
+export const useCollabBizLicenses = (params: BizLicenseParams) =>
   useQuery({
-    queryKey: adminCollabKeys.memberLogins(id),
-    queryFn: () => adminCollabApi.memberLogins(id),
+    queryKey: adminCollabKeys.bizLicenses(params),
+    queryFn: () => adminCollabApi.bizLicenses(params),
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: true,
+  });
+
+/** 회원 로그인 기록(100) — 상세 아래 "로그인 기록", 한 쪽에 size 줄. 쪽을 넘기는 동안 앞 쪽을 그대로 보여 준다. */
+export const useCollabMemberLogins = (id: string, page: number, size: number) =>
+  useQuery({
+    queryKey: adminCollabKeys.memberLogins(id, page),
+    queryFn: () => adminCollabApi.memberLogins(id, page, size),
+    placeholderData: keepPreviousData,
     refetchOnWindowFocus: true,
   });
 
@@ -135,6 +146,14 @@ export const useAdminCollabProgress = () =>
   useQuery({
     queryKey: adminCollabKeys.progress(),
     queryFn: adminCollabApi.collabProgress,
+    staleTime: 15 * 1000,
+  });
+
+/** 매장 모집(11-26) — 모집 시작 전 확정 의뢰 · 모집 현황 콜라보. */
+export const useRecruitBoard = () =>
+  useQuery({
+    queryKey: adminCollabKeys.recruitBoard(),
+    queryFn: adminCollabApi.recruitBoard,
     staleTime: 15 * 1000,
   });
 

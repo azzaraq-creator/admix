@@ -67,6 +67,8 @@ class AdvertiserCollabRequest(Base):
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
     # 어드민이 처음 연 때 — 비어 있으면 사이드 메뉴 "콜라보 의뢰" 옆 숫자에 센다.
     admin_viewed_at = Column(DateTime(timezone=True), nullable=True)
+    # 확정 뒤 어드민이 연 매장 모집 콜라보(101) — 한 의뢰에 하나. 콜라보를 지우면 비워진다.
+    collab_id = Column(UUID(as_uuid=True), ForeignKey("collab.id", ondelete="SET NULL"), nullable=True, unique=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -78,6 +80,8 @@ class AdvertiserCollabRequest(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    # 이은 매장 모집 콜라보(101) — 실제 모집 시작일(recruit_start)로 광고주 · 확정 기획안 일정을 다시 센다(2026-11-26).
+    collab = relationship("Collab", foreign_keys=[collab_id], lazy="selectin", viewonly=True)
 
 
 class AdvertiserCollabRequestRound(Base):

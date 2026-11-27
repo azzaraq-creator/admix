@@ -76,7 +76,9 @@ def test_admin_reads_newest_first_with_device(db: Session, partner):  # noqa: F8
         ("password", "Mac · Chrome", "1.2.3.4"),
         ("kakao", "iPhone · Safari", None),
     ]
-    assert len(ps.admin_member_logins(db, str(partner.id), limit=1)["items"]) == 1
+    # 쪽 넘기기 — 1줄씩이면 2쪽은 더 오래된 줄, 전체 개수는 그대로
+    second = ps.admin_member_logins(db, str(partner.id), page=2, size=1)
+    assert second["total"] == 2 and [i["method"] for i in second["items"]] == ["kakao"]
 
 
 def test_admin_logins_only_for_partner(db: Session, partner):  # noqa: F811

@@ -19,6 +19,7 @@ import type {
 import { adminPartnersKeys } from "../adminPartners/keys";
 import {
   adminCollabApi,
+  type StartRecruitingPayload,
   type StoreTypePayload,
   type UpdateMemberPayload,
 } from "./apis";
@@ -175,16 +176,9 @@ export const useUpdateStoreRequest = () => {
 export const useSaveCollab = () => {
   const onSaved = useCollabSaved();
   return useMutation({
-    mutationFn: ({
-      id,
-      payload,
-    }: {
-      id?: string;
-      payload: AdminCollabPayload;
-    }) =>
-      id
-        ? adminCollabApi.updateCollab(id, payload)
-        : adminCollabApi.createCollab(payload),
+    // 어드민에서 새로 만들기는 없앴다(11-26) — 고치기만.
+    mutationFn: ({ id, payload }: { id: string; payload: AdminCollabPayload }) =>
+      adminCollabApi.updateCollab(id, payload),
     onSuccess: onSaved,
   });
 };
@@ -345,6 +339,30 @@ export const useDeleteStoreType = () => {
   return useMutation({
     mutationFn: (id: number) => adminCollabApi.deleteStoreType(id),
     onSuccess: onSaved,
+  });
+};
+
+/** 확정한 의뢰로 매장 모집 시작(101) — 새 콜라보는 콜라보 목록 · 진행에, 의뢰는 다시 불러와 "콜라보 진행 보기"로. */
+export const useStartRecruiting = () => {
+  const queryClient = useQueryClient();
+  const onSaved = useCollabSaved();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: StartRecruitingPayload;
+    }) => adminCollabApi.startRecruiting(id, payload),
+    onSuccess: (detail: AdminCollabDetail, { id }) => {
+      onSaved(detail);
+      void queryClient.invalidateQueries({
+        queryKey: adminCollabKeys.advRequest(id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [...adminCollabKeys.all, "advRequests"],
+      });
+    },
   });
 };
 

@@ -569,7 +569,7 @@ export function advBizLockOf(
   return "unregistered";
 }
 
-/** 기본협약 해지(갱신 거절 — 다음 자동 갱신일까지 유효) · 해지 취소(096). */
+/** 기본협약 해지(해지한 날까지 유효 · 다음 날 00:00부터 끝남, 11-26) · 해지 취소(096). */
 export type AgreementAction = "terminate" | "cancel";
 
 /** 어드민 제휴사 회원(069). */
@@ -801,6 +801,8 @@ export interface CollabAdminSummary {
   collabRequestsSubmitted?: number;
   /** 광고주 콜라보 의뢰 중 어드민이 아직 안 연 것 — 바뀌면 사이드 메뉴가 의뢰 목록을 다시 불러온다. */
   collabRequestsNew?: number;
+  /** 확정했는데 아직 매장 모집을 열지 않은 의뢰 수(11-26) — 사이드 메뉴 "매장 모집" 옆 숫자. */
+  recruitReady?: number;
 }
 
 /** 광고주 브랜드(068) — 콜라보 화면 "내 브랜드". 한 광고주가 여러 개, 먼저 등록한 것이 앞. */

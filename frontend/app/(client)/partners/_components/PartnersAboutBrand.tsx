@@ -63,7 +63,7 @@ const COURSE_PARTS = [
   {
     key: "recruit",
     label: "모집",
-    body: "매장이 선착순으로 신청합니다.",
+    body: "매장이 참여를 신청합니다.",
     color: "bg-primary",
   },
   {
@@ -95,12 +95,13 @@ const STEPS: Step[] = [
   {
     title: "매장 모집",
     who: ["partner"],
-    body: "매장이 선착순으로 참여를 신청합니다.",
+    // 11-26 사용자: 선착순 대신 신청 순으로 보여 주고 브랜드가 직접 고른다.
+    body: "매장이 참여를 신청합니다. 신청한 순서대로 보여 드립니다.",
   },
   {
     title: "매장 확정",
     who: ["brand", "partner"],
-    body: "신청 매장을 보고 제외를 요청할 수 있습니다. 이어서 매장이 최종 확정합니다.",
+    body: "신청 매장 가운데 함께할 매장을 브랜드가 직접 고릅니다. 모집 중에도 고를 수 있습니다. 이어서 매장이 최종 확정합니다.",
   },
   {
     title: "설치 · 진행",
@@ -329,7 +330,7 @@ function Course() {
           매장 모집
         </>
       }
-      lead="의뢰서에서 모집 일정을 고릅니다. 매장 모집은 선착순입니다."
+      lead="의뢰서에서 모집 일정을 고릅니다. 신청한 매장은 브랜드가 직접 고릅니다."
     >
       <div className="flex flex-col gap-[12px] sm:gap-[16px]">
         {([COURSE.standard, COURSE.rush] as const).map((c, i) => (

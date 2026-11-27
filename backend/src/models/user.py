@@ -148,7 +148,8 @@ class User(Base):
 
     @property
     def partner_agreement_ended(self) -> bool:
-        """기본협약을 해지해 끝났는지(096) — 종료일(KST)이 오늘이거나 지났으면. 그 전날까지는 유효하다."""
+        """기본협약을 해지해 끝났는지(096) — 종료일(KST)이 오늘이거나 지났으면. 그 전날까지는 유효하다.
+        해지하면 종료일은 해지한 다음 날이라(2026-11-26) 다음 날 00:00부터 끝난다."""
         ends = self.partner_termination_effective_on
         return ends is not None and ends <= datetime.now(_KST).date()
 

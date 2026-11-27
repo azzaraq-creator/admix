@@ -65,29 +65,6 @@ type FormState = {
 type FieldKey =
   "brandName" | "title" | "targetStores" | "recruit" | "period" | "quantity";
 
-const EMPTY: FormState = {
-  brandName: "",
-  brandImageUrl: "",
-  title: "",
-  summary: "",
-  type: "ready",
-  status: "draft",
-  targetStores: "10",
-  recruitStart: "",
-  recruitEnd: "",
-  confirmDue: "",
-  installDate: "",
-  startDate: "",
-  endDate: "",
-  removalDate: "",
-  task: "",
-  items: [{ label: "샘플링", note: "" }],
-  space: "",
-  quantity: "",
-  benefit: "",
-  staffScript: "",
-  adminMemo: "",
-};
 
 /** 진행 항목 이름 — 누르면 한 줄이 추가된다(직접 적어도 된다). */
 const ITEM_SUGGESTIONS = [
@@ -126,12 +103,15 @@ const toForm = (c: AdminCollabDetail): FormState => ({
 
 const orNull = (v: string) => v.trim() || null;
 
-/** 콜라보 만들기 · 고치기 — 날짜 순서(모집 → 설치 → 기간 → 철수)는 서버가 한 번 더 본다. */
-export function CollabFormView({ id }: { id: string | null }) {
+/**
+ * 콜라보 고치기 — 날짜 순서(모집 → 설치 → 기간 → 철수)는 서버가 한 번 더 본다.
+ * 어드민에서 새로 만들기는 없앴다(11-26 사용자: "새 콜라보 … 이 버튼과 기능을 없애줘").
+ */
+export function CollabFormView({ id }: { id: string }) {
   const router = useRouter();
   const { data, isLoading, isError } = useAdminCollab(id);
-  if (id && isLoading) return <LoadingState />;
-  if (id && (isError || !data))
+  if (isLoading) return <LoadingState />;
+  if (isError || !data)
     return (
       <div className="flex flex-col items-center gap-[12px] py-[80px]">
         <p className="text-sm text-disabled">콜라보를 찾을 수 없습니다.</p>
@@ -143,23 +123,21 @@ export function CollabFormView({ id }: { id: string | null }) {
         </Button>
       </div>
     );
-  return <CollabForm key={data?.updatedAt ?? "new"} id={id} detail={data} />;
+  return <CollabForm key={data.updatedAt} id={id} detail={data} />;
 }
 
 function CollabForm({
   id,
   detail,
 }: {
-  id: string | null;
-  detail: AdminCollabDetail | undefined;
+  id: string;
+  detail: AdminCollabDetail;
 }) {
   const router = useRouter();
   const save = useSaveCollab();
   const { alert, confirmDialog } = useAdminConfirm();
   const { success } = useSonner();
-  const [form, setForm] = useState<FormState>(() =>
-    detail ? toForm(detail) : EMPTY,
-  );
+  const [form, setForm] = useState<FormState>(() => toForm(detail));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -217,9 +195,9 @@ function CollabForm({
       admin_memo: orNull(form.adminMemo),
     };
     try {
-      const saved = await save.mutateAsync({ id: id ?? undefined, payload });
+      const saved = await save.mutateAsync({ id, payload });
       success(
-        id ? "콜라보를 저장했어요." : "콜라보를 만들었어요.",
+        "콜라보를 저장했어요.",
         saved.status === "draft"
           ? "비공개 상태라 제휴사 화면에는 아직 보이지 않아요."
           : undefined,
@@ -234,15 +212,13 @@ function CollabForm({
     }
   };
 
-  const goBack = () =>
-    router.push(id ? `/admin/collab/collabs/${id}` : "/admin/collab/collabs");
+  const goBack = () => router.push(`/admin/collab/collabs/${id}`);
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title={id ? "콜라보 수정" : "새 콜라보"}
-        desc="공개로 저장하면 모집 기간 동안 제휴사 화면 '콜라보 참여'에 보여요. 설치일 · 철수일을 비우면 시작 전날 · 종료 다음 날로 잡아요."
-      />
+      {/* 머리 설명("공개로 저장하면 …")은 뺐다(11-26 사용자 "이 문구 없애줘"). 소개 · 브랜드 사진 · 목표 매장 수 · 최종 확정 기한
+          설명과 점검 사진일 줄도 같은 날 뺐다("없애줘"). */}
+      <CollabPageHead title="콜라보 수정" />
 
       <AdminPanel title="기본" contentClassName="gap-[20px]">
         <div className="grid grid-cols-1 gap-x-[24px] gap-y-[20px] md:grid-cols-2">
@@ -275,10 +251,7 @@ function CollabForm({
             />
           </div>
           <div className="md:col-span-2">
-            <HeroField
-              label="소개"
-              help="제휴사 카드 · 상세 맨 위에 보이는 한두 문장"
-            >
+            <HeroField label="소개">
               <TextArea
                 variant="secondary"
                 fullWidth
@@ -327,7 +300,6 @@ function CollabForm({
             label="목표 매장 수"
             required
             error={errors.targetStores}
-            help="신청 순서대로 이 수만큼 '선정 후보', 그 뒤는 '예비'로 보여요."
           >
             <Input
               variant="secondary"
@@ -357,10 +329,7 @@ function CollabForm({
               onChange={(v) => set("recruitEnd", v)}
             />
           </HeroField>
-          <HeroField
-            label="최종 확정 기한"
-            help="확정 요청을 받은 매장이 이때까지 확정해요. 비우면 모집 마감 다음 날 18시."
-          >
+          <HeroField label="최종 확정 기한">
             <Input
               type="datetime-local"
               variant="secondary"
@@ -400,15 +369,6 @@ function CollabForm({
             />
           </HeroField>
         </div>
-        {detail?.checks.length ? (
-          <p className="text-xs text-disabled">
-            점검 사진일(기간의 25 · 60 · 90%):{" "}
-            {detail.checks
-              .map((k) => k.date.slice(5).replace("-", "."))
-              .join(" · ")}{" "}
-            — 날짜를 바꾸면 저장할 때 다시 계산해요.
-          </p>
-        ) : null}
       </AdminPanel>
 
       <AdminPanel title="매장이 할 일" contentClassName="gap-[20px]">
@@ -496,14 +456,14 @@ function CollabForm({
 
       <div className="flex items-center justify-between">
         <Button variant="tertiary" onPress={goBack}>
-          {id ? "취소" : "목록"}
+          취소
         </Button>
         <Button
           variant="primary"
           onPress={handleSave}
           isDisabled={save.isPending}
         >
-          {save.isPending ? "저장 중…" : id ? "저장" : "만들기"}
+          {save.isPending ? "저장 중…" : "저장"}
         </Button>
       </div>
       {confirmDialog}
@@ -656,10 +616,7 @@ function BrandImageField({
   };
 
   return (
-    <HeroField
-      label="브랜드 사진"
-      help="제휴사 카드 · 상세에 보이는 로고나 대표 사진"
-    >
+    <HeroField label="브랜드 사진">
       <div className="flex items-center gap-[12px]">
         <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[12px] bg-zinc-100">
           {src && (

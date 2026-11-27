@@ -16,6 +16,11 @@ import {
 import { parseDate, type DateValue } from "@internationalized/date";
 import { RotateCw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  CheckboxContext,
+  CheckboxFieldContext,
+  Provider,
+} from "react-aria-components";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { cn } from "@/lib/utils";
@@ -594,20 +599,29 @@ function SelectCheckbox({
   isDisabled?: boolean;
   onChange: (on: boolean) => void;
 }) {
+  // 표(react-aria Table) 칸 안의 Checkbox 는 표 자체 선택용 slot("selection")을 달라고 해 화면이 멈춘다
+  // ("A slot prop is required", 11-26 콜라보 상세 참여 매장 표). 이 체크박스는 표 선택이 아니라 우리가 쥔 고른 줄이라 그 맥락을 비운다.
   return (
-    <Checkbox
-      aria-label={label}
-      isSelected={isSelected}
-      isIndeterminate={isIndeterminate}
-      isDisabled={isDisabled}
-      onChange={onChange}
+    <Provider
+      values={[
+        [CheckboxContext, null],
+        [CheckboxFieldContext, null],
+      ]}
     >
-      <Checkbox.Content>
-        <Checkbox.Control>
-          <Checkbox.Indicator />
-        </Checkbox.Control>
-      </Checkbox.Content>
-    </Checkbox>
+      <Checkbox
+        aria-label={label}
+        isSelected={isSelected}
+        isIndeterminate={isIndeterminate}
+        isDisabled={isDisabled}
+        onChange={onChange}
+      >
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+        </Checkbox.Content>
+      </Checkbox>
+    </Provider>
   );
 }
 

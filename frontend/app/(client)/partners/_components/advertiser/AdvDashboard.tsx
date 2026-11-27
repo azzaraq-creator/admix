@@ -73,14 +73,13 @@ export const TODO_LABEL = {
   proceed: "진행 확정",
   decide: "진행 방법",
   review: "신청 매장 검토",
-  reserve: "예비 매장",
   pay: "입금",
   report: "보고서",
   returned: "기획안 확인",
 } as const;
 
 /** 할 일이 급한 순서 — 진행 확정 · 입금 · 보완 요청이 먼저. */
-const TODO_ORDER = ["proceed", "pay", "returned", "decide", "review", "reserve", "report"] as const;
+const TODO_ORDER = ["proceed", "pay", "returned", "decide", "review", "report"] as const;
 
 export function todosOf(collabs: AdvCollab[]) {
   return collabs

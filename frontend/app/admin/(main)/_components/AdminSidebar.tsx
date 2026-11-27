@@ -60,6 +60,7 @@ const SparkleIcon = maskIcon("/icons/ai-icon.svg");
 const BrandIcon = maskIcon("/icons/octogram.svg");
 const StoreIcon = maskIcon("/icons/store.svg");
 const ClapIcon = maskIcon("/icons/clap-duo.svg");
+const LicenseIcon = maskIcon("/icons/file-text.svg");
 /** 채운 폴더가 다른 아이콘보다 커 보여 그림만 줄인다(사용자 화면 "기획안"과 같다). */
 function FolderIcon({ className }: { className?: string }) {
   return <FolderFilledIcon className={cn("p-[1px]", className)} />;
@@ -98,7 +99,8 @@ type NavBadge =
   | "requestsPending"
   | "partnerBizReviewing"
   | "advertiserBizReviewing"
-  | "collabRequestsSubmitted";
+  | "collabRequestsSubmitted"
+  | "recruitReady";
 type NavLink = {
   label: string;
   href: string;
@@ -137,6 +139,13 @@ const NAV: (NavLink | NavGroup)[] = [
     href: "/admin/members",
     permKey: "member",
     Icon: ProfileFilledIcon,
+  },
+  // 회원이 올린 사업자등록증만 모아 보기(11-26 사용자) — 인증 처리는 회원 상세에서.
+  {
+    label: "사업자등록증",
+    href: "/admin/business-registrations",
+    permKey: "member",
+    Icon: LicenseIcon,
   },
   {
     label: "AI 채팅 관리",
@@ -215,6 +224,13 @@ const COLLAB_NAV: (NavLink | NavGroup)[] = [
       },
     ],
   },
+  // 제휴사 · 광고주가 올린 사업자등록증 모아 보기(11-26 사용자) — 인증 처리는 회원 상세에서.
+  {
+    label: "사업자등록증",
+    href: "/admin/collab/business-registrations",
+    permKey: "collab",
+    Icon: LicenseIcon,
+  },
   {
     label: "콜라보 관리",
     Icon: ClapIcon,
@@ -226,7 +242,14 @@ const COLLAB_NAV: (NavLink | NavGroup)[] = [
         permKey: "collab",
         badge: "collabRequestsSubmitted",
       },
-      // 끝나지 않은 콜라보 — 준비할 것(admix 제작물 포함) · 지금 하는 일. 새 콜라보 · 상세도 여기(collabs).
+      // 확정한 의뢰를 바로 모집 시작 + 콜라보별 모집 현황(11-26 사용자). 숫자 = 모집 시작을 기다리는 확정 의뢰.
+      {
+        label: "매장 모집",
+        href: "/admin/collab/recruiting",
+        permKey: "collab",
+        badge: "recruitReady",
+      },
+      // 끝나지 않은 콜라보 — 준비할 것(admix 제작물 포함) · 지금 하는 일. 상세도 여기(collabs).
       {
         label: "콜라보 진행",
         href: "/admin/collab/collabs",
@@ -246,6 +269,7 @@ const COLLAB_NAV: (NavLink | NavGroup)[] = [
 const BADGE_LABEL: Record<NavBadge, (count: number) => string> = {
   requestsPending: (n) => `대기 ${n}건`,
   collabRequestsSubmitted: (n) => `접수된 의뢰 ${n}건`,
+  recruitReady: (n) => `모집 시작 전 ${n}건`,
   partnerBizReviewing: (n) => `사업자등록증 검토 대기 ${n}명`,
   advertiserBizReviewing: (n) => `사업자등록증 검토 대기 ${n}명`,
 };
@@ -512,6 +536,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
     partnerBizReviewing: summary?.members?.bizReviewing,
     advertiserBizReviewing: summary?.advertisers?.bizReviewing,
     collabRequestsSubmitted: summary?.collabRequestsSubmitted,
+    recruitReady: summary?.recruitReady,
   };
   // 대기 수가 바뀌면(새로 오거나 처리되면) 그 목록도 다시 불러온다 — 숫자와 목록이 어긋나지 않게.
   useRefetchListOnChange(counts.requestsPending, "requests");
@@ -520,6 +545,8 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   // 의뢰 목록은 안 연 수가 바뀔 때도(열어 봐서 "새" 표시가 빠질 때) 다시 불러온다.
   useRefetchListOnChange(counts.collabRequestsSubmitted, "advRequests");
   useRefetchListOnChange(summary?.collabRequestsNew, "advRequests");
+  // 광고주가 새로 확정하면 매장 모집 화면(collabs 아래)도 다시 불러온다.
+  useRefetchListOnChange(counts.recruitReady, "collabs");
   const badgeOf = (link: NavLink) => (link.badge ? (counts[link.badge] ?? 0) : 0);
   const handleLogout = () => {
     const refreshToken = getAdminRefreshToken();
@@ -654,7 +681,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
 /** 사이드 메뉴 숫자가 바뀌면(처음 불러올 때 말고) 그 목록 쿼리를 다시 불러온다. */
 function useRefetchListOnChange(
   value: number | undefined,
-  list: "requests" | "members" | "advertisers" | "advRequests",
+  list: "requests" | "members" | "advertisers" | "advRequests" | "collabs",
 ) {
   const queryClient = useQueryClient();
   const last = useRef(value);

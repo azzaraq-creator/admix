@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Link, Modal, toast } from "@heroui/react";
+import { Button, Card, Link, Modal, SuccessIcon, toast } from "@heroui/react";
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -52,6 +52,10 @@ export function eulReul(word: string) {
 
 /** 짧은 알림(예시 화면이라 결과는 이 탭에만 남는다). */
 export const say = (text: string) => toast(text, { timeout: TOAST_TIMEOUT });
+
+/** 끝난 일 알림 — 아이콘만 체크(글자 색은 say 와 같음). 11-26 사용자 "아이콘을 체크로". */
+export const sayDone = (text: string) =>
+  toast(text, { timeout: TOAST_TIMEOUT, indicator: <SuccessIcon data-slot="toast-default-icon" /> });
 
 /** 매장 사진 — 없으면 이름 첫 글자. 크기 · 곡률은 className 으로. */
 export function StoreThumb({

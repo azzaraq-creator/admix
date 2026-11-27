@@ -139,23 +139,22 @@ function Detail({ collab: c }: { collab: AdminCollabDetail }) {
                 />
               </span>
             )}
-            <span className="flex flex-col">
+            <span className="flex min-w-0 flex-col">
               <span className="text-sm font-medium text-disabled">
                 {c.brandName}
               </span>
-              {c.title}
+              {/* 단계 · 상태 칩은 캠페인명 바로 오른쪽(11-26 사용자: "Chip이 캠페인명 우측에 오게"). */}
+              <span className="flex flex-wrap items-center gap-x-[8px] gap-y-[4px]">
+                {c.title}
+                <PhaseChip phase={c.phase} />
+                {c.status !== "published" && (
+                  <Chip size="sm" variant="soft">
+                    {COLLAB_STATUS_LABEL[c.status]}
+                  </Chip>
+                )}
+              </span>
             </span>
           </span>
-        }
-        extra={
-          <>
-            <PhaseChip phase={c.phase} />
-            {c.status !== "published" && (
-              <Chip size="sm" variant="soft">
-                {COLLAB_STATUS_LABEL[c.status]}
-              </Chip>
-            )}
-          </>
         }
       >
         <Button
@@ -329,12 +328,11 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
       {
         name: "standing",
         label: "입장",
-        // 신청 상태일 때만 의미 있다(선정 후보 n · 예비 n) — 나머지는 상태 칸과 같다.
+        // 신청 상태일 때만 의미 있다(신청 n번째) — 나머지는 상태 칸과 같다.
         renderer: (p) =>
           p.status === "applied" ? (
             <span className="whitespace-nowrap">
               {STANDING_LABEL[p.standing] ?? p.standing}
-              {p.slotNo ? ` ${p.slotNo}` : ""}
             </span>
           ) : (
             <span className="text-disabled">-</span>
@@ -487,7 +485,6 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
   return (
     <CollabSection
       title={`참여 매장 ${rows.length}곳`}
-      desc="신청 순서대로 목표 수만큼 선정 후보예요. 고른 매장에 확정 요청을 보내면 매장이 직접 확정해요. 줄을 누르면 사진 · 재입고 · 대리 확정을 해요."
       right={
         <form
           className="flex gap-[8px]"
@@ -499,7 +496,7 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
           <Input
             variant="secondary"
             aria-label="매장 ID로 추가"
-            placeholder="매장 ID (S-0001)"
+            placeholder="매장 ID"
             className="w-[160px]"
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -526,7 +523,7 @@ function ParticipantsSection({ c }: { c: AdminCollabDetail }) {
           isDisabled={!candidates.length}
           onPress={() => setSelected(candidates)}
         >
-          선정 후보 {candidates.length}곳 고르기
+          신청 매장 {candidates.length}곳 모두 고르기
         </Button>
         {selectedIds.length > 0 && (
           <Button size="sm" variant="ghost" onPress={() => setSelected([])}>
@@ -674,7 +671,6 @@ function ParticipantBody({
           {p.status === "applied" && (
             <span className="text-tone-4a5565">
               {STANDING_LABEL[p.standing] ?? p.standing}
-              {p.slotNo ? ` ${p.slotNo}` : ""}
             </span>
           )}
           <span className="text-xs text-disabled">
@@ -956,7 +952,6 @@ function NoticesSection({ c }: { c: AdminCollabDetail }) {
   return (
     <CollabSection
       title={`공지 ${c.notices.length}건`}
-      desc="확정 요청을 받았거나 확정한 매장의 콜라보 상세에 보여요."
     >
       {c.notices.length > 0 && (
         <ul className="flex flex-col gap-[8px]">

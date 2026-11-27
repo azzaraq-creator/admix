@@ -188,6 +188,8 @@ export interface AdminAdvCollabRequest {
   roundCount: number;
   lastRoundAuthor: PlanAuthor | null;
   confirmedAt: string | null;
+  /** 확정 뒤 어드민이 연 매장 모집 콜라보(101) — 없으면 아직 모집 전. */
+  collabId: string | null;
 }
 
 /** 의뢰서 한 장 — 보낸 내용 전부 + 그때 계산한 예상 비용 · 일정(참고용) + 기획안 차수(085). */
@@ -287,8 +289,9 @@ export const PARTICIPANT_STATUS_LABEL: Record<ParticipantStatus, string> = {
 export const STANDING_LABEL: Record<string, string> = {
   none: "-",
   blocked: "기간 겹침",
-  candidate: "선정 후보",
-  reserve: "예비",
+  // 11-26 사용자: 선착순 · 예비를 뺐다 — 신청한 매장은 모두 "신청"(광고주가 고름). 예전 기록에 남은 reserve 도 같은 이름으로.
+  candidate: "신청",
+  reserve: "신청",
   requested: "확정 요청",
   confirmed: "확정",
   declined: "미참여",

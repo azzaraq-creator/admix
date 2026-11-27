@@ -9,7 +9,6 @@ import {
   Link,
   Radio,
   RadioGroup,
-  Switch,
   Tabs,
 } from "@heroui/react";
 import {
@@ -24,7 +23,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
@@ -42,6 +41,7 @@ import {
   applicantRows,
   canConfirmProceed,
   canDelay,
+  canPick,
   costOf,
   delayBlockers,
   endOfDay,
@@ -63,6 +63,7 @@ import {
   previewNow,
   refundFor,
   reportsOf,
+  reviewFromOf,
   scheduleOf,
   stageOf,
   statsOf,
@@ -75,6 +76,7 @@ import {
   type Schedule,
 } from "@/lib/advertiserPreview";
 import { extractApiError } from "@/lib/apiError";
+import { latestRound, roundNo } from "@/lib/collabPlan";
 import { COLLAB_GRADE_LABEL } from "@/lib/partners";
 import {
   addDays,
@@ -93,7 +95,7 @@ import {
 import { PanelCard, SectionHead, StatusChip } from "../workspace/workspaceUi";
 import { advActions, useAdvServerSync, useAdvState, useRememberSentRequest } from "./advStore";
 import { advListHref } from "./AdvCollabList";
-import { AdvPlanReview } from "./AdvPlanReview";
+import { AdvPlanReview, type PlanReviewHandle } from "./AdvPlanReview";
 import { PlanFilePreview } from "./PlanFilePreview";
 import { InvoiceModal, ReportModal } from "./advDocs";
 import { ScheduleCalendar, scheduleMonthCount } from "./ScheduleCalendar";
@@ -364,12 +366,7 @@ function Overview({ c }: { c: AdvCollab }) {
             sub={confirmedCost ? `확정 매장 ${cost.confirmedCount}곳 금액 합계` : "확정 매장 금액 합계로 정해져요"}
           />
         </div>
-        {!confirmedCost && (
-          <p className="px-[2px] text-[12px] leading-[1.5] break-keep text-gray-500">
-            예상 비용 = 지정 매장 {c.preferred.length ? estimateText(est.preferred, est.negotiable) : "없음"} + 나머지 {est.rest}곳 × 평균{" "}
-            {wonText(est.avg)}
-          </p>
-        )}
+        {/* 카드 아래 "예상 비용 = 지정 매장 … + 나머지 n곳 × 평균 …" 풀이 줄은 뺐다(11-26 사용자 "없애줘"). */}
       </div>
       <SheetTable>
         <SheetRow label="콜라보 기본안" hint={c.items.length ? `${c.items.length}가지` : undefined}>
@@ -568,7 +565,9 @@ function ScheduleDetail({ c, s, wide }: { c: AdvCollab; s: Schedule; wide?: bool
  */
 function ScheduleTab({ c }: { c: AdvCollab }) {
   const s = scheduleOf(c);
-  const requestDate = c.requestedAt ? kstDate(c.requestedAt) : undefined;
+  // "의뢰" · admix 검토 칸은 처음 의뢰서를 낸 날부터(11-26 사용자 — 기획안을 고쳐 보내도 검토를 새로 세지 않는다).
+  const reviewFrom = reviewFromOf(c);
+  const requestDate = reviewFrom ? kstDate(reviewFrom) : undefined;
   // 달력은 일정이 걸친 달을 다 펼친다(11-17 사용자 "2달이면 2개, 3개이면 3개의 달로"). 두 달까진 오른쪽 상세 일정 옆에 나란히,
   // 석 달 이상이면 달력을 전체 폭(넓으면 석 달 나란히)으로 두고 상세 일정은 그 아래 가로로.
   const wide = scheduleMonthCount(s, requestDate) >= 3;
@@ -618,9 +617,11 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
   const rows = applicantRows(c);
   const cost = costOf(c);
   const reviewing = isReviewing(c);
+  // 11-26 사용자: 선착순 대신 신청 순으로 보여 주고 광고주가 직접 고른다 — 모집 중에도, 목표보다 많이도. 안 고른 매장은 후보.
+  const picking = canPick(c);
+  // 확정 요청이 이미 나갔으면 고르는 즉시 그 매장에도 확정 요청이 간다(pickStore).
+  const sending = c.entries.some((e) => e.requestedAt);
   const outcome = outcomeOf(st.applied, c.minStores, c.targetStores);
-  const cancelled = c.status === "cancelled";
-  const canReserve = !cancelled && ["upcoming", "recruiting", "review", "confirming", "preparing", "installing"].includes(p);
   const preferred = new Set(c.preferred.map((x) => x.id));
   return (
     <div className="flex flex-col gap-[16px]">
@@ -666,56 +667,57 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
       <PanelCard className="gap-[12px] p-[14px] sm:p-[22px]">
         <PanelHead
           title={`신청 매장 ${st.applied}곳`}
-          hint="선착순으로 목표 수까지 선정 · 넘는 신청은 예비 순번이에요"
-          right={
-            canReserve && (
-              <Switch
-                size="sm"
-                className="[--switch-control-bg-checked:var(--color-primary)] [--switch-control-bg-checked-hover:var(--color-primary-600)]"
-                isSelected={!!c.reservesPreApproved}
-                onChange={(v) => {
-                  advActions.setReservesPreApproved(c.id, v);
-                  say(v ? "예비 매장을 미리 승인했어요. 빠지는 매장이 생기면 바로 투입돼요." : "예비 매장 미리 승인을 껐어요. 바꿀 때마다 확인을 요청드려요.");
-                }}
-              >
-                <Switch.Content>
-                  <Switch.Control>
-                    <Switch.Thumb className="bg-surface!" />
-                  </Switch.Control>
-                  <span className="text-[13px] font-semibold text-gray-700">예비 매장 미리 승인</span>
-                </Switch.Content>
-              </Switch>
-            )
-          }
+          // "먼저 신청한 순서예요"는 뺐다(11-26 사용자 "이거 없애줘") — 표가 신청 순인 건 그대로.
+          hint={picking ? "함께할 매장을 골라 주세요" : undefined}
         />
-        {p === "recruiting" && (
-          <p className="rounded-[14px] bg-gray-50 px-[12px] py-[9px] text-[12px] break-keep text-gray-600">
-            모집 중이에요({mdw(s.recruitEnd)} 마감). 마감 뒤 검토 기간({mdw(s.reviewEnd)}까지)에 제외 요청을 할 수 있어요.
-          </p>
-        )}
+        {/* 고르는 동안 위에 있던 회색 안내("모집 중이에요(… 마감). 신청이 들어오는 대로 고를 수 있어요. 고른 매장에 … 확정 요청을
+            보내요.")는 뺐다(11-27 사용자 "이건 필요 없는 듯?"). 고른 뒤 토스트가 확정 요청 여부를 알려 준다. */}
         {p === "upcoming" && (
-          <p className="rounded-[14px] bg-gray-50 px-[12px] py-[9px] text-[12px] break-keep text-gray-600">
-            {mdw(s.noticeDate)}에 매장 모집 공지를 올려요. 신청이 들어오면 이곳에 순서대로 보여요.
-          </p>
+          // 11-26 사용자: "간단하게 … 줄여줘" → "공지 말고 시작 어때? 그리고 시작 전에 칸이 너무 작은데 크게 보여줘" —
+          // 예전 "…에 매장 모집 공지를 올려요. 신청이 들어오면 이곳에 순서대로 보여요."(작은 회색 띠).
+          <EmptyBox>
+            <b className="font-semibold text-gray-900">{mdw(s.noticeDate)}</b>에 매장 모집 시작
+            {/* 11-26 사용자: "지금 바로 시작하고 싶으면 관리자에게 문의해 주세요. 라는 텍스트 추가해 줘" — 어드민이 매장 모집에서 그날 바로 연다. */}
+            <span className="mt-[6px] block text-[13px] text-gray-500">
+              지금 바로 시작하고 싶으면 관리자에게 문의해 주세요.
+            </span>
+          </EmptyBox>
         )}
         {rows.length > 0 && (
           <div className="grid grid-cols-[minmax(0,1fr)_96px_92px_104px_84px] gap-[12px] border-b border-gray-100 px-[4px] pb-[8px] text-[12px] font-semibold text-gray-500 max-sm:hidden">
             <span>매장</span>
-            <span>순번</span>
+            <span>상태</span>
             <span className="text-right">금액(1건)</span>
             <span>예상 소진율</span>
             <span />
           </div>
         )}
         <ul className="flex flex-col">
-          {rows.map(({ e, slot, reserve, store }, i) => {
+          {rows.map(({ e, slot, picked, store }, i) => {
             const chip = (
-              <StatusChip tone={e.status === "confirmed" ? "green" : e.status === "requested" ? "amber" : reserve ? "gray" : "purple"}>
+              <StatusChip tone={e.status === "confirmed" ? "green" : e.status === "requested" ? "amber" : picked ? "purple" : "gray"}>
                 {slot}
               </StatusChip>
             );
+            const name = store?.name ?? "매장";
             const action =
-              reviewing && (e.status === "applied" || e.status === "requested") ? (
+              picking && e.status === "applied" ? (
+                <Button
+                  size="sm"
+                  variant={picked ? "tertiary" : "secondary"}
+                  onPress={() => {
+                    advActions.pick(c.id, e.storeId, !picked);
+                    say(
+                      picked
+                        ? `${eulReul(name)} 뺐어요. 후보로 남아요.`
+                        : `${eulReul(name)} 골랐어요.${sending ? " 확정 요청을 보냈어요." : ""}`,
+                    );
+                  }}
+                  className="h-[30px] rounded-[12px] px-[10px] text-[12px] font-semibold"
+                >
+                  {picked ? "빼기" : "고르기"}
+                </Button>
+              ) : reviewing && e.status === "requested" ? (
                 <Button size="sm" variant="tertiary" onPress={() => onExclude(e.storeId)} className="h-[30px] rounded-[12px] px-[10px] text-[12px] font-semibold">
                   제외 요청
                 </Button>
@@ -726,7 +728,6 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
                 className={cn(
                   "flex items-center gap-[12px] px-[4px] py-[11px] sm:grid sm:grid-cols-[minmax(0,1fr)_96px_92px_104px_84px]",
                   i > 0 && "border-t border-gray-100",
-                  reserve && "bg-gray-50/60",
                 )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-[10px]">
@@ -759,22 +760,27 @@ function Stores({ c, onExclude }: { c: AdvCollab; onExclude: (storeId: string) =
               </li>
             );
           })}
-          {!rows.length && p !== "upcoming" && (
-            <li className="py-[20px] text-center text-[13px] text-gray-500">아직 신청한 매장이 없어요.</li>
-          )}
         </ul>
+        {!rows.length && p !== "upcoming" && <EmptyBox>아직 신청한 매장이 없어요.</EmptyBox>}
         {rows.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-[8px] rounded-[14px] bg-gray-50 px-[12px] py-[10px] text-[13px]">
-            <span className="text-gray-600">선정 매장 {cost.selectedCount}곳 금액 합계(예비 제외)</span>
+            <span className="text-gray-600">
+              고른 매장 {cost.selectedCount}곳 금액 합계 <span className="text-gray-400">· 목표 {c.targetStores}곳</span>
+            </span>
             <b className="text-gray-900">{wonText(cost.selected)}</b>
           </div>
         )}
-        <p className="text-[12px] leading-[1.6] break-keep text-gray-400">
-          금액은 매장 등급에 따른 1건 기준이고, 최종 비용은 확정 매장 금액 합계예요. 예상 소진율은 admix 사전 조사를 바탕으로 한
-          추정치(초기 입고 수량 기준)이고, 매장 매출 정보는 드리지 않아요.
-        </p>
       </PanelCard>
     </div>
+  );
+}
+
+/** 빈 칸 — 신청 매장 · 확정 매장이 비었거나 모집 전일 때 큰 회색 칸(11-26 사용자: "시작 전에 칸이 너무 작은데 크게" · "UI는 신청 매장과 동일하게"). */
+function EmptyBox({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex min-h-[120px] items-center justify-center rounded-[16px] bg-gray-50 px-[16px] py-[28px] text-center text-[15px] break-keep text-gray-600 sm:min-h-[160px]">
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -907,9 +913,14 @@ function Confirmed({
       <PanelCard className="gap-[10px] p-[14px] sm:p-[22px]">
         <PanelHead
           title={`확정 매장 ${confirmed.length}곳 · ${wonText(cost.confirmed)}`}
-          hint={`설치 ${mdw(s.installStart)}부터 ${s.installDays}일 · ${STORES_PER_INSTALL_DAY}곳당 1일, 확정 순서대로`}
+          // 11-26 사용자: "언제까지 확정해야 한다는 문구로" — 예전 "설치 … 5곳당 1일, 확정 순서대로"(매장별 설치일은 줄에 그대로).
+          hint={
+            PREVIEW_TODAY <= s.confirmDue ? `${mdw(s.confirmDue)}까지 매장이 확정해야 해요` : `${mdw(s.confirmDue)}에 매장 확정을 마감했어요`
+          }
         />
-        <ul className="flex flex-col">
+        {/* 비었으면 신청 매장 탭과 같은 큰 회색 칸(11-26 사용자: "아직 확정한 매장이 없어요.만 남겨주고, UI는 신청 매장과 동일하게"). */}
+        {!confirmed.length && <EmptyBox>{cancelled ? "취소한 콜라보예요." : "아직 확정한 매장이 없어요."}</EmptyBox>}
+        <ul className="flex flex-col empty:hidden">
           {confirmed.map((e, i) => {
             const st = storeOf(c, e.storeId);
             return (
@@ -929,11 +940,6 @@ function Confirmed({
               </li>
             );
           })}
-          {!confirmed.length && (
-            <li className="py-[16px] text-center text-[13px] text-gray-500">
-              {cancelled ? "취소한 콜라보예요." : `아직 확정한 매장이 없어요. ${mdw(s.confirmDue)}까지 확정이 끝나요.`}
-            </li>
-          )}
         </ul>
       </PanelCard>
 
@@ -1084,7 +1090,8 @@ function Documents({
   const b = c.billing;
   return (
     <PanelCard className="gap-[8px] p-[14px] sm:p-[22px]">
-      <PanelHead title="문서" hint="열어서 인쇄하거나 PDF로 저장할 수 있어요" />
+      {/* 설명 "열어서 인쇄하거나 PDF로 저장할 수 있어요"는 뺐다(11-26 사용자 "이 문구 없애줘"). */}
+      <PanelHead title="문서" />
       <ul className="flex flex-col">
         <DocRow
           first
@@ -1114,9 +1121,12 @@ function Documents({
 
 function Changes({ c }: { c: AdvCollab }) {
   return (
-    <PanelCard className="gap-[8px] p-[14px] sm:p-[22px]">
-      <PanelHead title="매장 변동" hint="매장에는 금전 책임을 두지 않고 예비 매장으로 바꿔요" />
-      <ul className="flex flex-col">
+    <PanelCard className="gap-[12px] p-[14px] sm:p-[22px]">
+      {/* 설명 "매장에는 금전 책임을 두지 않고 …"는 뺐다(11-26 사용자 "없애줘"). */}
+      <PanelHead title="매장 변동" />
+      {/* 비었으면 신청 매장 탭과 같은 큰 회색 칸(11-26 사용자: "UI를 신청 매장과 동일하게"). */}
+      {!c.changes.length && <EmptyBox>매장 변동이 없어요.</EmptyBox>}
+      <ul className="flex flex-col empty:hidden">
         {c.changes.map((x, i) => (
           <li key={x.id} className={cn("flex flex-col gap-[4px] px-[4px] py-[12px] text-[13px]", i > 0 && "border-t border-gray-100")}>
             <p className="break-keep text-gray-800">
@@ -1132,7 +1142,6 @@ function Changes({ c }: { c: AdvCollab }) {
             </p>
           </li>
         ))}
-        {!c.changes.length && <li className="py-[16px] text-center text-[13px] text-gray-500">매장 변동이 없어요.</li>}
       </ul>
     </PanelCard>
   );
@@ -1143,6 +1152,9 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   const [tab, setTab] = useState<Tab | null>(null);
   const [dialog, setDialog] = useState<"proceed" | "cancel" | "withdraw" | null>(null);
   const [excluding, setExcluding] = useState<string | null>(null);
+  // 기획안 탭 동작을 아래 줄에서 부른다(11-26) — 고치는 동안엔 줄 버튼을 숨긴다.
+  const planRef = useRef<PlanReviewHandle>(null);
+  const [planEditing, setPlanEditing] = useState(false);
   // 의뢰 취소는 서버에도 남긴다(084) — 지우지 않고 "취소"로, 어드민 콜라보 의뢰에도 보인다(11-12 사용자).
   const rememberSent = useRememberSentRequest();
   const [withdrawing, setWithdrawing] = useState(false);
@@ -1221,20 +1233,39 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
       : t === "overview" || t === "schedule" || (!cancelledBeforeApproval && (live || cancelled)),
   );
 
+  // 의뢰 취소 — 검토 중이거나 admix 기획안이 왔을 때. 아래 줄 대신 회원 탈퇴처럼 오른쪽 아래 작은 글자 링크로(11-26 사용자).
+  const canWithdraw = c.status === "requested" || (c.status === "returned" && !!planBlock);
+
   // 아래 고정 줄 — 지금 할 일 하나.
   let bar: ReactNode = null;
   if (c.status === "returned" && planBlock)
     bar = (
-      // 설명 줄은 뺐다(11-18 사용자) — 기획안 탭이 수정 전 · 후와 확정 · 다시 고치기 버튼을 바로 보여 준다.
-      <ActionBar title="admix 기획안이 왔어요">
-        <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
-          의뢰 취소
-        </Button>
-        {current !== "plan" && (
-          <Button onPress={() => setTab("plan")} className={BAR_BUTTON}>
-            기획안 보기
-            <ArrowRight className="size-[16px]" />
-          </Button>
+      // 설명 줄은 뺐다(11-18 사용자). 의뢰 취소 대신 다시 고치기 · 이대로 확정(11-26 사용자) — 누르면 기획안 탭으로 가서 마지막 차수에 한다.
+      // 제목은 차수 번호로(11-26 사용자 "2차 기획안이 도착했어요" — 예전 "admix 기획안이 왔어요").
+      <ActionBar title={`${roundNo(latestRound(planBlock))}차 기획안이 도착했어요`}>
+        {!planEditing && (
+          <>
+            <Button
+              onPress={() => {
+                setTab("plan");
+                planRef.current?.edit();
+              }}
+              className={BAR_GHOST}
+            >
+              <MaskIcon src="/icons/square-pen.svg" className="size-[16px]" />
+              다시 고치기
+            </Button>
+            <Button
+              onPress={() => {
+                setTab("plan");
+                planRef.current?.confirm();
+              }}
+              className={BAR_BUTTON}
+            >
+              <MaskIcon src="/icons/square-check.svg" className="size-[16px]" />
+              이대로 확정
+            </Button>
+          </>
         )}
       </ActionBar>
     );
@@ -1242,9 +1273,6 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
     // 기획안이 오간 뒤엔 의뢰서를 통째로 고치지 않는다 — admix 기획안이 오면 기획안 탭에서 항목별로 고친다.
     bar = (
       <ActionBar title="admix가 고친 기획안을 검토하고 있어요" sub="검토 중에는 의뢰를 취소할 수 있어요">
-        <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
-          의뢰 취소
-        </Button>
         {current !== "plan" && (
           <Button onPress={() => setTab("plan")} className={BAR_BUTTON}>
             기획안 보기
@@ -1265,9 +1293,6 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
   else if (c.status === "requested")
     bar = (
       <ActionBar title="admix가 의뢰를 검토하고 있어요" sub="검토 중에는 의뢰를 고치거나 취소할 수 있어요">
-        <Button onPress={() => setDialog("withdraw")} className={BAR_GHOST}>
-          의뢰 취소
-        </Button>
         <Button onPress={() => router.push(`${ADV_NEW_HREF}?edit=${c.id}`)} className={BAR_BUTTON}>
           <MaskIcon src="/icons/square-pen.svg" className="size-[16px]" />
           의뢰 고치기
@@ -1301,7 +1326,7 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
         </Button>
       </ActionBar>
     );
-  else if (todo && (todo.kind === "decide" || todo.kind === "review" || todo.kind === "reserve") && current !== "stores")
+  else if (todo && (todo.kind === "decide" || todo.kind === "review") && current !== "stores")
     bar = (
       <ActionBar title={todo.text} sub={`검토는 ${mdw(s.reviewEnd)}까지예요`}>
         <Button onPress={() => setTab("stores")} className={BAR_BUTTON}>
@@ -1378,8 +1403,9 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
             <Overview c={c} />
           </Tabs.Panel>
           {planBlock && (
-            <Tabs.Panel id="plan" className="pt-[14px]">
-              <AdvPlanReview c={c} block={planBlock} />
+            // 다른 탭에서도 줄 버튼이 부를 수 있게 늘 붙여 두고 숨긴다(고치던 내용도 탭을 오가도 남는다).
+            <Tabs.Panel id="plan" shouldForceMount className="pt-[14px] data-[inert=true]:hidden">
+              <AdvPlanReview c={c} block={planBlock} ref={planRef} onEditingChange={setPlanEditing} />
             </Tabs.Panel>
           )}
           <Tabs.Panel id="schedule" className="pt-[14px]">
@@ -1404,6 +1430,19 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
           </Tabs.Panel>
         </Tabs>
       </section>
+
+      {canWithdraw && (
+        // 회원 탈퇴(ProfileView)와 같은 모양 — 눈에 띄지 않게 작은 밑줄 글자. 자세한 안내는 확인창에서.
+        <div className="flex justify-end px-[4px]">
+          <button
+            type="button"
+            onClick={() => setDialog("withdraw")}
+            className="text-[12px] text-gray-400 underline underline-offset-[3px] transition-colors hover:text-gray-600 sm:text-[13px]"
+          >
+            의뢰 취소
+          </button>
+        </div>
+      )}
 
       {bar}
 
@@ -1475,12 +1514,10 @@ function Detail({ c, from }: { c: AdvCollab; from?: AdvFrom }) {
         onConfirm={() => {
           if (excluding) advActions.exclude(c.id, excluding);
           setExcluding(null);
-          say(`${eulReul(exStore?.name ?? "매장")} 제외했어요. 다음 순번 매장이 올라와요.`);
+          say(`${eulReul(exStore?.name ?? "매장")} 제외했어요.`);
         }}
       >
-        <p>
-          제외하면 다음 순번 매장이 선정 자리로 올라와요{c.entries.some((e) => e.requestedAt) ? "(확정 요청도 바로 보내요)" : ""}.
-        </p>
+        <p>제외하면 보낸 확정 요청을 거둬요. 빈자리는 후보 매장에서 다시 고를 수 있어요.</p>
       </ConfirmModal>
 
       <InvoiceModal c={c} isOpen={invoiceOpen} onOpenChange={setInvoiceOpen} />

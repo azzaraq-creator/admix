@@ -49,7 +49,6 @@ import {
   diffDays,
   dow,
   dueStepOf,
-  isFull,
   kstStamp,
   md,
   nextActionOf,
@@ -80,7 +79,7 @@ import { PanelCard, PartnerOnly, SectionHead } from "./workspaceUi";
  * /partners/collabs/[id] — 콜라보 상세(프로토타입의 기획 보기 · 진행 안내함 흉내).
  * 위에서부터 모양이 다른 칸으로 나눈다 — 브랜드 사진 · 제목(바탕 위) → 지금 상황(상태 색 카드 + 진행 흐름)
  * → 진행 안내함(확정 매장만, 흰 카드) → 콜라보 내용(누가 무엇을: 매장이 할 일 · admix가 해 줘요 · 받는 것 → 일정 → 참여 안내 회색 상자).
- * 단계마다 아래 고정 줄에 버튼 하나(신청 · 대기 신청 · 최종 확정 · 사진 올리기 · 재입고 요청).
+ * 단계마다 아래 고정 줄에 버튼 하나(신청 · 최종 확정 · 사진 올리기 · 재입고 요청).
  * 누른 결과는 서버에 남는다(069, 고른 매장 기준 — partnerState). 문의 탭(대화)은 없앴다(2026-11-09 사용자). 화면은 모두 HeroUI 컴포넌트.
  */
 
@@ -396,7 +395,7 @@ function StatusIcon({ c }: { c: PreviewCollab }) {
   if (c.standing === "requested")
     return <MaskIcon src="/icons/ringing.svg" className="size-[22px]" />;
   const Icon: LucideIcon =
-    c.standing === "candidate" || c.standing === "reserve"
+    c.standing === "candidate"
       ? Hourglass
       : c.standing === "blocked"
         ? Ban
@@ -422,7 +421,6 @@ function lifeOf(c: PreviewCollab): { steps: LifeStep[]; at: number } | null {
       at = 0;
       break;
     case "candidate":
-    case "reserve":
     case "requested":
       at = 1;
       break;
@@ -701,7 +699,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
     say(`최종 확정했어요. 확정서 ${no}`);
   };
 
-  // 아래 고정 줄 — 단계별 버튼 하나. 누를 게 없는 상태(취소 · 미참여 · 기간 겹침 · 후보 · 예비 · 확정 대기 · 완료)는
+  // 아래 고정 줄 — 단계별 버튼 하나. 누를 게 없는 상태(취소 · 미참여 · 기간 겹침 · 신청함 · 확정 대기 · 완료)는
   // 위 "지금 상황" 카드가 알려 주므로 줄을 띄우지 않는다.
   type Kind =
     | "confirmDialog"
@@ -733,9 +731,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   else if (cat === "recruiting" && c.standing === "none")
     action = {
       title: "이 콜라보에 참여할까요?",
-      sub: isFull(c)
-        ? `${md(c.recruitEnd)}까지 답해 주세요 · 목표 매장이 차서 참여하면 예비 ${c.appliedStores - c.targetStores + 1}번`
-        : `${md(c.recruitEnd)}까지 답해 주세요 · 지금 참여하면 선정 후보 ${c.appliedStores + 1}번(선착순)`,
+      // 11-26 사용자: 선착순 · 예비 순번을 뺐다 — 광고주가 신청 매장을 직접 고른다.
+      sub: `${md(c.recruitEnd)}까지 답해 주세요`,
       button: "참여",
       kind: "apply",
       secondary: { button: "미참여", kind: "pass" },
@@ -775,12 +772,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
     if (kind === "confirmDialog") setDialogOpen(true);
     else if (kind === "apply") {
       const view = await commands.apply(c.id);
-      if (view)
-        say(
-          view.standing === "reserve"
-            ? `참여했어요. 목표 매장이 차서 예비 ${view.slotNo ?? ""}번이에요.`
-            : `참여했어요. 선정 후보 ${view.slotNo ?? ""}번이에요.`,
-        );
+      if (view) say("참여했어요. 광고주가 고르면 확정 요청을 드려요.");
     } else if (kind === "pass") {
       if (await commands.pass(c.id))
         say("미참여로 답했어요. 마감 전까지는 참여로 바꿀 수 있어요.");
@@ -809,7 +801,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
   ];
   const timeline: [string, string][] = [
     [c.recruitStart, "모집 시작"],
-    [c.recruitEnd, "모집 마감 (선착순)"],
+    [c.recruitEnd, "모집 마감"],
     [c.confirmDue.slice(0, 10), "최종 확정 기한"],
     [c.installDate, "설치 (admix 방문)"],
     [c.startDate, "콜라보 시작"],
@@ -827,8 +819,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
     ["files", "자료"],
   ];
   const canWithdraw =
-    (c.standing === "candidate" || c.standing === "reserve") &&
-    today <= c.recruitEnd;
+    c.standing === "candidate" && today <= c.recruitEnd;
 
   return (
     <div className="flex flex-col gap-[16px] pb-[24px]">
@@ -877,16 +868,19 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
             {c.title}
           </h1>
         </div>
-        {/* 한 줄 소개는 브랜드가 매장에 건네는 말처럼 — 말풍선(브랜드 사진 쪽 왼쪽 위 모서리만 덜 둥글게) + 따옴표. */}
-        <p className="col-span-2 w-fit max-w-full rounded-[18px] rounded-tl-[6px] bg-surface px-[14px] py-[9px] text-[14px] leading-[1.55] break-keep text-gray-700 shadow-[0_1px_3px_rgba(16,24,40,0.06)] ring-1 ring-gray-200 sm:col-span-1 sm:col-start-2">
-          <span aria-hidden className="mr-[3px] font-bold text-primary-400">
-            “
-          </span>
-          {c.summary}
-          <span aria-hidden className="ml-[3px] font-bold text-primary-400">
-            ”
-          </span>
-        </p>
+        {/* 한 줄 소개는 브랜드가 매장에 건네는 말처럼 — 말풍선(브랜드 사진 쪽 왼쪽 위 모서리만 덜 둥글게) + 따옴표.
+            소개가 비면 말풍선째 그리지 않는다(11-26 사용자 — 빈 따옴표만 떠 있었다). */}
+        {c.summary?.trim() && (
+          <p className="col-span-2 w-fit max-w-full rounded-[18px] rounded-tl-[6px] bg-surface px-[14px] py-[9px] text-[14px] leading-[1.55] break-keep text-gray-700 shadow-[0_1px_3px_rgba(16,24,40,0.06)] ring-1 ring-gray-200 sm:col-span-1 sm:col-start-2">
+            <span aria-hidden className="mr-[3px] font-bold text-primary-400">
+              “
+            </span>
+            {c.summary}
+            <span aria-hidden className="ml-[3px] font-bold text-primary-400">
+              ”
+            </span>
+          </p>
+        )}
       </header>
 
       {/* 큰 구역(머리 · 지금 상황 · 진행 안내함 · 콜라보 내용) 사이 — 위아래 여백 + 가는 구분선(11-08 사용자). */}
@@ -1137,7 +1131,8 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                         {
                           icon: Gift,
                           title: "브랜드 소개",
-                          sub: `${c.brand} · ${c.summary}`,
+                          // 소개가 비면 브랜드 이름만(11-26 사용자 — "참인터랙티브 · "처럼 점만 남았다).
+                          sub: c.summary?.trim() ? `${c.brand} · ${c.summary}` : c.brand,
                           right: "",
                         },
                       ].map((f, i) => (
@@ -1391,7 +1386,7 @@ function Detail({ c, from }: { c: PreviewCollab; from?: CollabFrom }) {
                   겹치는 모집에는 신청할 수 없어요.
                 </li>
                 <li>
-                  신청은 선착순이고, 신청만으로 확정되지 않아요. 광고주 검토 후
+                  신청한 순서대로 광고주에게 보여요. 광고주가 고른 매장에
                   최종 확정 요청을 드려요.
                 </li>
                 <li>

@@ -30,6 +30,7 @@ import {
   calendarMonthsOf,
   changedKeys,
   compareOf,
+  confirmedScheduleOf,
   derivedOf,
   fieldLabel,
   fieldText,
@@ -130,8 +131,16 @@ function ChangeSummary({
  * 어드민 콜라보 의뢰 → 기획안(085, 2026-11-12 사용자) — 광고주 의뢰서를 항목별로 고쳐 광고주에게 보낸다.
  * 광고주가 다시 고쳐 보내면 수정 전(admix가 보낸 차수) · 후(광고주 차수)를 나란히 보고, 또 고쳐 보낸다. 확정은 광고주가.
  * 바꾼 항목이 없어도 보낼 수 있다(이대로 진행해도 된다는 기획안). 광고주 확인을 기다리는 중에도 다시 고쳐 보낼 수 있다.
+ * at — 지난 차수 탭(2026-11-26 사용자: "2차 기획안이 있으면 따로 2차 기획안 탭을 만들어 줘")에서 그 차수 자리(versions 순서).
+ *   주면 읽기만: 상태 줄 · 고치기 버튼 · 차수 기록 없이 그 차수 종이(앞 차수와 비교) · 예상 일정만.
  */
-export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
+export function CollabPlanView({
+  doc,
+  at,
+}: {
+  doc: AdminAdvCollabRequestDetail;
+  at?: number;
+}) {
   const send = useSendAdvRequestRound();
   const { success, error } = useSonner();
   const { confirm, confirmDialog } = useAdminConfirm();
@@ -150,8 +159,10 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
   const uploadFile = (file: File) =>
     adminCollabApi.uploadAdvRequestPlanFile(doc.id, file);
 
-  const cmp = compareOf(doc, doc.createdAt);
+  const cmp = compareOf(doc, doc.createdAt, at);
+  // 이 탭에서 펼친 차수 — 지난 차수 탭이면 그 차수, 아니면 마지막 차수.
   const latest = cmp.after;
+  const past = at != null && at < cmp.versions.length - 1;
   const avg = planAvgOf(doc, averageFee(options));
   const status = advRequestStatusOf(doc.status);
   const closed = doc.status === "cancelled" || doc.status === "confirmed";
@@ -164,10 +175,24 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
   const editing = draft !== null;
   // 예상 일정 달력(11-17 사용자: "광고주의 예상 일정처럼 아래에 캘린더로") — 고치는 중이면 고친 내용으로 다시 계산한 일정,
   // 아니면 마지막 차수에 적힌 일정. "의뢰"는 광고주가 처음 의뢰한 날.
+  // 확정된 의뢰의 마지막 차수는 확정한 날 기준으로 다시 센다 — 광고주 일정 · 확정 기획안 서류와 같게(11-26 사용자: "예상 일정이
+  // 광고주와 보이는 일정과 다른데?" — 차수 일정은 그 차수를 보낸 때 기준이라 하루씩 밀려 있었다). 지난 차수 탭은 적힌 그대로.
   const requestDate = kstDate(doc.createdAt);
+  const confirmedAt =
+    doc.status === "confirmed" && !past ? doc.confirmedAt : null;
   const calendar = draft
-    ? planCalendarOf(draft, derivedOf(draft, avg).schedule)
-    : planCalendarOf(latest.content);
+    ? planCalendarOf(draft, derivedOf(draft, avg, undefined, requestDate).schedule)
+    : confirmedAt
+      ? planCalendarOf(
+          latest.content,
+          confirmedScheduleOf(
+            latest.content,
+            requestDate,
+            confirmedAt,
+            doc.recruitStart,
+          ),
+        )
+      : planCalendarOf(latest.content);
   const changed = draft ? changedKeys(latest.content, draft) : [];
   const dirty =
     editing &&
@@ -235,7 +260,7 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
       // 그사이 광고주가 보낸 차수가 있으면 서버가 409 로 막는다(펼쳐 둔 차수 baseRound).
       await send.mutateAsync({
         id: doc.id,
-        payload: roundPayloadOf(draft, notes, latestRound(doc), avg),
+        payload: roundPayloadOf(draft, notes, latestRound(doc), avg, requestDate),
       });
       setDraft(null);
       success("기획안을 광고주에게 보냈어요.");
@@ -301,26 +326,28 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
 
   return (
     <div className="flex flex-col gap-[16px] md:gap-[20px]">
-      {/* 지금 상황 — 카드 없이 한 줄 · 아래 선 */}
-      <div className="flex flex-wrap items-center gap-[10px] border-b border-gray-200 pb-[14px]">
-        <Chip size="sm" variant="soft" color={status.color}>
-          {status.label}
-        </Chip>
-        {!closed && !editing && (
-          <Button
-            className="ml-auto"
-            size="sm"
-            variant={doc.status === "proposed" ? "tertiary" : "primary"}
-            onPress={start}
-          >
-            {startText}
-          </Button>
-        )}
-      </div>
+      {/* 지금 상황 — 카드 없이 한 줄 · 아래 선. 지난 차수 탭엔 없다. */}
+      {!past && (
+        <div className="flex flex-wrap items-center gap-[10px] border-b border-gray-200 pb-[14px]">
+          <Chip size="sm" variant="soft" color={status.color}>
+            {status.label}
+          </Chip>
+          {!closed && !editing && (
+            <Button
+              className="ml-auto"
+              size="sm"
+              variant={doc.status === "proposed" ? "tertiary" : "primary"}
+              onPress={start}
+            >
+              {startText}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* 차수 기록 — 오른쪽 칸 대신 종이 위 가로 띠로(11-18 사용자: "다른 데에 배치하고, 문서가 더 크게").
-          고치는 동안엔 뺀다(같은 날: "수정 단계에서는 차수 기록 안 뜨게"). */}
-      {!editing && (
+          고치는 동안엔 뺀다(같은 날: "수정 단계에서는 차수 기록 안 뜨게"). 지난 차수 탭에도 없다. */}
+      {!editing && !past && (
         <RoundHistory
           versions={cmp.versions}
           confirmedAt={doc.status === "confirmed" ? doc.confirmedAt : null}
@@ -366,6 +393,7 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
                   avg={avg}
                   fileActions={fileActions}
                   onUploadFile={uploadFile}
+                  requestDate={requestDate}
                   renderPeriod={periodCalendar}
                 />
                 <div className="flex flex-wrap items-center justify-end gap-[8px]">
@@ -428,8 +456,8 @@ export function CollabPlanView({ doc }: { doc: AdminAdvCollabRequestDetail }) {
   );
 }
 
-/** 차수의 서류 이름 — 처음(0차)은 광고주 의뢰서, 그 뒤는 기획안. "1차 의뢰서" · "2차 기획안". */
-const docNameOf = (v: PlanVersion) =>
+/** 차수의 서류 이름 — 처음(0차)은 광고주 의뢰서, 그 뒤는 기획안. "1차 의뢰서" · "2차 기획안". 의뢰 상세 탭 이름도 이걸로. */
+export const docNameOf = (v: Pick<PlanVersion, "round">) =>
   `${roundNo(v.round)}차 ${v.round === 0 ? "의뢰서" : "기획안"}`;
 
 /**

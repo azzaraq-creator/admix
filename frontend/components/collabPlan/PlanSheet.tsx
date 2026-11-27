@@ -296,18 +296,23 @@ interface ChangeProps {
   before: ReactNode;
   after: ReactNode;
   note?: string;
-  beforeLabel: string;
-  afterLabel: string;
   /** 글 아래 덧붙임(추가 기획 첨부) — 수정 전 · 후 칸 안에. */
   beforeExtra?: ReactNode;
   afterExtra?: ReactNode;
 }
 
+/** 묶음 안 항목 이름 앞 점(2026-11-26 사용자: "앞에 *이나 점이나 -로 구분") — 광고주 화면 모양만. 값은 점 너비만큼 들여 쓴다. */
+const ITEM_DOT = <span aria-hidden className="size-[4px] shrink-0 rounded-full bg-gray-400" />;
+const ITEM_INDENT = "pl-[10px]";
+
 /** 진한 이름표 + "수정". */
-function ChangedLabel({ label, inline = false }: { label: string; inline?: boolean }) {
+function ChangedLabel({ label, inline = false, dot = false }: { label: string; inline?: boolean; dot?: boolean }) {
   return (
     <div className={cn("flex items-center gap-[8px]", !inline && "sm:flex-col sm:items-start sm:gap-[6px]")}>
-      <span className="text-sm font-bold text-black">{label}</span>
+      <span className={cn("text-sm font-bold text-black", dot && "flex items-center gap-[6px]")}>
+        {dot && ITEM_DOT}
+        {label}
+      </span>
       <Chip size="sm" variant="soft" color="accent">
         수정
       </Chip>
@@ -315,8 +320,11 @@ function ChangedLabel({ label, inline = false }: { label: string; inline?: boole
   );
 }
 
-/** 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유. */
-function ChangeBody({ before, after, note, beforeLabel, afterLabel, beforeExtra, afterExtra }: ChangeProps) {
+/**
+ * 수정 전(흐린 글자) → 수정 후(진한 글자), 아래에 수정 이유.
+ * 칸 위 "수정 전 · 1차 의뢰서" 같은 이름은 뺐다(2026-11-26 사용자: "수정 전, 수정 후 이거 다 빼줘") — 흐린 글 → 진한 글로 구분한다.
+ */
+function ChangeBody({ before, after, note, beforeExtra, afterExtra }: ChangeProps) {
   const doc = useContext(DocLook);
   const box = doc
     ? "flex flex-col gap-[4px] rounded-[4px] border border-gray-200 px-[12px] py-[9px]"
@@ -325,13 +333,11 @@ function ChangeBody({ before, after, note, beforeLabel, afterLabel, beforeExtra,
     <div className="flex min-w-0 flex-col gap-[10px]">
       <div className="grid gap-[8px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
         <div className={cn(box, doc && "bg-gray-50")}>
-          <span className="text-xs font-medium text-disabled">{beforeLabel}</span>
           {before && <div className="whitespace-pre-wrap break-keep text-sm leading-[22px] text-gray-500">{before}</div>}
           {beforeExtra}
         </div>
         <ArrowRight aria-hidden className="hidden size-[16px] self-center text-gray-400 md:block" />
         <div className={cn(box, doc && "border-gray-400 bg-white")}>
-          <span className="text-xs font-medium text-disabled">{afterLabel}</span>
           {after && (
             <div className="whitespace-pre-wrap break-keep text-sm font-semibold leading-[22px] text-black">{after}</div>
           )}
@@ -397,13 +403,20 @@ function ItemGroup({
           <li key={r.key} className="flex min-w-0 flex-col gap-[4px]">
             {r.change ? (
               <>
-                <ChangedLabel label={r.label} inline />
-                <ChangeBody {...r.change} />
+                <ChangedLabel label={r.label} inline dot={!doc} />
+                <div className={cn("min-w-0", !doc && ITEM_INDENT)}>
+                  <ChangeBody {...r.change} />
+                </div>
               </>
             ) : (
               <>
-                <span className="text-sm text-gray-500">{r.label}</span>
-                <div className={cn("whitespace-pre-wrap break-keep text-sm", doc ? "text-black" : "text-gray-700")}>{r.value}</div>
+                <span className={cn("text-sm text-gray-500", !doc && "flex items-center gap-[6px]")}>
+                  {!doc && ITEM_DOT}
+                  {r.label}
+                </span>
+                <div className={cn("whitespace-pre-wrap break-keep text-sm", doc ? "text-black" : cn("text-gray-700", ITEM_INDENT))}>
+                  {r.value}
+                </div>
               </>
             )}
           </li>
@@ -702,8 +715,6 @@ export function PlanCompare({
           before: valueOf(before.content, k),
           after: valueOf(after.content, k),
           note: notes[k],
-          beforeLabel,
-          afterLabel,
           beforeExtra: extraOf(k, before.content),
           afterExtra: extraOf(k, after.content),
         }
@@ -996,7 +1007,8 @@ function PeriodInput({
 /** 칩 모양 고르기 — 동그라미 없이 고른 칩만 진하게(의뢰서 준비 상태와 같은 모양). */
 /**
  * 중간 보고 날 고르기(어드민, 2026-11-18 사용자: "콜라보 기간에 따라 달라질 수 있어서 언제 할지도 어드민에서 같이 선택").
- * 맨 위 "기간의 50%"(비움 = 기본) 다음에 진행 기간의 날마다 "12.26 (토) · 진행 3일차".
+ * 진행 기간의 날마다 "12.26 (토) · 진행 3일차". 비움(기본)이면 기간 50% 날이 골라져 보이고, 그날을 고르면 다시 비움
+ * — 기간을 바꾸면 따라 움직인다. "기간의 50%" 글자는 따로 두지 않는다(11-26 사용자: "(기간의 50%) 없애줘").
  */
 function MidReportSelect({
   start,
@@ -1014,18 +1026,18 @@ function MidReportSelect({
   const ok = !!start && !!end && end >= start;
   const days = ok ? Array.from({ length: periodDays(start, end) }, (_, i) => addDays(start, i)) : [];
   const half = ok ? checkpoints(start, end)[0] : null;
-  const DEFAULT = "half";
   return (
     <Select
       aria-label="중간 보고 날"
       variant="secondary"
       className="w-full max-w-[320px]"
+      placeholder="진행 기간을 먼저 정해 주세요"
       isDisabled={!ok}
       isInvalid={invalid}
-      selectedKey={value && days.includes(value) ? value : DEFAULT}
+      selectedKey={value && days.includes(value) ? value : (half?.date ?? null)}
       onSelectionChange={(key) => {
         if (key == null) return;
-        onChange(key === DEFAULT ? null : String(key));
+        onChange(key === half?.date ? null : String(key));
       }}
     >
       <Select.Trigger>
@@ -1034,10 +1046,6 @@ function MidReportSelect({
       </Select.Trigger>
       <Select.Popover className="max-h-[320px]">
         <ListBox>
-          <ListBox.Item id={DEFAULT} textValue="기간의 50%">
-            {half ? `기간의 50% · ${mdw(half.date)} · 진행 ${half.day}일차` : "기간의 50%"}
-            <ListBox.ItemIndicator />
-          </ListBox.Item>
           {days.map((d, i) => (
             <ListBox.Item key={d} id={d} textValue={mdw(d)}>
               {mdw(d)} · 진행 {i + 1}일차
@@ -1178,6 +1186,7 @@ export function PlanEditor({
   fileActions,
   onUploadFile,
   renderPeriod,
+  requestDate,
 }: {
   base: PlanContent;
   draft: PlanContent;
@@ -1196,6 +1205,8 @@ export function PlanEditor({
    * 없으면 날짜 칸(DateRangePicker, 광고주 화면).
    */
   renderPeriod?: (p: PeriodEditorProps) => ReactNode;
+  /** 처음 의뢰서를 낸 날(YYYY-MM-DD) — 예상 일정의 admix 검토 7영업일을 그날부터 센다(11-26 사용자). */
+  requestDate?: string;
 }) {
   const changed = useMemo(() => new Set(changedKeys(base, draft)), [base, draft]);
   // 어드민(첨부를 고칠 수 있는 쪽)은 안내 글을 줄인다(11-18 사용자: placeholder "(선택) 이후 문구는 다 지워줘"), 광고주 화면은 그대로.
@@ -1252,8 +1263,8 @@ export function PlanEditor({
     set({ items: BASE_ITEMS.flatMap((b) => items.filter((x) => x.key === b)) });
   };
 
-  const d = derivedOf(draft, avg);
-  const b = derivedOf(base, avg);
+  const d = derivedOf(draft, avg, undefined, requestDate);
+  const b = derivedOf(base, avg, undefined, requestDate);
   // 진행 기간을 바꿔 고른 중간 보고 날이 기간 밖이 되면 비운다(다시 50% 날, 서버와 같은 규칙).
   const setPeriod = (startDate: string, endDate: string) =>
     set({

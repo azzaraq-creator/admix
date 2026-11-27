@@ -88,7 +88,8 @@ def main(email: str, password: str, name: str, rename_from: str | None = None) -
                 user.partner_code = SUPER_PARTNER_CODE
             if made:
                 user.name = f"{name}({LABEL[category]})"
-                user.company_name = "admix"
+                # admix 는 광고주 · 제휴사가 아니다(11-26 사용자: "admix는 광고주가 아니야!!") — 운영 슈퍼 계정과 같은 회사명.
+                user.company_name = "참인터랙티브"
                 user.membership_type = "individual" if category == "general" else "corporate"
                 user.status = "active"
             print(f"  {'만듦' if made else '맞춤'}  {LABEL[category]:<4} {login_id}")

@@ -4,8 +4,10 @@
  * 받은 프로토타입(카페 콜라보 미리보기 lib/partners/collab.ts · advertiserView.ts, 운영안 10/22 · 10/29)의 규칙을
  * 광고주에게 필요한 만큼 옮겼다. 부수효과 없는 함수만 둔다 — 서버로 옮길 때 같은 계산을 쓴다.
  *
- * 흐름: 매장 담기(지정 희망) → 의뢰 → admix 검토 · 승인 → 모집 공지 → 매장 선착순 신청(목표를 넘으면 예비 순번)
- *   → 마감 후 광고주 검토(제외 요청 · 예비 매장 미리 승인 · 미달이면 진행 방법) → 매장 최종 확정
+ * 흐름: 매장 담기(지정 희망) → 의뢰 → admix 검토 · 승인 → 모집 공지 → 매장 신청(신청 순으로 쌓임)
+ *   → 광고주가 신청 매장을 직접 고름(모집 중에도, 목표보다 많이도 — 고르지 않은 매장은 후보) · 미달이면 진행 방법
+ *   → 고른 매장에 확정 요청 → 매장 최종 확정
+ *   (11-26 사용자: 선착순 선정 · 예비 순번 · 예비 매장 미리 승인을 뺐다 — "먼저 신청한 순으로 보이게 하고, 광고주가 직접 선택")
  *   → 광고주 진행 확정 = 계산서 발행(확정 매장 금액 합계) → 영업일 5일 안 입금(넘기면 위약금) → 준비 · 설치(5곳당 1일)
  *   → 진행(중간 보고 한 번 — 기본 50% 날, 어드민이 기획안에서 고를 수 있다) → 철수 · 결과 보고서.
  *
@@ -273,6 +275,8 @@ export interface Entry {
   storeId: string;
   appliedAt: string;
   status: EntryStatus;
+  /** 광고주가 고름(11-26) — 신청(applied) 상태에서만 뜻이 있다. 확정 요청 · 확정은 고른 매장이다. */
+  picked?: boolean;
   requestedAt?: string;
   confirmedAt?: string;
   confirmNo?: string;
@@ -306,7 +310,7 @@ export interface DelayRequest {
   appliedAt?: string;
 }
 
-/** 매장 변동 — 확정 매장이 진행하지 못해 예비 매장으로 바꾼 기록(매장에 금전 책임은 없다). */
+/** 매장 변동 — 확정 매장이 진행하지 못해 후보 매장으로 바꾼 기록(매장에 금전 책임은 없다). */
 export interface StoreChange {
   id: string;
   storeId: string;
@@ -368,6 +372,8 @@ export interface AdvCollab {
   status: PlanStatus;
   requestedAt?: string;
   approvedAt?: string;
+  /** 실제 모집 시작일(YYYY-MM-DD, 11-26) — 어드민이 매장 모집을 연 날. 있으면 일정의 모집 공지를 이날로 다시 센다. */
+  recruitStart?: string;
   /** 취소한 때 — 의뢰 취소(검토 중)든 진행 확정 뒤 취소든. 취소해도 내 콜라보에 "취소"로 남는다(11-12 사용자). */
   cancelledAt?: string;
   /** admix 보완 요청 내용(옛 예시) — 11-12부터 admix 는 기획안(plan)을 보낸다. */
@@ -384,7 +390,6 @@ export interface AdvCollab {
   preferred: StoreRef[];
   /** 의뢰 때 계산한 예상 비용(나머지 매장 평균 금액). */
   estimateAvg: number;
-  reservesPreApproved?: boolean;
   /** 목표 미달 때 고른 진행 방법. */
   decision?: { option: string; at: string };
   billing?: Billing;
@@ -471,7 +476,7 @@ type SchedulePlan = Pick<
   AdvCollab,
   "type" | "course" | "startDate" | "endDate" | "prepDays" | "targetStores" | "items" | "itemPrep"
 > &
-  Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt" | "midReport">>;
+  Partial<Pick<AdvCollab, "status" | "requestedAt" | "originalAt" | "approvedAt" | "midReport" | "recruitStart">>;
 
 /**
  * 중간 보고일(진행 n일차, 반올림) — 기본은 50% 날(12일 → 6일차). chosen(어드민이 고른 날)이 진행 기간 안이면 그날 하나.
@@ -489,12 +494,24 @@ export function checkpoints(start: string, end: string, chosen?: string | null) 
 }
 
 /**
- * admix 승인일 — 승인됐으면 그날. 아니면 의뢰 다음 영업일부터 검토 7영업일을 채운 날(의뢰가 없으면 오늘 보낸다고 친다).
- * 검토 중인데 그날이 이미 지났으면 오늘(주말 · 공휴일이면 다음 영업일) — 예상 일정이 지난 날짜로 나오지 않게(11-12 사용자).
+ * admix 검토를 세기 시작하는 의뢰 때 — 처음 의뢰서를 낸 때(originalAt, 기획안이 오가기 전에 고쳐 다시 냈으면 그때).
+ * 광고주가 기획안을 고쳐 보내도 검토 7영업일을 새로 세지 않는다(11-26 사용자: 의뢰서 제출 → admix 검토 후 확정이 영업일 7일).
  */
-export function approvalDateOf(p: Partial<Pick<AdvCollab, "status" | "requestedAt" | "approvedAt">>, today = PREVIEW_TODAY) {
+export const reviewFromOf = (p: Partial<Pick<AdvCollab, "requestedAt" | "originalAt">>) => p.originalAt ?? p.requestedAt;
+
+/**
+ * admix 승인일(기획안 확정일) — 확정됐으면 그날. 7영업일보다 빨리 확정되면 모집부터 그만큼 앞당겨져 제작 · 준비 기간이 길어진다(11-26 사용자).
+ * 아니면 의뢰 다음 영업일부터 검토 7영업일을 채운 날(의뢰가 없으면 오늘 보낸다고 친다).
+ * 그날이 지나도 확정이 안 됐으면 오늘(주말 · 공휴일이면 다음 영업일) — 늦어진 만큼 admix 검토가 길어지고 뒤 일정이 밀린다
+ * (11-12 사용자: 예상 일정이 지난 날짜로 나오지 않게, 11-26 사용자: "그만큼 admix 검토 기간이 더 길어지게").
+ */
+export function approvalDateOf(
+  p: Partial<Pick<AdvCollab, "status" | "requestedAt" | "originalAt" | "approvedAt">>,
+  today = PREVIEW_TODAY,
+) {
   if (p.approvedAt) return kstDate(p.approvedAt);
-  const due = addBusinessDays(p.requestedAt ? kstDate(p.requestedAt) : today, ADMIX_REVIEW_DAYS);
+  const from = reviewFromOf(p);
+  const due = addBusinessDays(from ? kstDate(from) : today, ADMIX_REVIEW_DAYS);
   if (p.status === "cancelled" || due >= today) return due;
   return isOffDay(today) ? addBusinessDays(today, 1) : today;
 }
@@ -509,7 +526,8 @@ export function approvalDateOf(p: Partial<Pick<AdvCollab, "status" | "requestedA
 export function scheduleOf(plan: SchedulePlan, today = PREVIEW_TODAY): Schedule {
   const c = COURSE[plan.course];
   const inst = installDays(plan.targetStores);
-  const noticeDate = addDays(approvalDateOf(plan, today), 1);
+  // 어드민이 모집을 열었으면 그날(11-26 사용자: "시작 누른 순간 바로 모집 시작 … 일정도 바뀌어야"), 아니면 승인 다음 날.
+  const noticeDate = plan.recruitStart ?? addDays(approvalDateOf(plan, today), 1);
   const recruitEnd = addDays(noticeDate, c.recruit - 1);
   const reviewEnd = addBusinessDays(recruitEnd, c.review);
   // 확정은 하루(영업일) — 검토가 끝난 다음 영업일.
@@ -540,10 +558,21 @@ export const MIN_PREP_DAYS = 3;
 /**
  * 의뢰서 "예상 일정" — 지금(today) 보내면 어떻게 되는지(11-11 사용자). 일정은 콜라보 상세와 같은 scheduleOf 로,
  * 의뢰일만 오늘로 둔다(고쳐 다시 보낼 때 옛 의뢰일 · 승인을 쓰지 않게). 의뢰서(AdvRequestForm) · 기획안 고치기(collabPlan)가 같이 쓴다.
+ * 기획안 고치기는 requestDate(처음 의뢰서를 낸 날, YYYY-MM-DD)를 준다 — 검토 7영업일을 그날부터 세고, 지났으면 오늘까지 늘린다(11-26 사용자).
  * 시작일은 고른 날 그대로라, 준비 기간은 확정 다음 날부터 설치 전날까지 남는 영업일.
  */
-export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
-  const s = scheduleOf({ ...d, status: undefined, requestedAt: undefined, approvedAt: undefined }, today);
+export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY, requestDate?: string) {
+  const s = scheduleOf(
+    {
+      ...d,
+      status: undefined,
+      requestedAt: requestDate ? kst(requestDate, "00:00") : undefined,
+      originalAt: undefined,
+      approvedAt: undefined,
+      recruitStart: undefined,
+    },
+    today,
+  );
   // 준비 기간은 기본 3영업일보다 짧으면 의뢰를 막는다(tooSoon). 제작하는 기본안이 있으면 20영업일(MAKE_DAYS)이 권장인데,
   // 못 채워도 막지 않고 알려만 준다(tight — 11-11 사용자: "못하는 건 아니고 못할 수도 있으니 인지하라는 말").
   // 처음엔 admix에 맡긴 제작만 30영업일로 막았는데, 같은 날 사용자가 직접 제작과 똑같이 늦추기를 권하고
@@ -576,10 +605,11 @@ export function requestPlanPreviewOf(d: SchedulePlan, today = PREVIEW_TODAY) {
  * 7일 코스의 5일) → 신청 매장 검토 · 확정(영업일 2일) → 준비(영업일 MIN_PREP_DAYS) → 설치(목표 매장 수로, 최소 1일)를 마친 다음 날.
  * 이보다 앞 날짜는 달력에서 고를 수 없다. 14일 코스로는 모자라는 날을 고르면 의뢰서가 7일 코스로 바꾼다(courseFits).
  */
-export function earliestRequestStart(today = PREVIEW_TODAY, targetStores = 1) {
+export function earliestRequestStart(today = PREVIEW_TODAY, targetStores = 1, requestDate?: string) {
   return requestPlanPreviewOf(
     { type: "ready", course: "rush", startDate: today, endDate: today, prepDays: MIN_PREP_DAYS, targetStores, items: [] },
     today,
+    requestDate,
   ).earliest;
 }
 
@@ -613,33 +643,37 @@ export function phaseOf(s: Schedule, today = PREVIEW_TODAY): Phase {
 
 export const isLive = (c: Pick<AdvCollab, "status">) => c.status === "approved";
 
-// ── 신청 · 순번 ──────────────────────────────────────────────────────
+// ── 신청 · 고르기 ────────────────────────────────────────────────────
 
 const ACTIVE: EntryStatus[] = ["applied", "requested", "confirmed"];
 export const isActive = (e: Entry) => ACTIVE.includes(e.status);
+/** 광고주가 고른 매장 — 고름 · 확정 요청 · 확정. */
+export const isPicked = (e: Entry) =>
+  e.status === "requested" || e.status === "confirmed" || (e.status === "applied" && !!e.picked);
 
-/** 선착순 — 확정 · 확정 요청 매장이 자리를 지키고, 나머지는 신청 순. 목표 수까지 선정, 그 뒤는 예비 순번. */
-export function lineup(entries: Entry[], target: number) {
-  const rank = (e: Entry) => (e.status === "applied" ? 1 : 0);
-  const ordered = entries
-    .filter(isActive)
-    .sort((a, b) => rank(a) - rank(b) || a.appliedAt.localeCompare(b.appliedAt));
+/**
+ * 신청 순 — 먼저 신청한 매장이 위(11-26 사용자: "선착순이 아니고, 먼저 신청한 순으로 보이게 하고, 광고주가 직접 선택").
+ * 광고주가 고른 매장이 선정(selected), 나머지는 후보(candidates). 목표 수와 상관없이 고른다(목표보다 많이도).
+ */
+export function lineup(entries: Entry[]) {
+  const ordered = entries.filter(isActive).sort((a, b) => a.appliedAt.localeCompare(b.appliedAt));
   return {
-    selected: ordered.slice(0, Math.max(0, target)),
-    reserves: ordered.slice(Math.max(0, target)),
+    ordered,
+    selected: ordered.filter(isPicked),
+    candidates: ordered.filter((e) => !isPicked(e)),
     total: ordered.length,
   };
 }
 
 export function statsOf(c: AdvCollab) {
   const count = (st: EntryStatus) => c.entries.filter((e) => e.status === st).length;
-  const { selected, reserves, total } = lineup(c.entries, c.targetStores);
+  const { selected, candidates, total } = lineup(c.entries);
   return {
     applied: total,
     confirmed: count("confirmed"),
     requested: count("requested"),
     selected: selected.length,
-    reserves: reserves.length,
+    candidates: candidates.length,
   };
 }
 
@@ -681,21 +715,14 @@ export function installOrder(entries: Entry[], storeId: string) {
   return i < 0 ? confirmed.length : i;
 }
 
-/** 신청 매장 표 — 선정(확정 · 확정 요청 중 · 선정 n번) → 예비 n번. */
+/** 신청 매장 표 — 신청 순 그대로, 상태는 확정 · 확정 요청 중 · 고름 · 후보(11-26 사용자). */
 export function applicantRows(c: AdvCollab) {
-  const { selected, reserves } = lineup(c.entries, c.targetStores);
-  const row = (e: Entry, slot: string, reserve: boolean) => ({
+  return lineup(c.entries).ordered.map((e) => ({
     e,
-    slot,
-    reserve,
+    picked: isPicked(e),
+    slot: e.status === "confirmed" ? "확정" : e.status === "requested" ? "확정 요청 중" : e.picked ? "고름" : "후보",
     store: storeOf(c, e.storeId),
-  });
-  return [
-    ...selected.map((e, i) =>
-      row(e, e.status === "confirmed" ? "확정" : e.status === "requested" ? "확정 요청 중" : `선정 ${i + 1}번`, false),
-    ),
-    ...reserves.map((e, i) => row(e, `예비 ${i + 1}번`, true)),
-  ];
+  }));
 }
 
 /** 매장별 예상 소진율(초기 입고 대비) — 광고주에게 보여 주는 유일한 수량 지표. 매출 · 영수증 수는 보이지 않는다. */
@@ -709,7 +736,7 @@ export function expectedRate(c: AdvCollab, store: StoreRef | undefined) {
 
 export function costOf(c: AdvCollab) {
   const sum = (ids: string[]) => ids.reduce((a, id) => a + feeOf(storeOf(c, id)), 0);
-  const { selected } = lineup(c.entries, c.targetStores);
+  const { selected } = lineup(c.entries);
   const confirmed = c.entries.filter((e) => e.status === "confirmed").map((e) => e.storeId);
   return {
     selected: sum(selected.map((e) => e.storeId)),
@@ -834,38 +861,49 @@ export function requestDelay(c: AdvCollab, newStart: string, now: string): AdvCo
 export const canDelay = (c: AdvCollab, today = PREVIEW_TODAY) =>
   isLive(c) && !!c.billing && today < scheduleOf(c).installStart && c.delay?.status !== "pending";
 
-// ── 신청 매장 검토 ──────────────────────────────────────────────────
+// ── 신청 매장 고르기 ────────────────────────────────────────────────
 
-/** 확정 요청이 시작된 기획이면 비는 자리를 다음 순번에 바로 요청한다(예비 매장 투입). */
-function fillSlots(c: AdvCollab, now: string): AdvCollab {
-  if (!c.entries.some((e) => e.requestedAt)) return c;
-  const ids = lineup(c.entries, c.targetStores)
-    .selected.filter((e) => e.status === "applied")
-    .map((e) => e.storeId);
-  if (!ids.length) return c;
+/**
+ * 신청 매장을 고를 수 있는 때 — 신청이 들어오는 모집 중부터 매장 확정 기한까지(11-26 사용자 "모집 중에도 바로").
+ * 그 뒤 매장이 빠지면 admix와 남은 후보 중에서 바꾼다(매장 변동).
+ */
+export const canPick = (c: AdvCollab, today = PREVIEW_TODAY) => {
+  const p = phaseOf(scheduleOf(c), today);
+  return isLive(c) && (p === "recruiting" || p === "review" || p === "confirming");
+};
+
+/**
+ * 고르기 · 빼기(신청 · 후보 매장). 확정 요청이 이미 나간 콜라보에서 고르면 바로 확정 요청을 보낸다.
+ * 순번이 없어 빼도 다른 매장이 저절로 올라오지 않는다 — 광고주가 후보 중에서 다시 고른다(11-26 사용자 "후보로 남기기").
+ */
+export function pickStore(c: AdvCollab, storeId: string, on: boolean, now: string): AdvCollab {
+  const target = c.entries.find((e) => e.storeId === storeId);
+  if (!target || target.status !== "applied") return c;
+  const sending = on && c.entries.some((e) => e.requestedAt);
   return {
     ...c,
     entries: c.entries.map((e) =>
-      ids.includes(e.storeId) ? { ...e, status: "requested", requestedAt: now } : e,
+      e.storeId !== storeId
+        ? e
+        : sending
+          ? { ...e, picked: true, status: "requested", requestedAt: now }
+          : { ...e, picked: on },
     ),
   };
 }
 
-/** 광고주 제외 요청 → 다음 순번이 올라온다. */
+/** 확정 요청을 보낸 매장 빼기(제외 요청) — 요청을 거둔다. 비는 자리는 광고주가 후보 중에서 다시 고른다. */
 export function excludeStore(c: AdvCollab, storeId: string, now: string): AdvCollab {
   const target = c.entries.find((e) => e.storeId === storeId);
-  if (!target || !["applied", "requested"].includes(target.status)) return c;
-  return fillSlots(
-    {
-      ...c,
-      entries: c.entries.map((e) =>
-        e.storeId === storeId
-          ? { ...e, status: "excluded", closedAt: now, closedReason: "광고주 제외 요청" }
-          : e,
-      ),
-    },
-    now,
-  );
+  if (!target || target.status !== "requested") return c;
+  return {
+    ...c,
+    entries: c.entries.map((e) =>
+      e.storeId === storeId
+        ? { ...e, status: "excluded", closedAt: now, closedReason: "광고주 제외 요청" }
+        : e,
+    ),
+  };
 }
 
 /** 신청 매장을 검토할 수 있는 때 — 모집 마감 뒤 ~ 매장 확정 기한. */
@@ -1001,7 +1039,7 @@ export function reportsOf(c: AdvCollab, today = PREVIEW_TODAY): ReportLink[] {
 export function todoOf(
   c: AdvCollab,
   today = PREVIEW_TODAY,
-): { text: string; kind?: "proceed" | "decide" | "review" | "reserve" | "pay" | "report" | "returned" } | null {
+): { text: string; kind?: "proceed" | "decide" | "review" | "pay" | "report" | "returned" } | null {
   if (c.status === "cancelled")
     return {
       text: c.billing?.cancelledAt
@@ -1042,11 +1080,11 @@ export function todoOf(
     const o = outcomeOf(st.applied, c.minStores, c.targetStores);
     if (o !== "full" && !c.decision)
       return { text: `신청 ${st.applied}곳 — 진행 방법을 골라 주세요`, kind: "decide" };
-    if (!c.reservesPreApproved && st.reserves > 0)
-      return { text: "예비 매장을 미리 승인할지 정해 주세요", kind: "reserve" };
-    return p === "review"
-      ? { text: "신청 매장을 검토해 주세요 · 필요하면 제외 요청", kind: "review" }
-      : { text: `매장들이 최종 확정하고 있어요 · ${mdw(s.confirmDue)}까지` };
+    if (p === "review")
+      return st.selected
+        ? { text: `고른 매장 ${st.selected}곳 · ${mdw(s.reviewEnd)}까지 바꿀 수 있어요`, kind: "review" }
+        : { text: "신청 매장을 골라 주세요", kind: "review" };
+    return { text: `매장들이 최종 확정하고 있어요 · ${mdw(s.confirmDue)}까지` };
   }
   const ready = reportsOf(c, today).filter((r) => r.ready);
   if (p === "done" || p === "removal") return { text: "결과 보고서를 확인해 주세요", kind: "report" };
@@ -1054,7 +1092,7 @@ export function todoOf(
     return { text: `새 보고서 · ${ready[ready.length - 1].label}`, kind: "report" };
   if (p === "upcoming") return { text: `${mdw(s.noticeDate)}에 매장 모집을 시작해요` };
   if (p === "recruiting")
-    return { text: `${mdw(s.recruitEnd)} 모집 마감 · 신청 ${st.applied}/${c.targetStores}곳` };
+    return { text: `${mdw(s.recruitEnd)} 모집 마감 · 신청 ${st.applied}곳 · 고른 매장 ${st.selected}/${c.targetStores}곳` };
   if (p === "preparing" || p === "installing")
     return { text: `${mdw(s.installStart)}부터 매장에 설치해요` };
   return null;
@@ -1103,7 +1141,8 @@ export function updatedAtOf(c: AdvCollab, now = previewNow()): string {
 export function etaOf(c: AdvCollab, today = PREVIEW_TODAY): string | null {
   if (c.status === "cancelled" || c.status === "returned") return null;
   if (c.status === "requested") {
-    const due = addBusinessDays(c.requestedAt ? kstDate(c.requestedAt) : today, ADMIX_REVIEW_DAYS);
+    const from = reviewFromOf(c);
+    const due = addBusinessDays(from ? kstDate(from) : today, ADMIX_REVIEW_DAYS);
     if (today > due) return "검토 결과를 곧 알려 드려요";
     if (today === due) return "오늘 검토를 마쳐요";
     const n = businessDaysBetween(addDays(today, 1), due);
@@ -1255,7 +1294,6 @@ export function exampleCollabs(): AdvCollab[] {
     targetRatio: 0.22,
     benefit: "홀리데이 쿠키 틴 3개",
     staffScript: "연말 한정 쿠키 샘플이에요. 음료와 함께 드셔 보세요.",
-    reservesPreApproved: true,
   });
   const sM = scheduleOf(m0);
   const mApplied = applied(exampleIds(27, 36), sM.noticeDate, 26);
@@ -1335,9 +1373,13 @@ export function exampleCollabs(): AdvCollab[] {
     staffScript: "겨울 향 샘플키트 드리고 있어요. 음료 주문하시면 하나 챙겨 드릴게요.",
     extras: [{ kind: "sns", body: "인스타그램 인증 고객에게 브랜드가 추가 샘플을 직접 보내요 (매장 확인 불필요)" }],
   });
-  const f: AdvCollab = { ...f0, entries: applied(exampleIds(14, 22), scheduleOf(f0).noticeDate, 21) };
+  // 모집 중에도 고른다(11-26) — 먼저 들어온 신청 가운데 3곳을 골라 둔 모습.
+  const f: AdvCollab = {
+    ...f0,
+    entries: applied(exampleIds(14, 22), scheduleOf(f0).noticeDate, 21).map((e, i) => (i === 0 || i === 2 || i === 3 ? { ...e, picked: true } : e)),
+  };
 
-  // A — 매장 확정 · 입금까지 끝, 준비 중. 확정 매장 1곳이 공사로 빠져 예비 매장으로 바꿨다.
+  // A — 매장 확정 · 입금까지 끝, 준비 중. 확정 매장 1곳이 공사로 빠져 후보 매장으로 바꿨다.
   //     예시 카페 Q(x17)는 철수 8일 뒤 다른 콜라보가 잡혀 있어 일정을 8일 넘게 미루면 조정할 수 없다.
   const a0 = plan({
     id: "offer-a",
@@ -1393,7 +1435,7 @@ export function exampleCollabs(): AdvCollab[] {
   };
   const a: AdvCollab = { ...a1, billing: billingOf(a1, true) };
 
-  // B — 진행 중, 오늘 1차 점검(중간 보고 1). 확정 매장 1곳이 시작 전 빠져 예비 매장으로 바꿨다.
+  // B — 진행 중, 오늘 1차 점검(중간 보고 1). 확정 매장 1곳이 시작 전 빠져 후보 매장으로 바꿨다.
   const b0 = plan({
     id: "offer-b",
     brand: "브랜드 B",
@@ -1414,7 +1456,6 @@ export function exampleCollabs(): AdvCollab[] {
     targetRatio: 0.2,
     benefit: "원두 1kg",
     staffScript: "가을 블렌드 드립백 샘플이에요. 음료 주문하시면 하나 드릴게요.",
-    reservesPreApproved: true,
   });
   const sB = scheduleOf(b0);
   const bApplied = applied(["x18", "x01", ...exampleIds(19, 25)], sB.noticeDate, 20);
@@ -1477,7 +1518,6 @@ export function exampleCollabs(): AdvCollab[] {
     targetRatio: 0.12,
     benefit: "음료 2박스",
     staffScript: "여름 신제품 음료 샘플이에요. 시원하게 드셔 보세요.",
-    reservesPreApproved: true,
   });
   const sE = scheduleOf(e0);
   const eEntries = confirmedAll(
@@ -1607,7 +1647,13 @@ export function collabOfRequest(r: CollabRequestMine): AdvCollab {
             ? "approved"
             : "requested",
     requestStatus: r.status as CollabRequestStatus,
-    plan: { original: r.original, rounds, confirmedAt: r.confirmedAt ?? null },
+    plan: {
+      original: r.original,
+      rounds,
+      confirmedAt: r.confirmedAt ?? null,
+      recruitStart: r.recruitStart ?? null,
+    },
+    recruitStart: r.recruitStart ?? undefined,
     // 기획안이 오가기 전에 고쳐 다시 보냈으면 그때, 아니면 처음 보낸 때(광고주가 기획안을 고쳐 보내도 updatedAt 이 바뀐다).
     originalAt:
       rounds[0] && Date.parse(r.updatedAt) >= Date.parse(rounds[0].createdAt) ? r.createdAt : r.updatedAt || r.createdAt,

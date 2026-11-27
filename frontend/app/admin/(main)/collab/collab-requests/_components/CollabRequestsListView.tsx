@@ -220,10 +220,8 @@ export function CollabRequestsListView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="콜라보 의뢰"
-        desc="광고주가 보낸 의뢰서예요. 최근 보낸 순이고, 눌러서 의뢰서를 읽어요. 광고주가 취소한 의뢰도 “취소”로 남아요."
-      />
+      {/* 안내 문구는 뺐다(11-26 사용자: "없애줘"). */}
+      <CollabPageHead title="콜라보 의뢰" />
 
       <div className="hidden md:block">
         <CommonTable<Row>

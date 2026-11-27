@@ -52,10 +52,10 @@ def device_label(ua: str | None) -> str | None:
     return " · ".join(parts) if parts else ua[:40]
 
 
-def recent(db: Session, user_id: uuid.UUID, limit: int = 100) -> dict:
-    """최근 로그인 기록(최근 것부터)과 전체 개수."""
+def recent(db: Session, user_id: uuid.UUID, page: int = 1, size: int = 10) -> dict:
+    """로그인 기록 한 쪽(최근 것부터, size 줄씩)과 전체 개수."""
     q = db.query(UserLoginLog).filter(UserLoginLog.user_id == user_id)
-    rows = q.order_by(UserLoginLog.created_at.desc()).limit(limit).all()
+    rows = q.order_by(UserLoginLog.created_at.desc()).offset((page - 1) * size).limit(size).all()
     return {
         "total": q.count(),
         "items": [

@@ -8,7 +8,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from src.services import (
     partners_service,
 )
 from src.utils.deps import require_permission
+from src.utils.download import attachment
 
 router = APIRouter(prefix="/admin/collab", tags=["admin-collab"])
 Perm = Depends(require_permission("collab"))
@@ -104,10 +105,14 @@ def get_member(member_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -
 
 @router.get("/members/{member_id}/logins")
 def member_logins(
-    member_id: str, limit: int = Query(100, ge=1, le=500), _: Admin = Perm, db: Session = Depends(get_db)
+    member_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    _: Admin = Perm,
+    db: Session = Depends(get_db),
 ) -> dict:
-    """제휴사 회원 로그인 기록(100) — 일시 · 방법(이메일 · 소셜 · 자동 로그인 …) · IP · 기기, 최근 것부터."""
-    return partners_service.admin_member_logins(db, member_id, limit)
+    """제휴사 회원 로그인 기록(100) — 일시 · 방법(이메일 · 소셜 · 자동 로그인) · IP · 기기, 최근 것부터 한 쪽씩."""
+    return partners_service.admin_member_logins(db, member_id, page, size)
 
 
 class MemberUpdateIn(BaseModel):
@@ -242,6 +247,45 @@ def advertiser_business_card(member_id: str, _: Admin = Perm, db: Session = Depe
     return FileResponse(path, filename=filename)
 
 
+@router.get("/business-registrations")
+def business_registrations(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=60),
+    category: str | None = Query(None, pattern="^(partner|advertiser)$"),
+    status: str | None = None,
+    keyword: str | None = None,
+    _: Admin = Perm,
+    db: Session = Depends(get_db),
+) -> dict:
+    """사업자등록증 모아 보기(11-26) — 제휴사 · 광고주 회원이 올린 등록증, 최근 올린 것부터."""
+    total, items = member_service.list_business_licenses(
+        db,
+        categories={"partner", "advertiser"},
+        category=category,
+        status=status,
+        keyword=keyword,
+        page=page,
+        page_size=page_size,
+    )
+    return {"total": total, "items": items}
+
+
+@router.get("/business-registrations/download")
+def business_registrations_download(
+    category: str | None = Query(None, pattern="^(partner|advertiser)$"),
+    status: str | None = None,
+    keyword: str | None = None,
+    _: Admin = Perm,
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """사업자등록증 한꺼번에 내려받기(11-26) — 목록과 같은 조건의 제휴사 · 광고주 등록증 전부를 zip 하나로."""
+    out, _count = member_service.business_licenses_zip(
+        db, categories={"partner", "advertiser"}, category=category, status=status, keyword=keyword
+    )
+    name, ascii_name = member_service.license_zip_names()
+    return attachment(out, name, ascii_name=ascii_name, media_type="application/zip")
+
+
 @router.get("/advertisers/{member_id}/biz-file")
 def advertiser_biz_file(member_id: str, _: Admin = Perm, db: Session = Depends(get_db)) -> FileResponse:
     path, filename = collab_advertiser_service.license_file(db, member_id)
@@ -302,6 +346,30 @@ def collab_request_round_file(
     """기획안 첨부 받기 — "request" 는 광고주 의뢰서 첨부."""
     path, filename = collab_request_service.admin_round_file(db, request_id, file_id)
     return FileResponse(path, filename=filename)
+
+
+class StartRecruitingIn(BaseModel):
+    """매장 모집 시작(101) — 화면이 확정 기획안 일정으로 센 날짜(YYYY-MM-DD, 확정 기한은 시각까지)."""
+
+    recruit_start: str
+    recruit_end: str
+    confirm_due: str
+    install_date: str
+    removal_date: str
+
+
+@router.get("/recruiting")
+def recruit_board(_: Admin = Perm, db: Session = Depends(get_db)) -> dict:
+    """매장 모집(2026-11-26) — 모집 시작 전 확정 의뢰(ready) · 모집 현황 콜라보(collabs)."""
+    return collab_request_service.admin_recruit_board(db)
+
+
+@router.post("/collab-requests/{request_id}/start-recruiting", status_code=status.HTTP_201_CREATED)
+def start_recruiting(
+    request_id: str, body: StartRecruitingIn, _: Admin = Perm, db: Session = Depends(get_db)
+) -> dict:
+    """광고주가 기획안을 확정한 의뢰로 매장 모집 콜라보를 연다(11-26 사용자: "확정되면 어드민에서 바로 매장 모집 시작")."""
+    return collab_request_service.admin_start_recruiting(db, request_id, body.model_dump())
 
 
 @router.post("/collab-requests/{request_id}/rounds")
@@ -417,9 +485,7 @@ def collab_progress(_: Admin = Perm, db: Session = Depends(get_db)) -> dict:
     return {"items": collab_service.admin_progress(db)}
 
 
-@router.post("/collabs", status_code=status.HTTP_201_CREATED)
-def create_collab(body: CollabIn, _: Admin = Perm, db: Session = Depends(get_db)) -> dict:
-    return collab_service.admin_create(db, _data(body))
+# 어드민에서 콜라보 새로 만들기(POST /collabs)는 없앴다(11-26 사용자: "새 콜라보 … 이 버튼과 기능을 없애줘").
 
 
 @router.get("/collabs/{collab_id}")

@@ -503,6 +503,8 @@ def _admin_row(req: AdvertiserCollabRequest, user: User | None) -> dict:
         "roundCount": len(req.rounds or []),
         "lastRoundAuthor": req.rounds[-1].author if req.rounds else None,
         "confirmedAt": _iso(req.confirmed_at),
+        # 확정 뒤 어드민이 연 매장 모집 콜라보(101) — 없으면 아직 모집 전.
+        "collabId": str(req.collab_id) if req.collab_id else None,
     }
 
 
@@ -844,11 +846,15 @@ def serialize_round(r: AdvertiserCollabRequestRound, content: dict | None = None
 
 
 def _plan_block(req: AdvertiserCollabRequest) -> dict:
-    """의뢰 응답에 붙는 기획안 — 0차(처음 의뢰서) · 차수들 · 확정한 때."""
+    """의뢰 응답에 붙는 기획안 — 0차(처음 의뢰서) · 차수들 · 확정한 때 · 실제 모집 시작일.
+    recruitStart(2026-11-26) — 어드민이 매장 모집을 연 날(이은 콜라보의 모집 시작). 있으면 화면 일정은 확정 다음 날이 아니라
+    이날을 모집 공지로 보고 뒤(모집 마감 · 검토 · 확정)를 다시 센다. 아직 안 열었으면 None."""
+    collab = req.collab
     return {
         "original": _original_content(req),
         "rounds": [serialize_round(r, c) for r, c in zip(req.rounds or [], _round_contents(req))],
         "confirmedAt": _iso(req.confirmed_at),
+        "recruitStart": collab.recruit_start.isoformat() if collab is not None else None,
     }
 
 
@@ -1010,3 +1016,136 @@ def confirm(db: Session, user: User, request_id: str, data: dict) -> dict:
     db.commit()
     db.refresh(req)
     return serialize_mine_full(req)
+
+
+# ── 확정 → 매장 모집 시작(101, 2026-11-26 사용자: "기획안 확정되면 어드민에서 바로 매장 모집 시작할 수 있게") ──
+
+# 기본안 이름 — 화면 ITEM_LABEL(lib/advertiserPreview.ts)과 같다. 콜라보 진행 항목 이름이 된다.
+ITEM_LABELS = {
+    "promo": "브랜딩 홍보물",
+    "consumable": "브랜딩 소모품",
+    "goods": "브랜드 굿즈",
+    "display": "DP 및 체험",
+    "menu": "협업 메뉴",
+    "space": "공간 연출",
+}
+# 모집 일정 — 화면이 확정 기획안 일정(confirmedScheduleOf, 영업일 · 공휴일 규칙)으로 세어 보낸다. 서버는 순서만 본다(_apply_collab).
+RECRUIT_DATE_KEYS = ("recruit_start", "recruit_end", "confirm_due", "install_date", "removal_date")
+
+
+def admin_start_recruiting(db: Session, request_id: str, data: dict) -> dict:
+    """확정한 의뢰의 마지막 차수(= 광고주가 확정한 기획안)로 매장 모집 콜라보를 만들고 의뢰에 잇는다.
+
+    브랜드 · 캠페인명 · 한 줄 소개 · 진행 기간 · 목표 매장 수 · 기본안(이름 · 조건 · 누가 준비)은 기획안 그대로,
+    모집 시작 · 마감 · 확정 기한 · 설치 · 철수는 화면이 보낸 날짜 — 모집 시작은 오늘(누른 날)이어야 한다(11-26).
+    바로 공개(published)라 제휴사 매장에 보인다.
+    이미 시작했으면(이은 콜라보가 남아 있으면) 막는다 — 콜라보를 지웠으면 다시 시작할 수 있다.
+    """
+    from src.models.collab import Collab
+    from src.services import collab_service
+
+    req = _admin_or_404(db, request_id)
+    if req.status != "confirmed":
+        raise HTTPException(status_code=409, detail="광고주가 기획안을 확정한 의뢰만 매장 모집을 시작할 수 있어요.")
+    if req.collab_id and db.get(Collab, req.collab_id) is not None:
+        raise HTTPException(status_code=409, detail="이미 매장 모집을 시작했어요.")
+    c = _latest_content(req)
+    items = [
+        {"label": ITEM_LABELS.get(x.get("key"), x.get("key") or ""), "note": x.get("note") or "", "prep": x.get("prep")}
+        for x in (c.get("items") or [])
+    ]
+    payload = {
+        "brand_name": req.brand_name,
+        "brand_image_url": req.brand_image_url,
+        "title": c.get("title") or req.title,
+        "summary": c.get("summary"),
+        "collab_type": "made" if any(i["prep"] in ("made", "admix") for i in items) else "ready",
+        "items": items,
+        "target_stores": c.get("targetStores") or req.target_stores,
+        "start_date": c.get("startDate"),
+        "end_date": c.get("endDate"),
+        "status": "published",
+        "admin_memo": f"광고주 의뢰 {req.code}에서 매장 모집을 시작했어요.",
+    }
+    for k in RECRUIT_DATE_KEYS:
+        if not (data or {}).get(k):
+            raise _bad("모집 일정을 다시 확인해 주세요.")
+        payload[k] = data[k]
+    # 누른 그날 바로 모집 시작(2026-11-26 사용자: "시작 누른 순간 바로 모집 시작되게") — 화면이 오늘부터 센 일정만 받는다.
+    if str(payload["recruit_start"])[:10] != _today_kst().isoformat():
+        raise _bad("모집은 오늘부터 시작해요. 새로고침한 뒤 다시 눌러 주세요.")
+    collab = collab_service.admin_create(db, payload)
+    # 어드민이 모집을 연 것이라 광고주가 보낸 때(updated_at)는 그대로 둔다(onupdate 막기).
+    M = AdvertiserCollabRequest
+    db.query(M).filter(M.id == req.id).update(
+        {M.collab_id: uuid.UUID(collab["id"]), M.updated_at: M.updated_at}, synchronize_session=False
+    )
+    db.commit()
+    return collab
+
+
+# ── 매장 모집(어드민 "콜라보 관리 → 매장 모집", 2026-11-26 사용자) ─────────────────────────────
+
+# 모집 현황에 오는 콜라보 단계 — 모집 전 · 모집 중 · 선정 · 확정 중. 앞선 것부터(지금 손이 가는 순).
+RECRUIT_PHASE_ORDER = {"recruiting": 0, "selecting": 1, "scheduled": 2}
+
+
+def _recruit_ready_query(db: Session):
+    """광고주가 확정했는데 아직 매장 모집을 열지 않은 의뢰."""
+    M = AdvertiserCollabRequest
+    return db.query(M).filter(M.status == "confirmed", M.collab_id.is_(None))
+
+
+def recruit_ready_count(db: Session) -> int:
+    """사이드 메뉴 "매장 모집" 옆 숫자 — 모집 시작을 기다리는 확정 의뢰 수."""
+    return _recruit_ready_query(db).with_entities(func.count(AdvertiserCollabRequest.id)).scalar() or 0
+
+
+def admin_recruit_board(db: Session) -> dict:
+    """매장 모집 화면 — ready: 모집 시작 전(확정 순, 기획안 내용까지 — 화면이 확정 일정을 센다),
+    collabs: 모집 현황(모집 전 · 모집 중 · 선정 · 확정 중 콜라보, 매장 수 · 이어진 의뢰)."""
+    from src.models.collab import Collab
+    from src.services import collab_service
+
+    M = AdvertiserCollabRequest
+    ready = (
+        _recruit_ready_query(db)
+        .outerjoin(User, User.id == M.user_id)
+        .add_entity(User)
+        .order_by(M.confirmed_at.asc(), M.created_at.asc())
+        .all()
+    )
+    today = _today_kst()
+    rows = [
+        c
+        for c in db.query(Collab).filter(Collab.status == "published").all()
+        if collab_service.phase_of(c, today) in RECRUIT_PHASE_ORDER
+    ]
+
+    def sort_key(c):
+        ph = collab_service.phase_of(c, today)
+        day = {"recruiting": c.recruit_end, "selecting": c.install_date, "scheduled": c.recruit_start}[ph]
+        return (RECRUIT_PHASE_ORDER[ph], day, c.created_at or datetime.min.replace(tzinfo=timezone.utc))
+
+    rows.sort(key=sort_key)
+    ids = [c.id for c in rows]
+    counts = collab_service._counts(db, ids)
+    linked = (
+        dict(
+            (cid, (str(rid), code))
+            for cid, rid, code in db.query(M.collab_id, M.id, M.code).filter(M.collab_id.in_(ids))
+        )
+        if ids
+        else {}
+    )
+    collabs = []
+    for c in rows:
+        row = collab_service.admin_serialize(c, counts.get(c.id))
+        rid, code = linked.get(c.id, (None, None))
+        row["requestId"] = rid
+        row["requestCode"] = code
+        collabs.append(row)
+    return {
+        "ready": [{**_admin_row(r, u), "content": _latest_content(r)} for r, u in ready],
+        "collabs": collabs,
+    }

@@ -65,7 +65,11 @@ import {
 } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-import { MarketingChecks, openFileInNewTab } from "../../_components/collabUi";
+import {
+  MarketingChecks,
+  openFileInNewTab,
+  PageNav,
+} from "../../_components/collabUi";
 import { StoreSearchModal } from "../../_components/StoreSearchModal";
 
 const MEMBERS_HREF = "/admin/collab/members";
@@ -250,17 +254,21 @@ function MemberDetail({ member }: { member: AdminPartnerMember }) {
   );
 }
 
-/** 처음에 보이는 로그인 기록 줄 수 — "더 보기"로 이만큼씩 더 편다. */
-const LOGIN_PAGE = 10;
+/** 로그인 기록 한 쪽 줄 수(11-26 사용자: "10개씩 페이지 넘겨서 볼 수 있게"). */
+const LOGIN_PAGE_SIZE = 10;
 
 /**
  * 로그인 기록(100, 2026-11-26 사용자: "회원을 선택하면 로그인 로그를 확인할 수 있게") — 최근 것부터.
  * 일시 · 방법 · 기기 · IP. 자동 로그인은 쓰는 동안 바꾸는 토큰은 빼고, 오래 쉬었다가 다시 들어온 때만 한 줄(서버).
- * 서버는 최근 100줄까지 준다. 넓으면 네 칸 한 줄, 휴대폰은 일시 · 방법 / 기기 · IP 두 줄.
+ * 10줄씩 아래 쪽 번호(PageNav, 회원 목록과 같은 HeroUI Pagination)로 넘긴다. 넓으면 네 칸 한 줄, 휴대폰은 일시 · 방법 / 기기 · IP 두 줄.
  */
 function LoginLogSection({ memberId }: { memberId: string }) {
-  const { data, isLoading } = useCollabMemberLogins(memberId);
-  const [shown, setShown] = useState(LOGIN_PAGE);
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useCollabMemberLogins(
+    memberId,
+    page,
+    LOGIN_PAGE_SIZE,
+  );
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
@@ -284,7 +292,7 @@ function LoginLogSection({ memberId }: { memberId: string }) {
             <span>IP</span>
           </div>
           <ul className="flex flex-col divide-y divide-gray-100">
-            {items.slice(0, shown).map((log) => (
+            {items.map((log) => (
               <li
                 key={log.id}
                 className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-[12px] gap-y-[2px] py-[10px] text-sm sm:grid-cols-[136px_104px_minmax(0,1fr)_128px] sm:items-center"
@@ -304,21 +312,13 @@ function LoginLogSection({ memberId }: { memberId: string }) {
           </ul>
         </div>
       )}
-      {items.length > shown && (
-        <Button
-          variant="tertiary"
-          size="sm"
-          className="self-center"
-          onPress={() => setShown((n) => n + LOGIN_PAGE)}
-        >
-          더 보기
-        </Button>
-      )}
-      {items.length > 0 && shown >= items.length && total > items.length && (
-        <p className="text-center text-xs text-disabled">
-          최근 {items.length}번까지 보여요.
-        </p>
-      )}
+      <PageNav
+        page={page}
+        pageSize={LOGIN_PAGE_SIZE}
+        total={total}
+        onChange={setPage}
+        className="self-center"
+      />
     </Section>
   );
 }
@@ -639,7 +639,7 @@ function BizSection({ member }: { member: AdminPartnerMember }) {
 /**
  * 기본협약 — 동의 시각 · 판(version)과 전자 서명(078: 서명자 이름 · 구분 · 손 서명 그림 · 동의 때 IP, 서명 시각 = 동의 시각).
  * 서명 도입 전에 동의한 회원은 서명 기록이 비어 있다.
- * 협약을 마쳤으면 계약서 PDF 를 이 자리에서 보고 받는다(2026-11-11 사용자) — 제휴사 4단계와 같은 PDF(agreementPdf, 서명란에 이 회원 서명).
+ * 협약을 마쳤으면 협약서 PDF 를 이 자리에서 보고 받는다(2026-11-11 사용자) — 제휴사 4단계와 같은 PDF(agreementPdf, 서명란에 이 회원 서명).
  */
 /** 초까지 — "언제 협약했는지 정확하게"(2026-11-18 사용자). 브라우저 시간대(어드민은 한국). */
 function dotDateTimeSec(iso: string | null | undefined) {
@@ -664,10 +664,17 @@ function dayBefore(ymd: string) {
   return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
 }
 
+/** 오늘(KST, YYYY-MM-DD) · 내일 — 해지하면 오늘까지 유효하고 내일 00:00부터 끝난다. */
+function todayAndTomorrowKst() {
+  const now = Date.now() + 9 * 3_600_000;
+  const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+  return { today: day(now), tomorrow: day(now + 86_400_000) };
+}
+
 /**
- * 기본협약 — 협약 일시(초까지) · 지금 기간 · 다음 자동 갱신일, 해지(갱신 거절) · 해지 취소(096, 2026-11-18 사용자).
- * 해지하면 다음 자동 갱신일 전날까지 유효하고 그날부터 끝난다("10월 1일 갱신인데 9월 1일에 해제하면 … 그 이후부턴 알아서 해지").
- * 끝나기 전엔 해지를 취소해 다시 1년씩 자동 갱신으로 돌릴 수 있다.
+ * 기본협약 — 협약 일시(초까지) · 지금 기간 · 다음 자동 갱신일, 해지 · 해지 취소(096, 2026-11-18 사용자).
+ * 해지하면 해지한 날까지 유효하고 다음 날 00:00부터 끝난다(2026-11-26 사용자: "해지한 날 바로 다음날 00시 00분에 해지되게",
+ * 예전엔 다음 자동 갱신일까지 유효했다). 끝나기 전(그날 안)엔 해지를 취소해 다시 1년씩 자동 갱신으로 돌릴 수 있다.
  */
 function AgreementSection({ member }: { member: AdminPartnerMember }) {
   const agreed = !!member.agreedAt;
@@ -696,14 +703,12 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
   } as const;
 
   const run = async (kind: "terminate" | "cancel") => {
-    const renews = member.agreementRenewsOn;
+    const { today, tomorrow } = todayAndTomorrowKst();
     const ok = await confirm(
       kind === "terminate"
         ? {
             title: "협약을 해지할까요?",
-            description: renews
-              ? `${dotDay(dayBefore(renews))}까지는 협약이 유효하고, ${dotDay(renews)}부터 끝나요. 자동 갱신은 하지 않아요. 이미 확정된 콜라보는 그대로 진행돼요. 끝나기 전까지는 해지를 취소할 수 있어요.`
-              : "다음 자동 갱신일부터 협약이 끝나요.",
+            description: `오늘 ${dotDay(today)}까지 유효해요. ${dotDay(tomorrow)} 00:00부터 협약이 끝나요. 이미 확정된 콜라보는 그대로 진행돼요. 오늘 안에는 해지를 취소할 수 있어요.`,
             confirmText: "해지하기",
           }
         : {
@@ -718,7 +723,7 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
       success(
         kind === "terminate" ? "협약을 해지했어요." : "해지를 취소했어요.",
         kind === "terminate" && next.terminationEffectiveOn
-          ? `${dotDay(dayBefore(next.terminationEffectiveOn))}까지 유효해요.`
+          ? `${dotDay(next.terminationEffectiveOn)} 00:00부터 끝나요.`
           : next.agreementRenewsOn
             ? `다음 자동 갱신 ${dotDay(next.agreementRenewsOn)}`
             : undefined,
@@ -783,10 +788,10 @@ function AgreementSection({ member }: { member: AdminPartnerMember }) {
                 <FactRow label="해지 일시">
                   {dotDateTime(member.terminationRequestedAt)}
                 </FactRow>
-                {/* 지금 기간 끝(위 줄)까지 유효 — 그다음 날부터 끝난다. */}
-                <FactRow label="끝나는 날">
+                {/* 해지한 날(위 기간 끝)까지 유효 — 다음 날 00:00부터 끝난다. */}
+                <FactRow label="끝나는 때">
                   <span className="font-medium">
-                    {dotDay(ends)}부터 협약이 {ended ? "끝났어요" : "끝나요"}
+                    {dotDay(ends)} 00:00부터 협약이 {ended ? "끝났어요" : "끝나요"}
                   </span>
                 </FactRow>
               </>
@@ -880,7 +885,7 @@ function agreementFileName(member: AdminPartnerMember) {
 }
 
 /**
- * 계약서 PDF 한 줄 — 사업자등록증 파일 줄과 같은 모양. "보기"는 창 안 미리보기(쪽 넘기기 · 새 창), "다운로드"는 바로 받는다.
+ * 협약서 PDF 한 줄 — 사업자등록증 파일 줄과 같은 모양. "보기"는 창 안 미리보기(쪽 넘기기 · 새 창), "다운로드"는 바로 받는다.
  * PDF 는 지금 판(agreement.json) 문구로 만든다 — 회원이 동의한 판과 다르면 그 사실을 적어 둔다.
  */
 function AgreementPdfRow({
@@ -935,7 +940,7 @@ function AgreementPdfRow({
           />
           <span className="min-w-0">
             <span className="block truncate font-semibold text-black">
-              계약서 PDF
+              협약서 PDF
             </span>
             <span className="text-xs text-disabled">
               {pdfSignature
@@ -976,7 +981,7 @@ function AgreementPdfRow({
       <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
         <Modal.Container placement="center" className="px-[16px] sm:px-0">
           <Modal.Dialog
-            aria-label="계약서 PDF"
+            aria-label="협약서 PDF"
             className="flex max-h-[92dvh] w-full max-w-[860px] flex-col gap-[16px] rounded-[20px] bg-surface p-[16px] sm:p-[24px]"
           >
             <Modal.CloseTrigger
@@ -987,7 +992,7 @@ function AgreementPdfRow({
             </Modal.CloseTrigger>
             <Modal.Header className="flex flex-col gap-[4px] p-0 pr-[36px]">
               <Modal.Heading className="text-lg font-bold leading-[26px] text-black">
-                계약서 PDF
+                협약서 PDF
               </Modal.Heading>
               <p className="text-sm text-disabled">
                 {member.companyName || member.name || "제휴사"}

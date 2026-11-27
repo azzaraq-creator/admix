@@ -6,7 +6,9 @@ import { type ReactNode } from "react";
 import { LoadingState } from "@/components/common/RouteStates";
 import { BrandAvatar } from "@/components/common/BrandAvatar";
 import { MaskIcon } from "@/components/common/MaskIcon";
+import { installDays } from "@/lib/advertiserPreview";
 import {
+  addDays,
   categoryOf,
   diffDays,
   md,
@@ -56,16 +58,16 @@ export function collabListHref(): string {
 }
 
 /**
- * 막대 칸 색 — 푸른 회색(slate) 한 가지를 시간 순서대로 점점 진하게(범례와 같이 쓴다).
- * 카드 배지 · 버튼이 보라라 막대는 조용한 계열로. 네 칸이 서로 구분되게 200 단계씩 띄운다.
- *   모집 200 → 설치 400 → 진행 600 → 철수 800
+ * 막대 칸 색 — 광고주 일정 달력(advertiser/ScheduleCalendar PHASE_TONE)과 같은 색 계열(범례와 같이 쓴다).
+ * 11-26 사용자 "준비기간이랑 구분이 잘 안 돼" → "광고주에게 보이는 일정 색깔과 동일하게".
+ *   모집 하늘 · 설치 초록 · 진행 보라(primary-500, 달력과 같음) · 철수 분홍
+ * 달력은 글자를 얹는 100 단계 파스텔이지만, 8px 막대에선 빈 막대(준비 기간)와 안 갈려 300 단계로 한층 진하게.
  */
 const BAR = {
-  // 다크 모드는 바탕이 어두워 순서를 뒤집는다 — 뒤로 갈수록 밝게(철수가 가장 밝다).
-  recruit: { label: "모집", color: "bg-slate-200 dark:bg-slate-700" },
-  install: { label: "설치", color: "bg-slate-400 dark:bg-slate-500" },
-  run: { label: "진행", color: "bg-slate-600 dark:bg-slate-400" },
-  removal: { label: "철수", color: "bg-slate-800 dark:bg-slate-200" },
+  recruit: { label: "모집", color: "bg-sky-300 dark:bg-sky-400/70" },
+  install: { label: "설치", color: "bg-emerald-300 dark:bg-emerald-400/70" },
+  run: { label: "진행", color: "bg-primary-500" },
+  removal: { label: "철수", color: "bg-rose-300 dark:bg-rose-400/70" },
 } as const;
 
 /**
@@ -83,10 +85,17 @@ export function PeriodBar({
   const total = Math.max(1, diffDays(c.removalDate, from) + 1);
   const pct = (d: string) =>
     Math.min(100, Math.max(0, (diffDays(d, from) / total) * 100));
+  // 설치는 목표 매장 5곳당 하루, 진행 시작 전날까지(11-26 사용자 "5개당 하루씩 추가야" — 광고주 일정의 installDays 와 같은 규칙).
+  const installEnd = addDays(c.startDate, -1);
+  const installStart = addDays(c.startDate, -installDays(c.targetStores));
+  const installLabel =
+    installStart === installEnd
+      ? md(installStart)
+      : `${md(installStart)} ~ ${md(installEnd)}`;
   const segs = (
     [
       ["recruit", c.recruitStart, c.recruitEnd],
-      ["install", c.installDate, c.installDate],
+      ["install", installStart, installEnd],
       ["run", c.startDate, c.endDate],
       ["removal", c.removalDate, c.removalDate],
     ] as const
@@ -102,13 +111,13 @@ export function PeriodBar({
   return (
     <div
       className="flex flex-col gap-[8px]"
-      aria-label={`모집 ${md(c.recruitStart)}~${md(c.recruitEnd)}, 설치 ${md(c.installDate)}, 진행 ${md(c.startDate)}~${md(c.endDate)}, 철수 ${md(c.removalDate)}`}
+      aria-label={`모집 ${md(c.recruitStart)}~${md(c.recruitEnd)}, 설치 ${installLabel}, 진행 ${md(c.startDate)}~${md(c.endDate)}, 철수 ${md(c.removalDate)}`}
     >
-      {/* 모바일은 "오늘" 범례 대신 표시 위에 글자를 단다 — 그 자리(14px)를 위에 비워 둔다. */}
+      {/* "오늘"은 표시 위에 글자로 단다 — 그 자리(14px)를 위에 비워 둔다. */}
       <div
         className={cn(
           "relative h-[8px] rounded-full bg-gray-50",
-          todayIn && "max-sm:mt-[16px]",
+          todayIn && "mt-[16px]",
         )}
       >
         {segs.map((g, i) => {
@@ -145,7 +154,7 @@ export function PeriodBar({
             />
             <span
               aria-hidden
-              className="absolute bottom-[calc(100%+5px)] -translate-x-1/2 text-[10px] leading-none font-bold text-gray-900 sm:hidden"
+              className="absolute bottom-[calc(100%+5px)] -translate-x-1/2 text-[10px] leading-none font-bold text-gray-900"
               style={{ left: `${pct(today)}%` }}
             >
               오늘
@@ -154,31 +163,22 @@ export function PeriodBar({
         )}
       </div>
       {/*
-       * 범례 — PC는 한 줄로 흐르고, 모바일은 네 칸 격자(위 이름 · 아래 날짜)로 칸을 맞춘다.
-       * 좁은 화면에서 줄이 들쭉날쭉 꺾이던 것을 정리했다(진행 칸은 날짜가 길어 조금 넓게).
+       * 범례 — 한 줄에 한 단계씩(색 점 · 이름 · 날짜), 날짜 줄을 맞춘다.
+       * 11-26 사용자 "좀 더 보기 편하게, 카드 길어져도 상관없어" — 예전엔 11px 글자가 한 줄로 흘러 꺾였다.
        */}
-      <ul className="flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11px] text-gray-500 max-sm:grid max-sm:grid-cols-[1fr_1fr_1.45fr_1fr] max-sm:gap-x-[6px]">
+      <ul className="mt-[4px] flex flex-col gap-[6px] text-[12px] leading-[16px]">
         <LegendItem color={BAR.recruit.color} label="모집">
-          ~{md(c.recruitEnd)}
+          {md(c.recruitStart)} ~ {md(c.recruitEnd)}
         </LegendItem>
         <LegendItem color={BAR.install.color} label="설치">
-          {md(c.installDate)}
+          {installLabel}
         </LegendItem>
         <LegendItem color={BAR.run.color} label="진행">
-          {md(c.startDate)}~{md(c.endDate)}
+          {md(c.startDate)} ~ {md(c.endDate)}
         </LegendItem>
         <LegendItem color={BAR.removal.color} label="철수">
           {md(c.removalDate)}
         </LegendItem>
-        {todayIn && (
-          <li className="flex items-center gap-[5px] max-sm:hidden">
-            <span
-              aria-hidden
-              className="h-[10px] w-[2px] rounded-full bg-gray-900"
-            />
-            오늘
-          </li>
-        )}
       </ul>
     </div>
   );
@@ -194,12 +194,10 @@ function LegendItem({
   children: ReactNode;
 }) {
   return (
-    <li className="flex min-w-0 items-center gap-[5px] whitespace-nowrap max-sm:flex-col max-sm:items-start max-sm:gap-[3px]">
-      <span className="flex items-center gap-[5px]">
-        <span aria-hidden className={cn("size-[7px] rounded-full", color)} />
-        <span className="font-semibold text-gray-600">{label}</span>
-      </span>
-      <span className="max-sm:pl-[12px]">{children}</span>
+    <li className="flex items-center gap-[8px] whitespace-nowrap">
+      <span aria-hidden className={cn("size-[8px] shrink-0 rounded-full", color)} />
+      <span className="w-[28px] shrink-0 text-gray-500">{label}</span>
+      <span className="font-medium text-gray-800">{children}</span>
     </li>
   );
 }
@@ -228,8 +226,6 @@ export function RecruitCard({
   // 배지는 짧게 — "모집 중 · " 없이 D-day 만.
   const left = diffDays(c.recruitEnd, today);
   const badge = kind === "open" ? `D-${left}` : recruitBadgeOf(c, today);
-  const applied = Math.min(c.appliedStores, c.targetStores);
-  const waiting = Math.max(0, c.appliedStores - c.targetStores);
   const cardClass = cn(
     "gap-[12px] p-[18px]",
     kind !== "blocked" && kind !== "passed" && [SHADOW_FLOAT, SHADOW_LIFT],
@@ -278,38 +274,21 @@ export function RecruitCard({
           </span>
         )}
       </div>
-      <div className="mt-auto flex flex-col gap-[6px]">
-        {kind === "blocked" ? (
-          <span className="text-[12px] break-keep text-gray-500">
-            진행 중인 콜라보와 기간이 겹쳐요
-          </span>
-        ) : kind === "passed" ? (
-          // 미참여로 답함(11-12) — 마감 전까지 상세에서 참여로 바꿀 수 있다.
-          <span className="text-[12px] break-keep text-gray-500">
-            미참여로 답했어요 · 마감 전까지 바꿀 수 있어요
-          </span>
-        ) : (
-          <>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-gray-500">참여 매장</span>
-              <b className="text-gray-800">
-                {applied} / {c.targetStores}
-                {waiting > 0 && (
-                  <span className="ml-[4px] font-medium text-gray-500">
-                    · 대기 {waiting}
-                  </span>
-                )}
-              </b>
-            </div>
-            <div className="h-[4px] overflow-hidden rounded-full bg-gray-100">
-              <div
-                className={cn("h-full rounded-full", tone.bar)}
-                style={{ width: `${(applied / c.targetStores) * 100}%` }}
-              />
-            </div>
-          </>
-        )}
-      </div>
+      {/* 참여 매장 수(n / 목표)는 제휴사에게 보이지 않는다(11-26 사용자) — 겹침 · 미참여 안내만 남김. */}
+      {(kind === "blocked" || kind === "passed") && (
+        <div className="mt-auto flex flex-col gap-[6px]">
+          {kind === "blocked" ? (
+            <span className="text-[12px] break-keep text-gray-500">
+              진행 중인 콜라보와 기간이 겹쳐요
+            </span>
+          ) : (
+            // 미참여로 답함(11-12) — 마감 전까지 상세에서 참여로 바꿀 수 있다.
+            <span className="text-[12px] break-keep text-gray-500">
+              미참여로 답했어요 · 마감 전까지 바꿀 수 있어요
+            </span>
+          )}
+        </div>
+      )}
     </>
   );
   return onLockedPress ? (
@@ -343,7 +322,6 @@ function Board() {
           Number(b.standing === "blocked" || b.standing === "passed") ||
         a.recruitEnd.localeCompare(b.recruitEnd),
     );
-  const open = recruiting.filter((c) => c.standing === "none").length;
   // 지금 잡힌 콜라보 — 확정 요청 · 확정했고 아직 철수 전.
   const held = state.collabs
     .filter(
@@ -373,8 +351,8 @@ function Board() {
             src="/icons/info.svg"
             className="size-[13px] shrink-0 text-gray-400"
           />
-          매장 한 곳은 한 번에 1건만 진행해요(기간이 겹치면 신청 불가).
-          {recruiting.length > 0 && ` 참여 여부를 알려 주실 콜라보 ${open}개.`}
+          {/* 11-26 사용자: 이렇게 간략하게 — 예전 "매장 한 곳은 … 진행해요(…). 참여 여부를 알려 주실 콜라보 N개." */}
+          한 번에 1건만 진행 가능 (기간이 겹치면 신청 불가)
         </span>
         {held && (
           <Link

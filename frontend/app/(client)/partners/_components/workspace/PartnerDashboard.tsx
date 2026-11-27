@@ -494,7 +494,7 @@ function Overview() {
   const toConfirm = state.collabs
     .filter((c) => c.standing === "requested")
     .sort((a, b) => a.confirmDue.localeCompare(b.confirmDue));
-  // 신청한 콜라보 — 신청(선정 후보 · 예비)했거나 확정하고 설치를 기다리는 콜라보(예전 "확정 예정").
+  // 신청한 콜라보 — 신청했거나 확정하고 설치를 기다리는 콜라보(예전 "확정 예정").
   const applied = cats
     .filter((x) => x.cat === "upcoming" && x.c.standing !== "requested")
     .map((x) => x.c)

@@ -10,6 +10,7 @@ import {
   collabOfRequest,
   confirmProceed,
   excludeStore,
+  pickStore,
   previewNow,
   requestDelay,
   type AdvCollab,
@@ -125,8 +126,9 @@ export const advActions = {
   decide(id: string, option: string) {
     patch(id, (c) => ({ ...c, decision: { option, at: previewNow() } }));
   },
-  setReservesPreApproved(id: string, on: boolean) {
-    patch(id, (c) => ({ ...c, reservesPreApproved: on }));
+  /** 신청 매장 고르기 · 빼기(11-26 — 선착순 대신 광고주가 직접 고른다). */
+  pick(id: string, storeId: string, on: boolean) {
+    patch(id, (c) => pickStore(c, storeId, on, previewNow()));
   },
   exclude(id: string, storeId: string) {
     patch(id, (c) => excludeStore(c, storeId, previewNow()));
@@ -195,7 +197,9 @@ function planMoved(c: AdvCollab, r: CollabRequestMine) {
   return (
     (c.requestStatus ?? "submitted") !== r.status ||
     (c.plan?.rounds.length ?? 0) !== (r.rounds?.length ?? 0) ||
-    (c.plan?.confirmedAt ?? null) !== (r.confirmedAt ?? null)
+    (c.plan?.confirmedAt ?? null) !== (r.confirmedAt ?? null) ||
+    // 어드민이 매장 모집을 열면(11-26) 그날로 일정을 다시 센다.
+    (c.plan?.recruitStart ?? null) !== (r.recruitStart ?? null)
   );
 }
 

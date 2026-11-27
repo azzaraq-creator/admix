@@ -1,10 +1,10 @@
 "use client";
 
-import { Button, Chip, Tabs } from "@heroui/react";
+import { Chip, Tabs } from "@heroui/react";
 import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { type ReactNode, useMemo, useState } from "react";
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
@@ -79,7 +79,6 @@ function todosOf(c: AdminCollabProgress, today: string): string[] {
  * 다음 일정이 가까운 순. 끝난(완료 · 취소) 콜라보는 콜라보 결과로 옮겨 간다.
  */
 export function CollabProgressView() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { data, isLoading } = useAdminCollabProgress();
   const [tab, setTab] = useState<Tab>(() => {
@@ -94,18 +93,8 @@ export function CollabProgressView() {
 
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
-      <CollabPageHead
-        title="콜라보 진행"
-        desc="끝나지 않은 콜라보예요. 다음 일정이 가까운 순서로 보여요. 끝난 콜라보는 콜라보 결과에 모여요."
-      >
-        <Button
-          variant="primary"
-          size="sm"
-          onPress={() => router.push("/admin/collab/collabs/new")}
-        >
-          새 콜라보
-        </Button>
-      </CollabPageHead>
+      {/* 안내 문구 · "새 콜라보" 버튼은 뺐다(11-26 사용자: "없애줘" · "이 버튼과 기능을 없애줘"). */}
+      <CollabPageHead title="콜라보 진행" />
 
       {isLoading ? (
         <LoadingState />
@@ -144,7 +133,7 @@ export function CollabProgressView() {
             <AdminPanel>
               <p className="py-[32px] text-center text-sm text-disabled">
                 {tab === "all"
-                  ? "진행 중인 콜라보가 없어요. 오른쪽 위 '새 콜라보'로 만들 수 있어요."
+                  ? "진행 중인 콜라보가 없어요."
                   : `${COLLAB_PHASE_LABEL[tab]} 콜라보가 없어요.`}
               </p>
             </AdminPanel>
@@ -230,10 +219,8 @@ function AdmixMakes({
           })}
         </ul>
       ) : (
-        <p className="text-sm text-disabled">
-          admix가 만들 항목이 없어요. 콜라보 수정 → 진행 항목에서 누가
-          준비하는지를 &apos;admix 제작&apos;으로 고르면 여기에 모여요.
-        </p>
+        // 없으면 짧게(11-26 사용자: "없으면 그냥 없다 … 짧고 간결하게" → 같은 날 "없어요."도 "- 로 바꿔줘").
+        <p className="text-sm text-disabled">-</p>
       )}
     </AdminPanel>
   );

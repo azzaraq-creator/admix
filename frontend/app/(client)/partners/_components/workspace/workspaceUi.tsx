@@ -212,7 +212,6 @@ export function StatusChip({
  * 모집 카드 색 기준 — "지금 이 매장이 무엇을 할 수 있나" 하나로 정한다(대시보드 · 콜라보 목록 공용).
  *   보라  신청할 수 있어요(기본 · 사이트 주 색과 같은 "할 수 있음")
  *   빨강  신청할 수 있지만 3일 안에 마감(서둘러야 함)
- *   주황  목표 매장이 다 차서 대기 신청만(확정 보장 없음 · 주의)
  *   회색  신청할 수 없어요(진행 중 콜라보와 기간이 겹침)
  * 배지 · 신청 막대 · 카드 테두리가 같은 색을 쓴다.
  */
@@ -229,11 +228,6 @@ export const RECRUIT_TONE: Record<
     badge: "bg-red-50 text-red-600 dark:bg-error-bg dark:text-error",
     bar: "bg-red-500",
     card: "border-red-100 dark:border-red-900/50",
-  },
-  waitlist: {
-    badge: "bg-amber-50 text-amber-700 dark:bg-warning-bg dark:text-warning",
-    bar: "bg-amber-400",
-    card: "",
   },
   // 신청 불가 — 납작하게: 바탕은 반투명 회색, 테두리도 반투명 흰색(마우스를 올려도 그대로, 11-08 사용자).
   // 모바일은 테두리를 회색(다크는 한 단계 밝은 회색)으로 — 반투명 흰 테두리는 바탕과 구분이 안 됐다(11-08 사용자).

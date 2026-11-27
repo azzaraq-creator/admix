@@ -351,30 +351,40 @@ function Week({
   );
 }
 
+/**
+ * 막대 — 단계 조각마다 날짜 칸에 딱 맞춰 그린다(2026-11-26 사용자: "칸이 잘 안 맞아"). 예전엔 막대 전체 폭을 일수 비율로
+ * 나눠(flex-grow) 양끝 여백 · 조각 사이 틈만큼 경계가 날짜 선에서 밀렸다. 이제 막대가 걸친 날짜 수만큼 같은 폭 칸을 다시 나누고
+ * (주 격자와 같은 폭) 조각을 그 칸에 놓는다. 조각 사이 틈 · 막대 양끝 여백을 같은 3px로(11-26 사용자: "끝과 끝에 살짝 여백을 동일하게 줘.
+ * 2~3px 정도?") — 틈은 날짜 선 양쪽 1.5px씩, 양끝은 3px 안쪽(앞뒤 주로 이어지면 0).
+ */
 function CalendarBar({ bar }: { bar: Bar }) {
   const { c, first, last, pieces, fromPrev, toNext } = bar;
   const titlePiece = titlePieceOf(pieces);
+  const span = last - first + 1;
   return (
     <Link
       href={`/admin/collab/collabs/${c.id}`}
       // 마우스를 올리면 단계별 날짜 전체, 화면 읽기 도구도 같은 글을 읽는다(막대 안 글자는 잘릴 수 있다).
       title={tooltipOf(c)}
       aria-label={tooltipOf(c).replaceAll("\n", ", ")}
-      style={{ gridColumn: `${first + 1} / span ${last - first + 1}` }}
+      style={{
+        gridColumn: `${first + 1} / span ${span}`,
+        gridTemplateColumns: `repeat(${span}, minmax(0, 1fr))`,
+      }}
       className={cn(
-        "flex min-w-0 gap-[2px] text-[11px] leading-none font-semibold transition-[filter] hover:brightness-95",
-        fromPrev ? "ml-0" : "ml-[4px]",
-        toNext ? "mr-0" : "mr-[4px]",
+        "grid min-w-0 text-[11px] leading-none font-semibold transition-[filter] hover:brightness-95",
         c.status === "draft" && "opacity-40",
       )}
     >
       {pieces.map((p, i) => (
         <span
           key={p.col}
-          style={{ flexGrow: p.len, flexBasis: 0 }}
+          style={{ gridColumn: `${p.col - first + 1} / span ${p.len}` }}
           className={cn(
             "flex min-w-0 items-center rounded-[6px] px-[8px]",
             p.seg ? SEG_TONE[p.seg] : "bg-transparent",
+            i === 0 ? (fromPrev ? "ml-0" : "ml-[3px]") : "ml-[1.5px]",
+            i === pieces.length - 1 ? (toNext ? "mr-0" : "mr-[3px]") : "mr-[1.5px]",
             i === 0 && fromPrev && "rounded-l-none",
             i === pieces.length - 1 && toNext && "rounded-r-none",
           )}

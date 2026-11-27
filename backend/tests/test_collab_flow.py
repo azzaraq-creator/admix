@@ -510,7 +510,8 @@ def test_reviewing_from_signup_waits_for_verify(db: Session, partner: User):
     assert cs.apply(db, partner, c["id"], str(store.id))["standing"] == "candidate"
 
 
-def test_reserve_and_withdraw(db: Session, partner: User):
+def test_over_target_still_applies_and_withdraw(db: Session, partner: User):
+    """목표 매장 수를 넘어도 예비가 아니라 신청함 — 신청 순서만 매긴다(11-26 선착순 · 예비 없앰)."""
     ps.ensure_partner_code(db, partner)
     ps.admin_biz_action(db, str(partner.id), "verify")
     db.refresh(partner)
@@ -519,7 +520,7 @@ def test_reserve_and_withdraw(db: Session, partner: User):
     c = _collab(db, target=1)
     cs.apply(db, partner, c["id"], str(s1.id))
     view = cs.apply(db, partner, c["id"], str(s2.id))
-    assert view["standing"] == "reserve" and view["slotNo"] == 1
+    assert view["standing"] == "candidate" and view["slotNo"] == 2
     cs.withdraw(db, partner, c["id"], str(s1.id))
     view = next(i for i in cs.list_for_store(db, partner, str(s2.id))["items"] if i["id"] == c["id"])
     assert view["standing"] == "candidate" and view["slotNo"] == 1

@@ -70,9 +70,11 @@ def test_admin_terminate_and_cancel(db: Session, partner):  # noqa: F811
     with pytest.raises(HTTPException):  # 해지 전 취소
         ps.admin_agreement_action(db, pid, "cancel")
     m = ps.admin_agreement_action(db, pid, "terminate")
-    # 지금 기간 끝(다음 갱신일)부터 효력 없음 · 아직은 유효
-    assert m["terminationEffectiveOn"] == renews and m["terminationRequestedAt"]
+    # 해지한 다음 날 00:00(KST)부터 효력 없음(11-26) · 오늘은 아직 유효 · 자동 갱신일은 더 셈하지 않아도 끝이 먼저
+    tomorrow = (datetime.now(KST).date() + timedelta(days=1)).isoformat()
+    assert m["terminationEffectiveOn"] == tomorrow and m["terminationRequestedAt"]
     assert m["agreementEnded"] is False
+    assert ps.agreement_term(partner, today=datetime.now(KST).date() + timedelta(days=1))["agreementEnded"] is True
     with pytest.raises(HTTPException):  # 두 번 해지
         ps.admin_agreement_action(db, pid, "terminate")
     m = ps.admin_agreement_action(db, pid, "cancel")

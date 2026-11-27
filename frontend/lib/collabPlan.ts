@@ -12,12 +12,15 @@ import {
   MIN_PREP_DAYS,
   PREP_LABEL,
   PREP_OF,
+  businessDaysBetween,
   checkpoints,
   estimateOf,
   estimateText,
+  kstDate,
   makeItems,
   mdw,
   requestPlanPreviewOf,
+  scheduleOf,
   typeOfPrep,
   type AdvCollab,
   type BaseItem,
@@ -26,7 +29,7 @@ import {
   type StoreRef,
 } from "@/lib/advertiserPreview";
 import type { CollabGrade, PartnersStore } from "@/lib/partners";
-import { PREVIEW_TODAY, addDays, periodDays } from "@/lib/partnersPreview";
+import { PREVIEW_TODAY, addDays, kst, periodDays } from "@/lib/partnersPreview";
 
 // ── 서버 모양 ─────────────────────────────────────────────────────────
 
@@ -111,6 +114,8 @@ export interface PlanBlock {
   original: PlanContent;
   rounds: PlanRound[];
   confirmedAt: string | null;
+  /** 실제 모집 시작일(YYYY-MM-DD, 11-26) — 어드민이 매장 모집을 연 날. 아직이면 null. */
+  recruitStart?: string | null;
 }
 
 /** 의뢰 상태 — submitted(접수) · proposed(admix 기획안 보냄) · revised(광고주가 고쳐 보냄) · confirmed · cancelled. */
@@ -226,15 +231,17 @@ export function versionsOf(b: PlanBlock, requestedAt?: string): PlanVersion[] {
 /**
  * 지금 펼쳐 볼 비교 — 마지막 차수(after)와 상대가 마지막으로 보낸 차수(before).
  * 같은 쪽이 잇달아 보냈으면(admix가 다시 고쳐 보냄) 그 사이 수정 이유를 모두 합친다(나중 글이 이긴다).
+ * at — 지난 차수를 펼쳐 볼 때 그 차수의 자리(versions 순서). 없으면 마지막 차수.
  */
-export function compareOf(b: PlanBlock, requestedAt?: string) {
+export function compareOf(b: PlanBlock, requestedAt?: string, at?: number) {
   const versions = versionsOf(b, requestedAt);
-  const after = versions[versions.length - 1];
-  let i = versions.length - 2;
+  const idx = at == null ? versions.length - 1 : Math.min(Math.max(at, 0), versions.length - 1);
+  const after = versions[idx];
+  let i = idx - 1;
   while (i >= 0 && versions[i].author === after.author) i--;
   const before = i >= 0 ? versions[i] : null;
   const notes: Record<string, string> = {};
-  for (const v of versions.slice(i + 1)) Object.assign(notes, v.notes);
+  for (const v of versions.slice(i + 1, idx + 1)) Object.assign(notes, v.notes);
   const changed = before ? changedKeys(before.content, after.content) : [];
   return { versions, before, after, notes, changed };
 }
@@ -286,7 +293,8 @@ export function fieldText(c: PlanContent, k: PlanFieldKey): string {
     case "midReport": {
       const m = midReportOf(c);
       if (!m) return "-";
-      return `${mdw(m.date)} · 진행 ${m.day}일차${c.midReport ? "" : "(기간의 50%)"}`;
+      // 고른 날이든 기본(기간 50%) 날이든 같은 모양(11-26 사용자: "(기간의 50%) 없애줘").
+      return `${mdw(m.date)} · 진행 ${m.day}일차`;
     }
     case "stores":
       return `최소 ${c.minStores}곳 · 목표 ${c.targetStores}곳`;
@@ -347,16 +355,18 @@ function scheduleInputOf(c: PlanContent): Parameters<typeof requestPlanPreviewOf
 
 /**
  * 고친 내용으로 예상 비용 · 일정을 다시 계산 — 의뢰서와 같은 계산(나머지 매장은 평균 금액 avg, 오늘 보내면 기준).
+ * requestDate — 처음 의뢰서를 낸 날(YYYY-MM-DD). 주면 admix 검토 7영업일을 그날부터 세고, 지났으면 오늘까지 늘린다
+ * (11-26 사용자: 기획안이 오갈 때마다 검토를 새로 세지 않는다 — 예전엔 보내는 날부터 7영업일). 없으면 오늘 의뢰한다고 친다.
  * 보낼 때 이 값을 차수에 함께 적는다(참고용).
  */
-export function derivedOf(c: PlanContent, avg: number, today = PREVIEW_TODAY) {
+export function derivedOf(c: PlanContent, avg: number, today = PREVIEW_TODAY, requestDate?: string) {
   const est = estimateOf(c.preferred.map(refOf), c.targetStores, avg);
-  const plan = requestPlanPreviewOf(scheduleInputOf(c), today);
+  const plan = requestPlanPreviewOf(scheduleInputOf(c), today, requestDate);
   const { s } = plan;
   return {
     estimate: { total: est.total, preferred: est.preferred, rest: est.rest, avg: est.avg, negotiable: est.negotiable },
     schedule: {
-      requestDate: today,
+      requestDate: requestDate ?? today,
       reviewEnd: addDays(s.noticeDate, -1),
       noticeDate: s.noticeDate,
       recruitEnd: s.recruitEnd,
@@ -374,6 +384,44 @@ export function derivedOf(c: PlanContent, avg: number, today = PREVIEW_TODAY) {
     earliest: plan.earliest,
     tight: plan.tight,
     makeReady: plan.makeReady,
+  };
+}
+
+/**
+ * 확정한 기획안의 일정 — 광고주가 확정한 날이 admix 검토가 끝난 날(승인일)이라 다음 날 모집 공지(11-26 사용자: 빨리 확정하면 앞당겨지고,
+ * 늦으면 검토가 길어진다). 차수에 적힌 일정은 그 차수를 보낸 때 기준이라, 확정 기획안 서류는 이걸로 다시 적는다.
+ * requestDate — 처음 의뢰한 날(YYYY-MM-DD), confirmedAt — 확정 시각(ISO).
+ * recruitStart — 어드민이 매장 모집을 연 날(11-26 사용자: "시작 누른 순간 바로 모집 시작 … 일정도 바뀌어야"). 있으면 그날이 모집 공지,
+ * 모집 마감 · 검토 · 확정이 그날부터 다시 센다. admix 검토 끝은 확정한 날(모집을 늦게 열어도 검토가 늘지 않게).
+ */
+export function confirmedScheduleOf(
+  c: PlanContent,
+  requestDate: string,
+  confirmedAt: string,
+  recruitStart?: string | null,
+) {
+  const input = scheduleInputOf(c);
+  const s = scheduleOf({
+    ...input,
+    requestedAt: kst(requestDate, "00:00"),
+    approvedAt: confirmedAt,
+    recruitStart: recruitStart ?? undefined,
+  });
+  return {
+    ...c.schedule,
+    requestDate,
+    reviewEnd: kstDate(confirmedAt),
+    noticeDate: s.noticeDate,
+    recruitEnd: s.recruitEnd,
+    confirmDue: s.confirmDue,
+    installStart: s.installStart,
+    installDays: s.installDays,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    midReport: s.checks[0]?.date,
+    removalDate: s.removalDate,
+    prepBusinessDays: Math.max(0, businessDaysBetween(addDays(s.confirmDue, 1), addDays(s.installStart, -1))),
+    makeItems: makeItems(input).length > 0,
   };
 }
 
@@ -453,9 +501,11 @@ export function roundPayloadOf(
   notes: Record<string, string>,
   baseRound: number,
   avg: number,
+  /** 처음 의뢰서를 낸 날 — 예상 일정의 admix 검토를 그날부터 센다(derivedOf). */
+  requestDate?: string,
 ): PlanRoundPayload {
   const { preferred, ...rest } = draft;
-  const d = derivedOf(draft, avg);
+  const d = derivedOf(draft, avg, undefined, requestDate);
   const keep = Object.fromEntries(
     Object.entries(notes)
       .map(([k, v]) => [k, v.trim()] as const)

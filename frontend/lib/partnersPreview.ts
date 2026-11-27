@@ -16,11 +16,13 @@ export const PREVIEW_TODAY = todayKst();
 
 export type CollabType = "ready" | "made";
 export type PhotoStep = "install" | "check1" | "check2" | "check3";
-/** 이 매장의 입장 — 신청 전 · 선정 후보 · 예비 · 확정 요청 받음 · 확정 · 기간 겹침 · 미참여 · 광고주 취소. */
+/**
+ * 이 매장의 입장 — 신청 전 · 신청함 · 확정 요청 받음 · 확정 · 기간 겹침 · 미참여 · 광고주 취소.
+ * 11-26 사용자: 선착순 · 예비(대기 신청)를 뺐다 — 신청 순으로 광고주에게 보이고 광고주가 직접 고른다. candidate = 신청함.
+ */
 export type Standing =
   | "none"
   | "candidate"
-  | "reserve"
   | "requested"
   | "confirmed"
   | "blocked"
@@ -81,7 +83,7 @@ export interface PreviewCollab {
   targetStores: number;
   appliedStores: number;
   standing: Standing;
-  /** 선정 후보 · 예비 순번. */
+  /** 신청 순서(광고주에게 보이는 순서) — 매장 화면엔 따로 보이지 않는다. */
   slotNo?: number;
   confirmNo?: string;
   confirmedAt?: string;
@@ -162,27 +164,24 @@ export function categoryOf(
     if (today >= c.installDate) return "ongoing";
     return "upcoming";
   }
-  if (["candidate", "reserve", "requested"].includes(c.standing))
+  if (["candidate", "requested"].includes(c.standing))
     return "upcoming";
   return today <= c.recruitEnd ? "recruiting" : null;
 }
 
-/** 모집이 찼으면 예비(대기) 신청. */
-export const isFull = (c: PreviewCollab) => c.appliedStores >= c.targetStores;
-
 /**
  * 모집 중 콜라보에서 "이 매장이 지금 무엇을 할 수 있나" — 대시보드 · 콜라보 목록 카드가 같은 기준을 쓴다.
- *   open 신청 가능 · closing 3일 안 마감 · waitlist 목표 매장이 차서 대기 신청만 · blocked 기간이 겹쳐 신청 불가
+ *   open 신청 가능 · closing 3일 안 마감 · blocked 기간이 겹쳐 신청 불가 · passed 미참여로 답함
+ * 목표 매장이 차도 신청을 받는다(광고주가 고름, 11-26) — 예전 waitlist(대기 신청)는 뺐다.
  */
 export type RecruitKind =
-  "open" | "closing" | "waitlist" | "blocked" | "passed";
+  "open" | "closing" | "blocked" | "passed";
 export function recruitKindOf(
   c: PreviewCollab,
   today = todayKst(),
 ): RecruitKind {
   if (c.standing === "blocked") return "blocked";
   if (c.standing === "passed") return "passed";
-  if (isFull(c)) return "waitlist";
   return diffDays(c.recruitEnd, today) <= 3 ? "closing" : "open";
 }
 
@@ -192,7 +191,6 @@ export function recruitBadgeOf(c: PreviewCollab, today = todayKst()) {
   return {
     blocked: "신청 불가",
     passed: "미참여",
-    waitlist: "대기 신청",
     closing: left === 0 ? "오늘 마감" : `마감 임박 D-${left}`,
     open: `모집 중 · D-${left}`,
   }[recruitKindOf(c, today)];
@@ -217,9 +215,7 @@ export function chipOf(
     case "blocked":
       return { label: "기간이 겹쳐요", tone: "gray" };
     case "candidate":
-      return { label: `신청함 · 후보 ${c.slotNo}번`, tone: "blue" };
-    case "reserve":
-      return { label: `대기 신청 · 예비 ${c.slotNo}번`, tone: "blue" };
+      return { label: "신청함", tone: "blue" };
     case "requested":
       return { label: "확정 요청 도착", tone: "amber" };
     case "confirmed":
@@ -229,9 +225,7 @@ export function chipOf(
     default: {
       const left = diffDays(c.recruitEnd, today);
       return {
-        label: isFull(c)
-          ? "목표 매장 참 · 대기 신청"
-          : `모집 중 · ${left === 0 ? "오늘 마감" : `D-${left}`}`,
+        label: `모집 중 · ${left === 0 ? "오늘 마감" : `D-${left}`}`,
         tone: "purple",
       };
     }
@@ -255,9 +249,7 @@ export function nextActionOf(c: PreviewCollab, today = todayKst()) {
     case "blocked":
       return "진행 중인 콜라보와 기간(설치~철수)이 겹쳐 신청할 수 없어요";
     case "candidate":
-      return `모집 마감(${md(c.recruitEnd)}) 후 광고주가 검토하고 확정 요청을 드려요`;
-    case "reserve":
-      return "빠지는 매장이 생기면 순서대로 확정 요청을 드려요";
+      return "광고주가 신청 매장을 보고 고르면 확정 요청을 드려요";
     case "requested":
       return `${kstStamp(c.confirmDue)}까지 진행 항목을 확인하고 최종 확정해 주세요`;
     case "declined":
@@ -278,9 +270,7 @@ export function nextActionOf(c: PreviewCollab, today = todayKst()) {
       }
       return `설치 ${md(c.installDate)} · admix가 방문 세팅해요`;
     default:
-      return isFull(c)
-        ? "참여하면 예비로 들어가요. 빠지는 매장이 생길 때 순서대로 연락드려요"
-        : `${md(c.recruitEnd)}까지 참여 · 미참여를 알려 주세요(선착순)`;
+      return `${md(c.recruitEnd)}까지 참여 · 미참여를 알려 주세요`;
   }
 }
 

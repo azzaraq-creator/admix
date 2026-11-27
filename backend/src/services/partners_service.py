@@ -2018,10 +2018,11 @@ def admin_update_member(db: Session, member_id: str, data: dict) -> dict:
     return admin_get_member(db, member_id)
 
 
-def admin_member_logins(db: Session, member_id: str, limit: int = 100) -> dict:
-    """제휴사 회원 로그인 기록(100, 2026-11-26 사용자: "회원을 선택하면 로그인 로그를 확인할 수 있게") — 최근 것부터."""
+def admin_member_logins(db: Session, member_id: str, page: int = 1, size: int = 10) -> dict:
+    """제휴사 회원 로그인 기록(100, 2026-11-26 사용자: "회원을 선택하면 로그인 로그를 확인할 수 있게") — 최근 것부터.
+    10줄씩 쪽을 넘겨 본다(11-26 사용자: "10개씩 페이지 넘겨서 볼 수 있게")."""
     user = _partner_or_404(db, member_id)
-    return login_log_service.recent(db, user.id, limit)
+    return login_log_service.recent(db, user.id, page, size)
 
 
 def admin_lookup_member(db: Session, code: str) -> dict:
@@ -2071,9 +2072,10 @@ AGREEMENT_ACTIONS = ("terminate", "cancel")
 
 
 def admin_agreement_action(db: Session, member_id: str, action: str) -> dict:
-    """기본협약 해지(갱신 거절) · 해지 취소(096, 2026-11-18 사용자).
-    해지 — 지금 기간이 끝나는 날(다음 자동 갱신일)까지는 유효하고 그날부터 끝난다. 이미 확정된 캠페인은 그대로(협약서).
-    취소 — 종료일 전에만, 다시 1년씩 자동 갱신으로 돌아간다."""
+    """기본협약 해지 · 해지 취소(096, 2026-11-18 사용자).
+    해지 — 해지한 날까지 유효하고 다음 날 00:00(KST)부터 끝난다(2026-11-26 사용자: "해지한 날 바로 다음날 00시 00분에
+    해지되게", 예전엔 다음 자동 갱신일까지 유효했다). 이미 확정된 캠페인은 그대로(협약서).
+    취소 — 끝나기 전(해지한 그날 안)에만, 다시 1년씩 자동 갱신으로 돌아간다."""
     if action not in AGREEMENT_ACTIONS:
         raise HTTPException(status_code=400, detail="알 수 없는 처리예요.")
     user = _partner_or_404(db, member_id)
@@ -2084,7 +2086,7 @@ def admin_agreement_action(db: Session, member_id: str, action: str) -> dict:
         if user.partner_termination_effective_on is not None:
             raise HTTPException(status_code=409, detail="이미 해지한 협약이에요.")
         user.partner_termination_requested_at = datetime.now(timezone.utc)
-        user.partner_termination_effective_on = date.fromisoformat(term["agreementRenewsOn"])
+        user.partner_termination_effective_on = datetime.now(_KST).date() + timedelta(days=1)
     else:
         if user.partner_termination_effective_on is None:
             raise HTTPException(status_code=409, detail="해지하지 않은 협약이에요.")

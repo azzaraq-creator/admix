@@ -1,5 +1,10 @@
 import type { AdminListParams } from "@/lib/adminList";
 import { api } from "@/lib/api";
+import type {
+  BizLicensePage,
+  BizLicenseParams,
+  BizLicenseZipParams,
+} from "@/lib/bizLicense";
 import type { MemberCategory } from "@/lib/memberCategory";
 
 export interface MemberListParams extends AdminListParams {
@@ -144,6 +149,26 @@ export const membersApi = {
       .then((r) => r.data),
   get: (id: string) =>
     api.get<MemberDetail>(`/admin/members/${id}`).then((r) => r.data),
+  /** 사업자등록증 모아 보기(11-26) — 파일을 올린 모든 회원, 최근 올린 것부터. */
+  bizLicenses: (params: BizLicenseParams) =>
+    api
+      .get<BizLicensePage>("/admin/members/business-registrations", { params })
+      .then((r) => r.data),
+  /** 조건에 맞는 사업자등록증 전부를 zip 하나로. */
+  bizLicensesZip: (params: BizLicenseZipParams) =>
+    api
+      .get<Blob>("/admin/members/business-registrations/download", {
+        params,
+        responseType: "blob",
+      })
+      .then((r) => r.data),
+  /** 사업자등록증 파일(원본) — 새 탭으로 열 때 blob 으로 받는다. */
+  bizLicenseFile: (id: string) =>
+    api
+      .get<Blob>(`/admin/members/${id}/business-registration/download`, {
+        responseType: "blob",
+      })
+      .then((r) => r.data),
   update: (id: string, payload: MemberUpdatePayload) =>
     api.patch<MemberDetail>(`/admin/members/${id}`, payload).then((r) => r.data),
   updateBizReg: (id: string, payload: BizRegUpdatePayload) =>

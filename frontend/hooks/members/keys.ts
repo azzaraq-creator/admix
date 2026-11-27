@@ -1,3 +1,5 @@
+import type { BizLicenseParams } from "@/lib/bizLicense";
+
 import type { MemberListParams } from "./apis";
 
 export const membersKeys = {
@@ -5,4 +7,6 @@ export const membersKeys = {
   list: (params?: MemberListParams) =>
     [...membersKeys.all, "list", params ?? {}] as const,
   detail: (id: string) => [...membersKeys.all, "detail", id] as const,
+  bizLicenses: (params: BizLicenseParams) =>
+    [...membersKeys.all, "bizLicenses", params] as const,
 };

@@ -2,9 +2,10 @@
 
 매장 화면이 보는 한 줄(serialize_for_store)은 예전 예시 데이터(frontend lib/partnersPreview.ts PreviewCollab)와 같은 모양이다.
 매장의 입장(standing)은 참여 기록에서 계산한다.
-  none 신청 전 · blocked 기간이 겹쳐 신청 불가 · candidate 선정 후보 n번 · reserve 예비 n번
+  none 신청 전 · blocked 기간이 겹쳐 신청 불가 · candidate 신청함(slotNo = 신청 순서)
   · requested 확정 요청 받음 · confirmed 최종 확정 · declined 미참여 · cancelled 취소
-후보 · 예비 순번은 신청 시각 순서(확정 요청 · 확정한 매장도 자리를 차지한다)로 목표 매장 수 안이면 후보, 넘으면 예비.
+2026-11-26 사용자: 선착순 선정 · 예비(대기 신청)를 뺐다 — 신청 순서대로 광고주에게 보이고 광고주가 직접 고른다
+(목표 매장 수를 넘어도 신청을 받는다). 예전 reserve 입장은 더 만들지 않는다.
 날짜는 한국 시간(KST) 기준.
 """
 from __future__ import annotations
@@ -30,7 +31,7 @@ KST = timezone(timedelta(hours=9))
 PHOTO_STEPS = ("install", "check1", "check2", "check3")
 CHECK_STEPS = ("check1", "check2", "check3")
 CHECK_PCTS = (0.25, 0.6, 0.9)
-# 자리를 차지하는 참여(후보 · 예비 순번을 셀 때 같이 센다).
+# 신청 순서를 셀 때 같이 세는 참여(확정 요청 · 확정한 매장도 순서를 지킨다).
 ACTIVE = ("applied", "requested", "confirmed")
 # 기간이 겹치면 다른 콜라보에 신청할 수 없게 하는 참여.
 HOLDING = ("requested", "confirmed")
@@ -123,10 +124,7 @@ def _standing(c: Collab, p: CollabParticipant | None, rank: int | None, blocked:
     if c.status == "cancelled" and p.status in ACTIVE:
         return "cancelled", None
     if p.status == "applied":
-        r = rank or 0
-        if r <= c.target_stores:
-            return "candidate", r
-        return "reserve", r - c.target_stores
+        return "candidate", rank or None
     return p.status, None
 
 
@@ -293,7 +291,7 @@ def _store_view(db: Session, user: User, store: PartnersStore, collab: Collab) -
 
 
 def apply(db: Session, user: User, collab_id: str, store_id: str) -> dict:
-    """선착순 신청 — 목표 매장 안이면 선정 후보, 넘으면 예비(대기 신청)."""
+    """참여 신청 — 신청 순서대로 광고주에게 보이고 광고주가 고른다(목표를 넘어도 받는다, 11-26)."""
     _ensure_agreed(user)
     _ensure_not_provisional(user, "신청")
     store = ps.own_store(db, user, store_id)
@@ -304,7 +302,7 @@ def apply(db: Session, user: User, collab_id: str, store_id: str) -> dict:
     if store.status != "active":
         raise HTTPException(status_code=400, detail="숨김 상태인 매장은 신청할 수 없어요. 담당자에게 문의해 주세요.")
     existing = _participant(db, collab, store)
-    # "미참여"로 답했어도 모집 기간 안이면 "참여"로 바꿀 수 있다 — 선착순 순서는 다시 누른 때로.
+    # "미참여"로 답했어도 모집 기간 안이면 "참여"로 바꿀 수 있다 — 신청 순서는 다시 누른 때로.
     if existing is not None and existing.status != "passed":
         raise HTTPException(status_code=409, detail="이미 신청한 콜라보예요.")
     holding = (
@@ -1063,7 +1061,7 @@ def admin_update_participant(db: Session, participant_id: str, data: dict) -> di
 
 
 def admin_bulk_status(db: Session, collab_id: str, participant_ids: list[str], status: str) -> dict:
-    """여러 매장에 한 번에 — 주로 선정 후보 모두에게 확정 요청 보내기."""
+    """여러 매장에 한 번에 — 주로 광고주가 고른 매장 모두에게 확정 요청 보내기."""
     c = _get_collab(db, collab_id)
     for pid in participant_ids:
         p = _get_participant(db, pid)
@@ -1269,4 +1267,6 @@ def admin_summary(db: Session) -> dict:
         # 광고주 콜라보 의뢰 — 접수된 수는 사이드 메뉴 "콜라보 의뢰" 옆 숫자, 안 연 수는 목록 다시 불러오기용(081).
         collabRequestsSubmitted=collab_request_service.submitted_count(db),
         collabRequestsNew=collab_request_service.new_count(db),
+        # 확정했는데 아직 매장 모집을 열지 않은 의뢰 — 사이드 메뉴 "매장 모집" 옆 숫자(11-26).
+        recruitReady=collab_request_service.recruit_ready_count(db),
     )

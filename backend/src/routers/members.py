@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 XLSX_MEDIA_TYPE = (
@@ -25,6 +25,7 @@ from src.schemas.member import (
 )
 from src.services import member_service
 from src.utils.deps import require_permission
+from src.utils.download import attachment
 
 router = APIRouter(prefix="/admin/members", tags=["members"])
 
@@ -70,6 +71,38 @@ def export_members(
             "Content-Disposition": 'attachment; filename="members.xlsx"'
         },
     )
+
+
+@router.get("/business-registrations")
+def list_business_registrations(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=60),
+    category: str | None = None,
+    status: str | None = None,
+    keyword: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> dict:
+    """사업자등록증 모아 보기(11-26) — 파일을 올린 모든 회원, 최근 올린 것부터. category 는 회원 유형 코드(general · partner …).
+    /{member_id} 보다 먼저 둔다(아니면 회원 id 로 읽혀 422)."""
+    total, items = member_service.list_business_licenses(
+        db, category=category, status=status, keyword=keyword, page=page, page_size=page_size
+    )
+    return {"total": total, "items": items}
+
+
+@router.get("/business-registrations/download")
+def download_business_registrations(
+    category: str | None = None,
+    status: str | None = None,
+    keyword: str | None = None,
+    db: Session = Depends(get_db),
+    _: Admin = Depends(require_permission("member")),
+) -> StreamingResponse:
+    """사업자등록증 한꺼번에 내려받기(11-26) — 목록과 같은 조건의 등록증 전부를 zip 하나로."""
+    out, _count = member_service.business_licenses_zip(db, category=category, status=status, keyword=keyword)
+    name, ascii_name = member_service.license_zip_names()
+    return attachment(out, name, ascii_name=ascii_name, media_type="application/zip")
 
 
 @router.get("/{member_id}", response_model=MemberDetail)

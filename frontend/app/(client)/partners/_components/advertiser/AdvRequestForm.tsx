@@ -103,13 +103,14 @@ const FLOW: [string, ReactNode][] = [
   [
     "검토 · 모집",
     <>
-      admix 승인(영업일 약 {ADMIX_REVIEW_DAYS}일) 뒤 바로 선착순 모집을 시작해요.
+      admix 승인(영업일 약 {ADMIX_REVIEW_DAYS}일) 뒤 바로 매장 모집을 시작해요.
     </>,
   ],
   [
-    "신청 매장 검토",
+    // 11-26 사용자: 선착순 대신 광고주가 직접 고른다 — 예전 "마감 뒤 … 제외 요청 · 예비 매장 미리 승인 …".
+    "신청 매장 고르기",
     <>
-      마감 뒤 신청 매장을 보고 제외 요청 · 예비 매장 미리 승인, 목표에 못 미치면 진행 방법을 골라요.
+      신청한 순서대로 보고 함께할 매장을 직접 골라요. 모집 중에도 고를 수 있어요. 목표에 못 미치면 진행 방법을 골라요.
     </>,
   ],
   [
@@ -1205,7 +1206,7 @@ function RequestForm({
                   ))}
                 </RadioGroup>
               </Field>
-              <Field label="매장 수" required error={errors.stores} hint="목표를 넘는 신청은 예비 순번이 돼요">
+              <Field label="매장 수" required error={errors.stores} hint="신청은 목표를 넘어도 받아요">
                 {/* 칸 너비는 세 자리(최대 200)에 맞춰 84 → 60px(11-16 사용자 "Input의 너비를 줄여줘"). */}
                 <div className="flex flex-wrap items-center gap-[8px] text-[13px] text-gray-500">
                   최소
